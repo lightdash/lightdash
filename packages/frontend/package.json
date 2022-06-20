@@ -9,6 +9,8 @@
         "@blueprintjs/popover2": "^1.4.1",
         "@blueprintjs/select": "^4.4.1",
         "@blueprintjs/table": "^4.3.1",
+        "@casl/ability": "^5.4.4",
+        "@casl/react": "^3.0.0",
         "@hookform/error-message": "^2.0.0",
         "@sentry/react": "^6.17.6",
         "@sentry/tracing": "^6.17.6",

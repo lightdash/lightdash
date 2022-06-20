@@ -1,9 +1,11 @@
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
+} from '../types/organizationMemberProfile';
+import {
     ProjectMemberProfile,
     ProjectMemberRole,
-} from '@lightdash/common';
+} from '../types/projectMemberProfile';
 
 export const orgProfile: OrganizationMemberProfile = {
     userUuid: 'user-uuid-1234',

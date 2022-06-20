@@ -1,17 +1,15 @@
-import { Ability } from '@casl/ability';
 import {
     ActivateUser,
     CreateUserArgs,
     CreateUserWithRole,
-    defineAbilityForOrganizationMember,
-    defineAbilityForProjectMember,
+    defineUserAbility,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
+    LightdashUserWithProjectRoles,
     NotExistsError,
     NotFoundError,
     OpenIdUser,
-    OrganizationMemberProfile,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -308,6 +306,24 @@ export class UserModel {
             .delete();
     }
 
+    private async getUserProjectRoles(
+        userId: number,
+    ): Promise<Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[]> {
+        const projectMemberships = await this.database('project_memberships')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select('*')
+            .where('user_id', userId);
+
+        return projectMemberships.map((membership) => ({
+            projectUuid: membership.project_uuid,
+            role: membership.role,
+        }));
+    }
+
     async findSessionUserByOpenId(
         issuer: string,
         subject: string,
@@ -325,29 +341,14 @@ export class UserModel {
             return user;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectRoles = await this.getUserProjectRoles(user.user_id);
 
         return {
             userId: user.user_id,
-            ability: defineAbilityForOrganizationMember(lightdashUser),
+            projectRoles,
+            ability: defineUserAbility(lightdashUser, projectRoles),
             ...lightdashUser,
         };
-    }
-
-    static mergeUserAbilities(
-        organizationProfile: OrganizationMemberProfile,
-        projectProfile: ProjectMemberProfile[],
-    ): Ability {
-        const orgAbility =
-            defineAbilityForOrganizationMember(organizationProfile);
-        const projectAbilities = projectProfile.map((profile) =>
-            defineAbilityForProjectMember(profile),
-        );
-
-        return new Ability(
-            orgAbility.rules.concat(
-                projectAbilities.flatMap((abilities) => abilities.rules),
-            ),
-        );
     }
 
     async createPendingUser(
@@ -474,10 +475,12 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectRoles = await this.getUserProjectRoles(user.user_id);
         return {
             ...lightdashUser,
             userId: user.user_id,
-            ability: defineAbilityForOrganizationMember(lightdashUser),
+            projectRoles,
+            ability: defineUserAbility(lightdashUser, projectRoles),
         };
     }
 
@@ -489,14 +492,18 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectRoles = await this.getUserProjectRoles(user.user_id);
         return {
             ...lightdashUser,
-            ability: defineAbilityForOrganizationMember(lightdashUser),
+            projectRoles,
+            ability: defineUserAbility(lightdashUser, projectRoles),
             userId: user.user_id,
         };
     }
 
-    static lightdashUserFromSession(sessionUser: SessionUser): LightdashUser {
+    static lightdashUserFromSession(
+        sessionUser: SessionUser,
+    ): LightdashUserWithProjectRoles {
         const { userId, ability, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }

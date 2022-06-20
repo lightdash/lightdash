@@ -1,21 +1,19 @@
 import { subject } from '@casl/ability';
-import { UserModel } from './UserModel';
+import { defineUserAbility } from './index';
 import {
     adminOrgProfile,
     adminProjectProfile,
     conditions as defaultConditions,
     orgProfile,
     projectProfile,
-} from './UserModel.mock';
+} from './index.mock';
 
-describe('Project member permissions', () => {
-    let ability = UserModel.mergeUserAbilities(orgProfile, [projectProfile]);
+describe('Lightdash member permissions', () => {
+    let ability = defineUserAbility(orgProfile, [projectProfile]);
     let conditions = defaultConditions;
     describe('when user is an org viewer and project viewer', () => {
         beforeEach(() => {
-            ability = UserModel.mergeUserAbilities(orgProfile, [
-                projectProfile,
-            ]);
+            ability = defineUserAbility(orgProfile, [projectProfile]);
         });
 
         it('can view org and project', async () => {
@@ -94,9 +92,7 @@ describe('Project member permissions', () => {
         // org admins and editors have `manage` permissions over all projects
         // within the org
         beforeEach(() => {
-            ability = UserModel.mergeUserAbilities(adminOrgProfile, [
-                projectProfile,
-            ]);
+            ability = defineUserAbility(adminOrgProfile, [projectProfile]);
             conditions = {
                 organizationUuid: adminOrgProfile.organizationUuid,
                 projectUuid: projectProfile.projectUuid,
@@ -145,9 +141,7 @@ describe('Project member permissions', () => {
 
     describe('when user is an org viewer and project admin', () => {
         beforeEach(() => {
-            ability = UserModel.mergeUserAbilities(orgProfile, [
-                adminProjectProfile,
-            ]);
+            ability = defineUserAbility(orgProfile, [adminProjectProfile]);
             conditions = {
                 organizationUuid: orgProfile.organizationUuid,
                 projectUuid: adminProjectProfile.projectUuid,
@@ -240,7 +234,7 @@ describe('Project member permissions', () => {
 
     describe('when user is viewer in one project but admin in another', () => {
         beforeEach(() => {
-            ability = UserModel.mergeUserAbilities(orgProfile, [
+            ability = defineUserAbility(orgProfile, [
                 projectProfile,
                 adminProjectProfile,
             ]);
@@ -364,6 +358,35 @@ describe('Project member permissions', () => {
                 ability.can(
                     'manage',
                     subject('Project', { ...conditionsProjectAdmin }),
+                ),
+            ).toEqual(true);
+        });
+    });
+
+    describe('when user is an org admin and has no project roles', () => {
+        // org admins and editors have `manage` permissions over all projects
+        // within the org
+        beforeEach(() => {
+            ability = defineUserAbility(adminOrgProfile, []);
+        });
+
+        it('can view project', async () => {
+            expect(ability.can('manage', 'Project')).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Project', {
+                        projectUuid: projectProfile.projectUuid,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: orgProfile.organizationUuid,
+                        projectUuid: projectProfile.projectUuid,
+                    }),
                 ),
             ).toEqual(true);
         });

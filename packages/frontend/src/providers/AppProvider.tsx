@@ -1,14 +1,15 @@
 import { Intent, SpinnerSize } from '@blueprintjs/core';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import { Ability } from '@casl/ability';
 import {
     ApiError,
     ApiHealthResults,
-    defineAbilityForOrganizationMember,
+    defineUserAbility,
     HealthState,
     Job,
     JobType,
-    LightdashUser,
-    OrganizationMemberAbility,
+    LightdashUserWithProjectRoles,
+    MemberAbility,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
@@ -29,6 +30,7 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { IntercomProvider } from 'react-use-intercom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
+import { AbilityContext } from '../components/common/Authorization';
 import { ToastSpinner } from '../components/ToastSpinner';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 import {
@@ -45,14 +47,17 @@ const getHealthState = async () =>
         body: undefined,
     });
 
-type User = LightdashUser & { ability: OrganizationMemberAbility };
+type User = LightdashUserWithProjectRoles & { ability: MemberAbility };
 const getUserState = async (): Promise<User> => {
-    const user = await lightdashApi<LightdashUser>({
+    const user = await lightdashApi<LightdashUserWithProjectRoles>({
         url: `/user`,
         method: 'GET',
         body: undefined,
     });
-    return { ...user, ability: defineAbilityForOrganizationMember(user) };
+    return {
+        ...user,
+        ability: defineUserAbility(user, user.projectRoles),
+    };
 };
 
 interface Message extends Omit<IToastProps, 'message'> {
@@ -302,7 +307,11 @@ export const AppProvider: FC = ({ children }) => {
                 apiBase={health.data?.intercom.apiBase || ''}
                 autoBoot
             >
-                {children}
+                <AbilityContext.Provider
+                    value={(user.data?.ability as any) || new Ability()}
+                >
+                    {children}
+                </AbilityContext.Provider>
             </IntercomProvider>
         </Context.Provider>
     );

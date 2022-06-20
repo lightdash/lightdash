@@ -31,6 +31,21 @@
         },
         "role": {
             "type": "string"
+        },
+        "projectRoles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    }
+                }
+            }
         }
     },
     "required": [

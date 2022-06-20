@@ -1,12 +1,29 @@
-import { subject } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { Organization } from '../types/organization';
-import { defineAbilityForOrganizationMember } from './organizationMemberAbility';
+import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
+import { organizationMemberAbilities } from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
     ORGANIZATION_EDITOR,
     ORGANIZATION_MEMBER,
     ORGANIZATION_VIEWER,
 } from './organizationMemberAbility.mock';
+import { MemberAbility } from './types';
+
+const defineAbilityForOrganizationMember = (
+    member:
+        | Pick<
+              OrganizationMemberProfile,
+              'role' | 'organizationUuid' | 'userUuid'
+          >
+        | undefined,
+): MemberAbility => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    if (member) {
+        organizationMemberAbilities[member.role](member, builder);
+    }
+    return builder.build();
+};
 
 describe('Organization member permissions', () => {
     let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
