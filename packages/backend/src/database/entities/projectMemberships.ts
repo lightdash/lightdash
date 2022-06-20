@@ -16,7 +16,12 @@ export type DbProjectMembershipIn = {
     role: ProjectMemberRole;
 };
 
+export type DbProjectMembershipUpdate = {
+    role: ProjectMemberRole;
+};
+
 export type ProjectMembershipsTable = Knex.CompositeTableType<
     DbProjectMembership,
-    DbProjectMembershipIn
+    DbProjectMembershipIn,
+    DbProjectMembershipUpdate
 >;

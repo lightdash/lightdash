@@ -435,7 +435,6 @@ export type CreateProjectMember = {
 };
 
 export type UpdateProjectMember = {
-    userUuid: string;
     role: ProjectMemberRole;
 };
 

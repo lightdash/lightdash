@@ -1,9 +1,5 @@
 import { Card, Intent } from '@blueprintjs/core';
-import {
-    CreateProjectMember,
-    OrganizationMemberRole,
-    ProjectMemberRole,
-} from '@lightdash/common';
+import { CreateProjectMember, ProjectMemberRole } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
@@ -86,7 +82,7 @@ const ProjectAccessCreation: FC<{
                     <RoleSelectButton
                         name="role"
                         disabled={isLoading}
-                        options={Object.values(OrganizationMemberRole).map(
+                        options={Object.values(ProjectMemberRole).map(
                             (orgMemberRole) => ({
                                 value: orgMemberRole,
                                 label: orgMemberRole,
