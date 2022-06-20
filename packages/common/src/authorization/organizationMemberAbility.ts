@@ -33,7 +33,12 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('view', 'Project', {
-            organizationUuid: member.organizationUuid,
+            organizationUuid: {
+                organizationUuid: {
+                    $eq: member.organizationUuid,
+                    $exists: true,
+                },
+            },
         });
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
@@ -43,7 +48,7 @@ export const organizationMemberAbilities: Record<
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
         can('manage', 'Project', {
-            organizationUuid: member.organizationUuid,
+            organizationUuid: { $eq: member.organizationUuid, $exists: true },
         });
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,

@@ -371,12 +371,25 @@ describe('Lightdash member permissions', () => {
         });
 
         it('can view project', async () => {
+            expect(ability.rules).toContainEqual({
+                action: 'manage',
+                subject: 'Project',
+                conditions: {
+                    organizationUuid: {
+                        $eq: adminOrgProfile.organizationUuid,
+                        $exists: true,
+                    },
+                },
+            });
+            const rule = ability.relevantRuleFor('manage', 'Project');
+
+            console.log('rule', rule);
             expect(ability.can('manage', 'Project')).toEqual(true);
             expect(
                 ability.can(
                     'manage',
                     subject('Project', {
-                        organizationUuid: orgProfile.organizationUuid,
+                        organizationUuid: adminOrgProfile.organizationUuid,
                     }),
                 ),
             ).toEqual(true);
@@ -387,12 +400,12 @@ describe('Lightdash member permissions', () => {
                         projectUuid: projectProfile.projectUuid,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
             expect(
                 ability.can(
                     'manage',
                     subject('Project', {
-                        organizationUuid: orgProfile.organizationUuid,
+                        organizationUuid: adminOrgProfile.organizationUuid,
                         projectUuid: projectProfile.projectUuid,
                     }),
                 ),
