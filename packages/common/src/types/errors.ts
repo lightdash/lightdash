@@ -279,3 +279,13 @@ export class AlreadyProcessingError extends LightdashError {
         });
     }
 }
+export class AlreadyExistsError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AlreadyExistsError',
+            statusCode: 409,
+            data: {},
+        });
+    }
+}

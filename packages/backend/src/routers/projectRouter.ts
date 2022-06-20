@@ -377,3 +377,73 @@ projectRouter.get(
         }
     },
 );
+
+projectRouter.get('/access', isAuthenticated, async (req, res, next) => {
+    try {
+        const results = await projectService.getProjectAccess(
+            req.user!,
+            req.params.projectUuid,
+        );
+        res.json({
+            status: 'ok',
+            results,
+        });
+    } catch (e) {
+        next(e);
+    }
+});
+
+projectRouter.post('/access', isAuthenticated, async (req, res, next) => {
+    try {
+        const results = await projectService.createProjectAccess(
+            req.user!,
+            req.params.projectUuid,
+            req.body,
+        );
+        res.json({
+            status: 'ok',
+            results,
+        });
+    } catch (e) {
+        next(e);
+    }
+});
+projectRouter.patch(
+    '/access/:userUuid',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.updateProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+                req.params.userUuid,
+                req.body,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+projectRouter.delete(
+    '/access/:userUuid',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.deleteProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+                req.params.userUuid,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

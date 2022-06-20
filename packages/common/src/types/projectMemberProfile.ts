@@ -8,6 +8,9 @@ export type ProjectMemberProfile = {
     userUuid: string;
     projectUuid: string;
     role: ProjectMemberRole;
+    email: string;
+    firstName: string;
+    lastName: string;
 };
 
 export type ProjectMemberProfileUpdate = Partial<

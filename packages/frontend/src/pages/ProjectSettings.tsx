@@ -7,15 +7,18 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
+import ProjectAccess from '../components/ProjectAccess/ProjectAccess';
+import ProjectAccessCreation from '../components/ProjectAccess/ProjectAccessCreation';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
+import { useApp } from '../providers/AppProvider';
 import {
     Title,
     UpdateHeaderWrapper,
@@ -25,12 +28,19 @@ import {
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
+    const { user } = useApp();
 
+    const [projectAccessCreate, setProjectAccessCreate] =
+        useState<boolean>(false);
     const basePath = useMemo(
         () => `/projects/${projectUuid}/settings`,
         [projectUuid],
     );
 
+    const isOrgAdmin = user.data?.ability.can(
+        'manage',
+        'OrganizationMemberProfile',
+    );
     if (error) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -64,6 +74,14 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
+                    {isOrgAdmin && <MenuDivider />}
+                    {isOrgAdmin && (
+                        <RouterMenuItem
+                            text="Project access"
+                            exact
+                            to={`${basePath}/projectAccess`}
+                        />
+                    )}
                 </Menu>
             </Sidebar>
 
@@ -106,6 +124,31 @@ const ProjectSettings: FC = () => {
                         </UpdateProjectWrapper>
                     </Content>
                 </Route>
+                {isOrgAdmin && (
+                    <Route
+                        exact
+                        path="/projects/:projectUuid/settings/projectAccess"
+                    >
+                        <Content>
+                            <Title>
+                                Project access (only visible to Project Admins)
+                            </Title>
+                            {projectAccessCreate ? (
+                                <ProjectAccessCreation
+                                    onBackClick={() => {
+                                        setProjectAccessCreate(false);
+                                    }}
+                                />
+                            ) : (
+                                <ProjectAccess
+                                    onAddUser={() => {
+                                        setProjectAccessCreate(true);
+                                    }}
+                                />
+                            )}
+                        </Content>
+                    </Route>
+                )}
                 <Redirect to={basePath} />
             </Switch>
         </PageWithSidebar>
