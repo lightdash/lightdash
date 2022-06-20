@@ -42,4 +42,3 @@ export const EmailForm = styled(FormGroup)`
         color: #5c7080;
     }
 `;
-
