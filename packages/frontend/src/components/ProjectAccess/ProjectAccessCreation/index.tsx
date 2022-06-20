@@ -1,4 +1,5 @@
 import { Card, Intent } from '@blueprintjs/core';
+import { Suggest2 } from '@blueprintjs/select';
 import { CreateProjectMember, ProjectMemberRole } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -7,10 +8,8 @@ import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess'
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { isValidEmail } from '../../../utils/fieldValidators';
 import {
     BackButton,
-    EmailInput,
     Panel,
     ProjectAccessForm,
     RoleSelectButton,
@@ -67,7 +66,8 @@ const ProjectAccessCreation: FC<{
                     methods={methods}
                     onSubmit={handleSubmit}
                 >
-                    <EmailInput
+                    <Suggest2 />
+                    {/* <EmailInput
                         name="email"
                         label="Enter user email address"
                         placeholder="example@gmail.com"
@@ -78,7 +78,7 @@ const ProjectAccessCreation: FC<{
                                 isValidEmail: isValidEmail('Email'),
                             },
                         }}
-                    />
+                    />*/}
                     <RoleSelectButton
                         name="role"
                         disabled={isLoading}
