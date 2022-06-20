@@ -1,6 +1,7 @@
 import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
 import {
     OrganizationMemberProfile,
+    OrganizationMemberRole,
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
@@ -127,6 +128,15 @@ const ProjectAccess: FC<{
     const { data: projectMemberships } = useProjectAccess(projectUuid);
     const { data: organizationUsers } = useOrganizationUsers();
 
+    const projectMemberEmails = projectMemberships?.map(
+        (projectMember) => projectMember.email,
+    );
+
+    const inheritedPermissions = organizationUsers?.filter(
+        (orgUser) =>
+            !projectMemberEmails?.includes(orgUser.email) &&
+            orgUser.role !== OrganizationMemberRole.MEMBER,
+    );
     return (
         <ProjectAccessWrapper>
             {projectMemberships?.map((projectMember) => (
@@ -147,17 +157,17 @@ const ProjectAccess: FC<{
                 onClick={onAddUser}
                 text="Add user"
             />
-            {organizationUsers && (
+            {inheritedPermissions && (
                 <OrgAccess>
                     <OrgAccessHeader>
                         <OrgAccessTitle>Inherited permissions </OrgAccessTitle>
                         <OrgAccessCounter>
-                            {organizationUsers.length} can see this project
+                            {inheritedPermissions.length} can see this project
                         </OrgAccessCounter>
                     </OrgAccessHeader>
                     <Separator />
 
-                    {organizationUsers?.map((orgUser) => (
+                    {inheritedPermissions?.map((orgUser) => (
                         <UserListItem key={orgUser.email} user={orgUser} />
                     ))}
                 </OrgAccess>
