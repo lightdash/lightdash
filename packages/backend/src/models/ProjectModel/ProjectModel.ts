@@ -562,6 +562,7 @@ export class ProjectModel {
                 role,
                 user_id: user.user_id,
             });
+
         } catch (error: any) {
             if (
                 error instanceof DatabaseError &&

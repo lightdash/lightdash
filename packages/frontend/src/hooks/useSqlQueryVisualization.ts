@@ -3,6 +3,7 @@ import {
     ChartConfig,
     ChartType,
     CompiledDimension,
+    CreateSavedChartVersion,
     Explore,
     fieldId,
     FieldId,
@@ -52,31 +53,34 @@ const useSqlQueryVisualization = ({
         return Object.keys(sqlQueryDimensions);
     }, [sqlQueryDimensions]);
 
-    const resultsData: ApiQueryResults = useMemo(
-        () => ({
-            metricQuery: {
-                dimensions: dimensions,
-                metrics: [],
-                filters: {},
-                sorts: [],
-                limit: 0,
-                tableCalculations: [],
-            },
-            rows: (data?.rows || []).map((row) =>
-                Object.keys(row).reduce((acc, columnName) => {
-                    const raw = row[columnName];
-                    return {
-                        ...acc,
-                        [`${SQL_RESULTS_TABLE_NAME}_${columnName}`]: {
-                            value: {
-                                raw,
-                                formatted: `${raw}`,
-                            },
-                        },
-                    };
-                }, {}),
-            ),
-        }),
+    const resultsData: ApiQueryResults | undefined = useMemo(
+        () =>
+            data?.rows
+                ? {
+                      metricQuery: {
+                          dimensions: dimensions,
+                          metrics: [],
+                          filters: {},
+                          sorts: [],
+                          limit: 0,
+                          tableCalculations: [],
+                      },
+                      rows: data.rows.map((row) =>
+                          Object.keys(row).reduce((acc, columnName) => {
+                              const raw = row[columnName];
+                              return {
+                                  ...acc,
+                                  [`${SQL_RESULTS_TABLE_NAME}_${columnName}`]: {
+                                      value: {
+                                          raw,
+                                          formatted: `${raw}`,
+                                      },
+                                  },
+                              };
+                          }, {}),
+                      ),
+                  }
+                : undefined,
         [data?.rows, dimensions],
     );
     const explore: Explore = useMemo(
@@ -113,27 +117,30 @@ const useSqlQueryVisualization = ({
         initialState?.pivotConfig?.columns,
     );
 
-    const createSavedChart = useMemo(
-        () => ({
-            tableName: explore.name,
-            metricQuery: resultsData.metricQuery,
-            pivotConfig: pivotFields
+    const createSavedChart: CreateSavedChartVersion | undefined = useMemo(
+        () =>
+            resultsData
                 ? {
-                      columns: pivotFields,
+                      tableName: explore.name,
+                      metricQuery: resultsData.metricQuery,
+                      pivotConfig: pivotFields
+                          ? {
+                                columns: pivotFields,
+                            }
+                          : undefined,
+                      chartConfig: getValidChartConfig(chartType, chartConfig),
+                      tableConfig: {
+                          columnOrder: dimensions,
+                      },
                   }
                 : undefined,
-            chartConfig: getValidChartConfig(chartType, chartConfig),
-            tableConfig: {
-                columnOrder: dimensions,
-            },
-        }),
         [
             chartConfig,
             chartType,
             dimensions,
             explore.name,
             pivotFields,
-            resultsData.metricQuery,
+            resultsData,
         ],
     );
 

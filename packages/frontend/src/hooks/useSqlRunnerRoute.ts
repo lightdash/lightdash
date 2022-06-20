@@ -14,11 +14,15 @@ export const getSqlRunnerUrlFromCreateSavedChartVersion = (
     sqlRunnerState: SqlRunnerState,
 ): { pathname: string; search: string } => {
     const newParams = new URLSearchParams();
-    newParams.set(
-        'create_saved_chart_version',
-        JSON.stringify(sqlRunnerState.createSavedChart),
-    );
-    newParams.set('sql_runner', JSON.stringify(sqlRunnerState.sqlRunner));
+    if (sqlRunnerState.createSavedChart) {
+        newParams.set(
+            'create_saved_chart_version',
+            JSON.stringify(sqlRunnerState.createSavedChart),
+        );
+    }
+    if (sqlRunnerState.sqlRunner) {
+        newParams.set('sql_runner', JSON.stringify(sqlRunnerState.sqlRunner));
+    }
     return {
         pathname: `/projects/${projectUuid}/sqlRunner`,
         search: newParams.toString(),

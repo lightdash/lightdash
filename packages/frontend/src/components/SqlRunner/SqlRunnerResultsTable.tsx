@@ -31,7 +31,7 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 
 const SqlRunnerResultsTable: FC<{
     onSubmit: () => void;
-    resultsData: ApiQueryResults;
+    resultsData: ApiQueryResults | undefined;
     dataColumns: Column<{ [col: string]: any }>[];
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
 }> = ({
