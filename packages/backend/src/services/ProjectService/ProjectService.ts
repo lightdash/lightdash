@@ -6,6 +6,7 @@ import {
     countTotalFilterRules,
     CreateJob,
     CreateProject,
+    CreateProjectMember,
     Explore,
     ExploreError,
     fieldId,
@@ -28,11 +29,13 @@ import {
     NotFoundError,
     Project,
     ProjectCatalog,
+    ProjectMemberProfile,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
+    UpdateProjectMember,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
@@ -856,5 +859,52 @@ export class ProjectService {
 
         const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
         return spaces.some((space) => space.queries.length > 0);
+    }
+
+    async getProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectMemberProfile[]> {
+        // TODO implement permissions
+        return this.projectModel.getProjectAccess(projectUuid);
+    }
+
+    async createProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        data: CreateProjectMember,
+    ): Promise<void> {
+        // TODO implement permissions
+
+        await this.projectModel.createProjectAccess(
+            projectUuid,
+            data.email,
+            data.role,
+        );
+    }
+
+    async updateProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        userUuid: string,
+        data: UpdateProjectMember,
+    ): Promise<void> {
+        // TODO implement permissions
+
+        await this.projectModel.updateProjectAccess(
+            projectUuid,
+            userUuid,
+            data.role,
+        );
+    }
+
+    async deleteProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        // TODO implement permissions
+
+        await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
     }
 }

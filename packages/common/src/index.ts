@@ -42,6 +42,10 @@ import {
     CreatePersonalAccessToken,
     PersonalAccessToken,
 } from './types/personalAccessToken';
+import {
+    ProjectMemberProfile,
+    ProjectMemberRole,
+} from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -425,6 +429,15 @@ export type TablesConfiguration = {
     };
 };
 
+export type CreateProjectMember = {
+    email: string;
+    role: ProjectMemberRole;
+};
+
+export type UpdateProjectMember = {
+    role: ProjectMemberRole;
+};
+
 export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];
@@ -599,7 +612,8 @@ type ApiResults =
     | ApiJobStartedResults
     | ApiCreateUserTokenResults
     | CreatePersonalAccessToken
-    | PersonalAccessToken;
+    | PersonalAccessToken
+    | ProjectMemberProfile[];
 
 export type ApiResponse = {
     status: 'ok';

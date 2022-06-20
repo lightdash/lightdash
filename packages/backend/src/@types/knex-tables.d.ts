@@ -55,6 +55,10 @@ import {
     PersonalAccessTokenTableName,
 } from '../database/entities/personalAccessTokens';
 import {
+    ProjectMembershipsTable,
+    ProjectMembershipsTableName,
+} from '../database/entities/projectMemberships';
+import {
     CachedExploresTable,
     CachedExploresTableName,
     CachedWarehouseTable,
@@ -115,5 +119,6 @@ declare module 'knex/types/tables' {
         [JobsTableName]: JobsTable;
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
+        [ProjectMembershipsTableName]: ProjectMembershipsTable;
     }
 }

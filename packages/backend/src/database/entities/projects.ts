@@ -5,7 +5,7 @@ export const ProjectTableName = 'projects';
 export const CachedExploresTableName = 'cached_explores';
 export const CachedWarehouseTableName = 'cached_warehouse';
 
-type DbProject = {
+export type DbProject = {
     project_id: number;
     project_uuid: string;
     name: string;
