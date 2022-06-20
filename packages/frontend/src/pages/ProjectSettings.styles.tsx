@@ -5,6 +5,7 @@ export const UpdateProjectWrapper = styled.div`
     display: flex;
     flex-direction: column;
     flex: 1;
+    overflow-y: scroll;
 `;
 
 export const UpdateHeaderWrapper = styled.div`
@@ -20,4 +21,13 @@ export const Title = styled(H3)<{ marginBottom?: boolean }>`
         css`
             margin: 0 0 20px;
         `}
+`;
+
+export const ProjectConnectionContainer = styled.div`
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100vw;
+    height: calc(100vh - 50px) !important;
 `;
