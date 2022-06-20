@@ -47,7 +47,8 @@
         "styled-components": "^5.3.3",
         "typescript": "^4.5.5",
         "uuid": "^8.3.2",
-        "web-vitals": "^2.1.4"
+        "web-vitals": "^2.1.4",
+        "@casl/ability": "^5.4.3"
     },
     "scripts": {
         "start": "GENERATE_SOURCEMAP=false react-scripts start",

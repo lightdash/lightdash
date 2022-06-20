@@ -88,6 +88,7 @@ export class ProjectService {
                 'view',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
+                    projectUuid,
                 }),
             )
         ) {
@@ -851,7 +852,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();

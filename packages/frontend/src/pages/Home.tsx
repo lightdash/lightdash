@@ -3,7 +3,6 @@ import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
-import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import {
@@ -26,10 +25,6 @@ const Home: FC = () => {
 
     const error = onboarding.error || project.error || savedChartStatus.error;
     useUnmount(() => onboarding.remove());
-
-    if (user.data?.ability?.cannot('view', 'SavedChart')) {
-        return <ForbiddenPanel />;
-    }
 
     if (isLoading) {
         return (

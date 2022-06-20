@@ -11,7 +11,6 @@ import {
     NotExistsError,
     NotFoundError,
     OpenIdUser,
-    OrganizationMemberProfile,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -42,6 +41,7 @@ import {
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
+import { DbProjectMembership } from '../database/entities/projectMemberships';
 import {
     DbUser,
     DbUserIn,
@@ -325,16 +325,22 @@ export class UserModel {
             return user;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectProfiles = await this.getProjectPermissionsForUser(
+            user.user_uuid,
+        );
 
         return {
             userId: user.user_id,
-            ability: defineAbilityForOrganizationMember(lightdashUser),
+            ability: UserModel.mergeUserAbilities(
+                lightdashUser,
+                projectProfiles,
+            ),
             ...lightdashUser,
         };
     }
 
     static mergeUserAbilities(
-        organizationProfile: OrganizationMemberProfile,
+        organizationProfile: LightdashUser,
         projectProfile: ProjectMemberProfile[],
     ): Ability {
         const orgAbility =
@@ -474,10 +480,16 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectProfiles = await this.getProjectPermissionsForUser(
+            user.user_uuid,
+        );
         return {
             ...lightdashUser,
             userId: user.user_id,
-            ability: defineAbilityForOrganizationMember(lightdashUser),
+            ability: UserModel.mergeUserAbilities(
+                lightdashUser,
+                projectProfiles,
+            ),
         };
     }
 
@@ -489,9 +501,15 @@ export class UserModel {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const projectProfiles = await this.getProjectPermissionsForUser(
+            user.user_uuid,
+        );
         return {
             ...lightdashUser,
-            ability: defineAbilityForOrganizationMember(lightdashUser),
+            ability: UserModel.mergeUserAbilities(
+                lightdashUser,
+                projectProfiles,
+            ),
             userId: user.user_id,
         };
     }
@@ -546,5 +564,33 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
+    }
+
+    async getProjectPermissionsForUser(
+        userUuid: string,
+    ): Promise<ProjectMemberProfile[]> {
+        const projectMemberships = await this.database('project_memberships')
+            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .leftJoin('emails', 'emails.user_id', 'users.user_id')
+            .leftJoin(
+                'projects',
+                'project_memberships.project_id',
+                'projects.project_id',
+            )
+            .select<
+                (DbProjectMembership &
+                    DbUser & { project_uuid: string } & { email: string })[]
+            >()
+            .where('user_uuid', userUuid)
+            .andWhere('is_primary', true);
+
+        return projectMemberships.map((membership) => ({
+            userUuid: membership.user_uuid,
+            email: membership.email,
+            role: membership.role,
+            firstName: membership.first_name,
+            projectUuid: membership.project_uuid,
+            lastName: membership.last_name,
+        }));
     }
 }
