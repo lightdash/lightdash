@@ -71,7 +71,13 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
-                    <Can I="manage" this={subject('Project', { projectUuid })}>
+                    <Can
+                        I="manage"
+                        this={subject('Project', {
+                            organizationUuid: data.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
                         <MenuDivider />
                         <RouterMenuItem
                             text="Project access"
@@ -121,7 +127,13 @@ const ProjectSettings: FC = () => {
                         </UpdateProjectWrapper>
                     </ProjectConnectionContainer>
                 </Route>
-                <Can I="manage" this={subject('Project', { projectUuid })}>
+                <Can
+                    I="manage"
+                    this={subject('Project', {
+                        organizationUuid: data.organizationUuid,
+                        projectUuid,
+                    })}
+                >
                     <Route
                         exact
                         path="/projects/:projectUuid/settings/projectAccess"

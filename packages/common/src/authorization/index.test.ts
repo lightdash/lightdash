@@ -381,9 +381,6 @@ describe('Lightdash member permissions', () => {
                     },
                 },
             });
-            const rule = ability.relevantRuleFor('manage', 'Project');
-
-            console.log('rule', rule);
             expect(ability.can('manage', 'Project')).toEqual(true);
             expect(
                 ability.can(

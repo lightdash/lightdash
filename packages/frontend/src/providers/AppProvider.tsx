@@ -307,9 +307,7 @@ export const AppProvider: FC = ({ children }) => {
                 apiBase={health.data?.intercom.apiBase || ''}
                 autoBoot
             >
-                <AbilityContext.Provider
-                    value={(user.data?.ability as any) || new Ability()}
-                >
+                <AbilityContext.Provider value={new Ability()}>
                     {children}
                 </AbilityContext.Provider>
             </IntercomProvider>

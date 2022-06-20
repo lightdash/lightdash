@@ -5,14 +5,13 @@ import { organizationMemberAbilities } from './organizationMemberAbility';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { MemberAbility } from './types';
 
-// eslint-disable-next-line import/prefer-default-export
-export const defineUserAbility = (
+export const getUserAbilityBuilder = (
     organizationProfile: Pick<
         OrganizationMemberProfile,
         'role' | 'organizationUuid' | 'userUuid'
     >,
     projectProfiles: Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[],
-): MemberAbility => {
+) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (organizationProfile) {
         organizationMemberAbilities[organizationProfile.role](
@@ -23,6 +22,16 @@ export const defineUserAbility = (
     projectProfiles.forEach((projectProfile) => {
         projectMemberAbilities[projectProfile.role](projectProfile, builder);
     });
+    return builder;
+};
 
+export const defineUserAbility = (
+    organizationProfile: Pick<
+        OrganizationMemberProfile,
+        'role' | 'organizationUuid' | 'userUuid'
+    >,
+    projectProfiles: Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[],
+): MemberAbility => {
+    const builder = getUserAbilityBuilder(organizationProfile, projectProfiles);
     return builder.build();
 };
