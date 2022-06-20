@@ -376,6 +376,14 @@ describe('Lightdash member permissions', () => {
                 ability.can(
                     'manage',
                     subject('Project', {
+                        organizationUuid: orgProfile.organizationUuid,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Project', {
                         projectUuid: projectProfile.projectUuid,
                     }),
                 ),
