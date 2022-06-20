@@ -3,6 +3,7 @@ import {
     CartesianSeriesType,
     Field,
     getItemId,
+    isDimension,
     isSeriesWithMixedChartTypes,
     TableCalculation,
 } from '@lightdash/common';
@@ -82,6 +83,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         (item) => getItemId(item) === pivotDimension,
     );
 
+    const availableDimensions = useMemo(() => {
+        return items.filter((item) => isDimension(item));
+    }, [items]);
+
     return (
         <>
             <AxisGroup>
@@ -149,7 +154,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 <AxisTitle>Group</AxisTitle>
                 <AxisFieldDropdown>
                     <FieldAutoComplete
-                        fields={items}
+                        fields={availableDimensions}
                         placeholder="Select a field to group by"
                         activeField={groupSelectedField}
                         onChange={(item) => {
