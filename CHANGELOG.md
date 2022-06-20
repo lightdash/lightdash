@@ -1,3 +1,16 @@
+# [0.149.0](https://github.com/lightdash/lightdash/compare/0.148.2...0.149.0) (2022-06-20)
+
+
+### Bug Fixes
+
+* keep series config in sql runner url ([#2461](https://github.com/lightdash/lightdash/issues/2461)) ([5b9d4e2](https://github.com/lightdash/lightdash/commit/5b9d4e2869d5e0271c6b9e10eb0ce0fb74ebfb60))
+
+
+### Features
+
+* cross-filter on left-click ([#2468](https://github.com/lightdash/lightdash/issues/2468)) ([6115541](https://github.com/lightdash/lightdash/commit/61155417c9487c382dbb7a707b9310c5699c1c7c))
+* project access settings ([#2458](https://github.com/lightdash/lightdash/issues/2458)) ([30ba849](https://github.com/lightdash/lightdash/commit/30ba84930682cd4465935e3520fe0a3090e9fa99))
+
 ## [0.148.2](https://github.com/lightdash/lightdash/compare/0.148.1...0.148.2) (2022-06-17)
 
 
