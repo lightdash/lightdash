@@ -9,7 +9,7 @@ import {
 import { useMemo } from 'react';
 
 type Args = {
-    resultsData: ApiQueryResults;
+    resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<FieldId, CompiledDimension>;
 };
 
