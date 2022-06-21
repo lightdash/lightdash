@@ -33,9 +33,7 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('view', 'Project', {
-            organizationUuid: {
-                organizationUuid: member.organizationUuid,
-            },
+            organizationUuid: member.organizationUuid,
         });
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
