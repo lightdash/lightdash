@@ -1,3 +1,10 @@
+# [0.151.0](https://github.com/lightdash/lightdash/compare/0.150.4...0.151.0) (2022-06-21)
+
+
+### Features
+
+* autocomplete emails projectsettings ([#2471](https://github.com/lightdash/lightdash/issues/2471)) ([d09fd23](https://github.com/lightdash/lightdash/commit/d09fd239ae293dd732ae0cebfc97f1ae35157b02))
+
 ## [0.150.4](https://github.com/lightdash/lightdash/compare/0.150.3...0.150.4) (2022-06-21)
 
 
