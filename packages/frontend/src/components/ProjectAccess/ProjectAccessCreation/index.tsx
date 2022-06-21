@@ -110,7 +110,6 @@ const ProjectAccessCreation: FC<{
                             }}
                             query={emailSelected}
                             onQueryChange={(query: string) => {
-                                console.log('query change', query);
                                 setEmailSelected(query);
                             }}
                             inputProps={{
