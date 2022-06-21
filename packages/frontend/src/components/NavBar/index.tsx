@@ -83,9 +83,7 @@ const NavBar = () => {
                         </>
                     )}
 
-                    <NavLink
-                        to={`/projects/${selectedProjectUuid}/generalSettings`}
-                    >
+                    <NavLink to={`/generalSettings`}>
                         <Button
                             minimal
                             icon="cog"
@@ -135,14 +133,11 @@ const NavBar = () => {
                                     'create',
                                     'InviteLink',
                                 ) ? (
-                                    <NavLink
-                                        to={`/projects/${selectedProjectUuid}/generalSettings/userManagement?to=invite`}
-                                    >
-                                        <MenuItem
-                                            icon="new-person"
-                                            text="Invite user"
-                                        />
-                                    </NavLink>
+                                    <MenuItem
+                                        href={`/generalSettings/userManagement?to=invite`}
+                                        icon="new-person"
+                                        text="Invite user"
+                                    />
                                 ) : null}
                                 <MenuItem
                                     icon="log-out"

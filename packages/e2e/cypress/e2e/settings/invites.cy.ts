@@ -1,5 +1,3 @@
-import { SEED_PROJECT } from '@lightdash/common';
-
 describe('Settings - Invites', () => {
     beforeEach(() => {
         cy.login();
@@ -8,7 +6,6 @@ describe('Settings - Invites', () => {
 
     it('Should invite user', () => {
         cy.get('[data-cy="settings-button"]').click();
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/generalSettings`);
         cy.contains('Organization settings').click();
         cy.contains('User management').click();
         cy.contains('Add user').click();
@@ -39,7 +36,6 @@ describe('Settings - Invites', () => {
 
     it('Should delete user', () => {
         cy.get('[data-cy="settings-button"]').click();
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/generalSettings`);
         cy.contains('Organization settings').click();
         cy.contains('User management').click();
         cy.findByText('marygreen@lightdash.com')

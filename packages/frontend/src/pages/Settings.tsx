@@ -1,12 +1,6 @@
 import { Collapse, NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { Children, FC, useEffect, useMemo, useState } from 'react';
-import {
-    Redirect,
-    Route,
-    Switch,
-    useLocation,
-    useParams,
-} from 'react-router-dom';
+import React, { FC, useMemo, useState } from 'react';
+import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
@@ -37,17 +31,7 @@ interface ExpandableSectionProps {
 }
 
 const ExpandableSection: FC<ExpandableSectionProps> = ({ label, children }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
-    const { pathname } = useLocation();
-
-    useEffect(() => {
-        Children.forEach(children, (element) => {
-            if (!React.isValidElement(element)) return;
-            if (pathname === element.props.to) {
-                setIsOpen(true);
-            }
-        });
-    });
+    const [isOpen, setIsOpen] = useState<boolean>(true);
 
     return (
         <ExpandableWrapper>
@@ -72,10 +56,7 @@ const Settings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
 
-    const basePath = useMemo(
-        () => `/projects/${projectUuid}/generalSettings`,
-        [projectUuid],
-    );
+    const basePath = useMemo(() => `/generalSettings`, []);
 
     if (error) {
         return (
@@ -165,10 +146,7 @@ const Settings: FC = () => {
 
             <Switch>
                 {allowPasswordAuthentication && (
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/generalSettings/password"
-                    >
+                    <Route exact path={`/generalSettings/password`}>
                         <Content>
                             <CardContainer>
                                 <Title>Password settings</Title>
@@ -178,10 +156,7 @@ const Settings: FC = () => {
                     </Route>
                 )}
                 {health.data?.auth.google.oauth2ClientId && (
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/generalSettings/socialLogins"
-                    >
+                    <Route exact path={`/generalSettings/socialLogins`}>
                         <Content>
                             <CardContainer>
                                 <Title>Social logins</Title>
@@ -191,10 +166,7 @@ const Settings: FC = () => {
                     </Route>
                 )}
                 {user.data?.ability?.can('manage', 'Organization') && (
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/generalSettings/organization"
-                    >
+                    <Route exact path={`/generalSettings/organization`}>
                         <Content>
                             <CardContainer>
                                 <Title>Organization settings</Title>
@@ -207,7 +179,7 @@ const Settings: FC = () => {
                     'view',
                     'OrganizationMemberProfile',
                 ) && (
-                    <Route path="/projects/:projectUuid/generalSettings/userManagement">
+                    <Route path={`/generalSettings/userManagement`}>
                         <Content>
                             <ContentWrapper>
                                 <UserManagementPanel />
@@ -220,7 +192,7 @@ const Settings: FC = () => {
                     user.data?.ability?.can('manage', 'Project') && (
                         <Route
                             exact
-                            path="/projects/:projectUuid/generalSettings/projectManagement"
+                            path={`/generalSettings/projectManagement`}
                         >
                             <Content>
                                 <ContentWrapper>
@@ -232,10 +204,7 @@ const Settings: FC = () => {
                 {orgData &&
                     !orgData.needsProject &&
                     user.data?.ability?.can('manage', 'Project') && (
-                        <Route
-                            exact
-                            path="/projects/:projectUuid/generalSettings/appearance"
-                        >
+                        <Route exact path={`/generalSettings/appearance`}>
                             <Content>
                                 <CardContainer>
                                     <Title>Appearance settings</Title>
@@ -245,10 +214,7 @@ const Settings: FC = () => {
                         </Route>
                     )}
                 {orgData && (
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/generalSettings/personalAccessTokens"
-                    >
+                    <Route exact path={`/generalSettings/personalAccessTokens`}>
                         <Content>
                             <ContentWrapper>
                                 <AccessTokensPanel />
@@ -256,7 +222,7 @@ const Settings: FC = () => {
                         </Content>
                     </Route>
                 )}
-                <Route exact path="/projects/:projectUuid/generalSettings">
+                <Route exact path={`/generalSettings`}>
                     <Content>
                         <CardContainer>
                             <Title>Profile settings</Title>

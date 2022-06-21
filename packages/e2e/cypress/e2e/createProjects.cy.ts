@@ -1,5 +1,3 @@
-import { SEED_PROJECT } from '@lightdash/common';
-
 const warehouseConfig = {
     postgresSQL: {
         host: Cypress.env('PGHOST') || 'host.docker.internal',
@@ -73,7 +71,6 @@ describe('Create projects', () => {
         cy.visit(`/`);
 
         cy.findByText('Settings').click();
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/generalSettings`);
         cy.contains('Organization settings').click();
 
         cy.findByText('Project management').click();
