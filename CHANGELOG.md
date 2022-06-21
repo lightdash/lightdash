@@ -1,3 +1,11 @@
+## [0.150.3](https://github.com/lightdash/lightdash/compare/0.150.2...0.150.3) (2022-06-21)
+
+
+### Bug Fixes
+
+* align page spinner ([#2486](https://github.com/lightdash/lightdash/issues/2486)) ([aaa85d7](https://github.com/lightdash/lightdash/commit/aaa85d711a2b95c64737e14c09968dc9a99c51b5))
+* button bar not sticking to the bottom ([#2473](https://github.com/lightdash/lightdash/issues/2473)) ([1460f40](https://github.com/lightdash/lightdash/commit/1460f40416c3ebb6c8f4a287710ef74b1d8e143d))
+
 ## [0.150.2](https://github.com/lightdash/lightdash/compare/0.150.1...0.150.2) (2022-06-21)
 
 
