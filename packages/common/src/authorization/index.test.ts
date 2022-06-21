@@ -375,10 +375,7 @@ describe('Lightdash member permissions', () => {
                 action: 'manage',
                 subject: 'Project',
                 conditions: {
-                    organizationUuid: {
-                        $eq: adminOrgProfile.organizationUuid,
-                        $exists: true,
-                    },
+                    organizationUuid: adminOrgProfile.organizationUuid,
                 },
             });
             expect(ability.can('manage', 'Project')).toEqual(true);
