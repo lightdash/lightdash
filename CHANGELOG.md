@@ -1,3 +1,15 @@
+# [0.152.0](https://github.com/lightdash/lightdash/compare/0.151.0...0.152.0) (2022-06-21)
+
+
+### Bug Fixes
+
+* redirect after create first project ([#2490](https://github.com/lightdash/lightdash/issues/2490)) ([97f65a4](https://github.com/lightdash/lightdash/commit/97f65a47f4ebaf8121dd0344dcd10cb42dc1151f))
+
+
+### Features
+
+* access project permissions in the UI ([#2459](https://github.com/lightdash/lightdash/issues/2459)) ([83eec49](https://github.com/lightdash/lightdash/commit/83eec498097c8e46070d7a401a267c621ff556b2))
+
 # [0.151.0](https://github.com/lightdash/lightdash/compare/0.150.4...0.151.0) (2022-06-21)
 
 
