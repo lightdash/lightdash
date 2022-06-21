@@ -13,7 +13,6 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
 
     useEffect(() => {
         if (user.data) {
-            console.log('user.data', user.data.abilityRules);
             ability.update(user.data.abilityRules);
         }
     }, [ability, user]);
