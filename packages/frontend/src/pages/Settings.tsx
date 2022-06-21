@@ -1,6 +1,12 @@
 import { Collapse, NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC, useMemo, useState } from 'react';
-import { Redirect, Route, Switch, useParams } from 'react-router-dom';
+import React, { Children, FC, useEffect, useMemo, useState } from 'react';
+import {
+    Redirect,
+    Route,
+    Switch,
+    useLocation,
+    useParams,
+} from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
@@ -32,6 +38,17 @@ interface ExpandableSectionProps {
 
 const ExpandableSection: FC<ExpandableSectionProps> = ({ label, children }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        Children.forEach(children, (element) => {
+            if (!React.isValidElement(element)) return;
+            if (pathname === element.props.to) {
+                setIsOpen(true);
+            }
+        });
+    });
+
     return (
         <ExpandableWrapper>
             <CollapseTrigger
@@ -40,7 +57,6 @@ const ExpandableSection: FC<ExpandableSectionProps> = ({ label, children }) => {
                 minimal
                 onClick={() => setIsOpen((prev) => !prev)}
             />
-
             <Collapse isOpen={isOpen}>
                 <SettingsItems>{children}</SettingsItems>
             </Collapse>
