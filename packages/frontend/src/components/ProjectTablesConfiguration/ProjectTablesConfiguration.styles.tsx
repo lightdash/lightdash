@@ -1,5 +1,5 @@
-import { Card, Colors, H3, Radio } from '@blueprintjs/core';
-import styled, { css } from 'styled-components';
+import { Card, Colors, H3 } from '@blueprintjs/core';
+import styled from 'styled-components';
 import { BigButton } from '../common/BigButton';
 
 export const CardWrapper = styled(Card)`
@@ -32,16 +32,6 @@ export const LeftPanel = styled.div`
 export const RightPanel = styled.div`
     flex: 1;
     width: 50%;
-`;
-
-export const RadioField = styled(Radio)<{ noMargin?: boolean }>`
-    margin-top: 20px;
-
-    ${({ noMargin }) =>
-        noMargin &&
-        css`
-            margin-top: 0;
-        `}
 `;
 
 export const ListTrigger = styled.b`
