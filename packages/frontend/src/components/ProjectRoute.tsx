@@ -53,10 +53,6 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
                         passThrough
                     >
                         {(isAllowed) => {
-                            console.log('isAllowed', isAllowed, {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid: params.projectUuid,
-                            });
                             return isAllowed ? (
                                 children
                             ) : (
