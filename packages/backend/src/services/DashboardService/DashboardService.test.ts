@@ -1,7 +1,4 @@
-import {
-    defineAbilityForOrganizationMember,
-    ForbiddenError,
-} from '@lightdash/common';
+import { defineUserAbility, ForbiddenError } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { dashboardModel } from '../../models/models';
 import { DashboardService } from './DashboardService';
@@ -224,10 +221,13 @@ describe('DashboardService', () => {
     test('should not see dashboard from other organizations', async () => {
         const anotherUser = {
             ...user,
-            ability: defineAbilityForOrganizationMember({
-                ...user,
-                organizationUuid: 'another-org-uuid',
-            }),
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [],
+            ),
         };
         await expect(
             service.getById(anotherUser, dashboard.uuid),
@@ -236,10 +236,13 @@ describe('DashboardService', () => {
     test('should not see empty list if getting all dashboard by project uuid from another organization', async () => {
         const anotherUser = {
             ...user,
-            ability: defineAbilityForOrganizationMember({
-                ...user,
-                organizationUuid: 'another-org-uuid',
-            }),
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [],
+            ),
         };
         const result = await service.getAllByProject(
             anotherUser,
