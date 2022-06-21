@@ -82,6 +82,8 @@ interface AppContext {
 
 const Context = createContext<AppContext>(undefined as any);
 
+const defaultAbility = new Ability();
+
 export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     const [isCohereLoaded, setIsCohereLoaded] = useState(false);
@@ -306,7 +308,7 @@ export const AppProvider: FC = ({ children }) => {
                 apiBase={health.data?.intercom.apiBase || ''}
                 autoBoot
             >
-                <AbilityContext.Provider value={new Ability()}>
+                <AbilityContext.Provider value={defaultAbility}>
                     {children}
                 </AbilityContext.Provider>
             </IntercomProvider>

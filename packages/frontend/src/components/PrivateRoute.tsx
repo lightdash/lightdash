@@ -8,14 +8,17 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
     children,
     ...rest
 }) => {
-    const { health, user } = useApp();
+    const {
+        health,
+        user: { data, isLoading },
+    } = useApp();
     const ability = useAbilityContext();
 
     useEffect(() => {
-        if (user.data) {
-            ability.update(user.data.abilityRules);
+        if (data) {
+            ability.update(data.abilityRules);
         }
-    }, [ability, user]);
+    }, [ability, data]);
 
     return (
         <Route
@@ -36,7 +39,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                     );
                 }
 
-                if (user.isLoading) {
+                if (isLoading) {
                     return <PageSpinner />;
                 }
 
