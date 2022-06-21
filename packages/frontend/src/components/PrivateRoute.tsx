@@ -41,6 +41,10 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                     );
                 }
 
+                if (user.isLoading) {
+                    return <PageSpinner />;
+                }
+
                 return children;
             }}
         />
