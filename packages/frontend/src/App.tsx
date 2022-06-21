@@ -37,6 +37,7 @@ import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
+import Settings from './pages/Settings';
 import Signup from './pages/Signup';
 import SqlRunner from './pages/SqlRunner';
 import { AppProvider } from './providers/AppProvider';

@@ -5,6 +5,7 @@ import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
+import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
 import OrganisationPanel from '../components/UserSettings/OrganisationPanel';
@@ -51,9 +52,13 @@ const Settings: FC = () => {
     const { health, user } = useApp();
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const { data: orgData } = useOrganisation();
+    const { data: orgData, isLoading } = useOrganisation();
 
     const basePath = useMemo(() => `/generalSettings`, []);
+
+    if (isLoading) {
+        return <PageSpinner />;
+    }
 
     return (
         <PageWithSidebar>
@@ -75,13 +80,11 @@ const Settings: FC = () => {
                                 to={`${basePath}/socialLogins`}
                             />
                         )}
-                        {orgData && (
-                            <RouterMenuItem
-                                text="Personal access tokens"
-                                exact
-                                to={`${basePath}/personalAccessTokens`}
-                            />
-                        )}
+                        <RouterMenuItem
+                            text="Personal access tokens"
+                            exact
+                            to={`${basePath}/personalAccessTokens`}
+                        />
                     </ExpandableSection>
                     <ExpandableSection label="Organization settings">
                         {user.data?.ability?.can('manage', 'Organization') && (
@@ -109,15 +112,11 @@ const Settings: FC = () => {
                                     to={`${basePath}/projectManagement`}
                                 />
                             )}
-                        {orgData &&
-                            !orgData.needsProject &&
-                            user.data?.ability?.can('manage', 'Project') && (
-                                <RouterMenuItem
-                                    text="Appearance"
-                                    exact
-                                    to={`${basePath}/appearance`}
-                                />
-                            )}
+                        <RouterMenuItem
+                            text="Appearance"
+                            exact
+                            to={`${basePath}/appearance`}
+                        />
                     </ExpandableSection>
                 </SidebarMenu>
             </Sidebar>
@@ -179,27 +178,22 @@ const Settings: FC = () => {
                             </Content>
                         </Route>
                     )}
-                {orgData &&
-                    !orgData.needsProject &&
-                    user.data?.ability?.can('manage', 'Project') && (
-                        <Route exact path={`/generalSettings/appearance`}>
-                            <Content>
-                                <CardContainer>
-                                    <Title>Appearance settings</Title>
-                                    <AppearancePanel />
-                                </CardContainer>
-                            </Content>
-                        </Route>
-                    )}
-                {orgData && (
-                    <Route exact path={`/generalSettings/personalAccessTokens`}>
-                        <Content>
-                            <ContentWrapper>
-                                <AccessTokensPanel />
-                            </ContentWrapper>
-                        </Content>
-                    </Route>
-                )}
+
+                <Route exact path={`/generalSettings/appearance`}>
+                    <Content>
+                        <CardContainer>
+                            <Title>Appearance settings</Title>
+                            <AppearancePanel />
+                        </CardContainer>
+                    </Content>
+                </Route>
+                <Route exact path={`/generalSettings/personalAccessTokens`}>
+                    <Content>
+                        <ContentWrapper>
+                            <AccessTokensPanel />
+                        </ContentWrapper>
+                    </Content>
+                </Route>
                 <Route exact path={`/generalSettings`}>
                     <Content>
                         <CardContainer>
