@@ -31,6 +31,13 @@
         },
         "role": {
             "type": "string"
+        },
+        "abilityRules": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": true
+            }
         }
     },
     "required": [

@@ -32,6 +32,7 @@ export enum PageName {
     APPEARANCE = 'appearance_settings',
     ACCESS_TOKENS = 'access_tokens',
     NO_ACCESS = 'no_access',
+    NO_PROJECT_ACCESS = 'no_project_access',
 }
 
 export enum CategoryName {

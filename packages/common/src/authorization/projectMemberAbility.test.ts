@@ -1,12 +1,24 @@
-import { subject } from '@casl/ability';
-import { defineAbilityForProjectMember } from './projectMemberAbility';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
+import { ProjectMemberProfile } from '../types/projectMemberProfile';
+import { projectMemberAbilities } from './projectMemberAbility';
 import {
     PROJECT_ADMIN,
     PROJECT_EDITOR,
     PROJECT_VIEWER,
 } from './projectMemberAbility.mock';
+import { MemberAbility } from './types';
 
 const { projectUuid } = PROJECT_VIEWER;
+
+const defineAbilityForProjectMember = (
+    member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'> | undefined,
+): MemberAbility => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    if (member) {
+        projectMemberAbilities[member.role](member, builder);
+    }
+    return builder.build();
+};
 
 describe('Project member permissions', () => {
     let ability = defineAbilityForProjectMember(PROJECT_ADMIN);

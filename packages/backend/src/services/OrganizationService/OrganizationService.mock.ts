@@ -23,6 +23,7 @@ export const user: SessionUser = {
         { subject: 'Dashboard', action: ['update', 'delete', 'create'] },
     ]),
     isActive: true,
+    abilityRules: [],
 };
 
 export const organisation: Organisation = {

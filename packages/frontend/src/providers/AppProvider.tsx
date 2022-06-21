@@ -1,14 +1,13 @@
 import { Intent, SpinnerSize } from '@blueprintjs/core';
 import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import { Ability } from '@casl/ability';
 import {
     ApiError,
     ApiHealthResults,
-    defineAbilityForOrganizationMember,
     HealthState,
     Job,
     JobType,
-    LightdashUser,
-    OrganizationMemberAbility,
+    LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
@@ -29,6 +28,7 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { IntercomProvider } from 'react-use-intercom';
 import { lightdashApi } from '../api';
 import { AppToaster } from '../components/AppToaster';
+import { AbilityContext } from '../components/common/Authorization';
 import { ToastSpinner } from '../components/ToastSpinner';
 import { ErrorLogs, useErrorLogs } from '../hooks/useErrorLogs';
 import {
@@ -45,14 +45,18 @@ const getHealthState = async () =>
         body: undefined,
     });
 
-type User = LightdashUser & { ability: OrganizationMemberAbility };
+type User = LightdashUserWithAbilityRules & { ability: Ability };
 const getUserState = async (): Promise<User> => {
-    const user = await lightdashApi<LightdashUser>({
+    const user = await lightdashApi<LightdashUserWithAbilityRules>({
         url: `/user`,
         method: 'GET',
         body: undefined,
     });
-    return { ...user, ability: defineAbilityForOrganizationMember(user) };
+
+    return {
+        ...user,
+        ability: new Ability(user.abilityRules),
+    };
 };
 
 interface Message extends Omit<IToastProps, 'message'> {
@@ -77,6 +81,8 @@ interface AppContext {
 }
 
 const Context = createContext<AppContext>(undefined as any);
+
+const defaultAbility = new Ability();
 
 export const AppProvider: FC = ({ children }) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
@@ -302,7 +308,9 @@ export const AppProvider: FC = ({ children }) => {
                 apiBase={health.data?.intercom.apiBase || ''}
                 autoBoot
             >
-                {children}
+                <AbilityContext.Provider value={defaultAbility}>
+                    {children}
+                </AbilityContext.Provider>
             </IntercomProvider>
         </Context.Provider>
     );

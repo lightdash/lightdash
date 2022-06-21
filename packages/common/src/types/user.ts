@@ -1,4 +1,5 @@
-import { Ability } from '@casl/ability';
+import { AbilityBuilder } from '@casl/ability';
+import { MemberAbility } from '../authorization/types';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {
@@ -15,9 +16,13 @@ export interface LightdashUser {
     isActive: boolean;
 }
 
-export interface SessionUser extends LightdashUser {
+export interface LightdashUserWithAbilityRules extends LightdashUser {
+    abilityRules: AbilityBuilder<MemberAbility>['rules'];
+}
+
+export interface SessionUser extends LightdashUserWithAbilityRules {
     userId: number;
-    ability: Ability;
+    ability: MemberAbility;
 }
 
 export interface UpdatedByUser {
