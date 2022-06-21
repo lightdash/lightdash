@@ -135,6 +135,16 @@ const App = () => (
                                                         <CreateProjectSettings />
                                                     </TrackPage>
                                                 </Route>
+                                                <Route path="/generalSettings/:tab?">
+                                                    <NavBar />
+                                                    <TrackPage
+                                                        name={
+                                                            PageName.GENERAL_SETTINGS
+                                                        }
+                                                    >
+                                                        <Settings />
+                                                    </TrackPage>
+                                                </Route>
                                                 <Route path="/no-access">
                                                     <NavBar />
                                                     <TrackPage

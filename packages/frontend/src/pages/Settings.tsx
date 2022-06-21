@@ -1,6 +1,6 @@
-import { Collapse, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Collapse } from '@blueprintjs/core';
 import React, { FC, useMemo, useState } from 'react';
-import { Redirect, Route, Switch, useParams } from 'react-router-dom';
+import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
@@ -14,7 +14,6 @@ import ProjectManagementPanel from '../components/UserSettings/ProjectManagement
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
-import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import {
     CardContainer,
@@ -53,29 +52,8 @@ const Settings: FC = () => {
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { data: orgData } = useOrganisation();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { isLoading, data, error } = useProject(projectUuid);
 
     const basePath = useMemo(() => `/generalSettings`, []);
-
-    if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Error loading project"
-                    description={error.error.message}
-                />
-            </div>
-        );
-    }
-
-    if (isLoading || !data) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading project" icon={<Spinner />} />
-            </div>
-        );
-    }
 
     return (
         <PageWithSidebar>
