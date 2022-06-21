@@ -5,6 +5,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
+import EmailClient from '../../clients/EmailClient/EmailClient';
 import {
     jobModel,
     onboardingModel,
@@ -22,6 +23,7 @@ import {
     expectedExploreSummaryFilteredByTags,
     expectedSqlResults,
     job,
+    lightdashConfigWithNoSMTP,
     projectAdapterMock,
     projectWithSensitiveFields,
     spacesWithSavedCharts,
@@ -62,6 +64,9 @@ describe('ProjectService', () => {
         onboardingModel,
         savedChartModel,
         jobModel,
+        emailClient: new EmailClient({
+            lightdashConfig: lightdashConfigWithNoSMTP,
+        }),
     });
     afterEach(() => {
         jest.clearAllMocks();
