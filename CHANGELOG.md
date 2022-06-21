@@ -1,3 +1,39 @@
+## [0.150.4](https://github.com/lightdash/lightdash/compare/0.150.3...0.150.4) (2022-06-21)
+
+
+### Bug Fixes
+
+* date/time picker timezones ([#2463](https://github.com/lightdash/lightdash/issues/2463)) ([630ced9](https://github.com/lightdash/lightdash/commit/630ced939d09255da8f1b1bf52860cd610efc358))
+
+## [0.150.3](https://github.com/lightdash/lightdash/compare/0.150.2...0.150.3) (2022-06-21)
+
+
+### Bug Fixes
+
+* align page spinner ([#2486](https://github.com/lightdash/lightdash/issues/2486)) ([aaa85d7](https://github.com/lightdash/lightdash/commit/aaa85d711a2b95c64737e14c09968dc9a99c51b5))
+* button bar not sticking to the bottom ([#2473](https://github.com/lightdash/lightdash/issues/2473)) ([1460f40](https://github.com/lightdash/lightdash/commit/1460f40416c3ebb6c8f4a287710ef74b1d8e143d))
+
+## [0.150.2](https://github.com/lightdash/lightdash/compare/0.150.1...0.150.2) (2022-06-21)
+
+
+### Bug Fixes
+
+* Radio group not working on table configuration ([#2484](https://github.com/lightdash/lightdash/issues/2484)) ([5bac603](https://github.com/lightdash/lightdash/commit/5bac603948285e2693a7746617626008ace736b6))
+
+## [0.150.1](https://github.com/lightdash/lightdash/compare/0.150.0...0.150.1) (2022-06-21)
+
+
+### Bug Fixes
+
+* tooltip to be disabled on click ([#2474](https://github.com/lightdash/lightdash/issues/2474)) ([78dfffb](https://github.com/lightdash/lightdash/commit/78dfffb98789f1a6cc017652257e70d5b0a77cf6))
+
+# [0.150.0](https://github.com/lightdash/lightdash/compare/0.149.0...0.150.0) (2022-06-20)
+
+
+### Features
+
+* project access page shows members with org access ([#2469](https://github.com/lightdash/lightdash/issues/2469)) ([07f5a93](https://github.com/lightdash/lightdash/commit/07f5a938870ad6e3836ec2ec8d2872d6a6f744cb))
+
 # [0.149.0](https://github.com/lightdash/lightdash/compare/0.148.2...0.149.0) (2022-06-20)
 
 

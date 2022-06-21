@@ -20,6 +20,7 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import {
+    ProjectConnectionContainer,
     Title,
     UpdateHeaderWrapper,
     UpdateProjectWrapper,
@@ -111,7 +112,7 @@ const ProjectSettings: FC = () => {
                 </Route>
 
                 <Route exact path="/projects/:projectUuid/settings">
-                    <Content noPadding>
+                    <ProjectConnectionContainer>
                         <UpdateProjectWrapper>
                             <UpdateHeaderWrapper>
                                 <Title marginBottom>
@@ -122,7 +123,7 @@ const ProjectSettings: FC = () => {
                                 projectUuid={projectUuid}
                             />
                         </UpdateProjectWrapper>
-                    </Content>
+                    </ProjectConnectionContainer>
                 </Route>
                 {isOrgAdmin && (
                     <Route

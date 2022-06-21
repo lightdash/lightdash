@@ -50,3 +50,24 @@ export const RoleSelectButton = styled(HTMLSelect)`
 export const AddUserButton = styled(Button)`
     float: right;
 `;
+
+export const OrgAccess = styled.div`
+    margin-top: 80px;
+    width: 100%;
+`;
+
+export const OrgAccessHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+`;
+export const OrgAccessTitle = styled.p`
+    font-size: 18px;
+    font-weight: 600;
+`;
+
+export const OrgAccessCounter = styled.p``;
+
+export const Separator = styled.hr`
+    margin-bottom: 25px;
+`;

@@ -2169,32 +2169,10 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
-"@blueprintjs/colors@^4.1.0":
-  version "4.1.0"
-  resolved "https://registry.yarnpkg.com/@blueprintjs/colors/-/colors-4.1.0.tgz#6715062ff4c51667726ba690b49cafe14ace687a"
-  integrity sha512-aXgkEBg2oEz6lCE/sidvREUzQF7eJq2R8BvfOcQ1ICV4r/KVFszee6seA12ZtVaphfvuR4EE/raH6F1d0f4y7g==
-
 "@blueprintjs/colors@^4.1.3":
   version "4.1.3"
   resolved "https://registry.yarnpkg.com/@blueprintjs/colors/-/colors-4.1.3.tgz#7e0a32a086bdc68ea51df0dda1f94913dbd874c1"
   integrity sha512-ANRQZT5h9+zC8B/y0S9B+SqEpicL0XRT4drAhiPFHBrOStRZWzOh3bPrwNSPqr7tdShxYtMyxbH+fkHMetZaxg==
-
-"@blueprintjs/core@^4.2.0":
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/@blueprintjs/core/-/core-4.2.0.tgz#3a5996e82081cb12d160669ad49b8e158520f79f"
-  integrity sha512-/bQN8mukY6VdeB1Bv2j/GQmJILe+drTNT4cO958QwGvPaJWLLD2Z/XdfTj8ffoWtYMrDLvVKkXKHt99gOnlUJQ==
-  dependencies:
-    "@blueprintjs/colors" "^4.1.0"
-    "@blueprintjs/icons" "^4.2.3"
-    "@juggle/resize-observer" "^3.3.1"
-    "@types/dom4" "^2.0.1"
-    classnames "^2.2"
-    dom4 "^2.1.5"
-    normalize.css "^8.0.1"
-    popper.js "^1.16.1"
-    react-popper "^1.3.7"
-    react-transition-group "^4.4.1"
-    tslib "~2.3.1"
 
 "@blueprintjs/core@^4.5.1":
   version "4.5.1"
@@ -2213,23 +2191,30 @@
     react-transition-group "^4.4.1"
     tslib "~2.3.1"
 
-"@blueprintjs/datetime@^4.1.3":
-  version "4.1.3"
-  resolved "https://registry.yarnpkg.com/@blueprintjs/datetime/-/datetime-4.1.3.tgz#7da034d0aea46477ffa29c42f4fc7bb6b6cee6d3"
-  integrity sha512-a4ubWiFYrjKcIOv6x2+EfMLge/dc3R760ywxO/1+tcetQV76p1kIIMsyAx9aG8hEYTuTBIngqFNqxJssuiEBWQ==
+
+"@blueprintjs/datetime2@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@blueprintjs/datetime2/-/datetime2-0.2.0.tgz#ed92cc7b5d716e49b8bd1d46d0c74b94fb33726a"
+  integrity sha512-+YUs2SHKazI0r5o+HRPhbRnWBEvPNrz9CqrttP5ngy6pZW7eeVPBHivrQDaeDQO1uLOa3fTjADYyTae/pChaLA==
   dependencies:
-    "@blueprintjs/core" "^4.2.0"
+    "@blueprintjs/core" "^4.5.1"
+    "@blueprintjs/datetime" "^4.3.1"
+    "@blueprintjs/popover2" "^1.4.1"
+    "@blueprintjs/select" "^4.4.1"
     classnames "^2.2"
-    react-day-picker "7.4.9"
+    date-fns "^2.28.0"
+    date-fns-tz "^1.3.4"
+    lodash-es "^4.17.15"
     tslib "~2.3.1"
 
-"@blueprintjs/icons@^4.2.3":
-  version "4.2.3"
-  resolved "https://registry.yarnpkg.com/@blueprintjs/icons/-/icons-4.2.3.tgz#f522fa4d565d649dd860419a4316bd75fc936335"
-  integrity sha512-6xPneQo7bCkO96q9zOhXVh7/6QkIb8weHIwH5uyt5rmvq9/QTYcw0T2hOKiqqmDCvzv5OlZpY9QC+8deKVWWpQ==
+"@blueprintjs/datetime@^4.3.1":
+  version "4.3.1"
+  resolved "https://registry.yarnpkg.com/@blueprintjs/datetime/-/datetime-4.3.1.tgz#506a10d6e4f195592c7eb36a32590f1a2bd84c69"
+  integrity sha512-aTbQ3bleNDr06YqictvGn2HIveRaoMRdy0yZPTwz/T/oBXyDfeEL6ftUysXOcAjkDjXS6R0qk8sfMHzhK1GVTg==
   dependencies:
-    change-case "^4.1.2"
+    "@blueprintjs/core" "^4.5.1"
     classnames "^2.2"
+    react-day-picker "7.4.9"
     tslib "~2.3.1"
 
 "@blueprintjs/icons@^4.3.0":
@@ -2241,18 +2226,6 @@
     classnames "^2.2"
     tslib "~2.3.1"
 
-"@blueprintjs/popover2@^1.1.3":
-  version "1.1.3"
-  resolved "https://registry.yarnpkg.com/@blueprintjs/popover2/-/popover2-1.1.3.tgz#5389cb8a141f38877fb934ae8eb734eadc3f2621"
-  integrity sha512-opNfSn3EGcQ5hJBfxQyZ19zst/74pQbNteDs1VaZrFQ1QfG2I43Gl6+8IqnYClWOxLh4zA7eW044MKWnvOm04A==
-  dependencies:
-    "@blueprintjs/core" "^4.2.0"
-    "@juggle/resize-observer" "^3.3.1"
-    "@popperjs/core" "^2.5.4"
-    classnames "^2.2"
-    dom4 "^2.1.5"
-    react-popper "^2.2.4"
-    tslib "~2.3.1"
 
 "@blueprintjs/popover2@^1.4.1":
   version "1.4.1"
@@ -2267,6 +2240,7 @@
     react-popper "^2.2.4"
     tslib "~2.3.1"
 
+
 "@blueprintjs/select@^4.4.1":
   version "4.4.1"
   resolved "https://registry.yarnpkg.com/@blueprintjs/select/-/select-4.4.1.tgz#f658d4a396acfee778811148bd484b05b5e25b6a"
@@ -2277,14 +2251,15 @@
     classnames "^2.2"
     tslib "~2.3.1"
 
-"@blueprintjs/table@^4.1.3":
-  version "4.1.3"
-  resolved "https://registry.yarnpkg.com/@blueprintjs/table/-/table-4.1.3.tgz#2988e857fbd7241a1fb44c976addacfe5182ed89"
-  integrity sha512-zxZ1s5u8hjLdDIvBxB/9+DNHY8TDjfq+r7aHJKv/RVkmmdgvLeTyC1YwIO3w9YJhzv+dUTqAoIC759IDZZaVMw==
+"@blueprintjs/table@^4.3.1":
+  version "4.3.1"
+  resolved "https://registry.yarnpkg.com/@blueprintjs/table/-/table-4.3.1.tgz#2bb4dac85397f4754c06248f597a9be9ab56533b"
+  integrity sha512-LJl+DQl09htyptpQ6PqyPAsqsIEcPv1ZQgLDrFKixibrybBsASISqf5vrlUYGCkPnC8oVSA2lybhLAihn3/Hjw==
   dependencies:
-    "@blueprintjs/core" "^4.2.0"
+    "@blueprintjs/core" "^4.5.1"
     classnames "^2.2"
     prop-types "^15.7.2"
+    react-innertext "^1.1.5"
     tslib "~2.3.1"
 
 "@casl/ability@^5.4.3":
@@ -7211,6 +7186,16 @@ data-urls@^2.0.0:
     abab "^2.0.3"
     whatwg-mimetype "^2.3.0"
     whatwg-url "^8.0.0"
+
+date-fns-tz@^1.3.4:
+  version "1.3.4"
+  resolved "https://registry.yarnpkg.com/date-fns-tz/-/date-fns-tz-1.3.4.tgz#8b0e75beb771c7e9f1597aba467dc14431bb5403"
+  integrity sha512-O47vEyz85F2ax/ZdhMBJo187RivZGjH6V0cPjPzpm/yi6YffJg4upD/8ibezO11ezZwP3QYlBHh/t4JhRNx0Ow==
+
+date-fns@^2.28.0:
+  version "2.28.0"
+  resolved "https://registry.yarnpkg.com/date-fns/-/date-fns-2.28.0.tgz#9570d656f5fc13143e50c975a3b6bbeb46cd08b2"
+  integrity sha512-8d35hViGYx/QH0icHYCeLmsLmMUheMmTyV9Fcm6gvNwdw31yXXH+O85sOBJ+OLnLQMKZowvpKb6FgMIQjcpvQw==
 
 dayjs@^1.10.4:
   version "1.10.6"
@@ -15527,6 +15512,11 @@ react-hook-form@^7.26.1:
   version "7.26.1"
   resolved "https://registry.yarnpkg.com/react-hook-form/-/react-hook-form-7.26.1.tgz#8f5c0aa81a452f5ebcb6a2d7253800011e735b1c"
   integrity sha512-/Qw/7IsCCVfYSGryJAMcouEpIDgWZJPeHR15J0IFSgo1BgofcfnY+AeUDcYD1E3yzzXYpR7NHyJehhkBKvjdMg==
+
+react-innertext@^1.1.5:
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/react-innertext/-/react-innertext-1.1.5.tgz#8147ac54db3f7067d95f49e2d2c05a720d27d8d0"
+  integrity sha512-PWAqdqhxhHIv80dT9znP2KvS+hfkbRovFp4zFYHFFlOoQLRiawIic81gKb3U1wEyJZgMwgs3JoLtwryASRWP3Q==
 
 react-is@^16.13.1, react-is@^16.6.0, react-is@^16.7.0, react-is@^16.8.1:
   version "16.13.1"

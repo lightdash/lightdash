@@ -7,7 +7,7 @@ const RunSqlQueryButton: FC<{
     isLoading: boolean;
     onSubmit: () => void;
 }> = ({ onSubmit, isLoading }) => (
-    <Tooltip2 content={<KeyCombo combo="cmd+enter" />}>
+    <Tooltip2 content={<KeyCombo combo="cmd+enter" />} disabled={isLoading}>
         <BigButton
             icon="play"
             intent="primary"
