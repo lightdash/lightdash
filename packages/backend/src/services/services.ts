@@ -51,6 +51,7 @@ export const projectService = new ProjectService({
     onboardingModel,
     savedChartModel,
     jobModel,
+    emailClient,
 });
 
 export const healthService = new HealthService({

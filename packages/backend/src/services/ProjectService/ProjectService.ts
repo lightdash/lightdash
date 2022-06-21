@@ -37,8 +37,11 @@ import {
     UpdateProject,
     UpdateProjectMember,
 } from '@lightdash/common';
+import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
+import EmailClient from '../../clients/EmailClient/EmailClient';
+import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logger';
 import { JobModel } from '../../models/JobModel/JobModel';
@@ -55,6 +58,7 @@ type ProjectServiceDependencies = {
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
     jobModel: JobModel;
+    emailClient: EmailClient;
 };
 
 export class ProjectService {
@@ -68,17 +72,21 @@ export class ProjectService {
 
     jobModel: JobModel;
 
+    emailClient: EmailClient;
+
     constructor({
         projectModel,
         onboardingModel,
         savedChartModel,
         jobModel,
+        emailClient,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.projectAdapters = {};
         this.savedChartModel = savedChartModel;
         this.jobModel = jobModel;
+        this.emailClient = emailClient;
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
@@ -880,6 +888,18 @@ export class ProjectService {
             projectUuid,
             data.email,
             data.role,
+        );
+        const project = await this.projectModel.get(projectUuid);
+        const projectUrl = new URL(
+            `/projects/${projectUuid}/home`,
+            lightdashConfig.siteUrl,
+        ).href;
+
+        await this.emailClient.sendProjectAccessEmail(
+            user,
+            data,
+            project.name,
+            projectUrl,
         );
     }
 

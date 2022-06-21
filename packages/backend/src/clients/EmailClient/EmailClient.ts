@@ -1,4 +1,5 @@
 import {
+    CreateProjectMember,
     InviteLink,
     PasswordResetLink,
     SessionUser,
@@ -130,6 +131,29 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
+        });
+    }
+
+    public async sendProjectAccessEmail(
+        userThatInvited: Pick<
+            SessionUser,
+            'firstName' | 'lastName' | 'organizationName'
+        >,
+        projectMember: CreateProjectMember,
+        projectName: string,
+        projectUrl: string,
+    ) {
+        return this.sendEmail({
+            to: projectMember.email,
+            subject: `You have access to project ${projectName}`,
+            template: 'projectAccess',
+            context: {
+                orgName: userThatInvited.organizationName,
+                projectUrl,
+                host: this.lightdashConfig.siteUrl,
+                projectName,
+            },
+            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${projectUrl}`,
         });
     }
 }

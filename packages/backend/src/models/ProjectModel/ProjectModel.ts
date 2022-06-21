@@ -508,6 +508,7 @@ export class ProjectModel {
 
     async getProjectAccess(
         projectUuid: string,
+        userUuid?: string,
     ): Promise<ProjectMemberProfile[]> {
         type QueryResult = {
             user_uuid: string;
@@ -526,7 +527,12 @@ export class ProjectModel {
             )
             .select<QueryResult[]>()
             .where('project_uuid', projectUuid)
-            .andWhere('is_primary', true);
+            .andWhere('is_primary', true)
+            .andWhere((queryBuilder) => {
+                if (userUuid) {
+                    queryBuilder.andWhere('user_uuid', userUuid);
+                }
+            });
 
         return projectMemberships.map((membership) => ({
             userUuid: membership.user_uuid,
