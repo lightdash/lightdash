@@ -357,7 +357,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     />
                 </FormWrapper>
             </ProjectFormProvider>
-            <CompileProjectWrapper>
+            <CompileProjectWrapper fixedButton>
                 <FormWrapper>
                     <CompileProjectButton
                         type="submit"

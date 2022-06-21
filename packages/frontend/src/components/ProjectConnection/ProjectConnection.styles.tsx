@@ -15,7 +15,7 @@ export const WarehouseLogo = styled.img`
     width: 30px;
 `;
 
-export const CompileProjectWrapper = styled.div`
+export const CompileProjectWrapper = styled.div<{ fixedButton?: boolean }>`
     height: 70px;
     width: 100%;
     position: sticky;
@@ -23,6 +23,12 @@ export const CompileProjectWrapper = styled.div`
     border-top: 1px solid ${Colors.LIGHT_GRAY1};
     bottom: 0;
     margin-top: auto;
+
+    ${({ fixedButton }) =>
+        fixedButton &&
+        `
+        position: fixed;
+    `}
 `;
 
 export const FormWrapper = styled.div`
