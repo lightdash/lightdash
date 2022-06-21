@@ -95,20 +95,25 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 <DateInput2
                     fill
                     defaultTimezone="UTC"
+                    showTimezoneSelect={false}
                     value={
                         filterRule.values?.[0]
                             ? new Date(filterRule.values?.[0]).toUTCString()
                             : new Date().toUTCString()
                     }
                     timePrecision={isTimestamp ? 'millisecond' : undefined}
-                    formatDate={isTimestamp ? formatTimestamp : formatDate}
+                    formatDate={(value: Date) =>
+                        isTimestamp
+                            ? formatTimestamp(moment(value).utc())
+                            : formatDate(value)
+                    }
                     parseDate={isTimestamp ? parseTimestamp : parseDate}
                     defaultValue={new Date()}
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [moment(value).utc(true)],
+                                values: [moment(value).utc()],
                             });
                         }
                     }}

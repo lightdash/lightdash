@@ -97,6 +97,7 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
             <DateInput2
                 fill
                 defaultTimezone="UTC"
+                showTimezoneSelect={false}
                 value={value.toUTCString()}
                 formatDate={formatDate}
                 parseDate={parseDate}
