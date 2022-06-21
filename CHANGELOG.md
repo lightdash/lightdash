@@ -1,3 +1,10 @@
+## [0.150.2](https://github.com/lightdash/lightdash/compare/0.150.1...0.150.2) (2022-06-21)
+
+
+### Bug Fixes
+
+* Radio group not working on table configuration ([#2484](https://github.com/lightdash/lightdash/issues/2484)) ([5bac603](https://github.com/lightdash/lightdash/commit/5bac603948285e2693a7746617626008ace736b6))
+
 ## [0.150.1](https://github.com/lightdash/lightdash/compare/0.150.0...0.150.1) (2022-06-21)
 
 
