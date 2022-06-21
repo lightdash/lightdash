@@ -135,10 +135,7 @@ export default class EmailClient {
     }
 
     public async sendProjectAccessEmail(
-        userThatInvited: Pick<
-            SessionUser,
-            'firstName' | 'lastName' | 'organizationName'
-        >,
+        userThatInvited: Pick<SessionUser, 'organizationName'>,
         projectMember: CreateProjectMember,
         projectName: string,
         projectUrl: string,
@@ -153,7 +150,7 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 projectName,
             },
-            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${projectUrl}`,
+            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below to join the project ${projectName} and start exploring your data!: ${projectUrl}`,
         });
     }
 }
