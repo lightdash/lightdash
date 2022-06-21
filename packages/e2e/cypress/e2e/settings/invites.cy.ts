@@ -51,8 +51,6 @@ describe('Settings - Invites', () => {
             .findByRole('button', { name: 'Delete' })
             .click();
         cy.findByText('Success! User was deleted.').should('be.visible');
-        cy.get('[aria-labelledby="bp4-tab-title_user-settings_userManagement"]')
-            .contains('Mary Green')
-            .should('not.exist');
+        cy.findByText('marygreen@lightdash.com').should('not.exist');
     });
 });
