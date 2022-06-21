@@ -1,4 +1,4 @@
-import { Classes, Collapse, H5, Intent, Text } from '@blueprintjs/core';
+import { Classes, Collapse, H5, Intent, Radio, Text } from '@blueprintjs/core';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
 import React, { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -19,7 +19,6 @@ import {
     LeftPanel,
     ListTrigger,
     ListWrapper,
-    RadioField,
     RightPanel,
     SaveButton,
     TextP,
@@ -186,8 +185,7 @@ const ProjectTablesConfiguration: FC<{
                         disabled={disabled}
                         defaultValue={TableSelectionType.ALL}
                     >
-                        <RadioField
-                            noMargin
+                        <Radio
                             label="Show entire project"
                             value={TableSelectionType.ALL}
                         />
@@ -195,7 +193,7 @@ const ProjectTablesConfiguration: FC<{
                             Show all of the models in your dbt project in
                             Lightdash.
                         </TextP>
-                        <RadioField
+                        <Radio
                             labelElement={
                                 <>
                                     Show models with any of these tags{' '}
@@ -221,7 +219,7 @@ const ProjectTablesConfiguration: FC<{
                             />
                         )}
 
-                        <RadioField
+                        <Radio
                             label="Show models in this list"
                             value={TableSelectionType.WITH_NAMES}
                         />
