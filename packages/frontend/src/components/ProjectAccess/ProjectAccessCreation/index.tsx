@@ -1,21 +1,37 @@
-import { Card, Intent } from '@blueprintjs/core';
+import { Card, Intent, MenuItem } from '@blueprintjs/core';
+import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import { CreateProjectMember, ProjectMemberRole } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { isValidEmail } from '../../../utils/fieldValidators';
 import {
     BackButton,
-    EmailInput,
+    EmailForm,
     Panel,
     ProjectAccessForm,
     RoleSelectButton,
     SubmitButton,
 } from './ProjectAccessCreation';
+
+const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
+    if (!modifiers.matchesPredicate) {
+        return null;
+    }
+    return (
+        <MenuItem
+            active={modifiers.active}
+            key={item}
+            text={item}
+            onClick={handleClick}
+            shouldDismissPopover={false}
+        />
+    );
+};
 
 const ProjectAccessCreation: FC<{
     onBackClick: () => void;
@@ -36,23 +52,31 @@ const ProjectAccessCreation: FC<{
             role: ProjectMemberRole.VIEWER,
         },
     });
+    const [emailSelected, setEmailSelected] = useState<string>('');
 
     useEffect(() => {
         if (isError) {
             methods.reset({ ...methods.getValues() }, { keepValues: true });
         }
         if (isSuccess) {
-            methods.setValue('email', '');
+            setEmailSelected('');
             methods.setValue('role', ProjectMemberRole.VIEWER);
         }
-    }, [isError, methods, isSuccess, showToastSuccess]);
+    }, [isError, methods, isSuccess, showToastSuccess, setEmailSelected]);
 
     const handleSubmit = (formData: CreateProjectMember) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
-        createMutation(formData);
+        createMutation({
+            ...formData,
+            email: emailSelected,
+        });
     };
+
+    const { data: organizationUsers } = useOrganizationUsers();
+    const orgUserEmails =
+        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
 
     return (
         <Panel>
@@ -67,18 +91,51 @@ const ProjectAccessCreation: FC<{
                     methods={methods}
                     onSubmit={handleSubmit}
                 >
-                    <EmailInput
-                        name="email"
-                        label="Enter user email address"
-                        placeholder="example@gmail.com"
-                        disabled={isLoading}
-                        rules={{
-                            required: 'Required field',
-                            validate: {
-                                isValidEmail: isValidEmail('Email'),
-                            },
-                        }}
-                    />
+                    <EmailForm
+                        className={`input-wrapper`}
+                        label="Enter user email address *"
+                    >
+                        <Suggest2
+                            inputValueRenderer={(item: string) => {
+                                return item;
+                            }}
+                            itemRenderer={renderItem}
+                            items={orgUserEmails}
+                            onItemSelect={(select: string) => {
+                                setEmailSelected(select);
+                            }}
+                            popoverProps={{
+                                minimal: true,
+                                popoverClassName: 'autocomplete-max-height',
+                            }}
+                            query={emailSelected}
+                            onQueryChange={(query: string) => {
+                                setEmailSelected(query);
+                            }}
+                            inputProps={{
+                                placeholder: 'example@gmail.com',
+                            }}
+                            noResults={<MenuItem disabled text="No results." />}
+                            selectedItem={emailSelected}
+                            itemPredicate={(
+                                query: string,
+                                item: string,
+                                index?: undefined | number,
+                                exactMatch?: undefined | false | true,
+                            ) => {
+                                if (exactMatch) {
+                                    return (
+                                        query.toLowerCase() ===
+                                        item.toLowerCase()
+                                    );
+                                }
+                                return item
+                                    .toLowerCase()
+                                    .includes(query.toLowerCase());
+                            }}
+                        />
+                    </EmailForm>
+
                     <RoleSelectButton
                         name="role"
                         disabled={isLoading}

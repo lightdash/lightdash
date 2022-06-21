@@ -544,23 +544,24 @@ export class ProjectModel {
         role: ProjectMemberRole,
     ): Promise<void> {
         try {
-            await this.database.raw<
-                (DbProjectMembership & DbProject & DbUser)[]
-            >(
-                `
-                INSERT INTO project_memberships
-                ("role", user_id, project_id)
-                SELECT :role, u.user_id, (
-                    SELECT p.project_id
-                    FROM projects as p
-                    WHERE p.project_uuid = :projectUuid)
-                FROM users as u
-                LEFT JOIN emails ON u.user_id = emails.user_id
-                WHERE emails.email = :email
-                
-                `,
-                { role, projectUuid, email },
-            );
+            const [project] = await this.database('projects')
+                .select('project_id')
+                .where('project_uuid', projectUuid);
+
+            const [user] = await this.database('users')
+                .leftJoin('emails', 'emails.user_id', 'users.user_id')
+                .select('users.user_id')
+                .where('email', email);
+            if (user === undefined) {
+                throw new NotExistsError(
+                    `Can't find user with email ${email} in the organization`,
+                );
+            }
+            await this.database('project_memberships').insert({
+                project_id: project.project_id,
+                role,
+                user_id: user.user_id,
+            });
         } catch (error: any) {
             if (
                 error instanceof DatabaseError &&

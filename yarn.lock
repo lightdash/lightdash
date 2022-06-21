@@ -2191,6 +2191,7 @@
     react-transition-group "^4.4.1"
     tslib "~2.3.1"
 
+
 "@blueprintjs/datetime2@^0.2.0":
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/@blueprintjs/datetime2/-/datetime2-0.2.0.tgz#ed92cc7b5d716e49b8bd1d46d0c74b94fb33726a"
@@ -2225,6 +2226,7 @@
     classnames "^2.2"
     tslib "~2.3.1"
 
+
 "@blueprintjs/popover2@^1.4.1":
   version "1.4.1"
   resolved "https://registry.yarnpkg.com/@blueprintjs/popover2/-/popover2-1.4.1.tgz#e02b0f3a7e7cd73e4a15ac43350abda62fd37d8a"
@@ -2237,6 +2239,7 @@
     dom4 "^2.1.5"
     react-popper "^2.2.4"
     tslib "~2.3.1"
+
 
 "@blueprintjs/select@^4.4.1":
   version "4.4.1"
