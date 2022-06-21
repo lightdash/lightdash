@@ -4,12 +4,10 @@ import { Ability } from '@casl/ability';
 import {
     ApiError,
     ApiHealthResults,
-    defineUserAbility,
     HealthState,
     Job,
     JobType,
-    LightdashUserWithProjectRoles,
-    MemberAbility,
+    LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
@@ -47,16 +45,17 @@ const getHealthState = async () =>
         body: undefined,
     });
 
-type User = LightdashUserWithProjectRoles & { ability: MemberAbility };
+type User = LightdashUserWithAbilityRules & { ability: Ability };
 const getUserState = async (): Promise<User> => {
-    const user = await lightdashApi<LightdashUserWithProjectRoles>({
+    const user = await lightdashApi<LightdashUserWithAbilityRules>({
         url: `/user`,
         method: 'GET',
         body: undefined,
     });
+
     return {
         ...user,
-        ability: defineUserAbility(user, user.projectRoles),
+        ability: new Ability(user.abilityRules),
     };
 };
 

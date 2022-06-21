@@ -2,11 +2,11 @@ import {
     ActivateUser,
     CreateUserArgs,
     CreateUserWithRole,
-    defineUserAbility,
+    getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
-    LightdashUserWithProjectRoles,
+    LightdashUserWithAbilityRules,
     NotExistsError,
     NotFoundError,
     OpenIdUser,
@@ -342,11 +342,15 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(user.user_id);
+        const abilityBuilder = getUserAbilityBuilder(
+            lightdashUser,
+            projectRoles,
+        );
 
         return {
             userId: user.user_id,
-            projectRoles,
-            ability: defineUserAbility(lightdashUser, projectRoles),
+            abilityRules: abilityBuilder.rules,
+            ability: abilityBuilder.build(),
             ...lightdashUser,
         };
     }
@@ -476,11 +480,15 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(user.user_id);
+        const abilityBuilder = getUserAbilityBuilder(
+            lightdashUser,
+            projectRoles,
+        );
         return {
             ...lightdashUser,
             userId: user.user_id,
-            projectRoles,
-            ability: defineUserAbility(lightdashUser, projectRoles),
+            abilityRules: abilityBuilder.rules,
+            ability: abilityBuilder.build(),
         };
     }
 
@@ -493,17 +501,21 @@ export class UserModel {
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(user.user_id);
+        const abilityBuilder = getUserAbilityBuilder(
+            lightdashUser,
+            projectRoles,
+        );
         return {
             ...lightdashUser,
-            projectRoles,
-            ability: defineUserAbility(lightdashUser, projectRoles),
+            abilityRules: abilityBuilder.rules,
+            ability: abilityBuilder.build(),
             userId: user.user_id,
         };
     }
 
     static lightdashUserFromSession(
         sessionUser: SessionUser,
-    ): LightdashUserWithProjectRoles {
+    ): LightdashUserWithAbilityRules {
         const { userId, ability, ...lightdashUser } = sessionUser;
         return lightdashUser;
     }

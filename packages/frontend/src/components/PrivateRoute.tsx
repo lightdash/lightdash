@@ -1,8 +1,7 @@
-import { getUserAbilityBuilder } from '@lightdash/common';
-import React, { ComponentProps, FC, useContext, useEffect } from 'react';
+import React, { ComponentProps, FC, useEffect } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useApp } from '../providers/AppProvider';
-import { AbilityContext } from './common/Authorization';
+import { useAbilityContext } from './common/Authorization';
 import PageSpinner from './PageSpinner';
 
 const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
@@ -10,15 +9,12 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
     ...rest
 }) => {
     const { health, user } = useApp();
-    const ability = useContext(AbilityContext);
+    const ability = useAbilityContext();
 
     useEffect(() => {
         if (user.data) {
-            const builder = getUserAbilityBuilder(
-                user.data,
-                user.data.projectRoles,
-            );
-            ability.update(builder.rules);
+            console.log('user.data', user.data.abilityRules);
+            ability.update(user.data.abilityRules);
         }
     }, [ability, user]);
 

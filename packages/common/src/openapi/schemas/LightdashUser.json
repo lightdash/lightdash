@@ -32,19 +32,11 @@
         "role": {
             "type": "string"
         },
-        "projectRoles": {
+        "abilityRules": {
             "type": "array",
             "items": {
                 "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "role": {
-                        "type": "string"
-                    }
-                }
+                "additionalProperties": true
             }
         }
     },

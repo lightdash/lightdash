@@ -1,7 +1,7 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import React, { ComponentProps, FC } from 'react';
-import { Redirect, Route, useParams } from 'react-router-dom';
+import { Redirect, Route } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -11,14 +11,13 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
     children,
     ...rest
 }) => {
-    const params = useParams<{ projectUuid: string | undefined }>();
     const { user } = useApp();
     const projectsRequest = useProjects();
 
     return (
         <Route
             {...rest}
-            render={() => {
+            render={(location) => {
                 if (projectsRequest.isLoading) {
                     return <PageSpinner />;
                 }
@@ -48,7 +47,7 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
                         I="view"
                         this={subject('Project', {
                             organizationUuid: user.data?.organizationUuid,
-                            projectUuid: params.projectUuid,
+                            projectUuid: location.match.params.projectUuid,
                         })}
                         passThrough
                     >

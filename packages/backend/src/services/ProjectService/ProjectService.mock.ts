@@ -42,7 +42,7 @@ export const user: SessionUser = {
         { subject: 'Job', action: ['view'] },
     ]),
     isActive: true,
-    projectRoles: [],
+    abilityRules: [],
 };
 
 export const expectedTablesConfiguration: TablesConfiguration = {
