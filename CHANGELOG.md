@@ -1,3 +1,10 @@
+## [0.150.1](https://github.com/lightdash/lightdash/compare/0.150.0...0.150.1) (2022-06-21)
+
+
+### Bug Fixes
+
+* tooltip to be disabled on click ([#2474](https://github.com/lightdash/lightdash/issues/2474)) ([78dfffb](https://github.com/lightdash/lightdash/commit/78dfffb98789f1a6cc017652257e70d5b0a77cf6))
+
 # [0.150.0](https://github.com/lightdash/lightdash/compare/0.149.0...0.150.0) (2022-06-20)
 
 
