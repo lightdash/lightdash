@@ -151,13 +151,13 @@ export class DashboardService {
         dashboardUuid: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        const { organizationUuid } = await this.dashboardModel.getById(
+        const existingDashboard = await this.dashboardModel.getById(
             dashboardUuid,
         );
         if (
             user.ability.cannot(
                 'update',
-                subject('Dashboard', { organizationUuid }),
+                subject('Dashboard', existingDashboard),
             )
         ) {
             throw new ForbiddenError();

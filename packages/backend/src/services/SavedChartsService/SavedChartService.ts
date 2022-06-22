@@ -167,7 +167,15 @@ export class SavedChartService {
         user: SessionUser,
     ): Promise<Space[]> {
         const [space] = await this.savedChartModel.getAllSpaces(projectUuid);
-        if (user.ability.cannot('view', subject('SavedChart', space))) {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         return [space];
