@@ -105,7 +105,7 @@ const Settings: FC = () => {
                         )}
                         {orgData &&
                             !orgData.needsProject &&
-                            user.data?.ability?.can('manage', 'Project') && (
+                            user.data?.ability?.can('view', 'Project') && (
                                 <RouterMenuItem
                                     text="Project management"
                                     exact
@@ -166,7 +166,7 @@ const Settings: FC = () => {
                 )}
                 {orgData &&
                     !orgData.needsProject &&
-                    user.data?.ability?.can('manage', 'Project') && (
+                    user.data?.ability?.can('view', 'Project') && (
                         <Route
                             exact
                             path={`/generalSettings/projectManagement`}

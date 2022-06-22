@@ -28,17 +28,6 @@ export class JobModel {
         this.database = deps.database;
     }
 
-    async getMostRecentJobByProject(
-        projectUuid: string,
-    ): Promise<Job | undefined> {
-        const [row] = await this.database(JobsTableName)
-            .where('project_uuid', projectUuid)
-            .orderBy('updated_at', 'desc')
-            .limit(1);
-        if (row === undefined) return undefined;
-        return this.convertRowToJob(row);
-    }
-
     async get(jobUuid: string): Promise<Job> {
         const [row] = await this.database(JobsTableName).where(
             'job_uuid',

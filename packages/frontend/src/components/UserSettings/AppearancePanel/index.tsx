@@ -1,9 +1,11 @@
 import { Colors, Icon, InputGroup, Intent, Spinner } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
+import { Can, useAbilityContext } from '../../common/Authorization';
 import {
     AppearancePanelWrapper,
     ColorPalette,
@@ -16,6 +18,7 @@ import {
 interface AppearanceColorProps {
     color: string;
     index: number;
+    disabled: boolean;
     onChange: (value: string) => void;
 }
 
@@ -23,6 +26,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
     color,
     index,
     onChange,
+    disabled,
 }) => (
     <InputWrapper label={`Color ${index + 1}`}>
         <InputGroup
@@ -31,6 +35,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
             onChange={(e) => {
                 onChange(e.target.value);
             }}
+            disabled={disabled}
             leftElement={
                 <ColorSquare>
                     <ColorSquareInner
@@ -47,6 +52,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
 );
 
 const AppearancePanel: FC = () => {
+    const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganisation();
     const updateMutation = useOrganisationUpdateMutation();
     let [colors, setColors] = useState<string[]>(
@@ -80,6 +86,12 @@ const AppearancePanel: FC = () => {
                         key={index}
                         color={color}
                         index={index}
+                        disabled={ability.cannot(
+                            'update',
+                            subject('Organization', {
+                                organizationUuid: data?.organizationUuid,
+                            }),
+                        )}
                         onChange={(colorChange) => {
                             setColors(
                                 colors.map((c, i) =>
@@ -91,12 +103,19 @@ const AppearancePanel: FC = () => {
                 ))}
             </ColorPalette>
             <div style={{ flex: 1 }} />
-            <SaveButton
-                intent={Intent.PRIMARY}
-                text="Save changes"
-                loading={updateMutation.isLoading}
-                onClick={update}
-            />
+            <Can
+                I={'update'}
+                this={subject('Organization', {
+                    organizationUuid: data?.organizationUuid,
+                })}
+            >
+                <SaveButton
+                    intent={Intent.PRIMARY}
+                    text="Save changes"
+                    loading={updateMutation.isLoading}
+                    onClick={update}
+                />
+            </Can>
         </AppearancePanelWrapper>
     );
 };

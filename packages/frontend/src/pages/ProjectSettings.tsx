@@ -7,10 +7,8 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import { subject } from '@casl/ability';
 import React, { FC, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
-import { Can } from '../components/common/Authorization';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
@@ -71,20 +69,12 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
-                    <Can
-                        I="manage"
-                        this={subject('Project', {
-                            organizationUuid: data.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        <MenuDivider />
-                        <RouterMenuItem
-                            text="Project access"
-                            exact
-                            to={`${basePath}/projectAccess`}
-                        />
-                    </Can>
+                    <MenuDivider />
+                    <RouterMenuItem
+                        text="Project access"
+                        exact
+                        to={`${basePath}/projectAccess`}
+                    />
                 </Menu>
             </Sidebar>
 
@@ -127,37 +117,27 @@ const ProjectSettings: FC = () => {
                         </UpdateProjectWrapper>
                     </ProjectConnectionContainer>
                 </Route>
-                <Can
-                    I="manage"
-                    this={subject('Project', {
-                        organizationUuid: data.organizationUuid,
-                        projectUuid,
-                    })}
+                <Route
+                    exact
+                    path="/projects/:projectUuid/settings/projectAccess"
                 >
-                    <Route
-                        exact
-                        path="/projects/:projectUuid/settings/projectAccess"
-                    >
-                        <Content>
-                            <Title>
-                                Project access (only visible to Project Admins)
-                            </Title>
-                            {projectAccessCreate ? (
-                                <ProjectAccessCreation
-                                    onBackClick={() => {
-                                        setProjectAccessCreate(false);
-                                    }}
-                                />
-                            ) : (
-                                <ProjectAccess
-                                    onAddUser={() => {
-                                        setProjectAccessCreate(true);
-                                    }}
-                                />
-                            )}
-                        </Content>
-                    </Route>
-                </Can>
+                    <Content>
+                        <Title>Project access</Title>
+                        {projectAccessCreate ? (
+                            <ProjectAccessCreation
+                                onBackClick={() => {
+                                    setProjectAccessCreate(false);
+                                }}
+                            />
+                        ) : (
+                            <ProjectAccess
+                                onAddUser={() => {
+                                    setProjectAccessCreate(true);
+                                }}
+                            />
+                        )}
+                    </Content>
+                </Route>
                 <Redirect to={basePath} />
             </Switch>
         </PageWithSidebar>
