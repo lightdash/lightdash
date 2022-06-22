@@ -1,3 +1,10 @@
+## [0.153.2](https://github.com/lightdash/lightdash/compare/0.153.1...0.153.2) (2022-06-22)
+
+
+### Bug Fixes
+
+* typo url to project after cli login ([#2498](https://github.com/lightdash/lightdash/issues/2498)) ([d571857](https://github.com/lightdash/lightdash/commit/d5718578e07f5bc12655c73c4b96e7b822dfa26c))
+
 ## [0.153.1](https://github.com/lightdash/lightdash/compare/0.153.0...0.153.1) (2022-06-22)
 
 
