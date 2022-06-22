@@ -1,11 +1,4 @@
-import {
-    Button,
-    Colors,
-    Icon,
-    InputGroup,
-    Intent,
-    Spinner,
-} from '@blueprintjs/core';
+import { Colors, Icon, InputGroup, Intent, Spinner } from '@blueprintjs/core';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
@@ -16,6 +9,7 @@ import {
     ColorPalette,
     ColorSquare,
     ColorSquareInner,
+    SaveButton,
     Title,
 } from './AppearancePanel.styles';
 
@@ -97,8 +91,7 @@ const AppearancePanel: FC = () => {
                 ))}
             </ColorPalette>
             <div style={{ flex: 1 }} />
-            <Button
-                style={{ alignSelf: 'flex-end', marginTop: 20 }}
+            <SaveButton
                 intent={Intent.PRIMARY}
                 text="Save changes"
                 loading={updateMutation.isLoading}

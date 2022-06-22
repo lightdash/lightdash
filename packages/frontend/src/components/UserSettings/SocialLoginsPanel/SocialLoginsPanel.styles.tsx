@@ -2,7 +2,7 @@ import { Card, H4 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const CardWrapper = styled.div`
-    height: 100%;
+    height: fit-content;
     display: flex;
     flex-direction: column;
 `;

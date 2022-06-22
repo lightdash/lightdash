@@ -37,6 +37,7 @@ import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
+import Settings from './pages/Settings';
 import Signup from './pages/Signup';
 import SqlRunner from './pages/SqlRunner';
 import { AppProvider } from './providers/AppProvider';
@@ -133,6 +134,16 @@ const App = () => (
                                                         }
                                                     >
                                                         <CreateProjectSettings />
+                                                    </TrackPage>
+                                                </Route>
+                                                <Route path="/generalSettings/:tab?">
+                                                    <NavBar />
+                                                    <TrackPage
+                                                        name={
+                                                            PageName.GENERAL_SETTINGS
+                                                        }
+                                                    >
+                                                        <Settings />
                                                     </TrackPage>
                                                 </Route>
                                                 <Route path="/no-access">

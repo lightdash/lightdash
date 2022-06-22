@@ -1,19 +1,20 @@
 import { Card, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const AccessTokensPanelWrapper = styled.div`
+export const ProjectManagementPanelWrapper = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
 `;
 
 export const HeaderActions = styled.div`
-    display: flex;
-    justify-content: flex-end;
     margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 `;
 
-export const AccessTokenWrapper = styled(Card)`
+export const ProjectListItemWrapper = styled(Card)`
     display: flex;
     flex-direction: column;
     margin-bottom: 1.25em;
@@ -26,19 +27,19 @@ export const ItemContent = styled.div`
     justify-content: space-between;
 `;
 
-export const AccessTokenInfo = styled.div`
+export const ProjectInfo = styled.div`
     margin: 0;
     flex: 1;
     display: flex;
-    gap: 3px;
     flex-direction: column;
 `;
 
-export const AccessTokenLabel = styled.b`
+export const ProjectName = styled.b`
     margin: 0;
     margin-right: 0.625em;
 `;
 
-export const ExpireAtLabel = styled(Tag)`
+export const ProjectTag = styled(Tag)`
     width: fit-content;
+    margin-top: 0.3em;
 `;
