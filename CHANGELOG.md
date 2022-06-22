@@ -1,3 +1,10 @@
+# [0.154.0](https://github.com/lightdash/lightdash/compare/0.153.2...0.154.0) (2022-06-22)
+
+
+### Features
+
+* move settings from modal to new page ([#2466](https://github.com/lightdash/lightdash/issues/2466)) ([de88a84](https://github.com/lightdash/lightdash/commit/de88a84255f541ceb3434a4ba2c4eb91a4988cf0))
+
 ## [0.153.2](https://github.com/lightdash/lightdash/compare/0.153.1...0.153.2) (2022-06-22)
 
 
