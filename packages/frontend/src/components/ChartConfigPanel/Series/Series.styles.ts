@@ -106,6 +106,8 @@ export const SeriesExtraInputs = styled.div`
     justify-content: space-between;
 `;
 
+// Read more at https://github.com/palantir/blueprint/issues/5387
+// @ts-ignore
 export const SeriesOptionsWrapper = styled(Collapse)<{
     $isGrouped?: boolean;
     $isSingle?: boolean;

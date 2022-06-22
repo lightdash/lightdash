@@ -1,5 +1,5 @@
 import {
-    defineAbilityForOrganizationMember,
+    defineUserAbility,
     NotFoundError,
     OrganizationMemberRole,
     SessionUser,
@@ -167,11 +167,14 @@ describe('ProjectService', () => {
                 userUuid: 'another-user-uuid',
                 role: OrganizationMemberRole.VIEWER,
 
-                ability: defineAbilityForOrganizationMember({
-                    ...user,
-                    role: OrganizationMemberRole.VIEWER,
-                    userUuid: 'another-user-uuid',
-                }),
+                ability: defineUserAbility(
+                    {
+                        ...user,
+                        role: OrganizationMemberRole.VIEWER,
+                        userUuid: 'another-user-uuid',
+                    },
+                    [],
+                ),
             };
             await expect(
                 projectService.getJobStatus('jobUuid', anotherUser),

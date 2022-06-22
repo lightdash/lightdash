@@ -1,29 +1,16 @@
-import { Ability, AbilityBuilder, ForcedSubject } from '@casl/ability';
+import { AbilityBuilder } from '@casl/ability';
 import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '../types/projectMemberProfile';
+import { MemberAbility } from './types';
 
-type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
-
-interface Project {
-    projectUuid: string;
-}
-
-type Subject = Project | 'Dashboard' | 'SavedChart' | 'Project' | 'Job' | 'all';
-
-type PossibleAbilities = [
-    Action,
-    Subject | ForcedSubject<Exclude<Subject, 'all'>>,
-];
-
-export type ProjectMemberAbility = Ability<PossibleAbilities>;
-
-const projectMemberAbilities: Record<
+// eslint-disable-next-line import/prefer-default-export
+export const projectMemberAbilities: Record<
     ProjectMemberRole,
     (
         member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'>,
-        builder: Pick<AbilityBuilder<ProjectMemberAbility>, 'can'>,
+        builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
 > = {
     viewer(member, { can }) {
@@ -54,14 +41,4 @@ const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
     },
-};
-
-export const defineAbilityForProjectMember = (
-    member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'> | undefined,
-): ProjectMemberAbility => {
-    const builder = new AbilityBuilder<ProjectMemberAbility>(Ability);
-    if (member) {
-        projectMemberAbilities[member.role](member, builder);
-    }
-    return builder.build();
 };

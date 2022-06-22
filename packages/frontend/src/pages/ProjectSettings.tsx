@@ -7,8 +7,10 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import React, { FC, useMemo, useState } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
+import { Can } from '../components/common/Authorization';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
@@ -18,8 +20,8 @@ import ProjectAccessCreation from '../components/ProjectAccess/ProjectAccessCrea
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
-import { useApp } from '../providers/AppProvider';
 import {
+    ProjectConnectionContainer,
     Title,
     UpdateHeaderWrapper,
     UpdateProjectWrapper,
@@ -28,7 +30,6 @@ import {
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
-    const { user } = useApp();
 
     const [projectAccessCreate, setProjectAccessCreate] =
         useState<boolean>(false);
@@ -37,10 +38,6 @@ const ProjectSettings: FC = () => {
         [projectUuid],
     );
 
-    const isOrgAdmin = user.data?.ability.can(
-        'manage',
-        'OrganizationMemberProfile',
-    );
     if (error) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -74,14 +71,20 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/tablesConfiguration`}
                     />
-                    {isOrgAdmin && <MenuDivider />}
-                    {isOrgAdmin && (
+                    <Can
+                        I="manage"
+                        this={subject('Project', {
+                            organizationUuid: data.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        <MenuDivider />
                         <RouterMenuItem
                             text="Project access"
                             exact
                             to={`${basePath}/projectAccess`}
                         />
-                    )}
+                    </Can>
                 </Menu>
             </Sidebar>
 
@@ -111,7 +114,7 @@ const ProjectSettings: FC = () => {
                 </Route>
 
                 <Route exact path="/projects/:projectUuid/settings">
-                    <Content noPadding>
+                    <ProjectConnectionContainer>
                         <UpdateProjectWrapper>
                             <UpdateHeaderWrapper>
                                 <Title marginBottom>
@@ -122,9 +125,15 @@ const ProjectSettings: FC = () => {
                                 projectUuid={projectUuid}
                             />
                         </UpdateProjectWrapper>
-                    </Content>
+                    </ProjectConnectionContainer>
                 </Route>
-                {isOrgAdmin && (
+                <Can
+                    I="manage"
+                    this={subject('Project', {
+                        organizationUuid: data.organizationUuid,
+                        projectUuid,
+                    })}
+                >
                     <Route
                         exact
                         path="/projects/:projectUuid/settings/projectAccess"
@@ -148,7 +157,7 @@ const ProjectSettings: FC = () => {
                             )}
                         </Content>
                     </Route>
-                )}
+                </Can>
                 <Redirect to={basePath} />
             </Switch>
         </PageWithSidebar>

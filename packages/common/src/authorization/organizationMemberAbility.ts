@@ -1,39 +1,19 @@
-import { Ability, AbilityBuilder, ForcedSubject } from '@casl/ability';
-import { Organization } from '../types/organization';
+import { AbilityBuilder } from '@casl/ability';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
+import { MemberAbility } from './types';
 
-type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
-
-type Subject =
-    | Organization
-    | OrganizationMemberProfile
-    | 'Organization'
-    | 'OrganizationMemberProfile'
-    | 'Dashboard'
-    | 'SavedChart'
-    | 'Project'
-    | 'InviteLink'
-    | 'Job'
-    | 'all';
-
-type PossibleAbilities = [
-    Action,
-    Subject | ForcedSubject<Exclude<Subject, 'all'>>,
-];
-
-export type OrganizationMemberAbility = Ability<PossibleAbilities>;
-
-const organizationMemberAbilities: Record<
+// eslint-disable-next-line import/prefer-default-export
+export const organizationMemberAbilities: Record<
     OrganizationMemberRole,
     (
         member: Pick<
             OrganizationMemberProfile,
             'role' | 'organizationUuid' | 'userUuid'
         >,
-        builder: Pick<AbilityBuilder<OrganizationMemberAbility>, 'can'>,
+        builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
 > = {
     member(member, { can }) {
@@ -86,19 +66,4 @@ const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
     },
-};
-
-export const defineAbilityForOrganizationMember = (
-    member:
-        | Pick<
-              OrganizationMemberProfile,
-              'role' | 'organizationUuid' | 'userUuid'
-          >
-        | undefined,
-): OrganizationMemberAbility => {
-    const builder = new AbilityBuilder<OrganizationMemberAbility>(Ability);
-    if (member) {
-        organizationMemberAbilities[member.role](member, builder);
-    }
-    return builder.build();
 };

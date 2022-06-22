@@ -20,7 +20,6 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import DocumentationHelpButton from '../DocumentationHelpButton';
-import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
@@ -252,7 +251,7 @@ export const UpdateProjectConnection: FC<{
     };
 
     return (
-        <Form
+        <FormContainer
             name="update_project"
             methods={methods}
             onSubmit={onSubmit}
@@ -284,7 +283,7 @@ export const UpdateProjectConnection: FC<{
                     />
                 </FormWrapper>
             </CompileProjectWrapper>
-        </Form>
+        </FormContainer>
     );
 };
 
@@ -358,7 +357,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     />
                 </FormWrapper>
             </ProjectFormProvider>
-            <CompileProjectWrapper>
+            <CompileProjectWrapper fixedButton>
                 <FormWrapper>
                     <CompileProjectButton
                         type="submit"

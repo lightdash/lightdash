@@ -1,3 +1,37 @@
+# [0.152.0](https://github.com/lightdash/lightdash/compare/0.151.0...0.152.0) (2022-06-21)
+
+
+### Bug Fixes
+
+* redirect after create first project ([#2490](https://github.com/lightdash/lightdash/issues/2490)) ([97f65a4](https://github.com/lightdash/lightdash/commit/97f65a47f4ebaf8121dd0344dcd10cb42dc1151f))
+
+
+### Features
+
+* access project permissions in the UI ([#2459](https://github.com/lightdash/lightdash/issues/2459)) ([83eec49](https://github.com/lightdash/lightdash/commit/83eec498097c8e46070d7a401a267c621ff556b2))
+
+# [0.151.0](https://github.com/lightdash/lightdash/compare/0.150.4...0.151.0) (2022-06-21)
+
+
+### Features
+
+* autocomplete emails projectsettings ([#2471](https://github.com/lightdash/lightdash/issues/2471)) ([d09fd23](https://github.com/lightdash/lightdash/commit/d09fd239ae293dd732ae0cebfc97f1ae35157b02))
+
+## [0.150.4](https://github.com/lightdash/lightdash/compare/0.150.3...0.150.4) (2022-06-21)
+
+
+### Bug Fixes
+
+* date/time picker timezones ([#2463](https://github.com/lightdash/lightdash/issues/2463)) ([630ced9](https://github.com/lightdash/lightdash/commit/630ced939d09255da8f1b1bf52860cd610efc358))
+
+## [0.150.3](https://github.com/lightdash/lightdash/compare/0.150.2...0.150.3) (2022-06-21)
+
+
+### Bug Fixes
+
+* align page spinner ([#2486](https://github.com/lightdash/lightdash/issues/2486)) ([aaa85d7](https://github.com/lightdash/lightdash/commit/aaa85d711a2b95c64737e14c09968dc9a99c51b5))
+* button bar not sticking to the bottom ([#2473](https://github.com/lightdash/lightdash/issues/2473)) ([1460f40](https://github.com/lightdash/lightdash/commit/1460f40416c3ebb6c8f4a287710ef74b1d8e143d))
+
 ## [0.150.2](https://github.com/lightdash/lightdash/compare/0.150.1...0.150.2) (2022-06-21)
 
 

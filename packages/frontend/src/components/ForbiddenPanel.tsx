@@ -6,10 +6,12 @@ const ForbiddenPanelWrapper = styled.div`
     margin-top: 30vh;
 `;
 
-const ForbiddenPanel: FC = () => (
+const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => (
     <ForbiddenPanelWrapper>
         <NonIdealState
-            title="You don't have access"
+            title={`You don't have access${
+                subject ? ` to this ${subject}` : ''
+            }`}
             description="Please contact the admin to request access."
             icon="lock"
         />

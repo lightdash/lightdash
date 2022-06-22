@@ -5,6 +5,9 @@ import Form from '../ReactHookForm/Form';
 
 export const FormContainer = styled(Form)`
     width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 `;
 
 export const WarehouseLogo = styled.img`
@@ -12,25 +15,32 @@ export const WarehouseLogo = styled.img`
     width: 30px;
 `;
 
-export const CompileProjectWrapper = styled.div`
+export const CompileProjectWrapper = styled.div<{ fixedButton?: boolean }>`
     height: 70px;
     width: 100%;
     position: sticky;
     background: ${Colors.WHITE};
     border-top: 1px solid ${Colors.LIGHT_GRAY1};
     bottom: 0;
+    margin-top: auto;
+
+    ${({ fixedButton }) =>
+        fixedButton &&
+        `
+        position: fixed;
+    `}
 `;
 
 export const FormWrapper = styled.div`
     width: 800px;
-    margin: auto;
+    margin: 0 auto;
 `;
 
 export const CompileProjectButton = styled(Button)`
     height: 40px;
     width: 215px;
     float: right;
-    margin-top: 15px;
+    margin: 15px 0;
 `;
 
 export const AdvancedButtonWrapper = styled.div`
