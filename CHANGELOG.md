@@ -1,3 +1,10 @@
+# [0.153.0](https://github.com/lightdash/lightdash/compare/0.152.0...0.153.0) (2022-06-22)
+
+
+### Features
+
+* add cli compile and deploy ([#2464](https://github.com/lightdash/lightdash/issues/2464)) ([325af30](https://github.com/lightdash/lightdash/commit/325af30b78f911cbfcc9ed62ccceb448bb99afc0))
+
 # [0.152.0](https://github.com/lightdash/lightdash/compare/0.151.0...0.152.0) (2022-06-21)
 
 
