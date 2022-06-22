@@ -1,3 +1,10 @@
+## [0.153.1](https://github.com/lightdash/lightdash/compare/0.153.0...0.153.1) (2022-06-22)
+
+
+### Bug Fixes
+
+* user cascade deletion ([#2494](https://github.com/lightdash/lightdash/issues/2494)) ([f8f4027](https://github.com/lightdash/lightdash/commit/f8f4027710af25d439a99fa923e3ace25e8b3b2b))
+
 # [0.153.0](https://github.com/lightdash/lightdash/compare/0.152.0...0.153.0) (2022-06-22)
 
 
