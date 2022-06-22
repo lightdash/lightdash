@@ -85,6 +85,24 @@ export const mapFieldType = (type: string): DimensionType => {
     }
 };
 
+const parseCell = (cell: any) => {
+    if (cell instanceof Date) {
+        return new Date(cell);
+    }
+
+    return cell;
+};
+
+const parseRows = (rows: Record<string, any>[]) =>
+    rows.map((row) =>
+        Object.fromEntries(
+            Object.entries(row).map(([name, value]) => [
+                name,
+                parseCell(value),
+            ]),
+        ),
+    );
+
 export class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
@@ -133,7 +151,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                                 }),
                                 {},
                             );
-                            resolve({ fields, rows: data });
+                            resolve({ fields, rows: parseRows(data) });
                         } else {
                             reject(
                                 new WarehouseQueryError(
