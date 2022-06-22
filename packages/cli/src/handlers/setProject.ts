@@ -28,7 +28,7 @@ export const setProject = async () => {
     });
     const projectUrl =
         config.context?.serverUrl &&
-        new URL(`/projects/${answers.project}`, config.context.serverUrl);
+        new URL(`/projects/${answers.project}/home`, config.context.serverUrl);
     console.error(
         `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
     );
