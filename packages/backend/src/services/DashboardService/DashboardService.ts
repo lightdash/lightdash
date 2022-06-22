@@ -86,6 +86,7 @@ export class DashboardService {
                 'create',
                 subject('Dashboard', {
                     organizationUuid: space.organization_uuid,
+                    projectUuid,
                 }),
             )
         ) {
@@ -200,13 +201,12 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        const { organizationUuid } = await this.dashboardModel.getById(
-            dashboardUuid,
-        );
+        const { organizationUuid, projectUuid } =
+            await this.dashboardModel.getById(dashboardUuid);
         if (
             user.ability.cannot(
                 'delete',
-                subject('Dashboard', { organizationUuid }),
+                subject('Dashboard', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();

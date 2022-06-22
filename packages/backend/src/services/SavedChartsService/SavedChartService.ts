@@ -73,14 +73,13 @@ export class SavedChartService {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        const { organizationUuid } = await this.savedChartModel.get(
-            savedChartUuid,
-        );
+        const { organizationUuid, projectUuid } =
+            await this.savedChartModel.get(savedChartUuid);
 
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid }),
+                subject('SavedChart', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -103,14 +102,13 @@ export class SavedChartService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid } = await this.savedChartModel.get(
-            savedChartUuid,
-        );
+        const { organizationUuid, projectUuid } =
+            await this.savedChartModel.get(savedChartUuid);
 
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid }),
+                subject('SavedChart', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -131,14 +129,13 @@ export class SavedChartService {
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
-        const { organizationUuid } = await this.savedChartModel.get(
-            savedChartUuid,
-        );
+        const { organizationUuid, projectUuid } =
+            await this.savedChartModel.get(savedChartUuid);
 
         if (
             user.ability.cannot(
                 'delete',
-                subject('SavedChart', { organizationUuid }),
+                subject('SavedChart', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -190,7 +187,7 @@ export class SavedChartService {
         if (
             user.ability.cannot(
                 'create',
-                subject('SavedChart', { organizationUuid }),
+                subject('SavedChart', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
