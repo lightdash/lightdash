@@ -36,6 +36,8 @@ import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
 import DocumentationHelpButton from './DocumentationHelpButton';
 import {
+    DimensionLabel,
+    DimensionLabelWrapper,
     ItemOptions,
     Placeholder,
     TableTreeGlobalStyle,
@@ -384,6 +386,23 @@ const CustomMetricButtons: FC<{
 
 type DimensionWithSubDimensions = Dimension & { subDimensions?: Dimension[] };
 
+const DimensionIconPicker = (type: DimensionType) => {
+    switch (type) {
+        case DimensionType.STRING:
+            return 'citation';
+        case DimensionType.NUMBER:
+            return 'numerical';
+        case DimensionType.DATE:
+            return 'calendar';
+        case DimensionType.BOOLEAN:
+            return 'segmented-control';
+        case DimensionType.TIMESTAMP:
+            return 'time';
+        default:
+            return 'citation';
+    }
+};
+
 const renderDimensionTreeNode = (
     dimension: DimensionWithSubDimensions,
     expandedNodes: Array<string | number>,
@@ -395,7 +414,15 @@ const renderDimensionTreeNode = (
         id: dimension.name,
         label: (
             <Tooltip2 content={dimension.description}>
-                {dimension.label}
+                <DimensionLabelWrapper>
+                    {!dimension.subDimensions && (
+                        <Icon
+                            icon={DimensionIconPicker(dimension.type)}
+                            className={Classes.TREE_NODE_ICON}
+                        />
+                    )}
+                    <DimensionLabel>{dimension.label}</DimensionLabel>
+                </DimensionLabelWrapper>
             </Tooltip2>
         ),
         secondaryLabel: (
