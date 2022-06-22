@@ -1,3 +1,15 @@
+# [0.156.0](https://github.com/lightdash/lightdash/compare/0.155.0...0.156.0) (2022-06-22)
+
+
+### Bug Fixes
+
+* snowflake date object ([#2501](https://github.com/lightdash/lightdash/issues/2501)) ([e6139b2](https://github.com/lightdash/lightdash/commit/e6139b25bc18d55a44e95eabfcf4526d7a74b706))
+
+
+### Features
+
+* apply project level permissions + e2e tests ([#2491](https://github.com/lightdash/lightdash/issues/2491)) ([6303223](https://github.com/lightdash/lightdash/commit/6303223d38f33ba9459cf0d0dadc393d53323e2e))
+
 # [0.155.0](https://github.com/lightdash/lightdash/compare/0.154.0...0.155.0) (2022-06-22)
 
 
