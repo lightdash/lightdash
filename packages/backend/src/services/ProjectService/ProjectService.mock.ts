@@ -23,6 +23,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
 } from '@lightdash/common';
+import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectAdapter } from '../../types';
 
 export const user: SessionUser = {
@@ -291,4 +292,12 @@ export const jobError: Job = {
             startedAt: new Date(),
         },
     ],
+};
+
+export const lightdashConfigWithNoSMTP: Pick<
+    LightdashConfig,
+    'smtp' | 'siteUrl'
+> = {
+    smtp: undefined,
+    siteUrl: 'https://test.lightdash.cloud',
 };

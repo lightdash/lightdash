@@ -1,6 +1,8 @@
 import {
+    CreateProjectMember,
     InviteLink,
     PasswordResetLink,
+    ProjectMemberRole,
     SessionUser,
     SmptError,
 } from '@lightdash/common';
@@ -130,6 +132,41 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
+        });
+    }
+
+    public async sendProjectAccessEmail(
+        userThatInvited: Pick<SessionUser, 'firstName' | 'lastName'>,
+        projectMember: CreateProjectMember,
+        projectName: string,
+        projectUrl: string,
+    ) {
+        let roleAction = 'view';
+        switch (projectMember.role) {
+            case ProjectMemberRole.VIEWER:
+                roleAction = 'view';
+                break;
+            case ProjectMemberRole.EDITOR:
+                roleAction = 'edit';
+                break;
+            case ProjectMemberRole.ADMIN:
+                roleAction = 'admin';
+                break;
+            default:
+                const nope: never = projectMember.role;
+        }
+        return this.sendEmail({
+            to: projectMember.email,
+            subject: `${userThatInvited.firstName} ${userThatInvited.lastName} invited you to ${projectName}`,
+            template: 'projectAccess',
+            context: {
+                inviterName: `${userThatInvited.firstName} ${userThatInvited.lastName}`,
+                projectUrl,
+                host: this.lightdashConfig.siteUrl,
+                projectName,
+                roleAction,
+            },
+            text: `${userThatInvited.firstName} ${userThatInvited.lastName} has invited you to ${roleAction} this project: ${projectUrl}`,
         });
     }
 }
