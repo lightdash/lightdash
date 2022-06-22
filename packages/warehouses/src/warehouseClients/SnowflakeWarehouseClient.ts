@@ -117,6 +117,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             }>((resolve, reject) => {
                 connection.execute({
                     sqlText,
+                    fetchAsString: ['Date'],
                     complete: (err, stmt, data) => {
                         if (err) {
                             reject(err);
