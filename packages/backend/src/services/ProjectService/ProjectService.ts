@@ -895,12 +895,13 @@ export class ProjectService {
             lightdashConfig.siteUrl,
         ).href;
 
-        await this.emailClient.sendProjectAccessEmail(
-            user,
-            data,
-            project.name,
-            projectUrl,
-        );
+        if (data.sendEmail)
+            await this.emailClient.sendProjectAccessEmail(
+                user,
+                data,
+                project.name,
+                projectUrl,
+            );
     }
 
     async updateProjectAccess(

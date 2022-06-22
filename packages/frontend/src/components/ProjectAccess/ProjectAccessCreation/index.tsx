@@ -1,9 +1,15 @@
 import { Card, Intent, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
-import { CreateProjectMember, ProjectMemberRole } from '@lightdash/common';
+import {
+    CreateProjectMember,
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    validateEmail,
+} from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
+import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
@@ -46,6 +52,10 @@ const ProjectAccessCreation: FC<{
         isSuccess,
         isLoading,
     } = useCreateProjectAccessMutation(projectUuid);
+
+    const { mutate: inviteMutation, isLoading: isInvitationLoading } =
+        useCreateInviteLinkMutation();
+
     const methods = useForm<CreateProjectMember>({
         mode: 'onSubmit',
         defaultValues: {
@@ -53,6 +63,7 @@ const ProjectAccessCreation: FC<{
         },
     });
     const [emailSelected, setEmailSelected] = useState<string>('');
+    const [isUserNew, setIsUserNew] = useState<boolean>(false);
 
     useEffect(() => {
         if (isError) {
@@ -64,6 +75,10 @@ const ProjectAccessCreation: FC<{
         }
     }, [isError, methods, isSuccess, showToastSuccess, setEmailSelected]);
 
+    const { data: organizationUsers } = useOrganizationUsers();
+    const orgUserEmails =
+        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
+
     const handleSubmit = (formData: CreateProjectMember) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
@@ -71,13 +86,13 @@ const ProjectAccessCreation: FC<{
         createMutation({
             ...formData,
             email: emailSelected,
+            sendEmail: !isUserNew,
         });
+
+        setIsUserNew(false);
     };
 
-    const { data: organizationUsers } = useOrganizationUsers();
-    const orgUserEmails =
-        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
-
+    console.log('methods.formState', methods.getValues('role'));
     return (
         <Panel>
             <BackButton
@@ -103,6 +118,7 @@ const ProjectAccessCreation: FC<{
                             items={orgUserEmails}
                             onItemSelect={(select: string) => {
                                 setEmailSelected(select);
+                                setIsUserNew(false);
                             }}
                             popoverProps={{
                                 minimal: true,
@@ -115,7 +131,7 @@ const ProjectAccessCreation: FC<{
                             inputProps={{
                                 placeholder: 'example@gmail.com',
                             }}
-                            noResults={<MenuItem disabled text="No results." />}
+                            //noResults={<MenuItem disabled text="No results." />}
                             selectedItem={emailSelected}
                             itemPredicate={(
                                 query: string,
@@ -132,6 +148,26 @@ const ProjectAccessCreation: FC<{
                                 return item
                                     .toLowerCase()
                                     .includes(query.toLowerCase());
+                            }}
+                            createNewItemFromQuery={(email: string) => email}
+                            createNewItemRenderer={(email: string) => {
+                                if (validateEmail(email)) {
+                                    return (
+                                        <MenuItem
+                                            icon="add"
+                                            key={email}
+                                            text={`Invite ${email} as new member of this organisation`}
+                                            onClick={() => {
+                                                inviteMutation({
+                                                    email: email,
+                                                    role: OrganizationMemberRole.MEMBER,
+                                                });
+                                                setIsUserNew(true);
+                                            }}
+                                            shouldDismissPopover={true}
+                                        />
+                                    );
+                                }
                             }}
                         />
                     </EmailForm>
@@ -153,7 +189,7 @@ const ProjectAccessCreation: FC<{
                         intent={Intent.PRIMARY}
                         text={'Give access'}
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || isInvitationLoading}
                     />
                 </ProjectAccessForm>
             </Card>
