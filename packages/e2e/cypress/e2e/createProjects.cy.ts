@@ -1,15 +1,21 @@
 const warehouseConfig = {
     postgresSQL: {
-        host: Cypress.env('PGHOST') || 'host.docker.internal',
+        host: Cypress.env('PGHOST') || 'localhost',
         user: 'postgres',
         password: Cypress.env('PGPASSWORD') || 'password',
         database: 'postgres',
         port: '5432',
         schema: 'jaffle',
     },
+    databricks: {
+        host: Cypress.env('DATABRICKS_HOST') || 'localhost',
+        token: Cypress.env('DATABRICKS_TOKEN') || 'password',
+        httpPath: Cypress.env('DATABRICKS_PATH') || 'sql/protocolv1',
+        schema: 'jaffle',
+    },
 };
 
-const configureWarehouse = (config) => {
+const configurePostgresWarehouse = (config) => {
     cy.get('[name="warehouse.host"]').type(config.host);
     cy.get('[name="warehouse.user"]').type(config.user);
     cy.get('[name="warehouse.password"]').type(config.password);
@@ -25,6 +31,18 @@ const configureWarehouse = (config) => {
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.schema"]').type(config.schema);
 };
+
+const configureDatabricksWarehouse = (config) => {
+    cy.get('[name="warehouse.serverHostName"]').type(config.host);
+    cy.get('[name="warehouse.httpPath"]').type(config.httpPath);
+    cy.get('[name="warehouse.personalAccessToken"]').type(config.token);
+
+    // DBT
+    cy.get('[name="dbt.type"]').select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.database"]').type(config.schema);
+};
+
 const testCompile = () => {
     // Compile
     cy.findByText('Test & compile project').click();
@@ -85,8 +103,8 @@ describe('Create projects', () => {
 
         cy.contains('PostgreSQL').click();
 
-        cy.get('[name="name"]').type('Jaffle PostgreSQL test');
-        configureWarehouse(warehouseConfig.postgresSQL);
+        cy.get('[name="name"]').clear().type('Jaffle PostgreSQL test');
+        configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
         testQuery();
@@ -101,8 +119,20 @@ describe('Create projects', () => {
 
         cy.contains('Redshift').click();
 
-        cy.get('[name="name"]').type('Jaffle Redshift test');
-        configureWarehouse(warehouseConfig.postgresSQL);
+        cy.get('[name="name"]').clear().type('Jaffle Redshift test');
+        configurePostgresWarehouse(warehouseConfig.postgresSQL);
+
+        testCompile();
+        testQuery();
+    });
+
+    it('Should create a Databricks project', () => {
+        cy.visit(`/createProject`);
+
+        cy.contains('Databricks').click();
+
+        cy.get('[name="name"]').clear().type('Jaffle Databricks test');
+        configureDatabricksWarehouse(warehouseConfig.databricks);
 
         testCompile();
         testQuery();
