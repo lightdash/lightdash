@@ -5,7 +5,6 @@ import {
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
-    defineAbilityForOrganizationMember,
     DeleteOpenIdentity,
     ExpiredError,
     ForbiddenError,
@@ -607,12 +606,9 @@ export class UserService {
         }
     }
 
-    async loginWithPersonalAccessToken(
-        token: string,
-    ): Promise<Omit<SessionUser, 'userId'>> {
-        const results = await this.userModel.findUserByPersonalAccessToken(
-            token,
-        );
+    async loginWithPersonalAccessToken(token: string): Promise<SessionUser> {
+        const results =
+            await this.userModel.findSessionUserByPersonalAccessToken(token);
         if (results === undefined) {
             throw new AuthorizationError();
         }
@@ -629,9 +625,6 @@ export class UserService {
             }
             throw new AuthorizationError();
         }
-        return {
-            ...user,
-            ability: defineAbilityForOrganizationMember(user),
-        };
+        return user;
     }
 }

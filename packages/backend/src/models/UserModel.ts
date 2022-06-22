@@ -542,10 +542,10 @@ export class UserModel {
             .merge();
     }
 
-    async findUserByPersonalAccessToken(
+    async findSessionUserByPersonalAccessToken(
         token: string,
     ): Promise<
-        | { user: LightdashUser; personalAccessToken: PersonalAccessToken }
+        | { user: SessionUser; personalAccessToken: PersonalAccessToken }
         | undefined
     > {
         const tokenHash = PersonalAccessTokenModel._hash(token);
@@ -560,8 +560,19 @@ export class UserModel {
         if (row === undefined) {
             return undefined;
         }
+        const lightdashUser = mapDbUserDetailsToLightdashUser(row);
+        const projectRoles = await this.getUserProjectRoles(row.user_id);
+        const abilityBuilder = getUserAbilityBuilder(
+            lightdashUser,
+            projectRoles,
+        );
         return {
-            user: mapDbUserDetailsToLightdashUser(row),
+            user: {
+                ...mapDbUserDetailsToLightdashUser(row),
+                abilityRules: abilityBuilder.rules,
+                ability: abilityBuilder.build(),
+                userId: row.user_id,
+            },
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
