@@ -92,7 +92,6 @@ const ProjectAccessCreation: FC<{
         setIsUserNew(false);
     };
 
-    console.log('methods.formState', methods.getValues('role'));
     return (
         <Panel>
             <BackButton
