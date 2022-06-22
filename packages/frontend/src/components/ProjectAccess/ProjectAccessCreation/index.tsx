@@ -130,7 +130,6 @@ const ProjectAccessCreation: FC<{
                             inputProps={{
                                 placeholder: 'example@gmail.com',
                             }}
-                            //noResults={<MenuItem disabled text="No results." />}
                             selectedItem={emailSelected}
                             itemPredicate={(
                                 query: string,
