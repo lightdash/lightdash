@@ -1,6 +1,6 @@
 const warehouseConfig = {
     postgresSQL: {
-        host: Cypress.env('PGHOST') || 'localhost',
+        host: Cypress.env('PGHOST') || 'db-dev',
         user: 'postgres',
         password: Cypress.env('PGPASSWORD') || 'password',
         database: 'postgres',
@@ -48,7 +48,7 @@ const testCompile = () => {
     cy.findByText('Test & compile project').click();
     cy.contains('Step 1/3', { timeout: 60000 });
     cy.contains('Step 2/3', { timeout: 60000 });
-    cy.contains('Successfully synced dbt project!', { timeout: 30000 });
+    cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
     cy.contains('selected 6 models');
     // Configure
@@ -57,12 +57,14 @@ const testCompile = () => {
         .should('not.be.disabled')
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
+    cy.contains('Welcome, David');
 };
 
 const testRunQuery = () => {
     // Open SQL runner
     cy.findByText('Explore').click();
     cy.findByText('SQL Runner').click();
+    cy.url().should('include', '/sqlRunner', { timeout: 30000 });
 
     cy.contains('payments').click();
 };
@@ -70,6 +72,7 @@ const testRunQuery = () => {
 const testQuery = () => {
     cy.findByText('Explore').click();
     cy.findByText('Tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
 
     cy.contains('Orders').click();
     cy.findByText('First name').click();
@@ -98,7 +101,7 @@ describe('Create projects', () => {
         cy.contains('Connect your project');
     });
 
-    it('Should create a Postgres project', () => {
+    it.only('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('PostgreSQL').click();
