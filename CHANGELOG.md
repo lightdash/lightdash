@@ -1,3 +1,10 @@
+# [0.155.0](https://github.com/lightdash/lightdash/compare/0.154.0...0.155.0) (2022-06-22)
+
+
+### Features
+
+* send email on project access ([#2479](https://github.com/lightdash/lightdash/issues/2479)) ([e70907e](https://github.com/lightdash/lightdash/commit/e70907e9eff77dba9bb28d3fc0522cc0631dbf16))
+
 # [0.154.0](https://github.com/lightdash/lightdash/compare/0.153.2...0.154.0) (2022-06-22)
 
 
