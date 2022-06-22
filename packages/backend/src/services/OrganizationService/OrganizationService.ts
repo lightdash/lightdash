@@ -121,15 +121,21 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        if (
-            user.ability.cannot(
+        const projects = await this.projectModel.getAllByOrganizationUuid(
+            organizationUuid,
+        );
+
+        const filteredProjects = projects.filter((project) =>
+            user.ability.can(
                 'view',
-                subject('Project', { organizationUuid }),
-            )
-        ) {
-            return [];
-        }
-        return this.projectModel.getAllByOrganizationUuid(organizationUuid);
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            ),
+        );
+
+        return filteredProjects;
     }
 
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {

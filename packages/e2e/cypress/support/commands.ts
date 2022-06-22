@@ -38,6 +38,13 @@ declare global {
             anotherLogin(): Chainable<Element>;
             logout(): Chainable<Element>;
             registerNewUser(): Chainable<Element>;
+            invite(email, role): Chainable<string>;
+            registerWithCode(email, inviteCode): Chainable<Element>;
+            addProjectPermission(email, role, projectUuid): Chainable<Element>;
+            loginWithPermissions(
+                orgRole,
+                projectPermissions,
+            ): Chainable<Element>;
         }
     }
 }
@@ -77,9 +84,93 @@ Cypress.Commands.add('registerNewUser', () => {
     });
 });
 
+Cypress.Commands.add(
+    'registerWithCode',
+    (email: string, inviteCode: string) => {
+        cy.request({
+            url: `api/v1/user`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {
+                inviteCode,
+                email,
+                firstName: 'test',
+                lastName: 'test',
+                password: 'test',
+            },
+        }).then((resp) => {
+            cy.log(JSON.stringify(resp.body));
+            expect(resp.status).to.eq(200);
+        });
+    },
+);
+
+Cypress.Commands.add('invite', (email: string, role: string) => {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // in 1 day
+
+    cy.request({
+        url: `api/v1/invite-links`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: {
+            role,
+            email,
+            expiresAt,
+        },
+    }).then((resp) => {
+        cy.log(JSON.stringify(resp.body.results));
+        expect(resp.status).to.eq(201);
+        cy.wrap(resp.body.results.inviteCode);
+    });
+});
+
+Cypress.Commands.add(
+    'addProjectPermission',
+    (email: string, role: string, projectUuid: string) => {
+        cy.request({
+            url: `api/v1/projects/${projectUuid}/access`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {
+                role,
+                email,
+            },
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    },
+);
+
 Cypress.Commands.add('logout', () => {
     cy.request({
         url: 'api/v1/logout',
         method: 'GET',
     });
 });
+
+type ProjectPermission = {
+    role: string;
+    projectUuid: string;
+};
+Cypress.Commands.add(
+    'loginWithPermissions',
+    (orgRole: string, projectPermissions: ProjectPermission[]) => {
+        cy.login();
+
+        const email = `${orgRole}-${new Date().getTime()}@lightdash.com`;
+
+        cy.invite(email, orgRole).then((inviteCode) => {
+            projectPermissions.forEach((projectPermission) => {
+                cy.addProjectPermission(
+                    email,
+                    projectPermission.role,
+                    projectPermission.projectUuid,
+                );
+            });
+
+            cy.registerWithCode(email, inviteCode);
+
+            cy.wrap(email);
+        });
+    },
+);

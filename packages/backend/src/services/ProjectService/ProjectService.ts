@@ -96,6 +96,7 @@ export class ProjectService {
                 'view',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
+                    projectUuid,
                 }),
             )
         ) {
@@ -212,11 +213,11 @@ export class ProjectService {
             projectUuid,
         );
         if (
-            user.ability.cannot('manage', 'Job') ||
             user.ability.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
                 }),
             )
         ) {
@@ -417,7 +418,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -487,7 +488,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -699,7 +700,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -769,7 +770,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -803,7 +804,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -859,7 +860,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
