@@ -3,8 +3,11 @@ import { LightdashError } from '@lightdash/common';
 import { program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
+import { compileHandler, deployHandler } from './handlers/compile';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { generateHandler } from './handlers/generate';
+import { login } from './handlers/login';
+import { setProject } from './handlers/setProject';
 import * as styles from './styles';
 
 const { version: VERSION } = require('../package.json');
@@ -63,8 +66,31 @@ ${styles.bold('Examples:')}
         )} --help ${styles.secondary(
             '-- show detailed help for the "dbt run" command',
         )}
+  ${styles.title('⚡')}️lightdash ${styles.bold('compile')} ${styles.secondary(
+            '-- Compiles Lightdash metrics and dimensions',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold('deploy')} ${styles.secondary(
+            '-- Compiles and deploys Lightdash metrics to active project',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login https://lightdash.domain.com',
+        )} ${styles.secondary('-- Login to a Lightdash instance')}
 `,
     );
+
+// LOGIN
+program
+    .command('login <url>')
+    .description('Login to a Lightdash instance')
+    .action(login);
+
+// CONFIG
+program
+    .command('config')
+    .description('Set configuration')
+    .command('set-project')
+    .description('Interactively choose project')
+    .action(setProject);
 
 const dbtProgram = program.command('dbt').description('runs dbt commands');
 
@@ -117,6 +143,40 @@ ${styles.bold('Examples:')}
     .option('--no-defer')
     .option('--full-refresh')
     .action(dbtRunHandler);
+
+program
+    .command('compile')
+    .description('Compile Lightdash resources')
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .action(compileHandler);
+
+program
+    .command('deploy')
+    .description('Compile and deploy Lightdash project')
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .action(deployHandler);
 
 program
     .command('generate')
@@ -175,9 +235,12 @@ ${styles.bold('Examples:')}
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {
-    console.error(styles.error(err.message));
+    console.error(styles.error(err.message || 'Error had no message'));
     if (!(err instanceof LightdashError)) {
-        console.error(err.stack);
+        console.error(err);
+        if (err.stack) {
+            console.error(err.stack);
+        }
         console.error('\nReport this issue with 1-click:\n');
         console.error(
             `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
@@ -189,6 +252,7 @@ const errorHandler = (err: Error) => {
 };
 
 const successHandler = () => {
+    console.error(`Done 🕶`);
     process.exit(0);
 };
 

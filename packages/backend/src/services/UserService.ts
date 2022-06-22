@@ -606,10 +606,9 @@ export class UserService {
         }
     }
 
-    async loginWithPersonalAccessToken(token: string): Promise<LightdashUser> {
-        const results = await this.userModel.findUserByPersonalAccessToken(
-            token,
-        );
+    async loginWithPersonalAccessToken(token: string): Promise<SessionUser> {
+        const results =
+            await this.userModel.findSessionUserByPersonalAccessToken(token);
         if (results === undefined) {
             throw new AuthorizationError();
         }

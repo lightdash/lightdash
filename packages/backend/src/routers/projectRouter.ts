@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import express from 'express';
 import {
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
@@ -54,6 +55,7 @@ projectRouter.patch(
 
 projectRouter.put(
     '/explores',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
