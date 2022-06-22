@@ -6,7 +6,6 @@ describe('Settings - Invites', () => {
 
     it('Should invite user', () => {
         cy.get('[data-cy="settings-button"]').click();
-        cy.contains('Organization settings').click();
         cy.contains('User management').click();
         cy.contains('Add user').click();
         cy.findByLabelText('Enter user email address *').type(
@@ -36,7 +35,6 @@ describe('Settings - Invites', () => {
 
     it('Should delete user', () => {
         cy.get('[data-cy="settings-button"]').click();
-        cy.contains('Organization settings').click();
         cy.contains('User management').click();
         cy.findByText('marygreen@lightdash.com')
             .parents('.bp4-card')

@@ -71,7 +71,6 @@ describe('Create projects', () => {
         cy.visit(`/`);
 
         cy.findByText('Settings').click();
-        cy.contains('Organization settings').click();
 
         cy.findByText('Project management').click();
         cy.findByText('Create new').click();
