@@ -1,5 +1,6 @@
 import inquirer from 'inquirer';
 import PressToContinuePrompt from 'inquirer-press-to-continue';
+import ora from 'ora';
 import {
     adjectives,
     animals,
@@ -23,6 +24,8 @@ type PreviewHandlerOptions = {
 export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    console.error('');
+    const spinner = ora(`  Setting up preview environment`).start();
     const name = uniqueNamesGenerator({
         length: 2,
         separator: ' ',
@@ -37,16 +40,18 @@ export const previewHandler = async (
             config.context.serverUrl,
         );
     await deploy({ ...options, projectUuid: project.projectUuid });
-    console.error(`\n  ⚙️  Developer preview ready at: ${projectUrl}\n`);
+    spinner.succeed(`  Developer preview ready at: ${projectUrl}\n`);
     await inquirer.prompt({
         type: 'press-to-continue',
         name: 'key',
         anyKey: true,
         pressToContinueMessage: 'Press any key to shutdown preview',
     });
+    const teardownSpinner = ora(`  Cleaning up`).start();
     await lightdashApi({
         method: 'DELETE',
         url: `/api/v1/org/projects/${project.projectUuid}`,
         body: undefined,
     });
+    teardownSpinner.succeed(`  Cleaned up`);
 };

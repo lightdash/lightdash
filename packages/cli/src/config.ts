@@ -14,17 +14,30 @@ type Config = {
     };
 };
 
-export const getConfig = async (): Promise<Config> => {
+export const getConfig = async (useEnv: boolean = true): Promise<Config> => {
+    let validated: Config;
     try {
         const raw = yaml.load(await fs.readFile(configFilePath, 'utf8'));
-        const validated = raw as Config;
-        return validated;
+        validated = raw as Config;
     } catch (e) {
         if (e.code === 'ENOENT') {
-            return {};
+            validated = {};
+        } else {
+            throw e;
         }
-        throw e;
     }
+    const envOverrides = {
+        ...validated,
+        context: {
+            ...(validated.context || {}),
+            apiKey: process.env.LIGHTDASH_API_KEY || validated.context?.apiKey,
+            project:
+                process.env.LIGHTDASH_PROJECT || validated.context?.project,
+            serverUrl:
+                process.env.LIGHTDASH_URL || validated.context?.serverUrl,
+        },
+    };
+    return useEnv ? envOverrides : validated;
 };
 
 export const setConfig = async (config: Config) => {

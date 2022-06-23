@@ -21,7 +21,7 @@ export const setProject = async () => {
             })),
         },
     ]);
-    const config = await getConfig();
+    const config = await getConfig(false);
     await setConfig({
         ...config,
         context: { ...config.context, project: answers.project },
