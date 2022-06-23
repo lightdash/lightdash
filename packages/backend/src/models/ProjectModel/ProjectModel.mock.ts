@@ -117,7 +117,6 @@ export const expectedProject: Project = {
     dbtConnection: {
         account_id: 'account_id',
         environment_id: 'environment_id',
-        name: 'name',
         project_id: 'project_id',
         type: ProjectType.DBT_CLOUD_IDE,
     } as any as DbtCloudIDEProjectConfig,
