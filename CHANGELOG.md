@@ -1,3 +1,10 @@
+## [0.157.2](https://github.com/lightdash/lightdash/compare/0.157.1...0.157.2) (2022-06-23)
+
+
+### Bug Fixes
+
+* dbt metric with custom sql ([#2514](https://github.com/lightdash/lightdash/issues/2514)) ([fc2e7aa](https://github.com/lightdash/lightdash/commit/fc2e7aa23648b9a8131a3c5f85046fa9417c81e9))
+
 ## [0.157.1](https://github.com/lightdash/lightdash/compare/0.157.0...0.157.1) (2022-06-23)
 
 
