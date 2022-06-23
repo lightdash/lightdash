@@ -31,3 +31,12 @@ export const Placeholder = styled.div`
 export const WarningIcon = styled(Icon)`
     color: ${Colors.ORANGE5} !important;
 `;
+
+export const DimensionLabelWrapper = styled.div`
+    display: flex;
+    align-items: center;
+`;
+
+export const DimensionLabel = styled.p`
+    margin: 0;
+`;
