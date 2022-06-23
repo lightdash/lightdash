@@ -1,3 +1,10 @@
+# [0.158.0](https://github.com/lightdash/lightdash/compare/0.157.2...0.158.0) (2022-06-23)
+
+
+### Features
+
+* invite users from project view ([#2503](https://github.com/lightdash/lightdash/issues/2503)) ([c71165e](https://github.com/lightdash/lightdash/commit/c71165e7223676902da685009b5f09ff6acc2b41))
+
 ## [0.157.2](https://github.com/lightdash/lightdash/compare/0.157.1...0.157.2) (2022-06-23)
 
 
