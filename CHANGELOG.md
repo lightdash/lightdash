@@ -1,3 +1,11 @@
+## [0.160.1](https://github.com/lightdash/lightdash/compare/0.160.0...0.160.1) (2022-06-23)
+
+
+### Bug Fixes
+
+* handle missing cli config dir ([#2527](https://github.com/lightdash/lightdash/issues/2527)) ([57b0b7f](https://github.com/lightdash/lightdash/commit/57b0b7f35a3be6c0c56da3c98653117d38d374ce))
+* update create project endpoint in cli ([#2528](https://github.com/lightdash/lightdash/issues/2528)) ([c9cf5f2](https://github.com/lightdash/lightdash/commit/c9cf5f21034ac633c05387702215dead21ec508a))
+
 # [0.160.0](https://github.com/lightdash/lightdash/compare/0.159.0...0.160.0) (2022-06-23)
 
 
