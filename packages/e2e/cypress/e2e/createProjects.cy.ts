@@ -57,7 +57,7 @@ const testCompile = () => {
         .should('not.be.disabled')
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
-    cy.contains('Welcome, David');
+    cy.findByText('Welcome, David! ⚡'); // wait for page to load and avoid race conditions
 };
 
 const testRunQuery = () => {
