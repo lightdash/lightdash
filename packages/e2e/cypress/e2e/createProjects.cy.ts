@@ -145,7 +145,7 @@ describe('Create projects', () => {
         testCompile();
         testQuery();
     });
-    it.only('Should create a Bigquery project', () => {
+    it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('BigQuery').click();
