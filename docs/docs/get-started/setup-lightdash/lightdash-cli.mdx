@@ -36,6 +36,63 @@ sudo apt install unixodbc
 npm install -g @lightdash/cli
 ```
 
+## Login
+
+To login to your Lightdash instance run the following command and provide your login email and password:
+
+```shell
+lightdash login https://my-lightdash.domain.com
+```
+
+where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash 
+cloud users would type `lightdash login https://app.lightdash.cloud`.
+
+**Note that Google SSO login is not supported on the CLI yet**
+
+## Set active project
+
+When you login you'll be asked to set an active project. You can change your active project by running:
+
+```shell
+lightdash config set-project
+```
+
+## Deploy a Lightdash project
+
+Follow the steps in [Create your first dimensions and metrics](./add-metrics.mdx) to add some Lightdash metrics to 
+your dbt project. Once you're happy with your changes you can run:
+
+```shell
+dbt compile
+lightdash deploy
+```
+
+This will compile your metrics and push them to Lightdash. Once it's completed click the URL to head straight to 
+your project.
+
+## Create a developer preview environment
+
+<a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
+    <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
+</a>
+
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics and charts 
+without affecting your production project.
+
+Follow the instructions above and when you're ready to preview your dbt project, run the following from inside your 
+project:
+
+```shell
+dbt compile
+lightdash preview
+```
+
+**Problems with credentials?**
+
+When you create developer previews, Lightdash will use the same warehouse connection settings you have in your 
+`profiles.yml` file for your current dbt project. This can be a problem if you're using a local database that your 
+laptop can reach but your Lightdash instance cannot.
+
 ## Auto-generate `schema.yml` files
 
 <a href="https://www.loom.com/share/82833c5ea8a841dbb0ebdbcd878f85a1">
