@@ -106,6 +106,23 @@ export class ProjectService {
         return project;
     }
 
+    async createPreview(
+        user: SessionUser,
+        data: CreateProject,
+    ): Promise<Project> {
+        if (
+            user.ability.cannot('manage', 'Job') ||
+            user.ability.cannot('create', 'Project')
+        ) {
+            throw new ForbiddenError();
+        }
+        const projectUuid = await this.projectModel.create(
+            user.organizationUuid,
+            data,
+        );
+        return this.projectModel.get(projectUuid);
+    }
+
     async create(
         user: SessionUser,
         data: CreateProject,
