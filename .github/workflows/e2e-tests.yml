@@ -31,8 +31,8 @@ jobs:
       # and run all Cypress tests
       - name: Copy GCP credentials to file for BigQuery warehouse test
         env:
-          CGP_CREDENTIALS: ${{ secrets.CGP_CREDENTIALS }}
-        run: echo -e $CGP_CREDENTIALS > ./packages/e2e/cypress/fixtures/credentials.json
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: echo $GCP_CREDENTIALS > ./packages/e2e/cypress/fixtures/credentials.json
       - name: Cypress run
         uses: cypress-io/github-action@v4
         with:
