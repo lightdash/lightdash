@@ -39,6 +39,9 @@ jobs:
         env:
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
+          CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v2

@@ -1,15 +1,21 @@
 const warehouseConfig = {
     postgresSQL: {
-        host: Cypress.env('PGHOST') || 'host.docker.internal',
+        host: Cypress.env('PGHOST') || 'db-dev',
         user: 'postgres',
         password: Cypress.env('PGPASSWORD') || 'password',
         database: 'postgres',
         port: '5432',
         schema: 'jaffle',
     },
+    databricks: {
+        host: Cypress.env('DATABRICKS_HOST') || 'localhost',
+        token: Cypress.env('DATABRICKS_TOKEN') || 'password',
+        httpPath: Cypress.env('DATABRICKS_PATH') || 'sql/protocolv1',
+        schema: 'jaffle',
+    },
 };
 
-const configureWarehouse = (config) => {
+const configurePostgresWarehouse = (config) => {
     cy.get('[name="warehouse.host"]').type(config.host);
     cy.get('[name="warehouse.user"]').type(config.user);
     cy.get('[name="warehouse.password"]').type(config.password);
@@ -25,12 +31,24 @@ const configureWarehouse = (config) => {
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.schema"]').type(config.schema);
 };
+
+const configureDatabricksWarehouse = (config) => {
+    cy.get('[name="warehouse.serverHostName"]').type(config.host);
+    cy.get('[name="warehouse.httpPath"]').type(config.httpPath);
+    cy.get('[name="warehouse.personalAccessToken"]').type(config.token);
+
+    // DBT
+    cy.get('[name="dbt.type"]').select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.database"]').type(config.schema);
+};
+
 const testCompile = () => {
     // Compile
     cy.findByText('Test & compile project').click();
     cy.contains('Step 1/3', { timeout: 60000 });
     cy.contains('Step 2/3', { timeout: 60000 });
-    cy.contains('Successfully synced dbt project!', { timeout: 30000 });
+    cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
     cy.contains('selected 6 models');
     // Configure
@@ -39,12 +57,14 @@ const testCompile = () => {
         .should('not.be.disabled')
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
+    cy.contains('Welcome, David');
 };
 
 const testRunQuery = () => {
     // Open SQL runner
     cy.findByText('Explore').click();
     cy.findByText('SQL Runner').click();
+    cy.url().should('include', '/sqlRunner', { timeout: 30000 });
 
     cy.contains('payments').click();
 };
@@ -52,6 +72,7 @@ const testRunQuery = () => {
 const testQuery = () => {
     cy.findByText('Explore').click();
     cy.findByText('Tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
 
     cy.contains('Orders').click();
     cy.findByText('First name').click();
@@ -85,8 +106,8 @@ describe('Create projects', () => {
 
         cy.contains('PostgreSQL').click();
 
-        cy.get('[name="name"]').type('Jaffle PostgreSQL test');
-        configureWarehouse(warehouseConfig.postgresSQL);
+        cy.get('[name="name"]').clear().type('Jaffle PostgreSQL test');
+        configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
         testQuery();
@@ -101,8 +122,20 @@ describe('Create projects', () => {
 
         cy.contains('Redshift').click();
 
-        cy.get('[name="name"]').type('Jaffle Redshift test');
-        configureWarehouse(warehouseConfig.postgresSQL);
+        cy.get('[name="name"]').clear().type('Jaffle Redshift test');
+        configurePostgresWarehouse(warehouseConfig.postgresSQL);
+
+        testCompile();
+        testQuery();
+    });
+
+    it('Should create a Databricks project', () => {
+        cy.visit(`/createProject`);
+
+        cy.contains('Databricks').click();
+
+        cy.get('[name="name"]').clear().type('Jaffle Databricks test');
+        configureDatabricksWarehouse(warehouseConfig.databricks);
 
         testCompile();
         testQuery();
