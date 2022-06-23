@@ -140,6 +140,15 @@ const convertDbtMetricToLightdashMetric = (
             `Cannot determine model from dbt metric "${metric.name}" metric.model is "${metric.model}" but should be "ref('my_model')"`,
         );
     }
+    let sql = defaultSql(metric.name);
+    if (metric.sql) {
+        const isSingleColumnName = /^[a-zA-Z0-9_]+$/g.test(metric.sql);
+        if (isSingleColumnName) {
+            sql = defaultSql(metric.sql);
+        } else {
+            sql = metric.sql;
+        }
+    }
     return {
         fieldType: FieldType.METRIC,
         type,
@@ -148,7 +157,7 @@ const convertDbtMetricToLightdashMetric = (
         label: metric.label || friendlyName(metric.name),
         table,
         tableLabel,
-        sql: metric.sql ? defaultSql(metric.sql) : defaultSql(metric.name),
+        sql,
         description: metric.description,
         source: undefined,
         hidden: !!metric.meta?.hidden,
