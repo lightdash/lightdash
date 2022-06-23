@@ -432,6 +432,7 @@ export type TablesConfiguration = {
 export type CreateProjectMember = {
     email: string;
     role: ProjectMemberRole;
+    sendEmail: boolean;
 };
 
 export type UpdateProjectMember = {
