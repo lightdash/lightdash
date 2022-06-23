@@ -29,10 +29,13 @@ jobs:
         run: yarn common-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
-      - name: Copy GCP credentials to file for BigQuery warehouse test
-        env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-        run: echo $GCP_CREDENTIALS > ./packages/e2e/cypress/fixtures/credentials.json
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       - name: Cypress run
         uses: cypress-io/github-action@v4
         with:
