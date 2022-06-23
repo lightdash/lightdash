@@ -1,3 +1,10 @@
+# [0.160.0](https://github.com/lightdash/lightdash/compare/0.159.0...0.160.0) (2022-06-23)
+
+
+### Features
+
+* remove heading icons and add icons to metrics ([#2518](https://github.com/lightdash/lightdash/issues/2518)) ([0828f0e](https://github.com/lightdash/lightdash/commit/0828f0ef035eddc06b60141f449ae3647b721337))
+
 # [0.159.0](https://github.com/lightdash/lightdash/compare/0.158.1...0.159.0) (2022-06-23)
 
 
