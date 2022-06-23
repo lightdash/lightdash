@@ -6,7 +6,8 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.contains('Settings');
-        cy.get('.bp4-non-ideal-state').should('not.exist');
+        cy.contains('Explore');
+        cy.contains('Welcome, David');
     });
 
     it('Organization members without project permission cannot see projects', () => {
@@ -14,7 +15,7 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.contains('Settings');
-        cy.get('.bp4-non-ideal-state').should('exist');
+        cy.contains("You don't have access");
     });
 
     it('Organization members with project permission can see project', () => {
@@ -27,14 +28,16 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.contains('Settings');
-        cy.get('.bp4-non-ideal-state').should('not.exist');
+        cy.contains('Explore');
+        cy.contains('Welcome, test');
     });
     it('Organization editors without project permission can still see projects', () => {
         cy.loginWithPermissions('editor', []);
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.contains('Settings');
-        cy.get('.bp4-non-ideal-state').should('not.exist');
+        cy.contains('Explore');
+        cy.contains('Welcome, test');
     });
 
     it('Organization admins without project permission can still see projects', () => {
@@ -42,6 +45,7 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.contains('Settings');
-        cy.get('.bp4-non-ideal-state').should('not.exist');
+        cy.contains('Explore');
+        cy.contains('Welcome, test');
     });
 });

@@ -46,6 +46,10 @@ jobs:
           CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
           CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
           CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+          CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
+
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v2
