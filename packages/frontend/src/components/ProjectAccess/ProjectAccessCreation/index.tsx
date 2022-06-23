@@ -94,10 +94,6 @@ const ProjectAccessCreation: FC<{
         if (isInvitationSuccess) {
             setInviteLink(inviteData);
             reset();
-            console.log(
-                'createmutation on invitation success',
-                isInvitationSuccess,
-            );
             createMutation({
                 role: methods.getValues('role'),
                 email: emailSelected,
