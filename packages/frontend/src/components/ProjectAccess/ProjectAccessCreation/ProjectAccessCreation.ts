@@ -1,4 +1,4 @@
-import { Button, FormGroup } from '@blueprintjs/core';
+import { Button, Callout, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
@@ -41,4 +41,12 @@ export const EmailForm = styled(FormGroup)`
         font-size: 12px;
         color: #5c7080;
     }
+`;
+export const ShareLinkCallout = styled(Callout)`
+    margin-top: 10px;
+`;
+
+export const InviteFormGroup = styled(FormGroup)`
+    margin-top: 20px;
+    margin-bottom: 0;
 `;
