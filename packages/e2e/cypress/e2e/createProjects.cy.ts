@@ -8,9 +8,18 @@ const warehouseConfig = {
         schema: 'jaffle',
     },
     databricks: {
-        host: Cypress.env('DATABRICKS_HOST') || 'localhost',
-        token: Cypress.env('DATABRICKS_TOKEN') || 'password',
-        httpPath: Cypress.env('DATABRICKS_PATH') || 'sql/protocolv1',
+        host: Cypress.env('DATABRICKS_HOST'),
+        token: Cypress.env('DATABRICKS_TOKEN'),
+        httpPath: Cypress.env('DATABRICKS_PATH'),
+        schema: 'jaffle',
+    },
+    snowflake: {
+        account: Cypress.env('SNOWFLAKE_ACCOUNT'),
+        user: Cypress.env('SNOWFLAKE_USER'),
+        password: Cypress.env('SNOWFLAKE_PASSWORD'),
+        role: 'SYSADMIN',
+        database: 'SNOWFLAKE_DATABASE_STAGING',
+        warehouse: 'TESTING',
         schema: 'jaffle',
     },
 };
@@ -41,6 +50,20 @@ const configureDatabricksWarehouse = (config) => {
     cy.get('[name="dbt.type"]').select('dbt local server');
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.database"]').type(config.schema);
+};
+
+const configureSnowflakeWarehouse = (config) => {
+    cy.get('[name="warehouse.account"]').type(config.account);
+    cy.get('[name="warehouse.user"]').type(config.user);
+    cy.get('[name="warehouse.password"]').type(config.password);
+    cy.get('[name="warehouse.role"]').type(config.role);
+    cy.get('[name="warehouse.database"]').type(config.database);
+    cy.get('[name="warehouse.warehouse"]').type(config.warehouse);
+
+    // DBT
+    cy.get('[name="dbt.type"]').select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 
 const testCompile = () => {
@@ -136,6 +159,18 @@ describe('Create projects', () => {
 
         cy.get('[name="name"]').clear().type('Jaffle Databricks test');
         configureDatabricksWarehouse(warehouseConfig.databricks);
+
+        testCompile();
+        testQuery();
+    });
+
+    it('Should create a Snowflake project', () => {
+        cy.visit(`/createProject`);
+
+        cy.contains('Snowflake').click();
+
+        cy.get('[name="name"]').clear().type('Jaffle Snowflake test');
+        configureSnowflakeWarehouse(warehouseConfig.snowflake);
 
         testCompile();
         testQuery();
