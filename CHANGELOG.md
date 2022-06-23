@@ -1,3 +1,17 @@
+# [0.158.0](https://github.com/lightdash/lightdash/compare/0.157.2...0.158.0) (2022-06-23)
+
+
+### Features
+
+* invite users from project view ([#2503](https://github.com/lightdash/lightdash/issues/2503)) ([c71165e](https://github.com/lightdash/lightdash/commit/c71165e7223676902da685009b5f09ff6acc2b41))
+
+## [0.157.2](https://github.com/lightdash/lightdash/compare/0.157.1...0.157.2) (2022-06-23)
+
+
+### Bug Fixes
+
+* dbt metric with custom sql ([#2514](https://github.com/lightdash/lightdash/issues/2514)) ([fc2e7aa](https://github.com/lightdash/lightdash/commit/fc2e7aa23648b9a8131a3c5f85046fa9417c81e9))
+
 ## [0.157.1](https://github.com/lightdash/lightdash/compare/0.157.0...0.157.1) (2022-06-23)
 
 

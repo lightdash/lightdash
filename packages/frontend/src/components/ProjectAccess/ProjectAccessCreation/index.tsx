@@ -1,9 +1,18 @@
-import { Card, Intent, MenuItem } from '@blueprintjs/core';
+import { Button, Card, InputGroup, Intent, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
-import { CreateProjectMember, ProjectMemberRole } from '@lightdash/common';
+import {
+    CreateProjectMember,
+    formatTimestamp,
+    InviteLink,
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    validateEmail,
+} from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
+import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
@@ -12,9 +21,11 @@ import { EventName } from '../../../types/Events';
 import {
     BackButton,
     EmailForm,
+    InviteFormGroup,
     Panel,
     ProjectAccessForm,
     RoleSelectButton,
+    ShareLinkCallout,
     SubmitButton,
 } from './ProjectAccessCreation';
 
@@ -46,6 +57,15 @@ const ProjectAccessCreation: FC<{
         isSuccess,
         isLoading,
     } = useCreateProjectAccessMutation(projectUuid);
+
+    const {
+        data: inviteData,
+        mutate: inviteMutation,
+        isLoading: isInvitationLoading,
+        isSuccess: isInvitationSuccess,
+        reset,
+    } = useCreateInviteLinkMutation();
+
     const methods = useForm<CreateProjectMember>({
         mode: 'onSubmit',
         defaultValues: {
@@ -53,6 +73,12 @@ const ProjectAccessCreation: FC<{
         },
     });
     const [emailSelected, setEmailSelected] = useState<string>('');
+    const [addNewMember, setAddNewMember] = useState<boolean>(false);
+    const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
+
+    const { data: organizationUsers } = useOrganizationUsers();
+    const orgUserEmails =
+        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
 
     useEffect(() => {
         if (isError) {
@@ -64,19 +90,45 @@ const ProjectAccessCreation: FC<{
         }
     }, [isError, methods, isSuccess, showToastSuccess, setEmailSelected]);
 
+    useEffect(() => {
+        if (isInvitationSuccess) {
+            setInviteLink(inviteData);
+            reset();
+            createMutation({
+                role: methods.getValues('role'),
+                email: emailSelected,
+                sendEmail: false,
+            });
+            setAddNewMember(false);
+        }
+    }, [
+        isInvitationSuccess,
+        inviteData,
+        emailSelected,
+        addNewMember,
+        methods,
+        createMutation,
+        reset,
+    ]);
+
     const handleSubmit = (formData: CreateProjectMember) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
-        createMutation({
-            ...formData,
-            email: emailSelected,
-        });
-    };
 
-    const { data: organizationUsers } = useOrganizationUsers();
-    const orgUserEmails =
-        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
+        if (addNewMember) {
+            inviteMutation({
+                email: emailSelected,
+                role: OrganizationMemberRole.MEMBER,
+            });
+        } else {
+            createMutation({
+                ...formData,
+                email: emailSelected,
+                sendEmail: true,
+            });
+        }
+    };
 
     return (
         <Panel>
@@ -103,6 +155,7 @@ const ProjectAccessCreation: FC<{
                             items={orgUserEmails}
                             onItemSelect={(select: string) => {
                                 setEmailSelected(select);
+                                setAddNewMember(false);
                             }}
                             popoverProps={{
                                 minimal: true,
@@ -111,11 +164,11 @@ const ProjectAccessCreation: FC<{
                             query={emailSelected}
                             onQueryChange={(query: string) => {
                                 setEmailSelected(query);
+                                setAddNewMember(false);
                             }}
                             inputProps={{
                                 placeholder: 'example@gmail.com',
                             }}
-                            noResults={<MenuItem disabled text="No results." />}
                             selectedItem={emailSelected}
                             itemPredicate={(
                                 query: string,
@@ -133,6 +186,22 @@ const ProjectAccessCreation: FC<{
                                     .toLowerCase()
                                     .includes(query.toLowerCase());
                             }}
+                            createNewItemFromQuery={(email: string) => email}
+                            createNewItemRenderer={(email: string) => {
+                                if (validateEmail(email)) {
+                                    return (
+                                        <MenuItem
+                                            icon="add"
+                                            key={email}
+                                            text={`Invite ${email} as new member of this organisation`}
+                                            onClick={() => {
+                                                setAddNewMember(true);
+                                            }}
+                                            shouldDismissPopover={true}
+                                        />
+                                    );
+                                }
+                            }}
                         />
                     </EmailForm>
 
@@ -149,14 +218,52 @@ const ProjectAccessCreation: FC<{
                             required: 'Required field',
                         }}
                     />
+
                     <SubmitButton
                         intent={Intent.PRIMARY}
                         text={'Give access'}
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || isInvitationLoading}
                     />
                 </ProjectAccessForm>
             </Card>
+
+            {inviteLink && (
+                <InviteFormGroup
+                    label={
+                        <span>
+                            <b>{inviteLink.email}</b> has been added
+                        </span>
+                    }
+                    labelFor="invite-link-input"
+                >
+                    <InputGroup
+                        id="invite-link-input"
+                        className="cohere-block"
+                        type="text"
+                        readOnly
+                        value={inviteLink.inviteUrl}
+                        rightElement={
+                            <CopyToClipboard
+                                text={inviteLink.inviteUrl}
+                                options={{ message: 'Copied' }}
+                                onCopy={() =>
+                                    showToastSuccess({
+                                        title: 'Invite link copied',
+                                    })
+                                }
+                            >
+                                <Button minimal icon="clipboard" />
+                            </CopyToClipboard>
+                        }
+                    />
+                    <ShareLinkCallout intent="primary">
+                        Share this link with {inviteLink.email} and they can
+                        join your organization. This link will expire at{' '}
+                        <b>{formatTimestamp(inviteLink.expiresAt)}</b>
+                    </ShareLinkCallout>
+                </InviteFormGroup>
+            )}
         </Panel>
     );
 };
