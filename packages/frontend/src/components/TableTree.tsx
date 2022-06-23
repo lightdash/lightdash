@@ -410,6 +410,9 @@ const renderDimensionTreeNode = (
     onOpenSourceDialog: (source: Source) => void,
     hoveredFieldId: string,
 ): TreeNodeInfo<NodeDataProps> => {
+    const itemLabel = dimension?.group
+        ? friendlyName(dimension.name.replace(dimension?.group, ''))
+        : dimension.label;
     const baseNode = {
         id: dimension.name,
         label: (
@@ -419,7 +422,7 @@ const renderDimensionTreeNode = (
                         icon={ItemLabelIconPicker(dimension.type)}
                         className={Classes.TREE_NODE_ICON}
                     />
-                    <ItemLabel>{dimension.label}</ItemLabel>
+                    <ItemLabel>{itemLabel}</ItemLabel>
                 </ItemLabelWrapper>
             </Tooltip2>
         ),
