@@ -97,7 +97,6 @@ export async function seed(knex: Knex): Promise<void> {
         type: ProjectType.DBT,
         project_dir: path.join(demoDir, '/dbt'),
         profiles_dir: path.join(demoDir, '/profiles'),
-        name: 'default',
     };
     const encryptedProjectSettings = enc.encrypt(
         JSON.stringify(projectSettings),

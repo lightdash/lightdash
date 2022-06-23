@@ -56,20 +56,42 @@ organizationRouter.get(
             .catch(next),
 );
 
-organizationRouter.post('/projects', isAuthenticated, async (req, res, next) =>
-    projectService
-        .create(req.user!, req.body)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next),
+organizationRouter.post(
+    '/projects/precompiled',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) =>
+        projectService
+            .create(req.user!, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
+);
+
+organizationRouter.post(
+    '/projects',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) =>
+        projectService
+            .createPreview(req.user!, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
 );
 
 organizationRouter.delete(
     '/projects/:projectUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>

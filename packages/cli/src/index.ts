@@ -3,10 +3,12 @@ import { LightdashError } from '@lightdash/common';
 import { program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
-import { compileHandler, deployHandler } from './handlers/compile';
+import { compileHandler } from './handlers/compile';
 import { dbtRunHandler } from './handlers/dbt/run';
+import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
 import { login } from './handlers/login';
+import { previewHandler } from './handlers/preview';
 import { setProject } from './handlers/setProject';
 import * as styles from './styles';
 
@@ -160,6 +162,23 @@ program
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .action(compileHandler);
+
+program
+    .command('preview')
+    .description('Compile Lightdash resources')
+    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        path.join(os.homedir(), '.dbt'),
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .action(previewHandler);
 
 program
     .command('deploy')
