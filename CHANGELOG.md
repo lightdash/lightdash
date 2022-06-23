@@ -1,3 +1,10 @@
+## [0.157.1](https://github.com/lightdash/lightdash/compare/0.157.0...0.157.1) (2022-06-23)
+
+
+### Bug Fixes
+
+* project access permissions ([#2505](https://github.com/lightdash/lightdash/issues/2505)) ([6147135](https://github.com/lightdash/lightdash/commit/61471353024fb73af01cbfab16ea19e2985c6a98))
+
 # [0.157.0](https://github.com/lightdash/lightdash/compare/0.156.0...0.157.0) (2022-06-23)
 
 
