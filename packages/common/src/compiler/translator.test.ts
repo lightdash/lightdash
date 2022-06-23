@@ -2,13 +2,17 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { extractEntityNameFromIdColumn } from '../types/metricQuery';
 import { attachTypesToModels, convertTable } from './translator';
 import {
+    DBT_METRIC,
+    DBT_METRIC_WITH_CUSTOM_SQL,
+    DBT_METRIC_WITH_SQL_FIELD,
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
     LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
+    LIGHTDASH_TABLE_WITH_DBT_METRICS,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
-    LIGHTDASH_TABLE_WITH_METRIC,
+    LIGHTDASH_TABLE_WITH_METRICS,
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
@@ -115,10 +119,19 @@ describe('convert tables from dbt models', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS);
     });
+    it('should convert dbt model with dbt metrics', () => {
+        expect(
+            convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_NO_METRICS, [
+                DBT_METRIC,
+                DBT_METRIC_WITH_SQL_FIELD,
+                DBT_METRIC_WITH_CUSTOM_SQL,
+            ]),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
+    });
     it('should convert dbt model with metrics in meta', () => {
         expect(
             convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_METRIC, []),
-        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC);
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS);
     });
     it('should convert dbt model with dimension with default time intervals bigquery', () => {
         expect(
