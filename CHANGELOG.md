@@ -1,3 +1,10 @@
+# [0.159.0](https://github.com/lightdash/lightdash/compare/0.158.1...0.159.0) (2022-06-23)
+
+
+### Features
+
+* add preview environments to cli ([#2512](https://github.com/lightdash/lightdash/issues/2512)) ([861f0bd](https://github.com/lightdash/lightdash/commit/861f0bddd2a03c174eef17f5c1a19a365f35a4aa))
+
 ## [0.158.1](https://github.com/lightdash/lightdash/compare/0.158.0...0.158.1) (2022-06-23)
 
 
