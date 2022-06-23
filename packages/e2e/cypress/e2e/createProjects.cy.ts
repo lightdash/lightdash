@@ -7,6 +7,12 @@ const warehouseConfig = {
         port: '5432',
         schema: 'jaffle',
     },
+    bigQuery: {
+        project: 'lightdash-database-staging',
+        location: 'europe-west1',
+        dataset: 'e2e_jaffle_shop',
+        keyFile: 'credentials.json',
+    },
     databricks: {
         host: Cypress.env('DATABRICKS_HOST') || 'localhost',
         token: Cypress.env('DATABRICKS_TOKEN') || 'password',
@@ -30,6 +36,17 @@ const configurePostgresWarehouse = (config) => {
     cy.get('[name="dbt.type"]').select('dbt local server');
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.schema"]').type(config.schema);
+};
+
+const configureBigqueryWarehouse = (config) => {
+    cy.get('[name="warehouse.project"]').type(config.project);
+    cy.get('[name="warehouse.location"]').type(config.location);
+    cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
+
+    // DBT
+    cy.get('[name="dbt.type"]').select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.dataset"]').type(config.dataset);
 };
 
 const configureDatabricksWarehouse = (config) => {
@@ -128,7 +145,17 @@ describe('Create projects', () => {
         testCompile();
         testQuery();
     });
+    it.only('Should create a Bigquery project', () => {
+        cy.visit(`/createProject`);
 
+        cy.contains('BigQuery').click();
+
+        cy.get('[name="name"]').clear().type('Jaffle Bigquery test');
+        configureBigqueryWarehouse(warehouseConfig.bigQuery);
+
+        testCompile();
+        testQuery();
+    });
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 

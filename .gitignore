@@ -52,3 +52,6 @@ package-lock.json
 # docs
 /docs/build
 /docs/.docusaurus
+
+# credentials
+credentials.json
