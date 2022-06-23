@@ -1,3 +1,10 @@
+# [0.157.0](https://github.com/lightdash/lightdash/compare/0.156.0...0.157.0) (2022-06-23)
+
+
+### Features
+
+* add dimension type icons to the explorer sidebar ([#2504](https://github.com/lightdash/lightdash/issues/2504)) ([94ce714](https://github.com/lightdash/lightdash/commit/94ce71494a98712af3b559e1aad5fbf96bddad98))
+
 # [0.156.0](https://github.com/lightdash/lightdash/compare/0.155.0...0.156.0) (2022-06-22)
 
 
