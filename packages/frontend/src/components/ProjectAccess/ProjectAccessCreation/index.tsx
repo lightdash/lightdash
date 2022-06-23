@@ -1,12 +1,14 @@
-import { Card, Intent, MenuItem } from '@blueprintjs/core';
+import { Button, Card, InputGroup, Intent, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     CreateProjectMember,
+    formatTimestamp,
     OrganizationMemberRole,
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -18,9 +20,11 @@ import { EventName } from '../../../types/Events';
 import {
     BackButton,
     EmailForm,
+    InviteFormGroup,
     Panel,
     ProjectAccessForm,
     RoleSelectButton,
+    ShareLinkCallout,
     SubmitButton,
 } from './ProjectAccessCreation';
 
@@ -53,8 +57,11 @@ const ProjectAccessCreation: FC<{
         isLoading,
     } = useCreateProjectAccessMutation(projectUuid);
 
-    const { mutate: inviteMutation, isLoading: isInvitationLoading } =
-        useCreateInviteLinkMutation();
+    const {
+        data: inviteData,
+        mutate: inviteMutation,
+        isLoading: isInvitationLoading,
+    } = useCreateInviteLinkMutation();
 
     const methods = useForm<CreateProjectMember>({
         mode: 'onSubmit',
@@ -183,6 +190,7 @@ const ProjectAccessCreation: FC<{
                             required: 'Required field',
                         }}
                     />
+
                     <SubmitButton
                         intent={Intent.PRIMARY}
                         text={'Give access'}
@@ -191,6 +199,43 @@ const ProjectAccessCreation: FC<{
                     />
                 </ProjectAccessForm>
             </Card>
+
+            {isUserNew && inviteData && emailSelected === inviteData.email && (
+                <InviteFormGroup
+                    label={
+                        <span>
+                            <b>{inviteData.email}</b> has been added
+                        </span>
+                    }
+                    labelFor="invite-link-input"
+                >
+                    <InputGroup
+                        id="invite-link-input"
+                        className="cohere-block"
+                        type="text"
+                        readOnly
+                        value={inviteData.inviteUrl}
+                        rightElement={
+                            <CopyToClipboard
+                                text={inviteData.inviteUrl}
+                                options={{ message: 'Copied' }}
+                                onCopy={() =>
+                                    showToastSuccess({
+                                        title: 'Invite link copied',
+                                    })
+                                }
+                            >
+                                <Button minimal icon="clipboard" />
+                            </CopyToClipboard>
+                        }
+                    />
+                    <ShareLinkCallout intent="primary">
+                        Share this link with {inviteData.email} and they can
+                        join your organization. This link will expire at{' '}
+                        <b>{formatTimestamp(inviteData.expiresAt)}</b>
+                    </ShareLinkCallout>
+                </InviteFormGroup>
+            )}
         </Panel>
     );
 };
