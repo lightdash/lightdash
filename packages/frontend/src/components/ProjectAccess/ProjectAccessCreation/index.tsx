@@ -3,6 +3,7 @@ import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     CreateProjectMember,
     formatTimestamp,
+    InviteLink,
     OrganizationMemberRole,
     ProjectMemberRole,
     validateEmail,
@@ -61,6 +62,8 @@ const ProjectAccessCreation: FC<{
         data: inviteData,
         mutate: inviteMutation,
         isLoading: isInvitationLoading,
+        isSuccess: isInvitationSuccess,
+        reset,
     } = useCreateInviteLinkMutation();
 
     const methods = useForm<CreateProjectMember>({
@@ -70,7 +73,12 @@ const ProjectAccessCreation: FC<{
         },
     });
     const [emailSelected, setEmailSelected] = useState<string>('');
-    const [isUserNew, setIsUserNew] = useState<boolean>(false);
+    const [addNewMember, setAddNewMember] = useState<boolean>(false);
+    const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
+
+    const { data: organizationUsers } = useOrganizationUsers();
+    const orgUserEmails =
+        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
 
     useEffect(() => {
         if (isError) {
@@ -82,21 +90,48 @@ const ProjectAccessCreation: FC<{
         }
     }, [isError, methods, isSuccess, showToastSuccess, setEmailSelected]);
 
-    const { data: organizationUsers } = useOrganizationUsers();
-    const orgUserEmails =
-        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
+    useEffect(() => {
+        if (isInvitationSuccess) {
+            setInviteLink(inviteData);
+            reset();
+            console.log(
+                'createmutation on invitation success',
+                isInvitationSuccess,
+            );
+            createMutation({
+                role: methods.getValues('role'),
+                email: emailSelected,
+                sendEmail: false,
+            });
+            setAddNewMember(false);
+        }
+    }, [
+        isInvitationSuccess,
+        inviteData,
+        emailSelected,
+        addNewMember,
+        methods,
+        createMutation,
+        reset,
+    ]);
 
     const handleSubmit = (formData: CreateProjectMember) => {
         track({
             name: EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED,
         });
-        createMutation({
-            ...formData,
-            email: emailSelected,
-            sendEmail: !isUserNew,
-        });
 
-        setIsUserNew(false);
+        if (addNewMember) {
+            inviteMutation({
+                email: emailSelected,
+                role: OrganizationMemberRole.MEMBER,
+            });
+        } else {
+            createMutation({
+                ...formData,
+                email: emailSelected,
+                sendEmail: true,
+            });
+        }
     };
 
     return (
@@ -124,7 +159,7 @@ const ProjectAccessCreation: FC<{
                             items={orgUserEmails}
                             onItemSelect={(select: string) => {
                                 setEmailSelected(select);
-                                setIsUserNew(false);
+                                setAddNewMember(false);
                             }}
                             popoverProps={{
                                 minimal: true,
@@ -133,6 +168,7 @@ const ProjectAccessCreation: FC<{
                             query={emailSelected}
                             onQueryChange={(query: string) => {
                                 setEmailSelected(query);
+                                setAddNewMember(false);
                             }}
                             inputProps={{
                                 placeholder: 'example@gmail.com',
@@ -163,11 +199,7 @@ const ProjectAccessCreation: FC<{
                                             key={email}
                                             text={`Invite ${email} as new member of this organisation`}
                                             onClick={() => {
-                                                inviteMutation({
-                                                    email: email,
-                                                    role: OrganizationMemberRole.MEMBER,
-                                                });
-                                                setIsUserNew(true);
+                                                setAddNewMember(true);
                                             }}
                                             shouldDismissPopover={true}
                                         />
@@ -200,11 +232,11 @@ const ProjectAccessCreation: FC<{
                 </ProjectAccessForm>
             </Card>
 
-            {isUserNew && inviteData && emailSelected === inviteData.email && (
+            {inviteLink && (
                 <InviteFormGroup
                     label={
                         <span>
-                            <b>{inviteData.email}</b> has been added
+                            <b>{inviteLink.email}</b> has been added
                         </span>
                     }
                     labelFor="invite-link-input"
@@ -214,10 +246,10 @@ const ProjectAccessCreation: FC<{
                         className="cohere-block"
                         type="text"
                         readOnly
-                        value={inviteData.inviteUrl}
+                        value={inviteLink.inviteUrl}
                         rightElement={
                             <CopyToClipboard
-                                text={inviteData.inviteUrl}
+                                text={inviteLink.inviteUrl}
                                 options={{ message: 'Copied' }}
                                 onCopy={() =>
                                     showToastSuccess({
@@ -230,9 +262,9 @@ const ProjectAccessCreation: FC<{
                         }
                     />
                     <ShareLinkCallout intent="primary">
-                        Share this link with {inviteData.email} and they can
+                        Share this link with {inviteLink.email} and they can
                         join your organization. This link will expire at{' '}
-                        <b>{formatTimestamp(inviteData.expiresAt)}</b>
+                        <b>{formatTimestamp(inviteLink.expiresAt)}</b>
                     </ShareLinkCallout>
                 </InviteFormGroup>
             )}
