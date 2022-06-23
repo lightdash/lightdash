@@ -37,7 +37,7 @@ export const createProject = async (
     };
     const createdProject = await lightdashApi<Project>({
         method: 'POST',
-        url: `/api/v1/org/previews`,
+        url: `/api/v1/org/projects`,
         body: JSON.stringify(project),
     });
     return createdProject;
