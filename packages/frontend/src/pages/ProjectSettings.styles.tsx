@@ -14,6 +14,7 @@ export const UpdateHeaderWrapper = styled.div`
 `;
 
 export const Title = styled(H3)<{ marginBottom?: boolean }>`
+    flex: 1;
     margin: 0;
 
     ${({ marginBottom }) =>
