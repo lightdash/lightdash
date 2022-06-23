@@ -57,7 +57,7 @@ organizationRouter.get(
 );
 
 organizationRouter.post(
-    '/projects',
+    '/projects/precompiled',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
@@ -73,7 +73,7 @@ organizationRouter.post(
 );
 
 organizationRouter.post(
-    '/previews',
+    '/projects',
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,

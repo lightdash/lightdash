@@ -55,7 +55,6 @@ export const lightdashConfigMock: LightdashConfig = {
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
     type: ProjectType.DBT_CLOUD_IDE,
-    name: 'name',
     api_key: 'my api key',
     account_id: 'account_id',
     environment_id: 'environment_id',

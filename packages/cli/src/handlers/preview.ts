@@ -37,7 +37,7 @@ export const previewHandler = async (
             config.context.serverUrl,
         );
     await deploy({ ...options, projectUuid: project.projectUuid });
-    console.error(`\n  ⚙️ Developer preview ready at: ${projectUrl}\n`);
+    console.error(`\n  ⚙️  Developer preview ready at: ${projectUrl}\n`);
     await inquirer.prompt({
         type: 'press-to-continue',
         name: 'key',
