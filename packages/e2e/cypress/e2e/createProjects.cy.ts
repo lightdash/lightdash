@@ -164,7 +164,7 @@ describe('Create projects', () => {
         testQuery();
     });
 
-    it.only('Should create a Snowflake project', () => {
+    it('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('Snowflake').click();
