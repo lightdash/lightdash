@@ -1,4 +1,5 @@
 import { Classes, Collapse, H5, Intent, Radio, Text } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
 import React, { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,8 +9,10 @@ import {
     useProjectTablesConfiguration,
     useUpdateProjectTablesConfiguration,
 } from '../../hooks/useProjectTablesConfiguration';
+import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { useAbilityContext } from '../common/Authorization';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Form from '../ReactHookForm/Form';
 import MultiSelect from '../ReactHookForm/MultiSelect';
@@ -35,6 +38,8 @@ const ProjectTablesConfiguration: FC<{
     onSuccess?: () => void;
 }> = ({ projectUuid, onSuccess }) => {
     const { track } = useTracking();
+    const { user } = useApp();
+    const ability = useAbilityContext();
     const [isListOpen, toggleList] = useToggle(false);
 
     const { data: explores, isLoading: isLoadingExplores } = useExplores();
@@ -44,7 +49,18 @@ const ProjectTablesConfiguration: FC<{
         isLoading: isSaving,
         isSuccess,
     } = useUpdateProjectTablesConfiguration(projectUuid);
-    const disabled = isLoading || isSaving || isLoadingExplores;
+    const canUpdateTableConfiguration = ability.can(
+        'update',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const disabled =
+        isLoading ||
+        isSaving ||
+        isLoadingExplores ||
+        !canUpdateTableConfiguration;
     const methods = useForm<FormData>({
         defaultValues: {
             type: TableSelectionType.ALL,
@@ -242,13 +258,15 @@ const ProjectTablesConfiguration: FC<{
                     </RadioGroup>
                 </RightPanel>
             </CardWrapper>
-            <SaveButton
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Start exploring!"
-                loading={isSaving}
-                disabled={disabled}
-            />
+            {canUpdateTableConfiguration && (
+                <SaveButton
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    text="Start exploring!"
+                    loading={isSaving}
+                    disabled={disabled}
+                />
+            )}
         </Form>
     );
 };

@@ -1,4 +1,5 @@
 import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
@@ -13,6 +14,8 @@ import {
     useRevokeProjectAccessMutation,
     useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
+import { useApp } from '../../providers/AppProvider';
+import { Can, useAbilityContext } from '../common/Authorization';
 import {
     AddUserButton,
     ItemContent,
@@ -119,6 +122,8 @@ const UserListItem: FC<{
 const ProjectAccess: FC<{
     onAddUser: () => void;
 }> = ({ onAddUser }) => {
+    const { user } = useApp();
+    const ability = useAbilityContext();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutate: revokeAccess } =
         useRevokeProjectAccessMutation(projectUuid);
@@ -137,30 +142,54 @@ const ProjectAccess: FC<{
             !projectMemberEmails?.includes(orgUser.email) &&
             orgUser.role !== OrganizationMemberRole.MEMBER,
     );
+
+    const canManageProjectAccess = ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     return (
         <ProjectAccessWrapper>
             {projectMemberships?.map((projectMember) => (
                 <UserListItem
                     key={projectMember.email}
                     user={projectMember}
-                    onUpdate={(newRole) =>
-                        updateAccess({
-                            userUuid: projectMember.userUuid,
-                            role: newRole,
-                        })
+                    onUpdate={
+                        canManageProjectAccess
+                            ? (newRole) =>
+                                  updateAccess({
+                                      userUuid: projectMember.userUuid,
+                                      role: newRole,
+                                  })
+                            : undefined
                     }
-                    onDelete={() => revokeAccess(projectMember.userUuid)}
+                    onDelete={
+                        canManageProjectAccess
+                            ? () => revokeAccess(projectMember.userUuid)
+                            : undefined
+                    }
                 />
             ))}
-            <AddUserButton
-                intent="primary"
-                onClick={onAddUser}
-                text="Add user"
-            />
+            <Can
+                I={'manage'}
+                this={subject('Project', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid,
+                })}
+            >
+                <AddUserButton
+                    intent="primary"
+                    onClick={onAddUser}
+                    text="Add user"
+                />
+            </Can>
             {inheritedPermissions && (
                 <OrgAccess>
                     <OrgAccessHeader>
-                        <OrgAccessTitle>Inherited permissions </OrgAccessTitle>
+                        <OrgAccessTitle>Inherited permissions</OrgAccessTitle>
                         <OrgAccessCounter>
                             {inheritedPermissions.length} can see this project
                         </OrgAccessCounter>

@@ -6,6 +6,7 @@ import {
     H5,
     Intent,
 } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { OrganizationProject } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -13,6 +14,8 @@ import {
     useDeleteProjectMutation,
     useProjects,
 } from '../../../hooks/useProjects';
+import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../../common/Authorization';
 import LinkButton from '../../common/LinkButton';
 import {
     HeaderActions,
@@ -28,6 +31,7 @@ const ProjectListItem: FC<{
     isCurrentProject: boolean;
     project: OrganizationProject;
 }> = ({ isCurrentProject, project: { projectUuid, name } }) => {
+    const { user } = useApp();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { mutate, isLoading: isDeleting } = useDeleteProjectMutation();
     return (
@@ -48,14 +52,22 @@ const ProjectListItem: FC<{
                         text="Settings"
                         href={`/projects/${projectUuid}/settings`}
                     />
-                    <Button
-                        icon="delete"
-                        outlined
-                        text="Delete"
-                        intent={Intent.DANGER}
-                        style={{ marginLeft: 10 }}
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                    />
+                    <Can
+                        I="delete"
+                        this={subject('Project', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        <Button
+                            icon="delete"
+                            outlined
+                            text="Delete"
+                            intent={Intent.DANGER}
+                            style={{ marginLeft: 10 }}
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                        />
+                    </Can>
                 </ButtonGroup>
             </ItemContent>
             <Dialog
@@ -110,11 +122,13 @@ const ProjectManagementPanel: FC = () => {
         <ProjectManagementPanelWrapper>
             <HeaderActions>
                 <H5>Project management settings</H5>
-                <Button
-                    intent="primary"
-                    onClick={() => history.push(`/createProject`)}
-                    text="Create new"
-                />
+                <Can I="create" a={'Project'}>
+                    <Button
+                        intent="primary"
+                        onClick={() => history.push(`/createProject`)}
+                        text="Create new"
+                    />
+                </Can>
             </HeaderActions>
             <div>
                 {data?.map((project) => (

@@ -1,4 +1,5 @@
 import { Card, Colors, H5, Intent } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -19,6 +20,7 @@ import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { useAbilityContext } from '../common/Authorization';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -206,10 +208,21 @@ export const UpdateProjectConnection: FC<{
     projectUuid: string;
 }> = ({ projectUuid }) => {
     const { user, health } = useApp();
+    const ability = useAbilityContext();
     const { data } = useProject(projectUuid);
     const onError = useOnProjectError();
     const updateMutation = useUpdateMutation(projectUuid);
     const { isLoading: isSaving, mutateAsync, isIdle } = updateMutation;
+
+    const isDisabled =
+        isSaving ||
+        ability.cannot(
+            'update',
+            subject('Project', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     const methods = useForm<ProjectConnectionForm>({
         shouldUnregister: true,
@@ -262,7 +275,7 @@ export const UpdateProjectConnection: FC<{
                     <ProjectForm
                         showGeneralSettings
                         isProjectUpdate
-                        disabled={isSaving}
+                        disabled={isDisabled}
                         defaultType={health.data?.defaultProject?.type}
                     />
                 </FormWrapper>
@@ -280,6 +293,7 @@ export const UpdateProjectConnection: FC<{
                         intent={Intent.PRIMARY}
                         text="Test &amp; compile project"
                         loading={isSaving}
+                        disabled={isDisabled}
                     />
                 </FormWrapper>
             </CompileProjectWrapper>

@@ -398,6 +398,17 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const compiledMetricQuery = compileMetricQuery({
             explore,
@@ -607,12 +618,6 @@ export class ProjectService {
         }
     }
 
-    async getMostRecentJobByProject(
-        projectUuid: string,
-    ): Promise<Job | undefined> {
-        return this.jobModel.getMostRecentJobByProject(projectUuid);
-    }
-
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
 
@@ -622,7 +627,10 @@ export class ProjectService {
             if (
                 user.ability.cannot(
                     'view',
-                    subject('Project', { organizationUuid }),
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid: job.projectUuid,
+                    }),
                 )
             ) {
                 throw new NotFoundError(`Cannot find job`);
@@ -638,7 +646,17 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<{ jobUuid: string }> {
-        if (user.ability.cannot('manage', 'Job')) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot('manage', 'Job') ||
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -751,6 +769,18 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const explores =
             (await this.projectModel.getExploresFromCache(projectUuid)) || [];
         const explore = explores.find((t) => t.name === exploreName);
@@ -818,7 +848,16 @@ export class ProjectService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
-        if (user.ability.cannot('update', 'Project')) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         await this.projectModel.updateTablesConfiguration(projectUuid, data);
@@ -874,7 +913,18 @@ export class ProjectService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
-        // TODO implement permissions
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return this.projectModel.getProjectAccess(projectUuid);
     }
 
@@ -883,7 +933,18 @@ export class ProjectService {
         projectUuid: string,
         data: CreateProjectMember,
     ): Promise<void> {
-        // TODO implement permissions
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         await this.projectModel.createProjectAccess(
             projectUuid,
@@ -910,7 +971,18 @@ export class ProjectService {
         userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
-        // TODO implement permissions
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         await this.projectModel.updateProjectAccess(
             projectUuid,
@@ -924,7 +996,18 @@ export class ProjectService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
-        // TODO implement permissions
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
     }
