@@ -31,7 +31,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 <InputField
                     label="First name"
                     name="firstName"
-                    placeholder="David"
+                    placeholder="First name"
                     disabled={isLoading}
                     rules={{
                         required: 'Required field',
@@ -40,7 +40,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 <InputField
                     label="Last name"
                     name="lastName"
-                    placeholder="Attenborough"
+                    placeholder="Last name"
                     disabled={isLoading}
                     rules={{
                         required: 'Required field',
@@ -50,7 +50,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             <InputField
                 label="Email address"
                 name="email"
-                placeholder="d.attenborough@greenplanet.com"
+                placeholder="Email"
                 disabled={isLoading || !!readOnlyEmail}
                 rules={{
                     required: 'Required field',
