@@ -1,3 +1,10 @@
+## [0.158.1](https://github.com/lightdash/lightdash/compare/0.158.0...0.158.1) (2022-06-23)
+
+
+### Bug Fixes
+
+* update forms placeholder ([#2523](https://github.com/lightdash/lightdash/issues/2523)) ([152ddf6](https://github.com/lightdash/lightdash/commit/152ddf6efd514d24b7c26111421741f92c0cae2e))
+
 # [0.158.0](https://github.com/lightdash/lightdash/compare/0.157.2...0.158.0) (2022-06-23)
 
 
