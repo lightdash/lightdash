@@ -207,11 +207,15 @@ const useCartesianChartConfig = ({
             const yFields = dirtyLayout?.yField || [];
             yFields.forEach((yField) => {
                 updateAllGroupedSeries(yField, {
-                    stack: stack ? yField : undefined,
+                    stack: stack
+                        ? pivotKey
+                            ? yField
+                            : 'stack-all-series'
+                        : undefined,
                 });
             });
         },
-        [updateAllGroupedSeries, dirtyLayout],
+        [dirtyLayout?.yField, updateAllGroupedSeries, pivotKey],
     );
 
     const [

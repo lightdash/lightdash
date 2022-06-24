@@ -19,6 +19,7 @@ const VisualizationCardOptions: FC = () => {
         isLoading,
         plotData,
         cartesianConfig,
+        pivotDimensions,
         setPivotDimensions,
         cartesianConfig: { setStacking },
     } = useVisualizationContext();
@@ -57,6 +58,9 @@ const VisualizationCardOptions: FC = () => {
                         };
 
                     case CartesianSeriesType.BAR:
+                        if (!pivotDimensions || pivotDimensions.length === 0) {
+                            setStacking(false);
+                        }
                         return cartesianFlipAxis
                             ? {
                                   text: 'Horizontal bar chart',
@@ -96,6 +100,7 @@ const VisualizationCardOptions: FC = () => {
         cartesianType,
         chartType,
         setStacking,
+        pivotDimensions,
     ]);
 
     return (
