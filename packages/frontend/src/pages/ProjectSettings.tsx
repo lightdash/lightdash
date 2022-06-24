@@ -18,6 +18,7 @@ import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
 import {
+    ContentContainer,
     ProjectConnectionContainer,
     Title,
     UpdateHeaderWrapper,
@@ -79,24 +80,28 @@ const ProjectSettings: FC = () => {
                     exact
                     path="/projects/:projectUuid/settings/tablesConfiguration"
                 >
-                    <Content>
-                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                            Your project has connected successfully! 🎉
-                        </H3>
-                        <Divider style={{ margin: '20px 0' }} />
-                        <p
-                            style={{
-                                marginBottom: 20,
-                                color: Colors.GRAY1,
-                            }}
-                        >
-                            Before you start exploring your data, pick the dbt
-                            models you wanto to appear as tables in Lightdash.
-                            You can always adjust this in your project settings
-                            later.
-                        </p>
-                        <ProjectTablesConfiguration projectUuid={projectUuid} />
-                    </Content>
+                    <ContentContainer>
+                        <Content>
+                            <H3 style={{ marginTop: 10, marginBottom: 0 }}>
+                                Your project has connected successfully! 🎉
+                            </H3>
+                            <Divider style={{ margin: '20px 0' }} />
+                            <p
+                                style={{
+                                    marginBottom: 20,
+                                    color: Colors.GRAY1,
+                                }}
+                            >
+                                Before you start exploring your data, pick the
+                                dbt models you wanto to appear as tables in
+                                Lightdash. You can always adjust this in your
+                                project settings later.
+                            </p>
+                            <ProjectTablesConfiguration
+                                projectUuid={projectUuid}
+                            />
+                        </Content>
+                    </ContentContainer>
                 </Route>
 
                 <Route exact path="/projects/:projectUuid/settings">
@@ -117,7 +122,9 @@ const ProjectSettings: FC = () => {
                     exact
                     path="/projects/:projectUuid/settings/projectAccess"
                 >
-                    <ProjectUserAccess />
+                    <ContentContainer>
+                        <ProjectUserAccess />
+                    </ContentContainer>
                 </Route>
                 <Redirect to={basePath} />
             </Switch>

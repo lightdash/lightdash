@@ -1,6 +1,11 @@
 import { H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
+export const ContentContainer = styled.div`
+    width: 800px;
+    margin: 0 auto;
+`;
+
 export const UpdateProjectWrapper = styled.div`
     display: flex;
     flex-direction: column;
