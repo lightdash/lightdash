@@ -1,3 +1,10 @@
+## [0.162.1](https://github.com/lightdash/lightdash/compare/0.162.0...0.162.1) (2022-06-24)
+
+
+### Bug Fixes
+
+* stack area chart when not grouping ([#2550](https://github.com/lightdash/lightdash/issues/2550)) ([f6e7c71](https://github.com/lightdash/lightdash/commit/f6e7c710e21e60f2f5affa0e3e695f174904dfe7))
+
 # [0.162.0](https://github.com/lightdash/lightdash/compare/0.161.0...0.162.0) (2022-06-24)
 
 
