@@ -1,3 +1,10 @@
+# [0.162.0](https://github.com/lightdash/lightdash/compare/0.161.0...0.162.0) (2022-06-24)
+
+
+### Features
+
+* disable sql runner for viewers ([#2532](https://github.com/lightdash/lightdash/issues/2532)) ([2baaeb9](https://github.com/lightdash/lightdash/commit/2baaeb99fd99a07d542297b23e233fbec20ad300))
+
 # [0.161.0](https://github.com/lightdash/lightdash/compare/0.160.2...0.161.0) (2022-06-24)
 
 
