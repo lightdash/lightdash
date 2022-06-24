@@ -1,11 +1,5 @@
 # Roles and permissions
 
-:::caution
-
-This document is a draft of an upcoming feature
-
-:::
-
 * Everybody in your organization will join as an `Organization Member` by default unless specified.
 * All organization members can create their own projects and will be the Project Admin for that project.
 
