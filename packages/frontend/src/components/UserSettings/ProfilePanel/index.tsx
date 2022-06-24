@@ -87,7 +87,7 @@ const ProfilePanel: FC = () => {
             >
                 <InputGroup
                     id="first-name-input"
-                    placeholder="David"
+                    placeholder="First name"
                     type="text"
                     required
                     disabled={isLoading}
@@ -103,7 +103,7 @@ const ProfilePanel: FC = () => {
             >
                 <InputGroup
                     id="last-name-input"
-                    placeholder="Attenborough"
+                    placeholder="Last name"
                     type="text"
                     required
                     disabled={isLoading}

@@ -28,5 +28,6 @@ export const getConfig = async (): Promise<Config> => {
 };
 
 export const setConfig = async (config: Config) => {
+    await fs.mkdir(path.dirname(configFilePath), { recursive: true });
     await fs.writeFile(configFilePath, yaml.dump(config), 'utf8');
 };

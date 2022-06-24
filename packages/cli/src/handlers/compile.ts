@@ -1,6 +1,5 @@
 import {
     attachTypesToModels,
-    AuthorizationError,
     convertExplores,
     getSchemaStructureFromDbtModels,
     isSupportedDbtAdapter,
@@ -8,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import path from 'path';
-import { getConfig } from '../config';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
@@ -17,7 +15,6 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import * as styles from '../styles';
-import { lightdashApi } from './dbt/apiClient';
 
 type GenerateHandlerOptions = {
     projectDir: string;
@@ -25,7 +22,7 @@ type GenerateHandlerOptions = {
     target: string | undefined;
     profile: string | undefined;
 };
-const compile = async (options: GenerateHandlerOptions) => {
+export const compile = async (options: GenerateHandlerOptions) => {
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -64,28 +61,5 @@ export const compileHandler = async (options: GenerateHandlerOptions) => {
     console.error(`Compiled ${explores.length} explores`);
     console.error('');
     console.error(styles.success('Successfully compiled project'));
-    console.error('');
-};
-
-export const deployHandler = async (options: GenerateHandlerOptions) => {
-    const explores = await compile(options);
-    const config = await getConfig();
-    if (!(config.context?.project && config.context.serverUrl)) {
-        throw new AuthorizationError(
-            `No active Lightdash project. Run 'lightdash login'`,
-        );
-    }
-    await lightdashApi<undefined>({
-        method: 'PUT',
-        url: `/api/v1/projects/${config.context.project}/explores`,
-        body: JSON.stringify(explores),
-    });
-    console.error(`${styles.bold('Successfully deployed project:')}`);
-    console.error('');
-    console.error(
-        `      ${styles.bold(
-            `⚡️ ${config.context.serverUrl}/projects/${config.context.project}/tables`,
-        )}`,
-    );
     console.error('');
 };

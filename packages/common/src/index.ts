@@ -842,7 +842,6 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
 
 export interface DbtProjectConfigBase {
     type: ProjectType;
-    name: string;
 }
 
 export type DbtProjectEnvironmentVariable = {

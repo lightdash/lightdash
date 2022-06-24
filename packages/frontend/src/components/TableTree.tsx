@@ -4,7 +4,6 @@ import {
     Colors,
     Dialog,
     Icon,
-    Intent,
     Menu,
     MenuItem,
     PopoverPosition,
@@ -36,8 +35,9 @@ import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import { EventName, SectionName } from '../types/Events';
 import DocumentationHelpButton from './DocumentationHelpButton';
 import {
-    DimensionLabel,
-    DimensionLabelWrapper,
+    ItemIcon,
+    ItemLabel,
+    ItemLabelWrapper,
     ItemOptions,
     Placeholder,
     TableTreeGlobalStyle,
@@ -386,20 +386,20 @@ const CustomMetricButtons: FC<{
 
 type DimensionWithSubDimensions = Dimension & { subDimensions?: Dimension[] };
 
-const DimensionIconPicker = (type: DimensionType) => {
+const ItemLabelIconPicker = (type: DimensionType | MetricType) => {
     switch (type) {
-        case DimensionType.STRING:
+        case DimensionType.STRING || MetricType.STRING:
             return 'citation';
-        case DimensionType.NUMBER:
+        case DimensionType.NUMBER || MetricType.NUMBER:
             return 'numerical';
-        case DimensionType.DATE:
+        case DimensionType.DATE || MetricType.DATE:
             return 'calendar';
-        case DimensionType.BOOLEAN:
+        case DimensionType.BOOLEAN || MetricType.BOOLEAN:
             return 'segmented-control';
         case DimensionType.TIMESTAMP:
             return 'time';
         default:
-            return 'citation';
+            return 'numerical';
     }
 };
 
@@ -410,19 +410,20 @@ const renderDimensionTreeNode = (
     onOpenSourceDialog: (source: Source) => void,
     hoveredFieldId: string,
 ): TreeNodeInfo<NodeDataProps> => {
+    const itemLabel = dimension?.group
+        ? friendlyName(dimension.name.replace(dimension?.group, ''))
+        : dimension.label;
     const baseNode = {
         id: dimension.name,
         label: (
             <Tooltip2 content={dimension.description}>
-                <DimensionLabelWrapper>
-                    {!dimension.subDimensions && (
-                        <Icon
-                            icon={DimensionIconPicker(dimension.type)}
-                            className={Classes.TREE_NODE_ICON}
-                        />
-                    )}
-                    <DimensionLabel>{dimension.label}</DimensionLabel>
-                </DimensionLabelWrapper>
+                <ItemLabelWrapper>
+                    <ItemIcon
+                        icon={ItemLabelIconPicker(dimension.type)}
+                        className={Classes.TREE_NODE_ICON}
+                    />
+                    <ItemLabel>{itemLabel}</ItemLabel>
+                </ItemLabelWrapper>
             </Tooltip2>
         ),
         secondaryLabel: (
@@ -569,13 +570,6 @@ const TableTree: FC<TableTreeProps> = ({
                 }}
             />
         ) : undefined,
-        icon: (
-            <Icon
-                icon="numerical"
-                intent={Intent.WARNING}
-                className={Classes.TREE_NODE_ICON}
-            />
-        ),
         isExpanded: true,
         hasCaret: false,
         childNodes: hasNoMetrics
@@ -594,7 +588,12 @@ const TableTree: FC<TableTreeProps> = ({
                       id: metric.name,
                       label: (
                           <Tooltip2 content={metric.description}>
-                              {metric.label}
+                              <ItemLabelWrapper>
+                                  <ItemIcon
+                                      icon={ItemLabelIconPicker(metric.type)}
+                                  />
+                                  <ItemLabel>{metric.label}</ItemLabel>
+                              </ItemLabelWrapper>
                           </Tooltip2>
                       ),
                       nodeData: {
@@ -636,13 +635,6 @@ const TableTree: FC<TableTreeProps> = ({
                 <strong>Custom metrics</strong>
             </span>
         ),
-        icon: (
-            <Icon
-                icon="clean"
-                intent={Intent.WARNING}
-                className={Classes.TREE_NODE_ICON}
-            />
-        ),
         hasCaret: false,
         isExpanded: true,
         secondaryLabel: isFirstTable ? (
@@ -679,7 +671,14 @@ const TableTree: FC<TableTreeProps> = ({
                                   key={metric.label}
                                   content={metric.description}
                               >
-                                  {metric.label}
+                                  <ItemLabelWrapper>
+                                      <ItemIcon
+                                          icon={ItemLabelIconPicker(
+                                              metric.type,
+                                          )}
+                                      />
+                                      <ItemLabel>{metric.label}</ItemLabel>
+                                  </ItemLabelWrapper>
                               </Tooltip2>
                           ),
                           nodeData: {
@@ -702,13 +701,6 @@ const TableTree: FC<TableTreeProps> = ({
             <span style={{ color: Colors.BLUE1 }}>
                 <strong>Dimensions</strong>
             </span>
-        ),
-        icon: (
-            <Icon
-                icon="tag"
-                intent={Intent.PRIMARY}
-                className={Classes.TREE_NODE_ICON}
-            />
         ),
         hasCaret: false,
         isExpanded: true,

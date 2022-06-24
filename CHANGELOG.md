@@ -1,3 +1,32 @@
+## [0.160.1](https://github.com/lightdash/lightdash/compare/0.160.0...0.160.1) (2022-06-23)
+
+
+### Bug Fixes
+
+* handle missing cli config dir ([#2527](https://github.com/lightdash/lightdash/issues/2527)) ([57b0b7f](https://github.com/lightdash/lightdash/commit/57b0b7f35a3be6c0c56da3c98653117d38d374ce))
+* update create project endpoint in cli ([#2528](https://github.com/lightdash/lightdash/issues/2528)) ([c9cf5f2](https://github.com/lightdash/lightdash/commit/c9cf5f21034ac633c05387702215dead21ec508a))
+
+# [0.160.0](https://github.com/lightdash/lightdash/compare/0.159.0...0.160.0) (2022-06-23)
+
+
+### Features
+
+* remove heading icons and add icons to metrics ([#2518](https://github.com/lightdash/lightdash/issues/2518)) ([0828f0e](https://github.com/lightdash/lightdash/commit/0828f0ef035eddc06b60141f449ae3647b721337))
+
+# [0.159.0](https://github.com/lightdash/lightdash/compare/0.158.1...0.159.0) (2022-06-23)
+
+
+### Features
+
+* add preview environments to cli ([#2512](https://github.com/lightdash/lightdash/issues/2512)) ([861f0bd](https://github.com/lightdash/lightdash/commit/861f0bddd2a03c174eef17f5c1a19a365f35a4aa))
+
+## [0.158.1](https://github.com/lightdash/lightdash/compare/0.158.0...0.158.1) (2022-06-23)
+
+
+### Bug Fixes
+
+* update forms placeholder ([#2523](https://github.com/lightdash/lightdash/issues/2523)) ([152ddf6](https://github.com/lightdash/lightdash/commit/152ddf6efd514d24b7c26111421741f92c0cae2e))
+
 # [0.158.0](https://github.com/lightdash/lightdash/compare/0.157.2...0.158.0) (2022-06-23)
 
 

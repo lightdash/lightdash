@@ -32,11 +32,19 @@ export const WarningIcon = styled(Icon)`
     color: ${Colors.ORANGE5} !important;
 `;
 
-export const DimensionLabelWrapper = styled.div`
+export const ItemLabelWrapper = styled.div`
     display: flex;
     align-items: center;
+    gap: 5px;
 `;
 
-export const DimensionLabel = styled.p`
+export const ItemIcon = styled(Icon)`
+    margin: 0;
+    path {
+        fill: ${Colors.GRAY2};
+    }
+`;
+
+export const ItemLabel = styled.p`
     margin: 0;
 `;

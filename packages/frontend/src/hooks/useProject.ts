@@ -12,7 +12,7 @@ import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
     lightdashApi<ApiJobStartedResults>({
-        url: `/org/projects`,
+        url: `/org/projects/precompiled`,
         method: 'POST',
         body: JSON.stringify(data),
     });
