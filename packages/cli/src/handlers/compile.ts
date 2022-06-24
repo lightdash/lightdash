@@ -2,6 +2,7 @@ import {
     attachTypesToModels,
     convertExplores,
     getSchemaStructureFromDbtModels,
+    isExploreError,
     isSupportedDbtAdapter,
     ParseError,
 } from '@lightdash/common';
@@ -54,12 +55,27 @@ export const compile = async (options: GenerateHandlerOptions) => {
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
     );
+
     return explores;
 };
 export const compileHandler = async (options: GenerateHandlerOptions) => {
     const explores = await compile(options);
-    console.error(`Compiled ${explores.length} explores`);
-    console.error('');
-    console.error(styles.success('Successfully compiled project'));
-    console.error('');
+
+    const hasError = explores.find(isExploreError);
+    if (hasError) {
+        console.error(
+            styles.error(
+                `There was an error when running compile on ${hasError.name}:`,
+            ),
+        );
+        hasError.errors.forEach((e) => {
+            console.error(styles.error(`${e.type}: ${e.message}`));
+        });
+        console.error('');
+    } else {
+        console.error(`Compiled ${explores.length} explores`);
+        console.error('');
+        console.error(styles.success('Successfully compiled project'));
+        console.error('');
+    }
 };
