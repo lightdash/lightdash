@@ -1,3 +1,10 @@
+## [0.162.2](https://github.com/lightdash/lightdash/compare/0.162.1...0.162.2) (2022-06-24)
+
+
+### Bug Fixes
+
+* y axis range ([#2556](https://github.com/lightdash/lightdash/issues/2556)) ([e71ba28](https://github.com/lightdash/lightdash/commit/e71ba285f9b53ef1806b5fb49bcc5ed97912bd90))
+
 ## [0.162.1](https://github.com/lightdash/lightdash/compare/0.162.0...0.162.1) (2022-06-24)
 
 
