@@ -1,3 +1,16 @@
+# [0.161.0](https://github.com/lightdash/lightdash/compare/0.160.2...0.161.0) (2022-06-24)
+
+
+### Bug Fixes
+
+* openapi update chart description optional ([#2544](https://github.com/lightdash/lightdash/issues/2544)) ([bae7ab4](https://github.com/lightdash/lightdash/commit/bae7ab4d4b3c1747abf5aae575a4d37c40d17343))
+* update wrong bigQuery link ([#2545](https://github.com/lightdash/lightdash/issues/2545)) ([aa11ed3](https://github.com/lightdash/lightdash/commit/aa11ed353d0846d8e3f7f9a8e49fddeb0f5205c2))
+
+
+### Features
+
+* update indentation in the sidebar levels ([#2549](https://github.com/lightdash/lightdash/issues/2549)) ([1676a4d](https://github.com/lightdash/lightdash/commit/1676a4db8eef6058129219261ff2f8c75cd3f3b1))
+
 ## [0.160.2](https://github.com/lightdash/lightdash/compare/0.160.1...0.160.2) (2022-06-24)
 
 
