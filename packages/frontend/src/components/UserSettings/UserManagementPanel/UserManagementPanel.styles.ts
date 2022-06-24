@@ -93,6 +93,15 @@ export const HeaderWrapper = styled.div`
     margin-bottom: 20px;
 `;
 
+export const TitleWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+    justify-content: flex-start;
+`;
+
 export const PanelTitle = styled(H5)`
     margin: 0;
+    margin-right: 10px;
 `;

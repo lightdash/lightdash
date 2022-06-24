@@ -13,9 +13,22 @@ export const UpdateHeaderWrapper = styled.div`
     margin: 40px auto 0;
 `;
 
-export const Title = styled(H3)<{ marginBottom?: boolean }>`
+export const Header = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+`;
+export const TitleWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     flex: 1;
+    justify-content: flex-start;
+`;
+
+export const Title = styled(H3)<{ marginBottom?: boolean }>`
     margin: 0;
+    margin-right: 10px;
 
     ${({ marginBottom }) =>
         marginBottom &&

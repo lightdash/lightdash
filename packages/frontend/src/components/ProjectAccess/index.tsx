@@ -1,7 +1,12 @@
+import { Colors, Icon } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import React, { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Title } from '../../pages/ProjectSettings.styles';
+import {
+    Header,
+    Title,
+    TitleWrapper,
+} from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import Content from '../common/Page/Content';
@@ -24,14 +29,19 @@ const ProjectUserAccess: FC = () => {
                 />
             ) : (
                 <>
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <Title>Project access</Title>
+                    <Header>
+                        <TitleWrapper>
+                            <Title>Project access</Title>
+                            <a
+                                role="button"
+                                href="https://docs.lightdash.com/references/roles"
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: Colors.GRAY5 }}
+                            >
+                                <Icon icon="info-sign" />
+                            </a>
+                        </TitleWrapper>
                         {!showProjectAccessCreate && (
                             <Can
                                 I={'manage'}
@@ -50,7 +60,7 @@ const ProjectUserAccess: FC = () => {
                                 />
                             </Can>
                         )}
-                    </div>
+                    </Header>
                     <ProjectAccess
                         onAddUser={() => {
                             setShowProjectAccessCreate(true);

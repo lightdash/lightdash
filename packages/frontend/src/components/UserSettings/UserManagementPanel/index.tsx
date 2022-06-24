@@ -3,7 +3,9 @@ import {
     ButtonGroup,
     Callout,
     Classes,
+    Colors,
     Dialog,
+    Icon,
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
@@ -41,6 +43,7 @@ import {
     PendingTag,
     RoleSelectButton,
     SectionWrapper,
+    TitleWrapper,
     UserEmail,
     UserInfo,
     UserListItemWrapper,
@@ -241,7 +244,18 @@ const UserManagementPanel: FC = () => {
         <UserManagementPanelWrapper>
             {user.data?.ability?.can('create', 'InviteLink') && (
                 <HeaderWrapper>
-                    <PanelTitle>User management settings</PanelTitle>
+                    <TitleWrapper>
+                        <PanelTitle>User management settings</PanelTitle>
+                        <a
+                            role="button"
+                            href="https://docs.lightdash.com/references/roles"
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: Colors.GRAY5 }}
+                        >
+                            <Icon icon="info-sign" />
+                        </a>
+                    </TitleWrapper>
                     <AddUserButton
                         intent="primary"
                         onClick={() => setShowInvitePage(true)}
