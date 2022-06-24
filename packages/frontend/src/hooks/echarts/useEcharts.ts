@@ -87,6 +87,9 @@ export const getAxisDefaultMinValue = ({
     return undefined;
 };
 
+const maybeGetAxisDefaultMinValue = (allowFunction: boolean) =>
+    allowFunction ? getAxisDefaultMinValue : undefined;
+
 export const getAxisDefaultMaxValue = ({
     min,
     max,
@@ -106,6 +109,9 @@ export const getAxisDefaultMaxValue = ({
     }
     return undefined;
 };
+
+const maybeGetAxisDefaultMaxValue = (allowFunction: boolean) =>
+    allowFunction ? getAxisDefaultMaxValue : undefined;
 
 export type EChartSeries = {
     type: Series['type'];
@@ -441,14 +447,12 @@ const getEchartAxis = ({
                     : xAxisConfiguration?.[0]?.name ||
                       (xAxisItem ? getItemLabel(xAxisItem) : undefined),
                 min: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[0]?.min || allowFirstAxisDefaultRange
-                        ? getAxisDefaultMinValue
-                        : undefined
+                    ? xAxisConfiguration?.[0]?.min ||
+                      maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
                     : undefined,
                 max: validCartesianConfig.layout.flipAxes
-                    ? xAxisConfiguration?.[0]?.max || allowFirstAxisDefaultRange
-                        ? getAxisDefaultMaxValue
-                        : undefined
+                    ? xAxisConfiguration?.[0]?.max ||
+                      maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
                     : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
@@ -472,15 +476,11 @@ const getEchartAxis = ({
                     : undefined,
                 min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[1]?.min ||
-                      allowSecondAxisDefaultRange
-                        ? getAxisDefaultMinValue
-                        : undefined
+                      maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
                     : undefined,
                 max: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[1]?.max ||
-                      allowSecondAxisDefaultRange
-                        ? getAxisDefaultMaxValue
-                        : undefined
+                      maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
                     : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
@@ -508,14 +508,12 @@ const getEchartAxis = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
                 min: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.min || allowFirstAxisDefaultRange
-                        ? getAxisDefaultMinValue
-                        : undefined
+                    ? yAxisConfiguration?.[0]?.min ||
+                      maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
                     : undefined,
                 max: !validCartesianConfig.layout.flipAxes
-                    ? yAxisConfiguration?.[0]?.max || allowFirstAxisDefaultRange
-                        ? getAxisDefaultMaxValue
-                        : undefined
+                    ? yAxisConfiguration?.[0]?.max ||
+                      maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
                     : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -540,15 +538,11 @@ const getEchartAxis = ({
                       }),
                 min: !validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[1]?.min ||
-                      allowSecondAxisDefaultRange
-                        ? getAxisDefaultMinValue
-                        : undefined
+                      maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
                     : undefined,
                 max: !validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[1]?.max ||
-                      allowSecondAxisDefaultRange
-                        ? getAxisDefaultMaxValue
-                        : undefined
+                      maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
                     : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
