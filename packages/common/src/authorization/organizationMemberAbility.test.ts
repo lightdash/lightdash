@@ -105,6 +105,9 @@ describe('Organization member permissions', () => {
         it('can create invite links', () => {
             expect(ability.can('create', 'InviteLink')).toEqual(true);
         });
+        it('can run SQL Queries', () => {
+            expect(ability.can('manage', 'SqlRunner')).toEqual(true);
+        });
     });
     describe('when user is a member', () => {
         beforeEach(() => {
@@ -142,6 +145,9 @@ describe('Organization member permissions', () => {
             expect(ability.can('create', 'SavedChart')).toEqual(false);
             expect(ability.can('create', 'Project')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
+        });
+        it('cannot run SQL queries', () => {
+            expect(ability.can('manage', 'SqlRunner')).toEqual(false);
         });
         it('cannot update any resource', () => {
             expect(ability.can('update', 'Dashboard')).toEqual(false);

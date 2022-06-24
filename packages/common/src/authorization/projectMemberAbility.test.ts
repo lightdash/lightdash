@@ -100,6 +100,9 @@ describe('Project member permissions', () => {
             expect(
                 ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(true);
+            expect(
+                ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(true);
         });
         it('cannot manage projects', () => {
             expect(
@@ -156,6 +159,9 @@ describe('Project member permissions', () => {
             ).toEqual(false);
             expect(
                 ability.can('manage', subject('Job', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
         });
     });

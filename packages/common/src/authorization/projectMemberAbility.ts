@@ -32,7 +32,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
         });
-
+        can('manage', 'SqlRunner', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'Job');
     },
     admin(member, { can }) {
