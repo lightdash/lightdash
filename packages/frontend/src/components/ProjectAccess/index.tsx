@@ -61,11 +61,7 @@ const ProjectUserAccess: FC = () => {
                             </Can>
                         )}
                     </Header>
-                    <ProjectAccess
-                        onAddUser={() => {
-                            setShowProjectAccessCreate(true);
-                        }}
-                    />
+                    <ProjectAccess />
                 </>
             )}
         </Content>

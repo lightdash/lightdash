@@ -16,9 +16,8 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useToggle } from 'react-use';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
     useProjectAccess,
@@ -27,13 +26,8 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
-import { HeaderActions } from '../UserSettings/AccessTokensPanel/AccessTokens.styles';
 import {
     ItemContent,
-    OrgAccess,
-    OrgAccessHeader,
-    OrgAccessList,
-    OrgAccessTitle,
     ProjectAccessWrapper,
     RelevantOrgRoleIcon,
     RoleSelectButton,
@@ -99,9 +93,13 @@ const UserListItem: FC<{
                                 value={role}
                             />
                         ) : (
-                            <Tag minimal large>
-                                {role}
-                            </Tag>
+                            <Tooltip2
+                                content={`This user inherits the organisation role: ${role}`}
+                            >
+                                <Tag minimal large>
+                                    {role}
+                                </Tag>
+                            </Tooltip2>
                         )}
                         {onDelete && (
                             <Button
@@ -156,25 +154,38 @@ const relevantOrgRolesForProjectRole: Record<
     [ProjectMemberRole.ADMIN]: [],
 };
 
-const ProjectAccess: FC<{
-    onAddUser: () => void;
-}> = ({ onAddUser }) => {
+const ProjectAccess: FC = () => {
     const { user } = useApp();
     const ability = useAbilityContext();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [isOpen, toggle] = useToggle(false);
     const { mutate: revokeAccess } =
         useRevokeProjectAccessMutation(projectUuid);
     const { mutate: updateAccess } =
         useUpdateProjectAccessMutation(projectUuid);
 
-    const projectAccess = useProjectAccess(projectUuid);
-    const organizationUsers = useOrganizationUsers();
+    const { data: projectAccess, isLoading: isProjectAccessLoading } =
+        useProjectAccess(projectUuid);
+    const { data: organizationUsers, isLoading: isOrganizationUsersLoading } =
+        useOrganizationUsers();
 
-    const inheritedPermissions =
-        organizationUsers.data?.filter(
-            (orgUser) => orgUser.role !== OrganizationMemberRole.MEMBER,
-        ) || [];
+    const [inheritedPermissions, overlapPermissions] = useMemo(() => {
+        const projectMemberEmails =
+            projectAccess?.map((projectMember) => projectMember.email) || [];
+        return (organizationUsers || []).reduce<
+            [OrganizationMemberProfile[], OrganizationMemberProfile[]]
+        >(
+            ([inherited, overlapping], orgUser) => {
+                if (orgUser.role === OrganizationMemberRole.MEMBER) {
+                    return [inherited, overlapping];
+                }
+                if (projectMemberEmails.includes(orgUser.email)) {
+                    return [inherited, [...overlapping, orgUser]];
+                }
+                return [[...inherited, orgUser], overlapping];
+            },
+            [[], []],
+        );
+    }, [organizationUsers, projectAccess]);
 
     const canManageProjectAccess = ability.can(
         'manage',
@@ -184,28 +195,12 @@ const ProjectAccess: FC<{
         }),
     );
 
-    if (projectAccess.isLoading) {
+    if (isProjectAccessLoading || isOrganizationUsersLoading) {
         return <NonIdealState title="Loading..." icon={<Spinner />} />;
     }
     return (
         <ProjectAccessWrapper>
-            {projectAccess.data && projectAccess.data.length <= 0 && (
-                <NonIdealState
-                    icon="user"
-                    title="No access given"
-                    description="You haven't given users access to this project yet!"
-                    action={
-                        <HeaderActions>
-                            <Button
-                                intent="primary"
-                                onClick={onAddUser}
-                                text="Add user"
-                            />
-                        </HeaderActions>
-                    }
-                />
-            )}
-            {projectAccess.data?.map((projectMember) => (
+            {projectAccess?.map((projectMember) => (
                 <UserListItem
                     key={projectMember.email}
                     user={projectMember}
@@ -224,7 +219,7 @@ const ProjectAccess: FC<{
                             : undefined
                     }
                     relevantOrgRole={
-                        inheritedPermissions?.find(
+                        overlapPermissions.find(
                             ({ email, role }) =>
                                 email === projectMember.email &&
                                 relevantOrgRolesForProjectRole[
@@ -234,28 +229,9 @@ const ProjectAccess: FC<{
                     }
                 />
             ))}
-            {inheritedPermissions && (
-                <OrgAccess>
-                    <OrgAccessHeader>
-                        <Button
-                            icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                            minimal
-                            onClick={toggle}
-                        />
-                        <OrgAccessTitle>
-                            Organization users with access to this project
-                        </OrgAccessTitle>
-                        <Tag minimal interactive onClick={toggle}>
-                            {inheritedPermissions.length} users
-                        </Tag>
-                    </OrgAccessHeader>
-                    <OrgAccessList isOpen={isOpen}>
-                        {inheritedPermissions?.map((orgUser) => (
-                            <UserListItem key={orgUser.email} user={orgUser} />
-                        ))}
-                    </OrgAccessList>
-                </OrgAccess>
-            )}
+            {inheritedPermissions?.map((orgUser) => (
+                <UserListItem key={orgUser.email} user={orgUser} />
+            ))}
         </ProjectAccessWrapper>
     );
 };
