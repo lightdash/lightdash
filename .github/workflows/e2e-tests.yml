@@ -29,6 +29,13 @@ jobs:
         run: yarn common-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       - name: Cypress run
         uses: cypress-io/github-action@v4
         with:
