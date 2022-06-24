@@ -41,6 +41,7 @@ export const user: SessionUser = {
     ability: new Ability([
         { subject: 'Project', action: ['update', 'view'] },
         { subject: 'Job', action: ['view'] },
+        { subject: 'SqlRunner', action: ['manage'] },
     ]),
     isActive: true,
     abilityRules: [],

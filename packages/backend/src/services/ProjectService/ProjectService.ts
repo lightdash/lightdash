@@ -515,8 +515,8 @@ export class ProjectService {
 
         if (
             user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();

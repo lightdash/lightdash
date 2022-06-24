@@ -51,6 +51,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'SqlRunner', {
+            organizationUuid: member.organizationUuid,
+        });
 
         can('manage', 'Job');
     },

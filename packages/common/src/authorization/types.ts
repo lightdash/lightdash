@@ -20,6 +20,7 @@ type Subject =
     | 'SavedChart'
     | 'InviteLink'
     | 'Job'
+    | 'SqlRunner'
     | 'all';
 
 type PossibleAbilities = [
