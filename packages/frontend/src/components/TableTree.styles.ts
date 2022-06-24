@@ -10,6 +10,21 @@ export const TableTreeGlobalStyle = createGlobalStyle`
           white-space: normal;
         }
     }
+    .bp4-tree-node-content-0 {
+        padding-left: 0;
+    }
+    .bp4-tree-node-content-1 {
+        padding-left: 20px;
+    }
+    .bp4-tree-node-content-2 {
+        padding-left: 32px;
+    }
+    .bp4-tree-node-content-3 {
+        padding-left: 44px;
+    }
+    .bp4-tree-node-content-4  {
+        padding-left: 56px;
+    }
 `;
 
 export const TooltipContent = styled.p`
