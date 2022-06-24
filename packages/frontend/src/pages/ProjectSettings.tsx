@@ -7,18 +7,18 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import React, { FC, useMemo, useState } from 'react';
+import React, { FC, useMemo } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
-import ProjectAccess from '../components/ProjectAccess/ProjectAccess';
-import ProjectAccessCreation from '../components/ProjectAccess/ProjectAccessCreation';
+import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
 import {
+    ContentContainer,
     ProjectConnectionContainer,
     Title,
     UpdateHeaderWrapper,
@@ -28,9 +28,6 @@ import {
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
-
-    const [projectAccessCreate, setProjectAccessCreate] =
-        useState<boolean>(false);
     const basePath = useMemo(
         () => `/projects/${projectUuid}/settings`,
         [projectUuid],
@@ -84,22 +81,26 @@ const ProjectSettings: FC = () => {
                     path="/projects/:projectUuid/settings/tablesConfiguration"
                 >
                     <Content>
-                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                            Your project has connected successfully! 🎉
-                        </H3>
-                        <Divider style={{ margin: '20px 0' }} />
-                        <p
-                            style={{
-                                marginBottom: 20,
-                                color: Colors.GRAY1,
-                            }}
-                        >
-                            Before you start exploring your data, pick the dbt
-                            models you wanto to appear as tables in Lightdash.
-                            You can always adjust this in your project settings
-                            later.
-                        </p>
-                        <ProjectTablesConfiguration projectUuid={projectUuid} />
+                        <ContentContainer>
+                            <H3 style={{ marginTop: 10, marginBottom: 0 }}>
+                                Your project has connected successfully! 🎉
+                            </H3>
+                            <Divider style={{ margin: '20px 0' }} />
+                            <p
+                                style={{
+                                    marginBottom: 20,
+                                    color: Colors.GRAY1,
+                                }}
+                            >
+                                Before you start exploring your data, pick the
+                                dbt models you wanto to appear as tables in
+                                Lightdash. You can always adjust this in your
+                                project settings later.
+                            </p>
+                            <ProjectTablesConfiguration
+                                projectUuid={projectUuid}
+                            />
+                        </ContentContainer>
                     </Content>
                 </Route>
 
@@ -121,22 +122,7 @@ const ProjectSettings: FC = () => {
                     exact
                     path="/projects/:projectUuid/settings/projectAccess"
                 >
-                    <Content>
-                        <Title>Project access</Title>
-                        {projectAccessCreate ? (
-                            <ProjectAccessCreation
-                                onBackClick={() => {
-                                    setProjectAccessCreate(false);
-                                }}
-                            />
-                        ) : (
-                            <ProjectAccess
-                                onAddUser={() => {
-                                    setProjectAccessCreate(true);
-                                }}
-                            />
-                        )}
-                    </Content>
+                    <ProjectUserAccess />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>

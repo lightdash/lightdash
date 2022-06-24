@@ -1,4 +1,14 @@
-import { Button, ButtonGroup, Classes, Dialog } from '@blueprintjs/core';
+import {
+    Button,
+    ButtonGroup,
+    Classes,
+    Dialog,
+    Intent,
+    NonIdealState,
+    Spinner,
+    Tag,
+} from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     OrganizationMemberProfile,
@@ -6,7 +16,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { FC, useState } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -15,32 +25,27 @@ import {
     useUpdateProjectAccessMutation,
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
-import { Can, useAbilityContext } from '../common/Authorization';
+import { useAbilityContext } from '../common/Authorization';
 import {
-    AddUserButton,
     ItemContent,
-    OrgAccess,
-    OrgAccessCounter,
-    OrgAccessHeader,
-    OrgAccessTitle,
     ProjectAccessWrapper,
+    RelevantOrgRoleIcon,
     RoleSelectButton,
     SectionWrapper,
-    Separator,
     UserEmail,
     UserInfo,
     UserListItemWrapper,
     UserName,
-} from './ProjectAccess.tyles';
+} from './ProjectAccess.styles';
 
 const UserListItem: FC<{
-    key: string;
     user: OrganizationMemberProfile | ProjectMemberProfile;
+    relevantOrgRole?: OrganizationMemberProfile['role'];
     onDelete?: () => void;
     onUpdate?: (newRole: ProjectMemberRole) => void;
 }> = ({
-    key,
     user: { firstName, lastName, email, role },
+    relevantOrgRole,
     onDelete,
     onUpdate,
 }) => {
@@ -56,6 +61,17 @@ const UserListItem: FC<{
                         </UserName>
                         {email && <UserEmail minimal>{email}</UserEmail>}
                     </UserInfo>
+
+                    {relevantOrgRole && (
+                        <Tooltip2
+                            content={`This user inherits the organisation role: ${relevantOrgRole}`}
+                        >
+                            <RelevantOrgRoleIcon
+                                icon="warning-sign"
+                                intent={Intent.WARNING}
+                            />
+                        </Tooltip2>
+                    )}
 
                     <ButtonGroup>
                         {onUpdate ? (
@@ -77,7 +93,13 @@ const UserListItem: FC<{
                                 value={role}
                             />
                         ) : (
-                            <p>{role}</p>
+                            <Tooltip2
+                                content={`This user inherits the organisation role: ${role}`}
+                            >
+                                <Tag minimal large>
+                                    {role}
+                                </Tag>
+                            </Tooltip2>
                         )}
                         {onDelete && (
                             <Button
@@ -119,9 +141,20 @@ const UserListItem: FC<{
         </UserListItemWrapper>
     );
 };
-const ProjectAccess: FC<{
-    onAddUser: () => void;
-}> = ({ onAddUser }) => {
+
+const relevantOrgRolesForProjectRole: Record<
+    ProjectMemberRole,
+    OrganizationMemberRole[]
+> = {
+    [ProjectMemberRole.VIEWER]: [
+        OrganizationMemberRole.EDITOR,
+        OrganizationMemberRole.ADMIN,
+    ],
+    [ProjectMemberRole.EDITOR]: [OrganizationMemberRole.ADMIN],
+    [ProjectMemberRole.ADMIN]: [],
+};
+
+const ProjectAccess: FC = () => {
     const { user } = useApp();
     const ability = useAbilityContext();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -130,18 +163,29 @@ const ProjectAccess: FC<{
     const { mutate: updateAccess } =
         useUpdateProjectAccessMutation(projectUuid);
 
-    const { data: projectMemberships } = useProjectAccess(projectUuid);
-    const { data: organizationUsers } = useOrganizationUsers();
+    const { data: projectAccess, isLoading: isProjectAccessLoading } =
+        useProjectAccess(projectUuid);
+    const { data: organizationUsers, isLoading: isOrganizationUsersLoading } =
+        useOrganizationUsers();
 
-    const projectMemberEmails = projectMemberships?.map(
-        (projectMember) => projectMember.email,
-    );
-
-    const inheritedPermissions = organizationUsers?.filter(
-        (orgUser) =>
-            !projectMemberEmails?.includes(orgUser.email) &&
-            orgUser.role !== OrganizationMemberRole.MEMBER,
-    );
+    const [inheritedPermissions, overlapPermissions] = useMemo(() => {
+        const projectMemberEmails =
+            projectAccess?.map((projectMember) => projectMember.email) || [];
+        return (organizationUsers || []).reduce<
+            [OrganizationMemberProfile[], OrganizationMemberProfile[]]
+        >(
+            ([inherited, overlapping], orgUser) => {
+                if (orgUser.role === OrganizationMemberRole.MEMBER) {
+                    return [inherited, overlapping];
+                }
+                if (projectMemberEmails.includes(orgUser.email)) {
+                    return [inherited, [...overlapping, orgUser]];
+                }
+                return [[...inherited, orgUser], overlapping];
+            },
+            [[], []],
+        );
+    }, [organizationUsers, projectAccess]);
 
     const canManageProjectAccess = ability.can(
         'manage',
@@ -151,9 +195,12 @@ const ProjectAccess: FC<{
         }),
     );
 
+    if (isProjectAccessLoading || isOrganizationUsersLoading) {
+        return <NonIdealState title="Loading..." icon={<Spinner />} />;
+    }
     return (
         <ProjectAccessWrapper>
-            {projectMemberships?.map((projectMember) => (
+            {projectAccess?.map((projectMember) => (
                 <UserListItem
                     key={projectMember.email}
                     user={projectMember}
@@ -171,36 +218,20 @@ const ProjectAccess: FC<{
                             ? () => revokeAccess(projectMember.userUuid)
                             : undefined
                     }
+                    relevantOrgRole={
+                        overlapPermissions.find(
+                            ({ email, role }) =>
+                                email === projectMember.email &&
+                                relevantOrgRolesForProjectRole[
+                                    projectMember.role
+                                ].includes(role),
+                        )?.role
+                    }
                 />
             ))}
-            <Can
-                I={'manage'}
-                this={subject('Project', {
-                    organizationUuid: user.data?.organizationUuid,
-                    projectUuid,
-                })}
-            >
-                <AddUserButton
-                    intent="primary"
-                    onClick={onAddUser}
-                    text="Add user"
-                />
-            </Can>
-            {inheritedPermissions && (
-                <OrgAccess>
-                    <OrgAccessHeader>
-                        <OrgAccessTitle>Inherited permissions</OrgAccessTitle>
-                        <OrgAccessCounter>
-                            {inheritedPermissions.length} can see this project
-                        </OrgAccessCounter>
-                    </OrgAccessHeader>
-                    <Separator />
-
-                    {inheritedPermissions?.map((orgUser) => (
-                        <UserListItem key={orgUser.email} user={orgUser} />
-                    ))}
-                </OrgAccess>
-            )}
+            {inheritedPermissions?.map((orgUser) => (
+                <UserListItem key={orgUser.email} user={orgUser} />
+            ))}
         </ProjectAccessWrapper>
     );
 };
