@@ -1,3 +1,10 @@
+## [0.160.2](https://github.com/lightdash/lightdash/compare/0.160.1...0.160.2) (2022-06-24)
+
+
+### Bug Fixes
+
+* project access ux ([#2525](https://github.com/lightdash/lightdash/issues/2525)) ([f3fd0ca](https://github.com/lightdash/lightdash/commit/f3fd0ca8b0af98f250159d4fe5abf69e01d1d175))
+
 ## [0.160.1](https://github.com/lightdash/lightdash/compare/0.160.0...0.160.1) (2022-06-23)
 
 
