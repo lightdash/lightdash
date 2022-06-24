@@ -43,7 +43,7 @@ const BigQueryForm: FC<{
             <Input
                 name="warehouse.project"
                 label="Project"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#project-1"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#project"
                 rules={{
                     required: 'Required field',
                     validate: {
