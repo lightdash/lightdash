@@ -80,8 +80,8 @@ const ProjectSettings: FC = () => {
                     exact
                     path="/projects/:projectUuid/settings/tablesConfiguration"
                 >
-                    <ContentContainer>
-                        <Content>
+                    <Content>
+                        <ContentContainer>
                             <H3 style={{ marginTop: 10, marginBottom: 0 }}>
                                 Your project has connected successfully! 🎉
                             </H3>
@@ -100,8 +100,8 @@ const ProjectSettings: FC = () => {
                             <ProjectTablesConfiguration
                                 projectUuid={projectUuid}
                             />
-                        </Content>
-                    </ContentContainer>
+                        </ContentContainer>
+                    </Content>
                 </Route>
 
                 <Route exact path="/projects/:projectUuid/settings">
@@ -122,9 +122,7 @@ const ProjectSettings: FC = () => {
                     exact
                     path="/projects/:projectUuid/settings/projectAccess"
                 >
-                    <ContentContainer>
-                        <ProjectUserAccess />
-                    </ContentContainer>
+                    <ProjectUserAccess />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>

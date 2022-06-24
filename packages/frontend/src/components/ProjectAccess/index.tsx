@@ -3,6 +3,7 @@ import { subject } from '@casl/ability';
 import React, { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
+    ContentContainer,
     Header,
     Title,
     TitleWrapper,
@@ -21,49 +22,51 @@ const ProjectUserAccess: FC = () => {
         useState<boolean>(false);
     return (
         <Content>
-            {showProjectAccessCreate ? (
-                <ProjectAccessCreation
-                    onBackClick={() => {
-                        setShowProjectAccessCreate(false);
-                    }}
-                />
-            ) : (
-                <>
-                    <Header>
-                        <TitleWrapper>
-                            <Title>Project access</Title>
-                            <a
-                                role="button"
-                                href="https://docs.lightdash.com/references/roles"
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{ color: Colors.GRAY5 }}
-                            >
-                                <Icon icon="info-sign" />
-                            </a>
-                        </TitleWrapper>
-                        {!showProjectAccessCreate && (
-                            <Can
-                                I={'manage'}
-                                this={subject('Project', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <AddUserButton
-                                    intent="primary"
-                                    onClick={() => {
-                                        setShowProjectAccessCreate(true);
-                                    }}
-                                    text="Add user"
-                                />
-                            </Can>
-                        )}
-                    </Header>
-                    <ProjectAccess />
-                </>
-            )}
+            <ContentContainer>
+                {showProjectAccessCreate ? (
+                    <ProjectAccessCreation
+                        onBackClick={() => {
+                            setShowProjectAccessCreate(false);
+                        }}
+                    />
+                ) : (
+                    <>
+                        <Header>
+                            <TitleWrapper>
+                                <Title>Project access</Title>
+                                <a
+                                    role="button"
+                                    href="https://docs.lightdash.com/references/roles"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ color: Colors.GRAY5 }}
+                                >
+                                    <Icon icon="info-sign" />
+                                </a>
+                            </TitleWrapper>
+                            {!showProjectAccessCreate && (
+                                <Can
+                                    I={'manage'}
+                                    this={subject('Project', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    <AddUserButton
+                                        intent="primary"
+                                        onClick={() => {
+                                            setShowProjectAccessCreate(true);
+                                        }}
+                                        text="Add user"
+                                    />
+                                </Can>
+                            )}
+                        </Header>
+                        <ProjectAccess />
+                    </>
+                )}
+            </ContentContainer>
         </Content>
     );
 };
