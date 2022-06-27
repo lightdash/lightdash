@@ -1,3 +1,10 @@
+## [0.164.2](https://github.com/lightdash/lightdash/compare/0.164.1...0.164.2) (2022-06-27)
+
+
+### Bug Fixes
+
+* add default target to cli previews ([e3233d0](https://github.com/lightdash/lightdash/commit/e3233d01c5e623ed5b50e18650aac084948acafc))
+
 ## [0.164.1](https://github.com/lightdash/lightdash/compare/0.164.0...0.164.1) (2022-06-27)
 
 
