@@ -57,7 +57,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
     const profileName = options.profile || context.profileName;
-    const target = await loadDbtTarget({
+    const { target } = await loadDbtTarget({
         profilesDir: absoluteProfilesPath,
         profileName,
         targetName: options.target,

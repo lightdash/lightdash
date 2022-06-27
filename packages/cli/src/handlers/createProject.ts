@@ -21,7 +21,7 @@ export const createProject = async (
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
     const profileName = options.profile || context.profileName;
-    const target = await loadDbtTarget({
+    const { target, name: targetName } = await loadDbtTarget({
         profilesDir: absoluteProfilesPath,
         profileName,
         targetName: options.target,
@@ -32,7 +32,7 @@ export const createProject = async (
         warehouseConnection: credentials,
         dbtConnection: {
             type: ProjectType.DBT,
-            ...(options.target ? { target: options.target } : {}),
+            target: targetName,
         },
     };
     const createdProject = await lightdashApi<Project>({

@@ -12,7 +12,7 @@ export const loadDbtTarget = async ({
     profilesDir,
     profileName,
     targetName,
-}: LoadProfileArgs): Promise<Target> => {
+}: LoadProfileArgs): Promise<{ name: string; target: Target }> => {
     const profilePath = path.join(profilesDir, 'profiles.yml');
     let allProfiles;
     try {
@@ -37,7 +37,10 @@ export const loadDbtTarget = async ({
             `Couldn't find target "${selectedTargetName}" for profile ${profileName} in profiles.yml at ${profilePath}`,
         );
     }
-    return target;
+    return {
+        name: selectedTargetName,
+        target,
+    };
 };
 
 export const warehouseCredentialsFromDbtTarget = async (
