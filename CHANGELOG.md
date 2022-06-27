@@ -1,3 +1,11 @@
+## [0.164.5](https://github.com/lightdash/lightdash/compare/0.164.4...0.164.5) (2022-06-27)
+
+
+### Bug Fixes
+
+* ignore missing types during compile ([#2580](https://github.com/lightdash/lightdash/issues/2580)) ([f69c4bc](https://github.com/lightdash/lightdash/commit/f69c4bcfa00cc453acc6f829db17721c3446e8bd))
+* recognise doc blocks ([#2577](https://github.com/lightdash/lightdash/issues/2577)) ([799fccf](https://github.com/lightdash/lightdash/commit/799fccf838fa4dcaee103590daa2f3336f15054d))
+
 ## [0.164.4](https://github.com/lightdash/lightdash/compare/0.164.3...0.164.4) (2022-06-27)
 
 
