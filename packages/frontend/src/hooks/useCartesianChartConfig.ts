@@ -424,6 +424,7 @@ const useCartesianChartConfig = ({
                                 },
                             },
                             areaStyle: areaStyleConfig,
+                            stack: areaStyle ? yField : undefined,
                         };
                         return {
                             ...acc,
@@ -446,6 +447,7 @@ const useCartesianChartConfig = ({
                         },
                         type: dirtyChartType,
                         areaStyle: areaStyleConfig,
+                        stack: areaStyle ? 'stack-all-series' : undefined,
                     };
                     return { ...sum, [getSeriesId(series)]: series };
                 }, {});
