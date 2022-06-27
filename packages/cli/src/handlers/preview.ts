@@ -1,3 +1,4 @@
+import { Project } from '@lightdash/common';
 import inquirer from 'inquirer';
 import PressToContinuePrompt from 'inquirer-press-to-continue';
 import ora from 'ora';
@@ -7,7 +8,6 @@ import {
     uniqueNamesGenerator,
 } from 'unique-names-generator';
 import { URL } from 'url';
-import { Project } from '@lightdash/common';
 import { getConfig } from '../config';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
