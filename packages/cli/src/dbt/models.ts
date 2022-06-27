@@ -140,15 +140,14 @@ export const findAndUpdateModelYaml = async ({
         filenames,
     });
     if (match) {
+        const docsNames = Object.values(docs).map((doc) => doc.name);
         const existingModel = match.doc.models[match.modelIndex];
         const existingColumns = existingModel.columns || [];
         const existingColumnsUpdatedPromise = existingColumns?.map(
             async (column) => {
-                const hasDoc = Object.values(docs).find(
-                    (doc) => doc.name === column.name,
-                );
+                const hasDoc = docsNames.includes(column.name);
                 const newDescription = hasDoc
-                    ? `{{doc("${column.name}")}}`
+                    ? `{{doc('${column.name}')}}`
                     : '';
                 const existingDescription = column.description;
                 const existingDimensionType = column.meta?.dimension?.type;
