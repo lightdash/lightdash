@@ -1,3 +1,16 @@
+# [0.164.0](https://github.com/lightdash/lightdash/compare/0.163.0...0.164.0) (2022-06-27)
+
+
+### Bug Fixes
+
+* keep area chart stacked when axis change ([#2567](https://github.com/lightdash/lightdash/issues/2567)) ([b2c0d3c](https://github.com/lightdash/lightdash/commit/b2c0d3c150a2e8130544d058dfa04049eb47d3f3))
+* teardown cli previews on error ([#2569](https://github.com/lightdash/lightdash/issues/2569)) ([7daf9f4](https://github.com/lightdash/lightdash/commit/7daf9f463b5688ccb2fb1d59de1993a014cdffb1)), closes [#2564](https://github.com/lightdash/lightdash/issues/2564)
+
+
+### Features
+
+* allow server payload configuration ([#2568](https://github.com/lightdash/lightdash/issues/2568)) ([4165641](https://github.com/lightdash/lightdash/commit/4165641d55147e8f84fe146e2c35926c458d273d)), closes [#2565](https://github.com/lightdash/lightdash/issues/2565)
+
 # [0.163.0](https://github.com/lightdash/lightdash/compare/0.162.2...0.163.0) (2022-06-27)
 
 
