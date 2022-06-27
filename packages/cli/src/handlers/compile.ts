@@ -42,7 +42,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
         getSchemaStructureFromDbtModels(models),
     );
 
-    const typedModels = attachTypesToModels(models, catalog, true);
+    const typedModels = attachTypesToModels(models, catalog, false);
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         throw new ParseError(
             `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
