@@ -7,6 +7,7 @@ import {
     uniqueNamesGenerator,
 } from 'unique-names-generator';
 import { URL } from 'url';
+import { Project } from '@lightdash/common';
 import { getConfig } from '../config';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
@@ -24,15 +25,21 @@ type PreviewHandlerOptions = {
 export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
-    console.error('');
-    const spinner = ora(`  Setting up preview environment`).start();
     const name = uniqueNamesGenerator({
         length: 2,
         separator: ' ',
         dictionaries: [adjectives, animals],
     });
     const config = await getConfig();
-    const project = await createProject({ ...options, name });
+    console.error('');
+    const spinner = ora(`  Setting up preview environment`).start();
+    let project: Project;
+    try {
+        project = await createProject({ ...options, name });
+    } catch (e) {
+        spinner.fail();
+        throw e;
+    }
     try {
         const projectUrl =
             config.context?.serverUrl &&

@@ -30,7 +30,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     const config = await getConfig();
     if (!(config.context?.apiKey && config.context.serverUrl)) {
         throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login <url>`,
+            `Not logged in. Run 'lightdash login --help'`,
         );
     }
     const headers = {

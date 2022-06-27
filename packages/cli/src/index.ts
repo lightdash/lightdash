@@ -84,6 +84,22 @@ ${styles.bold('Examples:')}
 program
     .command('login <url>')
     .description('Login to a Lightdash instance')
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} https://app.lightdash.cloud ${styles.secondary(
+            '-- Login to Lightdash Cloud instance',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} https://custom.lightdash.domain ${styles.secondary(
+            '-- Login to a self-hosted instance at a custom domain',
+        )}
+`,
+    )
     .action(login);
 
 // CONFIG
