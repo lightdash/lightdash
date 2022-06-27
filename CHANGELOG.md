@@ -1,3 +1,10 @@
+## [0.164.1](https://github.com/lightdash/lightdash/compare/0.164.0...0.164.1) (2022-06-27)
+
+
+### Bug Fixes
+
+* improve auth error messages on cli ([#2573](https://github.com/lightdash/lightdash/issues/2573)) ([ae4cd0f](https://github.com/lightdash/lightdash/commit/ae4cd0f1ff2da8f9a0e45a54c94bd66f74e46adc)), closes [#2546](https://github.com/lightdash/lightdash/issues/2546)
+
 # [0.164.0](https://github.com/lightdash/lightdash/compare/0.163.0...0.164.0) (2022-06-27)
 
 
