@@ -27,7 +27,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     const config = await getConfig();
     if (!(config.context?.project && config.context.serverUrl)) {
         throw new AuthorizationError(
-            `No active Lightdash project. Run 'lightdash login'`,
+            `No active Lightdash project. Run 'lightdash login --help'`,
         );
     }
     await deploy({ ...options, projectUuid: config.context.project });
