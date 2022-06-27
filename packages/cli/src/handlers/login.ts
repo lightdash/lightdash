@@ -48,7 +48,7 @@ export const login = async (url: string) => {
     });
     const patResponseBody = await patResponse.json();
     const apiKey = patResponseBody.results.token;
-    const config = await getConfig();
+    const config = await getConfig(false);
     await setConfig({
         ...config,
         context: {
