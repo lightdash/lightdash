@@ -31,22 +31,32 @@ export const previewHandler = async (
         separator: ' ',
         dictionaries: [adjectives, animals],
     });
-    const project = await createProject({ ...options, name });
     const config = await getConfig();
-    const projectUrl =
-        config.context?.serverUrl &&
-        new URL(
-            `/projects/${project.projectUuid}/tables`,
-            config.context.serverUrl,
-        );
-    await deploy({ ...options, projectUuid: project.projectUuid });
-    spinner.succeed(`  Developer preview ready at: ${projectUrl}\n`);
-    await inquirer.prompt({
-        type: 'press-to-continue',
-        name: 'key',
-        anyKey: true,
-        pressToContinueMessage: 'Press any key to shutdown preview',
-    });
+    const project = await createProject({ ...options, name });
+    try {
+        const projectUrl =
+            config.context?.serverUrl &&
+            new URL(
+                `/projects/${project.projectUuid}/tables`,
+                config.context.serverUrl,
+            );
+        await deploy({ ...options, projectUuid: project.projectUuid });
+        spinner.succeed(`  Developer preview ready at: ${projectUrl}\n`);
+        await inquirer.prompt({
+            type: 'press-to-continue',
+            name: 'key',
+            anyKey: true,
+            pressToContinueMessage: 'Press any key to shutdown preview',
+        });
+    } catch (e) {
+        spinner.fail('Error creating developer preview');
+        await lightdashApi({
+            method: 'DELETE',
+            url: `/api/v1/org/projects/${project.projectUuid}`,
+            body: undefined,
+        });
+        throw e;
+    }
     const teardownSpinner = ora(`  Cleaning up`).start();
     await lightdashApi({
         method: 'DELETE',
