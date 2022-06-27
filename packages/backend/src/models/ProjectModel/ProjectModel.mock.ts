@@ -51,6 +51,7 @@ export const lightdashConfigMock: LightdashConfig = {
         minConnections: undefined,
     },
     allowMultiOrgs: false,
+    maxPayloadSize: '5mb',
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {

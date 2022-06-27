@@ -95,7 +95,7 @@ app.use(
     }) as express.RequestHandler,
 );
 app.use(Sentry.Handlers.tracingHandler());
-app.use(express.json());
+app.use(express.json({ limit: lightdashConfig.maxPayloadSize }));
 
 // Logging
 app.use(morganMiddleware);
