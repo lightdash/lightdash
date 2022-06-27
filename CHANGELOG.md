@@ -1,3 +1,10 @@
+# [0.163.0](https://github.com/lightdash/lightdash/compare/0.162.2...0.163.0) (2022-06-27)
+
+
+### Features
+
+* allow user to auth with env vars on cli ([#2529](https://github.com/lightdash/lightdash/issues/2529)) ([66290f2](https://github.com/lightdash/lightdash/commit/66290f24320ac105ceebdd4b55035a40a983f3d2))
+
 ## [0.162.2](https://github.com/lightdash/lightdash/compare/0.162.1...0.162.2) (2022-06-24)
 
 
