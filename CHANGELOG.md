@@ -1,3 +1,10 @@
+## [0.164.4](https://github.com/lightdash/lightdash/compare/0.164.3...0.164.4) (2022-06-27)
+
+
+### Bug Fixes
+
+* change doc block to use single quotes ([#2575](https://github.com/lightdash/lightdash/issues/2575)) ([a0a0017](https://github.com/lightdash/lightdash/commit/a0a0017fcb76fc9f297c795bd92bd5fb6985651f))
+
 ## [0.164.3](https://github.com/lightdash/lightdash/compare/0.164.2...0.164.3) (2022-06-27)
 
 
