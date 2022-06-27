@@ -36,6 +36,17 @@ sudo apt install unixodbc
 npm install -g @lightdash/cli
 ```
 
+### Check compatability
+
+Your Lightdash CLI version should match the version of Lightdash you see in the UI (scroll to the bottom of your screen, and you should see it there!). You can check the version of 
+your CLI by running:
+
+```shell
+lightdash --version
+```
+
+If you need to upgrade follow the [instructions to upgrade your cli](#upgrading).
+
 ## Login
 
 To login to your Lightdash instance run the following command and provide your login email and password:
@@ -138,3 +149,11 @@ lightdash generate -s payments customers # two specific models
 lightdash generate -s payments+ +customers tag:prod # mix and match
 ```
 
+## Upgrading
+
+To upgrade your version of the Lightdash cli run the following in your terminal:
+
+```shell
+npm install -g @lightdash/cli
+lightdash --version
+```
