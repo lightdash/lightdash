@@ -1,3 +1,10 @@
+# [0.165.0](https://github.com/lightdash/lightdash/compare/0.164.5...0.165.0) (2022-06-27)
+
+
+### Features
+
+* default string dimensions on cli ([#2581](https://github.com/lightdash/lightdash/issues/2581)) ([6301ef7](https://github.com/lightdash/lightdash/commit/6301ef7d36171fa6667b536092c89a6e5c8dcd81))
+
 ## [0.164.5](https://github.com/lightdash/lightdash/compare/0.164.4...0.164.5) (2022-06-27)
 
 
