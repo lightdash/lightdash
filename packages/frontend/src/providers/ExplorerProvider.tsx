@@ -882,8 +882,8 @@ export const ExplorerProvider: FC<{
                 removeEmptyProperties(reducerState.unsavedChartVersion),
             );
         }
-        return true;
-    }, [reducerState, savedChart]);
+        return isValidQuery;
+    }, [reducerState, isValidQuery, savedChart]);
 
     const state = useMemo(
         () => ({
