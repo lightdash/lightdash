@@ -519,7 +519,7 @@ const TableTree: FC<TableTreeProps> = ({
     const filteredMetrics: Metric[] = useMemo(() => {
         if (search !== '') {
             return new Fuse(metrics, {
-                keys: ['name'],
+                keys: ['label'],
                 ignoreLocation: true,
                 threshold: 0.3,
             })
@@ -534,7 +534,7 @@ const TableTree: FC<TableTreeProps> = ({
     const filteredDimensions: Dimension[] = useMemo(() => {
         if (search !== '') {
             return new Fuse(dimensions, {
-                keys: ['name'],
+                keys: ['label'],
                 ignoreLocation: true,
                 threshold: 0.3,
             })
