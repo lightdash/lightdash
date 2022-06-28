@@ -8,15 +8,16 @@
 Project Admins can invite users to their project and assign the following roles. Note that projects may also be 
 accessible by users with organization roles.
 
-| Action                                | Project Admin | Project Editor | Project Viewer  |
-|:--------------------------------------|:-------------:|:--------------:|:---------------:|
-| View charts and dashboards            |       ✅       |       ✅        |        ✅        |
-| Run metric queries                    |       ✅       |       ✅        |        ✅        |
-| Create/edit charts and dashboards     |       ✅       |       ✅        |        ❌        |    
-| Create/edit metrics                   |       ✅       |       ✅        |        ❌        |
-| Run SQL queries                       |       ✅       |       ✅        |        ❌        |
-| Manage project access and permissions |       ✅       |       ❌        |        ❌        |
-| Delete project                        |       ✅       |       ❌        |        ❌        |
+| Action                                  | Project Admin | Project Editor | Project Viewer |
+|:----------------------------------------|:-------------:|:--------------:|:--------------:|
+| View charts and dashboards              |       ✅       |       ✅        |       ✅        |
+| Run metric queries                      |       ✅       |       ✅        |       ✅        |
+| Create/edit charts and dashboards       |       ✅       |       ✅        |       ❌        |    
+| Create/edit metrics                     |       ✅       |       ✅        |       ❌        |
+| Run SQL queries                         |       ✅       |       ✅        |       ❌        |
+| Invite users to project                 |       ✅       |       ❌        |       ❌        |
+| Manage project access and permissions   |       ✅       |       ❌        |       ❌        |
+| Delete project                          |       ✅       |       ❌        |       ❌        |
 
 ### Organization Roles
 

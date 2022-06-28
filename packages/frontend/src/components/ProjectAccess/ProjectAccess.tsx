@@ -41,11 +41,13 @@ import {
 const UserListItem: FC<{
     user: OrganizationMemberProfile | ProjectMemberProfile;
     relevantOrgRole?: OrganizationMemberProfile['role'];
+    roleTooltip?: string;
     onDelete?: () => void;
     onUpdate?: (newRole: ProjectMemberRole) => void;
 }> = ({
     user: { firstName, lastName, email, role },
     relevantOrgRole,
+    roleTooltip,
     onDelete,
     onUpdate,
 }) => {
@@ -94,7 +96,7 @@ const UserListItem: FC<{
                             />
                         ) : (
                             <Tooltip2
-                                content={`This user inherits the organisation role: ${role}`}
+                                content={roleTooltip ? roleTooltip : undefined}
                             >
                                 <Tag minimal large>
                                     {role}
@@ -230,7 +232,11 @@ const ProjectAccess: FC = () => {
                 />
             ))}
             {inheritedPermissions?.map((orgUser) => (
-                <UserListItem key={orgUser.email} user={orgUser} />
+                <UserListItem
+                    key={orgUser.email}
+                    user={orgUser}
+                    roleTooltip={`This user inherits the organisation role: ${orgUser.role}`}
+                />
             ))}
         </ProjectAccessWrapper>
     );
