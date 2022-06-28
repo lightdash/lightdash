@@ -35,6 +35,7 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 
 ## 👩‍💻 Installation + operation
 
+- [Install the Lightdash CLI](/guides/how-to-install-the-lightdash-cli.mdx)
 - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
 - [Connect a project](/get-started/setup-lightdash/connect-project.mdx)
 - [Deploy to Kubernetes](/guides/how-to-deploy-to-kubernetes.md)
@@ -43,7 +44,7 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 
 ## 🏗 Building Tables
 
-- [New to dbt?](/get-started/setup-lightdash/new-to-dbt.mdx)
+- [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/lightdash-cli.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
 - [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.md)
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)
