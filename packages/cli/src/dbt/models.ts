@@ -52,7 +52,13 @@ export const getWarehouseTableForModel = async ({
             `Expected to find materialised model at ${tableRef.database}.${tableRef.schema}.${tableRef.table} but couldn't find (or cannot access) ${missing}`,
         );
     }
-    return table;
+    return Object.entries(table).reduce<WarehouseTableSchema>(
+        (accumulator, [key, value]) => {
+            accumulator[key.toLowerCase()] = value;
+            return accumulator;
+        },
+        {},
+    );
 };
 
 type GenerateModelYamlArgs = {
