@@ -7,12 +7,12 @@ sidebar_label: Create your first metrics
 
 import DataQuestion from './assets/data-question.svg';
 
+## What is a metric?
+
 Metrics are defined in your dbt project alongside your dbt model properties.
 
 * **Dimensions** are used to **segment data** in your Tables.
 * **Metrics** are used to **perform calculations** on your Tables.
-
-## Example
 
 Say we're running an ecommerce business, we probably have a table containing all order data. We might want to
 ask:
@@ -27,6 +27,14 @@ splitting the metric by "status of order". In Lightdash you'd get the following 
 ![two metrics on a bar chart](./assets/metric-on-bar-chart.png)
 
 To learn more about why we use dimensions and metrics in Lightdash, [read the Lightdash approach to BI](/best-practice/lightdash-way).
+
+## How to build metrics in Lightdash
+
+Here's a quick video showing how we develop metrics in our Lightdash projects. We'll cover these steps in more details below!
+
+<a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
+    <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
+</a>
 
 ## 1. Add a metric to your project
 
@@ -56,7 +64,7 @@ You can [see the full list of metric types](https://docs.lightdash.com/reference
 
 We'd suggest starting out simple, like a `count` for a primary key in your table.
 
-## 2. Preview your changes using `lightdash preview`
+## 2. Login to the Lightdash CLI
 
 Once you've added a metric to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy. 
 
@@ -111,7 +119,7 @@ You can change your active project by running:
 lightdash config set-project
 ```
 
-### Run `lightdash preview`
+## 3. Preview your changes using `lightdash preview`
 
 Now that you've logged in and configured your Lightdash project, you'll be able to spin up a developer preview and check out your new metric.
 
@@ -124,7 +132,7 @@ lightdash preview
 
 Then `cmd` + `click` to open the preview link from your terminal and start playing around with your changes.
 
-## 3. If you're happy with your new metric, you can deploy it to production.
+## 4. If you're happy with your new metric, you can deploy it to production.
 
 Once you're happy with your changes, you'll want to commit them and push/merge them to the branch connected with Lightdash (e.g. `main` or `master`).
 
