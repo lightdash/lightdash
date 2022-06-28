@@ -1,3 +1,10 @@
+## [0.165.3](https://github.com/lightdash/lightdash/compare/0.165.2...0.165.3) (2022-06-28)
+
+
+### Bug Fixes
+
+* generate with lowercase name ([#2588](https://github.com/lightdash/lightdash/issues/2588)) ([c256b39](https://github.com/lightdash/lightdash/commit/c256b39139e342c2e8ad39c5dfb1133c52febcf2))
+
 ## [0.165.2](https://github.com/lightdash/lightdash/compare/0.165.1...0.165.2) (2022-06-28)
 
 
