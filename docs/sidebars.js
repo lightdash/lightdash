@@ -19,7 +19,7 @@ module.exports = {
       items: [
         {
           type: "category",
-          label: "Setting up a new project",
+          label: "🏗 Setting up a new project",
           link: {
             type: 'doc',
             id: 'get-started/setup-lightdash/intro'
@@ -30,11 +30,16 @@ module.exports = {
             "get-started/setup-lightdash/connect-project",
             "get-started/exploring-data/using-explores",
             "get-started/setup-lightdash/add-metrics",
+            "get-started/exploring-data/sharing-insights"
           ],
         },
         {
           type: "category",
-          label: "Getting started as a data explorer",
+          label: "🔭 Learning to explore data in Lightdash",
+          link: {
+            type: 'doc',
+            id: 'get-started/exploring-data/intro'
+          },
           items: [
             "get-started/exploring-data/using-explores",
             "get-started/exploring-data/sharing-insights",
