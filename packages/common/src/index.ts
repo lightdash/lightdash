@@ -123,6 +123,7 @@ export enum ProjectType {
     GITLAB = 'gitlab',
     BITBUCKET = 'bitbucket',
     AZURE_DEVOPS = 'azure_devops',
+    PREVIEW = 'preview',
 }
 
 // Seeds
@@ -838,6 +839,7 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.GITLAB]: 'GitLab',
     [ProjectType.BITBUCKET]: 'BitBucket',
     [ProjectType.AZURE_DEVOPS]: 'Azure DevOps',
+    [ProjectType.PREVIEW]: 'Preview',
 };
 
 export interface DbtProjectConfigBase {
@@ -858,6 +860,11 @@ export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.DBT;
     profiles_dir?: string;
     project_dir?: string;
+}
+
+export interface PreviewProjectConfig
+    extends Omit<DbtLocalProjectConfig, 'type'> {
+    type: ProjectType.PREVIEW;
 }
 
 export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
@@ -907,6 +914,7 @@ export interface DbtAzureDevOpsProjectConfig extends DbtProjectCompilerBase {
 }
 
 export type DbtProjectConfig =
+    | PreviewProjectConfig
     | DbtLocalProjectConfig
     | DbtCloudIDEProjectConfig
     | DbtGithubProjectConfig
@@ -917,6 +925,7 @@ export type DbtProjectConfig =
 export type OrganizationProject = {
     projectUuid: string;
     name: string;
+    type: ProjectType;
 };
 
 export type Project = {

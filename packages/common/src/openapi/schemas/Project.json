@@ -6,6 +6,9 @@
         },
         "projectUuid": {
             "type": "string"
+        },
+        "type": {
+            "type": "string"
         }
     },
     "required": ["name", "projectUuid"]

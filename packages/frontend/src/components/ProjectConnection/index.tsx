@@ -1,4 +1,4 @@
-import { Card, Colors, H5, Intent } from '@blueprintjs/core';
+import { Callout, Card, Colors, H5, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
@@ -262,6 +262,28 @@ export const UpdateProjectConnection: FC<{
             });
         }
     };
+
+    if (data?.dbtConnection.type === ProjectType.PREVIEW) {
+        return (
+            <FormWrapper>
+                <Callout intent="warning">
+                    <p>
+                        Developer previews are temporary Lightdash projects
+                        where settings cannot be changed.
+                    </p>
+                    Read docs{' '}
+                    <a
+                        href="https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#create-a-developer-preview-environment"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        here
+                    </a>{' '}
+                    to know more.
+                </Callout>
+            </FormWrapper>
+        );
+    }
 
     return (
         <FormContainer

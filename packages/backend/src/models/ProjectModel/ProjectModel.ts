@@ -10,6 +10,7 @@ import {
     Project,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     TablesConfiguration,
@@ -134,15 +135,18 @@ export class ProjectModel {
             throw new NotExistsError('Cannot find organization');
         }
         const projects = await this.database('projects')
-            .select('project_uuid', 'name')
+            .select('project_uuid', 'name', 'dbt_connection_type')
             .where('organization_id', orgs[0].organization_id);
         if (projects.length === 0) {
             throw new NotExistsError('No project exists');
         }
-        return projects.map<OrganizationProject>(({ name, project_uuid }) => ({
-            name,
-            projectUuid: project_uuid,
-        }));
+        return projects.map<OrganizationProject>(
+            ({ name, project_uuid, dbt_connection_type }) => ({
+                name,
+                projectUuid: project_uuid,
+                type: dbt_connection_type || ProjectType.DBT,
+            }),
+        );
     }
 
     private async upsertWarehouseConnection(
