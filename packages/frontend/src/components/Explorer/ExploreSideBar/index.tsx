@@ -53,7 +53,7 @@ const BasePanel = () => {
         if (exploresResult.data) {
             if (validSearch !== '') {
                 return new Fuse(Object.values(exploresResult.data), {
-                    keys: ['name'],
+                    keys: ['label'],
                     ignoreLocation: true,
                     threshold: 0.3,
                 })

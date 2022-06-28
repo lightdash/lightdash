@@ -52,7 +52,13 @@ export const getWarehouseTableForModel = async ({
             `Expected to find materialised model at ${tableRef.database}.${tableRef.schema}.${tableRef.table} but couldn't find (or cannot access) ${missing}`,
         );
     }
-    return table;
+    return Object.entries(table).reduce<WarehouseTableSchema>(
+        (accumulator, [key, value]) => {
+            accumulator[key.toLowerCase()] = value;
+            return accumulator;
+        },
+        {},
+    );
 };
 
 type GenerateModelYamlArgs = {
@@ -86,6 +92,9 @@ const askOverwrite = async (message: string): Promise<boolean> => {
     return true;
 };
 
+export const isDocBlock = (text: string | undefined = ''): boolean =>
+    !!text.match(/{{\s*doc\(['"]\w+['"]\)\s*}}/);
+
 const askOverwriteDescription = async (
     columnName: string,
     existingDescription: string | undefined,
@@ -94,7 +103,11 @@ const askOverwriteDescription = async (
 ): Promise<string> => {
     if (!existingDescription) return newDescription || '';
     if (!newDescription) return existingDescription;
-    if (newDescription === existingDescription) return existingDescription;
+    if (
+        newDescription === existingDescription ||
+        isDocBlock(existingDescription)
+    )
+        return existingDescription;
 
     const shortDescription = `${existingDescription.substring(0, 20)}${
         existingDescription.length > 20 ? '...' : ''

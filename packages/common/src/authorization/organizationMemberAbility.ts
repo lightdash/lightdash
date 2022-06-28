@@ -42,9 +42,6 @@ export const organizationMemberAbilities: Record<
     },
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
-        can('manage', 'Project', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });
@@ -59,6 +56,9 @@ export const organizationMemberAbilities: Record<
     },
     admin(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
+        can('manage', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'InviteLink', {
             organizationUuid: member.organizationUuid,
         });
