@@ -1,3 +1,10 @@
+## [0.165.1](https://github.com/lightdash/lightdash/compare/0.165.0...0.165.1) (2022-06-28)
+
+
+### Bug Fixes
+
+* use field labels in search ([#2582](https://github.com/lightdash/lightdash/issues/2582)) ([4b70218](https://github.com/lightdash/lightdash/commit/4b702189ac48d8aae829c6152cfcc2a588f8111e))
+
 # [0.165.0](https://github.com/lightdash/lightdash/compare/0.164.5...0.165.0) (2022-06-27)
 
 
