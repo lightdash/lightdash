@@ -84,6 +84,9 @@ ${styles.bold('Examples:')}
 program
     .command('login <url>')
     .description('Login to a Lightdash instance')
+    .description(
+        'Login to a Lightdash instance.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#authentication for more help and examples',
+    )
     .addHelpText(
         'after',
         `
@@ -107,6 +110,9 @@ program
     .command('config')
     .description('Set configuration')
     .command('set-project')
+    .description(
+        'Interactively choose project.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#set-active-project for more help and examples',
+    )
     .description('Interactively choose project')
     .action(setProject);
 
@@ -271,7 +277,11 @@ ${styles.bold('Examples:')}
 
 const errorHandler = (err: Error) => {
     console.error(styles.error(err.message || 'Error had no message'));
-    if (!(err instanceof LightdashError)) {
+    if (err.name === 'AuthorizationError') {
+        console.error(
+            `Looks like you did not authenticate or the personal access token expired.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#authentication for help and examples`,
+        );
+    } else if (!(err instanceof LightdashError)) {
         console.error(err);
         if (err.stack) {
             console.error(err.stack);
