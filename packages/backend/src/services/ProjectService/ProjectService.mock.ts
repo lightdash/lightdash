@@ -225,6 +225,7 @@ export const projectWithSensitiveFields: Project = {
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
+    type: ProjectType.DBT,
 };
 
 export const spacesWithSavedCharts: Space[] = [
