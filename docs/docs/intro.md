@@ -17,7 +17,7 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 
 _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](/get-started/intro)._
 
-## 👩‍💻 Installation + operation
+## 👩‍🔧 Installation + operation
 
 - [Install the Lightdash CLI](/guides/how-to-install-the-lightdash-cli.mdx)
 - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)

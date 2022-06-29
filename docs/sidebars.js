@@ -39,6 +39,20 @@ module.exports = {
         },
         {
           type: "category",
+          label: "👩‍💻 Developing in Lightdash",
+          link: {
+            type: 'doc',
+            id: 'get-started/develop-in-lightdash/intro'
+          },
+          items: [
+            "get-started/exploring-data/using-explores",
+            "guides/how-to-create-dimensions",
+            "guides/how-to-create-metric",
+            "guides/formatting-your-fields",
+          ],
+        },
+        {
+          type: "category",
           label: "🔭 Learning to explore data in Lightdash",
           link: {
             type: 'doc',
@@ -54,7 +68,7 @@ module.exports = {
     },
     {
       type: "category",
-      label: "👩‍💻 Installation + operation",
+      label: "👩‍🔧 Installation + operation",
       items: [
         "guides/how-to-install-the-lightdash-cli",
         "get-started/setup-lightdash/install-lightdash",
