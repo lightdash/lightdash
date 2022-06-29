@@ -1,5 +1,5 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { ProjectType } from '@lightdash/common';
+import { ProjectBaseType } from '@lightdash/common';
 import React, { ComponentProps, FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
@@ -33,7 +33,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         });
     };
 
-    if (data?.dbtConnection.type === ProjectType.PREVIEW) {
+    if (data?.type === ProjectBaseType.PREVIEW) {
         return (
             <Tooltip2
                 content={`Developer previews are temporary Lightdash projects`}

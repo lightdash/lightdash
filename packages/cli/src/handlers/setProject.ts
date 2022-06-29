@@ -1,12 +1,11 @@
+import { OrganizationProject } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
 import { getConfig, setConfig } from '../config';
 import { lightdashApi } from './dbt/apiClient';
 
 export const setProject = async () => {
-    const projects = await lightdashApi<
-        { projectUuid: string; name: string }[]
-    >({
+    const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
         body: undefined,

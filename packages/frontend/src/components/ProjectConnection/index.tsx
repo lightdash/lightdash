@@ -5,6 +5,7 @@ import {
     DbtProjectConfig,
     friendlyName,
     Organisation,
+    ProjectBaseType,
     ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
@@ -263,7 +264,7 @@ export const UpdateProjectConnection: FC<{
         }
     };
 
-    if (data?.dbtConnection.type === ProjectType.PREVIEW) {
+    if (data?.type === ProjectBaseType.PREVIEW) {
         return (
             <FormWrapper>
                 <Callout intent="warning">

@@ -1,4 +1,9 @@
-import { CreateProject, Project, ProjectType } from '@lightdash/common';
+import {
+    CreateProject,
+    Project,
+    ProjectBaseType,
+    ProjectType,
+} from '@lightdash/common';
 import path from 'path';
 import { getDbtContext } from '../dbt/context';
 import {
@@ -29,9 +34,10 @@ export const createProject = async (
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const project: CreateProject = {
         name: options.name,
+        type: ProjectBaseType.PREVIEW,
         warehouseConnection: credentials,
         dbtConnection: {
-            type: ProjectType.PREVIEW,
+            type: ProjectType.DBT,
             target: targetName,
         },
     };

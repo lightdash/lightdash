@@ -7,7 +7,7 @@ import {
     Intent,
 } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { OrganizationProject, ProjectType } from '@lightdash/common';
+import { OrganizationProject, ProjectBaseType } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
@@ -44,7 +44,7 @@ const ProjectListItem: FC<{
                     {isCurrentProject && (
                         <ProjectTag minimal>Current Project</ProjectTag>
                     )}
-                    {type === ProjectType.PREVIEW && (
+                    {type === ProjectBaseType.PREVIEW && (
                         <ProjectTag minimal intent="warning">
                             Preview
                         </ProjectTag>

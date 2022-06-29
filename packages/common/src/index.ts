@@ -116,6 +116,11 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
+export enum ProjectBaseType {
+    DEFAULT = 'DEFAULT',
+    PREVIEW = 'PREVIEW',
+}
+
 export enum ProjectType {
     DBT = 'dbt',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
@@ -123,7 +128,6 @@ export enum ProjectType {
     GITLAB = 'gitlab',
     BITBUCKET = 'bitbucket',
     AZURE_DEVOPS = 'azure_devops',
-    PREVIEW = 'preview',
 }
 
 // Seeds
@@ -173,6 +177,7 @@ export const SEED_ORG_2_ADMIN_PASSWORD = {
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     name: 'Jaffle shop',
+    project_type: ProjectBaseType.DEFAULT,
     dbt_connection_type: ProjectType.DBT,
     dbt_connection: null,
 };
@@ -839,7 +844,6 @@ export const ProjectTypeLabels: Record<ProjectType, string> = {
     [ProjectType.GITLAB]: 'GitLab',
     [ProjectType.BITBUCKET]: 'BitBucket',
     [ProjectType.AZURE_DEVOPS]: 'Azure DevOps',
-    [ProjectType.PREVIEW]: 'Preview',
 };
 
 export interface DbtProjectConfigBase {
@@ -860,11 +864,6 @@ export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
     type: ProjectType.DBT;
     profiles_dir?: string;
     project_dir?: string;
-}
-
-export interface PreviewProjectConfig
-    extends Omit<DbtLocalProjectConfig, 'type'> {
-    type: ProjectType.PREVIEW;
 }
 
 export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
@@ -914,7 +913,6 @@ export interface DbtAzureDevOpsProjectConfig extends DbtProjectCompilerBase {
 }
 
 export type DbtProjectConfig =
-    | PreviewProjectConfig
     | DbtLocalProjectConfig
     | DbtCloudIDEProjectConfig
     | DbtGithubProjectConfig
@@ -925,13 +923,14 @@ export type DbtProjectConfig =
 export type OrganizationProject = {
     projectUuid: string;
     name: string;
-    type: ProjectType;
+    type: ProjectBaseType;
 };
 
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
     name: string;
+    type: ProjectBaseType;
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
 };
@@ -945,7 +944,7 @@ export type CreateProject = Omit<
 
 export type UpdateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid'
+    'projectUuid' | 'organizationUuid' | 'type'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

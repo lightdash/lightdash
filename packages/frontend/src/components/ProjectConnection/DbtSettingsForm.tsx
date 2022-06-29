@@ -73,8 +73,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
 
     const form = useMemo(() => {
         switch (type) {
-            case ProjectType.PREVIEW:
-                return null;
             case ProjectType.DBT:
                 return <DbtLocalForm />;
             case ProjectType.DBT_CLOUD_IDE:
@@ -120,10 +118,6 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         [ProjectType.DBT_CLOUD_IDE]: {
             target: `target-name`,
             env: `environment-variables`,
-        },
-        [ProjectType.PREVIEW]: {
-            target: '',
-            env: '',
         },
     };
 
