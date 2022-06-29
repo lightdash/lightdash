@@ -38,4 +38,8 @@ describe('PostgresWarehouseClient', () => {
             expectedWarehouseSchema,
         );
     });
+    it('expect empty catalog when dbt project has no references', async () => {
+        const warehouse = new PostgresWarehouseClient(credentials);
+        expect(await warehouse.getCatalog([])).toEqual({});
+    });
 });
