@@ -1,3 +1,15 @@
+# [0.166.0](https://github.com/lightdash/lightdash/compare/0.165.5...0.166.0) (2022-06-29)
+
+
+### Bug Fixes
+
+* catalog error when dbt is empty ([#2599](https://github.com/lightdash/lightdash/issues/2599)) ([60d7609](https://github.com/lightdash/lightdash/commit/60d76097c39a804f8bd5a3177698512eb3d5c757))
+
+
+### Features
+
+* project type preview ([#2590](https://github.com/lightdash/lightdash/issues/2590)) ([0c5e4be](https://github.com/lightdash/lightdash/commit/0c5e4be71bd3f1b265c3fe5d4924d2d0860899e8))
+
 ## [0.165.5](https://github.com/lightdash/lightdash/compare/0.165.4...0.165.5) (2022-06-29)
 
 
