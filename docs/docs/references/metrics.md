@@ -2,7 +2,7 @@
 sidebar_position: 4
 ---
 
-# Metrics
+# Metrics reference sheet
 
 A metric is a value that describes or summarizes features from a collection of data points.
 For example, `Num unique user ids` is a metric. It describes the unique number of `user_id`s in a collection of `user_id` data points.

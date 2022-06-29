@@ -14,7 +14,7 @@ module.exports = {
     "intro",
     {
       type: "category",
-      label: "Getting started tutorials",
+      label: "🌟 Getting started tutorials",
       link: {
         type: 'doc',
         id: 'get-started/intro'
@@ -54,7 +54,7 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Troubleshooting and getting help",
+      label: "🙋‍♀️ Troubleshooting and getting help",
       items: [
         "help-and-contact/contact/contact_info",
         "help-and-contact/faqs/faqs",
@@ -62,7 +62,7 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Installation + operation",
+      label: "👩‍💻 Installation + operation",
       items: [
         "guides/how-to-install-the-lightdash-cli",
         "get-started/setup-lightdash/install-lightdash",
@@ -76,7 +76,7 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Building Tables",
+      label: "👷‍♀️ Building Tables",
       items: [
         "get-started/setup-lightdash/lightdash-cli",
         {
@@ -117,7 +117,7 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Querying + visualizing your data",
+      label: "📈 Querying + visualizing your data",
       items: [
         "get-started/exploring-data/using-explores",
         "guides/limiting-data-using-filters",
@@ -145,7 +145,7 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Dashboards",
+      label: "🎯 Dashboards",
       items: [
         "get-started/exploring-data/dashboards",
         "guides/limiting-data-using-filters",
@@ -154,28 +154,28 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Users",
+      label: "👪 Users",
       items: [
         "guides/how-to-reset-your-password",
       ]
     },
     {
       type: "category",
-      label: "Permissions",
+      label: "🔐 Permissions",
       items: [
         "references/roles",
       ]
     },
     {
       type: "category",
-      label: "Configuring Lightdash",
+      label: "🎨 Configuring Lightdash",
       items: [
         "guides/customizing-the-appearance-of-your-project",
       ]
     },
     {
       type: "category",
-      label: "Lightdash University: Best Practice",
+      label: "🎓 Lightdash University: Best Practice",
       items: [
         "best-practice/lightdash-way",
         "best-practice/planning-your-dashboard",

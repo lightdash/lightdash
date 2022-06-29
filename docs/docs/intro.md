@@ -30,7 +30,7 @@ _Not sure which one to pick? Check out our [tutorial recommendations here](/get-
 - [Update Lightdash](/references/update-lightdash.md)
 - [Create multiple projects](/guides/how-to-create-multiple-projects.md)
 
-## 🏗 Building Tables
+## 👷‍♀️ Building Tables
 
 - [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/lightdash-cli.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
