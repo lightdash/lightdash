@@ -15,14 +15,19 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import * as styles from '../styles';
+import { dbtCompile, DbtCompileOptions } from './dbt/compile';
 
-type GenerateHandlerOptions = {
+type GenerateHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
 };
-export const compile = async (options: GenerateHandlerOptions) => {
+export const compile = async (
+    options: GenerateHandlerOptions,
+    command: any,
+) => {
+    await dbtCompile(options, command.parent.args.slice(1));
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -56,8 +61,11 @@ export const compile = async (options: GenerateHandlerOptions) => {
     );
     return explores;
 };
-export const compileHandler = async (options: GenerateHandlerOptions) => {
-    const explores = await compile(options);
+export const compileHandler = async (
+    options: GenerateHandlerOptions,
+    command: any,
+) => {
+    const explores = await compile(options, command);
     console.error(`Compiled ${explores.length} explores`);
     console.error('');
     console.error(styles.success('Successfully compiled project'));

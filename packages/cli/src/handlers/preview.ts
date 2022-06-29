@@ -11,11 +11,12 @@ import { URL } from 'url';
 import { getConfig } from '../config';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
+import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
 
 inquirer.registerPrompt('press-to-continue', PressToContinuePrompt);
 
-type PreviewHandlerOptions = {
+type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
@@ -24,6 +25,7 @@ type PreviewHandlerOptions = {
 
 export const previewHandler = async (
     options: PreviewHandlerOptions,
+    command: any,
 ): Promise<void> => {
     const name = uniqueNamesGenerator({
         length: 2,
@@ -47,7 +49,7 @@ export const previewHandler = async (
                 `/projects/${project.projectUuid}/tables`,
                 config.context.serverUrl,
             );
-        await deploy({ ...options, projectUuid: project.projectUuid });
+        await deploy({ ...options, projectUuid: project.projectUuid }, command);
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${projectUrl}\n`,
         );

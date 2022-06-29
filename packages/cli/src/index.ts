@@ -183,6 +183,21 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
     .action(compileHandler);
 
 program
@@ -200,6 +215,21 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
     .action(previewHandler);
 
 program
@@ -217,6 +247,21 @@ program
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
     .action(deployHandler);
 
 program
