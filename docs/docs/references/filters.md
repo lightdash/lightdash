@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# Filters
+# Filters reference sheet
 
 Filters appear at the top of the Explore view and allow users to change the data being pulled in.
 

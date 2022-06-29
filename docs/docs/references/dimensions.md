@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Dimensions
+# Dimensions reference sheet
 
 Dimensions are the columns in your table. They are the "attributes" of your data. For example, user_id in your users table is a dimension.
 
@@ -70,7 +70,7 @@ All the properties you can customize:
 | type            | No       | Dimension type        | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property. |
 | description     | No       | string                | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt. |
 | sql             | No       | string                | Custom SQL applied to the column used to define the dimension.                        |
-| time_intervals  | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'` |
+| [time_intervals](#time-intervals)  | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'`. You can use any interval values supported by your warehouse (e.g. `DAYOFWEEK`). |
 | hidden          | No       | boolean               | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
 | round          | No       | number               | Rounds a number to a specified number of digits  |
 | format          | No       | string               | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`  |
@@ -97,7 +97,7 @@ Lightdash breaks this out into the default intervals automatically. So, this is 
 
 ### To change the time intervals used for a dimension, specify your custom intervals using `time_intervals`
 
-If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like you include using the `time_intervals` property for a dimension. You can use any values supported by your warehouse.
+If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like you include using the `time_intervals` property for a dimension. You can use any values supported by your warehouse. Here are the supported time intervals in [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#extract:~:text=FROM%20date_expression)-,Description,-Returns%20the%20value) and [Snowflake](https://docs.snowflake.com/en/sql-reference/functions/year.html#usage-notes).
 
 In this example, I've only included the day, month, and quarter time intervals for the `created` dimension in Lightdash.
 
