@@ -1,6 +1,5 @@
 import { ParseError } from '@lightdash/common';
 import execa from 'execa';
-import ora from 'ora';
 
 export type DbtCompileOptions = {
     profilesDir: string;
@@ -21,13 +20,9 @@ export const dbtCompile = async (
     options: DbtCompileOptions,
     args: string[],
 ) => {
-    console.error('');
-    const spinner = ora(`  Compiling dbt project`).start();
     try {
         await execa('dbt', ['compile', ...args]);
-        spinner.succeed(`  Compiled dbt project with success`);
     } catch (e: any) {
-        spinner.fail();
         throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
     }
 };
