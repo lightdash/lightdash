@@ -3,7 +3,7 @@
 * Everybody in your organization will join as an `Organization Member` by default unless specified.
 * All organization members can create their own projects and will be the Project Admin for that project.
 
-### Project Roles
+## Project Roles
 
 Project Admins can invite users to their project and assign the following roles. Note that projects may also be 
 accessible by users with organization roles.
@@ -19,7 +19,7 @@ accessible by users with organization roles.
 | Manage project access and permissions   |       ✅       |       ❌        |       ❌        |
 | Delete project                          |       ✅       |       ❌        |       ❌        |
 
-### Organization Roles
+## Organization Roles
 
 Organization Admins can assign roles to organization members, which gives access to all projects in the organization.
 

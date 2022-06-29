@@ -59,7 +59,7 @@ _Not sure which one to pick? Check out our [tutorial recommendations here](/get-
 
 ## 🔐 Permissions
 
-- [User roles and permissions](/references/user_roles_and_permissions.md)
+- [User roles and permissions](/references/roles.md)
 
 ## 🎨 Configuring Lightdash
 
