@@ -1,3 +1,10 @@
+## [0.165.4](https://github.com/lightdash/lightdash/compare/0.165.3...0.165.4) (2022-06-29)
+
+
+### Bug Fixes
+
+* fix save button enable condition ([#2591](https://github.com/lightdash/lightdash/issues/2591)) ([7d0cd5e](https://github.com/lightdash/lightdash/commit/7d0cd5e19960c13ac9e94912ec4e504558af502c))
+
 ## [0.165.3](https://github.com/lightdash/lightdash/compare/0.165.2...0.165.3) (2022-06-28)
 
 
