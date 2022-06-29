@@ -102,7 +102,7 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        console.log('Project', project);
+
         return project;
     }
 
