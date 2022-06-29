@@ -1,6 +1,6 @@
 import {
+    DbtProjectType,
     ProjectBaseType,
-    ProjectType,
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -16,7 +16,7 @@ export type DbProject = {
     project_type: ProjectBaseType;
     created_at: Date;
     organization_id: number;
-    dbt_connection_type: ProjectType | null;
+    dbt_connection_type: DbtProjectType | null;
     dbt_connection: Buffer | null;
     table_selection_type: TableSelectionType;
     table_selection_value: string[] | null;

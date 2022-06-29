@@ -1,10 +1,10 @@
 import {
     CreateBigqueryCredentials,
     DbtCloudIDEProjectConfig,
+    DbtProjectType,
     LightdashMode,
     Project,
     ProjectBaseType,
-    ProjectType,
     TablesConfiguration,
     TableSelectionType,
     WarehouseTypes,
@@ -56,7 +56,7 @@ export const lightdashConfigMock: LightdashConfig = {
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
-    type: ProjectType.DBT_CLOUD_IDE,
+    type: DbtProjectType.DBT_CLOUD_IDE,
     api_key: 'my api key',
     account_id: 'account_id',
     environment_id: 'environment_id',
@@ -122,7 +122,7 @@ export const expectedProject: Project = {
         account_id: 'account_id',
         environment_id: 'environment_id',
         project_id: 'project_id',
-        type: ProjectType.DBT_CLOUD_IDE,
+        type: DbtProjectType.DBT_CLOUD_IDE,
     } as any as DbtCloudIDEProjectConfig,
     warehouseConnection: {
         dataset: 'name',

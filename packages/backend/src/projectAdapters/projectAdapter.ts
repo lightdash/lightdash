@@ -1,7 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
-    ProjectType,
+    DbtProjectType,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import Logger from '../logger';
@@ -26,7 +26,7 @@ export const projectAdapterFromConfig = async (
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
     switch (config.type) {
-        case ProjectType.DBT:
+        case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
@@ -35,7 +35,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
             });
-        case ProjectType.DBT_CLOUD_IDE:
+        case DbtProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
                 warehouseClient,
                 accountId: `${config.account_id}`,
@@ -44,7 +44,7 @@ export const projectAdapterFromConfig = async (
                 apiKey: config.api_key,
                 cachedWarehouse,
             });
-        case ProjectType.GITHUB:
+        case DbtProjectType.GITHUB:
             return new DbtGithubProjectAdapter({
                 warehouseClient,
                 githubPersonalAccessToken: config.personal_access_token,
@@ -57,7 +57,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
             });
-        case ProjectType.GITLAB:
+        case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
                 warehouseClient,
                 gitlabPersonalAccessToken: config.personal_access_token,
@@ -70,7 +70,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
             });
-        case ProjectType.BITBUCKET:
+        case DbtProjectType.BITBUCKET:
             return new DbtBitBucketProjectAdapter({
                 warehouseClient,
                 username: config.username,
@@ -84,7 +84,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
             });
-        case ProjectType.AZURE_DEVOPS:
+        case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
                 warehouseClient,
                 personalAccessToken: config.personal_access_token,

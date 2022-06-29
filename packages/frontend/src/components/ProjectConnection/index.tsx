@@ -3,10 +3,10 @@ import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
+    DbtProjectType,
     friendlyName,
     Organisation,
     ProjectBaseType,
-    ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
@@ -46,7 +46,7 @@ type ProjectConnectionForm = {
 interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
-    defaultType?: ProjectType;
+    defaultType?: DbtProjectType;
     selectedWarehouse?: SelectedWarehouse | undefined;
     isProjectUpdate?: boolean | undefined;
 }

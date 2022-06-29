@@ -1,9 +1,9 @@
 import {
     CreatePostgresCredentials,
     DbtLocalProjectConfig,
+    DbtProjectType,
     LightdashMode,
     OrganizationMemberRole,
-    ProjectType,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_ADMIN_EMAIL,
@@ -94,7 +94,7 @@ export async function seed(knex: Knex): Promise<void> {
         );
     }
     const projectSettings: DbtLocalProjectConfig = {
-        type: ProjectType.DBT,
+        type: DbtProjectType.DBT,
         project_dir: path.join(demoDir, '/dbt'),
         profiles_dir: path.join(demoDir, '/profiles'),
     };

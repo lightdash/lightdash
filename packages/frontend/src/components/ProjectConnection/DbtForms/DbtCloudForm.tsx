@@ -1,5 +1,5 @@
 import { Callout } from '@blueprintjs/core';
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
@@ -9,7 +9,7 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
-        savedProject?.dbtConnection.type !== ProjectType.DBT_CLOUD_IDE;
+        savedProject?.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE;
     return (
         <>
             <Callout intent="primary" style={{ marginBottom: 20 }}>

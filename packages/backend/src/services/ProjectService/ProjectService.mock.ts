@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ApiSqlQueryResults,
     DbtCloudIDEProjectConfig,
+    DbtProjectType,
     Explore,
     ExploreError,
     FieldType,
@@ -16,7 +17,6 @@ import {
     OrganizationProject,
     Project,
     ProjectBaseType,
-    ProjectType,
     SessionUser,
     Space,
     SummaryExplore,
@@ -221,7 +221,7 @@ export const projectWithSensitiveFields: Project = {
         environment_id: 'environment_id',
         name: 'name',
         project_id: 'project_id',
-        type: ProjectType.DBT_CLOUD_IDE,
+        type: DbtProjectType.DBT_CLOUD_IDE,
     } as any as DbtCloudIDEProjectConfig,
 };
 export const defaultProject: OrganizationProject = {

@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
@@ -12,7 +12,7 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
-        savedProject?.dbtConnection.type !== ProjectType.BITBUCKET;
+        savedProject?.dbtConnection.type !== DbtProjectType.BITBUCKET;
     return (
         <>
             <Input

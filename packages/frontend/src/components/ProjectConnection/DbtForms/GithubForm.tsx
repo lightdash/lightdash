@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
@@ -12,7 +12,7 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
-        savedProject?.dbtConnection.type !== ProjectType.GITHUB;
+        savedProject?.dbtConnection.type !== DbtProjectType.GITHUB;
     return (
         <>
             <PasswordInput

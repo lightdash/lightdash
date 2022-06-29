@@ -2,9 +2,9 @@
 import {
     CartesianSeriesType,
     ChartType,
+    DbtProjectType,
     LightdashInstallType,
     LightdashUser,
-    ProjectType,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -165,10 +165,10 @@ type ProjectEvent = BaseTrack & {
     properties: {
         projectName: string;
         projectId: string;
-        projectType: ProjectType;
+        projectType: DbtProjectType;
         warehouseConnectionType: WarehouseTypes;
         organizationId: string;
-        dbtConnectionType: ProjectType;
+        dbtConnectionType: DbtProjectType;
     };
 };
 
@@ -195,7 +195,7 @@ type ProjectCompiledEvent = BaseTrack & {
     properties: {
         projectId: string;
         projectName: string;
-        projectType: ProjectType;
+        projectType: DbtProjectType;
         warehouseType?: WarehouseTypes;
         modelsCount: number;
         modelsWithErrorsCount: number;
@@ -213,7 +213,7 @@ type ProjectErrorEvent = BaseTrack & {
         projectId: string;
         name: string;
         statusCode: number;
-        projectType: ProjectType;
+        projectType: DbtProjectType;
     };
 };
 
