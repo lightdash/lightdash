@@ -1,3 +1,10 @@
+## [0.165.5](https://github.com/lightdash/lightdash/compare/0.165.4...0.165.5) (2022-06-29)
+
+
+### Bug Fixes
+
+* field sorting ([#2602](https://github.com/lightdash/lightdash/issues/2602)) ([be40b11](https://github.com/lightdash/lightdash/commit/be40b11a375b8f573214501dfa002dba4058d933))
+
 ## [0.165.4](https://github.com/lightdash/lightdash/compare/0.165.3...0.165.4) (2022-06-29)
 
 
