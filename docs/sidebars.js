@@ -19,6 +19,7 @@ module.exports = {
         type: 'doc',
         id: 'get-started/intro'
       },
+      collapsed: false,
       items: [
         {
           type: "category",
