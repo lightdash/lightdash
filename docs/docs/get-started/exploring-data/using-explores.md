@@ -5,6 +5,8 @@ sidebar_label: Using Tables and the Explore view in Lightdash
 
 # Using Tables and the Explore view in Lightdash
 
+Now that you've connected your dbt project to Lightdash, it's time to start exploring your data.
+
 A **Table** is the main starting point for exploring data in Lightdash. It contains a group of related
 dbt models, dimensions, and metrics. You **explore Tables in the Explore view**.
 
