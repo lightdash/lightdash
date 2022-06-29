@@ -582,7 +582,7 @@ const TableTree: FC<TableTreeProps> = ({
                   },
               ]
             : filteredMetrics
-                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .sort((a, b) => a.label.localeCompare(b.label))
                   .map((metric) => ({
                       key: metric.name,
                       id: metric.name,
@@ -662,7 +662,9 @@ const TableTree: FC<TableTreeProps> = ({
             !tableAdditionalMetrics || tableAdditionalMetrics.length <= 0
                 ? emptyCustomMetricsChildrenNodes
                 : tableAdditionalMetrics
-                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .sort((a, b) =>
+                          (a.label || a.name).localeCompare(b.label || b.name),
+                      )
                       .map((metric) => ({
                           key: metric.name,
                           id: metric.name,
@@ -705,7 +707,7 @@ const TableTree: FC<TableTreeProps> = ({
         hasCaret: false,
         isExpanded: true,
         childNodes: filteredDimensions
-            .sort((a, b) => a.name.localeCompare(b.name))
+            .sort((a, b) => a.label.localeCompare(b.label))
             .map((dimension) =>
                 renderDimensionTreeNode(
                     dimension,
