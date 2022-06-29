@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Dimensions
+# Dimensions reference sheet
 
 Dimensions are the columns in your table. They are the "attributes" of your data. For example, user_id in your users table is a dimension.
 
