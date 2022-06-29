@@ -84,6 +84,7 @@ export const projectUuid = 'project uuid';
 
 export const projectMock = {
     name: 'my project',
+    project_type: ProjectBaseType.DEFAULT,
     dbt_connection: Buffer.from(JSON.stringify(dbtCloudIDEProjectConfigMock)),
     encrypted_credentials: Buffer.from(JSON.stringify(bigqueryCredentials)),
     warehouse_type: WarehouseTypes.BIGQUERY,
