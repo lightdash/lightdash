@@ -54,14 +54,6 @@ module.exports = {
     },
     {
       type: "category",
-      label: "🙋‍♀️ Troubleshooting and getting help",
-      items: [
-        "help-and-contact/contact/contact_info",
-        "help-and-contact/faqs/faqs",
-      ]
-    },
-    {
-      type: "category",
       label: "👩‍💻 Installation + operation",
       items: [
         "guides/how-to-install-the-lightdash-cli",
@@ -179,6 +171,14 @@ module.exports = {
       items: [
         "best-practice/lightdash-way",
         "best-practice/planning-your-dashboard",
+      ]
+    },
+    {
+      type: "category",
+      label: "🙋‍♀️ Troubleshooting and getting help",
+      items: [
+        "help-and-contact/contact/contact_info",
+        "help-and-contact/faqs/faqs",
       ]
     },
   ],
