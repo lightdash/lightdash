@@ -11,9 +11,9 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 
 ## 🌟 Getting started tutorials
 
-- [Setting up a new project](/get-started/setup-lightdash/intro)
-- [Developing your Lightdash project](/get-started/develop-in-lightdash/intro)
-- [Learning to explore data in Lightdash](/get-started/exploring-data/intro)
+- [🏗 Setting up a new project](/get-started/setup-lightdash/intro)
+- [👩‍💻 Developing your Lightdash project](/get-started/develop-in-lightdash/intro)
+- [🔭 Learning to explore data in Lightdash](/get-started/exploring-data/intro)
 
 _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](/get-started/intro)._
 

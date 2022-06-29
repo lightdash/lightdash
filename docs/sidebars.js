@@ -47,7 +47,7 @@ module.exports = {
           items: [
             "get-started/exploring-data/using-explores",
             "guides/how-to-create-dimensions",
-            "guides/how-to-create-metric",
+            "guides/how-to-create-metrics",
             "guides/formatting-your-fields",
           ],
         },
