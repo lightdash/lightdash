@@ -175,6 +175,9 @@ export class PostgresClient implements WarehouseClient {
                 tables: new Set(),
             },
         );
+        if (databases.size <= 0 || schemas.size <= 0 || tables.size <= 0) {
+            return {};
+        }
         const query = `
             SELECT table_catalog,
                    table_schema,
