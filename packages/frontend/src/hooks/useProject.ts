@@ -70,7 +70,7 @@ export const useUpdateMutation = (id: string) => {
 
 export const useCreateMutation = () => {
     const { setActiveJobId, showToastError } = useApp();
-    return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
+    return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
         {
             mutationKey: ['project_create'],

@@ -8,6 +8,7 @@ import {
     NotExistsError,
     OrganizationProject,
     Project,
+    ProjectBaseType,
     ProjectMemberProfile,
     ProjectMemberRole,
     sensitiveCredentialsFieldNames,
@@ -134,15 +135,18 @@ export class ProjectModel {
             throw new NotExistsError('Cannot find organization');
         }
         const projects = await this.database('projects')
-            .select('project_uuid', 'name')
+            .select('project_uuid', 'name', 'project_type')
             .where('organization_id', orgs[0].organization_id);
         if (projects.length === 0) {
             throw new NotExistsError('No project exists');
         }
-        return projects.map<OrganizationProject>(({ name, project_uuid }) => ({
-            name,
-            projectUuid: project_uuid,
-        }));
+        return projects.map<OrganizationProject>(
+            ({ name, project_uuid, project_type }) => ({
+                name,
+                projectUuid: project_uuid,
+                type: project_type,
+            }),
+        );
     }
 
     private async upsertWarehouseConnection(
@@ -207,6 +211,7 @@ export class ProjectModel {
                 const [project] = await trx('projects')
                     .insert({
                         name: data.name,
+                        project_type: data.type,
                         organization_id: orgs[0].organization_id,
                         dbt_connection_type: data.dbtConnection.type,
                         dbt_connection: encryptedCredentials,
@@ -284,6 +289,7 @@ export class ProjectModel {
         type QueryResult = (
             | {
                   name: string;
+                  project_type: ProjectBaseType;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: null;
                   warehouse_type: null;
@@ -291,6 +297,7 @@ export class ProjectModel {
               }
             | {
                   name: string;
+                  project_type: ProjectBaseType;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: Buffer;
                   warehouse_type: string;
@@ -310,6 +317,7 @@ export class ProjectModel {
             )
             .column([
                 this.database.ref('name').withSchema(ProjectTableName),
+                this.database.ref('project_type').withSchema(ProjectTableName),
                 this.database
                     .ref('dbt_connection')
                     .withSchema(ProjectTableName),
@@ -346,6 +354,7 @@ export class ProjectModel {
             organizationUuid: project.organization_uuid,
             projectUuid,
             name: project.name,
+            type: project.project_type,
             dbtConnection: dbtSensitiveCredentials,
         };
         if (!project.warehouse_type) {
@@ -389,6 +398,7 @@ export class ProjectModel {
             organizationUuid: project.organizationUuid,
             projectUuid,
             name: project.name,
+            type: project.type,
             dbtConnection: nonSensitiveDbtCredentials,
             warehouseConnection: nonSensitiveCredentials,
         };

@@ -1,4 +1,8 @@
-import { ProjectType, TableSelectionType } from '@lightdash/common';
+import {
+    ProjectBaseType,
+    ProjectType,
+    TableSelectionType,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const ProjectTableName = 'projects';
@@ -9,6 +13,7 @@ export type DbProject = {
     project_id: number;
     project_uuid: string;
     name: string;
+    project_type: ProjectBaseType;
     created_at: Date;
     organization_id: number;
     dbt_connection_type: ProjectType | null;
@@ -19,7 +24,11 @@ export type DbProject = {
 
 type CreateDbProject = Pick<
     DbProject,
-    'name' | 'organization_id' | 'dbt_connection' | 'dbt_connection_type'
+    | 'name'
+    | 'organization_id'
+    | 'project_type'
+    | 'dbt_connection'
+    | 'dbt_connection_type'
 >;
 type UpdateDbProject = Partial<
     Pick<

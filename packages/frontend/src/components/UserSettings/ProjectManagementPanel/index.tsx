@@ -7,7 +7,7 @@ import {
     Intent,
 } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { OrganizationProject } from '@lightdash/common';
+import { OrganizationProject, ProjectBaseType } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
@@ -30,7 +30,7 @@ import {
 const ProjectListItem: FC<{
     isCurrentProject: boolean;
     project: OrganizationProject;
-}> = ({ isCurrentProject, project: { projectUuid, name } }) => {
+}> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
     const { user } = useApp();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { mutate, isLoading: isDeleting } = useDeleteProjectMutation();
@@ -43,6 +43,11 @@ const ProjectListItem: FC<{
                     </ProjectName>
                     {isCurrentProject && (
                         <ProjectTag minimal>Current Project</ProjectTag>
+                    )}
+                    {type === ProjectBaseType.PREVIEW && (
+                        <ProjectTag minimal intent="warning">
+                            Preview
+                        </ProjectTag>
                     )}
                 </ProjectInfo>
                 <ButtonGroup>
