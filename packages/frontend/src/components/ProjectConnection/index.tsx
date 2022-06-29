@@ -6,7 +6,7 @@ import {
     DbtProjectType,
     friendlyName,
     Organisation,
-    ProjectBaseType,
+    ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
@@ -264,7 +264,7 @@ export const UpdateProjectConnection: FC<{
         }
     };
 
-    if (data?.type === ProjectBaseType.PREVIEW) {
+    if (data?.type === ProjectType.PREVIEW) {
         return (
             <FormWrapper>
                 <Callout intent="warning">

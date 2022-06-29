@@ -16,7 +16,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     Project,
-    ProjectBaseType,
+    ProjectType,
     SessionUser,
     Space,
     SummaryExplore,
@@ -215,7 +215,7 @@ export const projectWithSensitiveFields: Project = {
     organizationUuid: user.organizationUuid,
     projectUuid: 'projectUuid',
     name: 'name',
-    type: ProjectBaseType.DEFAULT,
+    type: ProjectType.DEFAULT,
     dbtConnection: {
         account_id: 'account_id',
         environment_id: 'environment_id',
@@ -227,7 +227,7 @@ export const projectWithSensitiveFields: Project = {
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
-    type: ProjectBaseType.DEFAULT,
+    type: ProjectType.DEFAULT,
 };
 
 export const spacesWithSavedCharts: Space[] = [

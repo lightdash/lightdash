@@ -116,7 +116,7 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-export enum ProjectBaseType {
+export enum ProjectType {
     DEFAULT = 'DEFAULT',
     PREVIEW = 'PREVIEW',
 }
@@ -177,7 +177,7 @@ export const SEED_ORG_2_ADMIN_PASSWORD = {
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     name: 'Jaffle shop',
-    project_type: ProjectBaseType.DEFAULT,
+    project_type: ProjectType.DEFAULT,
     dbt_connection_type: DbtProjectType.DBT,
     dbt_connection: null,
 };
@@ -923,14 +923,14 @@ export type DbtProjectConfig =
 export type OrganizationProject = {
     projectUuid: string;
     name: string;
-    type: ProjectBaseType;
+    type: ProjectType;
 };
 
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
     name: string;
-    type: ProjectBaseType;
+    type: ProjectType;
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
 };

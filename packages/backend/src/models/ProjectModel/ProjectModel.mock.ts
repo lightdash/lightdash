@@ -4,7 +4,7 @@ import {
     DbtProjectType,
     LightdashMode,
     Project,
-    ProjectBaseType,
+    ProjectType,
     TablesConfiguration,
     TableSelectionType,
     WarehouseTypes,
@@ -84,7 +84,7 @@ export const projectUuid = 'project uuid';
 
 export const projectMock = {
     name: 'my project',
-    project_type: ProjectBaseType.DEFAULT,
+    project_type: ProjectType.DEFAULT,
     dbt_connection: Buffer.from(JSON.stringify(dbtCloudIDEProjectConfigMock)),
     encrypted_credentials: Buffer.from(JSON.stringify(bigqueryCredentials)),
     warehouse_type: WarehouseTypes.BIGQUERY,
@@ -117,7 +117,7 @@ export const expectedProject: Project = {
     organizationUuid: 'organizationUuid',
     projectUuid,
     name: 'my project',
-    type: ProjectBaseType.DEFAULT,
+    type: ProjectType.DEFAULT,
     dbtConnection: {
         account_id: 'account_id',
         environment_id: 'environment_id',
