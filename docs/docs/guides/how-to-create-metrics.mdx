@@ -7,11 +7,11 @@ import MetricsExploreView from './assets/metrics-in-explore-view.png';
 
 **Metrics** are used to **perform calculations** on your Tables.
 
-If you're completely new to Lightdash, we'd recommend checking out our Tutorial on [creating your first dimensions and metrics in Lightdash](/get-started/setup-lightdash/add-metrics) to learn a bit more about dimensions, metrics, and how to use them in Lightdash.
+If you're completely new to Lightdash, we'd recommend checking out our Tutorial on [creating your first dimensions in Lightdash first](/guides/how-to-create-dimensions) to learn a bit more about how to develop in Lightdash.
 
 ## 👩‍💻 Adding metrics in your dbt .yml files
 
-Metrics in your Lightdash project are defined in your dbt project .yml files along with your dimensions and dbt model properties.
+Metrics in your Lightdash project are defined in your dbt project .yml files along with your dimensions and dbt model properties. You add them to your project the exact same way as you [add dimensions to your project](/guides/how-to-create-dimensions) (<- if you haven't checked out that guide yet, we'd recommend starting there first).
 
 If dimensions segment your data into groups, metrics calculate interesting statistics for those groups.
 
@@ -44,7 +44,60 @@ We support metrics defined using either Lightdash or dbt syntax! You can read mo
 
 Once you've added your metrics, you can use them in Lightdash to build charts and filter results. Metrics appear in the Explore view, above dimensions and, if selected, pop us as brownish-yellow fields in your results table.
 
-<img src={ThreeDotOption} width="1546" height="942" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={MetricsExploreView} width="1546" height="942" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+## 🧑‍🏭 Let's try adding a metric to our dbt project
+
+:::info
+
+Before you get started with the next steps, you might want to check out onto a new branch if you're working with a version controlled project!
+
+:::
+
+We're going to try adding a new metric to our dbt project, then syncing it with Lightdash. We've made this really easy to do using our CLI tool. This tutorial assumes that you've [installed + logged into the Lightdash CLI tool](/guides/how-to-create-dimensions/#1-install-the-lightdash-cli-tool).
+
+### Add a metric to one of your dbt models
+
+Head to your dbt project and add a metric to one of your dbt models. 
+
+We'd suggest starting out simple, like a `count` for a primary key in your table.
+
+For example:
+
+```yaml
+# schema.yml
+version: 2
+models:
+  - name: "orders"
+    columns:
+      - name: "status"
+      - name: "order_id"
+        meta:
+          metrics:
+            total_order_count:
+              type: count
+```
+
+### Preview your changes using `lightdash preview`
+
+Once you've added a metric to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy. 
+
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
+without affecting your production project.
+
+So, let's spin up a developer preview and check out our changes. In your terminal, run the commands:
+
+```shell
+lightdash preview
+```
+
+Then `cmd` + `click` to open the preview link from your terminal. Once you're in Lightdash go to `Explore` --> `Tables`, then click on the model you just updated to see your new metric and play around with it.
+
+### If you're happy with your new metric, you can deploy it to production.
+
+Once you're happy with your changes, you'll want to commit them and push/merge them to the branch connected with Lightdash (e.g. `main` or `master`).
+
+Once those changes are merged into your dbt project, you can either run `lightdash deploy` on your command line or hit "Refresh dbt" in the Lightdash UI to start exploring your new metric in production!
 
 ## 🎛 Configuring the metrics in your .yml files
 
@@ -108,13 +161,5 @@ Then, your new metric will be added to your results table automatically and will
 If you want to delete the custom metric, you can just click on the three-dot `options` menu and hit `Remove custom metric`
 
 <img src={DeleteCustomMetric} width="527" height="137" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
----
-
-## 🔄 Syncing metrics in Lightdash
-
-Once you've added your metrics, you'll want to re-sync your Lightdash project by clicking on `refresh dbt`.
-
-Not sure what `refresh dbt` is? Check out our guide on [syncing your dbt changes here](/references/syncing_your_dbt_changes.md).
 
 Now, go forth and aggregate!

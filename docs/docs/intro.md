@@ -11,17 +11,13 @@ Connect Lightdash to your dbt project, add some metrics, then create and share y
 
 ## 🌟 Getting started tutorials
 
-- [Setting up a new project](/get-started/setup-lightdash/intro)
-- [Learning to explore data in Lightdash](/get-started/exploring-data/intro)
+- [🏗 Setting up a new project](/get-started/setup-lightdash/intro)
+- [👩‍💻 Developing your Lightdash project](/get-started/develop-in-lightdash/intro)
+- [🔭 Learning to explore data in Lightdash](/get-started/exploring-data/intro)
 
-_Not sure which one to pick? Check out our [tutorial recommendations here](/get-started/intro)._
+_Not sure which one to pick? 👀 Check out our [tutorial recommendations here](/get-started/intro)._
 
-## 🙋‍♀️ Troubleshooting and getting help
-
-- [Contact us](/help-and-contact/contact/contact_info.md)
-- [FAQs](/help-and-contact/faqs/faqs.md)
-
-## 👩‍💻 Installation + operation
+## 👩‍🔧 Installation + operation
 
 - [Install the Lightdash CLI](/guides/how-to-install-the-lightdash-cli.mdx)
 - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
@@ -69,3 +65,8 @@ _Not sure which one to pick? Check out our [tutorial recommendations here](/get-
 
 - [The Lightdash Way for data access](/best-practice/lightdash-way.md)
 - [Planning your dashboard - the Who, What and How of dashboard building](/best-practice/planning-your-dashboard.md)
+
+## 🙋‍♀️ Troubleshooting and getting help
+
+- [Contact us](/help-and-contact/contact/contact_info.md)
+- [FAQs](/help-and-contact/faqs/faqs.md)

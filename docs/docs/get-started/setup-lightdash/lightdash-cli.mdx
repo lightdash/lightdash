@@ -3,8 +3,7 @@ sidebar_label: Get your dbt project Lightdash-ready
 sidebar_position: 1
 ---
 # Get your dbt project Lightdash-ready
-
-Lightdash connects to your existing dbt project to manage all your data in one place. With dbt you can transform the data in your data warehouse and explore it in Lightdash.
+In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
 But, before you hook up your dbt project to Lightdash, we want to make sure it's ready for exploring. We'll walk you through the steps of installing + using the Lightdash CLI and generating the .yml you need for your dbt project.
 
@@ -78,9 +77,15 @@ Before you get started with the next steps, you might want to check out onto a n
 
 :::
 
-To get our dbt project Lightdash-ready, we need to define all of the columns in our dbt models that we want to explore in Lightdash. We've made this really easy with to do using our CLI tool. 
+To get our dbt project Lightdash-ready, we need to define all of the columns in our dbt models that we want to explore in Lightdash. We've made this really easy to do using our CLI tool and the command:
 
-You have a few options:
+```shell
+lightdash dbt run
+```
+
+This command runs our dbt project to create our analysis-ready tables in our data warehouse. Then, it auto-generates our Lightdash configuration.
+
+You have a few options with this command though:
 
 ### 1. Generate dimensions for my **_entire_** dbt project
 
@@ -115,7 +120,39 @@ lightdash dbt run -s +payments # payments and all parents
 lightdash dbt run -s payments+ +customers tag:lightdash # mix and match
 ```
 
-Now, you should have a bunch of model .yml files filled with dimensions ready to be explored.
+After running our dbt project, `lightdash dbt run` is going to auto-generate all the configuration that Lightdash needs to build your semantic layer. Here’s an example of an auto-generated `.yml` file that you might see:
+
+```yaml
+# customers.yml
+version: 2
+models:
+  - name: customers
+    columns:
+      - name: customer_id
+				meta:
+					dimension:
+						type: string
+      - name: name
+				meta:
+					dimension: 
+						type: string
+      - name: created_at
+        meta:
+          dimension:
+						type: timestamp
+```
+
+The `customers.yml` file tells Lightdash about all the attributes of customers. So by now our Lightdash project usually looks a little like this:
+
+```bash
+lightdash-project
+├── dbt_project.yml
+└── models
+    ├── customers.sql
+    └── customers.yml
+```
+
+Now let’s push this project to Lightdash so we can start exploring our data through the UI.
 
 ## Make sure your changes are in production, then you're ready to go!
 
