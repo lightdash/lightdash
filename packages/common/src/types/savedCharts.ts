@@ -59,7 +59,30 @@ export type Series = {
     areaStyle?: {};
 };
 
+export type EchartsLegend = {
+    show?: boolean;
+    type?: 'plain' | 'scroll';
+    orient?: 'horizontal' | 'vertical';
+    top?: string;
+    right?: string;
+    bottom?: string;
+    left?: string;
+    width?: string;
+    height?: string;
+    align?: 'auto' | 'left' | 'right';
+    icon?:
+        | 'circle'
+        | 'rect'
+        | 'roundRect'
+        | 'triangle'
+        | 'diamond'
+        | 'pin'
+        | 'arrow'
+        | 'none';
+};
+
 export type CompleteEChartsConfig = {
+    legend?: EchartsLegend;
     series: Series[];
     xAxis: Axis[];
     yAxis: Axis[];

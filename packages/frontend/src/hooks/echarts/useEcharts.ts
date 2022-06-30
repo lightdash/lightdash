@@ -150,6 +150,16 @@ const valueFormatter =
         return getFormattedValue(rawValue, yFieldId, items);
     };
 
+const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
+    if (!obj) return undefined;
+    return Object.entries(obj).reduce(
+        (sum, [key, value]) =>
+            value !== undefined && value !== ''
+                ? { ...sum, [key]: value }
+                : sum,
+        {},
+    );
+};
 type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
@@ -640,7 +650,9 @@ const useEcharts = () => {
         yAxis: axis.yAxis,
         useUTC: true,
         series,
-        legend: {
+        legend: removeEmptyProperties(
+            validCartesianConfig.eChartsConfig.legend,
+        ) || {
             show: series.length > 1,
         },
         dataset: {

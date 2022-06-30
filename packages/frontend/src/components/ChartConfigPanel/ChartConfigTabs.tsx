@@ -30,6 +30,7 @@ import {
     Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
+import LegendPanel from './Legend';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
 import { SeriesDivider } from './Series/Series.styles';
@@ -372,6 +373,7 @@ const ChartConfigTabs: FC = () => {
                         </>
                     }
                 />
+                <Tab id="legend" title="Legend" panel={<LegendPanel />} />
             </Tabs>
         </Wrapper>
     );
