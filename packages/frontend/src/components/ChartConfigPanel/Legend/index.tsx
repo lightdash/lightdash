@@ -1,39 +1,15 @@
-import { Collapse, Colors } from '@blueprintjs/core';
+import { Collapse } from '@blueprintjs/core';
 import { EchartsLegend, friendlyName } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import styled from 'styled-components';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
+import { SectionRow, SectionTitle } from './Legend.styles';
 
 const triggerSubmitFields = ['show', 'type', 'orient', 'align', 'icon'];
-
-export const SectionTitle = styled.p`
-    color: ${Colors.DARK_GRAY1};
-    font-weight: 600;
-    margin-bottom: 0.286em;
-`;
-
-export const SectionRow = styled.div`
-    display: inline-flex;
-    gap: 10px;
-    width: 100%;
-
-    > * {
-        flex: 1;
-
-        & label.bp4-label {
-            font-weight: 600;
-            display: inline-flex;
-            gap: 0.214em;
-            color: ${Colors.GRAY1};
-            font-size: 0.857em;
-        }
-    }
-`;
 
 const LegendPanel: FC = () => {
     const {

@@ -81,8 +81,19 @@ export type EchartsLegend = {
         | 'none';
 };
 
+export type EchartsGrid = {
+    containLabel?: boolean;
+    top?: string;
+    right?: string;
+    bottom?: string;
+    left?: string;
+    width?: string;
+    height?: string;
+};
+
 export type CompleteEChartsConfig = {
     legend?: EchartsLegend;
+    grid?: EchartsGrid;
     series: Series[];
     xAxis: Axis[];
     yAxis: Axis[];

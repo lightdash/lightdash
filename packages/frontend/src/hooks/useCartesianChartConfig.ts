@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    EchartsGrid,
     EchartsLegend,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -54,6 +55,15 @@ const useCartesianChartConfig = ({
             return {
                 ...prevState,
                 legend,
+            };
+        });
+    }, []);
+
+    const setGrid = useCallback((grid: EchartsGrid) => {
+        setDirtyEchartsConfig((prevState) => {
+            return {
+                ...prevState,
+                grid,
             };
         });
     }, []);
@@ -534,6 +544,7 @@ const useCartesianChartConfig = ({
         setYMinValue,
         setYMaxValue,
         setLegend,
+        setGrid,
     };
 };
 
