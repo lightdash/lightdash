@@ -1,6 +1,6 @@
 import {
-    ProjectType,
-    ProjectTypeLabels,
+    DbtProjectType,
+    DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
@@ -29,7 +29,7 @@ import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
-    defaultType?: ProjectType;
+    defaultType?: DbtProjectType;
     selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
@@ -38,9 +38,9 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     defaultType,
     selectedWarehouse,
 }) => {
-    const type: ProjectType = useWatch({
+    const type: DbtProjectType = useWatch({
         name: 'dbt.type',
-        defaultValue: defaultType || ProjectType.GITHUB,
+        defaultValue: defaultType || DbtProjectType.GITHUB,
     });
     const warehouseType: WarehouseTypes = useWatch({
         name: 'warehouse.type',
@@ -53,37 +53,37 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const { health } = useApp();
     const options = useMemo(() => {
         const enabledTypes = [
-            ProjectType.GITHUB,
-            ProjectType.GITLAB,
-            ProjectType.BITBUCKET,
-            ProjectType.AZURE_DEVOPS,
+            DbtProjectType.GITHUB,
+            DbtProjectType.GITLAB,
+            DbtProjectType.BITBUCKET,
+            DbtProjectType.AZURE_DEVOPS,
         ];
         if (health.data?.localDbtEnabled) {
-            enabledTypes.push(ProjectType.DBT);
+            enabledTypes.push(DbtProjectType.DBT);
         }
-        if (type === ProjectType.DBT_CLOUD_IDE) {
-            enabledTypes.push(ProjectType.DBT_CLOUD_IDE);
+        if (type === DbtProjectType.DBT_CLOUD_IDE) {
+            enabledTypes.push(DbtProjectType.DBT_CLOUD_IDE);
         }
 
         return enabledTypes.map((value) => ({
             value,
-            label: ProjectTypeLabels[value],
+            label: DbtProjectTypeLabels[value],
         }));
     }, [health, type]);
 
     const form = useMemo(() => {
         switch (type) {
-            case ProjectType.DBT:
+            case DbtProjectType.DBT:
                 return <DbtLocalForm />;
-            case ProjectType.DBT_CLOUD_IDE:
+            case DbtProjectType.DBT_CLOUD_IDE:
                 return <DbtCloudForm disabled={disabled} />;
-            case ProjectType.GITHUB:
+            case DbtProjectType.GITHUB:
                 return <GithubForm disabled={disabled} />;
-            case ProjectType.GITLAB:
+            case DbtProjectType.GITLAB:
                 return <GitlabForm disabled={disabled} />;
-            case ProjectType.BITBUCKET:
+            case DbtProjectType.BITBUCKET:
                 return <BitBucketForm disabled={disabled} />;
-            case ProjectType.AZURE_DEVOPS:
+            case DbtProjectType.AZURE_DEVOPS:
                 return <AzureDevOpsForm disabled={disabled} />;
             default: {
                 const never: never = type;
@@ -95,27 +95,27 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const baseDocUrl =
         'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#';
     const typeDocUrls = {
-        [ProjectType.GITHUB]: {
+        [DbtProjectType.GITHUB]: {
             target: `target-name`,
             env: `environment-variables`,
         },
-        [ProjectType.GITLAB]: {
+        [DbtProjectType.GITLAB]: {
             target: `target-name-1`,
             env: `environment-variables-1`,
         },
-        [ProjectType.AZURE_DEVOPS]: {
+        [DbtProjectType.AZURE_DEVOPS]: {
             target: `target-name-2`,
             env: `environment-variables-2`,
         },
-        [ProjectType.DBT]: {
+        [DbtProjectType.DBT]: {
             target: `target-name-3`,
             env: `environment-variables-3`,
         },
-        [ProjectType.BITBUCKET]: {
+        [DbtProjectType.BITBUCKET]: {
             target: `target-name-3`,
             env: `environment-variables-3`,
         },
-        [ProjectType.DBT_CLOUD_IDE]: {
+        [DbtProjectType.DBT_CLOUD_IDE]: {
             target: `target-name`,
             env: `environment-variables`,
         },
@@ -150,7 +150,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                     required: 'Required field',
                 }}
                 disabled={disabled}
-                defaultValue={ProjectType.GITHUB}
+                defaultValue={DbtProjectType.GITHUB}
             />
             {form}
             <FormSection name="target">

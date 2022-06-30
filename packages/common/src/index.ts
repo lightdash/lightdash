@@ -116,12 +116,12 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-export enum ProjectBaseType {
+export enum ProjectType {
     DEFAULT = 'DEFAULT',
     PREVIEW = 'PREVIEW',
 }
 
-export enum ProjectType {
+export enum DbtProjectType {
     DBT = 'dbt',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
     GITHUB = 'github',
@@ -177,8 +177,8 @@ export const SEED_ORG_2_ADMIN_PASSWORD = {
 export const SEED_PROJECT = {
     project_uuid: '3675b69e-8324-4110-bdca-059031aa8da3',
     name: 'Jaffle shop',
-    project_type: ProjectBaseType.DEFAULT,
-    dbt_connection_type: ProjectType.DBT,
+    project_type: ProjectType.DEFAULT,
+    dbt_connection_type: DbtProjectType.DBT,
     dbt_connection: null,
 };
 export const SEED_SPACE = {
@@ -837,17 +837,17 @@ export type WarehouseCredentials =
     | BigqueryCredentials
     | DatabricksCredentials;
 
-export const ProjectTypeLabels: Record<ProjectType, string> = {
-    [ProjectType.DBT]: 'dbt local server',
-    [ProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
-    [ProjectType.GITHUB]: 'Github',
-    [ProjectType.GITLAB]: 'GitLab',
-    [ProjectType.BITBUCKET]: 'BitBucket',
-    [ProjectType.AZURE_DEVOPS]: 'Azure DevOps',
+export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
+    [DbtProjectType.DBT]: 'dbt local server',
+    [DbtProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
+    [DbtProjectType.GITHUB]: 'Github',
+    [DbtProjectType.GITLAB]: 'GitLab',
+    [DbtProjectType.BITBUCKET]: 'BitBucket',
+    [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
 };
 
 export interface DbtProjectConfigBase {
-    type: ProjectType;
+    type: DbtProjectType;
 }
 
 export type DbtProjectEnvironmentVariable = {
@@ -861,13 +861,13 @@ export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
 }
 
 export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
-    type: ProjectType.DBT;
+    type: DbtProjectType.DBT;
     profiles_dir?: string;
     project_dir?: string;
 }
 
 export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
-    type: ProjectType.DBT_CLOUD_IDE;
+    type: DbtProjectType.DBT_CLOUD_IDE;
     api_key: string;
     account_id: string | number;
     environment_id: string | number;
@@ -875,7 +875,7 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
 }
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
-    type: ProjectType.GITHUB;
+    type: DbtProjectType.GITHUB;
     personal_access_token: string;
     repository: string;
     branch: string;
@@ -884,7 +884,7 @@ export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
 }
 
 export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
-    type: ProjectType.GITLAB;
+    type: DbtProjectType.GITLAB;
     personal_access_token: string;
     repository: string;
     branch: string;
@@ -893,7 +893,7 @@ export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
 }
 
 export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
-    type: ProjectType.BITBUCKET;
+    type: DbtProjectType.BITBUCKET;
     username: string;
     personal_access_token: string;
     repository: string;
@@ -903,7 +903,7 @@ export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
 }
 
 export interface DbtAzureDevOpsProjectConfig extends DbtProjectCompilerBase {
-    type: ProjectType.AZURE_DEVOPS;
+    type: DbtProjectType.AZURE_DEVOPS;
     personal_access_token: string;
     organization: string;
     project: string;
@@ -923,14 +923,14 @@ export type DbtProjectConfig =
 export type OrganizationProject = {
     projectUuid: string;
     name: string;
-    type: ProjectBaseType;
+    type: ProjectType;
 };
 
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
     name: string;
-    type: ProjectBaseType;
+    type: ProjectType;
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
 };

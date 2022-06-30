@@ -8,9 +8,9 @@ import {
     NotExistsError,
     OrganizationProject,
     Project,
-    ProjectBaseType,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     TablesConfiguration,
@@ -289,7 +289,7 @@ export class ProjectModel {
         type QueryResult = (
             | {
                   name: string;
-                  project_type: ProjectBaseType;
+                  project_type: ProjectType;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: null;
                   warehouse_type: null;
@@ -297,7 +297,7 @@ export class ProjectModel {
               }
             | {
                   name: string;
-                  project_type: ProjectBaseType;
+                  project_type: ProjectType;
                   dbt_connection: Buffer | null;
                   encrypted_credentials: Buffer;
                   warehouse_type: string;

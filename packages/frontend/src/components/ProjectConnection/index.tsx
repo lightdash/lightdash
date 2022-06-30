@@ -3,9 +3,9 @@ import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
+    DbtProjectType,
     friendlyName,
     Organisation,
-    ProjectBaseType,
     ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
@@ -46,7 +46,7 @@ type ProjectConnectionForm = {
 interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
-    defaultType?: ProjectType;
+    defaultType?: DbtProjectType;
     selectedWarehouse?: SelectedWarehouse | undefined;
     isProjectUpdate?: boolean | undefined;
 }
@@ -264,7 +264,7 @@ export const UpdateProjectConnection: FC<{
         }
     };
 
-    if (data?.type === ProjectBaseType.PREVIEW) {
+    if (data?.type === ProjectType.PREVIEW) {
         return (
             <FormWrapper>
                 <Callout intent="warning">

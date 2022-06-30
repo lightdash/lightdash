@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
@@ -11,7 +11,7 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
-        savedProject?.dbtConnection.type !== ProjectType.AZURE_DEVOPS;
+        savedProject?.dbtConnection.type !== DbtProjectType.AZURE_DEVOPS;
     return (
         <>
             <PasswordInput

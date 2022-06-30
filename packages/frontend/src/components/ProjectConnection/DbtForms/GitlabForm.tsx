@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
@@ -12,7 +12,7 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
-        savedProject?.dbtConnection.type !== ProjectType.GITLAB;
+        savedProject?.dbtConnection.type !== DbtProjectType.GITLAB;
     return (
         <>
             <PasswordInput

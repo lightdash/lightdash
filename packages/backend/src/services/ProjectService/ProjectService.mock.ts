@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ApiSqlQueryResults,
     DbtCloudIDEProjectConfig,
+    DbtProjectType,
     Explore,
     ExploreError,
     FieldType,
@@ -15,7 +16,6 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     Project,
-    ProjectBaseType,
     ProjectType,
     SessionUser,
     Space,
@@ -215,19 +215,19 @@ export const projectWithSensitiveFields: Project = {
     organizationUuid: user.organizationUuid,
     projectUuid: 'projectUuid',
     name: 'name',
-    type: ProjectBaseType.DEFAULT,
+    type: ProjectType.DEFAULT,
     dbtConnection: {
         account_id: 'account_id',
         environment_id: 'environment_id',
         name: 'name',
         project_id: 'project_id',
-        type: ProjectType.DBT_CLOUD_IDE,
+        type: DbtProjectType.DBT_CLOUD_IDE,
     } as any as DbtCloudIDEProjectConfig,
 };
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
-    type: ProjectBaseType.DEFAULT,
+    type: ProjectType.DEFAULT,
 };
 
 export const spacesWithSavedCharts: Space[] = [

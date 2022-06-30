@@ -9,7 +9,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { ProjectBaseType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import React from 'react';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
@@ -106,7 +106,7 @@ const NavBar = () => {
                             options={data?.map((item) => ({
                                 value: item.projectUuid,
                                 label: `${
-                                    item.type === ProjectBaseType.PREVIEW
+                                    item.type === ProjectType.PREVIEW
                                         ? '[Preview] '
                                         : ''
                                 }${item.name}`,

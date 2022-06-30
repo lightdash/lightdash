@@ -1,5 +1,5 @@
 import {
-    ProjectBaseType,
+    DbtProjectType,
     ProjectType,
     TableSelectionType,
 } from '@lightdash/common';
@@ -13,10 +13,10 @@ export type DbProject = {
     project_id: number;
     project_uuid: string;
     name: string;
-    project_type: ProjectBaseType;
+    project_type: ProjectType;
     created_at: Date;
     organization_id: number;
-    dbt_connection_type: ProjectType | null;
+    dbt_connection_type: DbtProjectType | null;
     dbt_connection: Buffer | null;
     table_selection_type: TableSelectionType;
     table_selection_value: string[] | null;
