@@ -60,7 +60,6 @@ You _may_ need to install an additional package if you see any errors:
 
 **Mac OS**
 
-
 ```shell
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" # install homebrew if you don't have it
 brew install unixodbc
