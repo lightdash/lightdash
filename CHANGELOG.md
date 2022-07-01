@@ -1,3 +1,10 @@
+## [0.167.1](https://github.com/lightdash/lightdash/compare/0.167.0...0.167.1) (2022-07-01)
+
+
+### Bug Fixes
+
+* explore reset ([#2609](https://github.com/lightdash/lightdash/issues/2609)) ([5736e3c](https://github.com/lightdash/lightdash/commit/5736e3c29b5467678f631af6b08f69e45cb1a451))
+
 # [0.167.0](https://github.com/lightdash/lightdash/compare/0.166.0...0.167.0) (2022-07-01)
 
 
