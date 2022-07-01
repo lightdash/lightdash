@@ -3,8 +3,9 @@ import { getConfig } from '../config';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { lightdashApi } from './dbt/apiClient';
+import { DbtCompileOptions } from './dbt/compile';
 
-type DeployHandlerOptions = {
+type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;

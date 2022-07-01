@@ -11,11 +11,12 @@ import { URL } from 'url';
 import { getConfig } from '../config';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
+import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
 
 inquirer.registerPrompt('press-to-continue', PressToContinuePrompt);
 
-type PreviewHandlerOptions = {
+type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;

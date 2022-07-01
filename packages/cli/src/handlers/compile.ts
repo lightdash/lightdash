@@ -15,14 +15,16 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import * as styles from '../styles';
+import { dbtCompile, DbtCompileOptions } from './dbt/compile';
 
-type GenerateHandlerOptions = {
+type GenerateHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
 };
 export const compile = async (options: GenerateHandlerOptions) => {
+    await dbtCompile(options);
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
