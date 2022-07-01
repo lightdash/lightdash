@@ -23,11 +23,8 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     target: string | undefined;
     profile: string | undefined;
 };
-export const compile = async (
-    options: GenerateHandlerOptions,
-    command: any,
-) => {
-    await dbtCompile(options, command.parent.args.slice(1));
+export const compile = async (options: GenerateHandlerOptions) => {
+    await dbtCompile(options);
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -61,11 +58,8 @@ export const compile = async (
     );
     return explores;
 };
-export const compileHandler = async (
-    options: GenerateHandlerOptions,
-    command: any,
-) => {
-    const explores = await compile(options, command);
+export const compileHandler = async (options: GenerateHandlerOptions) => {
+    const explores = await compile(options);
     console.error(`Compiled ${explores.length} explores`);
     console.error('');
     console.error(styles.success('Successfully compiled project'));

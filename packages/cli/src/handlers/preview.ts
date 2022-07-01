@@ -25,7 +25,6 @@ type PreviewHandlerOptions = DbtCompileOptions & {
 
 export const previewHandler = async (
     options: PreviewHandlerOptions,
-    command: any,
 ): Promise<void> => {
     const name = uniqueNamesGenerator({
         length: 2,
@@ -49,7 +48,7 @@ export const previewHandler = async (
                 `/projects/${project.projectUuid}/tables`,
                 config.context.serverUrl,
             );
-        await deploy({ ...options, projectUuid: project.projectUuid }, command);
+        await deploy({ ...options, projectUuid: project.projectUuid });
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${projectUrl}\n`,
         );

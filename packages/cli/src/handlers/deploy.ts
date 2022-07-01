@@ -15,11 +15,8 @@ type DeployHandlerOptions = DbtCompileOptions & {
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
 };
-export const deploy = async (
-    options: DeployArgs,
-    command: any,
-): Promise<void> => {
-    const explores = await compile(options, command);
+export const deploy = async (options: DeployArgs): Promise<void> => {
+    const explores = await compile(options);
     await lightdashApi<undefined>({
         method: 'PUT',
         url: `/api/v1/projects/${options.projectUuid}/explores`,
@@ -27,17 +24,14 @@ export const deploy = async (
     });
 };
 
-export const deployHandler = async (
-    options: DeployHandlerOptions,
-    command: any,
-) => {
+export const deployHandler = async (options: DeployHandlerOptions) => {
     const config = await getConfig();
     if (!(config.context?.project && config.context.serverUrl)) {
         throw new AuthorizationError(
             `No active Lightdash project. Run 'lightdash login --help'`,
         );
     }
-    await deploy({ ...options, projectUuid: config.context.project }, command);
+    await deploy({ ...options, projectUuid: config.context.project });
     console.error(`${styles.bold('Successfully deployed project:')}`);
     console.error('');
     console.error(
