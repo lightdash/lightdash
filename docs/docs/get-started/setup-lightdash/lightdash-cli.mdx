@@ -1,3 +1,7 @@
+import dbtRepoExample from './assets/dbt-repo-example.png';
+import TablesView from './assets/tables-view.png';
+import ExampleTable from './assets/example_table.png';
+
 ---
 sidebar_label: Get your dbt project Lightdash-ready
 sidebar_position: 1
@@ -50,26 +54,76 @@ sudo apt install unixodbc
 npm install -g @lightdash/cli
 ```
 
-## Creating dimensions in Lightdash using `lightdash dbt run`
+## Adding Tables to your Lightdash project
 
-Dimensions are attributes of your data. They are directly linked to a column in a dbt model.
+Tables in Lightdash are tied 1:1 with models in your dbt project. They're the foundation of your data exploration, the backbone to figuring out your unknowns, the art behind your charts...basically, they're pretty important.
 
-To explore data in Lightdash, you need to have dimensions defined in your dbt model properties. Dimensions are created automatically when you define columns in your dbt model properties. 
+So, we wanted to go through how to actually add these Tables to your Lightdash project, and once they're in there, how you can configure them to make the most of them. 
 
-For example, if I had a dbt .yml file that looked like this:
+<img src={TablesView} width="1257" height="959" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
+
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
+
+:::info
+
+Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.getdbt.com/reference/configs-and-properties) to learn more about building .yml files for your dbt project.
+
+:::
+
+For example, if we had a file called `projects.yml` in dbt that looked something like the one below, we'd see a Table called `Projects` in Lightdash.
 
 ```yaml
 version: 2
+
 models:
-  - name: users
-    columns:
-      - name: user_id
-        description: "unique ID for a user"
-      - name: first_name
-        description: "User's first name"
+  - name: projects
+    columns: 
+      - name: dashboards_created_num_total
+      - name: days_since_project_created
 ```
 
-Then, I'd see a table in Lightdash called `Users` with two dimensions to explore: `User id` and `First name`. 
+<img src={ExampleTable} width="385" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+We recommend structuring your dbt project with one .yml file per model (or .sql file).
+
+We've found that this makes it easier to navigate through your .yml files and easier to manage your dbt models, especially as your project becomes bigger. 
+
+Here's an example of our dbt project at Lightdash too see what that looks like in practice:
+
+- We have one .sql file per model (these are the files where all of our models' business logic sits)
+- We have one .yml file per model (these are the files where all of your Tables' configuration sits)
+
+<img src={dbtRepoExample} width="316" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### But, in my dbt project, I have a single schema.yml file. Not one for each model. Will that still work?
+
+Yep! We realize that schema files come in all shapes and sizes. 
+
+Some people prefer to write the .yml files for all of their models in a single .yml file at the directory level, and that's totally fine - it will still work with Lightdash. 
+
+But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one .yml file per model.**
+
+## Creating Tables and their dimensions in Lightdash using `lightdash dbt run`
+
+Dimensions are attributes of your data. They are directly linked to a column in a dbt model.
+
+To explore data in Lightdash, you need to have dimensions defined in your Tables. Dimensions are created automatically when you define columns in your dbt model properties. 
+
+For example, if we go back to our `projects.yml` file from above, we'd have a Table called `Projects` and it would have the dimensions: `Dashboards created num total` and `Days since project created`.
+
+```yaml
+version: 2
+
+models:
+  - name: projects
+    columns: 
+      - name: dashboards_created_num_total
+      - name: days_since_project_created
+```
+
+<img src={ExampleTable} width="385" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 :::info
 
@@ -87,7 +141,7 @@ This command runs our dbt project to create our analysis-ready tables in our dat
 
 You have a few options with this command though:
 
-### 1. Generate dimensions for my **_entire_** dbt project
+### 1. Generate Tables and dimensions for my **_entire_** dbt project
 
 To do this, you just need to run the following on your command line:
 
@@ -95,11 +149,11 @@ To do this, you just need to run the following on your command line:
 lightdash dbt run
 ```
 
-This command will run + generate the `.yml` files with dimensions for all of the columns for all of the models in your dbt project. 
+This command will run + generate tables for all of the models with `.yml` files. It will also generate dimensions for all of the columns in your dbt project. 
 
-### 2. Generate dimensions for **_some_** of the models in my dbt project
+### 2. Generate Tables and dimensions for **_some_** of the models in my dbt project
 
-There may be a specific set of models that you want to start out with in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
+There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
 
 ```yaml
 {{
