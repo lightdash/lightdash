@@ -1,3 +1,10 @@
+# [0.167.0](https://github.com/lightdash/lightdash/compare/0.166.0...0.167.0) (2022-07-01)
+
+
+### Features
+
+* compile dbt project before compile, deploy and preview commands ([#2600](https://github.com/lightdash/lightdash/issues/2600)) ([ebec702](https://github.com/lightdash/lightdash/commit/ebec702d83f17f2bb55f87706f165e8137ddf9e5))
+
 # [0.166.0](https://github.com/lightdash/lightdash/compare/0.165.5...0.166.0) (2022-06-29)
 
 
