@@ -25,12 +25,12 @@ const GridPanel: FC = () => {
 
     return (
         <Form
-            name="legend"
+            name="grid"
             methods={methods}
             onSubmit={() => undefined}
             onBlur={methods.handleSubmit(setGrid)}
         >
-            <SectionTitle>Position</SectionTitle>
+            <SectionTitle>Margins</SectionTitle>
             <SectionRow>
                 <Input name="top" label="Top" placeholder={defaultGrid.top} />
                 <Input
