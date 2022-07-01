@@ -138,7 +138,7 @@ const FiltersCard: FC = () => {
                     <Button
                         icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
                         minimal
-                        disabled={!isEditMode}
+                        disabled={!isEditMode || !tableName}
                         onClick={() =>
                             toggleExpandedSection(ExplorerSection.FILTERS)
                         }
