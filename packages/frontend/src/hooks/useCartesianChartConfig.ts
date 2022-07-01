@@ -2,6 +2,8 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    EchartsGrid,
+    EchartsLegend,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -47,6 +49,24 @@ const useCartesianChartConfig = ({
     const isStacked = (dirtyEchartsConfig?.series || []).some(
         (series: Series) => series.stack !== undefined,
     );
+
+    const setLegend = useCallback((legend: EchartsLegend) => {
+        setDirtyEchartsConfig((prevState) => {
+            return {
+                ...prevState,
+                legend,
+            };
+        });
+    }, []);
+
+    const setGrid = useCallback((grid: EchartsGrid) => {
+        setDirtyEchartsConfig((prevState) => {
+            return {
+                ...prevState,
+                grid,
+            };
+        });
+    }, []);
 
     const setXAxisName = useCallback((name: string) => {
         setDirtyEchartsConfig((prevState) => {
@@ -523,6 +543,8 @@ const useCartesianChartConfig = ({
         setFlipAxis,
         setYMinValue,
         setYMaxValue,
+        setLegend,
+        setGrid,
     };
 };
 

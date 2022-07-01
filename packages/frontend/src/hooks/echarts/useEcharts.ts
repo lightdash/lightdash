@@ -25,6 +25,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
 
@@ -150,6 +151,16 @@ const valueFormatter =
         return getFormattedValue(rawValue, yFieldId, items);
     };
 
+const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
+    if (!obj) return undefined;
+    return Object.entries(obj).reduce(
+        (sum, [key, value]) =>
+            value !== undefined && value !== ''
+                ? { ...sum, [key]: value }
+                : sum,
+        {},
+    );
+};
 type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
@@ -640,7 +651,9 @@ const useEcharts = () => {
         yAxis: axis.yAxis,
         useUTC: true,
         series,
-        legend: {
+        legend: removeEmptyProperties(
+            validCartesianConfig.eChartsConfig.legend,
+        ) || {
             show: series.length > 1,
         },
         dataset: {
@@ -657,11 +670,8 @@ const useEcharts = () => {
             },
         },
         grid: {
-            containLabel: true,
-            left: '5%', // small padding
-            right: '5%', // small padding
-            top: 70, // pixels from top (makes room for legend)
-            bottom: 30, // pixels from bottom (makes room for x-axis)
+            ...defaultGrid,
+            ...removeEmptyProperties(validCartesianConfig.eChartsConfig.grid),
         },
         color: organisationData?.chartColors || ECHARTS_DEFAULT_COLORS,
     };
