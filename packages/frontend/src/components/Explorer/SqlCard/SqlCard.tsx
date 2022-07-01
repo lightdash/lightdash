@@ -9,7 +9,7 @@ import { CardHeader, StyledCard } from './SqlCard.styles';
 
 const SqlCard: FC = () => {
     const {
-        state: { expandedSections },
+        state: { expandedSections, unsavedChartVersion },
         actions: { toggleExpandedSection },
     } = useExplorer();
     const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
@@ -20,6 +20,7 @@ const SqlCard: FC = () => {
                     icon={sqlIsOpen ? 'chevron-down' : 'chevron-right'}
                     minimal
                     onClick={() => toggleExpandedSection(ExplorerSection.SQL)}
+                    disabled={!unsavedChartVersion.tableName}
                 />
                 <H5>SQL</H5>
             </CardHeader>

@@ -33,16 +33,19 @@ const ResultsCard: FC = () => {
                         onClick={() =>
                             toggleExpandedSection(ExplorerSection.RESULTS)
                         }
+                        disabled={!unsavedChartVersion.tableName}
                     />
                     <H5>Results</H5>
-                    {isEditMode && resultsIsOpen && (
-                        <LimitButton
-                            limit={unsavedChartVersion.metricQuery.limit}
-                            onLimitChange={setRowLimit}
-                        />
-                    )}
+                    {isEditMode &&
+                        resultsIsOpen &&
+                        unsavedChartVersion.tableName && (
+                            <LimitButton
+                                limit={unsavedChartVersion.metricQuery.limit}
+                                onLimitChange={setRowLimit}
+                            />
+                        )}
                 </CardHeaderLeftContent>
-                {resultsIsOpen && (
+                {resultsIsOpen && unsavedChartVersion.tableName && (
                     <CardHeaderRightContent>
                         {isEditMode && <AddColumnButton />}
                         <DownloadCsvButton

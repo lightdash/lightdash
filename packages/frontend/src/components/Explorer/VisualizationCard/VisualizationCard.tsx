@@ -13,6 +13,9 @@ import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import {
+    CardHeader,
+    CardHeaderButtons,
+    CardHeaderTitle,
     MainCard,
     VisualizationCardContentWrapper,
 } from './VisualizationCard.styles';
@@ -30,83 +33,72 @@ const VisualizationCard: FC = () => {
     } = useExplorer();
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
-
-    return (
-        <>
+    console.log('queryResults', queryResults.isLoading, queryResults.data);
+    if (!unsavedChartVersion.tableName) {
+        return (
             <MainCard elevation={1}>
-                <VisualizationProvider
-                    initialChartConfig={unsavedChartVersion.chartConfig}
-                    chartType={unsavedChartVersion.chartConfig.type}
-                    initialPivotDimensions={
-                        unsavedChartVersion.pivotConfig?.columns
-                    }
-                    explore={explore}
-                    resultsData={queryResults.data}
-                    isLoading={queryResults.isLoading}
-                    onChartConfigChange={setChartConfig}
-                    onChartTypeChange={setChartType}
-                    onPivotDimensionsChange={setPivotFields}
-                    columnOrder={unsavedChartVersion.tableConfig.columnOrder}
-                >
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <Button
-                                icon={
-                                    vizIsOpen ? 'chevron-down' : 'chevron-right'
-                                }
-                                minimal
-                                onClick={() =>
-                                    toggleExpandedSection(
-                                        ExplorerSection.VISUALIZATION,
-                                    )
-                                }
-                            />
-                            <H5 style={{ margin: 0, padding: 0 }}>Charts</H5>
-                        </div>
-                        {vizIsOpen && (
-                            <div
-                                style={{
-                                    display: 'inline-flex',
-                                    flexWrap: 'wrap',
-                                    gap: '10px',
-                                    marginRight: '10px',
-                                }}
-                            >
-                                {isEditMode && (
-                                    <>
-                                        <VisualizationCardOptions />
-                                        {unsavedChartVersion.chartConfig
-                                            .type === ChartType.BIG_NUMBER ? (
-                                            <BigNumberConfigPanel />
-                                        ) : (
-                                            <ChartConfigPanel />
-                                        )}
-                                    </>
-                                )}
-                                <ChartDownloadMenu />
-                            </div>
-                        )}
-                    </div>
-                    <Collapse className="explorer-chart" isOpen={vizIsOpen}>
-                        <VisualizationCardContentWrapper className="cohere-block">
-                            <LightdashVisualization />
-                        </VisualizationCardContentWrapper>
-                    </Collapse>
-                </VisualizationProvider>
+                <CardHeader>
+                    <CardHeaderTitle>
+                        <Button icon={'chevron-right'} minimal disabled />
+                        <H5>Charts</H5>
+                    </CardHeaderTitle>
+                </CardHeader>
             </MainCard>
-        </>
+        );
+    }
+    return (
+        <MainCard elevation={1}>
+            <VisualizationProvider
+                initialChartConfig={unsavedChartVersion.chartConfig}
+                chartType={unsavedChartVersion.chartConfig.type}
+                initialPivotDimensions={
+                    unsavedChartVersion.pivotConfig?.columns
+                }
+                explore={explore}
+                resultsData={queryResults.data}
+                isLoading={queryResults.isLoading}
+                onChartConfigChange={setChartConfig}
+                onChartTypeChange={setChartType}
+                onPivotDimensionsChange={setPivotFields}
+                columnOrder={unsavedChartVersion.tableConfig.columnOrder}
+            >
+                <CardHeader>
+                    <CardHeaderTitle>
+                        <Button
+                            icon={vizIsOpen ? 'chevron-down' : 'chevron-right'}
+                            minimal
+                            onClick={() =>
+                                toggleExpandedSection(
+                                    ExplorerSection.VISUALIZATION,
+                                )
+                            }
+                        />
+                        <H5>Charts</H5>
+                    </CardHeaderTitle>
+                    {vizIsOpen && (
+                        <CardHeaderButtons>
+                            {isEditMode && (
+                                <>
+                                    <VisualizationCardOptions />
+                                    {unsavedChartVersion.chartConfig.type ===
+                                    ChartType.BIG_NUMBER ? (
+                                        <BigNumberConfigPanel />
+                                    ) : (
+                                        <ChartConfigPanel />
+                                    )}
+                                </>
+                            )}
+                            <ChartDownloadMenu />
+                        </CardHeaderButtons>
+                    )}
+                </CardHeader>
+                <Collapse className="explorer-chart" isOpen={vizIsOpen}>
+                    <VisualizationCardContentWrapper className="cohere-block">
+                        <LightdashVisualization />
+                    </VisualizationCardContentWrapper>
+                </Collapse>
+            </VisualizationProvider>
+        </MainCard>
     );
 };
 

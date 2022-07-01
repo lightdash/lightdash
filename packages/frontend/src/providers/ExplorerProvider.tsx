@@ -684,13 +684,6 @@ export const ExplorerProvider: FC<{
         return [fields, fields.size > 0];
     }, [reducerState]);
 
-    const clear = useCallback(() => {
-        dispatch({
-            type: ActionType.RESET,
-            payload: defaultState,
-        });
-    }, []);
-
     const reset = useCallback(() => {
         dispatch({
             type: ActionType.RESET,
@@ -906,7 +899,7 @@ export const ExplorerProvider: FC<{
     const queryResults = useQueryResults(state);
 
     // Fetch query results after state update
-    const { mutate } = queryResults;
+    const { mutate, reset: resetQueryResults } = queryResults;
     useEffect(() => {
         if (state.shouldFetchResults) {
             mutate();
@@ -915,6 +908,14 @@ export const ExplorerProvider: FC<{
             });
         }
     }, [mutate, state]);
+
+    const clear = useCallback(async () => {
+        dispatch({
+            type: ActionType.RESET,
+            payload: defaultState,
+        });
+        resetQueryResults();
+    }, [resetQueryResults]);
 
     const defaultSort = useDefaultSortField(reducerState.unsavedChartVersion);
 
