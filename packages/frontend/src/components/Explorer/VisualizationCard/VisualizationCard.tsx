@@ -33,7 +33,7 @@ const VisualizationCard: FC = () => {
     } = useExplorer();
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
-    console.log('queryResults', queryResults.isLoading, queryResults.data);
+
     if (!unsavedChartVersion.tableName) {
         return (
             <MainCard elevation={1}>
