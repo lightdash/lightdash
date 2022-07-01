@@ -2,7 +2,7 @@ import { AuthorizationError, formatDate } from '@lightdash/common';
 import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
-import { getConfig, setConfig } from '../config';
+import { setContext } from '../config';
 import { setProject } from './setProject';
 
 export const login = async (url: string) => {
@@ -25,13 +25,14 @@ export const login = async (url: string) => {
             'Content-Type': 'application/json',
         },
     });
+    const loginBody = await response.json();
     const header = response.headers.get('set-cookie');
     if (header === null) {
-        const body = await response.json();
         throw new AuthorizationError(
-            `Cannot sign in:\n${JSON.stringify(body)}`,
+            `Cannot sign in:\n${JSON.stringify(loginBody)}`,
         );
     }
+    const { userUuid } = loginBody.results;
     const cookie = header.split(';')[0].split('=')[1];
     const patUrl = new URL(`/api/v1/user/me/personal-access-tokens`, url).href;
     const now = new Date();
@@ -48,14 +49,6 @@ export const login = async (url: string) => {
     });
     const patResponseBody = await patResponse.json();
     const apiKey = patResponseBody.results.token;
-    const config = await getConfig(false);
-    await setConfig({
-        ...config,
-        context: {
-            ...config.context,
-            serverUrl: url,
-            apiKey,
-        },
-    });
+    await setContext({ serverUrl: url, apiKey, userUuid });
     await setProject();
 };
