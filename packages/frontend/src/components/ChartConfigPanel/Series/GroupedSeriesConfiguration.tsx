@@ -1,4 +1,4 @@
-import { Colors } from '@blueprintjs/core';
+import { Colors, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -231,6 +231,38 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     />
                                 </SeriesExtraInputWrapper>
                             </GroupSeriesInputs>
+                            {chartValue === CartesianSeriesType.LINE && (
+                                <GroupSeriesInputs>
+                                    <Switch
+                                        alignIndicator={'right'}
+                                        checked={
+                                            seriesGroup[0].showSymbol ?? true
+                                        }
+                                        label={'Show symbol'}
+                                        onChange={() => {
+                                            updateAllGroupedSeries(fieldKey, {
+                                                showSymbol: !(
+                                                    seriesGroup[0].showSymbol ??
+                                                    true
+                                                ),
+                                            });
+                                        }}
+                                    />
+                                    <Switch
+                                        alignIndicator={'right'}
+                                        checked={seriesGroup[0].smooth}
+                                        label={'Smooth'}
+                                        onChange={() => {
+                                            updateAllGroupedSeries(fieldKey, {
+                                                smooth: !(
+                                                    seriesGroup[0].smooth ??
+                                                    true
+                                                ),
+                                            });
+                                        }}
+                                    />
+                                </GroupSeriesInputs>
+                            )}
                             <GroupSeriesWrapper>
                                 {seriesGroup?.map((singleSeries) => {
                                     const formattedValue = getFormatterValue(

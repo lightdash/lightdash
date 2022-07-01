@@ -39,7 +39,6 @@ export const GroupSeriesBlock = styled.div`
 
 export const GroupSeriesWrapper = styled.div`
     padding: 1em;
-    margin-top: 0.714em;
     background: ${Colors.LIGHT_GRAY5};
     border-radius: 0.286em;
 `;
@@ -53,6 +52,7 @@ export const GroupSeriesInputs = styled.div`
     flex: 1;
     gap: 0.714em;
     justify-content: space-between;
+    margin-bottom: 0.714em;
 `;
 
 export const SeriesBlock = styled.div`
