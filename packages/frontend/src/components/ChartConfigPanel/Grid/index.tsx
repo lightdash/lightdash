@@ -49,11 +49,6 @@ const GridPanel: FC = () => {
                     placeholder={defaultGrid.right}
                 />
             </SectionRow>
-            <SectionTitle>Dimensions</SectionTitle>
-            <SectionRow>
-                <Input name="height" label="Height" placeholder={'auto'} />
-                <Input name="width" label="Width" placeholder={'auto'} />
-            </SectionRow>
         </Form>
     );
 };

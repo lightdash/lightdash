@@ -9,7 +9,7 @@ import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
 import { SectionRow, SectionTitle } from './Legend.styles';
 
-const triggerSubmitFields = ['show', 'type', 'orient', 'align', 'icon'];
+const triggerSubmitFields = ['show', 'type', 'orient'];
 
 const LegendPanel: FC = () => {
     const {
@@ -58,11 +58,6 @@ const LegendPanel: FC = () => {
                     <Input name="left" label="Left" placeholder={'auto'} />
                     <Input name="right" label="Right" placeholder={'auto'} />
                 </SectionRow>
-                <SectionTitle>Dimensions</SectionTitle>
-                <SectionRow>
-                    <Input name="height" label="Height" placeholder={'auto'} />
-                    <Input name="width" label="Width" placeholder={'auto'} />
-                </SectionRow>
                 <SectionTitle>Appearance</SectionTitle>
                 <SectionRow>
                     <Select
@@ -82,33 +77,6 @@ const LegendPanel: FC = () => {
                             label: friendlyName(x),
                         }))}
                         defaultValue="horizontal"
-                    />
-                </SectionRow>
-                <SectionRow>
-                    <Select
-                        name="align"
-                        label="Align"
-                        options={['auto', 'left', 'right'].map((x) => ({
-                            value: x,
-                            label: friendlyName(x),
-                        }))}
-                        defaultValue="auto"
-                    />
-                    <Select
-                        name="icon"
-                        label="Icon"
-                        options={[
-                            'circle',
-                            'rect',
-                            'roundRect',
-                            'triangle',
-                            'diamond',
-                            'none',
-                        ].map((x) => ({
-                            value: x,
-                            label: friendlyName(x),
-                        }))}
-                        defaultValue="roundRect"
                     />
                 </SectionRow>
             </Collapse>
