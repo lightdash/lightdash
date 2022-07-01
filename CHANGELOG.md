@@ -1,3 +1,10 @@
+# [0.168.0](https://github.com/lightdash/lightdash/compare/0.167.1...0.168.0) (2022-07-01)
+
+
+### Features
+
+* legend and grid configuration ([#2604](https://github.com/lightdash/lightdash/issues/2604)) ([fe76eb3](https://github.com/lightdash/lightdash/commit/fe76eb381cbebb0c66116146b8535dffdb46a261))
+
 ## [0.167.1](https://github.com/lightdash/lightdash/compare/0.167.0...0.167.1) (2022-07-01)
 
 
