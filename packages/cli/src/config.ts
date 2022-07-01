@@ -9,13 +9,12 @@ const configFilePath = path.join(configDir, 'config.yaml');
 export type Config = {
     user?: {
         userUuid?: string;
-        anonymousUuid: string;
+        anonymousUuid?: string;
     };
     context?: {
         serverUrl?: string;
         project?: string;
         apiKey?: string;
-        userUuid?: string;
     };
 };
 
@@ -69,6 +68,17 @@ export const setProjectUuid = async (projectUuid: string) => {
         context: {
             ...(config.context || {}),
             project: projectUuid,
+        },
+    });
+};
+
+export const setDefaultUser = async (userUuid: string) => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        user: {
+            ...(config.user || {}),
+            userUuid,
         },
     });
 };

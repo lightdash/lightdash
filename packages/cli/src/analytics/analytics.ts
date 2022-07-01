@@ -34,7 +34,7 @@ const identifyUser = async (): Promise<Config['user']> => {
     }
     return {
         anonymousUuid,
-        userUuid: config.context?.userUuid,
+        userUuid: config.user?.userUuid,
     };
 };
 

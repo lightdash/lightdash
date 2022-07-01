@@ -2,8 +2,8 @@ import { AuthorizationError, formatDate } from '@lightdash/common';
 import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
-import { setContext } from '../config';
-import { setProject } from './setProject';
+import { setContext, setDefaultUser } from '../config';
+import { setProjectInteractively } from './setProject';
 
 export const login = async (url: string) => {
     const answers = await inquirer.prompt([
@@ -49,6 +49,7 @@ export const login = async (url: string) => {
     });
     const patResponseBody = await patResponse.json();
     const apiKey = patResponseBody.results.token;
-    await setContext({ serverUrl: url, apiKey, userUuid });
-    await setProject();
+    await setContext({ serverUrl: url, apiKey });
+    await setDefaultUser(userUuid);
+    await setProjectInteractively();
 };

@@ -4,7 +4,7 @@ import { URL } from 'url';
 import { getConfig, setProjectUuid } from '../config';
 import { lightdashApi } from './dbt/apiClient';
 
-export const setProject = async () => {
+export const setProjectInteractively = async () => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
