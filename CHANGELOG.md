@@ -1,3 +1,10 @@
+# [0.169.0](https://github.com/lightdash/lightdash/compare/0.168.0...0.169.0) (2022-07-04)
+
+
+### Features
+
+* smooth line chart ([#2611](https://github.com/lightdash/lightdash/issues/2611)) ([5f4f00f](https://github.com/lightdash/lightdash/commit/5f4f00f42b4eb62d1c98903322058cdea2e6d45a))
+
 # [0.168.0](https://github.com/lightdash/lightdash/compare/0.167.1...0.168.0) (2022-07-01)
 
 
