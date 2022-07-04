@@ -1,3 +1,10 @@
+## [0.170.2](https://github.com/lightdash/lightdash/compare/0.170.1...0.170.2) (2022-07-04)
+
+
+### Bug Fixes
+
+* encode uri components in redshift connection string ([#2625](https://github.com/lightdash/lightdash/issues/2625)) ([f25b495](https://github.com/lightdash/lightdash/commit/f25b495906186c00d0dec7423249e0dac3c555b1))
+
 ## [0.170.1](https://github.com/lightdash/lightdash/compare/0.170.0...0.170.1) (2022-07-04)
 
 
