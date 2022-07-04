@@ -73,6 +73,13 @@ module.exports = {
         {
           type: "category",
           label: "The Lightdash CLI",
+          link: {
+            type: 'generated-index',
+            title: 'The Lightdash CLI',
+            description: 'Here are some guides to help you get familiar with the Lightdash CLI!',
+            slug: '/guides/cli/intro',
+            keywords: ['cli'],
+          },
           items: [
             "guides/cli/how-to-install-the-lightdash-cli",
             "guides/cli/how-to-updgrade-cli",
