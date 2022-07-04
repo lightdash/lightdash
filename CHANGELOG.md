@@ -1,3 +1,10 @@
+## [0.170.1](https://github.com/lightdash/lightdash/compare/0.170.0...0.170.1) (2022-07-04)
+
+
+### Bug Fixes
+
+* update callout to show dbt 1.1.0 required ([#2626](https://github.com/lightdash/lightdash/issues/2626)) ([1f13cc5](https://github.com/lightdash/lightdash/commit/1f13cc536b535b3f9b0774d19e007aa152bc0a77))
+
 # [0.170.0](https://github.com/lightdash/lightdash/compare/0.169.0...0.170.0) (2022-07-04)
 
 
