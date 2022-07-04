@@ -1,3 +1,10 @@
+# [0.170.0](https://github.com/lightdash/lightdash/compare/0.169.0...0.170.0) (2022-07-04)
+
+
+### Features
+
+* new table config and show table names property ([#2617](https://github.com/lightdash/lightdash/issues/2617)) ([974b6d6](https://github.com/lightdash/lightdash/commit/974b6d65e578274cdf8c11b20c949451ec6f9d90))
+
 # [0.169.0](https://github.com/lightdash/lightdash/compare/0.168.0...0.169.0) (2022-07-04)
 
 
