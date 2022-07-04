@@ -70,7 +70,24 @@ module.exports = {
       type: "category",
       label: "👩‍🔧 Installation + operation",
       items: [
-        "guides/how-to-install-the-lightdash-cli",
+        {
+          type: "category",
+          label: "The Lightdash CLI",
+          link: {
+            type: 'generated-index',
+            title: 'The Lightdash CLI',
+            description: 'The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash instance. Here are some guides to get you started!',
+            slug: '/guides/cli/intro',
+            keywords: ['cli'],
+          },
+          items: [
+            "guides/cli/how-to-install-the-lightdash-cli",
+            "guides/cli/how-to-upgrade-cli",
+            "guides/cli/how-to-auto-generate-schema-files",
+            "guides/cli/how-to-use-lightdash-preview",
+            "guides/cli/how-to-use-lightdash-deploy"
+          ],
+        },
         "get-started/setup-lightdash/install-lightdash",
         "get-started/setup-lightdash/connect-project",
         "guides/how-to-deploy-to-kubernetes",

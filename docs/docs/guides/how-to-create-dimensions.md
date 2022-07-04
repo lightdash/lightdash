@@ -145,7 +145,7 @@ Before you get started with the next steps, you might want to check out onto a n
 
 :::
 
-Now, we're going to try adding a new column to our dbt project, then syncing it with Lightdash. We've made this really easy to do using our CLI tool. 
+Now, we're going to try adding a new column to our dbt project, then syncing it with Lightdash. We've made this really easy to do using our CLI tool.
 
 ### Add a column to one of your dbt models
 
@@ -181,7 +181,7 @@ Now, you should have your model .yml file with its new dimension `test` added in
 
 ## 5. Preview your changes using `lightdash preview`
 
-Once you've added a dimension to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy. 
+Once you've added a dimension to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy.
 
 **Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
 without affecting your production project.
@@ -224,12 +224,20 @@ If you're working with a version controlled project, you'll just want to make su
 
 Once they've been merged or if you're just working off of `main` (_rebel_ 😏), you can deploy your changes.
 
-To do this, just run this command in your terminal:
+To do this, you'll want run these commands in your terminal:
 
 ```shell
-lightdash deploy
+git checkout main # checkout main or master - or whatever your production branch name is
+git pull
+lightdash deploy # --target prod. If you use developer profiles in your dbt project, you might need this flag. See below.
 ```
 
 This will deploy the changes in your dbt project to the Lightdash project you set up on your CLI tool earlier.
+
+:::info
+
+**Note:** Lightdash's deploy commnd will deploy using your **default dbt target** unless you specify to use a different target. For example, if you've set up a developer profile where it targets a dev dataset (like `dbt_khindson.my_model_names`), then you'll need to pass the production target in your `lightdash deploy` command. Something like: `lightdash deploy --target prod`.
+
+:::
 
 And voilà! Your new dbt dimension is available to explore in Lightdash.

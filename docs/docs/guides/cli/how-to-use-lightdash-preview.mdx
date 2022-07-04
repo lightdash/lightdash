@@ -1,0 +1,24 @@
+# How to use `lightdash preview` to create a developer preview environment
+
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics and charts 
+without affecting your production project.
+
+<a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
+    <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
+</a>
+
+Follow the instructions above and when you're ready to preview your dbt project, run the following from inside your 
+project:
+
+```shell
+dbt compile
+lightdash preview
+```
+
+Then `cmd` + `click` to open the preview link from your terminal. Once you're in Lightdash go to `Explore` --> `Tables`, then click on the model(s) you just updated to see your changes and play around with them.
+
+**Problems with credentials?**
+
+When you create developer previews, Lightdash will use the same warehouse connection settings you have in your 
+`profiles.yml` file for your current dbt project. This can be a problem if you're using a local database that your 
+laptop can reach but your Lightdash instance cannot.
