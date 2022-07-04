@@ -2,7 +2,7 @@
 sidebar_position: 6
 ---
 
-# Syncing your dbt changes (refresh dbt)
+# Syncing your dbt changes
 
 You can easily make changes in dbt and see them updated in your Lightdash project.
 

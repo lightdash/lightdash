@@ -145,7 +145,7 @@ Before you get started with the next steps, you might want to check out onto a n
 
 :::
 
-Now, we're going to try adding a new column to our dbt project, then syncing it with Lightdash. We've made this really easy to do using our CLI tool. 
+Now, we're going to try adding a new column to our dbt project, then syncing it with Lightdash. We've made this really easy to do using our CLI tool.
 
 ### Add a column to one of your dbt models
 
@@ -181,7 +181,7 @@ Now, you should have your model .yml file with its new dimension `test` added in
 
 ## 5. Preview your changes using `lightdash preview`
 
-Once you've added a dimension to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy. 
+Once you've added a dimension to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy.
 
 **Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
 without affecting your production project.
@@ -231,5 +231,11 @@ lightdash deploy
 ```
 
 This will deploy the changes in your dbt project to the Lightdash project you set up on your CLI tool earlier.
+
+:::info
+
+**Note:** Lightdash's deploy commnd will deploy using your **default dbt target** unless you specify to use a different target. For example, if you've set up a developer profile where it targets a dev dataset (like `dbt_khindson.my_model_names`), then you'll need to pass the production target in your `lightdash deploy` command. Something like: `lightdash deploy --target prod`.
+
+:::
 
 And voilà! Your new dbt dimension is available to explore in Lightdash.
