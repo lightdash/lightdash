@@ -22,8 +22,13 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export type ColumnProperties = {
+    field: string;
+    visible?: boolean;
+};
 export type TableChart = {
     showTableNames?: boolean;
+    columns?: ColumnProperties;
 };
 
 type TableChartConfig = {

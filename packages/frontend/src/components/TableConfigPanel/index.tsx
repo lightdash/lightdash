@@ -2,11 +2,19 @@ import { Button, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import ColumnConfiguration from './ColumnConfiguration';
 import { ConfigWrapper } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {
-        tableConfig: { showTableNames, setShowTableName },
+        tableConfig: {
+            columnOrder,
+            showTableNames,
+            setShowTableName,
+            headers,
+            columnProperties,
+            updateColumnProperty,
+        },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -20,6 +28,12 @@ export const TableConfigPanel: React.FC = () => {
                         onChange={(e) => {
                             setShowTableName(!showTableNames);
                         }}
+                    />
+
+                    <ColumnConfiguration
+                        fieldIds={columnOrder}
+                        columnProperties={columnProperties}
+                        updateColumnProperty={updateColumnProperty}
                     />
                 </ConfigWrapper>
             }
