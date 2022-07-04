@@ -1,7 +1,7 @@
 import { ApiQueryResults, Explore, TableChart } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 
-const useBigNumberConfig = (
+const useTableConfig = (
     tableChartConfig: TableChart | undefined,
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
