@@ -73,7 +73,6 @@ export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
         display: grid;
         grid-template-columns: 2.143em auto;
         column-gap: 0.714em;
-        align-items: end;
   `}
 `;
 
@@ -87,11 +86,12 @@ export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
     ${GridTemplate}
 
     ${({ $isGrouped }) =>
-        $isGrouped &&
-        `
+        $isGrouped
+            ? `
         grid-template-columns: 2.143em 12.5em 2.143em 2.14em;
         column-gap: 0.357em;
-  `}
+        `
+            : `margin-top: 25px;`}
 `;
 
 export const SeriesInputField = styled(InputGroup)`
