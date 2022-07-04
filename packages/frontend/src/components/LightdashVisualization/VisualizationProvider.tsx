@@ -19,6 +19,7 @@ import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import usePlottedData from '../../hooks/usePlottedData';
+import useTableConfig from '../../hooks/useTableConfig';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type VisualizationContext = {
@@ -26,6 +27,7 @@ type VisualizationContext = {
     chartType: ChartType;
     cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
     bigNumberConfig: ReturnType<typeof useBigNumberConfig>;
+    tableConfig: ReturnType<typeof useTableConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
@@ -97,8 +99,16 @@ export const VisualizationProvider: FC<Props> = ({
         explore,
     );
 
-    const { validBigNumberConfig } = bigNumberConfig;
+    const tableConfig = useTableConfig(
+        initialChartConfig?.type === ChartType.TABLE
+            ? initialChartConfig.config
+            : undefined,
+        lastValidResultsData,
+        explore,
+    );
 
+    const { validBigNumberConfig } = bigNumberConfig;
+    const { validTableConfig } = tableConfig;
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig:
             initialChartConfig?.type === ChartType.CARTESIAN
@@ -128,6 +138,7 @@ export const VisualizationProvider: FC<Props> = ({
                 validConfig = validBigNumberConfig;
                 break;
             case ChartType.TABLE:
+                validConfig = validTableConfig;
                 break;
             default:
                 const never: never = chartType;
@@ -139,6 +150,7 @@ export const VisualizationProvider: FC<Props> = ({
         onChartConfigChange,
         chartType,
         validBigNumberConfig,
+        validTableConfig,
     ]);
 
     useEffect(() => {
@@ -151,6 +163,7 @@ export const VisualizationProvider: FC<Props> = ({
                 pivotDimensions: validPivotDimensions,
                 cartesianConfig,
                 bigNumberConfig,
+                tableConfig,
                 chartRef,
                 chartType,
                 explore,

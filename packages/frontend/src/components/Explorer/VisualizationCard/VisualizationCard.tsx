@@ -11,6 +11,7 @@ import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
+import TableConfigPanel from '../../TableConfigPanel';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import {
     CardHeader,
@@ -20,6 +21,16 @@ import {
     VisualizationCardContentWrapper,
 } from './VisualizationCard.styles';
 
+const ConfigPanel: FC<{ chartType: ChartType }> = ({ chartType }) => {
+    switch (chartType) {
+        case ChartType.BIG_NUMBER:
+            return <BigNumberConfigPanel />;
+        case ChartType.TABLE:
+            return <TableConfigPanel />;
+        default:
+            return <ChartConfigPanel />;
+    }
+};
 const VisualizationCard: FC = () => {
     const {
         state: { isEditMode, unsavedChartVersion, expandedSections },
@@ -80,12 +91,11 @@ const VisualizationCard: FC = () => {
                             {isEditMode && (
                                 <>
                                     <VisualizationCardOptions />
-                                    {unsavedChartVersion.chartConfig.type ===
-                                    ChartType.BIG_NUMBER ? (
-                                        <BigNumberConfigPanel />
-                                    ) : (
-                                        <ChartConfigPanel />
-                                    )}
+                                    <ConfigPanel
+                                        chartType={
+                                            unsavedChartVersion.chartConfig.type
+                                        }
+                                    />
                                 </>
                             )}
                             <ChartDownloadMenu />

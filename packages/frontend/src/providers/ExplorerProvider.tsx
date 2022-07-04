@@ -8,6 +8,7 @@ import {
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
+    isTableChartConfig,
     MetricQuery,
     removeEmptyProperties,
     SavedChart,
@@ -220,7 +221,7 @@ export const getValidChartConfig = (
         case ChartType.TABLE: {
             return {
                 type,
-                config: undefined,
+                config: isTableChartConfig(config) ? config : {},
             };
         }
     }
