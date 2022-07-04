@@ -25,4 +25,4 @@ const useTableConfig = (
     };
 };
 
-export default useBigNumberConfig;
+export default useTableConfig;
