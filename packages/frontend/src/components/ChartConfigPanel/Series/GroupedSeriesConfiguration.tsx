@@ -231,7 +231,8 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     />
                                 </SeriesExtraInputWrapper>
                             </GroupSeriesInputs>
-                            {chartValue === CartesianSeriesType.LINE && (
+                            {(chartValue === CartesianSeriesType.LINE ||
+                                chartValue === CartesianSeriesType.AREA) && (
                                 <GroupSeriesInputs>
                                     <Switch
                                         alignIndicator={'right'}

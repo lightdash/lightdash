@@ -184,7 +184,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     </SeriesExtraInputWrapper>
                 </SeriesExtraInputs>
-                {type === CartesianSeriesType.LINE && (
+                {(type === CartesianSeriesType.LINE ||
+                    type === CartesianSeriesType.AREA) && (
                     <SeriesExtraInputs>
                         <Switch
                             alignIndicator={'right'}
