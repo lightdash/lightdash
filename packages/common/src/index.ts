@@ -1,6 +1,7 @@
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
+import { convertAdditionalMetric } from './types/dbt';
 import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
@@ -16,6 +17,7 @@ import {
     isDimension,
     isField,
     isFilterableDimension,
+    Metric,
     MetricType,
     TimeInterval,
 } from './types/field';
@@ -1099,10 +1101,23 @@ export function getItemMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
     tableCalculations: TableCalculation[] = [],
-): Record<string, Field | TableCalculation | AdditionalMetric> {
+): Record<string, Field | TableCalculation> {
+    const convertedAdditionalMetrics = (additionalMetrics || []).reduce<
+        Metric[]
+    >((acc, additionalMetric) => {
+        const table = explore.tables[additionalMetric.table];
+        if (table) {
+            const metric = convertAdditionalMetric({
+                additionalMetric,
+                table,
+            });
+            return [...acc, metric];
+        }
+        return acc;
+    }, []);
     return [
         ...getFields(explore),
-        ...additionalMetrics,
+        ...convertedAdditionalMetrics,
         ...tableCalculations,
     ].reduce(
         (acc, item) => ({
