@@ -1,18 +1,12 @@
 import { LightdashUser } from '@lightdash/common';
 import fetch from 'node-fetch';
-import { v4 as uuidv4 } from 'uuid';
-import { Config, getConfig, setAnonymousUuid } from '../config';
+import { Config, getConfig } from '../config';
 import { lightdashApi } from '../handlers/dbt/apiClient';
 
 const { version: VERSION } = require('../../package.json');
 
 const identifyUser = async (): Promise<Config['user']> => {
     const config = await getConfig();
-    let anonymousUuid = config.user?.anonymousUuid;
-    if (anonymousUuid === undefined) {
-        anonymousUuid = uuidv4();
-        await setAnonymousUuid(anonymousUuid);
-    }
     if (
         process.env.LIGHTDASH_API_KEY &&
         config.context?.serverUrl &&
@@ -25,7 +19,7 @@ const identifyUser = async (): Promise<Config['user']> => {
                 body: undefined,
             });
             return {
-                anonymousUuid,
+                anonymousUuid: config.user?.anonymousUuid,
                 userUuid: user.userUuid,
             };
         } catch {
@@ -33,7 +27,7 @@ const identifyUser = async (): Promise<Config['user']> => {
         }
     }
     return {
-        anonymousUuid,
+        anonymousUuid: config.user?.anonymousUuid,
         userUuid: config.user?.userUuid,
     };
 };

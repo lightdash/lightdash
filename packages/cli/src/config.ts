@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as os from 'os';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 const configDir = path.join(os.homedir(), '.config', 'lightdash');
 const configFilePath = path.join(configDir, 'config.yaml');
@@ -35,8 +36,22 @@ const getRawConfig = async (): Promise<Config> => {
     }
 };
 
+const setAnonymousUuid = async (anonymousUuid: string) => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        user: {
+            ...(config.user || {}),
+            anonymousUuid,
+        },
+    });
+};
+
 export const getConfig = async (): Promise<Config> => {
     const rawConfig = await getRawConfig();
+    if (rawConfig.user?.anonymousUuid === undefined) {
+        await setAnonymousUuid(uuidv4());
+    }
     return {
         ...rawConfig,
         context: {
@@ -48,17 +63,6 @@ export const getConfig = async (): Promise<Config> => {
                 process.env.LIGHTDASH_URL || rawConfig.context?.serverUrl,
         },
     };
-};
-
-export const setAnonymousUuid = async (anonymousUuid: string) => {
-    const config = await getRawConfig();
-    await setConfig({
-        ...config,
-        user: {
-            ...(config.user || {}),
-            anonymousUuid,
-        },
-    });
 };
 
 export const setProjectUuid = async (projectUuid: string) => {
