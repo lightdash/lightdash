@@ -24,8 +24,13 @@ import {
 } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
-    const { resultsData, isLoading, columnOrder, explore } =
-        useVisualizationContext();
+    const {
+        resultsData,
+        isLoading,
+        columnOrder,
+        explore,
+        tableConfig: { showTableNames },
+    } = useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
@@ -50,7 +55,8 @@ const SimpleTable: FC = () => {
             return getAdditionalMetricLabel(field);
         } else if (isField(field)) {
             // Field
-            return getItemLabel(field);
+
+            return showTableNames ? getItemLabel(field) : field.label;
         } else {
             //TableCalculation
             return friendlyName(fieldId);

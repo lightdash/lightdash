@@ -22,9 +22,13 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export type TableChart = {
+    showTableNames?: boolean;
+};
+
 type TableChartConfig = {
     type: ChartType.TABLE;
-    config: undefined;
+    config?: TableChart;
 };
 
 export enum CartesianSeriesType {
@@ -181,6 +185,10 @@ export const isCartesianChartConfig = (
 export const isBigNumberConfig = (
     value: ChartConfig['config'],
 ): value is BigNumber => !!value && !isCartesianChartConfig(value);
+
+export const isTableChartConfig = (
+    value: ChartConfig['config'],
+): value is TableChart => !!value && !isCartesianChartConfig(value);
 
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
