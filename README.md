@@ -1,5 +1,5 @@
 <h1 align="center">
-        <a target="_blank" href="https://www.lightdash.com"><img align="center" style="max-width:300px;" src="/static/screenshots/lightdash_logo_banner_dark.png"> </a>
+        <a target="_blank" href="https://www.lightdash.com"><img align="center" style="width:300px;" src="https://assets.website-files.com/62a9ae93cf7542032ae55b9c/62c2b40ef97098f7c1feb34e_Gh-logo1.png"> </a>
 </h1>
 
 <p align="center">The open-source Looker alternative.</p>
