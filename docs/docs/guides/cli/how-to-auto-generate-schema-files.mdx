@@ -1,0 +1,56 @@
+# How to autogenerate Lightdash-ready .yml files for your models
+
+The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
+
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
+
+:::info
+
+Not too sure what a .yml file or a Table is? Be sure to check out our tutorial on [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash) for more details.
+
+:::
+
+## Auto-generate `schema.yml` files
+
+<a href="https://www.loom.com/share/82833c5ea8a841dbb0ebdbcd878f85a1">
+    <img src="https://cdn.loom.com/sessions/thumbnails/82833c5ea8a841dbb0ebdbcd878f85a1-with-play.gif" />
+</a>
+
+To make it faster to write and maintain your `schema.yml` files, the Lightdash CLI will automatically generate and 
+sync your `schema.yml` files.
+
+Inside your dbt project, open a terminal and run this command to generate the `schema.yml` file for a model called 
+`mymodel`:
+
+```shell
+git commit # make sure to commit all your existing project first!
+lightdash generate -s mymodel
+```
+
+This will create or update an existing `schema.yml` file to add any new columns that have appeared in the database. 
+
+## Auto-sync `schema.yml` files after `dbt run` 
+
+Since the `generate` command relies on your database schema to detect which columns are required, you'll often want
+to run `dbt run` before running `generate`. You can combine `dbt run` and `lighdash generate` into one command which 
+will run models and then regenerate the 
+`schema.yml` files for any models than changed:
+
+```shell
+git commit
+lightdash dbt run  # Run dbt AND re-sync schema.yml files
+```
+
+## Generating `schema.yml` for multiple models
+
+`lightdash generate` supports dbt model selection syntax to generate files for a group of models:
+```shell
+lightdash generate # all models
+lightdash generate -s payments  # just payments
+lightdash generate -s payments+ # payments and all children
+lightdash generate -s +payments # payments and all parents
+lightdash generate -s +payments+ # payments and all children and parents
+lightdash generate -s tag:prod # all models with the prod tag
+lightdash generate -s payments customers # two specific models
+lightdash generate -s payments+ +customers tag:prod # mix and match
+```

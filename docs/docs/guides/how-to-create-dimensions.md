@@ -224,10 +224,12 @@ If you're working with a version controlled project, you'll just want to make su
 
 Once they've been merged or if you're just working off of `main` (_rebel_ 😏), you can deploy your changes.
 
-To do this, just run this command in your terminal:
+To do this, you'll want run these commands in your terminal:
 
 ```shell
-lightdash deploy
+git checkout main # checkout main or master - or whatever your production branch name is
+git pull
+lightdash deploy # --target prod. If you use developer profiles in your dbt project, you might need this flag. See below.
 ```
 
 This will deploy the changes in your dbt project to the Lightdash project you set up on your CLI tool earlier.

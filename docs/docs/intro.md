@@ -19,7 +19,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 ## 👩‍🔧 Installation + operation
 
-- [Install the Lightdash CLI](/guides/how-to-install-the-lightdash-cli.mdx)
+- [Install the Lightdash CLI](/guides/cli/how-to-install-the-lightdash-cli.mdx)
 - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
 - [Connect a project](/get-started/setup-lightdash/connect-project.mdx)
 - [Deploy to Kubernetes](/guides/how-to-deploy-to-kubernetes.md)

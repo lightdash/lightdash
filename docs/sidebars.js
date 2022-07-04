@@ -70,7 +70,17 @@ module.exports = {
       type: "category",
       label: "👩‍🔧 Installation + operation",
       items: [
-        "guides/how-to-install-the-lightdash-cli",
+        {
+          type: "category",
+          label: "The Lightdash CLI",
+          items: [
+            "guides/cli/how-to-install-the-lightdash-cli",
+            "guides/cli/how-to-updgrade-cli",
+            "guides/cli/how-to-auto-generate-schema-files",
+            "guides/cli/how-to-use-lightdash-preview",
+            "guides/cli/how-to-use-lightdash-deploy"
+          ],
+        },
         "get-started/setup-lightdash/install-lightdash",
         "get-started/setup-lightdash/connect-project",
         "guides/how-to-deploy-to-kubernetes",
