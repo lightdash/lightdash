@@ -82,7 +82,7 @@ module.exports = {
           },
           items: [
             "guides/cli/how-to-install-the-lightdash-cli",
-            "guides/cli/how-to-updgrade-cli",
+            "guides/cli/how-to-upgrade-cli",
             "guides/cli/how-to-auto-generate-schema-files",
             "guides/cli/how-to-use-lightdash-preview",
             "guides/cli/how-to-use-lightdash-deploy"
