@@ -76,7 +76,7 @@ module.exports = {
           link: {
             type: 'generated-index',
             title: 'The Lightdash CLI',
-            description: 'Here are some guides to help you get familiar with the Lightdash CLI!',
+            description: 'The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash instance. Here are some guides to get you started!',
             slug: '/guides/cli/intro',
             keywords: ['cli'],
           },
