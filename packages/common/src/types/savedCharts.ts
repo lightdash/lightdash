@@ -57,6 +57,8 @@ export type Series = {
     };
     hidden?: boolean;
     areaStyle?: {};
+    showSymbol?: boolean;
+    smooth?: boolean;
 };
 
 export type EchartsLegend = {

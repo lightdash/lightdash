@@ -39,7 +39,6 @@ export const GroupSeriesBlock = styled.div`
 
 export const GroupSeriesWrapper = styled.div`
     padding: 1em;
-    margin-top: 0.714em;
     background: ${Colors.LIGHT_GRAY5};
     border-radius: 0.286em;
 `;
@@ -53,6 +52,7 @@ export const GroupSeriesInputs = styled.div`
     flex: 1;
     gap: 0.714em;
     justify-content: space-between;
+    margin-bottom: 0.714em;
 `;
 
 export const SeriesBlock = styled.div`
@@ -73,7 +73,6 @@ export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
         display: grid;
         grid-template-columns: 2.143em auto;
         column-gap: 0.714em;
-        align-items: end;
   `}
 `;
 
@@ -87,11 +86,12 @@ export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
     ${GridTemplate}
 
     ${({ $isGrouped }) =>
-        $isGrouped &&
-        `
+        $isGrouped
+            ? `
         grid-template-columns: 2.143em 12.5em 2.143em 2.14em;
         column-gap: 0.357em;
-  `}
+        `
+            : `margin-top: 25px;`}
 `;
 
 export const SeriesInputField = styled(InputGroup)`

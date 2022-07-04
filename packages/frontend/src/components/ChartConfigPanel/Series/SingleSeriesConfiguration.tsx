@@ -1,4 +1,4 @@
-import { Button, InputGroup } from '@blueprintjs/core';
+import { Button, InputGroup, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -184,6 +184,33 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     </SeriesExtraInputWrapper>
                 </SeriesExtraInputs>
+                {(type === CartesianSeriesType.LINE ||
+                    type === CartesianSeriesType.AREA) && (
+                    <SeriesExtraInputs>
+                        <Switch
+                            alignIndicator={'right'}
+                            checked={series.showSymbol ?? true}
+                            label={'Show symbol'}
+                            onChange={() => {
+                                updateSingleSeries({
+                                    ...series,
+                                    showSymbol: !(series.showSymbol ?? true),
+                                });
+                            }}
+                        />
+                        <Switch
+                            alignIndicator={'right'}
+                            checked={series.smooth}
+                            label={'Smooth'}
+                            onChange={() => {
+                                updateSingleSeries({
+                                    ...series,
+                                    smooth: !series.smooth,
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputs>
+                )}
             </SeriesOptionsWrapper>
         </SeriesWrapper>
     );
