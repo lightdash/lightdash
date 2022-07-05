@@ -10,7 +10,10 @@ import {
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
-import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
+import {
+    SubmitErrorHandler,
+    UseFormReturn,
+} from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
 import {
     useCreateMutation,
@@ -49,6 +52,7 @@ interface Props {
     defaultType?: DbtProjectType;
     selectedWarehouse?: SelectedWarehouse | undefined;
     isProjectUpdate?: boolean | undefined;
+    methods: UseFormReturn<ProjectConnectionForm, object>;
 }
 
 const ProjectForm: FC<Props> = ({
@@ -57,6 +61,7 @@ const ProjectForm: FC<Props> = ({
     defaultType,
     selectedWarehouse,
     isProjectUpdate,
+    methods,
 }) => {
     const [hasWarehouse, setHasWarehouse] = useState<
         SelectedWarehouse | undefined
@@ -173,6 +178,7 @@ const ProjectForm: FC<Props> = ({
                         disabled={disabled}
                         defaultType={defaultType}
                         selectedWarehouse={hasWarehouse}
+                        methods={methods}
                     />
                 </div>
             </Card>
@@ -300,6 +306,7 @@ export const UpdateProjectConnection: FC<{
                         isProjectUpdate
                         disabled={isDisabled}
                         defaultType={health.data?.defaultProject?.type}
+                        methods={methods}
                     />
                 </FormWrapper>
             </ProjectFormProvider>
@@ -391,6 +398,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         disabled={isSaving || !!activeJobIsRunning}
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
+                        methods={methods}
                     />
                 </FormWrapper>
             </ProjectFormProvider>
