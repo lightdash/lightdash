@@ -12,8 +12,8 @@ export const ColumnConfiguration: React.FC = () => {
         tableConfig: {
             columnOrder,
             updateColumnProperty,
-            columnHeader,
-            filterVisible,
+            getColumnHeader,
+            isFilterVisible,
         },
     } = useVisualizationContext();
     return (
@@ -21,15 +21,17 @@ export const ColumnConfiguration: React.FC = () => {
             {columnOrder.map((fieldId) => {
                 return (
                     <ColumnWrapper>
-                        <ColumnTitle>{columnHeader(fieldId)}</ColumnTitle>
+                        <ColumnTitle>{getColumnHeader(fieldId)}</ColumnTitle>
 
                         <ConfigButton
                             icon={
-                                filterVisible(fieldId) ? 'eye-off' : 'eye-open'
+                                isFilterVisible(fieldId)
+                                    ? 'eye-off'
+                                    : 'eye-open'
                             }
                             onClick={() => {
                                 updateColumnProperty(fieldId, {
-                                    visible: !filterVisible(fieldId),
+                                    visible: !isFilterVisible(fieldId),
                                 });
                             }}
                         />
