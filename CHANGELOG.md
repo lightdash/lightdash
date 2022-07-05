@@ -1,3 +1,10 @@
+## [0.171.1](https://github.com/lightdash/lightdash/compare/0.171.0...0.171.1) (2022-07-05)
+
+
+### Bug Fixes
+
+* strip timezone from truncated snowflake fields ([#2629](https://github.com/lightdash/lightdash/issues/2629)) ([f80fa93](https://github.com/lightdash/lightdash/commit/f80fa93dbc24e213bc63da4fb8c3668056bdc21b))
+
 # [0.171.0](https://github.com/lightdash/lightdash/compare/0.170.2...0.171.0) (2022-07-05)
 
 
