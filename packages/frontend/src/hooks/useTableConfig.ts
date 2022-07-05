@@ -28,8 +28,8 @@ const useTableConfig = (
     );
 
     const [columnProperties, setColumnProperties] = useState<
-        ColumnProperties[]
-    >(tableChartConfig?.columns === undefined ? [] : tableChartConfig?.columns);
+        Record<string, ColumnProperties>
+    >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
     const itemMap = useMemo<
         Record<string, Field | AdditionalMetric | TableCalculation>
@@ -44,7 +44,7 @@ const useTableConfig = (
         return {};
     }, [explore, resultsData]);
 
-    const columnHeader = (fieldId: string) => {
+    const getColumnHeader = (fieldId: string) => {
         const field = itemMap && itemMap[fieldId];
         if (isAdditionalMetric(field)) {
             // AdditionalMetric
@@ -58,33 +58,28 @@ const useTableConfig = (
         }
     };
 
-    const filterVisible = (fieldId: string) =>
-        columnProperties.find((column) => column.field === fieldId)?.visible !==
-        false;
+    const isFilterVisible = (fieldId: string) =>
+        columnProperties[fieldId]?.visible ?? true;
 
     const getHeader = (fieldId: string) => {
-        const existingProperties = columnProperties.find(
-            (column) => column.field === fieldId,
-        );
-
-        return existingProperties?.name || columnHeader(fieldId);
+        const properties = columnProperties[fieldId];
+        return properties?.name || getColumnHeader(fieldId);
     };
 
     const updateColumnProperty = (
         field: string,
         properties: Partial<ColumnProperties>,
     ) => {
-        const existingProperties = columnProperties.find(
-            (column) => column.field === field,
-        );
-        setColumnProperties([
-            ...columnProperties.filter((column) => column.field !== field),
-            {
-                field: field,
-                ...existingProperties,
-                ...properties,
-            },
-        ]);
+        const newProperties =
+            field in columnProperties
+                ? { ...columnProperties[field], ...properties }
+                : {
+                      ...properties,
+                  };
+        setColumnProperties({
+            ...columnProperties,
+            [field]: newProperties,
+        });
     };
 
     const validTableConfig: TableChart = useMemo(
@@ -104,9 +99,8 @@ const useTableConfig = (
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
-        columnHeader,
-        filterVisible,
         getHeader,
+        isFilterVisible,
     };
 };
 

@@ -17,7 +17,8 @@ const SimpleTable: FC = () => {
         isLoading,
         columnOrder,
         explore,
-        tableConfig: { itemMap, filterVisible, getHeader },
+
+        tableConfig: { itemMap, getHeader, isFilterVisible },
     } = useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
@@ -35,7 +36,7 @@ const SimpleTable: FC = () => {
                             <TableHeader>
                                 <tr>
                                     {columnOrder
-                                        .filter(filterVisible)
+                                        .filter(isFilterVisible)
                                         .map((fieldId: string) => (
                                             <th>{getHeader(fieldId)}</th>
                                         ))}
@@ -45,7 +46,7 @@ const SimpleTable: FC = () => {
                                 {tableItems.map((row, i: number) => (
                                     <TableRow i={i}>
                                         {columnOrder
-                                            .filter(filterVisible)
+                                            .filter(isFilterVisible)
                                             .map((fieldId) => (
                                                 <TableCell
                                                     key={fieldId}

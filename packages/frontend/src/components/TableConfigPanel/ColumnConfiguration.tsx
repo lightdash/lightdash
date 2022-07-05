@@ -12,7 +12,7 @@ export const ColumnConfiguration: React.FC = () => {
             columnOrder,
             updateColumnProperty,
             getHeader,
-            filterVisible,
+            isFilterVisible,
         },
     } = useVisualizationContext();
     return (
@@ -22,7 +22,7 @@ export const ColumnConfiguration: React.FC = () => {
                     <ColumnWrapper>
                         <InputGroup
                             fill
-                            disabled={!filterVisible(fieldId)}
+                            disabled={!isFilterVisible(fieldId)}
                             defaultValue={getHeader(fieldId)}
                             onBlur={(e) => {
                                 updateColumnProperty(fieldId, {
@@ -33,11 +33,13 @@ export const ColumnConfiguration: React.FC = () => {
 
                         <Button
                             icon={
-                                filterVisible(fieldId) ? 'eye-off' : 'eye-open'
+                                isFilterVisible(fieldId)
+                                    ? 'eye-off'
+                                    : 'eye-open'
                             }
                             onClick={() => {
                                 updateColumnProperty(fieldId, {
-                                    visible: !filterVisible(fieldId),
+                                    visible: !isFilterVisible(fieldId),
                                 });
                             }}
                         />
