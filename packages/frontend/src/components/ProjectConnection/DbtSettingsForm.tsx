@@ -6,7 +6,6 @@ import {
 import { FC, useMemo, useState } from 'react';
 import { UseFormReturn, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
-import Form from '../ReactHookForm/Form';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
 import { MultiKeyValuePairsInput } from '../ReactHookForm/MultiKeyValuePairsInput';
@@ -156,7 +155,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 disabled={disabled}
                 defaultValue={DbtProjectType.GITHUB}
             />
-            <Form methods={methods}>{form}</Form>
+            {form}
             <FormSection name="target">
                 <Input
                     name="dbt.target"
