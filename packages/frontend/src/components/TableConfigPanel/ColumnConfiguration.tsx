@@ -1,10 +1,9 @@
+import { Button, InputGroup } from '@blueprintjs/core';
 import React from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     ColumnConfigurationWrapper,
-    ColumnTitle,
     ColumnWrapper,
-    ConfigButton,
 } from './ColumnConfiguration.styles';
 
 export const ColumnConfiguration: React.FC = () => {
@@ -12,7 +11,7 @@ export const ColumnConfiguration: React.FC = () => {
         tableConfig: {
             columnOrder,
             updateColumnProperty,
-            columnHeader,
+            getHeader,
             filterVisible,
         },
     } = useVisualizationContext();
@@ -21,9 +20,18 @@ export const ColumnConfiguration: React.FC = () => {
             {columnOrder.map((fieldId) => {
                 return (
                     <ColumnWrapper>
-                        <ColumnTitle>{columnHeader(fieldId)}</ColumnTitle>
+                        <InputGroup
+                            fill
+                            disabled={!filterVisible(fieldId)}
+                            defaultValue={getHeader(fieldId)}
+                            onBlur={(e) => {
+                                updateColumnProperty(fieldId, {
+                                    name: e.currentTarget.value,
+                                });
+                            }}
+                        />
 
-                        <ConfigButton
+                        <Button
                             icon={
                                 filterVisible(fieldId) ? 'eye-off' : 'eye-open'
                             }

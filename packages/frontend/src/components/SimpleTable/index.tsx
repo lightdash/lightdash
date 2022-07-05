@@ -17,13 +17,13 @@ const SimpleTable: FC = () => {
         isLoading,
         columnOrder,
         explore,
-        tableConfig: { itemMap, headers, filterVisible },
+        tableConfig: { itemMap, filterVisible, getHeader },
     } = useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
 
-    const validData = tableItems && headers;
+    const validData = tableItems;
     if (isLoading) return <LoadingChart />;
 
     return (
@@ -34,9 +34,11 @@ const SimpleTable: FC = () => {
                         <HTMLTable style={{ width: '100%' }} bordered condensed>
                             <TableHeader>
                                 <tr>
-                                    {headers.map((header: string) => (
-                                        <th>{header}</th>
-                                    ))}
+                                    {columnOrder
+                                        .filter(filterVisible)
+                                        .map((fieldId: string) => (
+                                            <th>{getHeader(fieldId)}</th>
+                                        ))}
                                 </tr>
                             </TableHeader>
                             <tbody>

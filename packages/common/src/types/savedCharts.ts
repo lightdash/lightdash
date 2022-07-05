@@ -25,6 +25,7 @@ export type BigNumberConfig = {
 export type ColumnProperties = {
     field: string;
     visible?: boolean;
+    name?: string;
 };
 export type TableChart = {
     showTableNames?: boolean;

@@ -62,7 +62,13 @@ const useTableConfig = (
         columnProperties.find((column) => column.field === fieldId)?.visible !==
         false;
 
-    const headers = columnOrder.filter(filterVisible).map(columnHeader);
+    const getHeader = (fieldId: string) => {
+        const existingProperties = columnProperties.find(
+            (column) => column.field === fieldId,
+        );
+
+        return existingProperties?.name || columnHeader(fieldId);
+    };
 
     const updateColumnProperty = (
         field: string,
@@ -95,12 +101,12 @@ const useTableConfig = (
         showTableNames,
         setShowTableName,
         itemMap,
-        headers,
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
         columnHeader,
         filterVisible,
+        getHeader,
     };
 };
 
