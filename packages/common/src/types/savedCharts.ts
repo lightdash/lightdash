@@ -22,8 +22,12 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export type ColumnProperties = {
+    visible?: boolean;
+};
 export type TableChart = {
     showTableNames?: boolean;
+    columns?: Record<string, ColumnProperties>;
 };
 
 type TableChartConfig = {

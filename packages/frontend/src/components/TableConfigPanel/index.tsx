@@ -2,6 +2,7 @@ import { Button, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import ColumnConfiguration from './ColumnConfiguration';
 import { ConfigWrapper } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
@@ -21,6 +22,8 @@ export const TableConfigPanel: React.FC = () => {
                             setShowTableName(!showTableNames);
                         }}
                     />
+
+                    <ColumnConfiguration />
                 </ConfigWrapper>
             }
             interactionKind="click"

@@ -1,18 +1,6 @@
 import { HTMLTable, NonIdealState } from '@blueprintjs/core';
-import {
-    AdditionalMetric,
-    Field,
-    friendlyName,
-    getAdditionalMetricLabel,
-    getItemLabel,
-    getItemMap,
-    getResultValues,
-    isAdditionalMetric,
-    isField,
-    isNumericItem,
-    TableCalculation,
-} from '@lightdash/common';
-import React, { FC, useMemo } from 'react';
+import { getResultValues, isNumericItem } from '@lightdash/common';
+import React, { FC } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import {
@@ -29,39 +17,11 @@ const SimpleTable: FC = () => {
         isLoading,
         columnOrder,
         explore,
-        tableConfig: { showTableNames },
+        tableConfig: { itemMap, headers, isFilterVisible },
     } = useVisualizationContext();
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
-
-    const itemMap = useMemo<
-        Record<string, Field | AdditionalMetric | TableCalculation>
-    >(() => {
-        if (explore && resultsData) {
-            return getItemMap(
-                explore,
-                resultsData.metricQuery.additionalMetrics,
-                resultsData.metricQuery.tableCalculations,
-            );
-        }
-        return {};
-    }, [explore, resultsData]);
-
-    const headers = columnOrder.map((fieldId) => {
-        const field = itemMap && itemMap[fieldId];
-        if (isAdditionalMetric(field)) {
-            // AdditionalMetric
-            return getAdditionalMetricLabel(field);
-        } else if (isField(field)) {
-            // Field
-
-            return showTableNames ? getItemLabel(field) : field.label;
-        } else {
-            //TableCalculation
-            return friendlyName(fieldId);
-        }
-    });
 
     const validData = tableItems && headers;
     if (isLoading) return <LoadingChart />;
@@ -82,18 +42,20 @@ const SimpleTable: FC = () => {
                             <tbody>
                                 {tableItems.map((row, i: number) => (
                                     <TableRow i={i}>
-                                        {columnOrder.map((fieldId) => (
-                                            <TableCell
-                                                key={fieldId}
-                                                isNaN={
-                                                    !isNumericItem(
-                                                        itemMap[fieldId],
-                                                    )
-                                                }
-                                            >
-                                                {row[fieldId] || '-'}
-                                            </TableCell>
-                                        ))}
+                                        {columnOrder
+                                            .filter(isFilterVisible)
+                                            .map((fieldId) => (
+                                                <TableCell
+                                                    key={fieldId}
+                                                    isNaN={
+                                                        !isNumericItem(
+                                                            itemMap[fieldId],
+                                                        )
+                                                    }
+                                                >
+                                                    {row[fieldId] || '-'}
+                                                </TableCell>
+                                            ))}
                                     </TableRow>
                                 ))}
                             </tbody>
