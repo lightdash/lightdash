@@ -1,3 +1,10 @@
+## [0.171.3](https://github.com/lightdash/lightdash/compare/0.171.2...0.171.3) (2022-07-05)
+
+
+### Bug Fixes
+
+* reset dbt.host_domain field ([#2632](https://github.com/lightdash/lightdash/issues/2632)) ([db22d80](https://github.com/lightdash/lightdash/commit/db22d80453c5dc896c3947cd15c2428cd1b2eef2))
+
 ## [0.171.2](https://github.com/lightdash/lightdash/compare/0.171.1...0.171.2) (2022-07-05)
 
 
