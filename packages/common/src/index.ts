@@ -1,3 +1,4 @@
+import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import { Explore, SummaryExplore } from './types/explore';
@@ -16,6 +17,7 @@ import {
     isField,
     isFilterableDimension,
     MetricType,
+    TimeInterval,
 } from './types/field';
 import {
     DashboardFilterRule,
@@ -274,8 +276,29 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         completed: false,
                     } as DateFilterRule['settings'];
                 } else {
+                    const defaultTimeIntervalValues: Record<string, Date> = {
+                        [TimeInterval.DAY]: new Date(),
+                        [TimeInterval.WEEK]: moment(value)
+                            .utc(true)
+                            .startOf('week')
+                            .toDate(),
+                        [TimeInterval.MONTH]: moment()
+                            .utc(true)
+                            .startOf('month')
+                            .toDate(),
+                        [TimeInterval.YEAR]: moment(value)
+                            .utc(true)
+                            .startOf('year')
+                            .toDate(),
+                    };
+                    const defaultDate =
+                        isDimension(field) &&
+                        field.timeInterval &&
+                        defaultTimeIntervalValues[field.timeInterval]
+                            ? defaultTimeIntervalValues[field.timeInterval]
+                            : new Date();
                     filterRuleDefaults.values = [
-                        value !== undefined ? value : new Date(),
+                        value !== undefined ? value : defaultDate,
                     ];
                 }
                 break;
