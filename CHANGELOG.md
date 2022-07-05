@@ -1,3 +1,10 @@
+## [0.171.2](https://github.com/lightdash/lightdash/compare/0.171.1...0.171.2) (2022-07-05)
+
+
+### Bug Fixes
+
+* date picker timezone conversion ([#2633](https://github.com/lightdash/lightdash/issues/2633)) ([43661a9](https://github.com/lightdash/lightdash/commit/43661a9bbb6abd975f2d9f6be7d091660ad8a24c))
+
 ## [0.171.1](https://github.com/lightdash/lightdash/compare/0.171.0...0.171.1) (2022-07-05)
 
 
