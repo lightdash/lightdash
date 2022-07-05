@@ -1,5 +1,5 @@
-import { ColumnProperties } from '@lightdash/common';
 import React from 'react';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     ColumnConfigurationWrapper,
     ColumnTitle,
@@ -7,37 +7,29 @@ import {
     ConfigButton,
 } from './ColumnConfiguration.styles';
 
-type ColumnConfigurationProps = {
-    fieldIds: string[];
-    columnProperties: ColumnProperties[];
-    updateColumnProperty: (
-        fieldId: string,
-        properties: Partial<ColumnProperties>,
-    ) => void;
-};
-export const ColumnConfiguration: React.FC<ColumnConfigurationProps> = ({
-    fieldIds,
-    columnProperties,
-    updateColumnProperty,
-}) => {
+export const ColumnConfiguration: React.FC = () => {
+    const {
+        tableConfig: {
+            columnOrder,
+            updateColumnProperty,
+            columnHeader,
+            filterVisible,
+        },
+    } = useVisualizationContext();
     return (
         <ColumnConfigurationWrapper>
-            {fieldIds.map((fieldId) => {
-                const properties = columnProperties.find(
-                    (column) => column.field === fieldId,
-                );
+            {columnOrder.map((fieldId) => {
                 return (
                     <ColumnWrapper>
-                        <ColumnTitle>
-                            {' '}
-                            {properties?.field || fieldId}
-                        </ColumnTitle>
+                        <ColumnTitle>{columnHeader(fieldId)}</ColumnTitle>
 
                         <ConfigButton
-                            icon={properties?.visible ? 'eye-open' : 'eye-off'}
+                            icon={
+                                filterVisible(fieldId) ? 'eye-off' : 'eye-open'
+                            }
                             onClick={() => {
                                 updateColumnProperty(fieldId, {
-                                    visible: !properties?.visible,
+                                    visible: !filterVisible(fieldId),
                                 });
                             }}
                         />

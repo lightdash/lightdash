@@ -26,9 +26,11 @@ const useTableConfig = (
             ? true
             : tableChartConfig.showTableNames,
     );
+
     const [columnProperties, setColumnProperties] = useState<
         ColumnProperties[]
-    >([]);
+    >(tableChartConfig?.columns === undefined ? [] : tableChartConfig?.columns);
+
     const itemMap = useMemo<
         Record<string, Field | AdditionalMetric | TableCalculation>
     >(() => {
@@ -42,26 +44,25 @@ const useTableConfig = (
         return {};
     }, [explore, resultsData]);
 
-    const headers = columnOrder
-        .filter(
-            (fieldId) =>
-                columnProperties.find((column) => column.field === fieldId)
-                    ?.visible === false,
-        )
-        .map((fieldId) => {
-            const field = itemMap && itemMap[fieldId];
-            if (isAdditionalMetric(field)) {
-                // AdditionalMetric
-                return getAdditionalMetricLabel(field);
-            } else if (isField(field)) {
-                // Field
+    const columnHeader = (fieldId: string) => {
+        const field = itemMap && itemMap[fieldId];
+        if (isAdditionalMetric(field)) {
+            // AdditionalMetric
+            return getAdditionalMetricLabel(field);
+        } else if (isField(field)) {
+            // Field
+            return showTableNames ? getItemLabel(field) : field.label;
+        } else {
+            //TableCalculation
+            return friendlyName(fieldId);
+        }
+    };
 
-                return showTableNames ? getItemLabel(field) : field.label;
-            } else {
-                //TableCalculation
-                return friendlyName(fieldId);
-            }
-        });
+    const filterVisible = (fieldId: string) =>
+        columnProperties.find((column) => column.field === fieldId)?.visible !==
+        false;
+
+    const headers = columnOrder.filter(filterVisible).map(columnHeader);
 
     const updateColumnProperty = (
         field: string,
@@ -83,8 +84,9 @@ const useTableConfig = (
     const validTableConfig: TableChart = useMemo(
         () => ({
             showTableNames,
+            columns: columnProperties,
         }),
-        [showTableNames],
+        [showTableNames, columnProperties],
     );
 
     return {
@@ -97,6 +99,8 @@ const useTableConfig = (
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
+        columnHeader,
+        filterVisible,
     };
 };
 

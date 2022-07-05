@@ -7,14 +7,7 @@ import { ConfigWrapper } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {
-        tableConfig: {
-            columnOrder,
-            showTableNames,
-            setShowTableName,
-            headers,
-            columnProperties,
-            updateColumnProperty,
-        },
+        tableConfig: { showTableNames, setShowTableName },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -30,11 +23,7 @@ export const TableConfigPanel: React.FC = () => {
                         }}
                     />
 
-                    <ColumnConfiguration
-                        fieldIds={columnOrder}
-                        columnProperties={columnProperties}
-                        updateColumnProperty={updateColumnProperty}
-                    />
+                    <ColumnConfiguration />
                 </ConfigWrapper>
             }
             interactionKind="click"

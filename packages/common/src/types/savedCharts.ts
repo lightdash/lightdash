@@ -28,7 +28,7 @@ export type ColumnProperties = {
 };
 export type TableChart = {
     showTableNames?: boolean;
-    columns?: ColumnProperties;
+    columns?: ColumnProperties[];
 };
 
 type TableChartConfig = {
