@@ -49,7 +49,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
-                                            values: [moment(value).utc()],
+                                            values: [moment(value).utc(true)],
                                         });
                                     }}
                                 />
@@ -64,7 +64,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc()
+                                                .utc(true)
                                                 .startOf('month'),
                                         ],
                                     });
@@ -79,7 +79,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange({
                                         ...filterRule,
                                         values: [
-                                            moment(value).utc().startOf('year'),
+                                            moment(value)
+                                                .utc(true)
+                                                .startOf('year'),
                                         ],
                                     });
                                 }}
@@ -103,7 +105,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     formatDate={(value: Date) =>
                         isTimestamp
                             ? formatTimestamp(moment(value).utc())
-                            : formatDate(value)
+                            : formatDate(moment(value).utc(true))
                     }
                     parseDate={isTimestamp ? parseTimestamp : parseDate}
                     defaultValue={new Date()}
@@ -111,7 +113,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [moment(value).utc()],
+                                values: [moment(value).utc(!isTimestamp)],
                             });
                         }
                     }}
