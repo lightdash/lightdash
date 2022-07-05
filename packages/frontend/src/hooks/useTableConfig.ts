@@ -65,8 +65,7 @@ const useTableConfig = (
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
-        const columnsWithConfig = Object.keys(columnProperties);
-        const columnsRemoved = columnsWithConfig.filter(
+        const columnsRemoved = Object.keys(columnProperties).filter(
             (field) => !columnOrder.includes(field),
         );
         columnsRemoved.forEach((field) => delete columnProperties[field]);
