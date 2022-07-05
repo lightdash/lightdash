@@ -9,7 +9,7 @@ module.exports = {
   baseUrl: "/",
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
-  favicon: "img/favicon.ico", // TODO update
+  favicon: "img/favicon-32x32.png", // TODO update
   organizationName: "lightdash", // Usually your GitHub org/user name.
   projectName: "lightdash", // Usually your repo name.
   plugins: [

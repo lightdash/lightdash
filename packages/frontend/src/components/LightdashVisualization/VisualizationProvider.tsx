@@ -105,6 +105,7 @@ export const VisualizationProvider: FC<Props> = ({
             : undefined,
         lastValidResultsData,
         explore,
+        columnOrder,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;

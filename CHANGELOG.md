@@ -1,3 +1,24 @@
+## [0.171.2](https://github.com/lightdash/lightdash/compare/0.171.1...0.171.2) (2022-07-05)
+
+
+### Bug Fixes
+
+* date picker timezone conversion ([#2633](https://github.com/lightdash/lightdash/issues/2633)) ([43661a9](https://github.com/lightdash/lightdash/commit/43661a9bbb6abd975f2d9f6be7d091660ad8a24c))
+
+## [0.171.1](https://github.com/lightdash/lightdash/compare/0.171.0...0.171.1) (2022-07-05)
+
+
+### Bug Fixes
+
+* strip timezone from truncated snowflake fields ([#2629](https://github.com/lightdash/lightdash/issues/2629)) ([f80fa93](https://github.com/lightdash/lightdash/commit/f80fa93dbc24e213bc63da4fb8c3668056bdc21b))
+
+# [0.171.0](https://github.com/lightdash/lightdash/compare/0.170.2...0.171.0) (2022-07-05)
+
+
+### Features
+
+* hide columns table charts ([#2620](https://github.com/lightdash/lightdash/issues/2620)) ([825e327](https://github.com/lightdash/lightdash/commit/825e3272454f040f7240c13f43e32466e8f922cc))
+
 ## [0.170.2](https://github.com/lightdash/lightdash/compare/0.170.1...0.170.2) (2022-07-04)
 
 

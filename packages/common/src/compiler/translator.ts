@@ -35,7 +35,7 @@ const getDataTruncSql = (
             }
             return `DATE_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
         case SupportedDbtAdapter.SNOWFLAKE:
-            return `DATE_TRUNC('${timeInterval.toUpperCase()}', CONVERT_TIMEZONE('UTC', ${field}))`;
+            return `TO_TIMESTAMP_NTZ(DATE_TRUNC('${timeInterval.toUpperCase()}', CONVERT_TIMEZONE('UTC', ${field})))`;
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.DATABRICKS:
