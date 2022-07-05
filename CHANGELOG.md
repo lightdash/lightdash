@@ -1,3 +1,10 @@
+# [0.171.0](https://github.com/lightdash/lightdash/compare/0.170.2...0.171.0) (2022-07-05)
+
+
+### Features
+
+* hide columns table charts ([#2620](https://github.com/lightdash/lightdash/issues/2620)) ([825e327](https://github.com/lightdash/lightdash/commit/825e3272454f040f7240c13f43e32466e8f922cc))
+
 ## [0.170.2](https://github.com/lightdash/lightdash/compare/0.170.1...0.170.2) (2022-07-04)
 
 
