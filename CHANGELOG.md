@@ -1,3 +1,10 @@
+## [0.171.4](https://github.com/lightdash/lightdash/compare/0.171.3...0.171.4) (2022-07-05)
+
+
+### Bug Fixes
+
+* timestamp filter ([#2635](https://github.com/lightdash/lightdash/issues/2635)) ([277a904](https://github.com/lightdash/lightdash/commit/277a9043ccdacd632e518cd073f8f70081f9831c))
+
 ## [0.171.3](https://github.com/lightdash/lightdash/compare/0.171.2...0.171.3) (2022-07-05)
 
 
