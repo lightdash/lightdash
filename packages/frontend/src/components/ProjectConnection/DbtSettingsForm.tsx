@@ -4,7 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
-import { UseFormReturn, useWatch } from 'react-hook-form';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
@@ -31,15 +31,14 @@ interface DbtSettingsFormProps {
     disabled: boolean;
     defaultType?: DbtProjectType;
     selectedWarehouse?: SelectedWarehouse | undefined;
-    methods: UseFormReturn<any, object>;
 }
 
 const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
     selectedWarehouse,
-    methods,
 }) => {
+    const { resetField } = useFormContext();
     const type: DbtProjectType = useWatch({
         name: 'dbt.type',
         defaultValue: defaultType || DbtProjectType.GITHUB,
@@ -74,7 +73,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     }, [health, type]);
 
     const form = useMemo(() => {
-        methods.resetField('dbt.host_domain');
+        resetField('dbt.host_domain');
+
         switch (type) {
             case DbtProjectType.DBT:
                 return <DbtLocalForm />;
@@ -93,7 +93,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return null;
             }
         }
-    }, [disabled, type, methods]);
+    }, [disabled, type, resetField]);
 
     const baseDocUrl =
         'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#';
