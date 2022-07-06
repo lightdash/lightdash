@@ -1,3 +1,11 @@
+# [0.172.0](https://github.com/lightdash/lightdash/compare/0.171.5...0.172.0) (2022-07-06)
+
+
+### Features
+
+* change column names ([#2628](https://github.com/lightdash/lightdash/issues/2628)) ([0baa4aa](https://github.com/lightdash/lightdash/commit/0baa4aaedebdc00ffedd9f5eeb45f2e9e58cf743))
+* download csv on table charts from dashboards ([#2638](https://github.com/lightdash/lightdash/issues/2638)) ([eab1ff3](https://github.com/lightdash/lightdash/commit/eab1ff3c47030af56f3ede65a5be7dc703c4e4ad))
+
 ## [0.171.5](https://github.com/lightdash/lightdash/compare/0.171.4...0.171.5) (2022-07-06)
 
 
