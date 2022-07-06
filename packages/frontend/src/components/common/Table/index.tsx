@@ -1,5 +1,5 @@
 import { Button, ButtonGroup, Colors } from '@blueprintjs/core';
-import { Field, TableCalculation } from '@lightdash/common';
+import { Field, isNumericItem, TableCalculation } from '@lightdash/common';
 import {
     ColumnDef,
     ColumnOrderState,
@@ -15,6 +15,8 @@ import {
     PaginationWrapper,
 } from '../../ResultsTable/ResultsTable.styles';
 import {
+    BodyCell,
+    HeaderCell,
     Table,
     TableContainer,
     TableFooter,
@@ -246,25 +248,32 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                     <tbody>
                         {table.getRowModel().rows.map((row, rowIndex) => (
                             <tr key={row.id}>
-                                {row
-                                    .getVisibleCells()
-                                    .map((cell, cellIndex) => (
-                                        <td
+                                {row.getVisibleCells().map((cell) => {
+                                    const meta = cell.column.columnDef
+                                        .meta as TableColumn['meta'];
+                                    return (
+                                        <BodyCell
                                             key={cell.id}
                                             style={{
                                                 backgroundColor:
-                                                    cellIndex === 0 ||
+                                                    cell.column.columnDef.id ===
+                                                        ROW_NUMBER_COLUMN_ID ||
                                                     rowIndex % 2
                                                         ? undefined
                                                         : Colors.LIGHT_GRAY4,
                                             }}
+                                            isNaN={
+                                                !meta?.item ||
+                                                !isNumericItem(meta.item)
+                                            }
                                         >
                                             {flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
                                             )}
-                                        </td>
-                                    ))}
+                                        </BodyCell>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </tbody>
@@ -275,12 +284,16 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                     const meta = header.column.columnDef
                                         .meta as TableColumn['meta'];
                                     return (
-                                        <th
+                                        <HeaderCell
                                             key={header.id}
                                             colSpan={header.colSpan}
                                             style={{
                                                 backgroundColor: Colors.WHITE,
                                             }}
+                                            isNaN={
+                                                !meta?.item ||
+                                                !isNumericItem(meta.item)
+                                            }
                                         >
                                             {header.isPlaceholder
                                                 ? null
@@ -289,7 +302,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                                           .footer,
                                                       header.getContext(),
                                                   )}
-                                        </th>
+                                        </HeaderCell>
                                     );
                                 })}
                             </tr>

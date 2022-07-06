@@ -1,5 +1,5 @@
 import { HTMLTable } from '@blueprintjs/core';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 
 export const TableContainer = styled.div`
     flex: 1;
@@ -73,4 +73,16 @@ export const TableFooter = styled.div`
     justify-content: space-between;
     align-items: center;
     margin-top: 10px;
+`;
+
+const CellStyles = css<{ isNaN: boolean }>`
+    text-align: ${({ isNaN }) => (isNaN ? 'left' : 'right')} !important;
+`;
+
+export const BodyCell = styled.td<{ isNaN: boolean }>`
+    ${CellStyles}
+`;
+
+export const HeaderCell = styled.th<{ isNaN: boolean }>`
+    ${CellStyles}
 `;
