@@ -6,6 +6,7 @@ import {
     getItemMap,
     getResultColumnTotals,
     getResultValues,
+    isDimension,
     isField,
     isNumericItem,
     TableCalculation,
@@ -18,7 +19,7 @@ import Table, { TableColumn } from '../../common/Table';
 
 export const TableContainer = styled.div`
     flex: 1;
-    max-height: 812px;
+    max-height: 810px;
     padding: 10px;
     overflow: hidden;
     display: flex;
@@ -73,6 +74,17 @@ export const ExplorerResults2 = () => {
         return {};
     }, [activeItemsMap, resultsData]);
 
+    const getItemBgColor = (item: Field | TableCalculation): string => {
+        let bgColor: string;
+
+        if (isField(item)) {
+            bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
+        } else {
+            bgColor = '#d2dfd7';
+        }
+        return bgColor;
+    };
+
     const columns = useMemo(() => {
         return Object.entries(activeItemsMap).reduce<TableColumn[]>(
             (acc, [fieldId, item]) => {
@@ -95,6 +107,7 @@ export const ExplorerResults2 = () => {
                     meta: {
                         item,
                         draggable: true,
+                        bgColor: getItemBgColor(item),
                     },
                 };
                 return [...acc, column];

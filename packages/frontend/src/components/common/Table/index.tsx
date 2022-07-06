@@ -1,4 +1,4 @@
-import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Button, ButtonGroup, Colors } from '@blueprintjs/core';
 import { Field, TableCalculation } from '@lightdash/common';
 import {
     ColumnDef,
@@ -23,6 +23,7 @@ export type TableColumn = ColumnDef<TableRow> & {
         width?: number;
         draggable?: boolean;
         item?: Field | TableCalculation;
+        bgColor?: string;
     };
 };
 
@@ -66,6 +67,22 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
     return (
         <TableContainer className="cohere-block">
             <Table bordered condensed>
+                {table.getHeaderGroups().map((headerGroup) => (
+                    <colgroup key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                            const meta = header.column.columnDef
+                                .meta as TableColumn['meta'];
+                            return (
+                                <col
+                                    style={{
+                                        backgroundColor:
+                                            meta?.bgColor ?? Colors.WHITE,
+                                    }}
+                                />
+                            );
+                        })}
+                    </colgroup>
+                ))}
                 <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
                         <DragDropContext
@@ -142,13 +159,12 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                             return (
                                                 <th
                                                     colSpan={header.colSpan}
-                                                    style={
-                                                        meta?.width
-                                                            ? {
-                                                                  width: meta.width,
-                                                              }
-                                                            : undefined
-                                                    }
+                                                    style={{
+                                                        width: meta?.width,
+                                                        backgroundColor:
+                                                            meta?.bgColor ??
+                                                            Colors.WHITE,
+                                                    }}
                                                 >
                                                     <Draggable
                                                         key={header.id}
@@ -204,10 +220,18 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                     ))}
                 </thead>
                 <tbody>
-                    {table.getRowModel().rows.map((row) => (
+                    {table.getRowModel().rows.map((row, rowIndex) => (
                         <tr key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                                <td key={cell.id}>
+                            {row.getVisibleCells().map((cell, cellIndex) => (
+                                <td
+                                    key={cell.id}
+                                    style={{
+                                        backgroundColor:
+                                            cellIndex === 0 || rowIndex % 2
+                                                ? undefined
+                                                : Colors.LIGHT_GRAY4,
+                                    }}
+                                >
                                     {flexRender(
                                         cell.column.columnDef.cell,
                                         cell.getContext(),
@@ -220,16 +244,27 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                 <tfoot>
                     {table.getFooterGroups().map((footerGroup) => (
                         <tr key={footerGroup.id}>
-                            {footerGroup.headers.map((header) => (
-                                <th key={header.id} colSpan={header.colSpan}>
-                                    {header.isPlaceholder
-                                        ? null
-                                        : flexRender(
-                                              header.column.columnDef.footer,
-                                              header.getContext(),
-                                          )}
-                                </th>
-                            ))}
+                            {footerGroup.headers.map((header) => {
+                                const meta = header.column.columnDef
+                                    .meta as TableColumn['meta'];
+                                return (
+                                    <th
+                                        key={header.id}
+                                        colSpan={header.colSpan}
+                                        style={{
+                                            backgroundColor: Colors.WHITE,
+                                        }}
+                                    >
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                  header.column.columnDef
+                                                      .footer,
+                                                  header.getContext(),
+                                              )}
+                                    </th>
+                                );
+                            })}
                         </tr>
                     ))}
                 </tfoot>
