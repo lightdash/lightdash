@@ -12,9 +12,19 @@ import {
 } from '@lightdash/common';
 import { ColumnDef } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
+import styled from 'styled-components';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import Table, { TableRow } from '../../common/Table';
+
+export const TableContainer = styled.div`
+    flex: 1;
+    max-height: 812px;
+    padding: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+`;
 
 export const ExplorerResults2 = () => {
     const {
@@ -65,13 +75,13 @@ export const ExplorerResults2 = () => {
     }, [activeItemsMap, resultsData]);
 
     const columns = useMemo(() => {
-        // const rowColumn: ColumnDef<TableRow> = {
-        //     id: 'row_number',
-        //     header: '#',
-        //     cell: (props) => props.row.index + 1,
-        //     footer: 'Total',
-        //     size: 30,
-        // };
+        const rowColumn: ColumnDef<TableRow> = {
+            id: 'row_number',
+            header: '#',
+            cell: (props) => props.row.index + 1,
+            footer: 'Total',
+            size: 30,
+        };
         const itemColumns = Object.entries(activeItemsMap).reduce<
             ColumnDef<TableRow>[]
         >((acc, [fieldId, item]) => {
@@ -86,7 +96,7 @@ export const ExplorerResults2 = () => {
                         <b>{item.displayName || friendlyName(item.name)}</b>
                     ),
                 accessorKey: fieldId,
-                cell: (info) => info.getValue(),
+                cell: (info) => info.getValue() || '-',
                 footer: () =>
                     totals[fieldId]
                         ? formatItemValue(item, totals[fieldId])
@@ -97,10 +107,14 @@ export const ExplorerResults2 = () => {
             };
             return [...acc, column];
         }, []);
-        return [...itemColumns];
+        return [rowColumn, ...itemColumns];
     }, [activeItemsMap, totals]);
 
     const data = getResultValues(resultsData?.rows || []);
 
-    return <Table data={data} columns={columns} />;
+    return (
+        <TableContainer>
+            <Table data={data} columns={columns} />
+        </TableContainer>
+    );
 };

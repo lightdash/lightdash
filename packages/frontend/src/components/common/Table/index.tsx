@@ -10,12 +10,10 @@ import {
 import React, { FC } from 'react';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import {
-    Container,
     PageCount,
     PaginationWrapper,
-    TableFooter,
 } from '../../ResultsTable/ResultsTable.styles';
-import { Table } from './Table.styles';
+import { Table, TableContainer, TableFooter } from './Table.styles';
 
 export type TableRow = { [col: string]: any };
 
@@ -31,7 +29,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
     const [columnVisibility, setColumnVisibility] = React.useState({});
     const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([]);
     const currentColOrder = React.useRef<Array<string>>([]);
-    console.log('columnOrder', columnOrder);
+
     const table = useReactTable({
         data,
         columns,
@@ -45,7 +43,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
         getPaginationRowModel: getPaginationRowModel(),
     });
     return (
-        <Container className="cohere-block">
+        <TableContainer className="cohere-block">
             <Table bordered condensed>
                 <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -246,8 +244,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                     </PageCount>
                 )}
             </TableFooter>
-            <pre>Hello ? {JSON.stringify(table.getState(), null, 2)}</pre>
-        </Container>
+        </TableContainer>
     );
 };
 
