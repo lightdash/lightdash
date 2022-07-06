@@ -13,6 +13,7 @@ import {
     TableCalculation,
     TableChart,
 } from '@lightdash/common';
+
 import { useEffect, useMemo, useState } from 'react';
 
 const useTableConfig = (
@@ -61,7 +62,10 @@ const useTableConfig = (
     const isFilterVisible = (fieldId: string) =>
         columnProperties[fieldId]?.visible ?? true;
 
-    const headers = columnOrder.filter(isFilterVisible).map(getColumnHeader);
+    const getHeader = (fieldId: string) => {
+        const properties = columnProperties[fieldId];
+        return properties?.name || getColumnHeader(fieldId);
+    };
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
@@ -103,11 +107,10 @@ const useTableConfig = (
         showTableNames,
         setShowTableName,
         itemMap,
-        headers,
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
-        getColumnHeader,
+        getHeader,
         isFilterVisible,
     };
 };
