@@ -87,9 +87,6 @@ const DownloadCSV: FC<{
 }> = ({ data, project }) => {
     const { data: resultData } = useSavedChartResults(project, data);
 
-    if (data.chartConfig.type !== ChartType.TABLE) {
-        return <></>;
-    }
     const rows = resultData?.rows;
     if (!rows || rows.length <= 0) {
         return <MenuItem icon="download" text=".csv" disabled />;
@@ -318,12 +315,14 @@ const DashboardChartTile: FC<Props> = (props) => {
                             text="Explore from here"
                             href={exploreFromHereUrl}
                         />
-                        {savedQueryWithDashboardFilters && (
-                            <DownloadCSV
-                                data={savedQueryWithDashboardFilters}
-                                project={projectUuid}
-                            />
-                        )}
+                        {savedQueryWithDashboardFilters &&
+                            savedQueryWithDashboardFilters.chartConfig.type ===
+                                ChartType.TABLE && (
+                                <DownloadCSV
+                                    data={savedQueryWithDashboardFilters}
+                                    project={projectUuid}
+                                />
+                            )}
                     </>
                 )
             }
