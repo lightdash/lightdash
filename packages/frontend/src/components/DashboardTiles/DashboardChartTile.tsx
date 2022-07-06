@@ -1,6 +1,7 @@
-import { Menu, MenuItem, NonIdealState, Portal } from '@blueprintjs/core';
+import { Icon, Menu, MenuItem, NonIdealState, Portal } from '@blueprintjs/core';
 import { Popover2, Popover2TargetProps, Tooltip2 } from '@blueprintjs/popover2';
 import {
+    ChartType,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
     DashboardFilters,
@@ -10,11 +11,13 @@ import {
     FilterOperator,
     friendlyName,
     getDimensions,
+    getResultValues,
     getVisibleFields,
     isFilterableField,
     SavedChart,
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSVLink } from 'react-csv';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
@@ -75,6 +78,32 @@ const ValidDashboardChartTile: FC<{
         >
             <LightdashVisualization />
         </VisualizationProvider>
+    );
+};
+
+const DownloadCSV: FC<{
+    data: SavedChart;
+    project: string;
+}> = ({ data, project }) => {
+    const { data: resultData } = useSavedChartResults(project, data);
+
+    const rows = resultData?.rows;
+    if (!rows || rows.length <= 0) {
+        return <MenuItem icon="download" text=".csv" disabled />;
+    }
+
+    return (
+        <CSVLink
+            role="menuitem"
+            tabIndex={0}
+            className="bp4-menu-item"
+            data={getResultValues(resultData.rows)}
+            filename={`${data?.name}.csv`}
+            target="_blank"
+        >
+            <Icon icon="download" />
+            <span>Download CSV</span>
+        </CSVLink>
     );
 };
 
@@ -161,7 +190,6 @@ const DashboardChartTile: FC<Props> = (props) => {
         },
         [explore],
     );
-
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
     let savedQueryWithDashboardFilters: SavedChart | undefined;
@@ -287,6 +315,14 @@ const DashboardChartTile: FC<Props> = (props) => {
                             text="Explore from here"
                             href={exploreFromHereUrl}
                         />
+                        {savedQueryWithDashboardFilters &&
+                            savedQueryWithDashboardFilters.chartConfig.type ===
+                                ChartType.TABLE && (
+                                <DownloadCSV
+                                    data={savedQueryWithDashboardFilters}
+                                    project={projectUuid}
+                                />
+                            )}
                     </>
                 )
             }
