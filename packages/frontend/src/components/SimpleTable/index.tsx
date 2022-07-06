@@ -1,27 +1,70 @@
-import { HTMLTable, NonIdealState } from '@blueprintjs/core';
-import { getResultValues, isNumericItem } from '@lightdash/common';
-import React, { FC } from 'react';
+import { NonIdealState } from '@blueprintjs/core';
+import {
+    FieldId,
+    formatItemValue,
+    friendlyName,
+    getResultColumnTotals,
+    getResultValues,
+    isField,
+    isNumericItem,
+} from '@lightdash/common';
+import React, { FC, useMemo } from 'react';
+import Table, { TableColumn } from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
-import {
-    TableCell,
-    TableHeader,
-    TableInnerWrapper,
-    TableRow,
-    TableWrapper,
-} from './SimpleTable.styles';
+import { TableWrapper } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
     const {
         resultsData,
         isLoading,
         columnOrder,
-        explore,
         tableConfig: { itemMap, headers, isFilterVisible },
     } = useVisualizationContext();
+
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];
+
+    const totals = useMemo<Record<FieldId, number | undefined>>(() => {
+        if (resultsData) {
+            return getResultColumnTotals(
+                resultsData.rows,
+                Object.values(itemMap).filter((item) => isNumericItem(item)),
+            );
+        }
+        return {};
+    }, [itemMap, resultsData]);
+
+    const columns = useMemo(() => {
+        return Object.entries(itemMap).reduce<TableColumn[]>(
+            (acc, [fieldId, item]) => {
+                const column: TableColumn = {
+                    id: fieldId,
+                    header: () =>
+                        isField(item) ? (
+                            <span>
+                                {item.tableLabel} <b>{item.label}</b>
+                            </span>
+                        ) : (
+                            <b>{item.displayName || friendlyName(item.name)}</b>
+                        ),
+                    accessorKey: fieldId,
+                    cell: (info) => info.getValue() || '-',
+                    footer: () =>
+                        totals[fieldId]
+                            ? formatItemValue(item, totals[fieldId])
+                            : null,
+                    meta: {
+                        item,
+                        draggable: true,
+                    },
+                };
+                return [...acc, column];
+            },
+            [],
+        );
+    }, [itemMap, totals]);
 
     const validData = tableItems && headers;
     if (isLoading) return <LoadingChart />;
@@ -30,37 +73,7 @@ const SimpleTable: FC = () => {
         <>
             {validData ? (
                 <TableWrapper className="cohere-block">
-                    <TableInnerWrapper>
-                        <HTMLTable style={{ width: '100%' }} bordered condensed>
-                            <TableHeader>
-                                <tr>
-                                    {headers.map((header: string) => (
-                                        <th>{header}</th>
-                                    ))}
-                                </tr>
-                            </TableHeader>
-                            <tbody>
-                                {tableItems.map((row, i: number) => (
-                                    <TableRow i={i}>
-                                        {columnOrder
-                                            .filter(isFilterVisible)
-                                            .map((fieldId) => (
-                                                <TableCell
-                                                    key={fieldId}
-                                                    isNaN={
-                                                        !isNumericItem(
-                                                            itemMap[fieldId],
-                                                        )
-                                                    }
-                                                >
-                                                    {row[fieldId] || '-'}
-                                                </TableCell>
-                                            ))}
-                                    </TableRow>
-                                ))}
-                            </tbody>
-                        </HTMLTable>
-                    </TableInnerWrapper>
+                    <Table data={tableItems} columns={columns} />
                 </TableWrapper>
             ) : (
                 <div style={{ padding: '50px 0' }}>

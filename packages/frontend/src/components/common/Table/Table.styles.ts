@@ -9,7 +9,6 @@ export const TableContainer = styled.div`
     flex-direction: column;
 `;
 export const TableScrollableWrapper = styled.div`
-    flex: 1;
     overflow: auto;
 `;
 

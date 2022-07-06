@@ -20,12 +20,9 @@ import { CellContextMenu } from '../../ResultsTable/CellContextMenu';
 import ColumnHeaderContextMenu from '../../ResultsTable/ColumnHeaderContextMenu';
 
 export const TableContainer = styled.div`
-    flex: 1;
-    max-height: 810px;
+    max-height: 800px;
     padding: 10px;
-    overflow: hidden;
     display: flex;
-    flex-direction: column;
 `;
 
 export const ExplorerResults2 = () => {
@@ -62,7 +59,7 @@ export const ExplorerResults2 = () => {
                 {},
             );
         }
-        return [];
+        return {};
     }, [additionalMetrics, exploreData, tableCalculations, activeFields]);
 
     const totals = useMemo<Record<FieldId, number | undefined>>(() => {

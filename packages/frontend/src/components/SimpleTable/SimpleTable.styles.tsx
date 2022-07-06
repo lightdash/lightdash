@@ -3,7 +3,7 @@ import styled from 'styled-components';
 
 export const TableWrapper = styled.div`
     height: 100%;
-    overflow: hidden;
+    display: flex;
 `;
 
 export const TableInnerWrapper = styled.div`
