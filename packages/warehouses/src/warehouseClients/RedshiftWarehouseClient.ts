@@ -42,7 +42,11 @@ export class RedshiftWarehouseClient
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
         super({
-            connectionString: `postgres://${credentials.user}:${credentials.password}@${credentials.host}:${credentials.port}/${credentials.dbname}`,
+            connectionString: `postgres://${encodeURIComponent(
+                credentials.user,
+            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                credentials.host,
+            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
             ssl,
         });
     }

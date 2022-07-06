@@ -1,4 +1,5 @@
 import { Colors } from '@blueprintjs/core';
+
 import styled from 'styled-components';
 
 export const ColumnConfigurationWrapper = styled.div`

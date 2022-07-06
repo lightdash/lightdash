@@ -17,7 +17,6 @@ const SimpleTable: FC = () => {
         isLoading,
         columnOrder,
         explore,
-
         tableConfig: { itemMap, getHeader, isFilterVisible },
     } = useVisualizationContext();
     const tableItems = resultsData?.rows

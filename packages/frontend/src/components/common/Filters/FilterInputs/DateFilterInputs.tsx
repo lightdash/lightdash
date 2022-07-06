@@ -5,10 +5,8 @@ import {
     DimensionType,
     FilterOperator,
     formatDate,
-    formatTimestamp,
     isDimension,
     parseDate,
-    parseTimestamp,
     TimeInterval,
     UnitOfTime,
 } from '@lightdash/common';
@@ -49,7 +47,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
-                                            values: [moment(value).utc()],
+                                            values: [moment(value).utc(true)],
                                         });
                                     }}
                                 />
@@ -64,7 +62,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc()
+                                                .utc(true)
                                                 .startOf('month'),
                                         ],
                                     });
@@ -79,7 +77,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange({
                                         ...filterRule,
                                         values: [
-                                            moment(value).utc().startOf('year'),
+                                            moment(value)
+                                                .utc(true)
+                                                .startOf('year'),
                                         ],
                                     });
                                 }}
@@ -89,29 +89,55 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         break;
                 }
             }
+
+            if (isTimestamp) {
+                return (
+                    <DateInput2
+                        fill
+                        defaultTimezone="UTC"
+                        showTimezoneSelect={false}
+                        value={
+                            filterRule.values?.[0]
+                                ? new Date(filterRule.values?.[0]).toString()
+                                : new Date().toString()
+                        }
+                        timePrecision={'millisecond'}
+                        formatDate={(value: Date) =>
+                            moment(value).format(`YYYY-MM-DD, HH:mm:ss:SSS`)
+                        }
+                        parseDate={(value) =>
+                            moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
+                        }
+                        defaultValue={new Date()}
+                        onChange={(value: string | null) => {
+                            if (value) {
+                                onChange({
+                                    ...filterRule,
+                                    values: [value],
+                                });
+                            }
+                        }}
+                    />
+                );
+            }
             return (
                 <DateInput2
                     fill
-                    defaultTimezone="UTC"
-                    showTimezoneSelect={false}
                     value={
                         filterRule.values?.[0]
                             ? new Date(filterRule.values?.[0]).toUTCString()
                             : new Date().toUTCString()
                     }
-                    timePrecision={isTimestamp ? 'millisecond' : undefined}
                     formatDate={(value: Date) =>
-                        isTimestamp
-                            ? formatTimestamp(moment(value).utc())
-                            : formatDate(value)
+                        formatDate(moment(value).utc(true))
                     }
-                    parseDate={isTimestamp ? parseTimestamp : parseDate}
+                    parseDate={parseDate}
                     defaultValue={new Date()}
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [moment(value).utc()],
+                                values: [moment(value).utc(true)],
                             });
                         }
                     }}

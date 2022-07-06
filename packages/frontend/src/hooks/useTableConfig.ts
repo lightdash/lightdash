@@ -13,7 +13,8 @@ import {
     TableCalculation,
     TableChart,
 } from '@lightdash/common';
-import { useMemo, useState } from 'react';
+
+import { useEffect, useMemo, useState } from 'react';
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -65,6 +66,16 @@ const useTableConfig = (
         const properties = columnProperties[fieldId];
         return properties?.name || getColumnHeader(fieldId);
     };
+
+    // Remove columProperties from map if the column has been removed from results
+    useEffect(() => {
+        const columnsRemoved = Object.keys(columnProperties).filter(
+            (field) => !columnOrder.includes(field),
+        );
+        columnsRemoved.forEach((field) => delete columnProperties[field]);
+
+        setColumnProperties(columnProperties);
+    }, [columnOrder, columnProperties]);
 
     const updateColumnProperty = (
         field: string,
