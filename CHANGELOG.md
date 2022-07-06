@@ -1,3 +1,10 @@
+## [0.172.1](https://github.com/lightdash/lightdash/compare/0.172.0...0.172.1) (2022-07-06)
+
+
+### Bug Fixes
+
+* update readme gif ([#2642](https://github.com/lightdash/lightdash/issues/2642)) ([c27e7bd](https://github.com/lightdash/lightdash/commit/c27e7bd03d08859475e821beeb4f9d43cb5087e3))
+
 # [0.172.0](https://github.com/lightdash/lightdash/compare/0.171.5...0.172.0) (2022-07-06)
 
 
