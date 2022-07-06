@@ -1,5 +1,11 @@
 import { Button, ButtonGroup, Colors } from '@blueprintjs/core';
-import { Field, isNumericItem, TableCalculation } from '@lightdash/common';
+import { Tooltip2 } from '@blueprintjs/popover2';
+import {
+    Field,
+    isField,
+    isNumericItem,
+    TableCalculation,
+} from '@lightdash/common';
 import {
     ColumnDef,
     ColumnOrderState,
@@ -187,54 +193,71 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                                                     Colors.WHITE,
                                                             }}
                                                         >
-                                                            <Draggable
-                                                                key={header.id}
-                                                                draggableId={
-                                                                    header.id
+                                                            <Tooltip2
+                                                                fill
+                                                                content={
+                                                                    meta?.item &&
+                                                                    isField(
+                                                                        meta?.item,
+                                                                    )
+                                                                        ? meta
+                                                                              .item
+                                                                              .description
+                                                                        : undefined
                                                                 }
-                                                                index={
-                                                                    header.index
-                                                                }
-                                                                isDragDisabled={
-                                                                    !meta?.draggable
-                                                                }
+                                                                position="top"
                                                             >
-                                                                {(
-                                                                    provided,
-                                                                    snapshot,
-                                                                ) => (
-                                                                    <div
-                                                                        ref={
-                                                                            provided.innerRef
-                                                                        }
-                                                                        {...provided.draggableProps}
-                                                                        {...provided.dragHandleProps}
-                                                                        style={{
-                                                                            ...provided
-                                                                                .draggableProps
-                                                                                .style,
-                                                                            ...(!snapshot.isDragging && {
-                                                                                transform:
-                                                                                    'translate(0,0)',
-                                                                            }),
-                                                                            ...(snapshot.isDropAnimating && {
-                                                                                transitionDuration:
-                                                                                    '0.001s',
-                                                                            }),
-                                                                        }}
-                                                                    >
-                                                                        {header.isPlaceholder
-                                                                            ? null
-                                                                            : flexRender(
-                                                                                  header
-                                                                                      .column
-                                                                                      .columnDef
-                                                                                      .header,
-                                                                                  header.getContext(),
-                                                                              )}
-                                                                    </div>
-                                                                )}
-                                                            </Draggable>
+                                                                <Draggable
+                                                                    key={
+                                                                        header.id
+                                                                    }
+                                                                    draggableId={
+                                                                        header.id
+                                                                    }
+                                                                    index={
+                                                                        header.index
+                                                                    }
+                                                                    isDragDisabled={
+                                                                        !meta?.draggable
+                                                                    }
+                                                                >
+                                                                    {(
+                                                                        provided,
+                                                                        snapshot,
+                                                                    ) => (
+                                                                        <div
+                                                                            ref={
+                                                                                provided.innerRef
+                                                                            }
+                                                                            {...provided.draggableProps}
+                                                                            {...provided.dragHandleProps}
+                                                                            style={{
+                                                                                ...provided
+                                                                                    .draggableProps
+                                                                                    .style,
+                                                                                ...(!snapshot.isDragging && {
+                                                                                    transform:
+                                                                                        'translate(0,0)',
+                                                                                }),
+                                                                                ...(snapshot.isDropAnimating && {
+                                                                                    transitionDuration:
+                                                                                        '0.001s',
+                                                                                }),
+                                                                            }}
+                                                                        >
+                                                                            {header.isPlaceholder
+                                                                                ? null
+                                                                                : flexRender(
+                                                                                      header
+                                                                                          .column
+                                                                                          .columnDef
+                                                                                          .header,
+                                                                                      header.getContext(),
+                                                                                  )}
+                                                                        </div>
+                                                                    )}
+                                                                </Draggable>
+                                                            </Tooltip2>
                                                         </th>
                                                     );
                                                 },
