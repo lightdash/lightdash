@@ -271,7 +271,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
             </Table>
             <TableFooter>
                 <ButtonGroup>
-                    {table.getState().pagination.pageSize > 1 && (
+                    {data.length > DEFAULT_PAGE_SIZE && (
                         <>
                             <Button
                                 active={

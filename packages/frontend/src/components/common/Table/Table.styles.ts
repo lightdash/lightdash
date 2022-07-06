@@ -61,11 +61,12 @@ export const Table = styled(HTMLTable)`
 `;
 
 export const TableFooter = styled.div`
+    height: 40px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding-top: 0.714em;
+    padding-top: 10px;
     position: sticky;
     bottom: 0;
     inset-block-end: 0; /* "bottom" */
