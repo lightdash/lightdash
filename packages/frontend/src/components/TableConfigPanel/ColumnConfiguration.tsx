@@ -1,11 +1,9 @@
 import { Button, InputGroup } from '@blueprintjs/core';
-
 import React from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     ColumnConfigurationWrapper,
     ColumnWrapper,
-
 } from './ColumnConfiguration.styles';
 
 export const ColumnConfiguration: React.FC = () => {
@@ -34,7 +32,6 @@ export const ColumnConfiguration: React.FC = () => {
                         />
 
                         <Button
-
                             icon={
                                 isFilterVisible(fieldId)
                                     ? 'eye-off'
