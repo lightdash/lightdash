@@ -36,21 +36,23 @@ const getRawConfig = async (): Promise<Config> => {
     }
 };
 
-const setAnonymousUuid = async (anonymousUuid: string) => {
+const setAnonymousUuid = async (anonymousUuid: string): Promise<Config> => {
     const config = await getRawConfig();
-    await setConfig({
+    const newConfig = {
         ...config,
         user: {
             ...(config.user || {}),
             anonymousUuid,
         },
-    });
+    };
+    await setConfig(newConfig);
+    return newConfig;
 };
 
 export const getConfig = async (): Promise<Config> => {
-    const rawConfig = await getRawConfig();
+    let rawConfig = await getRawConfig();
     if (rawConfig.user?.anonymousUuid === undefined) {
-        await setAnonymousUuid(uuidv4());
+        rawConfig = await setAnonymousUuid(uuidv4());
     }
     return {
         ...rawConfig,
