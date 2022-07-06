@@ -636,6 +636,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "magants",
+      "name": "magants",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83379220?v=4",
+      "profile": "https://github.com/magants",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
