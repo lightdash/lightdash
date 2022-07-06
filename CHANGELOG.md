@@ -1,3 +1,10 @@
+## [0.171.5](https://github.com/lightdash/lightdash/compare/0.171.4...0.171.5) (2022-07-06)
+
+
+### Bug Fixes
+
+* default value for time interval filters ([#2636](https://github.com/lightdash/lightdash/issues/2636)) ([e6ab4d1](https://github.com/lightdash/lightdash/commit/e6ab4d1930718824a4be113497fcd3b93f694b6f))
+
 ## [0.171.4](https://github.com/lightdash/lightdash/compare/0.171.3...0.171.4) (2022-07-05)
 
 
