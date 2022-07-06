@@ -14,7 +14,12 @@ import {
     PageCount,
     PaginationWrapper,
 } from '../../ResultsTable/ResultsTable.styles';
-import { Table, TableContainer, TableFooter } from './Table.styles';
+import {
+    Table,
+    TableContainer,
+    TableFooter,
+    TableScrollableWrapper,
+} from './Table.styles';
 
 type TableRow = { [col: string]: any };
 
@@ -66,209 +71,232 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
     });
     return (
         <TableContainer className="cohere-block">
-            <Table bordered condensed>
-                {table.getHeaderGroups().map((headerGroup) => (
-                    <colgroup key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => {
-                            const meta = header.column.columnDef
-                                .meta as TableColumn['meta'];
-                            return (
-                                <col
-                                    style={{
-                                        backgroundColor:
-                                            meta?.bgColor ?? Colors.WHITE,
-                                    }}
-                                />
-                            );
-                        })}
-                    </colgroup>
-                ))}
-                <thead>
+            <TableScrollableWrapper>
+                <Table bordered condensed>
                     {table.getHeaderGroups().map((headerGroup) => (
-                        <DragDropContext
-                            onDragStart={() => {
-                                currentColOrder.current = columnOrder;
-                            }}
-                            onDragUpdate={(dragUpdateObj) => {
-                                const colOrder = [...currentColOrder.current];
-                                const sIndex = dragUpdateObj.source.index;
-                                const dIndex =
-                                    dragUpdateObj.destination &&
-                                    dragUpdateObj.destination.index;
-
-                                if (typeof dIndex === 'number') {
-                                    colOrder.splice(sIndex, 1);
-                                    colOrder.splice(
-                                        dIndex,
-                                        0,
-                                        dragUpdateObj.draggableId,
-                                    );
-                                    setColumnOrder(
-                                        colOrder.filter(
-                                            (col) =>
-                                                col !== ROW_NUMBER_COLUMN_ID,
-                                        ),
-                                    );
-                                }
-                            }}
-                            onDragEnd={() => undefined}
-                        >
-                            <Droppable
-                                droppableId="droppable"
-                                direction="horizontal"
-                                renderClone={(provided, snapshot, rubric) => {
-                                    const header = headerGroup.headers.find(
-                                        ({ id }) => id === rubric.draggableId,
-                                    );
-                                    return (
-                                        <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            style={{
-                                                ...provided.draggableProps
-                                                    .style,
-                                                ...(!snapshot.isDragging && {
-                                                    transform: 'translate(0,0)',
-                                                }),
-                                                ...(snapshot.isDropAnimating && {
-                                                    transitionDuration:
-                                                        '0.001s',
-                                                }),
-                                            }}
-                                        >
-                                            {!header || header.isPlaceholder
-                                                ? null
-                                                : flexRender(
-                                                      header.column.columnDef
-                                                          .header,
-                                                      header.getContext(),
-                                                  )}
-                                        </div>
-                                    );
-                                }}
-                            >
-                                {(droppableProvided) => (
-                                    <tr
-                                        ref={droppableProvided.innerRef}
-                                        {...droppableProvided.droppableProps}
-                                    >
-                                        {headerGroup.headers.map((header) => {
-                                            const meta = header.column.columnDef
-                                                .meta as TableColumn['meta'];
-                                            return (
-                                                <th
-                                                    colSpan={header.colSpan}
-                                                    style={{
-                                                        width: meta?.width,
-                                                        backgroundColor:
-                                                            meta?.bgColor ??
-                                                            Colors.WHITE,
-                                                    }}
-                                                >
-                                                    <Draggable
-                                                        key={header.id}
-                                                        draggableId={header.id}
-                                                        index={header.index}
-                                                        isDragDisabled={
-                                                            !meta?.draggable
-                                                        }
-                                                    >
-                                                        {(
-                                                            provided,
-                                                            snapshot,
-                                                        ) => (
-                                                            <div
-                                                                ref={
-                                                                    provided.innerRef
-                                                                }
-                                                                {...provided.draggableProps}
-                                                                {...provided.dragHandleProps}
-                                                                style={{
-                                                                    ...provided
-                                                                        .draggableProps
-                                                                        .style,
-                                                                    ...(!snapshot.isDragging && {
-                                                                        transform:
-                                                                            'translate(0,0)',
-                                                                    }),
-                                                                    ...(snapshot.isDropAnimating && {
-                                                                        transitionDuration:
-                                                                            '0.001s',
-                                                                    }),
-                                                                }}
-                                                            >
-                                                                {header.isPlaceholder
-                                                                    ? null
-                                                                    : flexRender(
-                                                                          header
-                                                                              .column
-                                                                              .columnDef
-                                                                              .header,
-                                                                          header.getContext(),
-                                                                      )}
-                                                            </div>
-                                                        )}
-                                                    </Draggable>
-                                                </th>
-                                            );
-                                        })}
-                                    </tr>
-                                )}
-                            </Droppable>
-                        </DragDropContext>
-                    ))}
-                </thead>
-                <tbody>
-                    {table.getRowModel().rows.map((row, rowIndex) => (
-                        <tr key={row.id}>
-                            {row.getVisibleCells().map((cell, cellIndex) => (
-                                <td
-                                    key={cell.id}
-                                    style={{
-                                        backgroundColor:
-                                            cellIndex === 0 || rowIndex % 2
-                                                ? undefined
-                                                : Colors.LIGHT_GRAY4,
-                                    }}
-                                >
-                                    {flexRender(
-                                        cell.column.columnDef.cell,
-                                        cell.getContext(),
-                                    )}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-                <tfoot>
-                    {table.getFooterGroups().map((footerGroup) => (
-                        <tr key={footerGroup.id}>
-                            {footerGroup.headers.map((header) => {
+                        <colgroup key={headerGroup.id}>
+                            {headerGroup.headers.map((header) => {
                                 const meta = header.column.columnDef
                                     .meta as TableColumn['meta'];
                                 return (
-                                    <th
-                                        key={header.id}
-                                        colSpan={header.colSpan}
+                                    <col
                                         style={{
-                                            backgroundColor: Colors.WHITE,
+                                            backgroundColor:
+                                                meta?.bgColor ?? Colors.WHITE,
                                         }}
-                                    >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                  header.column.columnDef
-                                                      .footer,
-                                                  header.getContext(),
-                                              )}
-                                    </th>
+                                    />
                                 );
                             })}
-                        </tr>
+                        </colgroup>
                     ))}
-                </tfoot>
-            </Table>
+                    <thead>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <DragDropContext
+                                onDragStart={() => {
+                                    currentColOrder.current = columnOrder;
+                                }}
+                                onDragUpdate={(dragUpdateObj) => {
+                                    const colOrder = [
+                                        ...currentColOrder.current,
+                                    ];
+                                    const sIndex = dragUpdateObj.source.index;
+                                    const dIndex =
+                                        dragUpdateObj.destination &&
+                                        dragUpdateObj.destination.index;
+
+                                    if (typeof dIndex === 'number') {
+                                        colOrder.splice(sIndex, 1);
+                                        colOrder.splice(
+                                            dIndex,
+                                            0,
+                                            dragUpdateObj.draggableId,
+                                        );
+                                        setColumnOrder(
+                                            colOrder.filter(
+                                                (col) =>
+                                                    col !==
+                                                    ROW_NUMBER_COLUMN_ID,
+                                            ),
+                                        );
+                                    }
+                                }}
+                                onDragEnd={() => undefined}
+                            >
+                                <Droppable
+                                    droppableId="droppable"
+                                    direction="horizontal"
+                                    renderClone={(
+                                        provided,
+                                        snapshot,
+                                        rubric,
+                                    ) => {
+                                        const header = headerGroup.headers.find(
+                                            ({ id }) =>
+                                                id === rubric.draggableId,
+                                        );
+                                        return (
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                {...provided.dragHandleProps}
+                                                style={{
+                                                    ...provided.draggableProps
+                                                        .style,
+                                                    ...(!snapshot.isDragging && {
+                                                        transform:
+                                                            'translate(0,0)',
+                                                    }),
+                                                    ...(snapshot.isDropAnimating && {
+                                                        transitionDuration:
+                                                            '0.001s',
+                                                    }),
+                                                }}
+                                            >
+                                                {!header || header.isPlaceholder
+                                                    ? null
+                                                    : flexRender(
+                                                          header.column
+                                                              .columnDef.header,
+                                                          header.getContext(),
+                                                      )}
+                                            </div>
+                                        );
+                                    }}
+                                >
+                                    {(droppableProvided) => (
+                                        <tr
+                                            ref={droppableProvided.innerRef}
+                                            {...droppableProvided.droppableProps}
+                                        >
+                                            {headerGroup.headers.map(
+                                                (header) => {
+                                                    const meta = header.column
+                                                        .columnDef
+                                                        .meta as TableColumn['meta'];
+                                                    return (
+                                                        <th
+                                                            colSpan={
+                                                                header.colSpan
+                                                            }
+                                                            style={{
+                                                                width: meta?.width,
+                                                                backgroundColor:
+                                                                    meta?.bgColor ??
+                                                                    Colors.WHITE,
+                                                            }}
+                                                        >
+                                                            <Draggable
+                                                                key={header.id}
+                                                                draggableId={
+                                                                    header.id
+                                                                }
+                                                                index={
+                                                                    header.index
+                                                                }
+                                                                isDragDisabled={
+                                                                    !meta?.draggable
+                                                                }
+                                                            >
+                                                                {(
+                                                                    provided,
+                                                                    snapshot,
+                                                                ) => (
+                                                                    <div
+                                                                        ref={
+                                                                            provided.innerRef
+                                                                        }
+                                                                        {...provided.draggableProps}
+                                                                        {...provided.dragHandleProps}
+                                                                        style={{
+                                                                            ...provided
+                                                                                .draggableProps
+                                                                                .style,
+                                                                            ...(!snapshot.isDragging && {
+                                                                                transform:
+                                                                                    'translate(0,0)',
+                                                                            }),
+                                                                            ...(snapshot.isDropAnimating && {
+                                                                                transitionDuration:
+                                                                                    '0.001s',
+                                                                            }),
+                                                                        }}
+                                                                    >
+                                                                        {header.isPlaceholder
+                                                                            ? null
+                                                                            : flexRender(
+                                                                                  header
+                                                                                      .column
+                                                                                      .columnDef
+                                                                                      .header,
+                                                                                  header.getContext(),
+                                                                              )}
+                                                                    </div>
+                                                                )}
+                                                            </Draggable>
+                                                        </th>
+                                                    );
+                                                },
+                                            )}
+                                        </tr>
+                                    )}
+                                </Droppable>
+                            </DragDropContext>
+                        ))}
+                    </thead>
+                    <tbody>
+                        {table.getRowModel().rows.map((row, rowIndex) => (
+                            <tr key={row.id}>
+                                {row
+                                    .getVisibleCells()
+                                    .map((cell, cellIndex) => (
+                                        <td
+                                            key={cell.id}
+                                            style={{
+                                                backgroundColor:
+                                                    cellIndex === 0 ||
+                                                    rowIndex % 2
+                                                        ? undefined
+                                                        : Colors.LIGHT_GRAY4,
+                                            }}
+                                        >
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext(),
+                                            )}
+                                        </td>
+                                    ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                    <tfoot>
+                        {table.getFooterGroups().map((footerGroup) => (
+                            <tr key={footerGroup.id}>
+                                {footerGroup.headers.map((header) => {
+                                    const meta = header.column.columnDef
+                                        .meta as TableColumn['meta'];
+                                    return (
+                                        <th
+                                            key={header.id}
+                                            colSpan={header.colSpan}
+                                            style={{
+                                                backgroundColor: Colors.WHITE,
+                                            }}
+                                        >
+                                            {header.isPlaceholder
+                                                ? null
+                                                : flexRender(
+                                                      header.column.columnDef
+                                                          .footer,
+                                                      header.getContext(),
+                                                  )}
+                                        </th>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tfoot>
+                </Table>
+            </TableScrollableWrapper>
             <TableFooter>
                 <ButtonGroup>
                     {data.length > DEFAULT_PAGE_SIZE && (
@@ -310,10 +338,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                         <Button
                             style={{ marginLeft: 10 }}
                             icon="arrow-right"
-                            onClick={() => {
-                                console.log('asd');
-                                table.nextPage();
-                            }}
+                            onClick={() => table.nextPage()}
                             disabled={!table.getCanNextPage()}
                         />
                     </PaginationWrapper>

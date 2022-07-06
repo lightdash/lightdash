@@ -3,6 +3,13 @@ import styled from 'styled-components';
 
 export const TableContainer = styled.div`
     flex: 1;
+    padding: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+`;
+export const TableScrollableWrapper = styled.div`
+    flex: 1;
     overflow: auto;
 `;
 
@@ -42,8 +49,8 @@ export const Table = styled(HTMLTable)`
 
     tfoot {
         position: sticky;
-        bottom: 40px;
-        inset-block-end: 40px; /* "bottom" */
+        bottom: 0;
+        inset-block-end: 0; /* "bottom" */
 
         th:first-child {
             border-top: none !important;
@@ -61,14 +68,9 @@ export const Table = styled(HTMLTable)`
 `;
 
 export const TableFooter = styled.div`
-    height: 40px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding-top: 10px;
-    position: sticky;
-    bottom: 0;
-    inset-block-end: 0; /* "bottom" */
-    background: #fff;
+    margin-top: 10px;
 `;
