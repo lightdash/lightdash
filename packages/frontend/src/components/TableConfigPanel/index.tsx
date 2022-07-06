@@ -3,7 +3,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
-import { ConfigWrapper } from './TableConfig.styles';
+import { ConfigLabel, ConfigWrapper } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {
@@ -15,13 +15,17 @@ export const TableConfigPanel: React.FC = () => {
         <Popover2
             content={
                 <ConfigWrapper>
+                    <ConfigLabel>Show table names</ConfigLabel>
                     <Switch
+                        large
+                        innerLabelChecked="Yes"
+                        innerLabel="No"
                         checked={showTableNames}
-                        label="Show table names"
                         onChange={(e) => {
                             setShowTableName(!showTableNames);
                         }}
                     />
+                    <ConfigLabel>Columns</ConfigLabel>
 
                     <ColumnConfiguration />
                 </ConfigWrapper>

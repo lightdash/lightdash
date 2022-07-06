@@ -23,8 +23,8 @@ export const ColumnConfiguration: React.FC = () => {
                         <InputGroup
                             fill
                             disabled={!isFilterVisible(fieldId)}
-                            defaultValue={getHeader(fieldId)}
-                            onBlur={(e) => {
+                            placeholder={getHeader(fieldId)}
+                            onChange={(e) => {
                                 updateColumnProperty(fieldId, {
                                     name: e.currentTarget.value,
                                 });
