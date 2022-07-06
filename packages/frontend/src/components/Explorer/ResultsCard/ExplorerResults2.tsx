@@ -16,6 +16,8 @@ import styled from 'styled-components';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import Table, { TableColumn } from '../../common/Table';
+import { CellContextMenu } from '../../ResultsTable/CellContextMenu';
+import ColumnHeaderContextMenu from '../../ResultsTable/ColumnHeaderContextMenu';
 
 export const TableContainer = styled.div`
     flex: 1;
@@ -29,6 +31,7 @@ export const TableContainer = styled.div`
 export const ExplorerResults2 = () => {
     const {
         state: {
+            isEditMode,
             activeFields,
             unsavedChartVersion: {
                 tableName,
@@ -120,7 +123,14 @@ export const ExplorerResults2 = () => {
 
     return (
         <TableContainer>
-            <Table data={data} columns={columns} />
+            <Table
+                data={data}
+                columns={columns}
+                cellContextMenu={isEditMode ? CellContextMenu : undefined}
+                headerContextMenu={
+                    isEditMode ? ColumnHeaderContextMenu : undefined
+                }
+            />
         </TableContainer>
     );
 };

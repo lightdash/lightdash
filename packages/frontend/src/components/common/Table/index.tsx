@@ -7,11 +7,13 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import {
+    Cell,
     ColumnDef,
     ColumnOrderState,
     flexRender,
     getCoreRowModel,
     getPaginationRowModel,
+    Header,
     useReactTable,
 } from '@tanstack/react-table';
 import React, { FC } from 'react';
@@ -31,6 +33,9 @@ import {
 
 type TableRow = { [col: string]: any };
 
+export type HeaderContextMenuProps = { header: Header<TableRow> };
+export type CellContextMenuProps = { cell: Cell<TableRow> };
+
 export type TableColumn = ColumnDef<TableRow> & {
     meta?: {
         width?: number;
@@ -43,6 +48,8 @@ export type TableColumn = ColumnDef<TableRow> & {
 type Props = {
     data: TableRow[];
     columns: TableColumn[];
+    headerContextMenu?: FC<HeaderContextMenuProps>;
+    cellContextMenu?: FC<CellContextMenuProps>;
 };
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -60,7 +67,14 @@ const rowColumn: TableColumn = {
     },
 };
 
-const ResultsTable: FC<Props> = ({ data, columns }) => {
+const ResultsTable: FC<Props> = ({
+    data,
+    columns,
+    headerContextMenu,
+    cellContextMenu,
+}) => {
+    const HeaderContextMenu = headerContextMenu || React.Fragment;
+    const CellContextMenu = cellContextMenu || React.Fragment;
     const [columnVisibility, setColumnVisibility] = React.useState({});
     const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([]);
     const currentColOrder = React.useRef<Array<string>>([]);
@@ -225,36 +239,42 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                                                         provided,
                                                                         snapshot,
                                                                     ) => (
-                                                                        <div
-                                                                            ref={
-                                                                                provided.innerRef
+                                                                        <HeaderContextMenu
+                                                                            header={
+                                                                                header
                                                                             }
-                                                                            {...provided.draggableProps}
-                                                                            {...provided.dragHandleProps}
-                                                                            style={{
-                                                                                ...provided
-                                                                                    .draggableProps
-                                                                                    .style,
-                                                                                ...(!snapshot.isDragging && {
-                                                                                    transform:
-                                                                                        'translate(0,0)',
-                                                                                }),
-                                                                                ...(snapshot.isDropAnimating && {
-                                                                                    transitionDuration:
-                                                                                        '0.001s',
-                                                                                }),
-                                                                            }}
                                                                         >
-                                                                            {header.isPlaceholder
-                                                                                ? null
-                                                                                : flexRender(
-                                                                                      header
-                                                                                          .column
-                                                                                          .columnDef
-                                                                                          .header,
-                                                                                      header.getContext(),
-                                                                                  )}
-                                                                        </div>
+                                                                            <div
+                                                                                ref={
+                                                                                    provided.innerRef
+                                                                                }
+                                                                                {...provided.draggableProps}
+                                                                                {...provided.dragHandleProps}
+                                                                                style={{
+                                                                                    ...provided
+                                                                                        .draggableProps
+                                                                                        .style,
+                                                                                    ...(!snapshot.isDragging && {
+                                                                                        transform:
+                                                                                            'translate(0,0)',
+                                                                                    }),
+                                                                                    ...(snapshot.isDropAnimating && {
+                                                                                        transitionDuration:
+                                                                                            '0.001s',
+                                                                                    }),
+                                                                                }}
+                                                                            >
+                                                                                {header.isPlaceholder
+                                                                                    ? null
+                                                                                    : flexRender(
+                                                                                          header
+                                                                                              .column
+                                                                                              .columnDef
+                                                                                              .header,
+                                                                                          header.getContext(),
+                                                                                      )}
+                                                                            </div>
+                                                                        </HeaderContextMenu>
                                                                     )}
                                                                 </Draggable>
                                                             </Tooltip2>
@@ -290,10 +310,12 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                                 !isNumericItem(meta.item)
                                             }
                                         >
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext(),
-                                            )}
+                                            <CellContextMenu cell={cell}>
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext(),
+                                                )}
+                                            </CellContextMenu>
                                         </BodyCell>
                                     );
                                 })}

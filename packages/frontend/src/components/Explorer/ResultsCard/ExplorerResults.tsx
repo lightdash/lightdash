@@ -4,8 +4,6 @@ import React from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import { CellContextMenu } from '../../ResultsTable/CellContextMenu';
-import ColumnHeaderContextMenu from '../../ResultsTable/ColumnHeaderContextMenu';
 import { ResultsTable } from '../../ResultsTable/ResultsTable';
 import {
     EmptyStateExploreLoading,
@@ -80,8 +78,8 @@ export const ExplorerResults = () => {
             dataColumnOrder={explorerColumnOrder}
             onColumnOrderChange={setExplorerColumnOrder}
             idleState={IdleState}
-            cellContextMenu={isEditMode ? CellContextMenu : undefined}
-            headerContextMenu={isEditMode ? ColumnHeaderContextMenu : undefined}
+            // cellContextMenu={isEditMode ? CellContextMenu : undefined}
+            // headerContextMenu={isEditMode ? ColumnHeaderContextMenu : undefined}
         />
     );
 };

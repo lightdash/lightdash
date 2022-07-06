@@ -1,39 +1,37 @@
 import { Menu, MenuItem } from '@blueprintjs/core';
 import { ContextMenu2 } from '@blueprintjs/popover2';
-import { isFilterableField } from '@lightdash/common';
+import { isField, isFilterableField } from '@lightdash/common';
 import React from 'react';
-import { Cell } from 'react-table';
 import { useFilters } from '../../hooks/useFilters';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { CellContextMenuProps, TableColumn } from '../common/Table';
 
-type CellContextMenuProps = {
-    cell: Cell;
-};
 export const CellContextMenu: React.FC<CellContextMenuProps> = ({
     children,
     cell,
 }) => {
     const { addFilter } = useFilters();
-    const field = cell.column?.field;
+    const meta = cell.column.columnDef.meta as TableColumn['meta'];
+    const item = meta?.item;
     const { track } = useTracking();
 
-    if (field && isFilterableField(field)) {
+    if (item && isField(item) && isFilterableField(item)) {
         return (
             <ContextMenu2
                 content={
                     <Menu>
                         <MenuItem
-                            text={`Filter by "${cell.value}"`}
+                            text={`Filter by "${cell.getValue()}"`}
                             onClick={() => {
                                 track({
                                     name: EventName.ADD_FILTER_CLICKED,
                                 });
                                 addFilter(
-                                    field,
-                                    cell.value === undefined
+                                    item,
+                                    cell.getValue() === undefined
                                         ? null
-                                        : cell.value,
+                                        : cell.getValue(),
                                     true,
                                 );
                             }}
