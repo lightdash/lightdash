@@ -5,7 +5,7 @@
 <p align="center">The open-source Looker alternative.</p>
 
 <div align="center">
-        <a target="_blank" href="https://www.loom.com/share/c0805a236a994de397ac5142fdfe4b7f"><img align="center" style="max-width:300px;" src="/static/screenshots/lightdash_preview.png"> </a>
+        <a target="_blank" href="https://www.loom.com/share/c0805a236a994de397ac5142fdfe4b7f"><img align="center" style="max-width:300px;" src="/static/screenshots/lightdash_preview_chart_animation.gif"> </a>
 </div>
 <br>
 <p align="center">
