@@ -94,6 +94,7 @@ export const ExplorerResults2 = () => {
                             : null,
                     meta: {
                         item,
+                        draggable: true,
                     },
                 };
                 return [...acc, column];

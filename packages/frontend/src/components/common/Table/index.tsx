@@ -21,7 +21,7 @@ type TableRow = { [col: string]: any };
 export type TableColumn = ColumnDef<TableRow> & {
     meta?: {
         width?: number;
-        static?: boolean;
+        draggable?: boolean;
         item?: Field | TableCalculation;
     };
 };
@@ -36,14 +36,13 @@ const MAX_PAGE_SIZE = 5000;
 
 const ROW_NUMBER_COLUMN_ID = 'row_number_column';
 
-const rowColumn: ColumnDef<TableRow> = {
+const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     header: '#',
     cell: (props) => props.row.index + 1,
     footer: 'Total',
     meta: {
         width: 30,
-        static: true,
     },
 };
 
@@ -156,7 +155,7 @@ const ResultsTable: FC<Props> = ({ data, columns }) => {
                                                         draggableId={header.id}
                                                         index={header.index}
                                                         isDragDisabled={
-                                                            meta?.static
+                                                            !meta?.draggable
                                                         }
                                                     >
                                                         {(
