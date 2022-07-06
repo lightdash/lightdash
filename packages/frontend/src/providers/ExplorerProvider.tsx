@@ -359,6 +359,9 @@ function reducer(
             const activeFields = new Set([
                 ...state.unsavedChartVersion.metricQuery.dimensions,
                 ...state.unsavedChartVersion.metricQuery.metrics,
+                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    (tc) => tc.name,
+                ),
             ]);
             if (!activeFields.has(sortFieldId)) {
                 return state;
@@ -407,6 +410,9 @@ function reducer(
             const activeFields = new Set([
                 ...state.unsavedChartVersion.metricQuery.dimensions,
                 ...state.unsavedChartVersion.metricQuery.metrics,
+                ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
+                    (tc) => tc.name,
+                ),
             ]);
             return {
                 ...state,
