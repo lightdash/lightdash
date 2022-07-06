@@ -87,7 +87,6 @@ const DownloadCSV: FC<{
 }> = ({ data, project }) => {
     const { data: resultData } = useSavedChartResults(project, data);
 
-    console.log('data.chartConfig.type', data.chartConfig.type);
     if (data.chartConfig.type !== ChartType.TABLE) {
         return <></>;
     }
