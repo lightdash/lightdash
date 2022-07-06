@@ -10,12 +10,11 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
-import { ColumnDef } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import Table, { TableRow } from '../../common/Table';
+import Table, { TableColumn } from '../../common/Table';
 
 export const TableContainer = styled.div`
     flex: 1;
@@ -75,39 +74,32 @@ export const ExplorerResults2 = () => {
     }, [activeItemsMap, resultsData]);
 
     const columns = useMemo(() => {
-        const rowColumn: ColumnDef<TableRow> = {
-            id: 'row_number',
-            header: '#',
-            cell: (props) => props.row.index + 1,
-            footer: 'Total',
-            size: 30,
-        };
-        const itemColumns = Object.entries(activeItemsMap).reduce<
-            ColumnDef<TableRow>[]
-        >((acc, [fieldId, item]) => {
-            const column: ColumnDef<TableRow> = {
-                id: fieldId,
-                header: () =>
-                    isField(item) ? (
-                        <span>
-                            {item.tableLabel} <b>{item.label}</b>
-                        </span>
-                    ) : (
-                        <b>{item.displayName || friendlyName(item.name)}</b>
-                    ),
-                accessorKey: fieldId,
-                cell: (info) => info.getValue() || '-',
-                footer: () =>
-                    totals[fieldId]
-                        ? formatItemValue(item, totals[fieldId])
-                        : null,
-                meta: {
-                    field: item,
-                },
-            };
-            return [...acc, column];
-        }, []);
-        return [rowColumn, ...itemColumns];
+        return Object.entries(activeItemsMap).reduce<TableColumn[]>(
+            (acc, [fieldId, item]) => {
+                const column: TableColumn = {
+                    id: fieldId,
+                    header: () =>
+                        isField(item) ? (
+                            <span>
+                                {item.tableLabel} <b>{item.label}</b>
+                            </span>
+                        ) : (
+                            <b>{item.displayName || friendlyName(item.name)}</b>
+                        ),
+                    accessorKey: fieldId,
+                    cell: (info) => info.getValue() || '-',
+                    footer: () =>
+                        totals[fieldId]
+                            ? formatItemValue(item, totals[fieldId])
+                            : null,
+                    meta: {
+                        item,
+                    },
+                };
+                return [...acc, column];
+            },
+            [],
+        );
     }, [activeItemsMap, totals]);
 
     const data = getResultValues(resultsData?.rows || []);
