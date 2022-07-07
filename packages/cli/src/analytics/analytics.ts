@@ -1,11 +1,38 @@
+import { LightdashUser } from '@lightdash/common';
 import fetch from 'node-fetch';
-import { v4 as uuidv4 } from 'uuid';
+import { Config, getConfig } from '../config';
+import { lightdashApi } from '../handlers/dbt/apiClient';
 
 const { version: VERSION } = require('../../package.json');
 
+const identifyUser = async (): Promise<Config['user']> => {
+    const config = await getConfig();
+    if (
+        process.env.LIGHTDASH_API_KEY &&
+        config.context?.serverUrl &&
+        config.context.apiKey
+    ) {
+        try {
+            const user = await lightdashApi<LightdashUser>({
+                method: 'GET',
+                url: '/api/v1/user',
+                body: undefined,
+            });
+            return {
+                anonymousUuid: config.user?.anonymousUuid,
+                userUuid: user.userUuid,
+            };
+        } catch {
+            // do nothing
+        }
+    }
+    return {
+        anonymousUuid: config.user?.anonymousUuid,
+        userUuid: config.user?.userUuid,
+    };
+};
+
 export interface AnalyticsTrack {
-    userId?: string;
-    anonymousId?: string;
     event: string;
     properties?: Record<string, any>;
     context?: Record<string, any>;
@@ -63,6 +90,7 @@ type Track =
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
         try {
+            const user = await identifyUser();
             const lightdashContext = {
                 app: {
                     namespace: 'lightdash',
@@ -72,7 +100,8 @@ export class LightdashAnalytics {
             };
 
             const body = {
-                anonymousId: uuidv4(),
+                anonymousId: user?.anonymousUuid,
+                userId: user?.userUuid,
                 ...payload,
                 event: `${lightdashContext.app.name}.${payload.event}`,
                 context: { ...lightdashContext },

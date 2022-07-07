@@ -1,10 +1,10 @@
 import { OrganizationProject } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
-import { getConfig, setConfig } from '../config';
+import { getConfig, setProjectUuid } from '../config';
 import { lightdashApi } from './dbt/apiClient';
 
-export const setProject = async () => {
+export const setProjectInteractively = async () => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
@@ -20,11 +20,8 @@ export const setProject = async () => {
             })),
         },
     ]);
-    const config = await getConfig(false);
-    await setConfig({
-        ...config,
-        context: { ...config.context, project: answers.project },
-    });
+    await setProjectUuid(answers.project);
+    const config = await getConfig();
     const projectUrl =
         config.context?.serverUrl &&
         new URL(`/projects/${answers.project}/home`, config.context.serverUrl);

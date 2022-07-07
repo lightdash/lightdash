@@ -9,7 +9,7 @@ import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
 import { login } from './handlers/login';
 import { previewHandler } from './handlers/preview';
-import { setProject } from './handlers/setProject';
+import { setProjectInteractively } from './handlers/setProject';
 import * as styles from './styles';
 
 const { version: VERSION } = require('../package.json');
@@ -114,7 +114,7 @@ program
         'Interactively choose project.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#set-active-project for more help and examples',
     )
     .description('Interactively choose project')
-    .action(setProject);
+    .action(setProjectInteractively);
 
 const dbtProgram = program.command('dbt').description('runs dbt commands');
 
