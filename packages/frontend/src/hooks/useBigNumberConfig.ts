@@ -63,10 +63,7 @@ const useBigNumberConfig = (
         return [fields, fieldIds];
     }, [resultsData, explore]);
 
-    const [selectedField, setSelectedField] = useState<string | undefined>(
-        bigNumberConfigData?.selectedField,
-    );
-
+    const [selectedField, setSelectedField] = useState<string | undefined>();
     const getField = useCallback(
         (field: string) => {
             return availableFields.find(
@@ -85,7 +82,7 @@ const useBigNumberConfig = (
                 ? bigNumberConfigData?.selectedField
                 : availableFieldsIds[0];
 
-            if (selectedField === undefined || !selectedFieldExists) {
+            if (selectedField === undefined || selectedFieldExists === false) {
                 // Set default selectedField on explore load
                 // or if existing selectedField is no longer available, default to first available field
                 setSelectedField(defaultSelectedField);
@@ -116,7 +113,8 @@ const useBigNumberConfig = (
     >(bigNumberConfigData?.style);
 
     useEffect(() => {
-        setSelectedField(bigNumberConfigData?.selectedField);
+        if (bigNumberConfigData?.selectedField !== undefined)
+            setSelectedField(bigNumberConfigData.selectedField);
 
         setBigNumberLabel(bigNumberConfigData?.label);
         setBigNumberStyle(bigNumberConfigData?.style);
