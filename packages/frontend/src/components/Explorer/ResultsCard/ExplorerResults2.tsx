@@ -44,10 +44,11 @@ export const ExplorerResults2 = () => {
             unsavedChartVersion: {
                 tableName,
                 metricQuery: { tableCalculations, additionalMetrics, sorts },
+                tableConfig: { columnOrder: explorerColumnOrder },
             },
         },
         queryResults: { data: resultsData },
-        actions: { toggleSortField, setSortFields },
+        actions: { toggleSortField, setSortFields, setColumnOrder },
     } = useExplorer();
     const { data: exploreData } = useExplore(tableName);
 
@@ -161,6 +162,8 @@ export const ExplorerResults2 = () => {
             <Table
                 data={data}
                 columns={columns}
+                columnOrder={explorerColumnOrder}
+                onColumnOrderChange={setColumnOrder}
                 cellContextMenu={isEditMode ? CellContextMenu : undefined}
                 headerContextMenu={
                     isEditMode ? ColumnHeaderContextMenu : undefined

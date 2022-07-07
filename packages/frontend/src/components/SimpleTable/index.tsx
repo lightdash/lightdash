@@ -73,7 +73,11 @@ const SimpleTable: FC = () => {
         <>
             {validData ? (
                 <TableWrapper className="cohere-block">
-                    <Table data={tableItems} columns={columns} />
+                    <Table
+                        data={tableItems}
+                        columns={columns}
+                        columnOrder={columnOrder}
+                    />
                 </TableWrapper>
             ) : (
                 <div style={{ padding: '50px 0' }}>

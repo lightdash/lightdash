@@ -5,7 +5,7 @@ import {
     Table,
     useReactTable,
 } from '@tanstack/react-table';
-import React, { createContext, FC, useContext } from 'react';
+import React, { createContext, FC, useContext, useEffect } from 'react';
 import {
     CellContextMenuProps,
     HeaderProps,
@@ -20,14 +20,12 @@ type Props = {
     headerContextMenu?: FC<HeaderProps>;
     headerButton?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
+    columnOrder: string[];
+    onColumnOrderChange?: (value: string[]) => void;
 };
 
-type TableContext = {
-    data: TableRow[];
+type TableContext = Props & {
     table: Table<TableRow>;
-    headerContextMenu?: FC<HeaderProps>;
-    headerButton?: FC<HeaderProps>;
-    cellContextMenu?: FC<CellContextMenuProps>;
 };
 
 const Context = createContext<TableContext | undefined>(undefined);
@@ -42,36 +40,33 @@ const rowColumn: TableColumn = {
     },
 };
 
-export const TableProvider: FC<Props> = ({
-    data,
-    columns,
-    headerButton,
-    headerContextMenu,
-    cellContextMenu,
-    children,
-}) => {
+export const TableProvider: FC<Props> = ({ children, ...rest }) => {
+    const { data, columns, columnOrder, onColumnOrderChange } = rest;
     const [columnVisibility, setColumnVisibility] = React.useState({});
-    const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([]);
+    const [tempColumnOrder, setTempColumnOrder] =
+        React.useState<ColumnOrderState>(columnOrder);
     const table = useReactTable({
         data,
         columns: [rowColumn, ...columns],
         state: {
             columnVisibility,
-            columnOrder: [...new Set([ROW_NUMBER_COLUMN_ID, ...columnOrder])],
+            columnOrder: [
+                ...new Set([ROW_NUMBER_COLUMN_ID, ...tempColumnOrder]),
+            ],
         },
         onColumnVisibilityChange: setColumnVisibility,
-        onColumnOrderChange: setColumnOrder,
+        onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+    useEffect(() => {
+        onColumnOrderChange?.(tempColumnOrder);
+    }, [tempColumnOrder, onColumnOrderChange]);
     return (
         <Context.Provider
             value={{
-                data,
                 table,
-                headerButton,
-                headerContextMenu,
-                cellContextMenu,
+                ...rest,
             }}
         >
             {children}
