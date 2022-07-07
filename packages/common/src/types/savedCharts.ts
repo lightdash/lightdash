@@ -15,6 +15,7 @@ export enum NumberStyle {
 export type BigNumber = {
     label?: string;
     style?: NumberStyle;
+    selectedField?: string;
 };
 
 export type BigNumberConfig = {
