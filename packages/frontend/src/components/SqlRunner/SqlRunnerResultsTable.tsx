@@ -1,11 +1,12 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ApiQueryResults } from '@lightdash/common';
-import React, { FC, useState } from 'react';
-import { Column } from 'react-table';
+import { ApiQueryResults, CompiledDimension } from '@lightdash/common';
+import React, { FC } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
+import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
-import { ResultsTable as Table } from '../ResultsTable/ResultsTable';
+import Table from '../common/Table';
+import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
@@ -31,34 +32,39 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 
 const SqlRunnerResultsTable: FC<{
     onSubmit: () => void;
+    sqlQueryDimensions: Record<string, CompiledDimension>;
     resultsData: ApiQueryResults | undefined;
-    dataColumns: Column<{ [col: string]: any }>[];
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
 }> = ({
     onSubmit,
+    sqlQueryDimensions,
     resultsData,
-    dataColumns,
-    sqlQueryMutation: { isIdle, isLoading, error },
+    sqlQueryMutation: { status, error },
 }) => {
-    const [columnsOrder, setColumnsOrder] = useState<string[]>([]);
+    const columns = useSqlRunnerColumns({
+        resultsData,
+        fieldsMap: sqlQueryDimensions,
+    });
 
     if (error) {
         return <ResultsErrorState error={error.error.message} />;
     }
 
+    const IdleState = () => (
+        <ResultsIdleState onSubmit={onSubmit} isLoading={false} />
+    );
+
     return (
-        <Table
-            isEditMode={false}
-            data={resultsData?.rows || []}
-            dataColumns={dataColumns}
-            loading={isLoading}
-            idle={isIdle}
-            dataColumnOrder={columnsOrder}
-            onColumnOrderChange={setColumnsOrder}
-            idleState={
-                <ResultsIdleState onSubmit={onSubmit} isLoading={isLoading} />
-            }
-        />
+        <TrackSection name={SectionName.RESULTS_TABLE}>
+            <TableContainer>
+                <Table
+                    status={status}
+                    data={resultsData?.rows || []}
+                    columns={columns}
+                    idleState={IdleState}
+                />
+            </TableContainer>
+        </TrackSection>
     );
 };
 

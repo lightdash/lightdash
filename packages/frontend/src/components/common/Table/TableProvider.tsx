@@ -20,7 +20,7 @@ type Props = {
     headerContextMenu?: FC<HeaderProps>;
     headerButton?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
-    columnOrder: string[];
+    columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
 };
 
@@ -44,7 +44,7 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, onColumnOrderChange } = rest;
     const [columnVisibility, setColumnVisibility] = React.useState({});
     const [tempColumnOrder, setTempColumnOrder] =
-        React.useState<ColumnOrderState>(columnOrder);
+        React.useState<ColumnOrderState>(columnOrder || []);
     const table = useReactTable({
         data,
         columns: [rowColumn, ...columns],

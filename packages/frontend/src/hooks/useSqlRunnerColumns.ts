@@ -1,12 +1,13 @@
 import {
     ApiQueryResults,
     CompiledDimension,
-    fieldId,
     FieldId,
+    fieldId as getFieldId,
     getResultColumnTotals,
     isNumericItem,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { TableColumn } from '../components/common/Table/types';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;
@@ -28,26 +29,27 @@ const useSqlRunnerColumns = ({ resultsData, fieldsMap }: Args) => {
 
     return useMemo(() => {
         if (fieldsMap) {
-            return Object.values(fieldsMap).map((dimension) => ({
-                Header: dimension.label,
-                accessor: fieldId(dimension),
-                type: 'dimension',
-                Cell: ({
-                    value: {
-                        value: { raw },
+            return Object.values(fieldsMap).map<TableColumn>((dimension) => {
+                const fieldId = getFieldId(dimension);
+                return {
+                    id: fieldId,
+                    header: dimension.label,
+                    accessorKey: fieldId,
+                    cell: (info) => {
+                        const {
+                            value: { raw },
+                        } = info.getValue();
+                        if (raw === null) return '∅';
+                        if (raw === undefined) return '-';
+                        if (raw instanceof Date) return raw.toISOString();
+                        return `${raw}`;
                     },
-                }: any) => {
-                    if (raw === null) return '∅';
-                    if (raw === undefined) return '-';
-                    if (raw instanceof Date) return raw.toISOString();
-                    return `${raw}`;
-                },
-                Footer: () => {
-                    return totals[fieldId(dimension)]
-                        ? totals[fieldId(dimension)]
-                        : null;
-                },
-            }));
+                    footer: () => (totals[fieldId] ? totals[fieldId] : null),
+                    meta: {
+                        item: dimension,
+                    },
+                };
+            });
         }
         return [];
     }, [fieldsMap, totals]);
