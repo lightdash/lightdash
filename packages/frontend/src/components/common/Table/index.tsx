@@ -1,9 +1,10 @@
-import { Button, ButtonGroup, Colors } from '@blueprintjs/core';
+import { Button, ButtonGroup, Colors, Icon, Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     Field,
     isField,
     isNumericItem,
+    SortField,
     TableCalculation,
 } from '@lightdash/common';
 import {
@@ -16,7 +17,7 @@ import {
     Header,
     useReactTable,
 } from '@tanstack/react-table';
-import React, { FC } from 'react';
+import React, { FC, MouseEventHandler } from 'react';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import {
     PageCount,
@@ -33,7 +34,7 @@ import {
 
 type TableRow = { [col: string]: any };
 
-export type HeaderContextMenuProps = { header: Header<TableRow> };
+export type HeaderProps = { header: Header<TableRow> };
 export type CellContextMenuProps = { cell: Cell<TableRow> };
 
 export type TableColumn = ColumnDef<TableRow> & {
@@ -42,13 +43,16 @@ export type TableColumn = ColumnDef<TableRow> & {
         draggable?: boolean;
         item?: Field | TableCalculation;
         bgColor?: string;
+        sort?: SortIndicatorProps;
+        onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
     };
 };
 
 type Props = {
     data: TableRow[];
     columns: TableColumn[];
-    headerContextMenu?: FC<HeaderContextMenuProps>;
+    headerContextMenu?: FC<HeaderProps>;
+    headerButton?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
 };
 
@@ -67,13 +71,61 @@ const rowColumn: TableColumn = {
     },
 };
 
+type SortIndicatorProps = {
+    sortIndex: number;
+    sort: SortField;
+    isNumeric: boolean;
+    isMultiSort: boolean;
+};
+
+const SortIndicator: FC<SortIndicatorProps> = ({
+    sortIndex,
+    isMultiSort,
+    isNumeric,
+    sort,
+}) => {
+    const style = { marginLeft: '5px' };
+
+    return (
+        <div
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+            }}
+        >
+            {isMultiSort && (
+                <Tag minimal style={style}>
+                    {sortIndex + 1}
+                </Tag>
+            )}
+            {sort.descending ? (
+                <Icon
+                    style={style}
+                    icon={
+                        !isNumeric
+                            ? 'sort-alphabetical-desc'
+                            : 'sort-numerical-desc'
+                    }
+                />
+            ) : (
+                <Icon
+                    style={style}
+                    icon={!isNumeric ? 'sort-alphabetical' : 'sort-numerical'}
+                />
+            )}
+        </div>
+    );
+};
+
 const ResultsTable: FC<Props> = ({
     data,
     columns,
     headerContextMenu,
+    headerButton,
     cellContextMenu,
 }) => {
     const HeaderContextMenu = headerContextMenu || React.Fragment;
+    const HeaderButton = headerButton || React.Fragment;
     const CellContextMenu = cellContextMenu || React.Fragment;
     const [columnVisibility, setColumnVisibility] = React.useState({});
     const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([]);
@@ -205,7 +257,13 @@ const ResultsTable: FC<Props> = ({
                                                                 backgroundColor:
                                                                     meta?.bgColor ??
                                                                     Colors.WHITE,
+                                                                cursor: meta?.onHeaderClick
+                                                                    ? 'pointer'
+                                                                    : undefined,
                                                             }}
+                                                            onClick={
+                                                                meta?.onHeaderClick
+                                                            }
                                                         >
                                                             <Tooltip2
                                                                 fill
@@ -262,6 +320,10 @@ const ResultsTable: FC<Props> = ({
                                                                                         transitionDuration:
                                                                                             '0.001s',
                                                                                     }),
+                                                                                    display:
+                                                                                        'flex',
+                                                                                    justifyContent:
+                                                                                        'space-between',
                                                                                 }}
                                                                             >
                                                                                 {header.isPlaceholder
@@ -273,6 +335,16 @@ const ResultsTable: FC<Props> = ({
                                                                                               .header,
                                                                                           header.getContext(),
                                                                                       )}
+                                                                                {meta?.sort && (
+                                                                                    <SortIndicator
+                                                                                        {...meta?.sort}
+                                                                                    />
+                                                                                )}
+                                                                                <HeaderButton
+                                                                                    header={
+                                                                                        header
+                                                                                    }
+                                                                                />
                                                                             </div>
                                                                         </HeaderContextMenu>
                                                                     )}

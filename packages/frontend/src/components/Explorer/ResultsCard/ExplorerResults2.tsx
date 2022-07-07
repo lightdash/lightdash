@@ -15,9 +15,19 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import Table, { TableColumn } from '../../common/Table';
+import Table, { HeaderProps, TableColumn } from '../../common/Table';
 import { CellContextMenu } from '../../ResultsTable/CellContextMenu';
 import ColumnHeaderContextMenu from '../../ResultsTable/ColumnHeaderContextMenu';
+import TableCalculationHeaderButton from '../../TableCalculationHeaderButton';
+
+const HeaderButton: React.FC<HeaderProps> = ({ header }) => {
+    const meta = header.column.columnDef.meta as TableColumn['meta'];
+    const item = meta?.item;
+    if (item && !isField(item)) {
+        return <TableCalculationHeaderButton tableCalculation={item} />;
+    }
+    return null;
+};
 
 export const TableContainer = styled.div`
     max-height: 800px;
@@ -32,10 +42,11 @@ export const ExplorerResults2 = () => {
             activeFields,
             unsavedChartVersion: {
                 tableName,
-                metricQuery: { tableCalculations, additionalMetrics },
+                metricQuery: { tableCalculations, additionalMetrics, sorts },
             },
         },
         queryResults: { data: resultsData },
+        actions: { toggleSortField, setSortFields },
     } = useExplorer();
     const { data: exploreData } = useExplore(tableName);
 
@@ -88,6 +99,10 @@ export const ExplorerResults2 = () => {
     const columns = useMemo(() => {
         return Object.entries(activeItemsMap).reduce<TableColumn[]>(
             (acc, [fieldId, item]) => {
+                const sortIndex = sorts.findIndex(
+                    (sf) => fieldId === sf.fieldId,
+                );
+                const isFieldSorted = sortIndex !== -1;
                 const column: TableColumn = {
                     id: fieldId,
                     header: () =>
@@ -108,13 +123,35 @@ export const ExplorerResults2 = () => {
                         item,
                         draggable: true,
                         bgColor: getItemBgColor(item),
+                        sort: isFieldSorted
+                            ? {
+                                  sortIndex,
+                                  sort: sorts[sortIndex],
+                                  isMultiSort: sorts.length > 1,
+                                  isNumeric: isNumericItem(item),
+                              }
+                            : undefined,
+                        onHeaderClick: (e) => {
+                            if (e.metaKey || e.ctrlKey || isFieldSorted) {
+                                toggleSortField(fieldId);
+                            } else {
+                                setSortFields([
+                                    {
+                                        fieldId,
+                                        descending: isFieldSorted
+                                            ? !sorts[sortIndex].descending
+                                            : false,
+                                    },
+                                ]);
+                            }
+                        },
                     },
                 };
                 return [...acc, column];
             },
             [],
         );
-    }, [activeItemsMap, totals]);
+    }, [activeItemsMap, sorts, totals, toggleSortField, setSortFields]);
 
     const data = getResultValues(resultsData?.rows || []);
 
@@ -127,6 +164,7 @@ export const ExplorerResults2 = () => {
                 headerContextMenu={
                     isEditMode ? ColumnHeaderContextMenu : undefined
                 }
+                headerButton={isEditMode ? HeaderButton : undefined}
             />
         </TableContainer>
     );

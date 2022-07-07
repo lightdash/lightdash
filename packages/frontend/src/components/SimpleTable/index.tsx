@@ -57,7 +57,6 @@ const SimpleTable: FC = () => {
                             : null,
                     meta: {
                         item,
-                        draggable: true,
                     },
                 };
                 return [...acc, column];

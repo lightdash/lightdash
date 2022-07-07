@@ -11,9 +11,9 @@ import { useFilters } from '../../hooks/useFilters';
 import { useExplorer } from '../../providers/ExplorerProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { HeaderContextMenuProps, TableColumn } from '../common/Table';
+import { HeaderProps, TableColumn } from '../common/Table';
 
-const ColumnHeaderContextMenu: React.FC<HeaderContextMenuProps> = ({
+const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
     children,
     header,
 }) => {
