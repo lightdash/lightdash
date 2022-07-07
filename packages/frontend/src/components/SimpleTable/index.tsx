@@ -9,7 +9,8 @@ import {
     isNumericItem,
 } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
-import Table, { TableColumn } from '../common/Table';
+import Table from '../common/Table';
+import { TableColumn } from '../common/Table/types';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import { TableWrapper } from './SimpleTable.styles';

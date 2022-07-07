@@ -5,7 +5,7 @@ import React from 'react';
 import { useFilters } from '../../hooks/useFilters';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { CellContextMenuProps, TableColumn } from '../common/Table';
+import { CellContextMenuProps, TableColumn } from '../common/Table/types';
 
 export const CellContextMenu: React.FC<CellContextMenuProps> = ({
     children,
