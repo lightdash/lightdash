@@ -52,25 +52,28 @@ const TableHeader = () => {
                                         }}
                                         onClick={meta?.onHeaderClick}
                                     >
-                                        <Tooltip2
-                                            fill
-                                            content={
-                                                meta?.item &&
-                                                isField(meta?.item)
-                                                    ? meta.item.description
-                                                    : undefined
-                                            }
-                                            position="top"
+                                        <Draggable
+                                            key={header.id}
+                                            draggableId={header.id}
+                                            index={header.index}
+                                            isDragDisabled={!meta?.draggable}
                                         >
-                                            <Draggable
-                                                key={header.id}
-                                                draggableId={header.id}
-                                                index={header.index}
-                                                isDragDisabled={
-                                                    !meta?.draggable
-                                                }
-                                            >
-                                                {(provided, snapshot) => (
+                                            {(provided, snapshot) => (
+                                                <Tooltip2
+                                                    fill
+                                                    content={
+                                                        meta?.item &&
+                                                        isField(meta?.item)
+                                                            ? meta.item
+                                                                  .description
+                                                            : undefined
+                                                    }
+                                                    position="top"
+                                                    disabled={
+                                                        snapshot.isDropAnimating ||
+                                                        snapshot.isDragging
+                                                    }
+                                                >
                                                     <HeaderContextMenu
                                                         header={header}
                                                     >
@@ -116,9 +119,9 @@ const TableHeader = () => {
                                                             />
                                                         </div>
                                                     </HeaderContextMenu>
-                                                )}
-                                            </Draggable>
-                                        </Tooltip2>
+                                                </Tooltip2>
+                                            )}
+                                        </Draggable>
                                     </th>
                                 );
                             })}
