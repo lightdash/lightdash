@@ -1,4 +1,4 @@
-import { HTMLTable } from '@blueprintjs/core';
+import { Colors, HTMLTable } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const TableContainer = styled.div`
@@ -85,4 +85,15 @@ export const BodyCell = styled.td<{ isNaN: boolean }>`
 
 export const HeaderCell = styled.th<{ isNaN: boolean }>`
     ${CellStyles}
+`;
+
+export const PaginationWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+`;
+
+export const PageCount = styled.span`
+    color: ${Colors.GRAY1};
 `;

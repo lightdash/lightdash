@@ -1,10 +1,6 @@
 import { Button, ButtonGroup } from '@blueprintjs/core';
 import React from 'react';
-import {
-    PageCount,
-    PaginationWrapper,
-} from '../../../ResultsTable/ResultsTable.styles';
-import { TableFooter } from '../Table.styles';
+import { PageCount, PaginationWrapper, TableFooter } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../types';
 
