@@ -1,3 +1,10 @@
+# [0.173.0](https://github.com/lightdash/lightdash/compare/0.172.1...0.173.0) (2022-07-07)
+
+
+### Features
+
+* sort table calculations ([#2639](https://github.com/lightdash/lightdash/issues/2639)) ([7a8544b](https://github.com/lightdash/lightdash/commit/7a8544b311b5ec9daa788e6598fd3cf7a6e94ff4))
+
 ## [0.172.1](https://github.com/lightdash/lightdash/compare/0.172.0...0.172.1) (2022-07-06)
 
 
