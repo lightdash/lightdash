@@ -10,10 +10,14 @@ import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
 
 const TableHeader = () => {
-    const { table, headerButton, headerContextMenu } = useTableContext();
+    const { table, headerButton, headerContextMenu, columns } =
+        useTableContext();
     const HeaderContextMenu = headerContextMenu || React.Fragment;
     const HeaderButton = headerButton || React.Fragment;
     const currentColOrder = React.useRef<Array<string>>([]);
+    if (columns.length <= 0) {
+        return null;
+    }
     return (
         <>
             {table.getHeaderGroups().map((headerGroup) => (

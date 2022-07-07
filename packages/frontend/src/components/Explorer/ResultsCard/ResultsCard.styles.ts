@@ -23,3 +23,9 @@ export const CardHeaderRightContent = styled.div`
     margin-right: 10px;
     gap: 10px;
 `;
+
+export const TableContainer = styled.div`
+    min-height: 21.429em;
+    max-height: 800px;
+    display: flex;
+`;

@@ -7,7 +7,10 @@ import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 
 const TableFooter = () => {
-    const { table } = useTableContext();
+    const { table, data } = useTableContext();
+    if (data.length <= 0) {
+        return null;
+    }
     return (
         <tfoot>
             {table.getFooterGroups().map((footerGroup) => (

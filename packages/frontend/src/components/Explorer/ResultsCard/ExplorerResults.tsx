@@ -1,19 +1,26 @@
 import { Colors } from '@blueprintjs/core';
-import { getResultValues } from '@lightdash/common';
-import React from 'react';
+import { getResultValues, isField } from '@lightdash/common';
+import React, { FC, ReactNode } from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import { ResultsTable } from '../../ResultsTable/ResultsTable';
+import { TrackSection } from '../../../providers/TrackingProvider';
+import { SectionName } from '../../../types/Events';
+import Table from '../../common/Table';
+import { HeaderProps, TableColumn } from '../../common/Table/types';
+import TableCalculationHeaderButton from '../../TableCalculationHeaderButton';
+import { CellContextMenu } from './CellContextMenu';
+import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
     EmptyStateNoTableData,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
+import { TableContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = () => {
-    const dataColumns = useColumns();
+    const columns = useColumns();
     const {
         state: {
             isEditMode,
@@ -23,63 +30,68 @@ export const ExplorerResults = () => {
                 tableConfig: { columnOrder: explorerColumnOrder },
             },
         },
-        queryResults,
-        actions: { setColumnOrder: setExplorerColumnOrder },
+        queryResults: { data: resultsData, status },
+        actions: { setColumnOrder },
     } = useExplorer();
     const activeExplore = useExplore(activeTableName);
-    const safeData = React.useMemo(
-        () => (queryResults.status === 'success' ? queryResults.data.rows : []),
-        [queryResults.status, queryResults.data],
-    );
-    const formattedData = getResultValues(safeData);
+
+    const data = getResultValues(resultsData?.rows || []);
 
     if (!activeTableName) return <NoTableSelected />;
 
     if (activeExplore.isLoading) return <EmptyStateExploreLoading />;
 
-    if (dataColumns.length === 0) return <EmptyStateNoColumns />;
+    if (columns.length === 0) return <EmptyStateNoColumns />;
 
-    let IdleState = (
-        <EmptyStateNoTableData description="Run query to view your results and visualize them as a chart." />
-    );
-    if (dimensions.length <= 0)
-        IdleState = (
-            <EmptyStateNoTableData
-                description={
-                    <>
-                        Pick one or more{' '}
-                        <span style={{ color: Colors.BLUE1 }}>dimensions</span>{' '}
-                        to split your selected metric by.
-                    </>
-                }
-            />
-        );
+    const IdleState: FC = () => {
+        let description: ReactNode =
+            'Run query to view your results and visualize them as a chart.';
+        if (dimensions.length <= 0) {
+            description = (
+                <>
+                    Pick one or more{' '}
+                    <span style={{ color: Colors.BLUE1 }}>dimensions</span> to
+                    split your selected metric by.
+                </>
+            );
+        } else if (metrics.length <= 0) {
+            description = (
+                <>
+                    Pick a <span style={{ color: Colors.ORANGE1 }}>metric</span>{' '}
+                    to make calculations across your selected dimensions.
+                </>
+            );
+        }
 
-    if (metrics.length <= 0)
-        IdleState = (
-            <EmptyStateNoTableData
-                description={
-                    <>
-                        Pick a{' '}
-                        <span style={{ color: Colors.ORANGE1 }}>metric</span> to
-                        make calculations across your selected dimensions.
-                    </>
-                }
-            />
-        );
+        return <EmptyStateNoTableData description={description} />;
+    };
+
+    const HeaderButton: React.FC<HeaderProps> = ({ header }) => {
+        const meta = header.column.columnDef.meta as TableColumn['meta'];
+        const item = meta?.item;
+        if (item && !isField(item)) {
+            return <TableCalculationHeaderButton tableCalculation={item} />;
+        }
+        return null;
+    };
 
     return (
-        <ResultsTable
-            isEditMode={isEditMode}
-            data={formattedData}
-            dataColumns={dataColumns}
-            loading={queryResults.isLoading}
-            idle={queryResults.isIdle}
-            dataColumnOrder={explorerColumnOrder}
-            onColumnOrderChange={setExplorerColumnOrder}
-            idleState={IdleState}
-            // cellContextMenu={isEditMode ? CellContextMenu : undefined}
-            // headerContextMenu={isEditMode ? ColumnHeaderContextMenu : undefined}
-        />
+        <TrackSection name={SectionName.RESULTS_TABLE}>
+            <TableContainer>
+                <Table
+                    status={status}
+                    data={data}
+                    columns={columns}
+                    columnOrder={explorerColumnOrder}
+                    onColumnOrderChange={setColumnOrder}
+                    cellContextMenu={isEditMode ? CellContextMenu : undefined}
+                    headerContextMenu={
+                        isEditMode ? ColumnHeaderContextMenu : undefined
+                    }
+                    headerButton={isEditMode ? HeaderButton : undefined}
+                    idleState={IdleState}
+                />
+            </TableContainer>
+        </TrackSection>
     );
 };

@@ -8,7 +8,7 @@ import {
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
-import { ExplorerResults2 } from './ExplorerResults2';
+import { ExplorerResults } from './ExplorerResults';
 import {
     CardHeader,
     CardHeaderLeftContent,
@@ -59,8 +59,7 @@ const ResultsCard: FC = () => {
                 )}
             </CardHeader>
             <Collapse isOpen={resultsIsOpen}>
-                {/*<ExplorerResults />*/}
-                <ExplorerResults2 />
+                <ExplorerResults />
             </Collapse>
         </Card>
     );

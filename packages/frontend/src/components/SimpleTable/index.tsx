@@ -74,6 +74,7 @@ const SimpleTable: FC = () => {
             {validData ? (
                 <TableWrapper className="cohere-block">
                     <Table
+                        status={'success'}
                         data={tableItems}
                         columns={columns}
                         columnOrder={columnOrder}
