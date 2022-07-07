@@ -1,3 +1,10 @@
+# [0.174.0](https://github.com/lightdash/lightdash/compare/0.173.0...0.174.0) (2022-07-07)
+
+
+### Features
+
+* add identify to cli ([#2608](https://github.com/lightdash/lightdash/issues/2608)) ([ba25e30](https://github.com/lightdash/lightdash/commit/ba25e304fed40c2cc18a4105a41c1f315180df4f))
+
 # [0.173.0](https://github.com/lightdash/lightdash/compare/0.172.1...0.173.0) (2022-07-07)
 
 
