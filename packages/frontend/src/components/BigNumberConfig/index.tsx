@@ -42,11 +42,6 @@ export const BigNumberConfigPanel: React.FC = () => {
                                     : undefined
                             }
                             onChange={(item) => {
-                                console.log(
-                                    'change item',
-                                    item,
-                                    getItemId(item),
-                                );
                                 setSelectedField(getItemId(item));
                             }}
                         />
