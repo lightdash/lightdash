@@ -3,17 +3,16 @@ import {
     ColumnProperties,
     Explore,
     Field,
-    friendlyName,
-    getAdditionalMetricLabel,
+    getItemId,
     getItemLabel,
     getItemMap,
-    isAdditionalMetric,
     isField,
     TableCalculation,
     TableChart,
 } from '@lightdash/common';
-
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TableColumn } from '../components/common/Table/types';
+import useColumnTotals from './useColumnTotals';
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -31,7 +30,7 @@ const useTableConfig = (
         Record<string, ColumnProperties>
     >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
-    const itemMap = useMemo(() => {
+    const itemsMap = useMemo(() => {
         if (explore) {
             const allItemsMap = getItemMap(
                 explore,
@@ -54,27 +53,51 @@ const useTableConfig = (
         return {};
     }, [explore, resultsData, columnOrder]);
 
-    const getColumnHeader = (fieldId: string) => {
-        const field = itemMap && itemMap[fieldId];
-        if (isAdditionalMetric(field)) {
-            // AdditionalMetric
-            return getAdditionalMetricLabel(field);
-        } else if (isField(field)) {
-            // Field
-            return showTableNames ? getItemLabel(field) : field.label;
-        } else {
-            //TableCalculation
-            return friendlyName(fieldId);
-        }
-    };
+    const getDefaultColumnLabel = useCallback(
+        (fieldId: string) => {
+            const item = itemsMap[fieldId];
+            if (isField(item) && !showTableNames) {
+                return item.label;
+            } else {
+                return getItemLabel(item);
+            }
+        },
+        [itemsMap, showTableNames],
+    );
 
-    const isFilterVisible = (fieldId: string) =>
-        columnProperties[fieldId]?.visible ?? true;
+    const isColumnVisible = useCallback(
+        (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
+        [columnProperties],
+    );
 
-    const getHeader = (fieldId: string) => {
-        const properties = columnProperties[fieldId];
-        return properties?.name || getColumnHeader(fieldId);
-    };
+    const getHeader = useCallback(
+        (fieldId: string) => {
+            return columnProperties[fieldId]?.name;
+        },
+        [columnProperties],
+    );
+
+    const totals = useColumnTotals({ resultsData, itemsMap });
+
+    const columns = useMemo(() => {
+        return Object.values(itemsMap).reduce<TableColumn[]>((acc, item) => {
+            const itemId = getItemId(item);
+            if (!isColumnVisible(itemId)) {
+                return acc;
+            }
+            const column: TableColumn = {
+                id: itemId,
+                header: getHeader(itemId) || getDefaultColumnLabel(itemId),
+                accessorKey: itemId,
+                cell: (info) => info.getValue() || '-',
+                footer: () => (totals[itemId] ? totals[itemId] : null),
+                meta: {
+                    item,
+                },
+            };
+            return [...acc, column];
+        }, []);
+    }, [getDefaultColumnLabel, getHeader, isColumnVisible, itemsMap, totals]);
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
@@ -115,12 +138,13 @@ const useTableConfig = (
         validTableConfig,
         showTableNames,
         setShowTableName,
-        itemMap,
+        columns,
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
         getHeader,
-        isFilterVisible,
+        getDefaultColumnLabel,
+        isColumnVisible,
     };
 };
 

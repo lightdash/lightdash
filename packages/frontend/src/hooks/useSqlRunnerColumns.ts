@@ -3,11 +3,10 @@ import {
     CompiledDimension,
     FieldId,
     fieldId as getFieldId,
-    getResultColumnTotals,
-    isNumericItem,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { TableColumn } from '../components/common/Table/types';
+import useColumnTotals from './useColumnTotals';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;
@@ -15,17 +14,7 @@ type Args = {
 };
 
 const useSqlRunnerColumns = ({ resultsData, fieldsMap }: Args) => {
-    const totals = useMemo<Record<FieldId, number | undefined>>(() => {
-        if (resultsData && fieldsMap) {
-            return getResultColumnTotals(
-                resultsData.rows,
-                Object.values(fieldsMap).filter((field) =>
-                    isNumericItem(field),
-                ),
-            );
-        }
-        return {};
-    }, [fieldsMap, resultsData]);
+    const totals = useColumnTotals({ resultsData, itemsMap: fieldsMap });
 
     return useMemo(() => {
         if (fieldsMap) {
