@@ -30,5 +30,4 @@ export const MainCard = styled(Card)`
 
 export const VisualizationCardContentWrapper = styled.div`
     height: 300px;
-    padding: 10px;
 `;

@@ -8,19 +8,16 @@ import { useVisualizationContext } from './VisualizationProvider';
 const LightdashVisualization: FC = () => {
     const { chartType } = useVisualizationContext();
 
-    const renderType = () => {
-        switch (chartType) {
-            case ChartType.BIG_NUMBER:
-                return <SimpleStatistic />;
-            case ChartType.TABLE:
-                return <SimpleTable />;
-            case ChartType.CARTESIAN:
-                return <SimpleChart />;
-            default:
-                return null;
-        }
-    };
-    return <>{renderType()}</>;
+    switch (chartType) {
+        case ChartType.BIG_NUMBER:
+            return <SimpleStatistic />;
+        case ChartType.TABLE:
+            return <SimpleTable />;
+        case ChartType.CARTESIAN:
+            return <SimpleChart />;
+        default:
+            return null;
+    }
 };
 
 export default LightdashVisualization;
