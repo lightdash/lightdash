@@ -140,10 +140,12 @@ describe('Organization member permissions', () => {
         it('can create invitations', () => {
             expect(ability.can('create', 'InviteLink')).toEqual(true);
         });
+        it('can create Project', () => {
+            expect(ability.can('create', 'Project')).toEqual(true);
+        });
         it('cannot create any resource', () => {
             expect(ability.can('create', 'Dashboard')).toEqual(false);
             expect(ability.can('create', 'SavedChart')).toEqual(false);
-            expect(ability.can('create', 'Project')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
         });
         it('cannot run SQL queries', () => {
