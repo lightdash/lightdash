@@ -103,7 +103,6 @@ interface PageData {
     name: PageName;
     category?: CategoryName;
     type?: PageType;
-    tab_url?: string;
 }
 
 interface SectionData {
