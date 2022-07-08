@@ -19,6 +19,7 @@ const SimpleTable: FC = () => {
         explore,
         tableConfig: { itemMap, getHeader, isFilterVisible },
     } = useVisualizationContext();
+
     const tableItems = resultsData?.rows
         ? getResultValues(resultsData?.rows).slice(0, 25)
         : [];

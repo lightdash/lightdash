@@ -44,7 +44,6 @@ describe('SQL Runner', () => {
             .type('{ctrl}{enter}');
 
         const find = [
-            '100 results',
             'First name',
             firstCustomer.created,
             firstCustomer.firstName,
@@ -52,19 +51,16 @@ describe('SQL Runner', () => {
             'Shawn', // customer_id = 2
         ];
         find.forEach((text) => cy.findAllByText(text));
+        cy.contains('Page 1 of 10');
     });
 
     it('Should see results from orders by clicking', () => {
         cy.findByText('payments').click();
         cy.findAllByText('Run query').first().click();
 
-        const find = [
-            '25 results',
-            'Payment method',
-            'bank_transfer',
-            'credit_card',
-        ];
+        const find = ['Payment method', 'bank_transfer', 'credit_card'];
         find.forEach((text) => cy.findAllByText(text));
+        cy.contains('Page 1 of 3');
     });
 
     it('Get error on invalid SQL', () => {

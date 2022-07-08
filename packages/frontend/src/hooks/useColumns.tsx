@@ -1,204 +1,134 @@
 import {
-    convertAdditionalMetric,
+    Field,
     FieldId,
-    fieldId as getFieldId,
-    formatFieldValue,
     formatItemValue,
     friendlyName,
-    getFields,
+    getItemMap,
     getResultColumnTotals,
     isDimension,
+    isField,
     isNumericItem,
-    Metric,
-    SortField,
+    TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useMemo } from 'react';
-import { Column } from 'react-table';
+import React, { useMemo } from 'react';
+import { TableColumn } from '../components/common/Table/types';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
 
-const getSortByProps = (
-    fieldId: string,
-    sortFields: SortField[],
-    toggleSortField: (fieldId: string) => void,
-    setSortFields: (sortFields: SortField[]) => void,
-) => {
-    const sortedIndex = sortFields.findIndex((sf) => fieldId === sf.fieldId);
-    const isFieldSorted = sortedIndex !== -1;
-    const getSortByToggleProps = () => ({
-        style: {
-            cursor: 'pointer',
-        },
-        title: 'Toggle SortBy',
-        onClick: (e: MouseEvent) => {
-            if (e.metaKey || e.ctrlKey || isFieldSorted) {
-                toggleSortField(fieldId);
-            } else {
-                setSortFields([
-                    {
-                        fieldId,
-                        descending: isFieldSorted
-                            ? !sortFields[sortedIndex].descending
-                            : false,
-                    },
-                ]);
-            }
-        },
-    });
-
-    return {
-        getSortByToggleProps,
-        sortedIndex,
-        isSorted: isFieldSorted,
-        isSortedDesc: isFieldSorted
-            ? sortFields[sortedIndex].descending
-            : undefined,
-        isMultiSort: sortFields.length > 1,
-    };
-};
-
-const FormatCell: FC<{ value: any }> = ({ value }) => value || '-';
-
-export const useColumns = (): Column<{ [col: string]: any }>[] => {
+export const useColumns = (): TableColumn[] => {
     const {
         state: {
             activeFields,
             unsavedChartVersion: {
                 tableName,
-                metricQuery: {
-                    sorts: sortFields,
-                    tableCalculations,
-                    additionalMetrics,
-                },
+                metricQuery: { tableCalculations, additionalMetrics, sorts },
             },
         },
         queryResults: { data: resultsData },
         actions: { toggleSortField, setSortFields },
     } = useExplorer();
-    const { data } = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName);
 
-    const fields = useMemo(() => {
-        if (data) {
-            return [
-                ...getFields(data),
-                ...(additionalMetrics || []).reduce<Metric[]>(
-                    (acc, additionalMetric) => {
-                        const table = data.tables[additionalMetric.table];
-                        if (table) {
-                            const metric = convertAdditionalMetric({
-                                additionalMetric,
-                                table,
-                            });
-                            return [...acc, metric];
-                        }
-                        return acc;
-                    },
-                    [],
-                ),
-            ];
+    const activeItemsMap = useMemo(() => {
+        if (exploreData) {
+            const allItemsMap = getItemMap(
+                exploreData,
+                additionalMetrics,
+                tableCalculations,
+            );
+            return Object.entries(allItemsMap).reduce<
+                Record<string, Field | TableCalculation>
+            >(
+                (acc, [key, value]) =>
+                    activeFields.has(key)
+                        ? {
+                              ...acc,
+                              [key]: value,
+                          }
+                        : acc,
+                {},
+            );
         }
-    }, [additionalMetrics, data]);
+        return {};
+    }, [additionalMetrics, exploreData, tableCalculations, activeFields]);
 
     const totals = useMemo<Record<FieldId, number | undefined>>(() => {
-        if (resultsData && fields) {
+        if (resultsData) {
             return getResultColumnTotals(
                 resultsData.rows,
-                [...fields, ...tableCalculations].filter((field) =>
-                    isNumericItem(field),
+                Object.values(activeItemsMap).filter((item) =>
+                    isNumericItem(item),
                 ),
             );
         }
         return {};
-    }, [fields, resultsData, tableCalculations]);
+    }, [activeItemsMap, resultsData]);
+
+    const getItemBgColor = (item: Field | TableCalculation): string => {
+        let bgColor: string;
+
+        if (isField(item)) {
+            bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
+        } else {
+            bgColor = '#d2dfd7';
+        }
+        return bgColor;
+    };
 
     return useMemo(() => {
-        if (fields) {
-            const fieldColumns = fields.reduce<
-                Column<{ [col: string]: any }>[]
-            >((acc, field) => {
-                const fieldId = getFieldId(field);
-                if (activeFields.has(fieldId)) {
-                    return [
-                        ...acc,
-                        {
-                            Header: (
-                                <span>
-                                    {field.tableLabel} <b>{field.label}</b>
-                                </span>
-                            ),
-                            description:
-                                field.description ||
-                                `${field.tableLabel} ${field.label}`,
-                            accessor: fieldId,
-                            type: isDimension(field) ? 'dimension' : 'metric',
-                            dimensionType: isDimension(field)
-                                ? field.type
-                                : undefined,
-                            ...getSortByProps(
-                                fieldId,
-                                sortFields,
-                                toggleSortField,
-                                setSortFields,
-                            ),
-                            field,
-                            Cell: FormatCell,
-                            Footer: () =>
-                                totals[fieldId]
-                                    ? formatFieldValue(field, totals[fieldId])
-                                    : null,
+        return Object.entries(activeItemsMap).reduce<TableColumn[]>(
+            (acc, [fieldId, item]) => {
+                const sortIndex = sorts.findIndex(
+                    (sf) => fieldId === sf.fieldId,
+                );
+                const isFieldSorted = sortIndex !== -1;
+                const column: TableColumn = {
+                    id: fieldId,
+                    header: () =>
+                        isField(item) ? (
+                            <span>
+                                {item.tableLabel} <b>{item.label}</b>
+                            </span>
+                        ) : (
+                            <b>{item.displayName || friendlyName(item.name)}</b>
+                        ),
+                    accessorKey: fieldId,
+                    cell: (info) => info.getValue() || '-',
+                    footer: () =>
+                        totals[fieldId]
+                            ? formatItemValue(item, totals[fieldId])
+                            : null,
+                    meta: {
+                        item,
+                        draggable: true,
+                        bgColor: getItemBgColor(item),
+                        sort: isFieldSorted
+                            ? {
+                                  sortIndex,
+                                  sort: sorts[sortIndex],
+                                  isMultiSort: sorts.length > 1,
+                                  isNumeric: isNumericItem(item),
+                              }
+                            : undefined,
+                        onHeaderClick: (e) => {
+                            if (e.metaKey || e.ctrlKey || isFieldSorted) {
+                                toggleSortField(fieldId);
+                            } else {
+                                setSortFields([
+                                    {
+                                        fieldId,
+                                        descending: isFieldSorted
+                                            ? !sorts[sortIndex].descending
+                                            : false,
+                                    },
+                                ]);
+                            }
                         },
-                    ];
-                }
-                return [...acc];
-            }, []);
-            const tableCalculationColumns = tableCalculations.reduce<
-                Column<{ [col: string]: any }>[]
-            >((acc, tableCalculation) => {
-                const fieldId = tableCalculation.name;
-                if (activeFields.has(fieldId)) {
-                    return [
-                        ...acc,
-                        {
-                            Header: (
-                                <b>
-                                    {tableCalculation.displayName ||
-                                        friendlyName(tableCalculation.name)}
-                                </b>
-                            ),
-                            description: '',
-                            accessor: fieldId,
-                            type: 'table_calculation',
-                            tableCalculation,
-                            ...getSortByProps(
-                                fieldId,
-                                sortFields,
-                                toggleSortField,
-                                setSortFields,
-                            ),
-                            Cell: FormatCell,
-                            Footer: () =>
-                                totals[fieldId]
-                                    ? formatItemValue(
-                                          tableCalculation,
-                                          totals[fieldId],
-                                      )
-                                    : null,
-                        },
-                    ];
-                }
-                return [...acc];
-            }, []);
-
-            return [...fieldColumns, ...tableCalculationColumns];
-        }
-        return [];
-    }, [
-        fields,
-        tableCalculations,
-        activeFields,
-        sortFields,
-        toggleSortField,
-        setSortFields,
-        totals,
-    ]);
+                    },
+                };
+                return [...acc, column];
+            },
+            [],
+        );
+    }, [activeItemsMap, sorts, totals, toggleSortField, setSortFields]);
 };

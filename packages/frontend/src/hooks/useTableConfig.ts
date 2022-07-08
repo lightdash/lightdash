@@ -1,5 +1,4 @@
 import {
-    AdditionalMetric,
     ApiQueryResults,
     ColumnProperties,
     Explore,
@@ -32,18 +31,28 @@ const useTableConfig = (
         Record<string, ColumnProperties>
     >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
-    const itemMap = useMemo<
-        Record<string, Field | AdditionalMetric | TableCalculation>
-    >(() => {
-        if (explore && resultsData) {
-            return getItemMap(
+    const itemMap = useMemo(() => {
+        if (explore) {
+            const allItemsMap = getItemMap(
                 explore,
-                resultsData.metricQuery.additionalMetrics,
-                resultsData.metricQuery.tableCalculations,
+                resultsData?.metricQuery.additionalMetrics,
+                resultsData?.metricQuery.tableCalculations,
+            );
+            return Object.entries(allItemsMap).reduce<
+                Record<string, Field | TableCalculation>
+            >(
+                (acc, [key, value]) =>
+                    columnOrder.includes(key)
+                        ? {
+                              ...acc,
+                              [key]: value,
+                          }
+                        : acc,
+                {},
             );
         }
         return {};
-    }, [explore, resultsData]);
+    }, [explore, resultsData, columnOrder]);
 
     const getColumnHeader = (fieldId: string) => {
         const field = itemMap && itemMap[fieldId];
