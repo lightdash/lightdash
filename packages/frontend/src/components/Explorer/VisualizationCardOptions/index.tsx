@@ -86,7 +86,7 @@ const VisualizationCardOptions: FC = () => {
                 };
             case ChartType.BIG_NUMBER:
                 return {
-                    text: 'Big number',
+                    text: 'Big value',
                     icon: 'numerical',
                 };
             default: {
@@ -243,8 +243,8 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Big Number"
-                        text="Big number"
+                        name="Big Value"
+                        text="Big value"
                     />
                 </ChartOptionsWrapper>
             }

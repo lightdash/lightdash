@@ -1272,7 +1272,7 @@
 
 ### Features
 
-* round styled big numbers ([#2115](https://github.com/lightdash/lightdash/issues/2115)) ([2404c60](https://github.com/lightdash/lightdash/commit/2404c60fd33410127a240955778bb6e6c449bf77))
+* round styled big values ([#2115](https://github.com/lightdash/lightdash/issues/2115)) ([2404c60](https://github.com/lightdash/lightdash/commit/2404c60fd33410127a240955778bb6e6c449bf77))
 
 ## [0.100.2](https://github.com/lightdash/lightdash/compare/0.100.1...0.100.2) (2022-05-16)
 
@@ -1448,7 +1448,7 @@
 
 ### Bug Fixes
 
-* show formatted values in big number and table ([#2041](https://github.com/lightdash/lightdash/issues/2041)) ([1bb47f2](https://github.com/lightdash/lightdash/commit/1bb47f2d5b68f11baabf602a8de64dabb90ce23f))
+* show formatted values in big value and table ([#2041](https://github.com/lightdash/lightdash/issues/2041)) ([1bb47f2](https://github.com/lightdash/lightdash/commit/1bb47f2d5b68f11baabf602a8de64dabb90ce23f))
 
 ## [0.93.2](https://github.com/lightdash/lightdash/compare/0.93.1...0.93.2) (2022-05-09)
 
@@ -2055,7 +2055,7 @@
 
 ### Features
 
-* add chart config to update big number label ([#1648](https://github.com/lightdash/lightdash/issues/1648)) ([cb06d13](https://github.com/lightdash/lightdash/commit/cb06d134e7462eda990ea0da2234457ff2b37f4d))
+* add chart config to update big value label ([#1648](https://github.com/lightdash/lightdash/issues/1648)) ([cb06d13](https://github.com/lightdash/lightdash/commit/cb06d134e7462eda990ea0da2234457ff2b37f4d))
 * link to dashboard on remove popup ([#1713](https://github.com/lightdash/lightdash/issues/1713)) ([889f317](https://github.com/lightdash/lightdash/commit/889f317ecbbcc2359b15f7d24eca44e27067ff61))
 
 # [0.56.0](https://github.com/lightdash/lightdash/compare/0.55.1...0.56.0) (2022-04-08)
@@ -2796,7 +2796,7 @@
 
 * **#186:** add metric filters ([#1271](https://github.com/lightdash/lightdash/issues/1271)) ([df3e5dc](https://github.com/lightdash/lightdash/commit/df3e5dc5794351ca4f86195a85d6006b06c0134e)), closes [#186](https://github.com/lightdash/lightdash/issues/186)
 * **#205:** add in the past filter ([#1290](https://github.com/lightdash/lightdash/issues/1290)) ([08c97dc](https://github.com/lightdash/lightdash/commit/08c97dca56e7249c19beed16edf4e4a1d75d7490)), closes [#205](https://github.com/lightdash/lightdash/issues/205)
-* **#940:** add big number visualisation ([#1264](https://github.com/lightdash/lightdash/pull/1264)) ([29765bb](https://github.com/lightdash/lightdash/commit/29765bbbc67d9bc7b72975168d6575e4ce43e05a)), closes [#940](https://github.com/lightdash/lightdash/issues/940)
+* **#940:** add big value visualisation ([#1264](https://github.com/lightdash/lightdash/pull/1264)) ([29765bb](https://github.com/lightdash/lightdash/commit/29765bbbc67d9bc7b72975168d6575e4ce43e05a)), closes [#940](https://github.com/lightdash/lightdash/issues/940)
 
 
 ## [0.12.1] - 2022-02-02

@@ -83,7 +83,7 @@ describe('Explore', () => {
         cy.findByText('Customers First name');
 
         cy.get('.bp4-icon-panel-table').first().parent().click();
-        cy.findByText('Big number').click();
+        cy.findByText('Big value').click();
 
         cy.findByText('Orders Unique order count'); // Different label ¿?
     });
