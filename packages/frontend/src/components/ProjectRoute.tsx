@@ -39,7 +39,7 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
                     !projectsRequest.data ||
                     projectsRequest.data?.length <= 0
                 ) {
-                    return <Redirect to={`/no-access`} />;
+                    return <Redirect to={`/createProject`} />;
                 }
 
                 return (

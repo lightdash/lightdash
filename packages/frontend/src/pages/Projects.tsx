@@ -24,7 +24,7 @@ export const Projects: FC = () => {
         );
     }
     if (!data || data.length <= 0) {
-        return <Redirect to={`/no-access`} />;
+        return <Redirect to={`/createProject`} />;
     }
 
     const availableProjectUuids = data.map(({ projectUuid }) => projectUuid);
