@@ -1,3 +1,10 @@
+# [0.175.0](https://github.com/lightdash/lightdash/compare/0.174.0...0.175.0) (2022-07-08)
+
+
+### Features
+
+* bignumber field select ([#2646](https://github.com/lightdash/lightdash/issues/2646)) ([e15a9a9](https://github.com/lightdash/lightdash/commit/e15a9a9284d41c1db24cf664227e8386016c067f))
+
 # [0.174.0](https://github.com/lightdash/lightdash/compare/0.173.0...0.174.0) (2022-07-07)
 
 
