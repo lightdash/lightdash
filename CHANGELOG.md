@@ -1,3 +1,10 @@
+# [0.176.0](https://github.com/lightdash/lightdash/compare/0.175.0...0.176.0) (2022-07-08)
+
+
+### Features
+
+* result table improvements  ([#2651](https://github.com/lightdash/lightdash/issues/2651)) ([1a983e3](https://github.com/lightdash/lightdash/commit/1a983e35add769e5579f579ece57166464349956))
+
 # [0.175.0](https://github.com/lightdash/lightdash/compare/0.174.0...0.175.0) (2022-07-08)
 
 
