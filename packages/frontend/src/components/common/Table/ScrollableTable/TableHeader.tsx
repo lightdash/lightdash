@@ -20,22 +20,6 @@ const TableHeader = () => {
     }
     return (
         <>
-            {table.getHeaderGroups().map((headerGroup) => (
-                <colgroup key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                        const meta = header.column.columnDef
-                            .meta as TableColumn['meta'];
-                        return (
-                            <col
-                                style={{
-                                    backgroundColor:
-                                        meta?.bgColor ?? Colors.WHITE,
-                                }}
-                            />
-                        );
-                    })}
-                </colgroup>
-            ))}
             <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                     <HeaderDndContext colOrderRef={currentColOrder}>
@@ -49,7 +33,7 @@ const TableHeader = () => {
                                         style={{
                                             width: meta?.width,
                                             backgroundColor:
-                                                meta?.bgColor ?? Colors.WHITE,
+                                                meta?.bgColor ?? Colors.GRAY5,
                                             cursor: meta?.onHeaderClick
                                                 ? 'pointer'
                                                 : undefined,

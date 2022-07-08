@@ -1,8 +1,7 @@
-import { Colors } from '@blueprintjs/core';
 import { isNumericItem } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import React from 'react';
-import { HeaderCell } from '../Table.styles';
+import { FooterCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 
@@ -19,13 +18,12 @@ const TableFooter = () => {
                         const meta = header.column.columnDef
                             .meta as TableColumn['meta'];
                         return (
-                            <HeaderCell
+                            <FooterCell
                                 key={header.id}
                                 colSpan={header.colSpan}
-                                style={{
-                                    backgroundColor: Colors.WHITE,
-                                }}
-                                isNaN={!meta?.item || !isNumericItem(meta.item)}
+                                $isNaN={
+                                    !meta?.item || !isNumericItem(meta.item)
+                                }
                             >
                                 {header.isPlaceholder
                                     ? null
@@ -33,7 +31,7 @@ const TableFooter = () => {
                                           header.column.columnDef.footer,
                                           header.getContext(),
                                       )}
-                            </HeaderCell>
+                            </FooterCell>
                         );
                     })}
                 </tr>
