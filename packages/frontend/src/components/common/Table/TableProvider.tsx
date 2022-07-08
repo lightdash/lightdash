@@ -43,6 +43,10 @@ const rowColumn: TableColumn = {
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, onColumnOrderChange } = rest;
     const [columnVisibility, setColumnVisibility] = React.useState({});
+    const allColumnIds = columns.reduce<string[]>(
+        (acc, col) => (col.id ? [...acc, col.id] : acc),
+        [],
+    );
     const [tempColumnOrder, setTempColumnOrder] =
         React.useState<ColumnOrderState>(columnOrder || []);
     const table = useReactTable({
@@ -51,7 +55,11 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         state: {
             columnVisibility,
             columnOrder: [
-                ...new Set([ROW_NUMBER_COLUMN_ID, ...tempColumnOrder]),
+                ...new Set([
+                    ROW_NUMBER_COLUMN_ID,
+                    ...tempColumnOrder,
+                    ...allColumnIds,
+                ]),
             ],
         },
         onColumnVisibilityChange: setColumnVisibility,
@@ -60,7 +68,9 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         getPaginationRowModel: getPaginationRowModel(),
     });
     useEffect(() => {
-        onColumnOrderChange?.(tempColumnOrder);
+        onColumnOrderChange?.(
+            tempColumnOrder.filter((value) => value !== ROW_NUMBER_COLUMN_ID),
+        );
     }, [tempColumnOrder, onColumnOrderChange]);
     return (
         <Context.Provider
