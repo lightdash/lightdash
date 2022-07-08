@@ -55,6 +55,7 @@ export const organizationMemberAbilities: Record<
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Job');
     },
     admin(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
