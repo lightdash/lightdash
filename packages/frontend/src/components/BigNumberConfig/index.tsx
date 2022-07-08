@@ -1,7 +1,8 @@
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { NumberStyle } from '@lightdash/common';
+import { getItemId, NumberStyle } from '@lightdash/common';
 import React, { useState } from 'react';
+import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper } from './BigNumberConfig.styles';
 
@@ -14,6 +15,10 @@ export const BigNumberConfigPanel: React.FC = () => {
             bigNumberStyle,
             setBigNumberStyle,
             showStyle,
+            availableFields,
+            selectedField,
+            setSelectedField,
+            getField,
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
@@ -28,6 +33,19 @@ export const BigNumberConfigPanel: React.FC = () => {
         <Popover2
             content={
                 <>
+                    <InputWrapper label="Select field">
+                        <FieldAutoComplete
+                            fields={availableFields}
+                            activeField={
+                                selectedField
+                                    ? getField(selectedField)
+                                    : undefined
+                            }
+                            onChange={(item) => {
+                                setSelectedField(getItemId(item));
+                            }}
+                        />
+                    </InputWrapper>
                     <InputWrapper label="Label">
                         <InputGroup
                             placeholder={defaultLabel}
