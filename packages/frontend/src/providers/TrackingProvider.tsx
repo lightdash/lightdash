@@ -103,6 +103,7 @@ interface PageData {
     name: PageName;
     category?: CategoryName;
     type?: PageType;
+    tab_url?: string;
 }
 
 interface SectionData {
@@ -164,6 +165,7 @@ export const TrackingProvider: FC<TrackingData> = ({
             referrer: null,
             initial_referrer: null,
             search: null,
+            tab_url: null,
         }),
         [],
     );
