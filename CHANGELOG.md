@@ -1,3 +1,10 @@
+## [0.176.1](https://github.com/lightdash/lightdash/compare/0.176.0...0.176.1) (2022-07-11)
+
+
+### Bug Fixes
+
+* remove tab_url from rudderstack tracking ([#2661](https://github.com/lightdash/lightdash/issues/2661)) ([5c300ea](https://github.com/lightdash/lightdash/commit/5c300eaab293420b0779a5d098ef2186d26d5309))
+
 # [0.176.0](https://github.com/lightdash/lightdash/compare/0.175.0...0.176.0) (2022-07-08)
 
 
