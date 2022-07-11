@@ -8,7 +8,9 @@ import {
 import React, { createContext, FC, useContext, useEffect } from 'react';
 import {
     CellContextMenuProps,
+    DEFAULT_PAGE_SIZE,
     HeaderProps,
+    MAX_PAGE_SIZE,
     ROW_NUMBER_COLUMN_ID,
     TableColumn,
     TableRow,
@@ -20,6 +22,9 @@ type Props = {
     headerContextMenu?: FC<HeaderProps>;
     headerButton?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
+    pagination?: {
+        show?: boolean;
+    };
     columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
 };
@@ -41,7 +46,8 @@ const rowColumn: TableColumn = {
 };
 
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
-    const { data, columns, columnOrder, onColumnOrderChange } = rest;
+    const { data, columns, columnOrder, pagination, onColumnOrderChange } =
+        rest;
     const [columnVisibility, setColumnVisibility] = React.useState({});
     const allColumnIds = columns.reduce<string[]>(
         (acc, col) => (col.id ? [...acc, col.id] : acc),
@@ -67,6 +73,10 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+    const { setPageSize } = table;
+    useEffect(() => {
+        setPageSize(pagination?.show ? DEFAULT_PAGE_SIZE : MAX_PAGE_SIZE);
+    }, [pagination, setPageSize]);
     useEffect(() => {
         onColumnOrderChange?.(
             tempColumnOrder.filter((value) => value !== ROW_NUMBER_COLUMN_ID),

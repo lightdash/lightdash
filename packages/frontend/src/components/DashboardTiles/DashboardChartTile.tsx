@@ -97,7 +97,7 @@ const DownloadCSV: FC<{
             role="menuitem"
             tabIndex={0}
             className="bp4-menu-item"
-            data={getResultValues(resultData.rows)}
+            data={getResultValues(rows)}
             filename={`${data?.name}.csv`}
             target="_blank"
         >

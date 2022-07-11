@@ -5,11 +5,11 @@ import { useTableContext } from '../TableProvider';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../types';
 
 const TablePagination = () => {
-    const { table, data } = useTableContext();
+    const { table, data, pagination } = useTableContext();
     return (
         <TableFooter>
             <ButtonGroup>
-                {data.length > DEFAULT_PAGE_SIZE && (
+                {pagination?.show && data.length > DEFAULT_PAGE_SIZE && (
                     <>
                         <Button
                             active={
