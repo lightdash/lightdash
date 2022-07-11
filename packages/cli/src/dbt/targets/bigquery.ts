@@ -13,7 +13,7 @@ export type BigqueryServiceAccountTarget = {
     project: string;
     dataset: string;
     threads: number;
-    method: 'service-account';
+    method: string;
     keyfile: string;
     priority?: 'interactive' | 'batch';
     retries?: number;
@@ -42,7 +42,7 @@ export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccount
             },
             method: {
                 type: 'string',
-                enum: ['service-account'],
+                enum: ['service-account', 'oauth'],
             },
             keyfile: {
                 type: 'string',
@@ -75,7 +75,7 @@ export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccount
 export const convertBigquerySchema = async (
     target: Target,
 ): Promise<CreateBigqueryCredentials> => {
-    if (target.method !== 'service-account') {
+    if (target.method !== 'service-account' && target.method !== 'oauth') {
         throw new ParseError(
             `BigQuery method ${target.method} is not yet supported`,
         );
