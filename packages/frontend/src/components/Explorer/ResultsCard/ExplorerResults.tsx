@@ -90,6 +90,9 @@ export const ExplorerResults = () => {
                     }
                     headerButton={isEditMode ? HeaderButton : undefined}
                     idleState={IdleState}
+                    pagination={{
+                        show: true,
+                    }}
                 />
             </TableContainer>
         </TrackSection>

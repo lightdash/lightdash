@@ -1,10 +1,8 @@
 import {
     Field,
-    FieldId,
     formatItemValue,
     friendlyName,
     getItemMap,
-    getResultColumnTotals,
     isDimension,
     isField,
     isNumericItem,
@@ -13,6 +11,7 @@ import {
 import React, { useMemo } from 'react';
 import { TableColumn } from '../components/common/Table/types';
 import { useExplorer } from '../providers/ExplorerProvider';
+import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
 export const useColumns = (): TableColumn[] => {
@@ -52,17 +51,10 @@ export const useColumns = (): TableColumn[] => {
         return {};
     }, [additionalMetrics, exploreData, tableCalculations, activeFields]);
 
-    const totals = useMemo<Record<FieldId, number | undefined>>(() => {
-        if (resultsData) {
-            return getResultColumnTotals(
-                resultsData.rows,
-                Object.values(activeItemsMap).filter((item) =>
-                    isNumericItem(item),
-                ),
-            );
-        }
-        return {};
-    }, [activeItemsMap, resultsData]);
+    const totals = useColumnTotals({
+        resultsData,
+        itemsMap: activeItemsMap,
+    });
 
     const getItemBgColor = (item: Field | TableCalculation): string => {
         let bgColor: string;
