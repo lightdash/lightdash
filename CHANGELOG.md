@@ -1,3 +1,10 @@
+# [0.177.0](https://github.com/lightdash/lightdash/compare/0.176.1...0.177.0) (2022-07-11)
+
+
+### Features
+
+* table viz improvements ([#2658](https://github.com/lightdash/lightdash/issues/2658)) ([755f0fc](https://github.com/lightdash/lightdash/commit/755f0fc516ca7d933ed5c29156b6b5b758d91ae1))
+
 ## [0.176.1](https://github.com/lightdash/lightdash/compare/0.176.0...0.176.1) (2022-07-11)
 
 
