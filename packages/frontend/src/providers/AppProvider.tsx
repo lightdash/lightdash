@@ -266,7 +266,7 @@ export const AppProvider: FC = ({ children }) => {
             activeJob &&
             activeJob.jobStatus === JobStatusType.DONE
         ) {
-            queryClient.invalidateQueries('user'); // a new project level permission might be added to the user
+            queryClient.refetchQueries('user'); // a new project level permission might be added to the user
         }
     }, [activeJob, activeJobId, toastJobStatus, isJobsDrawerOpen, queryClient]);
 
