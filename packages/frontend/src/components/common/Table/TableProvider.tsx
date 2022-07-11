@@ -63,7 +63,7 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
             columnOrder: [
                 ...new Set([
                     ROW_NUMBER_COLUMN_ID,
-                    ...tempColumnOrder,
+                    ...(columnOrder || []),
                     ...allColumnIds,
                 ]),
             ],
