@@ -62,6 +62,9 @@ const SqlRunnerResultsTable: FC<{
                     data={resultsData?.rows || []}
                     columns={columns}
                     idleState={IdleState}
+                    pagination={{
+                        show: true,
+                    }}
                 />
             </TableContainer>
         </TrackSection>
