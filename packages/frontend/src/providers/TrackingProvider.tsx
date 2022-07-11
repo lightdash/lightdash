@@ -164,6 +164,7 @@ export const TrackingProvider: FC<TrackingData> = ({
             referrer: null,
             initial_referrer: null,
             search: null,
+            tab_url: null,
         }),
         [],
     );
