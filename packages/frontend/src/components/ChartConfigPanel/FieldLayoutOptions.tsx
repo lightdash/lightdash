@@ -54,8 +54,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
         cartesianType !== CartesianSeriesType.SCATTER &&
-        cartesianType !== CartesianSeriesType.AREA &&
-        isChartTypeTheSameForAllSeries;
+        cartesianType !== CartesianSeriesType.AREA;
 
     // X axis logic
     const xAxisField = items.find(
