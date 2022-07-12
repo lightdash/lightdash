@@ -1,3 +1,10 @@
+# [0.179.0](https://github.com/lightdash/lightdash/compare/0.178.1...0.179.0) (2022-07-12)
+
+
+### Features
+
+* allow member to create projects ([#2655](https://github.com/lightdash/lightdash/issues/2655)) ([93de71c](https://github.com/lightdash/lightdash/commit/93de71cd6261d2c94b52cbbd08cd936ef694f892))
+
 ## [0.178.1](https://github.com/lightdash/lightdash/compare/0.178.0...0.178.1) (2022-07-12)
 
 
