@@ -17,6 +17,7 @@ export interface Field {
     hidden: boolean;
     round?: number;
     format?: string;
+    groupLabel?: string;
 }
 
 export const isField = (field: any): field is Field => field?.fieldType;

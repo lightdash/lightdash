@@ -82,6 +82,7 @@ type DbtColumnLightdashDimension = {
     hidden?: boolean;
     round?: number;
     format?: string;
+    groupLabel?: string;
 };
 
 export type DbtColumnLightdashMetric = {
@@ -92,6 +93,7 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     format?: string;
+    groupLabel?: string;
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
