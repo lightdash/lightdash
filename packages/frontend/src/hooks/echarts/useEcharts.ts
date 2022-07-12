@@ -142,6 +142,7 @@ const getFormattedValue = (
     return formatItemValue(
         items.find((item) => getItemId(item) === key),
         value,
+        true,
     );
 };
 

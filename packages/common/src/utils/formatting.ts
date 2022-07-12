@@ -34,8 +34,10 @@ const getDateFormat = (timeInterval: string | undefined = 'DAY'): string => {
 export function formatDate<T = string | Date>(
     date: T,
     timeInterval: string | undefined = 'DAY',
+    convertToUTC: boolean = false,
 ): string {
-    return moment(date).format(getDateFormat(timeInterval));
+    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    return momentDate.format(getDateFormat(timeInterval));
 }
 
 export const parseDate = (
@@ -65,8 +67,10 @@ const getTimeFormat = (timeInterval: string | undefined = 'DAY'): string => {
 export function formatTimestamp<T = string | Date>(
     value: T,
     timeInterval: string | undefined = 'MILLISECOND',
+    convertToUTC: boolean = false,
 ): string {
-    return moment(value).format(getTimeFormat(timeInterval));
+    const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+    return momentDate.format(getTimeFormat(timeInterval));
 }
 
 export const parseTimestamp = (
@@ -188,6 +192,7 @@ export function formatValue(
 export function formatFieldValue(
     field: Field | AdditionalMetric | undefined,
     value: any,
+    convertToUTC?: boolean,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -214,16 +219,22 @@ export function formatFieldValue(
             return formatDate(
                 value,
                 isDimension(field) ? field.timeInterval : undefined,
+                convertToUTC,
             );
         case DimensionType.TIMESTAMP:
             return formatTimestamp(
                 value,
                 isDimension(field) ? field.timeInterval : undefined,
+                convertToUTC,
             );
         case MetricType.MAX:
         case MetricType.MIN: {
             if (value instanceof Date) {
-                return formatTimestamp(value);
+                return formatTimestamp(
+                    value,
+                    isDimension(field) ? field.timeInterval : undefined,
+                    convertToUTC,
+                );
             }
             return formatValue(format, round, value);
         }
@@ -236,10 +247,11 @@ export function formatFieldValue(
 export function formatItemValue(
     item: Field | AdditionalMetric | TableCalculation | undefined,
     value: any,
+    convertToUTC?: boolean,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
     return isField(item) || isAdditionalMetric(item)
-        ? formatFieldValue(item, value)
+        ? formatFieldValue(item, value, convertToUTC)
         : formatValue(undefined, undefined, value);
 }
