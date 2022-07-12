@@ -1,3 +1,11 @@
+# [0.178.0](https://github.com/lightdash/lightdash/compare/0.177.0...0.178.0) (2022-07-12)
+
+
+### Features
+
+* can stack mixed series ([#2662](https://github.com/lightdash/lightdash/issues/2662)) ([e1b833c](https://github.com/lightdash/lightdash/commit/e1b833c3c5f8698f7ae1df698daf198f6ac5b3f3))
+* support bigquery oauth ([#2673](https://github.com/lightdash/lightdash/issues/2673)) ([3fbc56e](https://github.com/lightdash/lightdash/commit/3fbc56eaa2d3b2b219b0512dd4580c21ec2d3bf2))
+
 # [0.177.0](https://github.com/lightdash/lightdash/compare/0.176.1...0.177.0) (2022-07-11)
 
 
