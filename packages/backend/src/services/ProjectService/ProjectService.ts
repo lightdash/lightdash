@@ -172,8 +172,8 @@ export class ProjectService {
                         this.projectModel.create(user.organizationUuid, data),
                 );
 
-                // Give admin user permissions to user who created this project if it is not an admin already
-                if (user.ability.cannot('manage', 'Project') && user.email) {
+                // Give admin user permissions to user who created this project even if he is an admin
+                if (user.email) {
                     await this.projectModel.createProjectAccess(
                         projectUuid,
                         user.email,
