@@ -11,6 +11,7 @@ import {
     FilterOperator,
     friendlyName,
     getDimensions,
+    getFields,
     getResultValues,
     getVisibleFields,
     isFilterableField,
@@ -20,6 +21,7 @@ import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { CSVLink } from 'react-csv';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
@@ -41,7 +43,10 @@ import { FilterLabel } from './TileBase/TileBase.styles';
 const ValidDashboardChartTile: FC<{
     data: SavedChart;
     project: string;
-    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
+    onSeriesContextMenu?: (
+        e: EchartSeriesClickEvent,
+        series: EChartSeries[],
+    ) => void;
 }> = ({ data, project, onSeriesContextMenu }) => {
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
     const { addSuggestions } = useDashboardContext();
@@ -164,7 +169,7 @@ const DashboardChartTile: FC<Props> = (props) => {
     const { user } = useApp();
 
     const onSeriesContextMenu = useCallback(
-        (e: EchartSeriesClickEvent) => {
+        (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
             if (explore === undefined) {
                 return;
             }
@@ -181,20 +186,32 @@ const DashboardChartTile: FC<Props> = (props) => {
                 operator: FilterOperator.EQUALS,
                 values: [e.data[fieldId(dimension)]],
             }));
+            const serie = series[e.seriesIndex];
+            const fields = getFields(explore);
             const pivot = savedQuery?.pivotConfig?.columns?.[0];
-            const pivotOptions = pivot
-                ? [
-                      {
-                          id: uuidv4(),
-                          target: {
-                              fieldId: pivot,
-                              tableName: pivot.split('_')[0],
+            const pivotField = fields.find(
+                (field) => `${field.table}_${field.name}` === pivot,
+            );
+            const seriesName = serie.encode.seriesName;
+            const pivotValue =
+                pivot && seriesName.includes(`.${pivot}.`)
+                    ? seriesName.split(`.${pivot}.`)[1]
+                    : undefined;
+
+            const pivotOptions =
+                pivot && pivotField && pivotValue
+                    ? [
+                          {
+                              id: uuidv4(),
+                              target: {
+                                  fieldId: pivot,
+                                  tableName: pivotField.table,
+                              },
+                              operator: FilterOperator.EQUALS,
+                              values: [pivotValue],
                           },
-                          operator: FilterOperator.EQUALS,
-                          values: [e.seriesName],
-                      },
-                  ]
-                : [];
+                      ]
+                    : [];
             setDashboardFilterOptions([...dimensionOptions, ...pivotOptions]);
             setContextMenuIsOpen(true);
             setContextMenuTargetOffset({

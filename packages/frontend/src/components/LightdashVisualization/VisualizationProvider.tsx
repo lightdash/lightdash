@@ -15,6 +15,7 @@ import React, {
     useRef,
     useState,
 } from 'react';
+import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -35,7 +36,10 @@ type VisualizationContext = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
-    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
+    onSeriesContextMenu?: (
+        e: EchartSeriesClickEvent,
+        series: EChartSeries[],
+    ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
 };
@@ -49,7 +53,10 @@ type Props = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
-    onSeriesContextMenu?: (e: EchartSeriesClickEvent) => void;
+    onSeriesContextMenu?: (
+        e: EchartSeriesClickEvent,
+        series: EChartSeries[],
+    ) => void;
     onChartConfigChange?: (value: ChartConfig['config']) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
