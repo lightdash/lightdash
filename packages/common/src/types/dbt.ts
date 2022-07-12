@@ -82,7 +82,7 @@ type DbtColumnLightdashDimension = {
     hidden?: boolean;
     round?: number;
     format?: string;
-    groupLabel?: string;
+    group_label?: string;
 };
 
 export type DbtColumnLightdashMetric = {
@@ -93,7 +93,7 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     format?: string;
-    groupLabel?: string;
+    group_label?: string;
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
@@ -259,6 +259,7 @@ export type DbtMetric = {
 };
 export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
+    group_label?: string;
 };
 
 export type DbtDoc = {
@@ -385,7 +386,7 @@ export const convertMetric = ({
     hidden: !!metric.hidden,
     round: metric.round,
     format: metric.format,
-    groupLabel: metric.groupLabel,
+    groupLabel: metric.group_label,
 });
 type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;

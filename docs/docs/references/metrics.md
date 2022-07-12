@@ -158,7 +158,7 @@ Here are all of the properties you can customize:
 | hidden                                              | No       | boolean            | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                 |
 | round                                               | No       | number             | Rounds a number to a specified number of digits                                                                                                               |
 | format                                              | No       | string             | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']` |
-| groupLabel                                          | No       | string             | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                       |
+| group_label                                         | No       | string             | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                       |
 
 ## Metric types
 
