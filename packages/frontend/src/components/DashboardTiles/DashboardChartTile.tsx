@@ -201,6 +201,7 @@ const DashboardChartTile: FC<Props> = (props) => {
             const dimensions = getDimensions(explore).filter((dimension) =>
                 e.dimensionNames.includes(fieldId(dimension)),
             );
+
             const dimensionOptions = dimensions.map((dimension) => ({
                 id: uuidv4(),
                 target: {
@@ -210,7 +211,20 @@ const DashboardChartTile: FC<Props> = (props) => {
                 operator: FilterOperator.EQUALS,
                 values: [e.data[fieldId(dimension)]],
             }));
-            const pivotOptions = getPivots(e.data).map((pivot) => ({
+            const pivot = savedQuery?.pivotConfig?.columns?.[0];
+            const pivotOptions = pivot
+                ? [
+                      {
+                          id: uuidv4(),
+                          target: {
+                              fieldId: pivot,
+                              tableName: pivot.split('_')[0],
+                          },
+                          operator: FilterOperator.EQUALS,
+                          values: [e.seriesName],
+                      },
+                  ]
+                : []; /*getPivots(e.data).map((pivot) => ({
                 id: uuidv4(),
                 target: {
                     fieldId: pivot.field,
@@ -218,7 +232,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 },
                 operator: FilterOperator.EQUALS,
                 values: [pivot.value],
-            }));
+            }));*/
 
             setDashboardFilterOptions([...dimensionOptions, ...pivotOptions]);
             setContextMenuIsOpen(true);
@@ -227,7 +241,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 top: e.event.event.pageY,
             });
         },
-        [explore, getPivots],
+        [explore, savedQuery?.pivotConfig?.columns],
     );
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
