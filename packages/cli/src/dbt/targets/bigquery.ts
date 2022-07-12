@@ -13,7 +13,7 @@ export type BigqueryServiceAccountTarget = {
     project: string;
     dataset: string;
     threads: number;
-    method: string;
+    method: 'service-account' | 'oauth';
     keyfile: string;
     priority?: 'interactive' | 'batch';
     retries?: number;
