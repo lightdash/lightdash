@@ -1,9 +1,9 @@
-import { Button, Switch } from '@blueprintjs/core';
+import { Button, Label, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
-import { ConfigLabel, ConfigWrapper } from './TableConfig.styles';
+import { ConfigWrapper } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {
@@ -15,7 +15,7 @@ export const TableConfigPanel: React.FC = () => {
         <Popover2
             content={
                 <ConfigWrapper>
-                    <ConfigLabel>Show table names</ConfigLabel>
+                    <Label>Show table names</Label>
                     <Switch
                         large
                         innerLabelChecked="Yes"
@@ -25,7 +25,7 @@ export const TableConfigPanel: React.FC = () => {
                             setShowTableName(!showTableNames);
                         }}
                     />
-                    <ConfigLabel>Columns</ConfigLabel>
+                    <Label>Columns</Label>
 
                     <ColumnConfiguration />
                 </ConfigWrapper>

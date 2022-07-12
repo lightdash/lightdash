@@ -1,4 +1,4 @@
-import { Colors, FormGroup, Label } from '@blueprintjs/core';
+import { Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ConfigWrapper = styled(FormGroup)`
@@ -12,8 +12,4 @@ export const ConfigWrapper = styled(FormGroup)`
         color: ${Colors.DARK_GRAY1};
         font-weight: 600;
     }
-`;
-
-export const ConfigLabel = styled(Label)`
-    font-weight: 800 !important;
 `;
