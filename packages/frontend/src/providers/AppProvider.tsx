@@ -6,6 +6,7 @@ import {
     ApiHealthResults,
     HealthState,
     Job,
+    JobStatusType,
     JobType,
     LightdashUserWithAbilityRules,
 } from '@lightdash/common';
@@ -260,7 +261,14 @@ export const AppProvider: FC = ({ children }) => {
                 toastJobStatus(activeJob);
             }
         }
-    }, [activeJob, activeJobId, toastJobStatus, isJobsDrawerOpen]);
+        if (
+            activeJobId &&
+            activeJob &&
+            activeJob.jobStatus === JobStatusType.DONE
+        ) {
+            queryClient.refetchQueries('user'); // a new project level permission might be added to the user
+        }
+    }, [activeJob, activeJobId, toastJobStatus, isJobsDrawerOpen, queryClient]);
 
     const activeJobIsRunning = activeJob && activeJob?.jobStatus === 'RUNNING';
     const errorLogs = useErrorLogs();

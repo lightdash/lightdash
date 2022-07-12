@@ -30,6 +30,7 @@ import {
     Project,
     ProjectCatalog,
     ProjectMemberProfile,
+    ProjectMemberRole,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -170,6 +171,16 @@ export class ProjectService {
                     async () =>
                         this.projectModel.create(user.organizationUuid, data),
                 );
+
+                // Give admin user permissions to user who created this project even if he is an admin
+                if (user.email) {
+                    await this.projectModel.createProjectAccess(
+                        projectUuid,
+                        user.email,
+                        ProjectMemberRole.ADMIN,
+                    );
+                }
+
                 await this.projectModel.saveExploresToCache(
                     projectUuid,
                     explores,

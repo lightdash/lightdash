@@ -23,6 +23,11 @@ export const organizationMemberAbilities: Record<
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
+        can('create', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('create', 'Job');
+        can('view', 'Job', { userUuid: member.userUuid });
     },
     viewer(member, { can }) {
         organizationMemberAbilities.member(member, { can });
@@ -38,7 +43,6 @@ export const organizationMemberAbilities: Record<
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'Job', { userUuid: member.userUuid });
     },
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
@@ -51,7 +55,6 @@ export const organizationMemberAbilities: Record<
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });
-
         can('manage', 'Job');
     },
     admin(member, { can }) {
