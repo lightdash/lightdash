@@ -18,13 +18,16 @@ import {
     CompiledTable,
     Dimension,
     DimensionType,
+    Field,
     fieldId,
     FieldId,
     friendlyName,
+    isDimension,
     isFilterableField,
     Metric,
     MetricType,
     Source,
+    toggleArrayValue,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
@@ -406,6 +409,60 @@ const ItemLabelIconPicker = (type: DimensionType | MetricType) => {
     }
 };
 
+const getGroupedNodes = <T extends Field>(fields: T[]) => {
+    return fields.reduce<{ grouped: Record<string, T[]>; ungrouped: T[] }>(
+        ({ grouped, ungrouped }, dim) => {
+            if (dim.groupLabel) {
+                return {
+                    grouped: {
+                        ...grouped,
+                        [dim.groupLabel]: [
+                            ...(grouped[dim.groupLabel] || []),
+                            dim,
+                        ],
+                    },
+                    ungrouped,
+                };
+            }
+            return { grouped, ungrouped: [...ungrouped, dim] };
+        },
+        { grouped: {}, ungrouped: [] },
+    );
+};
+
+const renderMetricTreeNode = (
+    metric: Metric,
+    expandedNodes: Array<string | number>,
+    selectedNodes: Set<string>,
+    onOpenSourceDialog: (source: Source) => void,
+    hoveredFieldId: string,
+): TreeNodeInfo<NodeDataProps> => {
+    return {
+        id: metric.name,
+        label: (
+            <Tooltip2 content={metric.description}>
+                <ItemLabelWrapper>
+                    <ItemIcon icon={ItemLabelIconPicker(metric.type)} />
+                    <ItemLabel>{metric.label}</ItemLabel>
+                </ItemLabelWrapper>
+            </Tooltip2>
+        ),
+        nodeData: {
+            fieldId: fieldId(metric),
+            isDimension: false,
+        } as NodeDataProps,
+        isSelected: selectedNodes.has(fieldId(metric)),
+        secondaryLabel: (
+            <NodeItemButtons
+                node={metric}
+                onOpenSourceDialog={onOpenSourceDialog}
+                isHovered={hoveredFieldId === fieldId(metric)}
+                isSelected={selectedNodes.has(fieldId(metric))}
+            />
+        ),
+    };
+};
+
 const renderDimensionTreeNode = (
     dimension: DimensionWithSubDimensions,
     expandedNodes: Array<string | number>,
@@ -470,33 +527,43 @@ const renderDimensionTreeNode = (
 };
 
 const renderGroupNode = (
+    id: string,
     label: string,
-    dimensions: DimensionWithSubDimensions[],
+    fields: Array<Metric | DimensionWithSubDimensions>,
     expandedNodes: Array<string | number>,
     selectedNodes: Set<string>,
     onOpenSourceDialog: (source: Source) => void,
     hoveredFieldId: string,
 ): TreeNodeInfo<NodeDataProps> => {
-    const isSubDimensionSelected = dimensions.some(
-        (dim) =>
-            selectedNodes.has(fieldId(dim)) ||
-            dim.subDimensions?.some((subDimension) =>
-                selectedNodes.has(fieldId(subDimension)),
-            ),
+    const isSubDimensionSelected = fields.some(
+        (field) =>
+            selectedNodes.has(fieldId(field)) ||
+            (isDimension(field) &&
+                field.subDimensions?.some((subDimension) =>
+                    selectedNodes.has(fieldId(subDimension)),
+                )),
     );
     return {
-        id: label,
-        label: label,
-        isExpanded: expandedNodes.includes(label),
+        id,
+        label,
+        isExpanded: isSubDimensionSelected || expandedNodes.includes(id),
         hasCaret: !isSubDimensionSelected,
-        childNodes: dimensions.map((dimension) =>
-            renderDimensionTreeNode(
-                dimension,
-                expandedNodes,
-                selectedNodes,
-                onOpenSourceDialog,
-                hoveredFieldId,
-            ),
+        childNodes: fields.map((field) =>
+            isDimension(field)
+                ? renderDimensionTreeNode(
+                      field,
+                      expandedNodes,
+                      selectedNodes,
+                      onOpenSourceDialog,
+                      hoveredFieldId,
+                  )
+                : renderMetricTreeNode(
+                      field,
+                      expandedNodes,
+                      selectedNodes,
+                      onOpenSourceDialog,
+                      hoveredFieldId,
+                  ),
         ),
     };
 };
@@ -564,6 +631,10 @@ const TableTree: FC<TableTreeProps> = ({
         return metrics;
     }, [metrics, search]);
 
+    const metricChildNodes = useMemo(() => {
+        return getGroupedNodes(filteredMetrics);
+    }, [filteredMetrics]);
+
     const hasNoMetrics = metrics.length <= 0;
 
     const filteredDimensions: Dimension[] = useMemo(() => {
@@ -580,26 +651,7 @@ const TableTree: FC<TableTreeProps> = ({
     }, [dimensions, search]);
 
     const dimensionChildNodes = useMemo(() => {
-        return filteredDimensions.reduce<
-            [Record<string, Dimension[]>, Dimension[]]
-        >(
-            ([grouped, loose], dim) => {
-                if (dim.groupLabel) {
-                    return [
-                        {
-                            ...grouped,
-                            [dim.groupLabel]: [
-                                ...(grouped[dim.groupLabel] || []),
-                                dim,
-                            ],
-                        },
-                        loose,
-                    ];
-                }
-                return [grouped, [...loose, dim]];
-            },
-            [{}, []],
-        );
+        return getGroupedNodes(filteredDimensions);
     }, [filteredDimensions]);
 
     const metricNode = {
@@ -639,35 +691,32 @@ const TableTree: FC<TableTreeProps> = ({
                       disabled: true,
                   },
               ]
-            : filteredMetrics
-                  .sort((a, b) => a.label.localeCompare(b.label))
-                  .map((metric) => ({
-                      key: metric.name,
-                      id: metric.name,
-                      label: (
-                          <Tooltip2 content={metric.description}>
-                              <ItemLabelWrapper>
-                                  <ItemIcon
-                                      icon={ItemLabelIconPicker(metric.type)}
-                                  />
-                                  <ItemLabel>{metric.label}</ItemLabel>
-                              </ItemLabelWrapper>
-                          </Tooltip2>
+            : [
+                  ...Object.entries(metricChildNodes.grouped)
+                      .sort(([aKey], [bKey]) => aKey.localeCompare(bKey))
+                      .map(([label, groupedFields]) =>
+                          renderGroupNode(
+                              `metric_group.${label}`,
+                              label,
+                              groupedFields,
+                              expandedNodes,
+                              selectedNodes,
+                              onOpenSourceDialog,
+                              hoveredFieldId,
+                          ),
                       ),
-                      nodeData: {
-                          fieldId: fieldId(metric),
-                          isDimension: false,
-                      } as NodeDataProps,
-                      isSelected: selectedNodes.has(fieldId(metric)),
-                      secondaryLabel: (
-                          <NodeItemButtons
-                              node={metric}
-                              onOpenSourceDialog={onOpenSourceDialog}
-                              isHovered={hoveredFieldId === fieldId(metric)}
-                              isSelected={selectedNodes.has(fieldId(metric))}
-                          />
+                  ...metricChildNodes.ungrouped
+                      .sort((a, b) => a.label.localeCompare(b.label))
+                      .map((metric) =>
+                          renderMetricTreeNode(
+                              metric,
+                              expandedNodes,
+                              selectedNodes,
+                              onOpenSourceDialog,
+                              hoveredFieldId,
+                          ),
                       ),
-                  })),
+              ],
     };
 
     const tableAdditionalMetrics = additionalMetrics?.filter(
@@ -765,10 +814,11 @@ const TableTree: FC<TableTreeProps> = ({
         hasCaret: false,
         isExpanded: true,
         childNodes: [
-            ...Object.entries(dimensionChildNodes[0])
+            ...Object.entries(dimensionChildNodes.grouped)
                 .sort(([aKey], [bKey]) => aKey.localeCompare(bKey))
                 .map(([label, groupedDimensions]) =>
                     renderGroupNode(
+                        `dimension_group.${label}`,
                         label,
                         groupedDimensions,
                         expandedNodes,
@@ -777,7 +827,7 @@ const TableTree: FC<TableTreeProps> = ({
                         hoveredFieldId,
                     ),
                 ),
-            ...dimensionChildNodes[1]
+            ...dimensionChildNodes.ungrouped
                 .sort((a, b) => a.label.localeCompare(b.label))
                 .map((dimension) =>
                     renderDimensionTreeNode(
@@ -810,11 +860,15 @@ const TableTree: FC<TableTreeProps> = ({
         : [metricNode, customMetricsNode, dimensionNode];
 
     const handleNodeClick: TreeEventHandler<NodeDataProps> = useCallback(
-        (nodeData: TreeNodeInfo<NodeDataProps>, _nodePath: number[]) => {
-            if (_nodePath.length !== 1 && nodeData.nodeData) {
+        (node: TreeNodeInfo<NodeDataProps>, _nodePath: number[]) => {
+            if (_nodePath.length !== 1 && node.nodeData) {
                 onSelectedNodeChange(
-                    nodeData.nodeData.fieldId,
-                    nodeData.nodeData.isDimension,
+                    node.nodeData.fieldId,
+                    node.nodeData.isDimension,
+                );
+            } else if (node.childNodes && node.childNodes.length > 0) {
+                setExpandedNodes((prevState) =>
+                    toggleArrayValue(prevState, node.id),
                 );
             }
         },

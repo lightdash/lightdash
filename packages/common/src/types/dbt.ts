@@ -385,6 +385,7 @@ export const convertMetric = ({
     hidden: !!metric.hidden,
     round: metric.round,
     format: metric.format,
+    groupLabel: metric.groupLabel,
 });
 type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
