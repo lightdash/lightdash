@@ -185,6 +185,7 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 hidden: false,
                 format: undefined,
                 round: undefined,
+                groupLabel: undefined,
             },
         },
         metrics: {},
@@ -207,6 +208,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             format: undefined,
             round: undefined,
             source: undefined,
+            groupLabel: undefined,
         },
         dbt_metric_2: {
             description: 'Description',
@@ -222,6 +224,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             format: undefined,
             round: undefined,
             source: undefined,
+            groupLabel: undefined,
         },
         dbt_metric_3: {
             description: 'Description',
@@ -237,6 +240,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             format: undefined,
             round: undefined,
             source: undefined,
+            groupLabel: undefined,
         },
     },
 };
@@ -314,6 +318,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
     },
     metrics: {
@@ -331,6 +336,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
     },
 };
@@ -371,6 +377,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_RAW: {
             fieldType: FieldType.DIMENSION,
@@ -387,6 +394,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,
@@ -403,6 +411,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_WEEK: {
             fieldType: FieldType.DIMENSION,
@@ -419,6 +428,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_MONTH: {
             fieldType: FieldType.DIMENSION,
@@ -435,6 +445,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
@@ -451,6 +462,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
     },
     metrics: {},
@@ -482,6 +494,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_RAW: {
             fieldType: FieldType.DIMENSION,
@@ -500,6 +513,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,
@@ -518,6 +532,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_WEEK: {
             fieldType: FieldType.DIMENSION,
@@ -537,6 +552,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_MONTH: {
             fieldType: FieldType.DIMENSION,
@@ -556,6 +572,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
@@ -574,6 +591,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
     },
     metrics: {},
@@ -610,6 +628,7 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
     },
     metrics: {},
@@ -646,6 +665,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
@@ -662,6 +682,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             hidden: false,
             format: undefined,
             round: undefined,
+            groupLabel: undefined,
         },
     },
     metrics: {},

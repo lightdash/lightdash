@@ -143,6 +143,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 round: undefined,
                 source: undefined,
                 format: undefined,
+                groupLabel: undefined,
             },
         ],
     };
