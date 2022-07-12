@@ -163,36 +163,6 @@ const DashboardChartTile: FC<Props> = (props) => {
     >([]);
     const { user } = useApp();
 
-    type FilterPivot = {
-        field: string;
-        table: string;
-        value: string;
-    };
-    const getPivots = useCallback(
-        (data) => {
-            const keys = Object.keys(data);
-            const pivotDimension = savedQuery?.pivotConfig?.columns?.[0];
-            return keys.reduce((results: FilterPivot[], key) => {
-                const pivotKey = key.split('.');
-
-                if (
-                    pivotDimension &&
-                    pivotKey.includes(pivotDimension) &&
-                    pivotKey.length === 3
-                ) {
-                    const pivot = pivotKey[1];
-                    results.push({
-                        table: pivot.split('_')[0],
-                        field: pivotKey[1],
-                        value: pivotKey[2],
-                    });
-                }
-                return results;
-            }, []);
-        },
-        [savedQuery],
-    );
-
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent) => {
             if (explore === undefined) {
@@ -224,16 +194,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                           values: [e.seriesName],
                       },
                   ]
-                : []; /*getPivots(e.data).map((pivot) => ({
-                id: uuidv4(),
-                target: {
-                    fieldId: pivot.field,
-                    tableName: pivot.table,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [pivot.value],
-            }));*/
-
+                : [];
             setDashboardFilterOptions([...dimensionOptions, ...pivotOptions]);
             setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
