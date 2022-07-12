@@ -1,3 +1,10 @@
+## [0.178.1](https://github.com/lightdash/lightdash/compare/0.178.0...0.178.1) (2022-07-12)
+
+
+### Bug Fixes
+
+* legend time format ([#2674](https://github.com/lightdash/lightdash/issues/2674)) ([91d82df](https://github.com/lightdash/lightdash/commit/91d82df07025deec894cb87c1d1bca30951d79f0))
+
 # [0.178.0](https://github.com/lightdash/lightdash/compare/0.177.0...0.178.0) (2022-07-12)
 
 
