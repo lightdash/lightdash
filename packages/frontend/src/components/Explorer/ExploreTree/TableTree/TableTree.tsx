@@ -469,6 +469,38 @@ const renderDimensionTreeNode = (
     };
 };
 
+const renderGroupNode = (
+    label: string,
+    dimensions: DimensionWithSubDimensions[],
+    expandedNodes: Array<string | number>,
+    selectedNodes: Set<string>,
+    onOpenSourceDialog: (source: Source) => void,
+    hoveredFieldId: string,
+): TreeNodeInfo<NodeDataProps> => {
+    const isSubDimensionSelected = dimensions.some(
+        (dim) =>
+            selectedNodes.has(fieldId(dim)) ||
+            dim.subDimensions?.some((subDimension) =>
+                selectedNodes.has(fieldId(subDimension)),
+            ),
+    );
+    return {
+        id: label,
+        label: label,
+        isExpanded: expandedNodes.includes(label),
+        hasCaret: !isSubDimensionSelected,
+        childNodes: dimensions.map((dimension) =>
+            renderDimensionTreeNode(
+                dimension,
+                expandedNodes,
+                selectedNodes,
+                onOpenSourceDialog,
+                hoveredFieldId,
+            ),
+        ),
+    };
+};
+
 const TableTree: FC<TableTreeProps> = ({
     search,
     table,
@@ -546,6 +578,29 @@ const TableTree: FC<TableTreeProps> = ({
         }
         return dimensions;
     }, [dimensions, search]);
+
+    const dimensionChildNodes = useMemo(() => {
+        return filteredDimensions.reduce<
+            [Record<string, Dimension[]>, Dimension[]]
+        >(
+            ([grouped, loose], dim) => {
+                if (dim.groupLabel) {
+                    return [
+                        {
+                            ...grouped,
+                            [dim.groupLabel]: [
+                                ...(grouped[dim.groupLabel] || []),
+                                dim,
+                            ],
+                        },
+                        loose,
+                    ];
+                }
+                return [grouped, [...loose, dim]];
+            },
+            [{}, []],
+        );
+    }, [filteredDimensions]);
 
     const metricNode = {
         id: 'metrics',
@@ -709,17 +764,31 @@ const TableTree: FC<TableTreeProps> = ({
         ),
         hasCaret: false,
         isExpanded: true,
-        childNodes: filteredDimensions
-            .sort((a, b) => a.label.localeCompare(b.label))
-            .map((dimension) =>
-                renderDimensionTreeNode(
-                    dimension,
-                    expandedNodes,
-                    selectedNodes,
-                    onOpenSourceDialog,
-                    hoveredFieldId,
+        childNodes: [
+            ...Object.entries(dimensionChildNodes[0])
+                .sort(([aKey], [bKey]) => aKey.localeCompare(bKey))
+                .map(([label, groupedDimensions]) =>
+                    renderGroupNode(
+                        label,
+                        groupedDimensions,
+                        expandedNodes,
+                        selectedNodes,
+                        onOpenSourceDialog,
+                        hoveredFieldId,
+                    ),
                 ),
-            ),
+            ...dimensionChildNodes[1]
+                .sort((a, b) => a.label.localeCompare(b.label))
+                .map((dimension) =>
+                    renderDimensionTreeNode(
+                        dimension,
+                        expandedNodes,
+                        selectedNodes,
+                        onOpenSourceDialog,
+                        hoveredFieldId,
+                    ),
+                ),
+        ],
     };
 
     const contents: TreeNodeInfo<NodeDataProps>[] = hasMultipleTables
