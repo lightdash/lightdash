@@ -645,12 +645,17 @@ const useEcharts = () => {
     ) {
         return undefined;
     }
+    //Remove stacking from invalid series
+    const stackedSeries = series.map((serie) => ({
+        ...serie,
+        stack: serie.type === 'bar' ? serie.stack : undefined,
+    }));
 
     return {
         xAxis: axis.xAxis,
         yAxis: axis.yAxis,
         useUTC: true,
-        series,
+        series: stackedSeries,
         legend: removeEmptyProperties(
             validCartesianConfig.eChartsConfig.legend,
         ) || {
