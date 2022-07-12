@@ -29,11 +29,14 @@ import {
 import Fuse from 'fuse.js';
 import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { useFilters } from '../hooks/useFilters';
-import { useExplorer } from '../providers/ExplorerProvider';
-import { TrackSection, useTracking } from '../providers/TrackingProvider';
-import { EventName, SectionName } from '../types/Events';
-import DocumentationHelpButton from './DocumentationHelpButton';
+import { useFilters } from '../../../../hooks/useFilters';
+import { useExplorer } from '../../../../providers/ExplorerProvider';
+import {
+    TrackSection,
+    useTracking,
+} from '../../../../providers/TrackingProvider';
+import { EventName, SectionName } from '../../../../types/Events';
+import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import {
     ItemIcon,
     ItemLabel,
