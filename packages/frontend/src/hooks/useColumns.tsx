@@ -85,7 +85,7 @@ export const useColumns = (): TableColumn[] => {
                             <b>{item.displayName || friendlyName(item.name)}</b>
                         ),
                     accessorKey: fieldId,
-                    cell: (info) => info.getValue() || '-',
+                    cell: (info) => info.getValue()?.value.formatted || '-',
                     footer: () =>
                         totals[fieldId]
                             ? formatItemValue(item, totals[fieldId])

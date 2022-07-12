@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { getResultValues, isField } from '@lightdash/common';
+import { isField } from '@lightdash/common';
 import React, { FC, ReactNode } from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
@@ -34,8 +34,6 @@ export const ExplorerResults = () => {
         actions: { setColumnOrder },
     } = useExplorer();
     const activeExplore = useExplore(activeTableName);
-
-    const data = getResultValues(resultsData?.rows || []);
 
     if (!activeTableName) return <NoTableSelected />;
 
@@ -80,7 +78,7 @@ export const ExplorerResults = () => {
             <TableContainer>
                 <Table
                     status={status}
-                    data={data}
+                    data={resultsData?.rows || []}
                     columns={columns}
                     columnOrder={explorerColumnOrder}
                     onColumnOrderChange={setColumnOrder}
