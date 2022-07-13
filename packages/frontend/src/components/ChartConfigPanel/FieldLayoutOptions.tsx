@@ -117,26 +117,33 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     }-axis`}
                 </AxisTitle>
 
-                {yFields.map((field, index) => (
-                    <AxisFieldDropdown key={`${field}-y-axis`}>
-                        <FieldAutoComplete
-                            fields={availableYFields}
-                            activeField={yActiveField(field)}
-                            onChange={(item) => {
-                                updateYField(index, getItemId(item));
-                            }}
-                        />
-                        {yFields?.length !== 1 && (
-                            <DeleteFieldButton
-                                minimal
-                                icon="cross"
-                                onClick={() => {
-                                    removeSingleSeries(index);
+                {yFields.map((field, index) => {
+                    const activeField = yActiveField(field);
+                    return (
+                        <AxisFieldDropdown key={`${field}-y-axis`}>
+                            <FieldAutoComplete
+                                fields={
+                                    activeField
+                                        ? [activeField, ...availableYFields]
+                                        : availableYFields
+                                }
+                                activeField={activeField}
+                                onChange={(item) => {
+                                    updateYField(index, getItemId(item));
                                 }}
                             />
-                        )}
-                    </AxisFieldDropdown>
-                ))}
+                            {yFields?.length !== 1 && (
+                                <DeleteFieldButton
+                                    minimal
+                                    icon="cross"
+                                    onClick={() => {
+                                        removeSingleSeries(index);
+                                    }}
+                                />
+                            )}
+                        </AxisFieldDropdown>
+                    );
+                })}
                 {availableYFields.length > 0 && (
                     <Button
                         minimal
