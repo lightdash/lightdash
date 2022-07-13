@@ -19,6 +19,15 @@ import {
 } from './ExplorerResultsNonIdealStates';
 import { TableContainer } from './ResultsCard.styles';
 
+const HeaderButton: React.FC<HeaderProps> = ({ header }) => {
+    const meta = header.column.columnDef.meta as TableColumn['meta'];
+    const item = meta?.item;
+    if (item && !isField(item)) {
+        return <TableCalculationHeaderButton tableCalculation={item} />;
+    }
+    return null;
+};
+
 export const ExplorerResults = () => {
     const columns = useColumns();
     const {
@@ -64,15 +73,6 @@ export const ExplorerResults = () => {
         }
 
         return <EmptyStateNoTableData description={description} />;
-    };
-
-    const HeaderButton: React.FC<HeaderProps> = ({ header }) => {
-        const meta = header.column.columnDef.meta as TableColumn['meta'];
-        const item = meta?.item;
-        if (item && !isField(item)) {
-            return <TableCalculationHeaderButton tableCalculation={item} />;
-        }
-        return null;
     };
 
     return (
