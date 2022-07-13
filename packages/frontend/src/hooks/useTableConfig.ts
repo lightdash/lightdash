@@ -3,6 +3,7 @@ import {
     ColumnProperties,
     Explore,
     Field,
+    formatItemValue,
     getItemId,
     getItemLabel,
     getItemMap,
@@ -90,7 +91,10 @@ const useTableConfig = (
                 header: getHeader(itemId) || getDefaultColumnLabel(itemId),
                 accessorKey: itemId,
                 cell: (info) => info.getValue()?.value.formatted || '-',
-                footer: () => (totals[itemId] ? totals[itemId] : null),
+                footer: () =>
+                    totals[itemId]
+                        ? formatItemValue(item, totals[itemId])
+                        : null,
                 meta: {
                     item,
                 },
