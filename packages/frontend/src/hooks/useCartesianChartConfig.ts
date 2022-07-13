@@ -192,9 +192,17 @@ const useCartesianChartConfig = ({
     }, []);
 
     const updateAllGroupedSeries = useCallback(
-        (fieldKey: string, updateSeries: Partial<Series>) =>
-            setDirtyEchartsConfig(
-                (prevState) =>
+        (fieldKey: string, updateSeries: Partial<Series>) => {
+            return setDirtyEchartsConfig((prevState) => {
+                if (updateSeries.type) {
+                    //TODO check types from other series, if not all the same, set to Mixed
+                    setType(
+                        updateSeries.type,
+                        false,
+                        updateSeries.areaStyle !== undefined,
+                    );
+                }
+                return (
                     prevState && {
                         ...prevState,
                         series: prevState?.series?.map((series) =>
@@ -205,9 +213,11 @@ const useCartesianChartConfig = ({
                                   }
                                 : series,
                         ),
-                    },
-            ),
-        [],
+                    }
+                );
+            });
+        },
+        [setType],
     );
 
     const updateSingleSeries = useCallback((updatedSeries: Series) => {
