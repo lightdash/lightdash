@@ -1,3 +1,10 @@
+## [0.180.1](https://github.com/lightdash/lightdash/compare/0.180.0...0.180.1) (2022-07-13)
+
+
+### Bug Fixes
+
+* y-axis dropdown ([#2691](https://github.com/lightdash/lightdash/issues/2691)) ([dd12e05](https://github.com/lightdash/lightdash/commit/dd12e056e91a112bbd1b04dca4b180d7ddad7f68))
+
 # [0.180.0](https://github.com/lightdash/lightdash/compare/0.179.0...0.180.0) (2022-07-13)
 
 
