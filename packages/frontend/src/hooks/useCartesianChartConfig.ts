@@ -430,11 +430,7 @@ const useCartesianChartConfig = ({
                         return { ...sum, [getSeriesId(series)]: series };
                     }
 
-                    const stack = areaStyle
-                        ? yField
-                        : isStacked
-                        ? yField
-                        : undefined;
+                    const stack = areaStyle || isStacked ? yField : undefined;
                     const groupSeries = uniquePivotValues.reduce<
                         Record<string, Series>
                     >((acc, rawValue) => {
