@@ -82,11 +82,11 @@ const SimpleChart: FC = () => {
                 }
                 e.event.event.preventDefault();
                 if (isSeriesClickEvent(e)) {
-                    onSeriesContextMenu(e);
+                    onSeriesContextMenu(e, eChartsOptions?.series || []);
                 }
             }
         },
-        [onSeriesContextMenu],
+        [onSeriesContextMenu, eChartsOptions],
     );
 
     if (isLoading) return <LoadingChart />;
