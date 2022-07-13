@@ -1,3 +1,17 @@
+# [0.181.0](https://github.com/lightdash/lightdash/compare/0.180.1...0.181.0) (2022-07-13)
+
+
+### Bug Fixes
+
+* edit table calculation ([#2696](https://github.com/lightdash/lightdash/issues/2696)) ([eb0871d](https://github.com/lightdash/lightdash/commit/eb0871d026a87c790cf7d910144b37eae2a4720a))
+* filter from table ([#2682](https://github.com/lightdash/lightdash/issues/2682)) ([c2e79bb](https://github.com/lightdash/lightdash/commit/c2e79bbf49d12b78b1da21102d66f45e9bb889bb))
+* format table viz totals ([#2693](https://github.com/lightdash/lightdash/issues/2693)) ([bcd81d7](https://github.com/lightdash/lightdash/commit/bcd81d7db6665bde464336586a74a4929ba071e5))
+
+
+### Features
+
+* grouping dimensions and metrics ([#2680](https://github.com/lightdash/lightdash/issues/2680)) ([10b6740](https://github.com/lightdash/lightdash/commit/10b6740787a6405e23a83b9f7da72d5ad8d1d2ae))
+
 ## [0.180.1](https://github.com/lightdash/lightdash/compare/0.180.0...0.180.1) (2022-07-13)
 
 
