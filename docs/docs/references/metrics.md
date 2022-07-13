@@ -149,15 +149,16 @@ models:
 
 Here are all of the properties you can customize:
 
-| Property                                            | Required | Value                 | Description                                                                           |
-| --------------------------------------------------- | -------- | --------------------- | ------------------------------------------------------------------------------------- |
-| label                                               | No       | string                | Custom label. This is what you'll see in Lightdash instead of the metric name.        |
-| [type](#metric-types)                               | Yes      | metric type           | Metrics must be one of the supported types.                                           |
-| [description](#adding-your-own-metric-descriptions) | No       | string                | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                 |
-| [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string                | Custom SQL used to define the metric.                                                 |
-| hidden                                              | No       | boolean               | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property. |
-| round          | No       | number               | Rounds a number to a specified number of digits  |
-| format          | No       | string               | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`  |
+| Property                                            | Required | Value              | Description                                                                                                                                                   |
+|-----------------------------------------------------| -------- |--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| label                                               | No       | string             | Custom label. This is what you'll see in Lightdash instead of the metric name.                                                                                |
+| [type](#metric-types)                               | Yes      | metric type        | Metrics must be one of the supported types.                                                                                                                   |
+| [description](#adding-your-own-metric-descriptions) | No       | string             | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                     |
+| [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string             | Custom SQL used to define the metric.                                                                                                                         |
+| hidden                                              | No       | boolean            | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                 |
+| round                                               | No       | number             | Rounds a number to a specified number of digits                                                                                                               |
+| format                                              | No       | string             | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']` |
+| group_label                                         | No       | string             | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                       |
 
 ## Metric types
 

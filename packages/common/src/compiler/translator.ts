@@ -99,6 +99,7 @@ const convertDimension = (
         hidden: !!column.meta.dimension?.hidden,
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
+        groupLabel: column.meta.dimension?.group_label,
     };
 };
 
@@ -163,6 +164,7 @@ const convertDbtMetricToLightdashMetric = (
         hidden: !!metric.meta?.hidden,
         round: metric.meta?.round,
         format: metric.meta?.format,
+        groupLabel: metric.meta?.group_label,
     };
 };
 

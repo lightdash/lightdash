@@ -35,7 +35,9 @@ code {
     cursor: auto;
 }
 
-.bp4-tree-node-content-2:hover {
+.bp4-tree-node-content-2:hover,
+.bp4-tree-node-content-3:hover,
+.bp4-tree-node-content-4:hover {
     background: rgba(143, 153, 168, 0.15);
     cursor: pointer;
 }
