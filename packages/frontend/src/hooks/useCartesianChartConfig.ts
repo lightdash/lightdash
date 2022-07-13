@@ -46,10 +46,10 @@ const useCartesianChartConfig = ({
         Partial<CartesianChart['eChartsConfig']> | undefined
     >(initialChartConfig?.eChartsConfig);
 
-    const isStacked = (dirtyEchartsConfig?.series || []).some(
+    const isInitiallyStacked = (dirtyEchartsConfig?.series || []).some(
         (series: Series) => series.stack !== undefined,
     );
-
+    const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
     const setLegend = useCallback((legend: EchartsLegend) => {
         setDirtyEchartsConfig((prevState) => {
             return {
@@ -225,6 +225,7 @@ const useCartesianChartConfig = ({
     const setStacking = useCallback(
         (stack: boolean) => {
             const yFields = dirtyLayout?.yField || [];
+            setIsStacked(stack);
             yFields.forEach((yField) => {
                 updateAllGroupedSeries(yField, {
                     stack: stack
@@ -429,6 +430,11 @@ const useCartesianChartConfig = ({
                         return { ...sum, [getSeriesId(series)]: series };
                     }
 
+                    const stack = areaStyle
+                        ? yField
+                        : isStacked
+                        ? yField
+                        : undefined;
                     const groupSeries = uniquePivotValues.reduce<
                         Record<string, Series>
                     >((acc, rawValue) => {
@@ -444,7 +450,7 @@ const useCartesianChartConfig = ({
                                 },
                             },
                             areaStyle: areaStyleConfig,
-                            stack: areaStyle ? yField : undefined,
+                            stack: stack,
                         };
                         return {
                             ...acc,
@@ -506,6 +512,7 @@ const useCartesianChartConfig = ({
         resultsData,
         areaStyle,
         availableDimensions,
+        isStacked,
     ]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(

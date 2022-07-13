@@ -36,7 +36,6 @@ const VisualizationCardOptions: FC = () => {
         switch (chartType) {
             case ChartType.CARTESIAN: {
                 if (!isChartTypeTheSameForAllSeries) {
-                    setStacking(false);
                     return {
                         text: 'Mixed',
                         icon: 'chart',
@@ -58,9 +57,6 @@ const VisualizationCardOptions: FC = () => {
                         };
 
                     case CartesianSeriesType.BAR:
-                        if (!pivotDimensions || pivotDimensions.length === 0) {
-                            setStacking(false);
-                        }
                         return cartesianFlipAxis
                             ? {
                                   text: 'Horizontal bar chart',
@@ -100,7 +96,6 @@ const VisualizationCardOptions: FC = () => {
         cartesianType,
         chartType,
         setStacking,
-        pivotDimensions,
     ]);
 
     return (
