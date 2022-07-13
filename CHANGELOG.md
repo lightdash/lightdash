@@ -1,3 +1,10 @@
+# [0.180.0](https://github.com/lightdash/lightdash/compare/0.179.0...0.180.0) (2022-07-13)
+
+
+### Features
+
+* filter by pivot on dashboards ([#2678](https://github.com/lightdash/lightdash/issues/2678)) ([b35021e](https://github.com/lightdash/lightdash/commit/b35021eda419f32591f41051a8aeb4b9113c933a))
+
 # [0.179.0](https://github.com/lightdash/lightdash/compare/0.178.1...0.179.0) (2022-07-12)
 
 
