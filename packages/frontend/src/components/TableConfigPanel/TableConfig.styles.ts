@@ -13,3 +13,9 @@ export const ConfigWrapper = styled(FormGroup)`
         font-weight: 600;
     }
 `;
+
+export const SectionTitle = styled.p`
+    color: ${Colors.DARK_GRAY1};
+    font-weight: 600;
+    margin-bottom: 0.286em;
+`;
