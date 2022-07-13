@@ -89,7 +89,7 @@ const useTableConfig = (
                 id: itemId,
                 header: getHeader(itemId) || getDefaultColumnLabel(itemId),
                 accessorKey: itemId,
-                cell: (info) => info.getValue() || '-',
+                cell: (info) => info.getValue()?.value.formatted || '-',
                 footer: () => (totals[itemId] ? totals[itemId] : null),
                 meta: {
                     item,

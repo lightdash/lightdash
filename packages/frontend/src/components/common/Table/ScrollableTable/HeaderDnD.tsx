@@ -1,8 +1,8 @@
+import { ResultRow } from '@lightdash/common';
 import { flexRender, HeaderGroup } from '@tanstack/react-table';
 import React, { FC, MutableRefObject } from 'react';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { useTableContext } from '../TableProvider';
-import { TableRow } from '../types';
 
 type HeaderDndContextProps = {
     colOrderRef: MutableRefObject<string[]>;
@@ -39,7 +39,7 @@ export const HeaderDndContext: FC<HeaderDndContextProps> = ({
 };
 
 type HeaderDroppableProps = {
-    headerGroup: HeaderGroup<TableRow>;
+    headerGroup: HeaderGroup<ResultRow>;
 };
 
 export const HeaderDroppable: FC<HeaderDroppableProps> = ({

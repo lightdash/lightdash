@@ -1,11 +1,14 @@
-import { Field, SortField, TableCalculation } from '@lightdash/common';
+import {
+    Field,
+    ResultRow,
+    SortField,
+    TableCalculation,
+} from '@lightdash/common';
 import { Cell, ColumnDef, Header } from '@tanstack/react-table';
 import { MouseEventHandler } from 'react';
 
-export type TableRow = { [col: string]: any };
-
-export type HeaderProps = { header: Header<TableRow> };
-export type CellContextMenuProps = { cell: Cell<TableRow> };
+export type HeaderProps = { header: Header<ResultRow> };
+export type CellContextMenuProps = { cell: Cell<ResultRow> };
 
 export type Sort = {
     sortIndex: number;
@@ -14,7 +17,7 @@ export type Sort = {
     isMultiSort: boolean;
 };
 
-export type TableColumn = ColumnDef<TableRow> & {
+export type TableColumn = ColumnDef<ResultRow> & {
     meta?: {
         width?: number;
         draggable?: boolean;

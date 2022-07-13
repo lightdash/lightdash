@@ -1,4 +1,3 @@
-import { getResultValues } from '@lightdash/common';
 import React, { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -19,7 +18,7 @@ const SimpleTable: FC = () => {
         <TableWrapper>
             <Table
                 status={'success'}
-                data={getResultValues(resultsData?.rows || [])}
+                data={resultsData?.rows || []}
                 columns={columns}
                 columnOrder={columnOrder}
             />

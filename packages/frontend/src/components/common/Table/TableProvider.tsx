@@ -1,3 +1,4 @@
+import { ResultRow } from '@lightdash/common';
 import {
     ColumnOrderState,
     getCoreRowModel,
@@ -13,11 +14,10 @@ import {
     MAX_PAGE_SIZE,
     ROW_NUMBER_COLUMN_ID,
     TableColumn,
-    TableRow,
 } from './types';
 
 type Props = {
-    data: TableRow[];
+    data: ResultRow[];
     columns: TableColumn[];
     headerContextMenu?: FC<HeaderProps>;
     headerButton?: FC<HeaderProps>;
@@ -30,7 +30,7 @@ type Props = {
 };
 
 type TableContext = Props & {
-    table: Table<TableRow>;
+    table: Table<ResultRow>;
 };
 
 const Context = createContext<TableContext | undefined>(undefined);
