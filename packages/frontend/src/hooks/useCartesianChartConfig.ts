@@ -220,18 +220,30 @@ const useCartesianChartConfig = ({
         [setType],
     );
 
-    const updateSingleSeries = useCallback((updatedSeries: Series) => {
-        setDirtyEchartsConfig((prev) => {
-            return {
-                ...prev,
-                series: (prev?.series || []).map((currentSeries) =>
-                    getSeriesId(currentSeries) === getSeriesId(updatedSeries)
-                        ? { ...currentSeries, ...updatedSeries }
-                        : currentSeries,
-                ),
-            };
-        });
-    }, []);
+    const updateSingleSeries = useCallback(
+        (updatedSeries: Series) => {
+            setDirtyEchartsConfig((prev) => {
+                if (updatedSeries.type) {
+                    //TODO check types from other series, if not all the same, set to Mixed
+                    setType(
+                        updatedSeries.type,
+                        false,
+                        updatedSeries.areaStyle !== undefined,
+                    );
+                }
+                return {
+                    ...prev,
+                    series: (prev?.series || []).map((currentSeries) =>
+                        getSeriesId(currentSeries) ===
+                        getSeriesId(updatedSeries)
+                            ? { ...currentSeries, ...updatedSeries }
+                            : currentSeries,
+                    ),
+                };
+            });
+        },
+        [setType],
+    );
     const setStacking = useCallback(
         (stack: boolean) => {
             const yFields = dirtyLayout?.yField || [];
