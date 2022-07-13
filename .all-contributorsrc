@@ -645,6 +645,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "Martin-Carlsson",
+      "name": "Martin Carlsson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7769335?v=4",
+      "profile": "https://www.linkedin.com/in/mcarlsson/",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
