@@ -1,3 +1,10 @@
+## [0.181.1](https://github.com/lightdash/lightdash/compare/0.181.0...0.181.1) (2022-07-14)
+
+
+### Bug Fixes
+
+* stack bar charts ([#2692](https://github.com/lightdash/lightdash/issues/2692)) ([ff011f6](https://github.com/lightdash/lightdash/commit/ff011f69494e77df590c755c2843ee4e8184b7f5))
+
 # [0.181.0](https://github.com/lightdash/lightdash/compare/0.180.1...0.181.0) (2022-07-13)
 
 
