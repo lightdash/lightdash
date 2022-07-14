@@ -27,6 +27,7 @@ import {
     Metric,
     MetricType,
     Source,
+    TimeInterval,
     toggleArrayValue,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
@@ -499,13 +500,31 @@ const renderDimensionTreeNode = (
         const isSubDimensionSelected = dimension.subDimensions.some(
             (subDimension) => selectedNodes.has(fieldId(subDimension)),
         );
+        const timeIntervalSort = [
+            undefined,
+            'RAW',
+            TimeInterval.DAY,
+            TimeInterval.WEEK,
+            TimeInterval.MONTH,
+            TimeInterval.YEAR,
+        ];
+        const sortedDimensions =
+            dimension.type === DimensionType.TIMESTAMP
+                ? dimension.subDimensions.sort((a, b) => {
+                      return (
+                          timeIntervalSort.indexOf(a.timeInterval) -
+                          timeIntervalSort.indexOf(b.timeInterval)
+                      );
+                  })
+                : dimension.subDimensions;
+
         return {
             ...baseNode,
             isExpanded:
                 expandedNodes.includes(dimension.name) ||
                 isSubDimensionSelected,
             hasCaret: !isSubDimensionSelected,
-            childNodes: dimension.subDimensions.map((subDimension) =>
+            childNodes: sortedDimensions.map((subDimension) =>
                 renderDimensionTreeNode(
                     subDimension,
                     expandedNodes,
