@@ -34,7 +34,7 @@ const compiledTable: CompiledTable = {
         string: generateCompiledDimension('string', DimensionType.STRING),
         date_1: generateCompiledDimension('date_1', DimensionType.DATE),
         date_2: generateCompiledDimension('date_2', DimensionType.DATE),
-        boolean: generateCompiledDimension('date_1', DimensionType.BOOLEAN),
+        boolean: generateCompiledDimension('boolean', DimensionType.BOOLEAN),
         timestamp: generateCompiledDimension(
             'timestamp',
             DimensionType.TIMESTAMP,

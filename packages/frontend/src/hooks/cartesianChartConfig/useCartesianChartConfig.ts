@@ -2,12 +2,12 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    Dimension,
     DimensionType,
     EchartsGrid,
     EchartsLegend,
     Explore,
     getDimensions,
+    getItemId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -31,37 +31,38 @@ export const sortDimensions = (
     explore: Explore | undefined,
     columnOrder: string[],
 ) => {
-    const getDimensionId = (dimension: Dimension) =>
-        `${dimension.table}_${dimension.name}`;
-
     if (!explore) return dimensionIds;
 
+    if (dimensionIds.length <= 1) return dimensionIds;
+
     const dimensions = getDimensions(explore);
-    const availableDimensionFields = dimensions.filter((dimension) =>
-        dimensionIds.includes(getDimensionId(dimension)),
-    );
-    const dateDimensions = availableDimensionFields.filter((dimension) =>
-        [DimensionType.DATE, DimensionType.TIMESTAMP].includes(dimension.type),
+
+    const dateDimensions = dimensions.filter(
+        (dimension) =>
+            dimensionIds.includes(getItemId(dimension)) &&
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                dimension.type,
+            ),
     );
     switch (dateDimensions.length) {
         case 0:
             return dimensionIds; // No dates, we return the same order
         case 1: // Only 1 date, we return this date first
-            const dateDimensionId = getDimensionId(dateDimensions[0]);
+            const dateDimensionId = getItemId(dateDimensions[0]);
             return [
                 dateDimensionId,
                 ...dimensionIds.filter(
                     (dimensionId) => dimensionId !== dateDimensionId,
                 ),
             ];
-        default: // 2 or more dates, we return first the date further left in the results table
+        default:
+            // 2 or more dates, we return first the date further left in the results table
             const sortedDateDimensions = dateDimensions.sort(
                 (a, b) =>
-                    columnOrder.indexOf(getDimensionId(a)) -
-                    columnOrder.indexOf(getDimensionId(b)),
+                    columnOrder.indexOf(getItemId(a)) -
+                    columnOrder.indexOf(getItemId(b)),
             );
-            const sortedDateDimensionIds =
-                sortedDateDimensions.map(getDimensionId);
+            const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
             return [
                 ...sortedDateDimensionIds,
                 ...dimensionIds.filter(
@@ -291,33 +292,30 @@ const useCartesianChartConfig = ({
         availableTableCalculations,
     ] = useMemo(() => {
         const dimensions = resultsData?.metricQuery.dimensions || [];
+        const sortedDimensions = sortDimensions(
+            dimensions,
+            explore,
+            columnOrder,
+        );
+
         const metrics = resultsData?.metricQuery.metrics || [];
         const tableCalculations =
             resultsData?.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ) || [];
         return [
-            [...dimensions, ...metrics, ...tableCalculations],
-            dimensions,
+            [...sortedDimensions, ...metrics, ...tableCalculations],
+            sortedDimensions,
             metrics,
             tableCalculations,
         ];
-    }, [resultsData]);
+    }, [resultsData, explore, columnOrder]);
 
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
         if (availableFields.length > 0) {
             setDirtyLayout((prev) => {
-                const sortedDimensions =
-                    availableDimensions.length > 1
-                        ? sortDimensions(
-                              availableDimensions,
-                              explore,
-                              columnOrder,
-                          )
-                        : availableDimensions;
-
                 const isCurrentXFieldValid: boolean =
                     !!prev?.xField && availableFields.includes(prev.xField);
                 const currentValidYFields = prev?.yField
@@ -392,9 +390,9 @@ const useCartesianChartConfig = ({
                     availableMetrics.length === 1 &&
                     availableDimensions.length === 2
                 ) {
-                    newXField = sortedDimensions[0];
+                    newXField = availableDimensions[0];
                     newYFields = [availableMetrics[0]];
-                    newPivotFields = [sortedDimensions[1]];
+                    newPivotFields = [availableDimensions[1]];
                 }
 
                 // two metrics, one dimension
@@ -413,9 +411,9 @@ const useCartesianChartConfig = ({
                     availableDimensions.length >= 2
                 ) {
                     //Max 4 metrics in Y-axis
-                    newXField = sortedDimensions[0];
+                    newXField = availableDimensions[0];
                     newYFields = availableMetrics.slice(0, 4);
-                    newPivotFields = [sortedDimensions[1]];
+                    newPivotFields = [availableDimensions[1]];
                 }
 
                 // 2+ metrics with no dimensions
@@ -432,8 +430,8 @@ const useCartesianChartConfig = ({
                     availableMetrics.length === 0 &&
                     availableDimensions.length >= 2
                 ) {
-                    newXField = sortedDimensions[0];
-                    newYFields = [sortedDimensions[1]];
+                    newXField = availableDimensions[0];
+                    newYFields = [availableDimensions[1]];
                 }
 
                 setPivotDimensions(newPivotFields);
@@ -453,8 +451,6 @@ const useCartesianChartConfig = ({
         hasInitialValue,
         setPivotDimensions,
         setType,
-        explore,
-        columnOrder,
     ]);
 
     // Generate expected series
