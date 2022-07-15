@@ -509,7 +509,7 @@ const renderDimensionTreeNode = (
             TimeInterval.YEAR,
         ];
         const sortedDimensions =
-            dimension.type === DimensionType.TIMESTAMP
+            dimension.type === DimensionType.TIMESTAMP || dimension.type === DimensionType.DATE
                 ? dimension.subDimensions.sort((a, b) => {
                       return (
                           timeIntervalSort.indexOf(a.timeInterval) -
