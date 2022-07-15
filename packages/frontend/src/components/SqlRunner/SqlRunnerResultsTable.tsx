@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ApiQueryResults, CompiledDimension } from '@lightdash/common';
+import { ApiQueryResults, Field } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
@@ -32,18 +32,18 @@ const ResultsIdleState: FC<React.ComponentProps<typeof RunSqlQueryButton>> = (
 
 const SqlRunnerResultsTable: FC<{
     onSubmit: () => void;
-    sqlQueryDimensions: Record<string, CompiledDimension>;
+    fieldsMap: Record<string, Field>;
     resultsData: ApiQueryResults | undefined;
     sqlQueryMutation: ReturnType<typeof useSqlQueryMutation>;
 }> = ({
     onSubmit,
-    sqlQueryDimensions,
+    fieldsMap,
     resultsData,
     sqlQueryMutation: { status, error },
 }) => {
     const columns = useSqlRunnerColumns({
         resultsData,
-        fieldsMap: sqlQueryDimensions,
+        fieldsMap,
     });
 
     if (error) {
