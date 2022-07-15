@@ -1,3 +1,10 @@
+## [0.181.6](https://github.com/lightdash/lightdash/compare/0.181.5...0.181.6) (2022-07-15)
+
+
+### Bug Fixes
+
+* hideoverlap on labels ([#2714](https://github.com/lightdash/lightdash/issues/2714)) ([e908507](https://github.com/lightdash/lightdash/commit/e90850709801be29563276d89a3d829590cbcac6))
+
 ## [0.181.5](https://github.com/lightdash/lightdash/compare/0.181.4...0.181.5) (2022-07-15)
 
 
