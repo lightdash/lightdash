@@ -1,3 +1,10 @@
+## [0.181.3](https://github.com/lightdash/lightdash/compare/0.181.2...0.181.3) (2022-07-15)
+
+
+### Bug Fixes
+
+* sort dates on explore ([#2709](https://github.com/lightdash/lightdash/issues/2709)) ([1b5dbde](https://github.com/lightdash/lightdash/commit/1b5dbdee254baa87ba91edf8821e018bbdbfcbbf))
+
 ## [0.181.2](https://github.com/lightdash/lightdash/compare/0.181.1...0.181.2) (2022-07-15)
 
 
