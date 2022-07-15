@@ -11,6 +11,8 @@ import { OrganizationProject, ProjectType } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
+    deleteLastProject,
+    getLastProject,
     useDeleteProjectMutation,
     useProjects,
 } from '../../../hooks/useProjects';
@@ -105,7 +107,7 @@ const ProjectListItem: FC<{
                             onClick={() => {
                                 mutate(projectUuid);
                                 if (isCurrentProject) {
-                                    window.location.href = '/';
+                                    deleteLastProject();
                                 }
                             }}
                         >
@@ -122,6 +124,7 @@ const ProjectManagementPanel: FC = () => {
     const { data } = useProjects();
     const history = useHistory();
     const params = useParams<{ projectUuid: string }>();
+    const lastProject = getLastProject();
 
     return (
         <ProjectManagementPanelWrapper>
@@ -141,7 +144,7 @@ const ProjectManagementPanel: FC = () => {
                         <ProjectListItem
                             key={project.projectUuid}
                             isCurrentProject={
-                                params.projectUuid === project.projectUuid
+                                lastProject === project.projectUuid
                             }
                             project={project}
                         />
