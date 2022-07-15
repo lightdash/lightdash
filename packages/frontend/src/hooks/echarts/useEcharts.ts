@@ -235,6 +235,11 @@ const getPivotSeries = ({
                             val?.value?.[yFieldHash],
                         ),
                 },
+                labelLayout: function (params: any) {
+                    return {
+                        hideOverlap: true,
+                    };
+                },
             }),
     };
 };
@@ -297,6 +302,11 @@ const getSimpleSeries = ({
                         formats[yFieldHash].round,
                         value?.value?.[yFieldHash],
                     ),
+            },
+            labelLayout: function (params: any) {
+                return {
+                    hideOverlap: true,
+                };
             },
         }),
 });
