@@ -1,3 +1,5 @@
+import GroupLabel from './assets/group-label.png';
+
 # Formatting your fields
 
 Sometimes the format of things in your dbt project is different to how you want it to look in Lightdash. That's okay! We've built a bunch of features to help you to format the fields in your dbt project so that the data in your Lightdash project looks exactly like you want it to 🥸
@@ -39,6 +41,33 @@ models:
 By default, all of your dimensions and metrics have been set to `hidden: false`.
 
 Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions, and [this one](https://docs.lightdash.com/references/metrics#metric-configuration) for all of the other properties you can customize for your metrics.
+
+## Grouping your metrics and dimensions in the sidebar
+
+You can group related metrics and dimensions together using the `group_label` property in your .yml files.
+
+For example, you might want to group together all of the fields related to your user's `product activity`. To do this, you'd add the same `group_label` to all of the fields you want grouped together, like so:
+
+```yaml
+version: 2
+models:
+- name: users
+  columns:
+    - name: user_id
+    - name: logins_num_total
+      meta:
+        dimension: 
+          group_label: 'Product activity'
+    - name: query_executed_num_total
+        dimension:
+          group_label: 'Product activity'
+```
+
+This group would appear in the sidebar of my `Users` table like this:
+
+<img src={GroupLabel} width="366" height="124" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can use group labels across metrics and dimensions. In the sidebar, your metrics will get grouped together under the `metrics` section, and your dimensions will get grouped together under the `dimensions` section. Basically, adding group labels won't group your metrics and dimensions **_together_** in the sidebar.
 
 ## Adding custom descriptions to your fields
 
