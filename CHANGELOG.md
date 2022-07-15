@@ -1,3 +1,10 @@
+## [0.181.2](https://github.com/lightdash/lightdash/compare/0.181.1...0.181.2) (2022-07-15)
+
+
+### Bug Fixes
+
+* keep cartesian type in sync ([#2710](https://github.com/lightdash/lightdash/issues/2710)) ([e3a7fe4](https://github.com/lightdash/lightdash/commit/e3a7fe44a8899cddfbf4a28780dfc8500cbc682d))
+
 ## [0.181.1](https://github.com/lightdash/lightdash/compare/0.181.0...0.181.1) (2022-07-14)
 
 
