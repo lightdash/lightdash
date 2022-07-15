@@ -1,3 +1,10 @@
+## [0.181.4](https://github.com/lightdash/lightdash/compare/0.181.3...0.181.4) (2022-07-15)
+
+
+### Bug Fixes
+
+* consider numeric columns as metrics in the chart config ([#2719](https://github.com/lightdash/lightdash/issues/2719)) ([153c50c](https://github.com/lightdash/lightdash/commit/153c50c874f92bdf4a3e9996a03cbbe36c118dde))
+
 ## [0.181.3](https://github.com/lightdash/lightdash/compare/0.181.2...0.181.3) (2022-07-15)
 
 
