@@ -1,3 +1,10 @@
+## [0.181.5](https://github.com/lightdash/lightdash/compare/0.181.4...0.181.5) (2022-07-15)
+
+
+### Bug Fixes
+
+* fix lastproject localstorage on delete and fix selected current project on list ([#2720](https://github.com/lightdash/lightdash/issues/2720)) ([b5cb7d6](https://github.com/lightdash/lightdash/commit/b5cb7d6c47c2232a14c6920160da162e3a37cc78))
+
 ## [0.181.4](https://github.com/lightdash/lightdash/compare/0.181.3...0.181.4) (2022-07-15)
 
 
