@@ -36,7 +36,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)
 - [Syncing your dbt changes to Lightdash](/references/syncing_your_dbt_changes.md)
 - [How to join tables](/guides/how-to-join-tables.md)
-- [Formatting your fields](/guides/formatting-your-fields.md)
+- [Formatting your fields](/guides/formatting-your-fields.mdx)
 
 ## 📈 Querying + visualizing your data
 
