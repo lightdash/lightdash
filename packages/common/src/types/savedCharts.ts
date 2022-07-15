@@ -227,4 +227,12 @@ export const getDefaultSeriesColor = (index: number) =>
 
 export const isSeriesWithMixedChartTypes = (
     series: Series[] | undefined,
-): boolean => new Set(series?.map(({ type }) => type)).size >= 2;
+): boolean =>
+    new Set(
+        series?.map(
+            ({ type, areaStyle }) =>
+                `${type}${
+                    type === CartesianSeriesType.LINE ? areaStyle : undefined
+                }`,
+        ),
+    ).size >= 2;
