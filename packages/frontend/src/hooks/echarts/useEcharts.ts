@@ -235,6 +235,11 @@ const getPivotSeries = ({
                             val?.value?.[yFieldHash],
                         ),
                 },
+                labelLayout: function (params: any) {
+                    return {
+                        hideOverlap: true,
+                    };
+                },
             }),
     };
 };
