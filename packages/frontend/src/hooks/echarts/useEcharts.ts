@@ -571,6 +571,7 @@ const getEchartAxis = ({
                     align: 'center',
                 },
                 nameLocation: 'center',
+                nameRotate: -90,
                 nameGap: 40,
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
