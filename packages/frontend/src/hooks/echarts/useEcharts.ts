@@ -451,7 +451,6 @@ const getEchartAxis = ({
             }
         );
     };
-
     return {
         xAxis: [
             {
@@ -482,6 +481,9 @@ const getEchartAxis = ({
                     fontWeight: 'bold',
                 },
                 ...getAxisFormatter(xAxisItem),
+                splitLine: {
+                    show: !!validCartesianConfig.layout.showGridX,
+                },
             },
             {
                 type: xAxisType,
@@ -544,6 +546,12 @@ const getEchartAxis = ({
                 nameLocation: 'end',
                 nameGap: 30,
                 ...getAxisFormatter(yAxisItem),
+                splitLine: {
+                    show:
+                        validCartesianConfig.layout.showGridY !== undefined
+                            ? validCartesianConfig.layout.showGridY
+                            : true,
+                },
             },
             {
                 type: yAxisType,
