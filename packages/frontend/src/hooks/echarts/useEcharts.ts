@@ -476,7 +476,7 @@ const getEchartAxis = ({
                     ? xAxisConfiguration?.[0]?.max ||
                       maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
                     : undefined,
-                nameLocation: 'middle',
+                nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -505,7 +505,7 @@ const getEchartAxis = ({
                       maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
                     : undefined,
                 nameLocation: 'center',
-                nameGap: 50,
+                nameGap: 30,
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
