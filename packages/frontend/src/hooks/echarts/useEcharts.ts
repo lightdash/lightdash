@@ -451,6 +451,12 @@ const getEchartAxis = ({
             }
         );
     };
+
+    const showGridX = !!validCartesianConfig.layout.showGridX;
+    const showGridY =
+        validCartesianConfig.layout.showGridY !== undefined
+            ? validCartesianConfig.layout.showGridY
+            : true;
     return {
         xAxis: [
             {
@@ -482,7 +488,9 @@ const getEchartAxis = ({
                 },
                 ...getAxisFormatter(xAxisItem),
                 splitLine: {
-                    show: !!validCartesianConfig.layout.showGridX,
+                    show: validCartesianConfig.layout.flipAxes
+                        ? showGridY
+                        : showGridX,
                 },
             },
             {
@@ -547,10 +555,9 @@ const getEchartAxis = ({
                 nameGap: 30,
                 ...getAxisFormatter(yAxisItem),
                 splitLine: {
-                    show:
-                        validCartesianConfig.layout.showGridY !== undefined
-                            ? validCartesianConfig.layout.showGridY
-                            : true,
+                    show: validCartesianConfig.layout.flipAxes
+                        ? showGridX
+                        : showGridY,
                 },
             },
             {

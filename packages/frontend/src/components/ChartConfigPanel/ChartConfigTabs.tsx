@@ -377,7 +377,9 @@ const ChartConfigTabs: FC = () => {
                             <SectionTitle>Show grid</SectionTitle>
 
                             <GridSettings>
-                                <Label>X-axis</Label>
+                                <Label>
+                                    {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
+                                </Label>
                                 <Switch
                                     large
                                     innerLabelChecked="Yes"
@@ -388,7 +390,9 @@ const ChartConfigTabs: FC = () => {
                                         // setShowTableName(!showTableNames);
                                     }}
                                 />
-                                <Label>Y-axis</Label>
+                                <Label>
+                                    {dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis
+                                </Label>
 
                                 <Switch
                                     large
