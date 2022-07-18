@@ -568,10 +568,10 @@ const getEchartAxis = ({
                     : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
-                    align: 'right',
+                    align: 'center',
                 },
-                nameLocation: 'end',
-                nameGap: 30,
+                nameLocation: 'center',
+                nameGap: 40,
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
