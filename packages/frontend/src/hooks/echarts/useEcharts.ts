@@ -673,6 +673,7 @@ const useEcharts = () => {
             validCartesianConfig.eChartsConfig.legend,
         ) || {
             show: series.length > 1,
+            bottom: 0,
         },
         dataset: {
             id: 'lightdashResults',
