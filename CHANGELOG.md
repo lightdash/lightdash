@@ -1,3 +1,17 @@
+# [0.183.0](https://github.com/lightdash/lightdash/compare/0.182.0...0.183.0) (2022-07-19)
+
+
+### Features
+
+* support redshift on CLI ([#2698](https://github.com/lightdash/lightdash/issues/2698)) ([c0291df](https://github.com/lightdash/lightdash/commit/c0291df62dd520ad06dfade6e0699928660de849))
+
+# [0.182.0](https://github.com/lightdash/lightdash/compare/0.181.6...0.182.0) (2022-07-19)
+
+
+### Features
+
+* sort date dimensions on X axis ([#2712](https://github.com/lightdash/lightdash/issues/2712)) ([9a6452f](https://github.com/lightdash/lightdash/commit/9a6452faa3e70ff581fa806cda76262137db1cde))
+
 ## [0.181.6](https://github.com/lightdash/lightdash/compare/0.181.5...0.181.6) (2022-07-15)
 
 
