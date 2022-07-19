@@ -30,7 +30,7 @@
         "fuse.js": "^6.5.3",
         "http-proxy-middleware": "^2.0.3",
         "jspdf": "^2.5.1",
-        "moment": "^2.29.2",
+        "moment": "^2.29.4",
         "react": "^17.0.2",
         "react-ace": "^9.5.0",
         "react-beautiful-dnd": "^13.1.0",
