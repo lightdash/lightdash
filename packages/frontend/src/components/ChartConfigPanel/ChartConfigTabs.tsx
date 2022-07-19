@@ -377,27 +377,17 @@ const ChartConfigTabs: FC = () => {
                             <SectionTitle>Show grid</SectionTitle>
 
                             <GridSettings>
-                                <Label>
-                                    {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
-                                </Label>
                                 <Switch
-                                    large
-                                    innerLabelChecked="Yes"
-                                    innerLabel="No"
                                     checked={!!dirtyLayout?.showGridX}
                                     onChange={(e) => {
                                         setShowGridX(!dirtyLayout?.showGridX);
-                                        // setShowTableName(!showTableNames);
                                     }}
                                 />
                                 <Label>
-                                    {dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis
+                                    {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
                                 </Label>
 
                                 <Switch
-                                    large
-                                    innerLabelChecked="Yes"
-                                    innerLabel="No"
                                     checked={
                                         dirtyLayout?.showGridY !== undefined
                                             ? dirtyLayout?.showGridY
@@ -409,10 +399,11 @@ const ChartConfigTabs: FC = () => {
                                                 ? !dirtyLayout?.showGridY
                                                 : false,
                                         );
-
-                                        // setShowTableName(!showTableNames);
                                     }}
                                 />
+                                <Label>
+                                    {dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis
+                                </Label>
                             </GridSettings>
                         </>
                     }
