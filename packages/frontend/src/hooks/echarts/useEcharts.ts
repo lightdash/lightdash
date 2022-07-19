@@ -132,6 +132,7 @@ export type EChartSeries = {
     emphasis?: {
         focus?: string;
     };
+    areaStyle?: any;
 };
 
 const getFormattedValue = (
@@ -659,7 +660,8 @@ const useEcharts = () => {
     //Remove stacking from invalid series
     const stackedSeries = series.map((serie) => ({
         ...serie,
-        stack: serie.type === 'bar' ? serie.stack : undefined,
+        stack:
+            serie.type === 'bar' || !!serie.areaStyle ? serie.stack : undefined,
     }));
 
     return {
