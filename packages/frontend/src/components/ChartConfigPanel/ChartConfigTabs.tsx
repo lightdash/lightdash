@@ -386,7 +386,8 @@ const ChartConfigTabs: FC = () => {
                                 <Label>
                                     {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
                                 </Label>
-
+                            </GridSettings>
+                            <GridSettings>
                                 <Switch
                                     checked={
                                         dirtyLayout?.showGridY !== undefined
