@@ -2,7 +2,7 @@ import { NotFoundError, Space } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
 
-type DbSpace = {
+export type DbSpace = {
     space_id: number;
     space_uuid: string;
     name: string;
@@ -103,5 +103,6 @@ export const getSpaceWithQueries = async (
                 lastName: savedQuery.last_name,
             },
         })),
+        projectUuid,
     };
 };

@@ -18,6 +18,7 @@ import {
     dashboardService,
     projectService,
     savedChartsService,
+    spaceService,
 } from '../services/services';
 
 export const projectRouter = express.Router({ mergeParams: true });
@@ -222,7 +223,7 @@ projectRouter.post(
 );
 
 projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
-    savedChartsService
+    spaceService
         .getAllSpaces(req.params.projectUuid, req.user!)
         .then((results) => {
             res.json({
@@ -232,6 +233,50 @@ projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
         })
         .catch(next);
 });
+
+projectRouter.post('/spaces', isAuthenticated, async (req, res, next) => {
+    spaceService
+        .createSpace(req.params.projectUuid, req.user!, req.body)
+        .then((results) => {
+            res.json({
+                status: 'ok',
+                results,
+            });
+        })
+        .catch(next);
+});
+
+projectRouter.delete(
+    '/spaces/:spaceUUid',
+    isAuthenticated,
+    async (req, res, next) => {
+        spaceService
+            .deleteSpace(req.user!, req.params.spaceUUid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+projectRouter.patch(
+    '/spaces/:spaceUUid',
+    isAuthenticated,
+    async (req, res, next) => {
+        spaceService
+            .updateSpace(req.user!, req.params.spaceUUid, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 
 projectRouter.get('/dashboards', isAuthenticated, async (req, res, next) => {
     const chartUuid: string | undefined =

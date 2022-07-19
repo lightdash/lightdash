@@ -73,6 +73,7 @@ export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
+export * from './types/space';
 export * from './types/table';
 export * from './types/user';
 export * from './utils/formatting';
@@ -716,18 +717,6 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
-};
-
-export type SpaceQuery = Pick<
-    SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'updatedByUser' | 'description'
->;
-
-export type Space = {
-    organizationUuid: string;
-    uuid: string;
-    name: string;
-    queries: SpaceQuery[];
 };
 
 export enum DBFieldTypes {
