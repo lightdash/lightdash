@@ -365,6 +365,7 @@ const calculateWidthText = (text: string): number => {
     span.style.fontSize = '12px';
     span.style.height = 'auto';
     span.style.width = 'auto';
+    span.style.top = '0px';
     span.style.position = 'absolute';
     span.style.whiteSpace = 'no-wrap';
     span.innerHTML = text;
