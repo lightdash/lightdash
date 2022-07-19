@@ -1,3 +1,15 @@
+# [0.184.0](https://github.com/lightdash/lightdash/compare/0.183.0...0.184.0) (2022-07-19)
+
+
+### Bug Fixes
+
+* do not force remove stack on area charts ([#2726](https://github.com/lightdash/lightdash/issues/2726)) ([0fbea20](https://github.com/lightdash/lightdash/commit/0fbea2005c76a008e6cef5f4f9b0c7ee72c537eb))
+
+
+### Features
+
+* Axis labels should appear along the axes by default ([#2730](https://github.com/lightdash/lightdash/issues/2730)) ([43cffa1](https://github.com/lightdash/lightdash/commit/43cffa143956ee09b68d27e80682b0bdcfa542b9))
+
 # [0.183.0](https://github.com/lightdash/lightdash/compare/0.182.0...0.183.0) (2022-07-19)
 
 
