@@ -356,11 +356,31 @@ export const getEchartsSeries = (
         });
 };
 
+const calculateWidthText = (text: string): number => {
+    if (!text) return 0;
+
+    const span = document.createElement('span');
+    document.body.appendChild(span);
+
+    span.style.font = 'sans-serif';
+    span.style.fontSize = '12px';
+    span.style.height = 'auto';
+    span.style.width = 'auto';
+    span.style.top = '0px';
+    span.style.position = 'absolute';
+    span.style.whiteSpace = 'no-wrap';
+    span.innerHTML = text;
+
+    const width = Math.ceil(span.clientWidth);
+    span.remove();
+    return width;
+};
 const getEchartAxis = ({
     items,
     validCartesianConfig,
     series,
     formats,
+    resultsData,
 }: {
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
@@ -368,6 +388,7 @@ const getEchartAxis = ({
     formats:
         | Record<string, Pick<CompiledField, 'round' | 'format'>>
         | undefined;
+    resultsData: ApiQueryResults | undefined;
 }) => {
     const itemMap = items.reduce<Record<string, Field | TableCalculation>>(
         (acc, item) => ({
@@ -384,6 +405,7 @@ const getEchartAxis = ({
     const yAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.xField
         : validCartesianConfig.layout?.yField?.[0];
+
     const yAxisItem = yAxisItemId ? itemMap[yAxisItemId] : undefined;
 
     const defaultXAxisType = getAxisTypeFromField(
@@ -452,6 +474,21 @@ const getEchartAxis = ({
             }
         );
     };
+
+    const rightAxisId = validCartesianConfig.layout?.yField?.[1];
+    const longestValueYAxisLeft =
+        yAxisItemId &&
+        resultsData?.rows
+            .map((row) => row[yAxisItemId]?.value?.formatted)
+            .reduce((acc, p) => (p && acc.length > p.length ? acc : p));
+    const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
+
+    const longestValueYAxisRight =
+        rightAxisId &&
+        resultsData?.rows
+            .map((row) => row[rightAxisId]?.value?.formatted)
+            .reduce((acc, p) => (p && acc.length > p.length ? acc : p));
+    const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
 
     return {
         xAxis: [
@@ -540,10 +577,10 @@ const getEchartAxis = ({
                     : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
-                    align: 'left',
+                    align: 'center',
                 },
-                nameLocation: 'end',
-                nameGap: 30,
+                nameLocation: 'center',
+                nameGap: leftYaxisGap + 20,
                 ...getAxisFormatter(yAxisItem),
             },
             {
@@ -569,10 +606,11 @@ const getEchartAxis = ({
                     : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
-                    align: 'right',
+                    align: 'center',
                 },
-                nameLocation: 'end',
-                nameGap: 30,
+                nameLocation: 'center',
+                nameRotate: -90,
+                nameGap: rightYaxisGap,
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
@@ -646,8 +684,14 @@ const useEcharts = () => {
             return { xAxis: [], yAxis: [] };
         }
 
-        return getEchartAxis({ items, series, validCartesianConfig, formats });
-    }, [items, series, validCartesianConfig, formats]);
+        return getEchartAxis({
+            items,
+            series,
+            validCartesianConfig,
+            formats,
+            resultsData,
+        });
+    }, [items, series, validCartesianConfig, formats, resultsData]);
 
     if (
         !explore ||
