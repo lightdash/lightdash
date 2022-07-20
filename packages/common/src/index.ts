@@ -51,6 +51,7 @@ import {
     ProjectMemberRole,
 } from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
+import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
