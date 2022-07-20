@@ -1,12 +1,34 @@
 import {
-    CreatePostgresCredentials,
     DimensionType,
+    FullPostgresCredentials,
+    SSHTunnelConfigSecrets,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as pg from 'pg';
-import { PoolConfig } from 'pg';
+import { Pool, PoolConfig } from 'pg';
+import SSH2Promise from 'ssh2-promise';
+import SSHConfig from 'ssh2-promise/lib/sshConfig';
 import { WarehouseClient } from '../types';
+
+const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
+    switch (mode) {
+        case 'disable':
+            return false;
+        case 'no-verify':
+            return {
+                rejectUnauthorized: false,
+            };
+        case 'allow':
+        case 'prefer':
+        case 'require':
+        case 'verify-ca':
+        case 'verify-full':
+            return true;
+        default:
+            throw new Error(`SSL mode "${mode}" not understood.`);
+    }
+};
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -118,13 +140,43 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
+type SupportedPoolConfig = Pick<
+    PoolConfig,
+    'host' | 'port' | 'database' | 'user' | 'password' | 'ssl'
+>;
 export class PostgresClient implements WarehouseClient {
-    pool: pg.Pool;
+    config: SupportedPoolConfig;
 
-    constructor(config: PoolConfig) {
+    sshTunnel?: SSHTunnelConfigSecrets;
+
+    constructor(
+        config: SupportedPoolConfig,
+        sshTunnel?: SSHTunnelConfigSecrets,
+    ) {
+        this.config = config;
+        this.sshTunnel = sshTunnel;
+    }
+
+    private async connect(): Promise<Pool> {
         try {
-            const pool = new pg.Pool(config);
-            this.pool = pool;
+            const config = { ...this.config };
+            if (this.sshTunnel) {
+                const sshConfig: SSHConfig = {
+                    username: this.sshTunnel.username,
+                    privateKey: this.sshTunnel.privateKey,
+                    port: this.sshTunnel.port,
+                    host: this.sshTunnel.host,
+                } as SSHConfig; // force type, ssh2 not recognising these arguments
+                const ssh = new SSH2Promise(sshConfig);
+                await ssh.connect();
+                const tunnel = await ssh.addTunnel({
+                    remoteAddr: config.host,
+                    remotePort: config.port,
+                });
+                config.host = 'localhost';
+                config.port = tunnel.localPort;
+            }
+            return new pg.Pool(config);
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -132,7 +184,8 @@ export class PostgresClient implements WarehouseClient {
 
     async runQuery(sql: string) {
         try {
-            const results = await this.pool.query(sql); // automatically checkouts client and cleans up
+            const pool = await this.connect();
+            const results = await pool.query(sql); // automatically checkouts client and cleans up
             const fields = results.fields.reduce(
                 (acc, { name, dataTypeID }) => ({
                     ...acc,
@@ -230,13 +283,20 @@ export class PostgresWarehouseClient
     extends PostgresClient
     implements WarehouseClient
 {
-    constructor(credentials: CreatePostgresCredentials) {
-        super({
-            connectionString: `postgres://${credentials.user}:${
-                credentials.password
-            }@${credentials.host}:${credentials.port}/${
-                credentials.dbname
-            }?sslmode=${credentials.sslmode || 'prefer'}`,
-        });
+    constructor(credentials: FullPostgresCredentials) {
+        const ssl = credentials.sslmode
+            ? getSSLConfigFromMode(credentials.sslmode)
+            : undefined;
+        super(
+            {
+                host: encodeURIComponent(credentials.host),
+                port: credentials.port,
+                database: encodeURIComponent(credentials.dbname),
+                user: encodeURIComponent(credentials.user),
+                password: encodeURIComponent(credentials.password),
+                ssl,
+            },
+            credentials.sshTunnel,
+        );
     }
 }

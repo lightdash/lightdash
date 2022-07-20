@@ -1,5 +1,5 @@
 import {
-    CreateWarehouseCredentials,
+    FullWarehouseCredentials,
     UnexpectedServerError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -11,7 +11,7 @@ import { RedshiftWarehouseClient } from './warehouseClients/RedshiftWarehouseCli
 import { SnowflakeWarehouseClient } from './warehouseClients/SnowflakeWarehouseClient';
 
 export const warehouseClientFromCredentials = (
-    credentials: CreateWarehouseCredentials,
+    credentials: FullWarehouseCredentials,
 ): WarehouseClient => {
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:

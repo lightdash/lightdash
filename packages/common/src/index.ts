@@ -53,6 +53,11 @@ import {
 import { SavedChart, Series } from './types/savedCharts';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
+import {
+    CreateWarehouseCredentials,
+    UpdateWarehouseCredentials,
+    WarehouseCredentials,
+} from './types/warehouses';
 import { formatItemValue } from './utils/formatting';
 
 export * from './authorization/index';
@@ -73,8 +78,10 @@ export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
+export * from './types/sshTunnels';
 export * from './types/table';
 export * from './types/user';
+export * from './types/warehouses';
 export * from './utils/formatting';
 
 export const validateEmail = (email: string): boolean => {
@@ -735,132 +742,10 @@ export enum DBFieldTypes {
     METRIC = 'metric',
 }
 
-export enum WarehouseTypes {
-    BIGQUERY = 'bigquery',
-    POSTGRES = 'postgres',
-    REDSHIFT = 'redshift',
-    SNOWFLAKE = 'snowflake',
-    DATABRICKS = 'databricks',
-}
-
-export type CreateBigqueryCredentials = {
-    type: WarehouseTypes.BIGQUERY;
-    project: string;
-    dataset: string;
-    threads?: number;
-    timeoutSeconds: number | undefined;
-    priority: 'interactive' | 'batch' | undefined;
-    keyfileContents: Record<string, string>;
-    retries: number | undefined;
-    location: string | undefined;
-    maximumBytesBilled: number | undefined;
-};
-
-export const sensitiveCredentialsFieldNames = [
-    'user',
-    'password',
-    'keyfileContents',
-    'personalAccessToken',
-] as const;
-
 export const sensitiveDbtCredentialsFieldNames = [
     'personal_access_token',
     'api_key',
 ] as const;
-
-export type SensitiveCredentialsFieldNames =
-    typeof sensitiveCredentialsFieldNames[number];
-
-export type BigqueryCredentials = Omit<
-    CreateBigqueryCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateDatabricksCredentials = {
-    type: WarehouseTypes.DATABRICKS;
-    serverHostName: string;
-    port: number;
-    database: string;
-    personalAccessToken: string;
-    httpPath: string;
-};
-
-export type DatabricksCredentials = Omit<
-    CreateDatabricksCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreatePostgresCredentials = {
-    type: WarehouseTypes.POSTGRES;
-    host: string;
-    user: string;
-    password: string;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    searchPath?: string;
-    role?: string;
-    sslmode?: string;
-};
-
-export type PostgresCredentials = Omit<
-    CreatePostgresCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateRedshiftCredentials = {
-    type: WarehouseTypes.REDSHIFT;
-    host: string;
-    user: string;
-    password: string;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    sslmode?: string;
-    ra3Node?: boolean;
-};
-
-export type RedshiftCredentials = Omit<
-    CreateRedshiftCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateSnowflakeCredentials = {
-    type: WarehouseTypes.SNOWFLAKE;
-    account: string;
-    user: string;
-    password: string;
-    role: string;
-    database: string;
-    warehouse: string;
-    schema: string;
-    threads?: number;
-    clientSessionKeepAlive?: boolean;
-    queryTag?: string;
-};
-
-export type SnowflakeCredentials = Omit<
-    CreateSnowflakeCredentials,
-    SensitiveCredentialsFieldNames
->;
-
-export type CreateWarehouseCredentials =
-    | CreateRedshiftCredentials
-    | CreateBigqueryCredentials
-    | CreatePostgresCredentials
-    | CreateSnowflakeCredentials
-    | CreateDatabricksCredentials;
-
-export type WarehouseCredentials =
-    | SnowflakeCredentials
-    | RedshiftCredentials
-    | PostgresCredentials
-    | BigqueryCredentials
-    | DatabricksCredentials;
 
 export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.DBT]: 'dbt local server',
@@ -971,7 +856,7 @@ export type UpdateProject = Omit<
     Project,
     'projectUuid' | 'organizationUuid' | 'type'
 > & {
-    warehouseConnection: CreateWarehouseCredentials;
+    warehouseConnection: UpdateWarehouseCredentials;
 };
 export const findItem = (
     items: Array<Field | TableCalculation>,

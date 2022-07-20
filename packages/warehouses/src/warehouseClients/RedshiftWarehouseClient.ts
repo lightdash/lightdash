@@ -1,4 +1,4 @@
-import { CreateRedshiftCredentials } from '@lightdash/common';
+import { FullRedshiftCredentials } from '@lightdash/common';
 import * as fs from 'fs';
 import path from 'path';
 import { PoolConfig } from 'pg';
@@ -38,16 +38,19 @@ export class RedshiftWarehouseClient
     extends PostgresClient
     implements WarehouseClient
 {
-    constructor(credentials: CreateRedshiftCredentials) {
+    constructor(credentials: FullRedshiftCredentials) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
-        super({
-            connectionString: `postgres://${encodeURIComponent(
-                credentials.user,
-            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
-                credentials.host,
-            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
-            ssl,
-        });
+        super(
+            {
+                host: encodeURIComponent(credentials.host),
+                port: credentials.port,
+                database: encodeURIComponent(credentials.dbname),
+                user: encodeURIComponent(credentials.user),
+                password: encodeURIComponent(credentials.password),
+                ssl,
+            },
+            credentials.sshTunnel,
+        );
     }
 }

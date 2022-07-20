@@ -1,7 +1,7 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectConfig,
     DbtProjectType,
+    FullWarehouseCredentials,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import Logger from '../logger';
@@ -15,7 +15,7 @@ import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectA
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
-    warehouseCredentials: CreateWarehouseCredentials,
+    warehouseCredentials: FullWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
 ): Promise<ProjectAdapter> => {
     Logger.debug(

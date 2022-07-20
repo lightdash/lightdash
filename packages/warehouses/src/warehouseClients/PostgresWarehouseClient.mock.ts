@@ -1,8 +1,8 @@
-import { CreatePostgresCredentials, WarehouseTypes } from '@lightdash/common';
+import { FullPostgresCredentials, WarehouseTypes } from '@lightdash/common';
 import { PostgresTypes } from './PostgresWarehouseClient';
 import { config } from './WarehouseClient.mock';
 
-export const credentials: CreatePostgresCredentials = {
+export const credentials: FullPostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
     host: '',
     user: '',

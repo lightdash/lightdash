@@ -5,6 +5,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    FullWarehouseCredentials,
     NotExistsError,
     OrganizationProject,
     Project,
@@ -17,10 +18,14 @@ import {
     UnexpectedServerError,
     UpdateProject,
     WarehouseCredentials,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
+import { generateKeyPair } from 'crypto';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
+import sshpk from 'sshpk';
+import { promisify } from 'util';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
@@ -44,6 +49,45 @@ type ProjectModelDependencies = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
+
+const addTunnelConfig = async (
+    credentials: CreateWarehouseCredentials,
+): Promise<FullWarehouseCredentials> => {
+    switch (credentials.type) {
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+            if (credentials.sshTunnel) {
+                const generate = promisify(generateKeyPair);
+                const { publicKey, privateKey } = await generate('rsa', {
+                    modulusLength: 4096,
+                    publicKeyEncoding: {
+                        type: 'spki',
+                        format: 'pem',
+                    },
+                    privateKeyEncoding: {
+                        type: 'pkcs8',
+                        format: 'pem',
+                    },
+                });
+                const parsedKey = sshpk.parseKey(publicKey);
+                const openSSHPublicKey = parsedKey.toString('ssh');
+                return {
+                    ...credentials,
+                    sshTunnel: {
+                        ...credentials.sshTunnel,
+                        privateKey,
+                        publicKey: openSSHPublicKey,
+                    },
+                };
+            }
+            return {
+                ...credentials,
+                sshTunnel: undefined,
+            };
+        default:
+            return credentials;
+    }
+};
 
 export class ProjectModel {
     private database: Knex;
@@ -152,7 +196,7 @@ export class ProjectModel {
     private async upsertWarehouseConnection(
         trx: Transaction,
         projectId: number,
-        data: CreateWarehouseCredentials,
+        data: FullWarehouseCredentials,
     ): Promise<void> {
         let encryptedCredentials: Buffer;
         try {
@@ -218,10 +262,13 @@ export class ProjectModel {
                     })
                     .returning('*');
 
+                const fullWarehouseCredentials = await addTunnelConfig(
+                    data.warehouseConnection,
+                );
                 await this.upsertWarehouseConnection(
                     trx,
                     project.project_id,
-                    data.warehouseConnection,
+                    fullWarehouseCredentials,
                 );
 
                 await trx('spaces').insert({
@@ -285,7 +332,7 @@ export class ProjectModel {
 
     async getWithSensitiveFields(
         projectUuid: string,
-    ): Promise<Project & { warehouseConnection?: CreateWarehouseCredentials }> {
+    ): Promise<Project & { warehouseConnection?: FullWarehouseCredentials }> {
         type QueryResult = (
             | {
                   name: string;
@@ -360,11 +407,11 @@ export class ProjectModel {
         if (!project.warehouse_type) {
             return result;
         }
-        let sensitiveCredentials: CreateWarehouseCredentials;
+        let sensitiveCredentials: FullWarehouseCredentials;
         try {
             sensitiveCredentials = JSON.parse(
                 this.encryptionService.decrypt(project.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
+            ) as FullWarehouseCredentials;
         } catch (e) {
             throw new UnexpectedServerError(
                 'Failed to load warehouse credentials',
