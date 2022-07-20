@@ -2172,9 +2172,11 @@
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     }
-                },
-                "required": ["name"]
+                }
             },
             "CreateSavedChartVersion": {
                 "type": "object",

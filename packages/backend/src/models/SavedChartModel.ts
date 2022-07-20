@@ -279,8 +279,19 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
+        const getSpaceId = async (spaceUuid: string) => {
+            const [space] = await this.database('spaces')
+                .select('space_id')
+                .where('space_uuid', spaceUuid);
+            return space.space_id;
+        };
+
         await this.database('saved_queries')
-            .update<UpdateSavedChart>(data)
+            .update({
+                name: data.name,
+                description: data.description,
+                space_id: data.spaceUuid && (await getSpaceId(data.spaceUuid)),
+            })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);
     }

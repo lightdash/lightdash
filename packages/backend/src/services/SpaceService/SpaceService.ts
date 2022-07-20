@@ -29,19 +29,17 @@ export class SpaceService {
         projectUuid: string,
         user: SessionUser,
     ): Promise<Space[]> {
-        const [space] = await this.spaceModel.getAllSpaces(projectUuid);
-        if (
-            user.ability.cannot(
+        const spaces = await this.spaceModel.getAllSpaces(projectUuid);
+
+        return spaces.filter((space) =>
+            user.ability.can(
                 'view',
                 subject('SavedChart', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
                 }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        return [space];
+            ),
+        );
     }
 
     async createSpace(

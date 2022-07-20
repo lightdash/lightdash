@@ -163,6 +163,7 @@ export type SavedChart = {
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
+    spaceUuid?: string;
 };
 
 export type CreateSavedChart = Omit<
@@ -175,7 +176,10 @@ export type CreateSavedChartVersion = Omit<
     'uuid' | 'name' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
 >;
 
-export type UpdateSavedChart = Pick<SavedChart, 'name' | 'description'>;
+export type UpdateSavedChart = Pick<
+    SavedChart,
+    'name' | 'description' | 'spaceUuid'
+>;
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
