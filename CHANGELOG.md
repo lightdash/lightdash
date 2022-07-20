@@ -1,3 +1,10 @@
+# [0.186.0](https://github.com/lightdash/lightdash/compare/0.185.1...0.186.0) (2022-07-20)
+
+
+### Features
+
+* disable already added chart on dashboard ([#2732](https://github.com/lightdash/lightdash/issues/2732)) ([d04cb96](https://github.com/lightdash/lightdash/commit/d04cb96eb453e535f2130dc5ecd12764d279b1fb))
+
 ## [0.185.1](https://github.com/lightdash/lightdash/compare/0.185.0...0.185.1) (2022-07-20)
 
 
