@@ -12,12 +12,16 @@ type MultiselectItem =
     | {
           value: any;
           label: string;
+          disabled?: boolean;
+          title?: string;
       };
 type MultiselectItems =
     | Array<string>
     | Array<{
           value: any;
           label: string;
+          disabled?: boolean;
+          title?: string;
       }>;
 
 function isItemMatch(value: MultiselectItem, other: MultiselectItem): boolean {
@@ -75,6 +79,9 @@ const ControlledMultiSelect: FC<{
         const isSelected = field.value?.find((value: MultiselectItem) =>
             isItemMatch(value, item),
         );
+        const disabled = typeof item === 'string' ? false : item.disabled;
+        const title = typeof item === 'string' ? '' : item.title;
+
         return (
             <MenuItem
                 active={modifiers.active}
@@ -83,6 +90,8 @@ const ControlledMultiSelect: FC<{
                 text={label}
                 onClick={handleClick}
                 shouldDismissPopover={false}
+                disabled={disabled}
+                title={title}
             />
         );
     };

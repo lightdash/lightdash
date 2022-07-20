@@ -1,3 +1,43 @@
+# [0.186.0](https://github.com/lightdash/lightdash/compare/0.185.1...0.186.0) (2022-07-20)
+
+
+### Features
+
+* disable already added chart on dashboard ([#2732](https://github.com/lightdash/lightdash/issues/2732)) ([d04cb96](https://github.com/lightdash/lightdash/commit/d04cb96eb453e535f2130dc5ecd12764d279b1fb))
+
+## [0.185.1](https://github.com/lightdash/lightdash/compare/0.185.0...0.185.1) (2022-07-20)
+
+
+### Bug Fixes
+
+* sort labels within group ([#2746](https://github.com/lightdash/lightdash/issues/2746)) ([182069a](https://github.com/lightdash/lightdash/commit/182069ae4010de0739fc4c555efaab7063466dd8))
+
+# [0.185.0](https://github.com/lightdash/lightdash/compare/0.184.1...0.185.0) (2022-07-20)
+
+
+### Features
+
+* hide axes lines chart ([#2733](https://github.com/lightdash/lightdash/issues/2733)) ([2a8550d](https://github.com/lightdash/lightdash/commit/2a8550d13402c17a6b49e39b856148fac1b89c75))
+
+## [0.184.1](https://github.com/lightdash/lightdash/compare/0.184.0...0.184.1) (2022-07-20)
+
+
+### Reverts
+
+* Revert "feat: sort date dimensions on X axis (#2712)" ([3d4c994](https://github.com/lightdash/lightdash/commit/3d4c99414f8a048d1e0edeccd048203a1bf311b9)), closes [#2712](https://github.com/lightdash/lightdash/issues/2712)
+
+# [0.184.0](https://github.com/lightdash/lightdash/compare/0.183.0...0.184.0) (2022-07-19)
+
+
+### Bug Fixes
+
+* do not force remove stack on area charts ([#2726](https://github.com/lightdash/lightdash/issues/2726)) ([0fbea20](https://github.com/lightdash/lightdash/commit/0fbea2005c76a008e6cef5f4f9b0c7ee72c537eb))
+
+
+### Features
+
+* Axis labels should appear along the axes by default ([#2730](https://github.com/lightdash/lightdash/issues/2730)) ([43cffa1](https://github.com/lightdash/lightdash/commit/43cffa143956ee09b68d27e80682b0bdcfa542b9))
+
 # [0.183.0](https://github.com/lightdash/lightdash/compare/0.182.0...0.183.0) (2022-07-19)
 
 
