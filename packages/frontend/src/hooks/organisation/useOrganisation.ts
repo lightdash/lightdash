@@ -13,4 +13,6 @@ export const useOrganisation = () =>
     useQuery<Organisation, ApiError>({
         queryKey: ['organisation'],
         queryFn: getOrganisation,
+        retry: false,
+        refetchOnMount: false,
     });
