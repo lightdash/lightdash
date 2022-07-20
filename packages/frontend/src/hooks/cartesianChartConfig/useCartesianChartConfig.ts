@@ -78,14 +78,9 @@ const useCartesianChartConfig = ({
     pivotKey,
     resultsData,
     setPivotDimensions,
-    columnOrder: initialColumnOrder,
-    explore: initialExplore,
+    columnOrder,
+    explore,
 }: Args) => {
-    const explore = useMemo(() => initialExplore, [initialExplore]);
-    const columnOrder: string[] = useMemo(
-        () => initialColumnOrder,
-        [initialColumnOrder],
-    );
     const hasInitialValue =
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
@@ -303,19 +298,20 @@ const useCartesianChartConfig = ({
         [dirtyLayout?.yField, updateAllGroupedSeries, pivotKey],
     );
 
+    const sortedDimensions = useMemo(() => {
+        return sortDimensions(
+            resultsData?.metricQuery.dimensions || [],
+            explore,
+            columnOrder,
+        );
+    }, [resultsData?.metricQuery.dimensions, explore, columnOrder]);
+
     const [
         availableFields,
         availableDimensions,
         availableMetrics,
         availableTableCalculations,
     ] = useMemo(() => {
-        const dimensions = resultsData?.metricQuery.dimensions || [];
-        const sortedDimensions = sortDimensions(
-            dimensions,
-            explore,
-            columnOrder,
-        );
-
         const metrics = resultsData?.metricQuery.metrics || [];
         const tableCalculations =
             resultsData?.metricQuery.tableCalculations.map(
@@ -327,7 +323,7 @@ const useCartesianChartConfig = ({
             metrics,
             tableCalculations,
         ];
-    }, [resultsData, explore, columnOrder]);
+    }, [resultsData, sortedDimensions]);
 
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6

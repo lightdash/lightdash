@@ -117,6 +117,7 @@ export const VisualizationProvider: FC<Props> = ({
 
     const { validBigNumberConfig } = bigNumberConfig;
     const { validTableConfig } = tableConfig;
+
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig:
             initialChartConfig?.type === ChartType.CARTESIAN
@@ -125,8 +126,8 @@ export const VisualizationProvider: FC<Props> = ({
         pivotKey: validPivotDimensions?.[0],
         resultsData: lastValidResultsData,
         setPivotDimensions,
-        columnOrder,
-        explore,
+        columnOrder: explore?.name === 'sql_runner' ? [] : columnOrder,
+        explore: explore?.name === 'sql_runner' ? undefined : explore,
     });
 
     const { validCartesianConfig } = cartesianConfig;
