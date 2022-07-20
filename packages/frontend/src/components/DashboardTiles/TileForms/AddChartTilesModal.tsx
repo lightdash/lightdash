@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 
@@ -27,12 +28,23 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const methods = useForm<AddSavedChartsForm>({
         mode: 'onSubmit',
     });
+    const { dashboardTiles } = useDashboardContext();
     const allSavedCharts =
-        data?.map(({ uuid, name }) => ({
-            value: uuid,
-            label: name,
-        })) || [];
-
+        data?.map(({ uuid, name }) => {
+            const alreadyAddedChart = dashboardTiles.find(
+                (tile) =>
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.properties.savedChartUuid === uuid,
+            );
+            return {
+                value: uuid,
+                label: name,
+                disabled: alreadyAddedChart !== undefined,
+                title:
+                    alreadyAddedChart &&
+                    'This chart has been already added to this dashboard',
+            };
+        }) || [];
     const handleSubmit = (formData: AddSavedChartsForm) => {
         onAddTiles(
             formData.savedCharts.map(({ value }) => ({
