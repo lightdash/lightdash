@@ -411,7 +411,7 @@ const ItemLabelIconPicker = (type: DimensionType | MetricType) => {
 };
 
 const getGroupedNodes = <T extends Field>(fields: T[]) => {
-    const nodes = fields.reduce<{
+    return fields.reduce<{
         grouped: Record<string, T[]>;
         ungrouped: T[];
     }>(
@@ -432,8 +432,6 @@ const getGroupedNodes = <T extends Field>(fields: T[]) => {
         },
         { grouped: {}, ungrouped: [] },
     );
-
-    return nodes;
 };
 
 const renderMetricTreeNode = (
