@@ -2,12 +2,8 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    DimensionType,
     EchartsGrid,
     EchartsLegend,
-    Explore,
-    getDimensions,
-    getItemId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -22,55 +18,6 @@ type Args = {
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
     >;
-    columnOrder: string[];
-    explore: Explore | undefined;
-};
-
-export const sortDimensions = (
-    dimensionIds: string[],
-    explore: Explore | undefined,
-    columnOrder: string[],
-) => {
-    if (!explore) return dimensionIds;
-
-    if (dimensionIds.length <= 1) return dimensionIds;
-
-    const dimensions = getDimensions(explore);
-
-    const dateDimensions = dimensions.filter(
-        (dimension) =>
-            dimensionIds.includes(getItemId(dimension)) &&
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                dimension.type,
-            ),
-    );
-    switch (dateDimensions.length) {
-        case 0:
-            return dimensionIds; // No dates, we return the same order
-        case 1: // Only 1 date, we return this date first
-            const dateDimensionId = getItemId(dateDimensions[0]);
-            return [
-                dateDimensionId,
-                ...dimensionIds.filter(
-                    (dimensionId) => dimensionId !== dateDimensionId,
-                ),
-            ];
-        default:
-            // 2 or more dates, we return first the date further left in the results table
-            const sortedDateDimensions = dateDimensions.sort(
-                (a, b) =>
-                    columnOrder.indexOf(getItemId(a)) -
-                    columnOrder.indexOf(getItemId(b)),
-            );
-            const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
-            return [
-                ...sortedDateDimensionIds,
-                ...dimensionIds.filter(
-                    (dimensionId) =>
-                        !sortedDateDimensionIds.includes(dimensionId),
-                ),
-            ];
-    }
 };
 
 const useCartesianChartConfig = ({
@@ -78,8 +25,6 @@ const useCartesianChartConfig = ({
     pivotKey,
     resultsData,
     setPivotDimensions,
-    columnOrder,
-    explore,
 }: Args) => {
     const hasInitialValue =
         !!initialChartConfig &&
@@ -97,7 +42,6 @@ const useCartesianChartConfig = ({
         (series: Series) => series.stack !== undefined,
     );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
-
     const setLegend = useCallback((legend: EchartsLegend) => {
         setDirtyEchartsConfig((prevState) => {
             return {
@@ -292,24 +236,18 @@ const useCartesianChartConfig = ({
         availableTableCalculations,
     ] = useMemo(() => {
         const dimensions = resultsData?.metricQuery.dimensions || [];
-        const sortedDimensions = sortDimensions(
-            dimensions,
-            explore,
-            columnOrder,
-        );
-
         const metrics = resultsData?.metricQuery.metrics || [];
         const tableCalculations =
             resultsData?.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ) || [];
         return [
-            [...sortedDimensions, ...metrics, ...tableCalculations],
-            sortedDimensions,
+            [...dimensions, ...metrics, ...tableCalculations],
+            dimensions,
             metrics,
             tableCalculations,
         ];
-    }, [resultsData, explore, columnOrder]);
+    }, [resultsData]);
 
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
