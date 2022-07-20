@@ -1,3 +1,10 @@
+## [0.184.1](https://github.com/lightdash/lightdash/compare/0.184.0...0.184.1) (2022-07-20)
+
+
+### Reverts
+
+* Revert "feat: sort date dimensions on X axis (#2712)" ([3d4c994](https://github.com/lightdash/lightdash/commit/3d4c99414f8a048d1e0edeccd048203a1bf311b9)), closes [#2712](https://github.com/lightdash/lightdash/issues/2712)
+
 # [0.184.0](https://github.com/lightdash/lightdash/compare/0.183.0...0.184.0) (2022-07-19)
 
 
