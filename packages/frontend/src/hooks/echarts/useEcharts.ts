@@ -475,6 +475,12 @@ const getEchartAxis = ({
         );
     };
 
+    const showGridX = !!validCartesianConfig.layout.showGridX;
+    const showGridY =
+        validCartesianConfig.layout.showGridY !== undefined
+            ? validCartesianConfig.layout.showGridY
+            : true;
+
     const rightAxisId = validCartesianConfig.layout?.yField?.[1];
     const longestValueYAxisLeft =
         yAxisItemId &&
@@ -520,6 +526,11 @@ const getEchartAxis = ({
                     fontWeight: 'bold',
                 },
                 ...getAxisFormatter(xAxisItem),
+                splitLine: {
+                    show: validCartesianConfig.layout.flipAxes
+                        ? showGridY
+                        : showGridX,
+                },
             },
             {
                 type: xAxisType,
@@ -582,6 +593,11 @@ const getEchartAxis = ({
                 nameLocation: 'center',
                 nameGap: leftYaxisGap + 20,
                 ...getAxisFormatter(yAxisItem),
+                splitLine: {
+                    show: validCartesianConfig.layout.flipAxes
+                        ? showGridX
+                        : showGridY,
+                },
             },
             {
                 type: yAxisType,

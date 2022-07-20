@@ -1,4 +1,4 @@
-import { InputGroup, Tab, Tabs } from '@blueprintjs/core';
+import { InputGroup, Label, Switch, Tab, Tabs } from '@blueprintjs/core';
 import {
     convertAdditionalMetric,
     fieldId,
@@ -23,10 +23,12 @@ import { EventName } from '../../types/Events';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     AutoRangeSwitch,
+    GridSettings,
     InputWrapper,
     MinMaxContainer,
     MinMaxInput,
     MinMaxWrapper,
+    SectionTitle,
     Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
@@ -109,6 +111,8 @@ const ChartConfigTabs: FC = () => {
             setYAxisName,
             setYMinValue,
             setYMaxValue,
+            setShowGridX,
+            setShowGridY,
         },
     } = useVisualizationContext();
     const [tab, setTab] = useState<string | number>('layout');
@@ -222,7 +226,6 @@ const ChartConfigTabs: FC = () => {
             ) || {},
         [series],
     );
-
     return (
         <Wrapper>
             <Tabs
@@ -371,6 +374,38 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             )}
+                            <SectionTitle>Show grid</SectionTitle>
+
+                            <GridSettings>
+                                <Switch
+                                    checked={!!dirtyLayout?.showGridX}
+                                    onChange={(e) => {
+                                        setShowGridX(!dirtyLayout?.showGridX);
+                                    }}
+                                />
+                                <Label>
+                                    {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
+                                </Label>
+                            </GridSettings>
+                            <GridSettings>
+                                <Switch
+                                    checked={
+                                        dirtyLayout?.showGridY !== undefined
+                                            ? dirtyLayout?.showGridY
+                                            : true
+                                    }
+                                    onChange={(e) => {
+                                        setShowGridY(
+                                            dirtyLayout?.showGridY !== undefined
+                                                ? !dirtyLayout?.showGridY
+                                                : false,
+                                        );
+                                    }}
+                                />
+                                <Label>
+                                    {dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis
+                                </Label>
+                            </GridSettings>
                         </>
                     }
                 />

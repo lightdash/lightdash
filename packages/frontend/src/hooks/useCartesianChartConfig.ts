@@ -125,6 +125,19 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
+    const setShowGridX = useCallback((show: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showGridX: show,
+        }));
+    }, []);
+    const setShowGridY = useCallback((show: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showGridY: show,
+        }));
+    }, []);
+
     const addSingleSeries = useCallback((yField: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -551,6 +564,8 @@ const useCartesianChartConfig = ({
         setYMaxValue,
         setLegend,
         setGrid,
+        setShowGridX,
+        setShowGridY,
     };
 };
 
