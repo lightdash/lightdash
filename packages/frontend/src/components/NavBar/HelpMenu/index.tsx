@@ -111,7 +111,7 @@ const HelpMenu: FC = () => {
                         </LinkWrapper>
                         <LinkWrapper
                             role="button"
-                            href="https://github.com/lightdash/lightdash/discussions"
+                            href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
                             target="_blank"
                             rel="noreferrer"
                         >
@@ -121,10 +121,30 @@ const HelpMenu: FC = () => {
                                 </IconContainer>
 
                                 <div>
-                                    <ItemCTA>Join the discussion</ItemCTA>
+                                    <ItemCTA>Join Slack community</ItemCTA>
                                     <ItemDescription>
                                         Get advice &amp; share best practices
                                         with other users.
+                                    </ItemDescription>
+                                </div>
+                            </HelpItem>
+                        </LinkWrapper>
+                        <LinkWrapper
+                            role="button"
+                            href="Submit a feature request or bug report to improve Lightdash"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <HelpItem>
+                                <IconContainer>
+                                    <Icon icon="issue" />
+                                </IconContainer>
+
+                                <div>
+                                    <ItemCTA>Feedback on Lightdash</ItemCTA>
+                                    <ItemDescription>
+                                        Submit a feature request or bug report
+                                        to improve Lightdash.
                                     </ItemDescription>
                                 </div>
                             </HelpItem>
