@@ -123,6 +123,8 @@ export type CompleteCartesianChartLayout = {
     xField: string;
     yField: string[];
     flipAxes?: boolean | undefined;
+    showGridX?: boolean | undefined;
+    showGridY?: boolean | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

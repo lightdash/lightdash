@@ -1,3 +1,7 @@
+import ConfigureAxesRange from './assets/configure-axes-range.png';
+import Legend from './assets/legend.png';
+import Margins from './assets/margins.png';
+
 # Visualizing your results
 
 Results tables can be useful for finding specific numbers or checking out your data, but it's usually easier to see trends and make sense of your data using charts.
@@ -28,13 +32,14 @@ Each chart type has its own configuration options. Click the `configure` button 
 
 ### Big value
 
-The Big value option is for displaying a single number, well, big.
+The Big value option is for displaying a single value, well, big.
 
-The Big value only works for numeric values. It will always pick the first value from the field in your results table as the number to display.
+The Big value works for any type of value: string, numeric, boolean, you name it! We always display the first value from the field in your results table.
 
 The options for Big value include:
 
-- Updating the label below the big value value.
+- Selecting which field you want to use for your Big value.
+- Updating the label below the Big value value.
 
 ![big value chart](./assets/big-number-chart.png)
 
@@ -42,23 +47,57 @@ The options for Big value include:
 
 The Table option is good for looking at (surprise, surprise) tabular data, or for lists of things like user IDs or transactions. 
 
+The options for Tables include:
+
+- Renaming the columns in your table.
+- Showing/hiding the columns in your table.
+- Showing/hiding the table name from the column labels. 
+
+By default, we attach the table name to your field name (just in case you've got any duplicate fields from joined tables). But, you can easily turn this off in your table viz with a toggle.
+
 ![table chart](./assets/table-chart.png)
 
 ### Bar chart
 
-Bar charts are helpful to compare things between different groups (e.g. the number of orders you have by product type) or to track how a number changes over time if you have a smaller number of x-axis values (e.g. number of new users per month over a year). 
+Bar charts are helpful to:
+
+- compare things between different groups (e.g. the number of orders you have by product type)
+- track how a number changes over time if you have a *smaller number of x-axis values* (e.g. number of new users per month over a year). 
 
 ![bar chart](./assets/column-chart.png)
 
-You can also stack bar charts to compare proportions across different groups.
+#### Stacked bar chart
+
+You can also stack bar charts to compare proportions across different groups. 
+
+Stacked bar charts work best when:
+
+- **the focus of the chart is to compare the totals and _one part_ of the totals.** It's hard to compare bars if they don't start at the same baseline. So, if you're trying to build a chart to compare multiple parts of your total with each other, consider keeping your bar chart unstacked!
+- **you're trying to show the parts of _multiple_ totals**. If you only want to show parts of one total, consider an unstacked bar chart instead.If you only want to communicate one part of one total, consider if you should be using a big value chart instead.
 
 ![stacked bar chart](./assets/stacked-column-chart.png)
 
 You can see more details about bar chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
+### Area chart
+
+Area charts are best if:
+
+- **you want to show how values develop over time.** If you want to show how values differ in different categories, consider a (stacked) bar, or horizontal bar chart instead. 
+- **the total is as important as its parts**. If the total (= the height of all your stacked areas) is not important, consider a line chart instead. Many readers will have an easier time understanding a line chart than an area chart.
+- **there are big differences between your values**. If the differences between your values are very small, consider a line chart instead. Compared to an area chart, the y-axis of a line chart doesn’t need to start at zero. This means that your y-axis can be stretched to show the tiny differences.
+- **you're showing multiple series over time**. If you just want to show one value over time, also consider a line chart instead; especially if you don’t want your y-axis to start at zero. If you only have a few dates, you can also consider using a column chart. In both cases, labelling will be better.
+- **you have many data points**. If you have less than ten or so data points, consider a stacked bar chart instead.
+
+
 ### Line chart
 
-Line charts are used to show changes in a number over a short or long period of time. When smaller changes exist, or you have lots of x-axis values, line charts are better to use than bar charts.
+Line charts are used to show changes in a number over a short or long period of time. 
+
+They're a good option when:
+
+- **you have small changes between your values**. The y-axis of a line chart doesn’t need to start at zero. This means that your y-axis can be stretched to show the tiny differences.
+- **you have lots of x-axis values**. In this case, line charts are better to use than bar charts.
 
 ![line chart](./assets/line-chart.png)
 
@@ -70,7 +109,12 @@ You can see more details about line chart configurations [here](#configure-your-
 
 ### Horizontal bar chart
 
-Horizontal bar charts are just bar charts, except the columns are placed on the chart horizontally instead of vertically. Horizontal bar charts are useful when you're trying to group a number by something with a lot of possible values. They're also useful if your groups have really long label names.
+Horizontal bar charts are just bar charts, except the columns are placed on the chart horizontally instead of vertically. 
+
+Horizontal bar charts are useful when:
+
+- you're trying to group a number by something with a lot of possible values. 
+- your groups have really long label names.
 
 ![horizontal bar chart](./assets/bar-chart.png)
 
@@ -137,6 +181,32 @@ If you have multiple series in your chart, you can adjust these settings for **_
 
 #### Axes
 
-Here’s where you can customize the text for your axes labels.
+Here’s where you can customize the axes on your plot. 
 
-![configure axes options](./assets/configure-axes.png)
+You have the options to:
+
+- change the text for your axes labels.
+- set the axis limits for your y-axes. You can either leave the auto-axis range or manually enter your own limits.
+
+<img src={ConfigureAxesRange} width="357" height="393" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### Legend
+
+This tab is where you're able to control the legend in your chart. You can:
+
+- Show/hide the legend
+- Adjust the position of the legend on your chart
+    - The values in `position` are the coordinates of the legend on your chart. They can either be numbers or percent. We suggest using %. 
+    - If you want the position to be in the bottom right, you would set: Right = 0%, Bottom = 0%. For the legend to be in the middle of the chart, you'd set: Top = 50%, Left = 50%.
+- Set your legend to scroll (if you have so many groups that they overlap your chart).
+- Orientate the values in your legened to form a list vertically, or horizontally
+
+<img src={Legend} width="348" height="371" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### Margins
+
+The Margin tab is where you're able to add or remove margin around the grid (aka your chart with its plotted values). Removing margin means that your chart will fill more of the space in the chart tab. Adding margin will shrink your chart into a smaller space. 
+
+You can either add numbers or percent values to the margin settings listed. The default margin is set to `top` = 70, `bottom` = 30, `left` = 5%, `right` = 5%
+
+<img src={Margins} width="354" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>

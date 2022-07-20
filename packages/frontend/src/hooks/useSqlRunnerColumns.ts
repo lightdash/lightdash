@@ -1,6 +1,6 @@
 import {
     ApiQueryResults,
-    CompiledDimension,
+    Field,
     FieldId,
     fieldId as getFieldId,
 } from '@lightdash/common';
@@ -10,7 +10,7 @@ import useColumnTotals from './useColumnTotals';
 
 type Args = {
     resultsData: ApiQueryResults | undefined;
-    fieldsMap: Record<FieldId, CompiledDimension>;
+    fieldsMap: Record<FieldId, Field>;
 };
 
 const useSqlRunnerColumns = ({ resultsData, fieldsMap }: Args) => {

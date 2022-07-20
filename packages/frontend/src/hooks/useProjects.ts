@@ -28,6 +28,10 @@ export const setLastProject = (projectUuid: string) => {
     localStorage.setItem(LAST_PROJECT_KEY, projectUuid);
 };
 
+export const deleteLastProject = () => {
+    localStorage.removeItem(LAST_PROJECT_KEY);
+};
+
 export const useDefaultProject = () => {
     const projectsQuery = useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects', 'defaultProject'],

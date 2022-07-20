@@ -121,3 +121,18 @@ export const MinMaxInput = styled(InputWrapper)`
 export const AutoRangeSwitch = styled(Switch)`
     width: fit-content !important;
 `;
+
+export const GridSettings = styled.div`
+    display: flex;
+    flex-direction: row;
+
+    .bp4-label {
+        margin-right: 5px;
+    }
+`;
+
+export const SectionTitle = styled.p`
+    color: ${Colors.DARK_GRAY1};
+    font-weight: 600;
+    margin: 5px 0;
+`;
