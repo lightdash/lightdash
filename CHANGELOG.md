@@ -1,3 +1,10 @@
+# [0.185.0](https://github.com/lightdash/lightdash/compare/0.184.1...0.185.0) (2022-07-20)
+
+
+### Features
+
+* hide axes lines chart ([#2733](https://github.com/lightdash/lightdash/issues/2733)) ([2a8550d](https://github.com/lightdash/lightdash/commit/2a8550d13402c17a6b49e39b856148fac1b89c75))
+
 ## [0.184.1](https://github.com/lightdash/lightdash/compare/0.184.0...0.184.1) (2022-07-20)
 
 
