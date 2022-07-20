@@ -411,7 +411,10 @@ const ItemLabelIconPicker = (type: DimensionType | MetricType) => {
 };
 
 const getGroupedNodes = <T extends Field>(fields: T[]) => {
-    return fields.reduce<{ grouped: Record<string, T[]>; ungrouped: T[] }>(
+    const nodes = fields.reduce<{
+        grouped: Record<string, T[]>;
+        ungrouped: T[];
+    }>(
         ({ grouped, ungrouped }, dim) => {
             if (dim.groupLabel) {
                 return {
@@ -420,7 +423,7 @@ const getGroupedNodes = <T extends Field>(fields: T[]) => {
                         [dim.groupLabel]: [
                             ...(grouped[dim.groupLabel] || []),
                             dim,
-                        ],
+                        ].sort((a, b) => a.label.localeCompare(b.label)),
                     },
                     ungrouped,
                 };
@@ -429,6 +432,8 @@ const getGroupedNodes = <T extends Field>(fields: T[]) => {
         },
         { grouped: {}, ungrouped: [] },
     );
+
+    return nodes;
 };
 
 const renderMetricTreeNode = (
