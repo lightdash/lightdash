@@ -125,8 +125,8 @@ export const VisualizationProvider: FC<Props> = ({
         pivotKey: validPivotDimensions?.[0],
         resultsData: lastValidResultsData,
         setPivotDimensions,
-        columnOrder,
-        explore,
+        columnOrder: explore?.name === 'sql_runner' ? [] : columnOrder,
+        explore: explore?.name === 'sql_runner' ? undefined : explore,
     });
 
     const { validCartesianConfig } = cartesianConfig;
