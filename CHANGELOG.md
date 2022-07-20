@@ -1,3 +1,10 @@
+## [0.185.1](https://github.com/lightdash/lightdash/compare/0.185.0...0.185.1) (2022-07-20)
+
+
+### Bug Fixes
+
+* sort labels within group ([#2746](https://github.com/lightdash/lightdash/issues/2746)) ([182069a](https://github.com/lightdash/lightdash/commit/182069ae4010de0739fc4c555efaab7063466dd8))
+
 # [0.185.0](https://github.com/lightdash/lightdash/compare/0.184.1...0.185.0) (2022-07-20)
 
 
