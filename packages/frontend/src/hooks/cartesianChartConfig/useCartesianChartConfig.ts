@@ -78,9 +78,14 @@ const useCartesianChartConfig = ({
     pivotKey,
     resultsData,
     setPivotDimensions,
-    columnOrder,
-    explore,
+    columnOrder: initialColumnOrder,
+    explore: initialExplore,
 }: Args) => {
+    const explore = useMemo(() => initialExplore, [initialExplore]);
+    const columnOrder: string[] = useMemo(
+        () => initialColumnOrder,
+        [initialColumnOrder],
+    );
     const hasInitialValue =
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
