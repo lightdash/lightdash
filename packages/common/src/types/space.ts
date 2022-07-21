@@ -1,3 +1,4 @@
+import { DashboardBasicDetails } from './dashboard';
 import { SpaceQuery } from './savedCharts';
 
 export type Space = {
@@ -6,6 +7,7 @@ export type Space = {
     name: string;
     queries: SpaceQuery[];
     projectUuid: string;
+    dashboards: DashboardBasicDetails[];
 };
 
 export type CreateSpace = Pick<Space, 'name'>;

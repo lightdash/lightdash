@@ -244,6 +244,7 @@ export const spacesWithSavedCharts: Space[] = [
             },
         ],
         projectUuid,
+        dashboards: [],
     },
 ];
 
@@ -254,6 +255,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         uuid: 'uuid',
         queries: [],
         projectUuid,
+        dashboards: [],
     },
 ];
 

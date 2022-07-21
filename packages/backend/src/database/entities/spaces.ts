@@ -104,6 +104,7 @@ export const getSpaceWithQueries = async (
             },
         })),
         projectUuid,
+        dashboards: [],
     };
 };
 

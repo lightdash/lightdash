@@ -1,13 +1,23 @@
 import {
+    DashboardBasicDetails,
     NotFoundError,
     Space,
     SpaceQuery,
     UpdateSpace,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DbOrganization } from '../database/entities/organizations';
-import { DbProject } from '../database/entities/projects';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
+import {
+    DbOrganization,
+    OrganizationTableName,
+} from '../database/entities/organizations';
+import { DbProject, ProjectTableName } from '../database/entities/projects';
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
+import { UserTableName } from '../database/entities/users';
+import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type Dependencies = {
     database: Knex;
@@ -46,7 +56,77 @@ export class SpaceModel {
             queries: [],
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
+            dashboards: [],
         };
+    }
+
+    async getSpaceDashboards(
+        spaceId: number,
+    ): Promise<DashboardBasicDetails[]> {
+        const dashboards = await this.database
+            .table(DashboardsTableName)
+            .leftJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                DashboardVersionsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select<GetDashboardDetailsQuery[]>([
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.description`,
+                `${ProjectTableName}.project_uuid`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${OrganizationTableName}.organization_uuid`,
+            ])
+            .where(`${DashboardsTableName}.space_id`, spaceId);
+
+        return dashboards.map(
+            ({
+                name,
+                description,
+                dashboard_uuid,
+                created_at,
+                project_uuid,
+                user_uuid,
+                first_name,
+                last_name,
+                organization_uuid,
+            }) => ({
+                organizationUuid: organization_uuid,
+                name,
+                description,
+                uuid: dashboard_uuid,
+                updatedAt: created_at,
+                projectUuid: project_uuid,
+                updatedByUser: {
+                    userUuid: user_uuid,
+                    firstName: first_name,
+                    lastName: last_name,
+                },
+            }),
+        );
     }
 
     async getSpaceQueries(spaceId: number): Promise<SpaceQuery[]> {
@@ -126,6 +206,7 @@ export class SpaceModel {
                 queries: await this.getSpaceQueries(row.space_id),
                 uuid: row.space_uuid,
                 projectUuid: row.project_uuid,
+                dashboards: await this.getSpaceDashboards(row.space_id),
             })),
         );
     }
@@ -148,6 +229,7 @@ export class SpaceModel {
             queries: [],
             uuid: space.space_uuid,
             projectUuid,
+            dashboards: [],
         };
     }
 
