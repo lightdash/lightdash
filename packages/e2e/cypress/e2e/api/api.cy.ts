@@ -271,7 +271,7 @@ describe('Lightdash API forbidden tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            // `/projects/${projectUuid}/spaces`,
+            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
