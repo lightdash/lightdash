@@ -40,7 +40,6 @@ export class SpaceModel {
             .where('space_uuid', spaceUuid)
             .select<(DbSpace & DbProject & DbOrganization)[]>([
                 'spaces.space_uuid',
-                'spaces.space_id',
                 'spaces.name',
                 'spaces.created_at',
                 'projects.project_uuid',
