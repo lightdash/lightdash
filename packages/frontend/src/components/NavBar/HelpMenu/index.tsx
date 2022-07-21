@@ -131,7 +131,7 @@ const HelpMenu: FC = () => {
                         </LinkWrapper>
                         <LinkWrapper
                             role="button"
-                            href="Submit a feature request or bug report to improve Lightdash"
+                            href="https://github.com/lightdash/lightdash/issues/new/choose"
                             target="_blank"
                             rel="noreferrer"
                         >
