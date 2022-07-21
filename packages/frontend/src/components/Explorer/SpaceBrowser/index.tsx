@@ -10,6 +10,8 @@ import React, { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import LatestCard from '../../Home/LatestCard';
 import { CreateSpaceModal } from './CreateSpaceModal';
+import { DeleteSpaceModal } from './DeleteSpaceModal';
+import { EditSpaceModal } from './EditSpaceModal';
 import {
     CreateNewButton,
     FolderIcon,
@@ -25,6 +27,8 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+    const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
+    const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
 
     /*
     if (isLoading || data === undefined) {
@@ -103,6 +107,9 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                                 icon="edit"
                                                 text="Rename"
                                                 onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    setUpdateSpaceUuid(uuid);
                                                     /*if (source === undefined) {
                                                             return;
                                                         }
@@ -118,7 +125,13 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                                 intent="danger"
                                                 text="Remove tile"
                                                 onClick={
-                                                    () => {}
+                                                    (e) => {
+                                                        e.stopPropagation();
+                                                        e.preventDefault();
+                                                        setDeleteSpaceUuid(
+                                                            uuid,
+                                                        );
+                                                    }
                                                     /*onDelete(tile)
                                                      */
                                                 }
@@ -150,6 +163,23 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     setIsModalOpen(false);
                 }}
             ></CreateSpaceModal>
+
+            {updateSpaceUuid && (
+                <EditSpaceModal
+                    spaceUuid={updateSpaceUuid}
+                    onClose={() => {
+                        setUpdateSpaceUuid(undefined);
+                    }}
+                ></EditSpaceModal>
+            )}
+            {deleteSpaceUuid && (
+                <DeleteSpaceModal
+                    spaceUuid={deleteSpaceUuid}
+                    onClose={() => {
+                        setDeleteSpaceUuid(undefined);
+                    }}
+                ></DeleteSpaceModal>
+            )}
         </SpaceBrowserWrapper>
     );
 };

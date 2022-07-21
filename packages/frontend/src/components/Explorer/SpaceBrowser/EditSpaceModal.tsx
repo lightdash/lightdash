@@ -1,26 +1,37 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
-import React, { FC, useState } from 'react';
-import { useUpdateMutation } from '../../../hooks/useSpaces';
+import React, { FC, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useSpace, useUpdateMutation } from '../../../hooks/useSpaces';
 import { FormGroupWrapper } from './CreateSpaceModal.styles';
 
 interface EditSpaceModalProps {
-    isOpen: boolean;
     onClose?: () => void;
-    currentName: string;
     spaceUuid: string;
 }
 
 export const EditSpaceModal: FC<EditSpaceModalProps> = ({
-    isOpen,
     onClose,
-    currentName,
     spaceUuid,
 }) => {
-    const { mutate, isLoading: isCreating } = useUpdateMutation(spaceUuid);
-    const [name, setName] = useState<string>(currentName);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
+    const { data, isLoading } = useSpace(projectUuid, spaceUuid);
+    const { mutate, isLoading: isCreating } = useUpdateMutation(
+        projectUuid,
+        spaceUuid,
+    );
+    const [name, setName] = useState<string>('');
+
+    useEffect(() => {
+        if (!isLoading && data?.name) setName(data.name);
+    }, [isLoading, data]);
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create space">
+        <Dialog
+            isOpen={spaceUuid !== undefined}
+            onClose={onClose}
+            lazy
+            title="Edit space"
+        >
             <form>
                 <div className={Classes.DIALOG_BODY}>
                     <FormGroupWrapper
@@ -42,7 +53,7 @@ export const EditSpaceModal: FC<EditSpaceModalProps> = ({
                         <Button
                             data-cy="submit-base-modal"
                             intent={Intent.SUCCESS}
-                            text="Create"
+                            text="Update"
                             type="submit"
                             onClick={(e) => {
                                 mutate({ name });

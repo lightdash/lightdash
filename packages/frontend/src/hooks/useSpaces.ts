@@ -25,6 +25,19 @@ export const useSavedCharts = (projectUuid: string) => {
     return { ...spaces, data: spaces.data?.[0]?.queries };
 };
 
+const getSpace = async (projectUuid: string, spaceUuid: string) =>
+    lightdashApi<Space>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useSpace = (projectUuid: string, spaceUuid: string) =>
+    useQuery<Space, ApiError>({
+        queryKey: ['spaces', projectUuid],
+        queryFn: () => getSpace(projectUuid, spaceUuid),
+    });
+
 const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
     lightdashApi<undefined>({
         url: `/projects/${projectUuid}/spaces/${spaceUuid}`,
@@ -32,9 +45,8 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
         body: undefined,
     });
 
-export const useDeleteMutation = () => {
+export const useDeleteMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return useMutation<undefined, ApiError, string>(
         (spaceUuid) => deleteQuery(projectUuid, spaceUuid),
@@ -66,9 +78,8 @@ const updateSpace = async (
         body: JSON.stringify(data),
     });
 
-export const useUpdateMutation = (spaceUuid: string) => {
+export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return useMutation<Space, ApiError, UpdateSpace>(
         (data) => updateSpace(projectUuid, spaceUuid, data),
