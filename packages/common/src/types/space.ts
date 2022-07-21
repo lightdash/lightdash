@@ -1,9 +1,4 @@
-import { SavedChart } from './savedCharts';
-
-export type SpaceQuery = Pick<
-    SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'updatedByUser' | 'description'
->;
+import { SpaceQuery } from './savedCharts';
 
 export type Space = {
     organizationUuid: string;
