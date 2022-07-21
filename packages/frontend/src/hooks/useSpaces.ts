@@ -70,7 +70,7 @@ export const useUpdateMutation = (spaceUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    return useMutation<UpdateSpace, ApiError, Space>(
+    return useMutation<Space, ApiError, UpdateSpace>(
         (data) => updateSpace(projectUuid, spaceUuid, data),
         {
             mutationKey: ['spaces', projectUuid],
@@ -100,7 +100,7 @@ export const useCreateMutation = () => {
     const { showToastSuccess, showToastError } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    return useMutation<UpdateSpace, ApiError, Space>(
+    return useMutation<UpdateSpace, ApiError, CreateSpace>(
         (data) => createSpace(projectUuid, data),
         {
             mutationKey: ['spaces', projectUuid],

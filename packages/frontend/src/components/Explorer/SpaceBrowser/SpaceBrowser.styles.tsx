@@ -1,9 +1,22 @@
-import { Button, Colors, Text } from '@blueprintjs/core';
+import { Button, Colors, Icon, Text } from '@blueprintjs/core';
 import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
 
 export const SpaceBrowserWrapper = styled.div`
     margin-bottom: 40px;
+`;
+
+export const FolderWrapper = styled.div`
+    background: #4c90f01a;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+`;
+export const FolderIcon = styled(Icon)`
+    color: ${Colors.BLUE5} !important;
+    padding: 10px 2px;
+    width: 20px;
+    height: 16px;
 `;
 
 export const SpaceLinkButton = styled(LinkButton)`
@@ -25,15 +38,6 @@ export const SpaceListWrapper = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 2em 1.5em;
-`;
-
-export const CreateDashboardButton = styled(Button)`
-    height: 4.857em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-    border: 1px dashed ${Colors.GRAY3} !important;
 `;
 
 export const CreateNewButton = styled(Button)`

@@ -1,19 +1,23 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
 import React, { FC, useState } from 'react';
-import { useCreateMutation } from '../../../hooks/useSpaces';
+import { useUpdateMutation } from '../../../hooks/useSpaces';
 import { FormGroupWrapper } from './CreateSpaceModal.styles';
 
-interface CreateSpaceModalProps {
+interface EditSpaceModalProps {
     isOpen: boolean;
     onClose?: () => void;
+    currentName: string;
+    spaceUuid: string;
 }
 
-export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
+export const EditSpaceModal: FC<EditSpaceModalProps> = ({
     isOpen,
     onClose,
+    currentName,
+    spaceUuid,
 }) => {
-    const { mutate, isLoading: isCreating } = useCreateMutation();
-    const [name, setName] = useState<string>('');
+    const { mutate, isLoading: isCreating } = useUpdateMutation(spaceUuid);
+    const [name, setName] = useState<string>(currentName);
 
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create space">

@@ -1,8 +1,19 @@
-import React, { FC } from 'react';
+import {
+    Button,
+    Menu,
+    MenuDivider,
+    MenuItem,
+    PopoverPosition,
+} from '@blueprintjs/core';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import React, { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import LatestCard from '../../Home/LatestCard';
+import { CreateSpaceModal } from './CreateSpaceModal';
 import {
     CreateNewButton,
+    FolderIcon,
+    FolderWrapper,
     SpaceBrowserWrapper,
     SpaceLinkButton,
     SpaceListWrapper,
@@ -11,6 +22,10 @@ import {
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data, isLoading } = useSpaces(projectUuid);
+
+    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
     /*
     if (isLoading || data === undefined) {
         return (
@@ -54,7 +69,9 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         loading={isLoading}
                         intent="primary"
                         onClick={
-                            () => {} /*() =>
+                            () => {
+                                setIsModalOpen(true);
+                            } /*() =>
                     useCreateMutation.mutate({
                         name: DEFAULT_DASHBOARD_NAME,
                     })*/
@@ -73,13 +90,71 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 outlined
                                 href={`/projects/${projectUuid}/spaces/${uuid}`}
                             >
+                                <FolderWrapper>
+                                    <FolderIcon icon="folder-close"></FolderIcon>
+                                </FolderWrapper>
                                 <SpaceTitle>{name}</SpaceTitle>
+                                <Popover2
+                                    isOpen={isMenuOpen}
+                                    onInteraction={setIsMenuOpen}
+                                    content={
+                                        <Menu>
+                                            <MenuItem
+                                                icon="edit"
+                                                text="Rename"
+                                                onClick={(e) => {
+                                                    /*if (source === undefined) {
+                                                            return;
+                                                        }
+                                                        e.stopPropagation();
+                                                        onOpenSourceDialog(source);
+                                                        setIsOpen(false);*/
+                                                }}
+                                            />
+                                            <MenuDivider />
+
+                                            <MenuItem
+                                                icon="delete"
+                                                intent="danger"
+                                                text="Remove tile"
+                                                onClick={
+                                                    () => {}
+                                                    /*onDelete(tile)
+                                                     */
+                                                }
+                                            />
+                                        </Menu>
+                                    }
+                                    position={PopoverPosition.BOTTOM_LEFT}
+                                    lazy
+                                >
+                                    <Tooltip2 content="View options">
+                                        <Button
+                                            minimal
+                                            icon="more"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                setIsMenuOpen(true);
+                                            }}
+                                        />
+                                    </Tooltip2>
+                                </Popover2>
                             </SpaceLinkButton>
                         ))}
                 </SpaceListWrapper>
             </LatestCard>
+            <CreateSpaceModal
+                isOpen={isModalOpen}
+                onClose={() => {
+                    setIsModalOpen(false);
+                }}
+            ></CreateSpaceModal>
         </SpaceBrowserWrapper>
     );
 };
 
 export default SpaceBrowser;
+function setState<T>(arg0: boolean): { isModalOpen: any; setIsModalOpen: any } {
+    throw new Error('Function not implemented.');
+}
