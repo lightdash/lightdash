@@ -42,6 +42,29 @@ export class SpaceService {
         );
     }
 
+    async getSpace(
+        projectUuid: string,
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<Space> {
+        const space = await this.spaceModel.getWithQueriesAndDashboards(
+            spaceUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return space;
+    }
+
     async createSpace(
         projectUuid: string,
         user: SessionUser,

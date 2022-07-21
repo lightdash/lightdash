@@ -40,6 +40,7 @@ export class SpaceModel {
             .where('space_uuid', spaceUuid)
             .select<(DbSpace & DbProject & DbOrganization)[]>([
                 'spaces.space_uuid',
+                'spaces.space_id',
                 'spaces.name',
                 'spaces.created_at',
                 'projects.project_uuid',
@@ -61,7 +62,7 @@ export class SpaceModel {
     }
 
     async getSpaceDashboards(
-        spaceId: number,
+        spaceUuid: string,
     ): Promise<DashboardBasicDetails[]> {
         const dashboards = await this.database
             .table(DashboardsTableName)
@@ -100,7 +101,7 @@ export class SpaceModel {
                 `${UserTableName}.last_name`,
                 `${OrganizationTableName}.organization_uuid`,
             ])
-            .where(`${DashboardsTableName}.space_id`, spaceId);
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return dashboards.map(
             ({
@@ -129,8 +130,13 @@ export class SpaceModel {
         );
     }
 
-    async getSpaceQueries(spaceId: number): Promise<SpaceQuery[]> {
+    async getSpaceQueries(spaceUuid: string): Promise<SpaceQuery[]> {
         const savedQueries = await this.database('saved_queries')
+            .leftJoin(
+                SpaceTableName,
+                `saved_queries.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
             .leftJoin(
                 'saved_queries_versions',
                 `saved_queries.saved_query_id`,
@@ -168,7 +174,7 @@ export class SpaceModel {
                 },
             ])
             .distinctOn(`saved_queries_versions.saved_query_id`)
-            .where('space_id', spaceId);
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid);
         return savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
@@ -193,7 +199,6 @@ export class SpaceModel {
             .where('project_uuid', projectUuid)
             .select<(DbSpace & DbProject & DbOrganization)[]>([
                 'spaces.space_uuid',
-                'spaces.space_id',
                 'spaces.name',
                 'spaces.created_at',
                 'projects.project_uuid',
@@ -203,12 +208,24 @@ export class SpaceModel {
             results.map(async (row) => ({
                 organizationUuid: row.organization_uuid,
                 name: row.name,
-                queries: await this.getSpaceQueries(row.space_id),
+                queries: await this.getSpaceQueries(row.space_uuid),
                 uuid: row.space_uuid,
                 projectUuid: row.project_uuid,
-                dashboards: await this.getSpaceDashboards(row.space_id),
+                dashboards: await this.getSpaceDashboards(row.space_uuid),
             })),
         );
+    }
+
+    async getWithQueriesAndDashboards(spaceUuid: string): Promise<Space> {
+        const space = await this.get(spaceUuid);
+        return {
+            organizationUuid: space.organizationUuid,
+            name: space.name,
+            uuid: space.uuid,
+            projectUuid: space.projectUuid,
+            queries: await this.getSpaceQueries(space.uuid),
+            dashboards: await this.getSpaceDashboards(space.uuid),
+        };
     }
 
     async createSpace(projectUuid: string, name: string): Promise<Space> {

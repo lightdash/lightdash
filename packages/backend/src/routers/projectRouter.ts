@@ -233,7 +233,21 @@ projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
         })
         .catch(next);
 });
-
+projectRouter.get(
+    '/spaces/:spaceUuid',
+    isAuthenticated,
+    async (req, res, next) => {
+        spaceService
+            .getSpace(req.params.projectUuid, req.user!, req.params.spaceUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 projectRouter.post('/spaces', isAuthenticated, async (req, res, next) => {
     spaceService
         .createSpace(req.params.projectUuid, req.user!, req.body)
