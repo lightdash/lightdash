@@ -106,3 +106,12 @@ export const getSpaceWithQueries = async (
         projectUuid,
     };
 };
+
+export const getSpaceId = async (db: Knex, spaceUuid: string | undefined) => {
+    if (spaceUuid === undefined) return undefined;
+
+    const [space] = await db('spaces')
+        .select('space_id')
+        .where('space_uuid', spaceUuid);
+    return space.space_id;
+};
