@@ -1,5 +1,5 @@
 import { Classes } from '@blueprintjs/core';
-import { Space } from '@lightdash/common';
+import { UpdatedByUser } from '@lightdash/common';
 import React from 'react';
 import {
     ActionModalProps,
@@ -7,10 +7,19 @@ import {
 } from '../../common/modal/ActionModal';
 import Input from '../../ReactHookForm/Input';
 
-const SpaceForm = ({
+export type SpaceBasicDetails = {
+    uuid: string;
+    name: string;
+    updatedAt: Date;
+    updatedByUser?: UpdatedByUser;
+};
+export const SpaceForm = ({
     useActionModalState,
     isDisabled,
-}: Pick<ActionModalProps<Space>, 'useActionModalState' | 'isDisabled'>) => {
+}: Pick<
+    ActionModalProps<SpaceBasicDetails>,
+    'useActionModalState' | 'isDisabled'
+>) => {
     const [{ actionType, data }] = useActionModalState;
     /* const { data: savedChart } = useSavedQuery({
         id: data?.uuid,
@@ -45,5 +54,3 @@ const SpaceForm = ({
         </>
     );
 };
-
-export default SpaceForm;
