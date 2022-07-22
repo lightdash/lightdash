@@ -1,3 +1,10 @@
+# [0.190.0](https://github.com/lightdash/lightdash/compare/0.189.0...0.190.0) (2022-07-22)
+
+
+### Features
+
+* space browser ([#2756](https://github.com/lightdash/lightdash/issues/2756)) ([9837fa5](https://github.com/lightdash/lightdash/commit/9837fa56a4fa0ee5a1583457067e9612b6704448))
+
 # [0.189.0](https://github.com/lightdash/lightdash/compare/0.188.0...0.189.0) (2022-07-22)
 
 
