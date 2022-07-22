@@ -100,6 +100,8 @@ export class SpaceModel {
                 `${UserTableName}.last_name`,
                 `${OrganizationTableName}.organization_uuid`,
             ])
+            .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
+
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return dashboards.map(

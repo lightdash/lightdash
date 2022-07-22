@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import { LightdashMode, Space } from '@lightdash/common';
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { Redirect, useParams } from 'react-router-dom';
 import {
     useCreateMutation,
     useDeleteMutation,
@@ -23,11 +23,24 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { user, health } = useApp();
     const useDelete = useDeleteMutation();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const { isLoading: isCreatingDashboard, mutate: createDashboard } =
-        useCreateMutation(projectUuid);
+    const {
+        data: newDashboard,
+        isLoading: isCreatingDashboard,
+        mutate: createDashboard,
+        isSuccess: hasCreatedDashboard,
+    } = useCreateMutation(projectUuid);
 
     const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
+
+    if (hasCreatedDashboard && newDashboard) {
+        return (
+            <Redirect
+                push
+                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
+            />
+        );
+    }
 
     return (
         <SpacePanelWrapper>
