@@ -1,3 +1,10 @@
+# [0.187.0](https://github.com/lightdash/lightdash/compare/0.186.1...0.187.0) (2022-07-22)
+
+
+### Features
+
+* API spaces ([#2738](https://github.com/lightdash/lightdash/issues/2738)) ([a1234e3](https://github.com/lightdash/lightdash/commit/a1234e30af7a9b3f309bd7976f3752e1776feef2))
+
 ## [0.186.1](https://github.com/lightdash/lightdash/compare/0.186.0...0.186.1) (2022-07-21)
 
 
