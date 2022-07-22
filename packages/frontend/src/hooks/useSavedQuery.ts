@@ -44,7 +44,11 @@ const updateSavedQuery = async (
     return lightdashApi<SavedChart>({
         url: `/saved/${id}`,
         method: 'PATCH',
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+            name: data.name,
+            description: data.description,
+            spaceUuid: data.spaceUuid,
+        }),
     });
 };
 
