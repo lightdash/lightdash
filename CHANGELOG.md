@@ -1,3 +1,11 @@
+# [0.189.0](https://github.com/lightdash/lightdash/compare/0.188.0...0.189.0) (2022-07-22)
+
+
+### Features
+
+* move items spaces ([#2763](https://github.com/lightdash/lightdash/issues/2763)) ([815835f](https://github.com/lightdash/lightdash/commit/815835f014a01e008b8bcf6f4392c83390aefc4f))
+* navigate-spaces-navbar ([#2762](https://github.com/lightdash/lightdash/issues/2762)) ([f03a77b](https://github.com/lightdash/lightdash/commit/f03a77ba21f04b0b7597e56c505dfaa77610427f))
+
 # [0.188.0](https://github.com/lightdash/lightdash/compare/0.187.1...0.188.0) (2022-07-22)
 
 
