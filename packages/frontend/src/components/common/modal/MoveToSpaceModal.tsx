@@ -29,7 +29,7 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
     const selectedItem: SavedChart | Dashboard | undefined = isChart
         ? savedChart
         : dashboard;
-    const selectedSpaceUuid = selectedItem && selectedItem.spaceUuid;
+    const defaultSelectedSpaceUuid = selectedItem && selectedItem.spaceUuid;
     const isLoading = isLoadingSpace || isLoadingChart || isLoadingDashboard;
     const { mutate: chartMutation, isLoading: isSavingChart } =
         useUpdateMutation(uuid);
@@ -37,24 +37,34 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
         useUpdateDashboard(uuid);
 
     const isSaving = isSavingChart || isSavingDashboard;
-    const [selectedSpace, setSelectedSpace] = useState<string | undefined>(
-        selectedSpaceUuid,
-    );
+    const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<
+        string | undefined
+    >(defaultSelectedSpaceUuid);
 
     useEffect(() => {
-        if (selectedSpaceUuid) {
-            setSelectedSpace(selectedSpaceUuid);
+        if (defaultSelectedSpaceUuid) {
+            setSelectedSpaceUuid(defaultSelectedSpaceUuid);
         }
-    }, [selectedSpaceUuid, setSelectedSpace]);
+    }, [defaultSelectedSpaceUuid, setSelectedSpaceUuid]);
 
-    const handleSubmit = useCallback(
-        (data) => {
+    const handleSubmit = useCallback(() => {
+        if (selectedItem && selectedSpaceUuid) {
+            const data = {
+                name: selectedItem.name,
+                spaceUuid: selectedSpaceUuid,
+            };
             if (isChart) chartMutation(data);
             else dashboardMutation(data);
             if (onClose) onClose();
-        },
-        [chartMutation, dashboardMutation, isChart, onClose],
-    );
+        }
+    }, [
+        chartMutation,
+        dashboardMutation,
+        isChart,
+        onClose,
+        selectedSpaceUuid,
+        selectedItem,
+    ]);
 
     return (
         <Dialog
@@ -70,7 +80,7 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
                     <b>{selectedItem && selectedItem.name}</b> to.
                 </p>
                 <HTMLSelect
-                    value={selectedSpace}
+                    value={selectedSpaceUuid}
                     options={
                         spaces &&
                         spaces.map((space) => ({
@@ -79,7 +89,7 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
                         }))
                     }
                     onChange={(e) => {
-                        setSelectedSpace(e.target.value);
+                        setSelectedSpaceUuid(e.target.value);
                     }}
                     defaultValue="horizontal"
                 />

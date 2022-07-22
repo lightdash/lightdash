@@ -41,14 +41,10 @@ const updateSavedQuery = async (
     id: string,
     data: UpdateSavedChart,
 ): Promise<SavedChart> => {
-    const payload: UpdateSavedChart = {
-        name: data.name,
-        description: data.description,
-    };
     return lightdashApi<SavedChart>({
         url: `/saved/${id}`,
         method: 'PATCH',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(data),
     });
 };
 
