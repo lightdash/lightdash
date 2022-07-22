@@ -1,3 +1,10 @@
+## [0.186.1](https://github.com/lightdash/lightdash/compare/0.186.0...0.186.1) (2022-07-21)
+
+
+### Bug Fixes
+
+* update help dropdown ([#2752](https://github.com/lightdash/lightdash/issues/2752)) ([762cb7c](https://github.com/lightdash/lightdash/commit/762cb7c44fdc67cc9ce149e7a18bb64488081a4c))
+
 # [0.186.0](https://github.com/lightdash/lightdash/compare/0.185.1...0.186.0) (2022-07-20)
 
 

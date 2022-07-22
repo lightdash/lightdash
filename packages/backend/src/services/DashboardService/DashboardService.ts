@@ -169,6 +169,7 @@ export class DashboardService {
                 {
                     name: dashboard.name,
                     description: dashboard.description,
+                    spaceUuid: dashboard.spaceUuid,
                 },
             );
 
