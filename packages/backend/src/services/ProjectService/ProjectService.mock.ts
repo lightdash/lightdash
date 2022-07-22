@@ -25,6 +25,7 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectAdapter } from '../../types';
 
 export const user: SessionUser = {
@@ -242,6 +243,8 @@ export const spacesWithSavedCharts: Space[] = [
                 updatedAt: new Date(),
             },
         ],
+        projectUuid,
+        dashboards: [],
     },
 ];
 
@@ -251,6 +254,8 @@ export const spacesWithNoSavedCharts: Space[] = [
         name: 'sapce',
         uuid: 'uuid',
         queries: [],
+        projectUuid,
+        dashboards: [],
     },
 ];
 

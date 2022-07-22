@@ -7,7 +7,6 @@ import {
     ForbiddenError,
     SavedChart,
     SessionUser,
-    Space,
     UpdateSavedChart,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -157,25 +156,6 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         return savedChart;
-    }
-
-    async getAllSpaces(
-        projectUuid: string,
-        user: SessionUser,
-    ): Promise<Space[]> {
-        const [space] = await this.savedChartModel.getAllSpaces(projectUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('SavedChart', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        return [space];
     }
 
     async create(

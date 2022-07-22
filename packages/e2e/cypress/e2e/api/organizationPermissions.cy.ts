@@ -33,7 +33,7 @@ describe('Lightdash API organization permission tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            `/projects/${projectUuid}/spaces`,
+            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -50,6 +50,21 @@ describe('Lightdash API organization permission tests', () => {
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
             });
+        });
+    });
+
+    it('Should get an empty list of spaces from projects', () => {
+        cy.anotherLogin();
+
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request({
+            url: `${apiUrl}/projects/${projectUuid}/spaces`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+
+            expect(resp.body.results).to.have.length(0);
         });
     });
 

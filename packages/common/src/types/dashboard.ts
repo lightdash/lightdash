@@ -66,6 +66,7 @@ export type CreateDashboard = {
     >;
     filters?: DashboardFilters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
+    spaceUuid?: string;
 };
 
 export type Dashboard = {
@@ -95,7 +96,7 @@ export type DashboardBasicDetails = Pick<
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
-    'name' | 'description'
+    'name' | 'description' | 'spaceUuid'
 >;
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
@@ -109,7 +110,9 @@ export type UpdateDashboard =
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
-): data is DashboardUnversionedFields => 'name' in data && !!data.name;
+): data is DashboardUnversionedFields =>
+    ('name' in data && !!data.name) ||
+    ('spaceUuid' in data && !!data.spaceUuid);
 
 export const isDashboardVersionedFields = (
     data: UpdateDashboard,
