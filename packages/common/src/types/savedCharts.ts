@@ -176,10 +176,8 @@ export type CreateSavedChartVersion = Omit<
     'uuid' | 'name' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
 >;
 
-export type UpdateSavedChart = Pick<
-    SavedChart,
-    'name' | 'description' | 'spaceUuid'
->;
+export type UpdateSavedChart = Pick<SavedChart, 'name' | 'description'> &
+    Pick<SavedChart, 'spaceUuid'>;
 
 export type SpaceQuery = Pick<
     SavedChart,

@@ -50,7 +50,6 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
     const handleSubmit = useCallback(() => {
         if (selectedItem && selectedSpaceUuid) {
             const data = {
-                name: selectedItem.name,
                 spaceUuid: selectedSpaceUuid,
             };
             if (isChart) chartMutation(data);
