@@ -39,6 +39,7 @@ import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
 import Signup from './pages/Signup';
+import Space from './pages/Space';
 import SqlRunner from './pages/SqlRunner';
 import { AppProvider } from './providers/AppProvider';
 import { DashboardProvider } from './providers/DashboardProvider';
@@ -250,6 +251,16 @@ const App = () => (
                                                                         }
                                                                     >
                                                                         <Explorer />
+                                                                    </TrackPage>
+                                                                </Route>
+                                                                <Route path="/projects/:projectUuid/spaces/:spaceUuid">
+                                                                    <NavBar />
+                                                                    <TrackPage
+                                                                        name={
+                                                                            PageName.SPACES
+                                                                        }
+                                                                    >
+                                                                        <Space />
                                                                     </TrackPage>
                                                                 </Route>
                                                                 <Route
