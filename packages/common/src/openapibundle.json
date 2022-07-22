@@ -1886,6 +1886,9 @@
                     },
                     "filters": {
                         "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     }
                 },
                 "required": ["uuid", "tiles", "name", "updatedAt", "filters"]
@@ -2045,6 +2048,9 @@
                             }
                         },
                         "required": ["columns"]
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [

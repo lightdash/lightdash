@@ -314,7 +314,7 @@ export class SavedChartModel {
                 'saved_queries_versions.updated_by_user_uuid',
                 'users.user_uuid',
             )
-            .select<DbSavedChartDetails[]>([
+            .select<(DbSavedChartDetails & { space_uuid: string })[]>([
                 'projects.project_uuid',
                 'saved_queries.saved_query_id',
                 'saved_queries.saved_query_uuid',
@@ -332,6 +332,7 @@ export class SavedChartModel {
                 'users.user_uuid',
                 'users.first_name',
                 'users.last_name',
+                'spaces.space_uuid',
             ])
             .where('saved_query_uuid', savedChartUuid)
             .orderBy('saved_queries_versions.created_at', 'desc')
@@ -450,6 +451,7 @@ export class SavedChartModel {
             ...(savedQuery.pivot_dimensions
                 ? { pivotConfig: { columns: savedQuery.pivot_dimensions } }
                 : {}),
+            spaceUuid: savedQuery.space_uuid,
         };
     }
 }

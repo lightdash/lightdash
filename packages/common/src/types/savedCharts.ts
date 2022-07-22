@@ -163,6 +163,7 @@ export type SavedChart = {
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
+    spaceUuid?: string;
 };
 
 export type CreateSavedChart = Omit<

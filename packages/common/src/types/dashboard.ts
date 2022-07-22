@@ -80,6 +80,7 @@ export type Dashboard = {
     >;
     filters: DashboardFilters;
     updatedByUser?: UpdatedByUser;
+    spaceUuid: string;
 };
 
 export type DashboardBasicDetails = Pick<

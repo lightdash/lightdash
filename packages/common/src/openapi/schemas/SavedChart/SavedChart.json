@@ -55,6 +55,9 @@
                 }
             },
             "required": ["columns"]
+        },
+        "spaceUuid": {
+            "type": "string"
         }
     },
     "required": [
