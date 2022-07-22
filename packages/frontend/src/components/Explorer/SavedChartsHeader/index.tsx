@@ -235,13 +235,7 @@ const SavedChartsHeader: FC = () => {
                                             setIsAddToDashboardModalOpen(true)
                                         }
                                     />
-                                    <MenuItem
-                                        icon="control"
-                                        text="Move to space"
-                                        onClick={() =>
-                                            setIsMoveToSpaceModalOpen(true)
-                                        }
-                                    />
+
                                     <Divider />
                                     <MenuItem
                                         icon="trash"
