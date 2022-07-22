@@ -647,7 +647,8 @@ type ApiResults =
     | ApiCreateUserTokenResults
     | CreatePersonalAccessToken
     | PersonalAccessToken
-    | ProjectMemberProfile[];
+    | ProjectMemberProfile[]
+    | Space;
 
 export type ApiResponse = {
     status: 'ok';
