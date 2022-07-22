@@ -137,6 +137,8 @@ export const useUpdateDashboard = (
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {
+                await queryClient.invalidateQueries(['space', projectUuid]);
+
                 await queryClient.invalidateQueries('dashboards');
                 await queryClient.invalidateQueries(
                     'dashboards-containing-chart',
