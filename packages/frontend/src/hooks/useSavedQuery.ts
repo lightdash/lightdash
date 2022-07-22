@@ -107,6 +107,8 @@ export const useDeleteMutation = () => {
 export const useUpdateMutation = (savedQueryUuid?: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     return useMutation<SavedChart, ApiError, UpdateSavedChart>(
         (data) => {
             if (savedQueryUuid) {
@@ -117,6 +119,8 @@ export const useUpdateMutation = (savedQueryUuid?: string) => {
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async (data) => {
+                await queryClient.invalidateQueries(['space', projectUuid]);
+
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
