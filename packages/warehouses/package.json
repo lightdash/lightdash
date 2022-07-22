@@ -10,10 +10,12 @@
     "dependencies": {
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.183.0",
+        "@types/sshpk": "^1.17.0",
         "odbc": "^2.4.2",
         "pg": "^8.7.1",
         "snowflake-sdk": "^1.6.4",
-        "ssh2-promise": "^1.0.3"
+        "ssh2-promise": "^1.0.3",
+        "sshpk": "^1.17.0"
     },
     "description": "Warehouse connectors for Lightdash",
     "devDependencies": {

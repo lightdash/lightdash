@@ -22,7 +22,6 @@
         "@types/passport-strategy": "^0.2.35",
         "@types/pg": "^8.6.1",
         "@types/snowflake-sdk": "^1.6.1",
-        "@types/sshpk": "^1.17.0",
         "@typescript-eslint/eslint-plugin": "^5.11.0",
         "copyfiles": "^2.4.1",
         "eslint": "^8.7.0",
@@ -80,7 +79,6 @@
         "pg-connection-string": "^2.5.0",
         "redoc-express": "^1.0.0",
         "simple-git": "^3.5.0",
-        "sshpk": "^1.17.0",
         "tempy": "^1.0.1",
         "uuid": "^8.3.2",
         "winston": "^3.3.3"

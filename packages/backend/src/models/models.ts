@@ -14,6 +14,7 @@ import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SessionModel } from './SessionModel';
+import { SSHKeypairsModel } from './SSHKeypairsModel';
 import { UserModel } from './UserModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
@@ -41,4 +42,8 @@ export const savedChartModel = new SavedChartModel({ database });
 export const jobModel = new JobModel({ database });
 export const personalAccessTokenModel = new PersonalAccessTokenModel({
     database,
+});
+export const sshKeypairsModel = new SSHKeypairsModel({
+    database,
+    encryptionService,
 });

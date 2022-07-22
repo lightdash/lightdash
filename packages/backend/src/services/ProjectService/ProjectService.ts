@@ -7,12 +7,14 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    DbtProjectConfig,
     Explore,
     ExploreError,
     fieldId,
     FilterableField,
     ForbiddenError,
     formatRows,
+    FullWarehouseCredentials,
     getDimensions,
     getFields,
     getMetrics,
@@ -27,6 +29,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
     NotFoundError,
+    ParseError,
     Project,
     ProjectCatalog,
     ProjectMemberProfile,
@@ -49,6 +52,7 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SSHKeypairsModel } from '../../models/SSHKeypairsModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -60,6 +64,7 @@ type ProjectServiceDependencies = {
     savedChartModel: SavedChartModel;
     jobModel: JobModel;
     emailClient: EmailClient;
+    sshKeypairsModel: SSHKeypairsModel;
 };
 
 export class ProjectService {
@@ -75,12 +80,15 @@ export class ProjectService {
 
     emailClient: EmailClient;
 
+    sshKeypairsModel: SSHKeypairsModel;
+
     constructor({
         projectModel,
         onboardingModel,
         savedChartModel,
         jobModel,
         emailClient,
+        sshKeypairsModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -88,6 +96,26 @@ export class ProjectService {
         this.savedChartModel = savedChartModel;
         this.jobModel = jobModel;
         this.emailClient = emailClient;
+        this.sshKeypairsModel = sshKeypairsModel;
+    }
+
+    async createSSHKeypair(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<{ publicKey: string }> {
+        const project = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.sshKeypairsModel.create();
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
@@ -153,10 +181,19 @@ export class ProjectService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
+                const dbtProjectConfig = data.dbtConnection;
+                const warehouseCredentials =
+                    await this.projectModel.getFullWarehouseCredentials(
+                        data.warehouseConnection,
+                    );
                 const adapter = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
-                    async () => ProjectService.testProjectAdapter(data),
+                    async () =>
+                        ProjectService.testProjectAdapter(
+                            dbtProjectConfig,
+                            warehouseCredentials,
+                        ),
                 );
 
                 const explores = await this.jobModel.tryJobStep(
@@ -237,9 +274,7 @@ export class ProjectService {
         user: SessionUser,
         data: UpdateProject,
     ): Promise<{ jobUuid: string }> {
-        const savedProject = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const savedProject = await this.projectModel.get(projectUuid);
         if (
             user.ability.cannot(
                 'update',
@@ -263,24 +298,32 @@ export class ProjectService {
                 { stepType: JobStepType.COMPILING },
             ],
         };
-
-        const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
+        const updatedProject = await this.projectModel.update(
+            projectUuid,
             data,
-            savedProject,
         );
+        const { warehouseConnection } = updatedProject;
 
-        await this.projectModel.update(projectUuid, updatedProject);
-
+        // Why can warehouseConnection be null?
+        if (warehouseConnection === undefined) {
+            throw new ParseError(
+                'Cannot test project with missing warehouse connection',
+            );
+        }
         const doAsyncWork = async () => {
             try {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
+
                 const adapter = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
                     async () =>
-                        ProjectService.testProjectAdapter(updatedProject),
+                        ProjectService.testProjectAdapter(
+                            updatedProject.dbtConnection,
+                            warehouseConnection,
+                        ),
                 );
                 const explores = await this.jobModel.tryJobStep(
                     job.jobUuid,
@@ -305,8 +348,7 @@ export class ProjectService {
                         projectName: updatedProject.name,
                         projectId: projectUuid,
                         projectType: updatedProject.dbtConnection.type,
-                        warehouseConnectionType:
-                            updatedProject.warehouseConnection.type,
+                        warehouseConnectionType: warehouseConnection.type,
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
                     },
@@ -333,11 +375,12 @@ export class ProjectService {
     }
 
     private static async testProjectAdapter(
-        data: UpdateProject,
+        dbtProject: DbtProjectConfig,
+        warehouseCredentials: FullWarehouseCredentials,
     ): Promise<ProjectAdapter> {
         const adapter = await projectAdapterFromConfig(
-            data.dbtConnection,
-            data.warehouseConnection,
+            dbtProject,
+            warehouseCredentials,
             {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},

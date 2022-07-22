@@ -842,6 +842,7 @@ export type Project = {
     name: string;
     type: ProjectType;
     dbtConnection: DbtProjectConfig;
+    // TODO: DANGER MOVE - CAN THIS BE MADE REQUIRED? WHY OPTIONAL? IT'S REQUIRED ON CREATE
     warehouseConnection?: WarehouseCredentials;
 };
 

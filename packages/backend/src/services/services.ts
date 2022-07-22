@@ -14,6 +14,7 @@ import {
     projectModel,
     savedChartModel,
     sessionModel,
+    sshKeypairsModel,
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
@@ -52,6 +53,7 @@ export const projectService = new ProjectService({
     savedChartModel,
     jobModel,
     emailClient,
+    sshKeypairsModel,
 });
 
 export const healthService = new HealthService({

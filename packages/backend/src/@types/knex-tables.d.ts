@@ -80,6 +80,10 @@ import {
 } from '../database/entities/savedCharts';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
 import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
+import {
+    SSHKeypairsTable,
+    SSHKeypairsTableName,
+} from '../database/entities/sshKeypairs';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
     WarehouseCredentialTable,
@@ -120,5 +124,6 @@ declare module 'knex/types/tables' {
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
+        [SSHKeypairsTableName]: SSHKeypairsTable;
     }
 }

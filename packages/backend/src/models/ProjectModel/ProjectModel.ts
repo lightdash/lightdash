@@ -5,27 +5,34 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    FullBigqueryCredentials,
+    FullDatabricksCredentials,
+    FullPostgresCredentials,
+    FullRedshiftCredentials,
+    FullSnowflakeCredentials,
     FullWarehouseCredentials,
+    getSafeWarehouseCredentials,
+    isCreateWarehouseCredentials,
     NotExistsError,
+    NotFoundError,
     OrganizationProject,
+    ParseError,
     Project,
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
-    sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    SSHTunnelConfig,
+    SSHTunnelConfigSecrets,
     TablesConfiguration,
     UnexpectedServerError,
     UpdateProject,
-    WarehouseCredentials,
+    UpdateWarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
-import { generateKeyPair } from 'crypto';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import sshpk from 'sshpk';
-import { promisify } from 'util';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
@@ -50,45 +57,6 @@ type ProjectModelDependencies = {
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
-const addTunnelConfig = async (
-    credentials: CreateWarehouseCredentials,
-): Promise<FullWarehouseCredentials> => {
-    switch (credentials.type) {
-        case WarehouseTypes.POSTGRES:
-        case WarehouseTypes.REDSHIFT:
-            if (credentials.sshTunnel) {
-                const generate = promisify(generateKeyPair);
-                const { publicKey, privateKey } = await generate('rsa', {
-                    modulusLength: 4096,
-                    publicKeyEncoding: {
-                        type: 'spki',
-                        format: 'pem',
-                    },
-                    privateKeyEncoding: {
-                        type: 'pkcs8',
-                        format: 'pem',
-                    },
-                });
-                const parsedKey = sshpk.parseKey(publicKey);
-                const openSSHPublicKey = parsedKey.toString('ssh');
-                return {
-                    ...credentials,
-                    sshTunnel: {
-                        ...credentials.sshTunnel,
-                        privateKey,
-                        publicKey: openSSHPublicKey,
-                    },
-                };
-            }
-            return {
-                ...credentials,
-                sshTunnel: undefined,
-            };
-        default:
-            return credentials;
-    }
-};
-
 export class ProjectModel {
     private database: Knex;
 
@@ -100,6 +68,128 @@ export class ProjectModel {
         this.database = deps.database;
         this.lightdashConfig = deps.lightdashConfig;
         this.encryptionService = deps.encryptionService;
+    }
+
+    private async getSSHTunnelSecrets(
+        sshTunnel: SSHTunnelConfig | undefined,
+    ): Promise<SSHTunnelConfigSecrets | undefined> {
+        if (sshTunnel === undefined) {
+            return undefined;
+        }
+        const [row] = await this.database('ssh_keypairs')
+            .select('*')
+            .where('public_key', sshTunnel.publicKey);
+        if (row === undefined) {
+            throw new NotFoundError(
+                'Cannot find SSH keys for warehouse connection. Please regenerate keys',
+            );
+        }
+        const privateKey = this.encryptionService.decrypt(
+            row.encrypted_private_key,
+        );
+        return {
+            ...sshTunnel,
+            privateKey,
+        };
+    }
+
+    private async updateFullCredentials(
+        update: UpdateWarehouseCredentials | undefined,
+        existing: FullWarehouseCredentials | undefined,
+    ): Promise<FullWarehouseCredentials | undefined> {
+        if (update === undefined) {
+            return undefined;
+        }
+        if (existing === undefined) {
+            if (!isCreateWarehouseCredentials(update)) {
+                throw new ParseError(
+                    'Cannot change warehouse type without all required fields',
+                );
+            }
+            return this.getFullWarehouseCredentials(update);
+        }
+        if (
+            update.type === WarehouseTypes.SNOWFLAKE &&
+            existing.type === WarehouseTypes.SNOWFLAKE
+        ) {
+            const merged: FullSnowflakeCredentials = {
+                ...update,
+                password: update.password || existing.password,
+                user: update.user || existing.user,
+            };
+            return merged;
+        }
+        if (
+            update.type === WarehouseTypes.REDSHIFT &&
+            existing.type === WarehouseTypes.REDSHIFT
+        ) {
+            const merged: FullRedshiftCredentials = {
+                ...update,
+                password: update.password || existing.password,
+                user: update.user || existing.user,
+                sshTunnel: await this.getSSHTunnelSecrets(update.sshTunnel),
+            };
+            return merged;
+        }
+        if (
+            update.type === WarehouseTypes.POSTGRES &&
+            existing.type === WarehouseTypes.POSTGRES
+        ) {
+            const merged: FullPostgresCredentials = {
+                ...update,
+                password: update.password || existing.password,
+                user: update.user || existing.user,
+                sshTunnel: await this.getSSHTunnelSecrets(update.sshTunnel),
+            };
+            return merged;
+        }
+        if (
+            update.type === WarehouseTypes.BIGQUERY &&
+            existing.type === WarehouseTypes.BIGQUERY
+        ) {
+            const merged: FullBigqueryCredentials = {
+                ...update,
+                keyfileContents:
+                    update.keyfileContents || existing.keyfileContents,
+            };
+            return merged;
+        }
+        if (
+            update.type === WarehouseTypes.DATABRICKS &&
+            existing.type === WarehouseTypes.DATABRICKS
+        ) {
+            const merged: FullDatabricksCredentials = {
+                ...update,
+                personalAccessToken:
+                    update.personalAccessToken || existing.personalAccessToken,
+            };
+            return merged;
+        }
+
+        // If the warehouse type is changing treat it as creating a new warehouse
+        if (!isCreateWarehouseCredentials(update)) {
+            throw new ParseError(
+                'Cannot change warehouse type without all required fields',
+            );
+        }
+        return this.getFullWarehouseCredentials(update);
+    }
+
+    async getFullWarehouseCredentials(
+        credentials: CreateWarehouseCredentials,
+    ): Promise<FullWarehouseCredentials> {
+        switch (credentials.type) {
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.REDSHIFT:
+                return {
+                    ...credentials,
+                    sshTunnel: await this.getSSHTunnelSecrets(
+                        credentials.sshTunnel,
+                    ),
+                };
+            default:
+                return credentials;
+        }
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -122,50 +212,6 @@ export class ProjectModel {
                         : sum,
                 {},
             ),
-        };
-    }
-
-    static mergeMissingWarehouseSecrets(
-        incompleteConfig: CreateWarehouseCredentials,
-        completeConfig: CreateWarehouseCredentials,
-    ): CreateWarehouseCredentials {
-        if (incompleteConfig.type !== completeConfig.type) {
-            return incompleteConfig;
-        }
-        return {
-            ...incompleteConfig,
-            ...sensitiveCredentialsFieldNames.reduce(
-                (sum, secretKey) =>
-                    !(incompleteConfig as any)[secretKey] &&
-                    (completeConfig as any)[secretKey]
-                        ? {
-                              ...sum,
-                              [secretKey]: (completeConfig as any)[secretKey],
-                          }
-                        : sum,
-                {},
-            ),
-        };
-    }
-
-    static mergeMissingProjectConfigSecrets(
-        incompleteProjectConfig: UpdateProject,
-        completeProjectConfig: Project & {
-            warehouseConnection?: CreateWarehouseCredentials;
-        },
-    ): UpdateProject {
-        return {
-            ...incompleteProjectConfig,
-            dbtConnection: ProjectModel.mergeMissingDbtConfigSecrets(
-                incompleteProjectConfig.dbtConnection,
-                completeProjectConfig.dbtConnection,
-            ),
-            warehouseConnection: completeProjectConfig.warehouseConnection
-                ? ProjectModel.mergeMissingWarehouseSecrets(
-                      incompleteProjectConfig.warehouseConnection,
-                      completeProjectConfig.warehouseConnection,
-                  )
-                : incompleteProjectConfig.warehouseConnection,
         };
     }
 
@@ -262,13 +308,13 @@ export class ProjectModel {
                     })
                     .returning('*');
 
-                const fullWarehouseCredentials = await addTunnelConfig(
+                const fullCredentials = await this.getFullWarehouseCredentials(
                     data.warehouseConnection,
                 );
                 await this.upsertWarehouseConnection(
                     trx,
                     project.project_id,
-                    fullWarehouseCredentials,
+                    fullCredentials,
                 );
 
                 await trx('spaces').insert({
@@ -284,13 +330,25 @@ export class ProjectModel {
         });
     }
 
-    async update(projectUuid: string, data: UpdateProject): Promise<void> {
+    async update(
+        projectUuid: string,
+        data: UpdateProject,
+    ): Promise<Project & { warehouseConnection?: FullWarehouseCredentials }> {
+        const savedProject = await this.getWithSensitiveFields(projectUuid);
+        const dbtConnection = ProjectModel.mergeMissingDbtConfigSecrets(
+            data.dbtConnection,
+            savedProject.dbtConnection,
+        );
+        const fullWarehouseCredentials = await this.updateFullCredentials(
+            data.warehouseConnection,
+            savedProject.warehouseConnection,
+        );
         await this.database.transaction(async (trx) => {
             try {
                 let encryptedCredentials: Buffer;
                 try {
                     encryptedCredentials = this.encryptionService.encrypt(
-                        JSON.stringify(data.dbtConnection),
+                        JSON.stringify(dbtConnection),
                     );
                 } catch (e) {
                     throw new UnexpectedServerError(
@@ -300,7 +358,7 @@ export class ProjectModel {
                 const projects = await trx('projects')
                     .update({
                         name: data.name,
-                        dbt_connection_type: data.dbtConnection.type,
+                        dbt_connection_type: dbtConnection.type,
                         dbt_connection: encryptedCredentials,
                     })
                     .where('project_uuid', projectUuid)
@@ -312,16 +370,19 @@ export class ProjectModel {
                 }
                 const [project] = projects;
 
-                await this.upsertWarehouseConnection(
-                    trx,
-                    project.project_id,
-                    data.warehouseConnection,
-                );
+                if (fullWarehouseCredentials) {
+                    await this.upsertWarehouseConnection(
+                        trx,
+                        project.project_id,
+                        fullWarehouseCredentials,
+                    );
+                }
             } catch (e) {
                 await trx.rollback(e);
                 throw e;
             }
         });
+        return this.getWithSensitiveFields(projectUuid);
     }
 
     async delete(projectUuid: string): Promise<void> {
@@ -433,14 +494,9 @@ export class ProjectModel {
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),
         ) as DbtProjectConfig;
-        const nonSensitiveCredentials = sensitiveCredentials
-            ? (Object.fromEntries(
-                  Object.entries(sensitiveCredentials).filter(
-                      ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(key as any),
-                  ),
-              ) as WarehouseCredentials)
-            : undefined;
+        const nonSensitiveCredentials =
+            sensitiveCredentials &&
+            getSafeWarehouseCredentials(sensitiveCredentials);
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,

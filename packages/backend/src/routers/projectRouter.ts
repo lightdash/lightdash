@@ -22,6 +22,20 @@ import {
 
 export const projectRouter = express.Router({ mergeParams: true });
 
+projectRouter.post('/keypairs', isAuthenticated, async (req, res, next) => {
+    try {
+        res.json({
+            status: 'ok',
+            results: await projectService.createSSHKeypair(
+                req.params.projectUuid,
+                req.user!,
+            ),
+        });
+    } catch (e) {
+        next(e);
+    }
+});
+
 projectRouter.get('/', isAuthenticated, async (req, res, next) => {
     try {
         res.json({

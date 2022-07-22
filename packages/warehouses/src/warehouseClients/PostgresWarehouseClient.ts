@@ -157,35 +157,45 @@ export class PostgresClient implements WarehouseClient {
         this.sshTunnel = sshTunnel;
     }
 
-    private async connect(): Promise<Pool> {
+    async runQuery(sql: string) {
+        let pool: Pool;
+        let tunnel;
+        const config = { ...this.config };
         try {
-            const config = { ...this.config };
             if (this.sshTunnel) {
                 const sshConfig: SSHConfig = {
                     username: this.sshTunnel.username,
                     privateKey: this.sshTunnel.privateKey,
                     port: this.sshTunnel.port,
                     host: this.sshTunnel.host,
+                    debug: console.log,
                 } as SSHConfig; // force type, ssh2 not recognising these arguments
-                const ssh = new SSH2Promise(sshConfig);
+                const ssh = new SSH2Promise({ ...sshConfig });
+                console.log('connecting');
                 await ssh.connect();
-                const tunnel = await ssh.addTunnel({
+                console.log('connected');
+                console.log('tunnelling');
+                tunnel = await ssh.addTunnel({
                     remoteAddr: config.host,
                     remotePort: config.port,
                 });
                 config.host = 'localhost';
                 config.port = tunnel.localPort;
+                console.log(`tunnel open on: ${tunnel.localPort}`);
             }
-            return new pg.Pool(config);
+            console.log('create pool');
+            pool = new pg.Pool({
+                ...config,
+                query_timeout: 10,
+                connectionTimeoutMillis: 2000,
+            });
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
-    }
-
-    async runQuery(sql: string) {
         try {
-            const pool = await this.connect();
+            console.log('run query');
             const results = await pool.query(sql); // automatically checkouts client and cleans up
+            console.log('get results');
             const fields = results.fields.reduce(
                 (acc, { name, dataTypeID }) => ({
                     ...acc,
