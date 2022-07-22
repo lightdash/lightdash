@@ -51,6 +51,7 @@ import {
     ProjectMemberRole,
 } from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
+import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
@@ -73,6 +74,7 @@ export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
+export * from './types/space';
 export * from './types/table';
 export * from './types/user';
 export * from './utils/formatting';
@@ -717,18 +719,6 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
-};
-
-export type SpaceQuery = Pick<
-    SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'updatedByUser' | 'description'
->;
-
-export type Space = {
-    organizationUuid: string;
-    uuid: string;
-    name: string;
-    queries: SpaceQuery[];
 };
 
 export enum DBFieldTypes {
