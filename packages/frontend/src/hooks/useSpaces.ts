@@ -17,7 +17,8 @@ export const useSpaces = (projectUuid: string) =>
 
 export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
-    return { ...spaces, data: spaces.data?.[0]?.queries };
+    const allCharts = spaces.data?.flatMap((space) => space.queries);
+    return { ...spaces, data: allCharts };
 };
 
 const getSpace = async (projectUuid: string, spaceUuid: string) =>

@@ -303,7 +303,7 @@ export class DashboardModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .select<GetDashboardQuery[]>([
+            .select<(GetDashboardQuery & { space_uuid: string })[]>([
                 `${ProjectTableName}.project_uuid`,
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -312,6 +312,7 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${SpaceTableName}.space_uuid`,
             ])
             .where('dashboard_uuid', dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -471,6 +472,7 @@ export class DashboardModel {
                 dimensions: [],
                 metrics: [],
             },
+            spaceUuid: dashboard.space_uuid,
         };
     }
 

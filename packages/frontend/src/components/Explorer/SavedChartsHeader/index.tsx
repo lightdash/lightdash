@@ -20,6 +20,7 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { UpdatedInfo } from '../../common/ActionCard';
 import DeleteActionModal from '../../common/modal/DeleteActionModal';
+import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
@@ -51,6 +52,8 @@ const SavedChartsHeader: FC = () => {
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
+        useState<boolean>(false);
+    const [isMoveToSpaceModalOpen, setIsMoveToSpaceModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
@@ -232,6 +235,7 @@ const SavedChartsHeader: FC = () => {
                                             setIsAddToDashboardModalOpen(true)
                                         }
                                     />
+
                                     <Divider />
                                     <MenuItem
                                         icon="trash"
@@ -274,6 +278,14 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isChart
                     isExplorer
+                />
+            )}
+            {isMoveToSpaceModalOpen && savedChart?.uuid && (
+                <MoveToSpaceModal
+                    isOpen={isDeleteDialogOpen}
+                    onClose={() => setIsMoveToSpaceModalOpen(false)}
+                    uuid={savedChart.uuid}
+                    isChart
                 />
             )}
         </TrackSection>

@@ -94,6 +94,19 @@ const ModalActionButtons = ({
                             }}
                         />
                     )}
+                    {/* SPACE_TODO <MenuItem
+                        icon="folder-close"
+                        text="Move to Space"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(false);
+                            setActionState({
+                                actionType: ActionTypeModal.MOVE_TO_SPACE,
+                                data,
+                            });
+                        }}
+                    />*/}
                     <Divider />
                     <MenuItem
                         role="button"
