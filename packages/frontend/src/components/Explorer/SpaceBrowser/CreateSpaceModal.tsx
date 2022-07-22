@@ -1,5 +1,6 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
 import React, { FC, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSpaces';
 import { FormGroupWrapper } from './CreateSpaceModal.styles';
 
@@ -12,7 +13,9 @@ export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
     isOpen,
     onClose,
 }) => {
-    const { mutate, isLoading: isCreating } = useCreateMutation();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const { mutate, isLoading: isCreating } = useCreateMutation(projectUuid);
     const [name, setName] = useState<string>('');
 
     return (
@@ -42,7 +45,7 @@ export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
                             type="submit"
                             onClick={(e) => {
                                 mutate({ name });
-
+                                setName('');
                                 if (onClose) onClose();
                                 e.preventDefault();
                             }}

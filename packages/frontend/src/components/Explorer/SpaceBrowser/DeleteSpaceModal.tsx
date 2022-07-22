@@ -29,7 +29,10 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalProps> = ({
             canOutsideClickClose={false}
         >
             <div className={Classes.DIALOG_BODY}>
-                <p>Are you sure you want to delete this space ?</p>
+                <p>
+                    Are you sure you want to delete this space{' '}
+                    <b>{data?.name}</b>?
+                </p>
             </div>
             <div className={Classes.DIALOG_FOOTER}>
                 <div className={Classes.DIALOG_FOOTER_ACTIONS}>

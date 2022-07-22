@@ -1,11 +1,7 @@
-import { ApiError, Space } from '@lightdash/common';
-import { useMutation, useQuery } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { ApiError, CreateSpace, Space, UpdateSpace } from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
-
-export type UpdateSpace = Pick<Space, 'name'>; //TODO replace with /common
-export type CreateSpace = Pick<Space, 'name'>;
 
 const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
@@ -34,7 +30,7 @@ const getSpace = async (projectUuid: string, spaceUuid: string) =>
 
 export const useSpace = (projectUuid: string, spaceUuid: string) =>
     useQuery<Space, ApiError>({
-        queryKey: ['spaces', projectUuid],
+        queryKey: ['space', projectUuid],
         queryFn: () => getSpace(projectUuid, spaceUuid),
     });
 
@@ -47,12 +43,15 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
 
 export const useDeleteMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
+    const queryClient = useQueryClient();
 
     return useMutation<undefined, ApiError, string>(
         (spaceUuid) => deleteQuery(projectUuid, spaceUuid),
         {
-            mutationKey: ['spaces', projectUuid],
+            mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -80,12 +79,15 @@ const updateSpace = async (
 
 export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
+    const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, UpdateSpace>(
         (data) => updateSpace(projectUuid, spaceUuid, data),
         {
-            mutationKey: ['spaces', projectUuid],
+            mutationKey: ['space_update', projectUuid],
             onSuccess: async () => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+
                 showToastSuccess({
                     title: `Success! Space was updated.`,
                 });
@@ -107,15 +109,17 @@ const createSpace = async (projectUuid: string, data: CreateSpace) =>
         body: JSON.stringify(data),
     });
 
-export const useCreateMutation = () => {
+export const useCreateMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
 
     return useMutation<UpdateSpace, ApiError, CreateSpace>(
         (data) => createSpace(projectUuid, data),
         {
-            mutationKey: ['spaces', projectUuid],
+            mutationKey: ['space_create', projectUuid],
             onSuccess: async () => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+
                 showToastSuccess({
                     title: `Success! Space was created.`,
                 });
