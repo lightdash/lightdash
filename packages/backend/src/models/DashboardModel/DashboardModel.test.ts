@@ -78,7 +78,9 @@ describe('DashboardModel', () => {
             .select(
                 queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
-            .response([dashboardWithVersionEntry]);
+            .response([
+                { ...dashboardWithVersionEntry, space_uuid: 'spaceUuid' },
+            ]);
         tracker.on
             .select(
                 queryMatcher(DashboardViewsTableName, [
