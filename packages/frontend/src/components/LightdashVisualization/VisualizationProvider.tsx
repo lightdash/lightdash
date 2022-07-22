@@ -15,9 +15,9 @@ import React, {
     useRef,
     useState,
 } from 'react';
+import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
-import useCartesianChartConfig from '../../hooks/useCartesianChartConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import usePlottedData from '../../hooks/usePlottedData';
 import useTableConfig from '../../hooks/useTableConfig';
@@ -117,6 +117,7 @@ export const VisualizationProvider: FC<Props> = ({
 
     const { validBigNumberConfig } = bigNumberConfig;
     const { validTableConfig } = tableConfig;
+
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig:
             initialChartConfig?.type === ChartType.CARTESIAN
@@ -125,6 +126,8 @@ export const VisualizationProvider: FC<Props> = ({
         pivotKey: validPivotDimensions?.[0],
         resultsData: lastValidResultsData,
         setPivotDimensions,
+        columnOrder: explore?.name === 'sql_runner' ? [] : columnOrder,
+        explore: explore?.name === 'sql_runner' ? undefined : explore,
     });
 
     const { validCartesianConfig } = cartesianConfig;

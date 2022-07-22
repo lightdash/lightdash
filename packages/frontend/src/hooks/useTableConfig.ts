@@ -90,7 +90,7 @@ const useTableConfig = (
                 id: itemId,
                 header: getHeader(itemId) || getDefaultColumnLabel(itemId),
                 accessorKey: itemId,
-                cell: (info) => info.getValue()?.value.formatted || '-',
+                cell: (info: any) => info.getValue()?.value.formatted || '-',
                 footer: () =>
                     totals[itemId]
                         ? formatItemValue(item, totals[itemId])
@@ -105,12 +105,14 @@ const useTableConfig = (
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
-        const columnsRemoved = Object.keys(columnProperties).filter(
-            (field) => !columnOrder.includes(field),
-        );
-        columnsRemoved.forEach((field) => delete columnProperties[field]);
+        if (Object.keys(columnProperties).length > 0) {
+            const columnsRemoved = Object.keys(columnProperties).filter(
+                (field) => !columnOrder.includes(field),
+            );
+            columnsRemoved.forEach((field) => delete columnProperties[field]);
 
-        setColumnProperties(columnProperties);
+            setColumnProperties(columnProperties);
+        }
     }, [columnOrder, columnProperties]);
 
     const updateColumnProperty = (
