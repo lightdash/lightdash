@@ -176,7 +176,15 @@ export type CreateSavedChartVersion = Omit<
     'uuid' | 'name' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
 >;
 
-export type UpdateSavedChart = Pick<SavedChart, 'name' | 'description'>;
+export type UpdateSavedChart = Pick<
+    SavedChart,
+    'name' | 'description' | 'spaceUuid'
+>;
+
+export type SpaceQuery = Pick<
+    SavedChart,
+    'uuid' | 'name' | 'updatedAt' | 'updatedByUser' | 'description'
+>;
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,

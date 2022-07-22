@@ -2077,9 +2077,12 @@
                             "description": {
                                 "type": "string",
                                 "nullable": true
+                            },
+                            "spaceUuid": {
+                                "type": "string",
+                                "nullable": true
                             }
-                        },
-                        "required": ["name"]
+                        }
                     },
                     {
                         "title": "Versioned fields",
@@ -2178,9 +2181,11 @@
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     }
-                },
-                "required": ["name"]
+                }
             },
             "CreateSavedChartVersion": {
                 "type": "object",

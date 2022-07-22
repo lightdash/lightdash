@@ -34,7 +34,7 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
-import { SpaceTableName } from '../../database/entities/spaces';
+import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import Transaction = Knex.Transaction;
 
@@ -511,8 +511,15 @@ export class DashboardModel {
         dashboardUuid: string,
         dashboard: DashboardUnversionedFields,
     ): Promise<Dashboard> {
+        const withSpaceId = dashboard.spaceUuid
+            ? { space_id: await getSpaceId(this.database, dashboard.spaceUuid) }
+            : {};
         await this.database(DashboardsTableName)
-            .update(dashboard)
+            .update({
+                name: dashboard.name,
+                description: dashboard.description,
+                ...withSpaceId,
+            })
             .where('dashboard_uuid', dashboardUuid);
         return this.getById(dashboardUuid);
     }

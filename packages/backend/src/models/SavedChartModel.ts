@@ -19,7 +19,11 @@ import {
     DbSavedChartTableCalculationInsert,
     SavedChartAdditionalMetricTableName,
 } from '../database/entities/savedCharts';
-import { getSpace, getSpaceWithQueries } from '../database/entities/spaces';
+import {
+    getSpace,
+    getSpaceId,
+    getSpaceWithQueries,
+} from '../database/entities/spaces';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -280,7 +284,11 @@ export class SavedChartModel {
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
         await this.database('saved_queries')
-            .update<UpdateSavedChart>(data)
+            .update({
+                name: data.name,
+                description: data.description,
+                space_id: await getSpaceId(this.database, data.spaceUuid),
+            })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);
     }
