@@ -1,3 +1,10 @@
+## [0.187.1](https://github.com/lightdash/lightdash/compare/0.187.0...0.187.1) (2022-07-22)
+
+
+### Bug Fixes
+
+*  fix sort date dimensions axis ([#2744](https://github.com/lightdash/lightdash/issues/2744)) ([c9cc112](https://github.com/lightdash/lightdash/commit/c9cc112db26f98f27237e22ed56ea1530c946277))
+
 # [0.187.0](https://github.com/lightdash/lightdash/compare/0.186.1...0.187.0) (2022-07-22)
 
 
