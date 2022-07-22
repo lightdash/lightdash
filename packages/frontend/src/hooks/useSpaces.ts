@@ -131,6 +131,6 @@ const getSpace = async (projectUuid: string, spaceUuid: string) =>
 
 export const useSpace = (projectUuid: string, spaceUuid: string) =>
     useQuery<Space, ApiError>({
-        queryKey: ['spaces', projectUuid],
+        queryKey: ['space', projectUuid],
         queryFn: () => getSpace(projectUuid, spaceUuid),
     });
