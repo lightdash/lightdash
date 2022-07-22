@@ -1,5 +1,5 @@
 import { Button } from '@blueprintjs/core';
-import { DashboardBasicDetails, LightdashMode, Space } from '@lightdash/common';
+import { LightdashMode, Space } from '@lightdash/common';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -27,7 +27,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
         useCreateMutation(projectUuid);
 
     const savedCharts = space.queries;
-    const savedDashboards: DashboardBasicDetails[] = [];
+    const savedDashboards = space.dashboards;
 
     return (
         <SpacePanelWrapper>

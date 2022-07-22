@@ -4,17 +4,15 @@ import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import SpacePanel from '../components/SpacePanel';
-import { useSpaces } from '../hooks/useSpaces';
+import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Space: FC = () => {
     const params = useParams<{ projectUuid: string; spaceUuid: string }>();
-    const selectedProjectUuid = params.projectUuid;
-
-    //const project = useProject(selectedProjectUuid);
-    //const onboarding = useOnboardingStatus();
-    const { data, isLoading, error } = useSpaces(selectedProjectUuid);
-
+    const { data, isLoading, error } = useSpace(
+        params.projectUuid,
+        params.spaceUuid,
+    );
     const { user } = useApp();
 
     if (user.data?.ability?.cannot('view', 'SavedChart')) {
@@ -39,10 +37,8 @@ const Space: FC = () => {
             </div>
         );
     }
-    const selectedSpace =
-        data && data.find((space) => space.uuid === params.spaceUuid);
 
-    if (selectedSpace === undefined) {
+    if (data === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <NonIdealState
@@ -55,7 +51,7 @@ const Space: FC = () => {
 
     return (
         <Page>
-            <SpacePanel space={selectedSpace}></SpacePanel>
+            <SpacePanel space={data}></SpacePanel>
         </Page>
     );
 };

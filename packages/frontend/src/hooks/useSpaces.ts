@@ -19,3 +19,16 @@ export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
     return { ...spaces, data: spaces.data?.[0]?.queries };
 };
+
+const getSpace = async (projectUuid: string, spaceUuid: string) =>
+    lightdashApi<Space>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useSpace = (projectUuid: string, spaceUuid: string) =>
+    useQuery<Space, ApiError>({
+        queryKey: ['spaces', projectUuid],
+        queryFn: () => getSpace(projectUuid, spaceUuid),
+    });
