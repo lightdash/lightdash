@@ -256,6 +256,7 @@ export const expectedDashboard: Dashboard = {
         dimensions: [],
         metrics: [],
     },
+    spaceUuid: 'spaceUuid',
 };
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [
