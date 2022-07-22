@@ -8,6 +8,7 @@ import EmptySavedChartsState from '../../SavedQueries/EmptySavedChartsState';
 import ActionCard from '../ActionCard';
 import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
 import DeleteActionModal from '../modal/DeleteActionModal';
+import MoveToSpaceModal from '../modal/MoveToSpaceModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
 import {
     ActionCardListWrapper,
@@ -154,6 +155,23 @@ const ActionCardList = <
                     }
                 />
             )}
+
+            {actionState.actionType === ActionTypeModal.MOVE_TO_SPACE &&
+                actionState.data && (
+                    <MoveToSpaceModal
+                        isOpen={
+                            actionState.actionType ===
+                            ActionTypeModal.MOVE_TO_SPACE
+                        }
+                        onClose={() =>
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            })
+                        }
+                        uuid={actionState.data.uuid}
+                        isChart={!!isChart}
+                    />
+                )}
 
             {dataList.length <= 0 && (
                 <NoIdealStateWrapper>

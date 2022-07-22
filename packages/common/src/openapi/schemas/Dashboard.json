@@ -25,6 +25,9 @@
         },
         "filters": {
             "$ref": "./DashboardFilters.json"
+        },
+        "spaceUuid": {
+            "type": "string"
         }
     },
     "required": ["uuid", "tiles", "name", "updatedAt", "filters"]
