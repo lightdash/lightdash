@@ -14,6 +14,7 @@ import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SessionModel } from './SessionModel';
+import { SpaceModel } from './SpaceModel';
 import { UserModel } from './UserModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
@@ -40,5 +41,8 @@ export const organizationMemberProfileModel =
 export const savedChartModel = new SavedChartModel({ database });
 export const jobModel = new JobModel({ database });
 export const personalAccessTokenModel = new PersonalAccessTokenModel({
+    database,
+});
+export const spaceModel = new SpaceModel({
     database,
 });

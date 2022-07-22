@@ -14,6 +14,7 @@ import {
     projectModel,
     savedChartModel,
     sessionModel,
+    spaceModel,
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
@@ -22,6 +23,7 @@ import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
+import { SpaceService } from './SpaceService/SpaceService';
 import { UserService } from './UserService';
 
 const emailClient = new EmailClient({ lightdashConfig });
@@ -70,4 +72,9 @@ export const savedChartsService = new SavedChartService({
 
 export const personalAccessTokenService = new PersonalAccessTokenService({
     personalAccessTokenModel,
+});
+
+export const spaceService = new SpaceService({
+    projectModel,
+    spaceModel,
 });

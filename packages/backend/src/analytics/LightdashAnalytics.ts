@@ -266,6 +266,30 @@ type ApiErrorEvent = BaseTrack & {
     };
 };
 
+type SpaceCreated = BaseTrack & {
+    event: 'space.created';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        name: string;
+    };
+};
+type SpaceUpdated = BaseTrack & {
+    event: 'space.updated';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        name: string;
+    };
+};
+type SpaceDeleted = BaseTrack & {
+    event: 'space.deleted';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        name: string;
+    };
+};
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -287,7 +311,10 @@ type Track =
     | IdentityLinkedEvent
     | SqlExecutedEvent
     | DuplicatedChartCreatedEvent
-    | DuplicatedDashboardCreatedEvent;
+    | DuplicatedDashboardCreatedEvent
+    | SpaceCreated
+    | SpaceUpdated
+    | SpaceDeleted;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
