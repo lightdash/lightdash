@@ -14,6 +14,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { searchModel } from '../models/models';
 import {
     dashboardService,
     projectService,
@@ -53,6 +54,18 @@ projectRouter.patch(
             .catch(next);
     },
 );
+
+projectRouter.get('/search/:query', isAuthenticated, async (req, res, next) => {
+    try {
+        const results = await searchModel.search(
+            req.params.projectUuid,
+            req.params.query,
+        );
+        res.json({ status: 'ok', results });
+    } catch (e) {
+        next(e);
+    }
+});
 
 projectRouter.put(
     '/explores',

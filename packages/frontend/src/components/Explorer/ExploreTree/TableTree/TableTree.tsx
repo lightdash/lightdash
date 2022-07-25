@@ -393,7 +393,7 @@ const CustomMetricButtons: FC<{
 
 type DimensionWithSubDimensions = Dimension & { subDimensions?: Dimension[] };
 
-const ItemLabelIconPicker = (type: DimensionType | MetricType) => {
+export const getItemIconName = (type: DimensionType | MetricType) => {
     switch (type) {
         case DimensionType.STRING || MetricType.STRING:
             return 'citation';
@@ -446,7 +446,7 @@ const renderMetricTreeNode = (
         label: (
             <Tooltip2 content={metric.description}>
                 <ItemLabelWrapper>
-                    <ItemIcon icon={ItemLabelIconPicker(metric.type)} />
+                    <ItemIcon icon={getItemIconName(metric.type)} />
                     <ItemLabel>{metric.label}</ItemLabel>
                 </ItemLabelWrapper>
             </Tooltip2>
@@ -483,7 +483,7 @@ const renderDimensionTreeNode = (
             <Tooltip2 content={dimension.description}>
                 <ItemLabelWrapper>
                     <ItemIcon
-                        icon={ItemLabelIconPicker(dimension.type)}
+                        icon={getItemIconName(dimension.type)}
                         className={Classes.TREE_NODE_ICON}
                     />
                     <ItemLabel>{itemLabel}</ItemLabel>
@@ -805,9 +805,7 @@ const TableTree: FC<TableTreeProps> = ({
                               >
                                   <ItemLabelWrapper>
                                       <ItemIcon
-                                          icon={ItemLabelIconPicker(
-                                              metric.type,
-                                          )}
+                                          icon={getItemIconName(metric.type)}
                                       />
                                       <ItemLabel>{metric.label}</ItemLabel>
                                   </ItemLabelWrapper>
