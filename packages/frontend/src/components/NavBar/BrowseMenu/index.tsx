@@ -1,5 +1,6 @@
 import {
     Button,
+    MenuDivider,
     MenuItem,
     PopoverInteractionKind,
     Position,
@@ -38,8 +39,8 @@ const BrowseMenu: FC<Props> = ({ projectId }) => {
                             <NavLink to={`/projects/${projectId}/saved`}>
                                 <MenuItem icon="chart" text="Saved charts" />
                             </NavLink>
-                            {/*<MenuDivider />
-                            SPACE_TODO {spaces?.map((space) => (
+                            <MenuDivider />
+                            {spaces?.map((space) => (
                                 <NavLink
                                     to={`/projects/${projectId}/spaces/${space.uuid}`}
                                 >
@@ -48,7 +49,7 @@ const BrowseMenu: FC<Props> = ({ projectId }) => {
                                         text={space.name}
                                     />
                                 </NavLink>
-                            ))}*/}
+                            ))}
                         </MenuWrapper>
                     )
                 }

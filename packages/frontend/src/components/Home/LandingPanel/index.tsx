@@ -42,7 +42,6 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
                 </LinkButton>
             </LandingHeaderWrapper>
             <SpaceBrowser projectUuid={projectUuid} />
-
             {hasSavedChart && <LatestDashboards projectUuid={projectUuid} />}
             <LatestSavedCharts projectUuid={projectUuid} />
         </LandingPanelWrapper>

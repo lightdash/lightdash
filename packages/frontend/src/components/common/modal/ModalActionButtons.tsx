@@ -94,7 +94,7 @@ const ModalActionButtons = ({
                             }}
                         />
                     )}
-                    {/* SPACE_TODO <MenuItem
+                    <MenuItem
                         icon="folder-close"
                         text="Move to Space"
                         onClick={(e) => {
@@ -106,7 +106,8 @@ const ModalActionButtons = ({
                                 data,
                             });
                         }}
-                    />*/}
+                    />
+
                     <Divider />
                     <MenuItem
                         role="button"

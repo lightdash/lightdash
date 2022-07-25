@@ -114,7 +114,7 @@ export const useCreateMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
 
-    return useMutation<UpdateSpace, ApiError, CreateSpace>(
+    return useMutation<Space, ApiError, CreateSpace>(
         (data) => createSpace(projectUuid, data),
         {
             mutationKey: ['space_create', projectUuid],
