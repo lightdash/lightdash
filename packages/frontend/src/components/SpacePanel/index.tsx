@@ -66,6 +66,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                                 createDashboard({
                                     name: DEFAULT_DASHBOARD_NAME,
                                     tiles: [],
+                                    spaceUuid: space.uuid,
                                 })
                             }
                             intent="primary"
