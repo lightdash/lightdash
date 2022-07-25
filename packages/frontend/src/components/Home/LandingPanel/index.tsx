@@ -1,5 +1,6 @@
 import React, { FC } from 'react';
 import LinkButton from '../../common/LinkButton';
+import SpaceBrowser from '../../Explorer/SpaceBrowser';
 import LatestDashboards from '../LatestDashboards';
 import LatestSavedCharts from '../LatestSavedCharts';
 import {
@@ -40,7 +41,9 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
                     Run a query
                 </LinkButton>
             </LandingHeaderWrapper>
-            {/* SPACE_TODO <SpaceBrowser projectUuid={projectUuid} />*/}
+            {localStorage.getItem('spaceFeature') && (
+                <SpaceBrowser projectUuid={projectUuid} />
+            )}
 
             {hasSavedChart && <LatestDashboards projectUuid={projectUuid} />}
             <LatestSavedCharts projectUuid={projectUuid} />
