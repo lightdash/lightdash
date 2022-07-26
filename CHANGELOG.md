@@ -1,3 +1,10 @@
+## [0.191.2](https://github.com/lightdash/lightdash/compare/0.191.1...0.191.2) (2022-07-26)
+
+
+### Bug Fixes
+
+* Fix default chart for 2+ dimensions 1 metric ([#2787](https://github.com/lightdash/lightdash/issues/2787)) ([5659c0f](https://github.com/lightdash/lightdash/commit/5659c0f92315f91655ba5560ba303173b8b2b855))
+
 ## [0.191.1](https://github.com/lightdash/lightdash/compare/0.191.0...0.191.1) (2022-07-26)
 
 
