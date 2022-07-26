@@ -1,3 +1,10 @@
+# [0.191.0](https://github.com/lightdash/lightdash/compare/0.190.1...0.191.0) (2022-07-26)
+
+
+### Features
+
+* default shared space ([#2775](https://github.com/lightdash/lightdash/issues/2775)) ([bc75231](https://github.com/lightdash/lightdash/commit/bc75231da152ef2e3e9007d86d11b6666914baa6))
+
 ## [0.190.1](https://github.com/lightdash/lightdash/compare/0.190.0...0.190.1) (2022-07-26)
 
 
