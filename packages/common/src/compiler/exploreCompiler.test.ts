@@ -2,7 +2,10 @@ import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
 import { compileExplore } from './exploreCompiler';
 import {
-    exploreCircularReference,
+    exploreCircularDimensionReference,
+    exploreCircularDimensionShortReference,
+    exploreCircularMetricReference,
+    exploreCircularMetricShortReference,
     exploreComplexReference,
     exploreComplexReferenceCompiled,
     exploreMissingBaseTable,
@@ -37,10 +40,19 @@ test('Should throw error when missing joined table', () => {
     );
 });
 
-test('Should throw error when dimension has circular reference', () => {
-    expect(() => compileExplore(exploreCircularReference)).toThrowError(
+test('Should throw error when dimension/metric has circular reference', () => {
+    expect(() =>
+        compileExplore(exploreCircularDimensionReference),
+    ).toThrowError(CompileError);
+    expect(() =>
+        compileExplore(exploreCircularDimensionShortReference),
+    ).toThrowError(CompileError);
+    expect(() => compileExplore(exploreCircularMetricReference)).toThrowError(
         CompileError,
     );
+    expect(() =>
+        compileExplore(exploreCircularMetricShortReference),
+    ).toThrowError(CompileError);
 });
 
 test('Should compile table with TABLE reference', () => {
