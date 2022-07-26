@@ -1,3 +1,10 @@
+## [0.191.1](https://github.com/lightdash/lightdash/compare/0.191.0...0.191.1) (2022-07-26)
+
+
+### Bug Fixes
+
+* better yaml error on CLI ([#2786](https://github.com/lightdash/lightdash/issues/2786)) ([c1818d9](https://github.com/lightdash/lightdash/commit/c1818d91272860674aac7898904e6dcd0461dca9))
+
 # [0.191.0](https://github.com/lightdash/lightdash/compare/0.190.1...0.191.0) (2022-07-26)
 
 
