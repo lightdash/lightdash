@@ -19,12 +19,10 @@ export const getDbtContext = async ({
     initialProjectDir,
 }: GetDbtContextArgs): Promise<DbtContext> => {
     const projectFilename = path.join(projectDir, 'dbt_project.yml');
-    let config;
+    let file;
 
     try {
-        config = yaml.load(
-            await fs.readFile(projectFilename, { encoding: 'utf-8' }),
-        ) as any;
+        file = await fs.readFile(projectFilename, { encoding: 'utf-8' });
     } catch (e: any) {
         if (projectDir !== path.parse(projectDir).root) {
             const parentDir = path.join(projectDir, '..');
@@ -38,6 +36,8 @@ export const getDbtContext = async ({
             `Is ${initialProjectDir} a valid dbt project directory? Couldn't find a valid dbt_project.yml on ${initialProjectDir} or any of its parents:\n  ${e.message}`,
         );
     }
+    const config = yaml.load(file) as any;
+
     const targetSubDir = config['target-path'] || './target';
     const targetDir = path.join(projectDir, targetSubDir);
     const modelsSubDir = config['models-path'] || './models';
