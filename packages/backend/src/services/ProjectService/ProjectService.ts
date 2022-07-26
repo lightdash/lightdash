@@ -932,9 +932,12 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-
-        const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
-        return spaces.some((space) => space.queries.length > 0);
+        try {
+            const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
+            return spaces.some((space) => space.queries.length > 0);
+        } catch (e: any) {
+            return false;
+        }
     }
 
     async getProjectAccess(
