@@ -6,7 +6,7 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import { HotkeysTarget2 } from '@blueprintjs/core/lib/esm/components';
-import { ItemRenderer, Omnibar } from '@blueprintjs/select';
+import { ItemPredicate, ItemRenderer, Omnibar } from '@blueprintjs/select';
 import {
     ApiError,
     Dashboard,
@@ -96,19 +96,18 @@ const getSearchItemId = (meta: SearchItem['meta']) => {
 
 const SearchOmnibar = Omnibar.ofType<SearchItem>();
 
-const renderItem: ItemRenderer<{
-    icon: IconName;
-    name: string;
-    prefix?: string;
-    description?: string;
-}> = (field, { modifiers, handleClick }) => {
+const renderItem: ItemRenderer<SearchItem> = (
+    field,
+    { modifiers, handleClick },
+) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
     return (
         <MenuItem
+            key={getSearchItemId(field.meta)}
             selected={modifiers.active}
-            key={field.name}
+            disabled={modifiers.disabled}
             icon={field.icon}
             text={
                 <>
@@ -125,6 +124,14 @@ const renderItem: ItemRenderer<{
             onClick={handleClick}
             shouldDismissPopover={false}
         />
+    );
+};
+
+const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
+    return (
+        `${item.name.toLowerCase()} ${item.description?.toLowerCase()}`.indexOf(
+            query.toLowerCase(),
+        ) >= 0
     );
 };
 
@@ -238,17 +245,7 @@ const GlobalSearch: FC = () => {
                     onClose={() => toggleSearchOpen(false)}
                     resetOnSelect={true}
                     onQueryChange={(value) => setQuery(value)}
-                    itemPredicate={(
-                        q,
-                        { name, description },
-                        index,
-                        exactMatch,
-                    ) => {
-                        if (exactMatch) {
-                            return q === name;
-                        }
-                        return name.toLowerCase().includes(q.toLowerCase());
-                    }}
+                    itemPredicate={filterSearch}
                 />
             </>
         </HotkeysTarget2>
