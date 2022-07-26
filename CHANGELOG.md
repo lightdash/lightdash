@@ -1,3 +1,10 @@
+## [0.190.1](https://github.com/lightdash/lightdash/compare/0.190.0...0.190.1) (2022-07-26)
+
+
+### Bug Fixes
+
+* remove refreshdbt button for editors ([#2781](https://github.com/lightdash/lightdash/issues/2781)) ([039eeaf](https://github.com/lightdash/lightdash/commit/039eeaf6ad4e1964447b10266b06d2768299fbc4))
+
 # [0.190.0](https://github.com/lightdash/lightdash/compare/0.189.0...0.190.0) (2022-07-22)
 
 
