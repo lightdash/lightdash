@@ -418,10 +418,9 @@ const useCartesianChartConfig = ({
                     newYFields = availableMetrics;
                 }
 
-                // two metrics, two dimensions
-                // AND >2 metrics, >2 dimensions
+                // 2+ dimensions and 1+ metrics
                 else if (
-                    availableMetrics.length >= 2 &&
+                    availableMetrics.length >= 1 &&
                     availableDimensions.length >= 2
                 ) {
                     //Max 4 metrics in Y-axis
