@@ -25,7 +25,10 @@ type ModelDependencies = {
 type SpaceSearchResult = Pick<Space, 'uuid' | 'name'>;
 type DashboardSearchResult = Pick<Dashboard, 'uuid' | 'name' | 'description'>;
 type SavedChartSearchResult = Pick<SavedChart, 'uuid' | 'name' | 'description'>;
-type TableSearchResult = Pick<Table, 'name' | 'label' | 'description'>;
+type TableSearchResult = Pick<Table, 'name' | 'label' | 'description'> & {
+    explore: string;
+    exploreLabel: string;
+};
 type FieldSearchResult = Pick<
     Dimension | Metric,
     | 'name'
@@ -173,6 +176,8 @@ export class SearchModel {
                                     name: table.name,
                                     label: table.label,
                                     description: table.description,
+                                    explore: explore.name,
+                                    exploreLabel: explore.label,
                                 });
                             }
                             [

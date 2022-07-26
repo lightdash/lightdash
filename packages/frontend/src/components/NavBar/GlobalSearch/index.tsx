@@ -9,8 +9,11 @@ import { HotkeysTarget2 } from '@blueprintjs/core/lib/esm/components';
 import { ItemPredicate, ItemRenderer, Omnibar } from '@blueprintjs/select';
 import {
     ApiError,
+    ChartType,
     Dashboard,
     Dimension,
+    fieldId,
+    FieldType,
     Metric,
     SavedChart,
     Space,
@@ -18,15 +21,19 @@ import {
 } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useQuery } from 'react-query';
-import { useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useDebounce, useToggle } from 'react-use';
 import { lightdashApi } from '../../../api';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/TableTree';
 
 type SpaceSearchResult = Pick<Space, 'uuid' | 'name'>;
 type DashboardSearchResult = Pick<Dashboard, 'uuid' | 'name' | 'description'>;
 type SavedChartSearchResult = Pick<SavedChart, 'uuid' | 'name' | 'description'>;
-type TableSearchResult = Pick<Table, 'name' | 'label' | 'description'>;
+type TableSearchResult = Pick<Table, 'name' | 'label' | 'description'> & {
+    explore: string;
+    exploreLabel: string;
+};
 type FieldSearchResult = Pick<
     Dimension | Metric,
     | 'name'
@@ -81,6 +88,7 @@ type SearchItem = {
     name: string;
     prefix?: string;
     description?: string;
+    location: { pathname: string; search?: string };
     meta?:
         | SpaceSearchResult
         | DashboardSearchResult
@@ -136,6 +144,9 @@ const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
 };
 
 const GlobalSearch: FC = () => {
+    const history = useHistory();
+    const location = useLocation();
+    console.log('location', location);
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isSearchOpen, toggleSearchOpen] = useToggle(false);
     const [query, setQuery] = useState<string>();
@@ -158,6 +169,9 @@ const GlobalSearch: FC = () => {
                 icon: 'folder-open',
                 name: item.name,
                 meta: item,
+                location: {
+                    pathname: `/projects/${projectUuid}/spaces/${item.uuid}`,
+                },
             })) || [];
 
         const dashboards =
@@ -166,6 +180,9 @@ const GlobalSearch: FC = () => {
                 name: item.name,
                 description: item.description,
                 meta: item,
+                location: {
+                    pathname: `/projects/${projectUuid}/dashboards/${item.uuid}`,
+                },
             })) || [];
 
         const saveCharts =
@@ -174,27 +191,67 @@ const GlobalSearch: FC = () => {
                 name: item.name,
                 description: item.description,
                 meta: item,
+                location: {
+                    pathname: `/projects/${projectUuid}/saved/${item.uuid}`,
+                },
             })) || [];
 
         const tables =
             data?.tables.map<SearchItem>((item) => ({
                 icon: 'th',
+                prefix: item.exploreLabel,
                 name: item.label,
                 description: item.description,
                 meta: item,
+                location: {
+                    pathname: `/projects/${projectUuid}/tables/${item.explore}`,
+                },
             })) || [];
 
         const fields =
-            data?.fields.map<SearchItem>((item) => ({
-                icon: getItemIconName(item.type),
-                prefix: `${item.exploreLabel} - ${item.tableLabel}`,
-                name: item.label,
-                description: item.description,
-                meta: item,
-            })) || [];
+            data?.fields.map<SearchItem>((item) => {
+                const explorePath = getExplorerUrlFromCreateSavedChartVersion(
+                    projectUuid,
+                    {
+                        tableName: item.explore,
+                        metricQuery: {
+                            dimensions:
+                                item.fieldType === FieldType.DIMENSION
+                                    ? [fieldId(item)]
+                                    : [],
+                            metrics:
+                                item.fieldType === FieldType.METRIC
+                                    ? [fieldId(item)]
+                                    : [],
+                            filters: {},
+                            sorts: [],
+                            limit: 500,
+                            tableCalculations: [],
+                        },
+                        chartConfig: {
+                            type: ChartType.CARTESIAN,
+                            config: {
+                                layout: {},
+                                eChartsConfig: {},
+                            },
+                        },
+                        tableConfig: {
+                            columnOrder: [],
+                        },
+                    },
+                );
+                return {
+                    icon: getItemIconName(item.type),
+                    prefix: `${item.exploreLabel} - ${item.tableLabel}`,
+                    name: item.label,
+                    description: item.description,
+                    meta: item,
+                    location: explorePath,
+                };
+            }) || [];
 
         return [...spaces, ...dashboards, ...saveCharts, ...tables, ...fields];
-    }, [data]);
+    }, [data, projectUuid]);
 
     return (
         <HotkeysTarget2
@@ -241,7 +298,13 @@ const GlobalSearch: FC = () => {
                             text={isSearching ? 'Searching...' : 'No results.'}
                         />
                     }
-                    onItemSelect={() => toggleSearchOpen(false)}
+                    onItemSelect={(item: SearchItem) => {
+                        toggleSearchOpen(false);
+                        history.push(item.location);
+                        if (location.pathname.includes('/tables/')) {
+                            history.go(0); // force page refresh so explore page can pick up the new url params
+                        }
+                    }}
                     onClose={() => toggleSearchOpen(false)}
                     resetOnSelect={true}
                     onQueryChange={(value) => setQuery(value)}
