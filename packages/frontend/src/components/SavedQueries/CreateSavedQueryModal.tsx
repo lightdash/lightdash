@@ -47,6 +47,8 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
 
     const [showNewSpaceInput, setShowNewSpaceInput] = useState<boolean>(false);
 
+    const showSpaceInput = showNewSpaceInput || spaces?.length === 0;
+
     useEffect(() => {
         if (spaceUuid === undefined && spaces && spaces.length > 0) {
             setSpaceUuid(spaces[0].uuid);
@@ -106,7 +108,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                     {localStorage.getItem('spaceFeature') && (
                         <>
                             {' '}
-                            {!showNewSpaceInput && (
+                            {!showSpaceInput && (
                                 <>
                                     <p>
                                         <b>Select a space</b>
@@ -137,7 +139,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                                     </CreateNewText>
                                 </>
                             )}
-                            {showNewSpaceInput && (
+                            {showSpaceInput && (
                                 <>
                                     <p>
                                         <b>Space</b>
@@ -175,7 +177,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             onClick={(e) => {
                                 e.preventDefault();
 
-                                if (showNewSpaceInput) {
+                                if (showSpaceInput) {
                                     // We create first a space
                                     // Then we will create the saved chart
                                     // on isSuccess hook
@@ -188,8 +190,9 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             }}
                             disabled={
                                 isCreating ||
+                                isCreatingSpace ||
                                 !name ||
-                                (showNewSpaceInput && !newSpaceName)
+                                (showSpaceInput && !newSpaceName)
                             }
                         />
                     </div>
