@@ -24,7 +24,11 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const { track } = useTracking();
     const { user } = useApp();
 
-    if (user.data?.ability?.cannot('manage', 'Project')) return <div></div>;
+    if (
+        user.data?.ability?.cannot('manage', 'Job') ||
+        user.data?.ability?.cannot('manage', 'Project')
+    )
+        return <div></div>;
 
     const onClick = () => {
         mutate();
