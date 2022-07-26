@@ -1,4 +1,5 @@
 /// <reference path="../@types/passport-google-oidc.d.ts" />
+/// <reference path="../@types/passport-openidconnect.d.ts" />
 /// <reference path="../@types/express-session.d.ts" />
 import {
     AuthorizationError,
@@ -13,6 +14,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
+import { Strategy as OpenIDConnectStrategy } from 'passport-openidconnect';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
@@ -91,7 +93,7 @@ export const apiKeyPassportStrategy = new HeaderAPIKeyStrategy(
     },
 );
 
-export const getGoogleLogin: RequestHandler = (req, res, next) => {
+export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode } = req.query;
     req.session.oauth = {};
 
@@ -114,12 +116,12 @@ export const getGoogleLogin: RequestHandler = (req, res, next) => {
     }
     next();
 };
-export const getGoogleLoginSuccess: RequestHandler = (req, res) => {
+export const redirectOIDCSuccess: RequestHandler = (req, res) => {
     const { returnTo } = req.session.oauth || {};
     req.session.oauth = {};
     res.redirect(returnTo || '/');
 };
-export const getGoogleLoginFailure: RequestHandler = (req, res) => {
+export const redirectOIDCFailure: RequestHandler = (req, res) => {
     const { returnTo } = req.session.oauth || {};
     req.session.oauth = {};
     res.redirect(returnTo || '/');
@@ -137,6 +139,73 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   `/api/v1${lightdashConfig.auth.google.callbackPath}`,
                   lightdashConfig.siteUrl,
               ).href,
+              passReqToCallback: true,
+          },
+          async (req, issuer, profile, done) => {
+              try {
+                  const { inviteCode } = req.session.oauth || {};
+                  req.session.oauth = {};
+                  const [{ value: email }] = profile.emails;
+                  const { id: subject } = profile;
+                  if (!(email && subject)) {
+                      return done(null, false, {
+                          message: 'Could not parse authentication token',
+                      });
+                  }
+                  // TODO why we ned this
+                  const normalisedIssuer = new URL('/', issuer).origin; // normalise issuer
+                  const openIdUser: OpenIdUser = {
+                      openId: {
+                          issuer: normalisedIssuer,
+                          email,
+                          subject,
+                          firstName: profile.name?.givenName,
+                          lastName: profile.name?.familyName,
+                      },
+                  };
+                  const user = await userService.loginWithOpenId(
+                      openIdUser,
+                      req.user,
+                      inviteCode,
+                  );
+                  return done(null, user);
+              } catch (e) {
+                  Logger.warn(`Failed to authorize user. ${e}`);
+                  return done(null, false, {
+                      message: 'Failed to authorize user',
+                  });
+              }
+          },
+      );
+export const oktaPassportStrategy = !(
+    lightdashConfig.auth.okta.oauth2ClientId &&
+    lightdashConfig.auth.okta.oauth2ClientSecret &&
+    lightdashConfig.auth.okta.oauth2Issuer &&
+    lightdashConfig.auth.okta.oktaDomain
+)
+    ? undefined
+    : new OpenIDConnectStrategy(
+          {
+              clientID: lightdashConfig.auth.okta.oauth2ClientId,
+              clientSecret: lightdashConfig.auth.okta.oauth2ClientSecret,
+              issuer: lightdashConfig.auth.okta.oauth2Issuer,
+              callbackURL: new URL(
+                  `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
+                  lightdashConfig.siteUrl,
+              ).href,
+              authorizationURL: new URL(
+                  '/oauth2/default/v1/authorize',
+                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
+              ).href,
+              tokenURL: new URL(
+                  '/oauth2/default/v1/token',
+                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
+              ).href,
+              userInfoURL: new URL(
+                  '/oauth2/default/v1/userinfo',
+                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
+              ).href,
+              scope: 'openid profile',
               passReqToCallback: true,
           },
           async (req, issuer, profile, done) => {

@@ -8,7 +8,6 @@ import {
     UpdateOpenIdentity,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { URL } from 'url';
 import {
     DbOpenIdIdentity,
     OpenIdIdentitiesTableName,
@@ -89,7 +88,7 @@ export class OpenIdIdentityModel {
     async createIdentity(
         createIdentity: CreateOpenIdIdentity,
     ): Promise<OpenIdIdentity> {
-        const issuer = new URL('/', createIdentity.issuer).origin; // normalise issuer
+        const { issuer } = createIdentity;
         const [identity] = await this.database('openid_identities')
             .insert({
                 issuer,
