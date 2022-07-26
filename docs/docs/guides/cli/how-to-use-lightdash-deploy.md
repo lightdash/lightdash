@@ -1,6 +1,6 @@
 # Using `lightdash deploy` to sync the changes in your dbt project to Lightdash
 
-If you've made some changes to your dbt project and you'd like to make them available in your Lightdash project, you can easily do this using the `lightadsh deploy` command in the Lightdash CLI tool.
+If you've made some changes to your dbt project and you'd like to make them available in your Lightdash project, you can easily do this using the `lightdash deploy` command in the Lightdash CLI tool.
 
 ## Merge your changes to `main` or `master`
 
