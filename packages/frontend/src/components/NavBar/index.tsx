@@ -93,9 +93,10 @@ const NavBar = () => {
                             data-cy="settings-button"
                         />
                     </NavLink>
+                    <Divider />
+                    <GlobalSearch />
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
-                    <GlobalSearch />
                     <HelpMenu />
                     <Divider />
                     <ShowErrorsButton

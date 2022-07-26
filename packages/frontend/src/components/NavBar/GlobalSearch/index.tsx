@@ -275,10 +275,13 @@ const GlobalSearch: FC = () => {
     return (
         <>
             <InputGroup
-                leftIcon="search"
                 onClick={() => toggleSearchOpen(true)}
                 placeholder="Search..."
-                style={{ width: 150 }}
+                style={{
+                    width: 150,
+                    border: 0,
+                    boxShadow: 'none',
+                }}
                 value={query}
             />
             <SearchOmnibar
