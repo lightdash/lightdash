@@ -1,11 +1,12 @@
 import {
     Colors,
+    HotkeyConfig,
     IconName,
     InputGroup,
     MenuItem,
     Spinner,
+    useHotkeys,
 } from '@blueprintjs/core';
-import { HotkeysTarget2 } from '@blueprintjs/core/lib/esm/components';
 import { ItemPredicate, ItemRenderer, Omnibar } from '@blueprintjs/select';
 import {
     ApiError,
@@ -146,7 +147,7 @@ const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
 const GlobalSearch: FC = () => {
     const history = useHistory();
     const location = useLocation();
-    console.log('location', location);
+
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isSearchOpen, toggleSearchOpen] = useToggle(false);
     const [query, setQuery] = useState<string>();
@@ -253,65 +254,71 @@ const GlobalSearch: FC = () => {
         return [...spaces, ...dashboards, ...saveCharts, ...tables, ...fields];
     }, [data, projectUuid]);
 
+    const hotkeys = useMemo(() => {
+        const runQueryHotkey: HotkeyConfig = {
+            combo: 'ctrl+f',
+            label: 'Show search',
+            onKeyDown: () => toggleSearchOpen(true),
+            global: true,
+            preventDefault: true,
+            stopPropagation: true,
+        };
+        return [
+            runQueryHotkey,
+            {
+                ...runQueryHotkey,
+                combo: 'cmd+f',
+            },
+        ];
+    }, [toggleSearchOpen]);
+    useHotkeys(hotkeys);
     return (
-        <HotkeysTarget2
-            hotkeys={[
-                {
-                    combo: 'cmd + f',
-                    global: true,
-                    label: 'Show search',
-                    onKeyDown: () => toggleSearchOpen(true),
-                    preventDefault: true,
-                },
-            ]}
-        >
-            <>
-                <InputGroup
-                    leftIcon="search"
-                    onClick={() => toggleSearchOpen(true)}
-                    placeholder="Search..."
-                    style={{ width: 150 }}
-                    value={query}
-                />
-                <SearchOmnibar
-                    inputProps={{
-                        leftElement: isSearching ? (
-                            <Spinner size={16} style={{ margin: 12 }} />
-                        ) : undefined,
-                    }}
-                    isOpen={isSearchOpen}
-                    itemRenderer={renderItem}
-                    query={query}
-                    items={items}
-                    itemsEqual={(a, b) =>
-                        getSearchItemId(a.meta) === getSearchItemId(b.meta)
+        <>
+            <InputGroup
+                leftIcon="search"
+                onClick={() => toggleSearchOpen(true)}
+                placeholder="Search..."
+                style={{ width: 150 }}
+                value={query}
+            />
+            <SearchOmnibar
+                inputProps={{
+                    leftElement: isSearching ? (
+                        <Spinner size={16} style={{ margin: 12 }} />
+                    ) : undefined,
+                }}
+                isOpen={isSearchOpen}
+                itemRenderer={renderItem}
+                query={query}
+                items={items}
+                itemsEqual={(a, b) =>
+                    getSearchItemId(a.meta) === getSearchItemId(b.meta)
+                }
+                initialContent={
+                    <MenuItem
+                        disabled={true}
+                        text="Type to search everything in the project"
+                    />
+                }
+                noResults={
+                    <MenuItem
+                        disabled={true}
+                        text={isSearching ? 'Searching...' : 'No results.'}
+                    />
+                }
+                onItemSelect={(item: SearchItem) => {
+                    toggleSearchOpen(false);
+                    history.push(item.location);
+                    if (location.pathname.includes('/tables/')) {
+                        history.go(0); // force page refresh so explore page can pick up the new url params
                     }
-                    initialContent={
-                        <MenuItem
-                            disabled={true}
-                            text="Type to search everything in the project"
-                        />
-                    }
-                    noResults={
-                        <MenuItem
-                            disabled={true}
-                            text={isSearching ? 'Searching...' : 'No results.'}
-                        />
-                    }
-                    onItemSelect={(item: SearchItem) => {
-                        toggleSearchOpen(false);
-                        history.push(item.location);
-                        if (location.pathname.includes('/tables/')) {
-                            history.go(0); // force page refresh so explore page can pick up the new url params
-                        }
-                    }}
-                    onClose={() => toggleSearchOpen(false)}
-                    resetOnSelect={true}
-                    onQueryChange={(value) => setQuery(value)}
-                    itemPredicate={filterSearch}
-                />
-            </>
-        </HotkeysTarget2>
+                }}
+                onClose={() => toggleSearchOpen(false)}
+                resetOnSelect={true}
+                onQueryChange={(value) => setQuery(value)}
+                itemPredicate={filterSearch}
+            />
+        </>
     );
 };
 
