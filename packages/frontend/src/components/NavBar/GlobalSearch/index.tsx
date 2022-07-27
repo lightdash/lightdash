@@ -264,7 +264,7 @@ const GlobalSearch: FC = () => {
     const hotkeys = useMemo<HotkeyConfig[]>(() => {
         return [
             {
-                combo: 'mod+f',
+                combo: 'mod+s',
                 label: 'Show search',
                 onKeyDown: () => toggleSearchOpen(true),
                 global: true,
@@ -289,7 +289,7 @@ const GlobalSearch: FC = () => {
                         <Button icon="cross" onClick={() => setQuery('')} />
                     ) : (
                         <Tag minimal>
-                            <KeyCombo combo="mod+f" minimal />
+                            <KeyCombo combo="mod+s" minimal />
                         </Tag>
                     )
                 }
