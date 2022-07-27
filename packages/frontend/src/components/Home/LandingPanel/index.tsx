@@ -41,8 +41,9 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
                     Run a query
                 </LinkButton>
             </LandingHeaderWrapper>
-            <SpaceBrowser projectUuid={projectUuid} />
-
+            {localStorage.getItem('spaceFeature') && (
+                <SpaceBrowser projectUuid={projectUuid} />
+            )}
             {hasSavedChart && <LatestDashboards projectUuid={projectUuid} />}
             <LatestSavedCharts projectUuid={projectUuid} />
         </LandingPanelWrapper>

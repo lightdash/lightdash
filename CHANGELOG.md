@@ -1,3 +1,31 @@
+## [0.191.2](https://github.com/lightdash/lightdash/compare/0.191.1...0.191.2) (2022-07-26)
+
+
+### Bug Fixes
+
+* Fix default chart for 2+ dimensions 1 metric ([#2787](https://github.com/lightdash/lightdash/issues/2787)) ([5659c0f](https://github.com/lightdash/lightdash/commit/5659c0f92315f91655ba5560ba303173b8b2b855))
+
+## [0.191.1](https://github.com/lightdash/lightdash/compare/0.191.0...0.191.1) (2022-07-26)
+
+
+### Bug Fixes
+
+* better yaml error on CLI ([#2786](https://github.com/lightdash/lightdash/issues/2786)) ([c1818d9](https://github.com/lightdash/lightdash/commit/c1818d91272860674aac7898904e6dcd0461dca9))
+
+# [0.191.0](https://github.com/lightdash/lightdash/compare/0.190.1...0.191.0) (2022-07-26)
+
+
+### Features
+
+* default shared space ([#2775](https://github.com/lightdash/lightdash/issues/2775)) ([bc75231](https://github.com/lightdash/lightdash/commit/bc75231da152ef2e3e9007d86d11b6666914baa6))
+
+## [0.190.1](https://github.com/lightdash/lightdash/compare/0.190.0...0.190.1) (2022-07-26)
+
+
+### Bug Fixes
+
+* remove refreshdbt button for editors ([#2781](https://github.com/lightdash/lightdash/issues/2781)) ([039eeaf](https://github.com/lightdash/lightdash/commit/039eeaf6ad4e1964447b10266b06d2768299fbc4))
+
 # [0.190.0](https://github.com/lightdash/lightdash/compare/0.189.0...0.190.0) (2022-07-22)
 
 

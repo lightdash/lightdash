@@ -225,14 +225,19 @@ export class SavedChartModel {
             tableConfig,
             pivotConfig,
             updatedByUser,
+            spaceUuid,
         }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
         const newSavedChartUuid = await this.database.transaction(
             async (trx) => {
                 try {
-                    const space = await getSpace(trx, projectUuid);
+                    const spaceId = spaceUuid
+                        ? await getSpaceId(trx, spaceUuid)
+                        : await (
+                              await getSpace(trx, projectUuid)
+                          ).space_id;
                     const [newSavedChart] = await trx('saved_queries')
-                        .insert({ name, space_id: space.space_id, description })
+                        .insert({ name, space_id: spaceId, description })
                         .returning('*');
                     await createSavedChartVersion(
                         trx,
