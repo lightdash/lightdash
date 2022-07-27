@@ -17,6 +17,7 @@ const execaMock = execa as unknown as jest.Mock;
 
 jest.mock('fs/promises', () => ({
     readFile: jest.fn(),
+    writeFile: jest.fn(),
 }));
 jest.mock('execa');
 
