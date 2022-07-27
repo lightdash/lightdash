@@ -1,3 +1,15 @@
+# [0.193.0](https://github.com/lightdash/lightdash/compare/0.192.0...0.193.0) (2022-07-27)
+
+
+### Bug Fixes
+
+* handle custom targets in dbt compile ([#2771](https://github.com/lightdash/lightdash/issues/2771)) ([69733ce](https://github.com/lightdash/lightdash/commit/69733ceec0678581ce7057ef96d800602d422fd4)), closes [#2770](https://github.com/lightdash/lightdash/issues/2770) [#2754](https://github.com/lightdash/lightdash/issues/2754)
+
+
+### Features
+
+* warn about deleted chats and dashboards on space deletion ([#2777](https://github.com/lightdash/lightdash/issues/2777)) ([fc926bb](https://github.com/lightdash/lightdash/commit/fc926bb27afb1ef955dc08e181716fbab7280f97))
+
 # [0.192.0](https://github.com/lightdash/lightdash/compare/0.191.2...0.192.0) (2022-07-27)
 
 
