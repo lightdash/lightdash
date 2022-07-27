@@ -1,3 +1,10 @@
+## [0.194.1](https://github.com/lightdash/lightdash/compare/0.194.0...0.194.1) (2022-07-27)
+
+
+### Bug Fixes
+
+* fix organization_id on filter ([#2797](https://github.com/lightdash/lightdash/issues/2797)) ([318e682](https://github.com/lightdash/lightdash/commit/318e68292816a125879df93a58fa4835f3c7d363))
+
 # [0.194.0](https://github.com/lightdash/lightdash/compare/0.193.0...0.194.0) (2022-07-27)
 
 
