@@ -73,7 +73,8 @@ const Settings: FC = () => {
                                 to={`${basePath}/password`}
                             />
                         )}
-                        {health.data?.auth.google.oauth2ClientId && (
+                        {(health.data?.auth.google.oauth2ClientId ||
+                            health.data?.auth.okta.enabled) && (
                             <RouterMenuItem
                                 text="Social logins"
                                 exact
@@ -132,7 +133,8 @@ const Settings: FC = () => {
                         </Content>
                     </Route>
                 )}
-                {health.data?.auth.google.oauth2ClientId && (
+                {(health.data?.auth.google.oauth2ClientId ||
+                    health.data?.auth.okta.enabled) && (
                     <Route exact path={`/generalSettings/socialLogins`}>
                         <Content>
                             <CardContainer>

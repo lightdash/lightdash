@@ -714,6 +714,10 @@ export type HealthState = {
             oauth2ClientId: string | undefined;
             loginPath: string;
         };
+        okta: {
+            enabled: boolean;
+            loginPath: string;
+        };
     };
     cohere: {
         token: string;

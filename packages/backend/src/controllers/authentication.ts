@@ -219,6 +219,7 @@ export const oktaPassportStrategy = !(
                           message: 'Could not parse authentication token',
                       });
                   }
+                  console.log(profile);
                   const openIdUser: OpenIdUser = {
                       openId: {
                           issuer,
