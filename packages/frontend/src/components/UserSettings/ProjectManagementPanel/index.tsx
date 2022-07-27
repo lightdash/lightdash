@@ -40,7 +40,10 @@ const ProjectListItem: FC<{
         <ProjectListItemWrapper elevation={0}>
             <ItemContent>
                 <ProjectInfo>
-                    <ProjectName className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                    <ProjectName
+                        className={Classes.TEXT_OVERFLOW_ELLIPSIS}
+                        title={name}
+                    >
                         {name}
                     </ProjectName>
                     {isCurrentProject && (
