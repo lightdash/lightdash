@@ -105,56 +105,49 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                             placeholder="A few words to give your team some context"
                         />
                     </FormGroupWrapper>
-                    {localStorage.getItem('spaceFeature') && (
+                    {!showSpaceInput && (
                         <>
-                            {' '}
-                            {!showSpaceInput && (
-                                <>
-                                    <p>
-                                        <b>Select a space</b>
-                                    </p>
-                                    <HTMLSelect
-                                        id="select-dashboard"
-                                        fill={true}
-                                        value={spaceUuid}
-                                        onChange={(e) =>
-                                            setSpaceUuid(e.currentTarget.value)
-                                        }
-                                        options={
-                                            spaces
-                                                ? spaces?.map((space) => ({
-                                                      value: space.uuid,
-                                                      label: space.name,
-                                                  }))
-                                                : []
-                                        }
-                                    />
+                            <p>
+                                <b>Select a space</b>
+                            </p>
+                            <HTMLSelect
+                                id="select-dashboard"
+                                fill={true}
+                                value={spaceUuid}
+                                onChange={(e) =>
+                                    setSpaceUuid(e.currentTarget.value)
+                                }
+                                options={
+                                    spaces
+                                        ? spaces?.map((space) => ({
+                                              value: space.uuid,
+                                              label: space.name,
+                                          }))
+                                        : []
+                                }
+                            />
 
-                                    <CreateNewText
-                                        onClick={() =>
-                                            setShowNewSpaceInput(true)
-                                        }
-                                    >
-                                        + Create new space
-                                    </CreateNewText>
-                                </>
-                            )}
-                            {showSpaceInput && (
-                                <>
-                                    <p>
-                                        <b>Space</b>
-                                    </p>
-                                    <InputGroup
-                                        id="chart-space"
-                                        type="text"
-                                        value={newSpaceName}
-                                        onChange={(e) =>
-                                            setNewSpaceName(e.target.value)
-                                        }
-                                        placeholder="eg. KPIs"
-                                    />
-                                </>
-                            )}
+                            <CreateNewText
+                                onClick={() => setShowNewSpaceInput(true)}
+                            >
+                                + Create new space
+                            </CreateNewText>
+                        </>
+                    )}
+                    {showSpaceInput && (
+                        <>
+                            <p>
+                                <b>Space</b>
+                            </p>
+                            <InputGroup
+                                id="chart-space"
+                                type="text"
+                                value={newSpaceName}
+                                onChange={(e) =>
+                                    setNewSpaceName(e.target.value)
+                                }
+                                placeholder="eg. KPIs"
+                            />
                         </>
                     )}
                 </div>

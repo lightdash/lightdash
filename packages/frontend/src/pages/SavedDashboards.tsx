@@ -11,6 +11,7 @@ import {
     useUpdateDashboardName,
 } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
@@ -27,8 +28,10 @@ const SavedDashboards = () => {
     } = useCreateMutation(projectUuid);
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(projectUuid);
+    const hasNoSpaces = spaces && spaces.length === 0;
 
-    if (isLoading) {
+    if (isLoading || isLoadingSpaces) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <NonIdealState title="Loading dashboards" icon={<Spinner />} />
@@ -68,6 +71,12 @@ const SavedDashboards = () => {
                                     name: DEFAULT_DASHBOARD_NAME,
                                     tiles: [],
                                 })
+                            }
+                            disabled={hasNoSpaces}
+                            title={
+                                hasNoSpaces
+                                    ? 'First you must create a space for this dashboard'
+                                    : ''
                             }
                             intent="primary"
                         />
