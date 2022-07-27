@@ -1,3 +1,10 @@
+## [0.194.3](https://github.com/lightdash/lightdash/compare/0.194.2...0.194.3) (2022-07-27)
+
+
+### Bug Fixes
+
+* fix axes formatter ([#2798](https://github.com/lightdash/lightdash/issues/2798)) ([24848ad](https://github.com/lightdash/lightdash/commit/24848add27c86be0f256568b2e80a20d4b5ea0f4))
+
 ## [0.194.2](https://github.com/lightdash/lightdash/compare/0.194.1...0.194.2) (2022-07-27)
 
 
