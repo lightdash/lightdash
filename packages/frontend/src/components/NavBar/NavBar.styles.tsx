@@ -16,6 +16,7 @@ export const NavBarWrapper = styled(Navbar)`
 
 export const ProjectDropdown = styled(HTMLSelect)`
     margin: 0 1.143em 0 0;
+    max-width: 300px;
 `;
 
 export const LogoContainer = styled(Logo)`

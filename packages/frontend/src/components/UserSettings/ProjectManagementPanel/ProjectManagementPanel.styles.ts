@@ -37,6 +37,7 @@ export const ProjectInfo = styled.div`
 export const ProjectName = styled.b`
     margin: 0;
     margin-right: 0.625em;
+    max-width: 550px;
 `;
 
 export const ProjectTag = styled(Tag)`
