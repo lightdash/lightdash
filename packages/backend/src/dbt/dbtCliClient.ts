@@ -11,7 +11,7 @@ import {
 import * as Sentry from '@sentry/node';
 import execa from 'execa';
 import * as fs from 'fs/promises';
-import yaml, { load as loadYaml } from 'js-yaml';
+import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
 import Logger from '../logger';
 import { DbtClient } from '../types';
@@ -46,8 +46,13 @@ export const getDbtConfig = async (
     if (!isRawDbtConfig(config)) {
         throw new Error('dbt_project.yml not valid');
     }
+    const updatedConfig = {
+        ...config,
+        'target-path': 'target',
+    };
+    await fs.writeFile(configPath, dumpYaml(updatedConfig), 'utf-8');
     return {
-        targetDir: config['target-path'] || config['target-dir'] || '/target',
+        targetDir: '/target',
     };
 };
 
