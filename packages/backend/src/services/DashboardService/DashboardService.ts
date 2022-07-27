@@ -15,6 +15,7 @@ import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytic
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { spaceModel } from '../../models/models';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
@@ -80,12 +81,22 @@ export class DashboardService {
         projectUuid: string,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
-        const space = await getSpace(database, projectUuid);
+        const getFirstSpace = async () => {
+            const space = await getSpace(database, projectUuid);
+            return {
+                organizationUuid: space.organization_uuid,
+                uuid: space.space_uuid,
+            };
+        };
+        const space = dashboard.spaceUuid
+            ? await spaceModel.get(dashboard.spaceUuid)
+            : await getFirstSpace();
+
         if (
             user.ability.cannot(
                 'create',
                 subject('Dashboard', {
-                    organizationUuid: space.organization_uuid,
+                    organizationUuid: space.organizationUuid,
                     projectUuid,
                 }),
             )
@@ -93,7 +104,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
         const newDashboard = await this.dashboardModel.create(
-            space.space_uuid,
+            space.uuid,
             dashboard,
             user,
         );
