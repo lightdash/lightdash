@@ -66,8 +66,9 @@ export const compileDimensionSql = (
     // Dimension might have references to other dimensions
     // Check we don't reference ourself
     const currentRef = `${dimension.table}.${dimension.name}`;
+    const currentShortRef = dimension.name;
     return dimension.sql.replace(lightdashVariablePattern, (_, p1) => {
-        if (p1 === currentRef) {
+        if ([currentShortRef, currentRef].includes(p1)) {
             throw new CompileError(
                 `Dimension "${dimension.name}" in table "${dimension.table}" has a sql string referencing itself: "${dimension.sql}"`,
                 {},
@@ -145,9 +146,17 @@ export const compileMetricSql = (
             {},
         );
     }
-    let renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) =>
-        compileReference(p1, tables, metric.table, quoteChar),
-    );
+    const currentRef = `${metric.table}.${metric.name}`;
+    const currentShortRef = metric.name;
+    let renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => {
+        if ([currentShortRef, currentRef].includes(p1)) {
+            throw new CompileError(
+                `Metric "${metric.name}" in table "${metric.table}" has a sql string referencing itself: "${metric.sql}"`,
+                {},
+            );
+        }
+        return compileReference(p1, tables, metric.table, quoteChar);
+    });
     const metricType = metric.type;
     switch (metricType) {
         case MetricType.AVERAGE:
