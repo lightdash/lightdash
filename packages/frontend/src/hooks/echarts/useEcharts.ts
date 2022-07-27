@@ -481,20 +481,47 @@ const getEchartAxis = ({
             ? validCartesianConfig.layout.showGridY
             : true;
 
-    const rightAxisId = validCartesianConfig.layout?.yField?.[1];
+    // There is no Top x axis when no flipped
+    const topAxisXId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig.series?.find(
+              (serie) => serie.yAxisIndex === 1,
+          )?.encode.yRef.field
+        : undefined;
+    const bottomAxisXId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.eChartsConfig.series?.find(
+              (serie) => serie.yAxisIndex === 0,
+          )?.encode.yRef.field
+        : xAxisItemId;
+
+    const leftAxisYId = validCartesianConfig.layout.flipAxes
+        ? validCartesianConfig.layout?.xField
+        : validCartesianConfig.eChartsConfig.series?.find(
+              (serie) => serie.yAxisIndex === 0,
+          )?.encode.yRef.field || yAxisItemId;
+    // There is no right Y axis when flipped
+    const rightAxisYId =
+        validCartesianConfig.eChartsConfig.series?.find(
+            (serie) => serie.yAxisIndex === 1,
+        )?.encode.yRef.field || validCartesianConfig.layout?.yField?.[1];
+
     const longestValueYAxisLeft =
-        yAxisItemId &&
+        leftAxisYId &&
         resultsData?.rows
-            .map((row) => row[yAxisItemId]?.value?.formatted)
+            .map((row) => row[leftAxisYId]?.value?.formatted)
             .reduce((acc, p) => (p && acc.length > p.length ? acc : p));
     const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
 
     const longestValueYAxisRight =
-        rightAxisId &&
+        rightAxisYId &&
         resultsData?.rows
-            .map((row) => row[rightAxisId]?.value?.formatted)
+            .map((row) => row[rightAxisYId]?.value?.formatted)
             .reduce((acc, p) => (p && acc.length > p.length ? acc : p));
     const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
+
+    const rightAxisYField = rightAxisYId ? itemMap[rightAxisYId] : undefined;
+    const leftAxisYField = leftAxisYId ? itemMap[leftAxisYId] : undefined;
+    const topAxisXField = topAxisXId ? itemMap[topAxisXId] : undefined;
+    const bottomAxisXField = bottomAxisXId ? itemMap[bottomAxisXId] : undefined;
 
     return {
         xAxis: [
@@ -525,7 +552,7 @@ const getEchartAxis = ({
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
-                ...getAxisFormatter(xAxisItem),
+                ...getAxisFormatter(bottomAxisXField),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridY
@@ -555,6 +582,8 @@ const getEchartAxis = ({
                     : undefined,
                 nameLocation: 'center',
                 nameGap: 30,
+                ...getAxisFormatter(topAxisXField),
+
                 nameTextStyle: {
                     fontWeight: 'bold',
                 },
@@ -592,7 +621,7 @@ const getEchartAxis = ({
                 },
                 nameLocation: 'center',
                 nameGap: leftYaxisGap + 20,
-                ...getAxisFormatter(yAxisItem),
+                ...getAxisFormatter(leftAxisYField),
                 splitLine: {
                     show: validCartesianConfig.layout.flipAxes
                         ? showGridX
@@ -624,9 +653,11 @@ const getEchartAxis = ({
                     fontWeight: 'bold',
                     align: 'center',
                 },
+                ...getAxisFormatter(rightAxisYField),
+
                 nameLocation: 'center',
                 nameRotate: -90,
-                nameGap: rightYaxisGap,
+                nameGap: rightYaxisGap + 20,
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
