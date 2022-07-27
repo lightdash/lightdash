@@ -1,3 +1,10 @@
+# [0.192.0](https://github.com/lightdash/lightdash/compare/0.191.2...0.192.0) (2022-07-27)
+
+
+### Features
+
+* select space on save chart ([#2774](https://github.com/lightdash/lightdash/issues/2774)) ([1ea9bfa](https://github.com/lightdash/lightdash/commit/1ea9bfa11a4408a5ce1fca24833a0da5a2e9c65f))
+
 ## [0.191.2](https://github.com/lightdash/lightdash/compare/0.191.1...0.191.2) (2022-07-26)
 
 
