@@ -242,6 +242,7 @@ export const useDuplicateDashboardMutation = (
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(['space', projectUuid]);
                 await queryClient.invalidateQueries(
                     'dashboards-containing-chart',
                 );

@@ -179,6 +179,7 @@ export const useDuplicateMutation = (
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries('spaces');
+                await queryClient.invalidateQueries(['space', projectUuid]);
 
                 if (!showRedirectButton) {
                     history.push({
