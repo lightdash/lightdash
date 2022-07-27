@@ -1,3 +1,10 @@
+## [0.194.2](https://github.com/lightdash/lightdash/compare/0.194.1...0.194.2) (2022-07-27)
+
+
+### Bug Fixes
+
+* truncate project name ([#2796](https://github.com/lightdash/lightdash/issues/2796)) ([a773795](https://github.com/lightdash/lightdash/commit/a773795b09e7b6080975a7cee32031655ed6fc6e))
+
 ## [0.194.1](https://github.com/lightdash/lightdash/compare/0.194.0...0.194.1) (2022-07-27)
 
 
