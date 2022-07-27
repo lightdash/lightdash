@@ -13,6 +13,7 @@ import {
     personalAccessTokenModel,
     projectModel,
     savedChartModel,
+    searchModel,
     sessionModel,
     spaceModel,
     userModel,
@@ -23,6 +24,7 @@ import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
+import { SearchService } from './SearchService/SearchService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { UserService } from './UserService';
 
@@ -77,4 +79,9 @@ export const personalAccessTokenService = new PersonalAccessTokenService({
 export const spaceService = new SpaceService({
     projectModel,
     spaceModel,
+});
+
+export const searchService = new SearchService({
+    projectModel,
+    searchModel,
 });

@@ -1,13 +1,13 @@
 import {
-    Dashboard,
-    Dimension,
+    DashboardSearchResult,
     Explore,
     ExploreError,
+    FieldSearchResult,
     isExploreError,
-    Metric,
-    SavedChart,
-    Space,
-    Table,
+    SavedChartSearchResult,
+    SearchResults,
+    SpaceSearchResult,
+    TableSearchResult,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../database/entities/dashboards';
@@ -20,35 +20,6 @@ import { SpaceTableName } from '../../database/entities/spaces';
 
 type ModelDependencies = {
     database: Knex;
-};
-
-type SpaceSearchResult = Pick<Space, 'uuid' | 'name'>;
-type DashboardSearchResult = Pick<Dashboard, 'uuid' | 'name' | 'description'>;
-type SavedChartSearchResult = Pick<SavedChart, 'uuid' | 'name' | 'description'>;
-type TableSearchResult = Pick<Table, 'name' | 'label' | 'description'> & {
-    explore: string;
-    exploreLabel: string;
-};
-type FieldSearchResult = Pick<
-    Dimension | Metric,
-    | 'name'
-    | 'label'
-    | 'description'
-    | 'type'
-    | 'fieldType'
-    | 'table'
-    | 'tableLabel'
-> & {
-    explore: string;
-    exploreLabel: string;
-};
-
-type SearchResults = {
-    spaces: SpaceSearchResult[];
-    dashboards: DashboardSearchResult[];
-    savedCharts: SavedChartSearchResult[];
-    tables: TableSearchResult[];
-    fields: FieldSearchResult[];
 };
 
 export class SearchModel {
@@ -146,7 +117,7 @@ export class SearchModel {
             );
     }
 
-    async searchTablesAndFields(
+    private async searchTablesAndFields(
         projectUuid: string,
         query: string,
     ): Promise<[TableSearchResult[], FieldSearchResult[]]> {

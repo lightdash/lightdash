@@ -1,8 +1,8 @@
 import { Omnibar } from '@blueprintjs/select';
-import { SearchResult } from '@lightdash/common';
 import styled from 'styled-components';
+import { SearchItem } from './hooks';
 
-export const SearchOmnibar = styled(Omnibar.ofType<SearchResult>())`
+export const SearchOmnibar = styled(Omnibar.ofType<SearchItem>())`
     width: 600px;
     left: calc(50% - 300px);
 `;
