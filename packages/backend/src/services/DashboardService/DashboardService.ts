@@ -126,14 +126,13 @@ export class DashboardService {
         if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }
-        const space = await getSpace(database, projectUuid);
 
         const duplicatedDashboard = {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
         };
         const newDashboard = await this.dashboardModel.create(
-            space.space_uuid,
+            dashboard.spaceUuid,
             duplicatedDashboard,
             user,
         );
