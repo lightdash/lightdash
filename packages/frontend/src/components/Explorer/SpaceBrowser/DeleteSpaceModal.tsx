@@ -30,9 +30,31 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalProps> = ({
         >
             <div className={Classes.DIALOG_BODY}>
                 <p>
-                    Are you sure you want to delete this space{' '}
-                    <b>{data?.name}</b>?
+                    Are you sure you want to delete space <b>{data?.name}</b>?
                 </p>
+
+                {data &&
+                    (data.queries.length > 0 || data.dashboards.length > 0) && (
+                        <p>
+                            This will delete
+                            {data.queries.length > 0 && (
+                                <>
+                                    {' '}
+                                    {data.queries.length} chart
+                                    {data.queries.length === 1 ? '' : 's'}
+                                </>
+                            )}
+                            {data.queries.length > 0 &&
+                                data.dashboards.length > 0 && <> and</>}
+                            {data.dashboards.length > 0 && (
+                                <>
+                                    {' '}
+                                    {data.dashboards.length} dashboard
+                                    {data.dashboards.length === 1 ? '' : 's'}
+                                </>
+                            )}
+                        </p>
+                    )}
             </div>
             <div className={Classes.DIALOG_FOOTER}>
                 <div className={Classes.DIALOG_FOOTER_ACTIONS}>
