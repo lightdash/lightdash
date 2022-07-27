@@ -43,7 +43,6 @@ const renderItem: ItemRenderer<SearchItem> = (
                     </span>
                 </>
             }
-            title={field.description}
             onClick={handleClick}
             shouldDismissPopover={false}
         />
