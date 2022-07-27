@@ -4,9 +4,12 @@ import { useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import useGlobalSearch from '../../../hooks/globalSearch/useGlobalSearch';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/TableTree';
 
 export type SearchItem = {
+    type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field';
     icon: IconName;
     name: string;
     prefix?: string;
@@ -18,18 +21,28 @@ export type SearchItem = {
 export const useGlobalSearchHotKeys = (
     toggleSearchOpen: (val: boolean) => void,
 ) => {
+    const { track } = useTracking();
     const hotkeys = useMemo<HotkeyConfig[]>(() => {
         return [
             {
                 combo: 'mod+k',
                 label: 'Show search',
-                onKeyDown: () => toggleSearchOpen(true),
+                onKeyDown: () => {
+                    track({
+                        name: EventName.GLOBAL_SEARCH_OPEN,
+                        properties: {
+                            action: 'hotkeys',
+                        },
+                    });
+                    toggleSearchOpen(true);
+                },
                 global: true,
                 preventDefault: true,
                 stopPropagation: true,
+                allowInInput: true,
             },
         ];
-    }, [toggleSearchOpen]);
+    }, [toggleSearchOpen, track]);
     useHotkeys(hotkeys);
 };
 
@@ -52,6 +65,7 @@ export const useDebouncedSearch = (
     const items = useMemo(() => {
         const spaces =
             data?.spaces.map<SearchItem>((item) => ({
+                type: 'space',
                 icon: 'folder-close',
                 name: item.name,
                 meta: item,
@@ -62,6 +76,7 @@ export const useDebouncedSearch = (
 
         const dashboards =
             data?.dashboards.map<SearchItem>((item) => ({
+                type: 'dashboard',
                 icon: 'control',
                 name: item.name,
                 description: item.description,
@@ -73,6 +88,7 @@ export const useDebouncedSearch = (
 
         const saveCharts =
             data?.savedCharts.map<SearchItem>((item) => ({
+                type: 'saved_chart',
                 icon: 'chart',
                 name: item.name,
                 description: item.description,
@@ -84,6 +100,7 @@ export const useDebouncedSearch = (
 
         const tables =
             data?.tables.map<SearchItem>((item) => ({
+                type: 'table',
                 icon: 'th',
                 prefix: `${item.exploreLabel} - `,
                 name: item.label,
@@ -127,6 +144,7 @@ export const useDebouncedSearch = (
                     },
                 );
                 return {
+                    type: 'field',
                     icon: getItemIconName(item.type),
                     prefix: `${item.exploreLabel} - ${item.tableLabel} - `,
                     name: item.label,

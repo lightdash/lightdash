@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import { ForbiddenError, SearchResults, SessionUser } from '@lightdash/common';
+import { analytics } from '../../analytics/client';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 
@@ -36,6 +37,19 @@ export class SearchService {
         ) {
             throw new ForbiddenError();
         }
-        return this.searchModel.search(projectUuid, query);
+        const results = await this.searchModel.search(projectUuid, query);
+        analytics.track({
+            event: 'project.search',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                spacesResultsCount: results.spaces.length,
+                dashboardsResultsCount: results.dashboards.length,
+                savedChartsResultsCount: results.savedCharts.length,
+                tablesResultsCount: results.tables.length,
+                fieldsResultsCount: results.fields.length,
+            },
+        });
+        return results;
     }
 }

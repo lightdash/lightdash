@@ -79,6 +79,28 @@ export type SetupStepClickedEvent = {
     };
 };
 
+export type SearchResultClickedEvent = {
+    name: EventName.SEARCH_RESULT_CLICKED;
+    properties: {
+        type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field';
+        id: string;
+    };
+};
+
+export type GlobalSearchOpenEvent = {
+    name: EventName.GLOBAL_SEARCH_OPEN;
+    properties: {
+        action: 'input_click' | 'hotkeys';
+    };
+};
+
+export type GlobalSearchClosedEvent = {
+    name: EventName.GLOBAL_SEARCH_CLOSED;
+    properties: {
+        action: 'result_click' | 'default';
+    };
+};
+
 export type FormClickedEvent = {
     name: EventName.FORM_STATE_CHANGED;
     properties: {
@@ -92,6 +114,9 @@ type EventData =
     | FormClickedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
+    | SearchResultClickedEvent
+    | GlobalSearchOpenEvent
+    | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent;
 
 type IdentifyData = {

@@ -63,9 +63,9 @@ export const getSearchResultId = (meta: SearchResult | undefined) => {
     }
     if (isExploreSearchResult(meta)) {
         if (isFieldSearchResult(meta)) {
-            return `${meta.explore}${meta.table}${meta.name}`;
+            return `${meta.explore}.${meta.table}.${meta.name}`;
         }
-        return `${meta.explore}${meta.name}`;
+        return `${meta.explore}.${meta.name}`;
     }
     return meta.uuid;
 };

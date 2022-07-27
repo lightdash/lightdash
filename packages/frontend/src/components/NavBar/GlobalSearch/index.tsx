@@ -12,6 +12,8 @@ import { getSearchResultId } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { SearchOmnibar } from './globalSearch.styles';
 import {
     SearchItem,
@@ -59,6 +61,7 @@ const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
 const GlobalSearch: FC = () => {
     const history = useHistory();
     const location = useLocation();
+    const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isSearchOpen, toggleSearchOpen] = useToggle(false);
     const [query, setQuery] = useState<string>();
@@ -68,7 +71,15 @@ const GlobalSearch: FC = () => {
         <>
             <InputGroup
                 leftIcon="search"
-                onClick={() => toggleSearchOpen(true)}
+                onClick={() => {
+                    track({
+                        name: EventName.GLOBAL_SEARCH_OPEN,
+                        properties: {
+                            action: 'input_click',
+                        },
+                    });
+                    toggleSearchOpen(true);
+                }}
                 placeholder="Search..."
                 style={{
                     width: 200,
@@ -120,13 +131,37 @@ const GlobalSearch: FC = () => {
                     />
                 }
                 onItemSelect={(item: SearchItem) => {
+                    track({
+                        name: EventName.SEARCH_RESULT_CLICKED,
+                        properties: {
+                            type: item.type,
+                            id: getSearchResultId(item.meta),
+                        },
+                    });
+                    track({
+                        name: EventName.GLOBAL_SEARCH_CLOSED,
+                        properties: {
+                            action: 'result_click',
+                        },
+                    });
                     toggleSearchOpen(false);
                     history.push(item.location);
-                    if (location.pathname.includes('/tables/')) {
+                    if (
+                        item.location.pathname.includes('/tables/') &&
+                        location.pathname.includes('/tables/')
+                    ) {
                         history.go(0); // force page refresh so explore page can pick up the new url params
                     }
                 }}
-                onClose={() => toggleSearchOpen(false)}
+                onClose={() => {
+                    track({
+                        name: EventName.GLOBAL_SEARCH_CLOSED,
+                        properties: {
+                            action: 'default',
+                        },
+                    });
+                    toggleSearchOpen(false);
+                }}
                 resetOnSelect={true}
                 onQueryChange={(value) => setQuery(value)}
                 itemPredicate={filterSearch}

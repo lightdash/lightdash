@@ -290,6 +290,20 @@ type SpaceDeleted = BaseTrack & {
         name: string;
     };
 };
+
+type ProjectSearch = BaseTrack & {
+    event: 'project.search';
+    userId?: string;
+    properties: {
+        projectId: string;
+        spacesResultsCount: number;
+        dashboardsResultsCount: number;
+        savedChartsResultsCount: number;
+        tablesResultsCount: number;
+        fieldsResultsCount: number;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -312,6 +326,7 @@ type Track =
     | SqlExecutedEvent
     | DuplicatedChartCreatedEvent
     | DuplicatedDashboardCreatedEvent
+    | ProjectSearch
     | SpaceCreated
     | SpaceUpdated
     | SpaceDeleted;
