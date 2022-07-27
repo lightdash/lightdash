@@ -1,10 +1,13 @@
 import {
+    Button,
     Colors,
     HotkeyConfig,
     IconName,
     InputGroup,
+    KeyCombo,
     MenuItem,
     Spinner,
+    Tag,
     useHotkeys,
 } from '@blueprintjs/core';
 import { ItemPredicate, ItemRenderer, Omnibar } from '@blueprintjs/select';
@@ -24,6 +27,7 @@ import React, { FC, useMemo, useState } from 'react';
 import { useQuery } from 'react-query';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useDebounce, useToggle } from 'react-use';
+import styled from 'styled-components';
 import { lightdashApi } from '../../../api';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/TableTree';
@@ -103,7 +107,10 @@ const getSearchItemId = (meta: SearchItem['meta']) => {
     return meta ? meta.uuid || `${meta.explore}${meta.table}${meta.name}` : '';
 };
 
-const SearchOmnibar = Omnibar.ofType<SearchItem>();
+const SearchOmnibar = styled(Omnibar.ofType<SearchItem>())`
+    width: 600px;
+    left: calc(50% - 300px);
+`;
 
 const renderItem: ItemRenderer<SearchItem> = (
     field,
@@ -167,7 +174,7 @@ const GlobalSearch: FC = () => {
     const items = useMemo(() => {
         const spaces =
             data?.spaces.map<SearchItem>((item) => ({
-                icon: 'folder-open',
+                icon: 'folder-close',
                 name: item.name,
                 meta: item,
                 location: {
@@ -254,20 +261,15 @@ const GlobalSearch: FC = () => {
         return [...spaces, ...dashboards, ...saveCharts, ...tables, ...fields];
     }, [data, projectUuid]);
 
-    const hotkeys = useMemo(() => {
-        const runQueryHotkey: HotkeyConfig = {
-            combo: 'ctrl+f',
-            label: 'Show search',
-            onKeyDown: () => toggleSearchOpen(true),
-            global: true,
-            preventDefault: true,
-            stopPropagation: true,
-        };
+    const hotkeys = useMemo<HotkeyConfig[]>(() => {
         return [
-            runQueryHotkey,
             {
-                ...runQueryHotkey,
-                combo: 'cmd+f',
+                combo: 'mod+f',
+                label: 'Show search',
+                onKeyDown: () => toggleSearchOpen(true),
+                global: true,
+                preventDefault: true,
+                stopPropagation: true,
             },
         ];
     }, [toggleSearchOpen]);
@@ -275,14 +277,22 @@ const GlobalSearch: FC = () => {
     return (
         <>
             <InputGroup
+                leftIcon="search"
                 onClick={() => toggleSearchOpen(true)}
                 placeholder="Search..."
                 style={{
-                    width: 150,
-                    border: 0,
-                    boxShadow: 'none',
+                    width: 200,
                 }}
                 value={query}
+                rightElement={
+                    query ? (
+                        <Button icon="cross" onClick={() => setQuery('')} />
+                    ) : (
+                        <Tag minimal>
+                            <KeyCombo combo="mod+f" minimal />
+                        </Tag>
+                    )
+                }
             />
             <SearchOmnibar
                 inputProps={{
@@ -293,20 +303,30 @@ const GlobalSearch: FC = () => {
                 isOpen={isSearchOpen}
                 itemRenderer={renderItem}
                 query={query}
-                items={items}
+                items={query && query.length > 2 ? items : []}
                 itemsEqual={(a, b) =>
                     getSearchItemId(a.meta) === getSearchItemId(b.meta)
                 }
                 initialContent={
                     <MenuItem
                         disabled={true}
-                        text="Type to search everything in the project"
+                        text={`${
+                            !query ? 'Start' : 'Keep'
+                        } typing to search everything in the project`}
                     />
                 }
                 noResults={
                     <MenuItem
                         disabled={true}
-                        text={isSearching ? 'Searching...' : 'No results.'}
+                        text={
+                            !query || query.length < 3
+                                ? `${
+                                      !query ? 'Start' : 'Keep'
+                                  } typing to search everything in the project`
+                                : isSearching
+                                ? 'Searching...'
+                                : 'No results.'
+                        }
                     />
                 }
                 onItemSelect={(item: SearchItem) => {
