@@ -35,7 +35,7 @@ export class SpaceModel {
             .leftJoin(
                 'organizations',
                 'organizations.organization_id',
-                'projects.project_id',
+                'projects.organization_id',
             )
             .where('space_uuid', spaceUuid)
             .select<(DbSpace & DbProject & DbOrganization)[]>([
