@@ -1,116 +1,23 @@
 import {
     Button,
     Colors,
-    HotkeyConfig,
-    IconName,
     InputGroup,
     KeyCombo,
     MenuItem,
     Spinner,
     Tag,
-    useHotkeys,
 } from '@blueprintjs/core';
-import { ItemPredicate, ItemRenderer, Omnibar } from '@blueprintjs/select';
-import {
-    ApiError,
-    ChartType,
-    Dashboard,
-    Dimension,
-    fieldId,
-    FieldType,
-    Metric,
-    SavedChart,
-    Space,
-    Table,
-} from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
-import { useQuery } from 'react-query';
+import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
+import { getSearchResultId } from '@lightdash/common';
+import React, { FC, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useDebounce, useToggle } from 'react-use';
-import styled from 'styled-components';
-import { lightdashApi } from '../../../api';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/TableTree';
-
-type SpaceSearchResult = Pick<Space, 'uuid' | 'name'>;
-type DashboardSearchResult = Pick<Dashboard, 'uuid' | 'name' | 'description'>;
-type SavedChartSearchResult = Pick<SavedChart, 'uuid' | 'name' | 'description'>;
-type TableSearchResult = Pick<Table, 'name' | 'label' | 'description'> & {
-    explore: string;
-    exploreLabel: string;
-};
-type FieldSearchResult = Pick<
-    Dimension | Metric,
-    | 'name'
-    | 'label'
-    | 'description'
-    | 'type'
-    | 'fieldType'
-    | 'table'
-    | 'tableLabel'
-> & {
-    explore: string;
-    exploreLabel: string;
-};
-
-type SearchResults = {
-    spaces: SpaceSearchResult[];
-    dashboards: DashboardSearchResult[];
-    savedCharts: SavedChartSearchResult[];
-    tables: TableSearchResult[];
-    fields: FieldSearchResult[];
-};
-
-export const getSearchResults = async ({
-    projectUuid,
-    query,
-}: {
-    projectUuid: string;
-    query: string;
-}) =>
-    lightdashApi<any>({
-        url: `/projects/${projectUuid}/search/${query}`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useGlobalSearch = (projectUuid: string, query: string = '') => {
-    return useQuery<SearchResults, ApiError>({
-        queryKey: ['global-search', query],
-        queryFn: () =>
-            getSearchResults({
-                projectUuid,
-                query,
-            }),
-        retry: false,
-        enabled: query.length > 2,
-        keepPreviousData: true,
-    });
-};
-
-type SearchItem = {
-    icon: IconName;
-    name: string;
-    prefix?: string;
-    description?: string;
-    location: { pathname: string; search?: string };
-    meta?:
-        | SpaceSearchResult
-        | DashboardSearchResult
-        | SavedChartSearchResult
-        | TableSearchResult
-        | FieldSearchResult;
-};
-
-const getSearchItemId = (meta: SearchItem['meta']) => {
-    // @ts-ignore
-    return meta ? meta.uuid || `${meta.explore}${meta.table}${meta.name}` : '';
-};
-
-const SearchOmnibar = styled(Omnibar.ofType<SearchItem>())`
-    width: 600px;
-    left: calc(50% - 300px);
-`;
+import { useToggle } from 'react-use';
+import { SearchOmnibar } from './globalSearch.styles';
+import {
+    SearchItem,
+    useDebouncedSearch,
+    useGlobalSearchHotKeys,
+} from './hooks';
 
 const renderItem: ItemRenderer<SearchItem> = (
     field,
@@ -121,16 +28,14 @@ const renderItem: ItemRenderer<SearchItem> = (
     }
     return (
         <MenuItem
-            key={getSearchItemId(field.meta)}
+            key={getSearchResultId(field.meta)}
             selected={modifiers.active}
             disabled={modifiers.disabled}
             icon={field.icon}
             text={
                 <>
-                    <span>
-                        {field.prefix && <span>{field.prefix} - </span>}
-                        <b>{field.name}</b>
-                    </span>
+                    {field.prefix}
+                    <b>{field.name}</b>
                     <span style={{ marginLeft: 10, color: Colors.GRAY1 }}>
                         {field.description}
                     </span>
@@ -154,126 +59,11 @@ const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
 const GlobalSearch: FC = () => {
     const history = useHistory();
     const location = useLocation();
-
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isSearchOpen, toggleSearchOpen] = useToggle(false);
     const [query, setQuery] = useState<string>();
-    const [debouncedQuery, setDebouncedQuery] = useState<string>();
-
-    const isSearching = query !== debouncedQuery && query && query?.length > 2;
-
-    useDebounce(
-        () => {
-            setDebouncedQuery(query);
-        },
-        500,
-        [query],
-    );
-    const { data } = useGlobalSearch(projectUuid, debouncedQuery);
-
-    const items = useMemo(() => {
-        const spaces =
-            data?.spaces.map<SearchItem>((item) => ({
-                icon: 'folder-close',
-                name: item.name,
-                meta: item,
-                location: {
-                    pathname: `/projects/${projectUuid}/spaces/${item.uuid}`,
-                },
-            })) || [];
-
-        const dashboards =
-            data?.dashboards.map<SearchItem>((item) => ({
-                icon: 'control',
-                name: item.name,
-                description: item.description,
-                meta: item,
-                location: {
-                    pathname: `/projects/${projectUuid}/dashboards/${item.uuid}`,
-                },
-            })) || [];
-
-        const saveCharts =
-            data?.savedCharts.map<SearchItem>((item) => ({
-                icon: 'chart',
-                name: item.name,
-                description: item.description,
-                meta: item,
-                location: {
-                    pathname: `/projects/${projectUuid}/saved/${item.uuid}`,
-                },
-            })) || [];
-
-        const tables =
-            data?.tables.map<SearchItem>((item) => ({
-                icon: 'th',
-                prefix: item.exploreLabel,
-                name: item.label,
-                description: item.description,
-                meta: item,
-                location: {
-                    pathname: `/projects/${projectUuid}/tables/${item.explore}`,
-                },
-            })) || [];
-
-        const fields =
-            data?.fields.map<SearchItem>((item) => {
-                const explorePath = getExplorerUrlFromCreateSavedChartVersion(
-                    projectUuid,
-                    {
-                        tableName: item.explore,
-                        metricQuery: {
-                            dimensions:
-                                item.fieldType === FieldType.DIMENSION
-                                    ? [fieldId(item)]
-                                    : [],
-                            metrics:
-                                item.fieldType === FieldType.METRIC
-                                    ? [fieldId(item)]
-                                    : [],
-                            filters: {},
-                            sorts: [],
-                            limit: 500,
-                            tableCalculations: [],
-                        },
-                        chartConfig: {
-                            type: ChartType.CARTESIAN,
-                            config: {
-                                layout: {},
-                                eChartsConfig: {},
-                            },
-                        },
-                        tableConfig: {
-                            columnOrder: [],
-                        },
-                    },
-                );
-                return {
-                    icon: getItemIconName(item.type),
-                    prefix: `${item.exploreLabel} - ${item.tableLabel}`,
-                    name: item.label,
-                    description: item.description,
-                    meta: item,
-                    location: explorePath,
-                };
-            }) || [];
-
-        return [...spaces, ...dashboards, ...saveCharts, ...tables, ...fields];
-    }, [data, projectUuid]);
-
-    const hotkeys = useMemo<HotkeyConfig[]>(() => {
-        return [
-            {
-                combo: 'mod+s',
-                label: 'Show search',
-                onKeyDown: () => toggleSearchOpen(true),
-                global: true,
-                preventDefault: true,
-                stopPropagation: true,
-            },
-        ];
-    }, [toggleSearchOpen]);
-    useHotkeys(hotkeys);
+    useGlobalSearchHotKeys(toggleSearchOpen);
+    const { items, isSearching } = useDebouncedSearch(projectUuid, query);
     return (
         <>
             <InputGroup
@@ -289,7 +79,7 @@ const GlobalSearch: FC = () => {
                         <Button icon="cross" onClick={() => setQuery('')} />
                     ) : (
                         <Tag minimal>
-                            <KeyCombo combo="mod+s" minimal />
+                            <KeyCombo combo="mod+k" minimal />
                         </Tag>
                     )
                 }
@@ -305,7 +95,7 @@ const GlobalSearch: FC = () => {
                 query={query}
                 items={query && query.length > 2 ? items : []}
                 itemsEqual={(a, b) =>
-                    getSearchItemId(a.meta) === getSearchItemId(b.meta)
+                    getSearchResultId(a.meta) === getSearchResultId(b.meta)
                 }
                 initialContent={
                     <MenuItem
