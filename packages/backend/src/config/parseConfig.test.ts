@@ -8,6 +8,11 @@ import {
     WRONG_VERSION,
 } from './parseConfig.mock';
 
+jest.mock('fs/promises', () => ({
+    readFile: jest.fn(),
+    writeFile: jest.fn(),
+}));
+
 beforeEach(() => {
     process.env = {
         LIGHTDASH_SECRET: 'not very secret',
