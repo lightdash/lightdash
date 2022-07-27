@@ -1,3 +1,10 @@
+# [0.194.0](https://github.com/lightdash/lightdash/compare/0.193.0...0.194.0) (2022-07-27)
+
+
+### Features
+
+* enable spaces ([#2794](https://github.com/lightdash/lightdash/issues/2794)) ([636accc](https://github.com/lightdash/lightdash/commit/636acccc62117e5eadb3e2ff7f121b4ff1d5f5e3))
+
 # [0.193.0](https://github.com/lightdash/lightdash/compare/0.192.0...0.193.0) (2022-07-27)
 
 
