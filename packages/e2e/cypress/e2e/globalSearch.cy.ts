@@ -15,7 +15,7 @@ describe('Global search', () => {
     });
 
     it('Should search all result types', () => {
-        cy.visit('/');
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
 
         // search and select space
         search('jaffle');
