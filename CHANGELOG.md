@@ -1,3 +1,10 @@
+# [0.195.0](https://github.com/lightdash/lightdash/compare/0.194.3...0.195.0) (2022-07-29)
+
+
+### Features
+
+* global search ([#2718](https://github.com/lightdash/lightdash/issues/2718)) ([0873318](https://github.com/lightdash/lightdash/commit/0873318ba8e9798f1a09f44838e4584bdded5048))
+
 ## [0.194.3](https://github.com/lightdash/lightdash/compare/0.194.2...0.194.3) (2022-07-27)
 
 
