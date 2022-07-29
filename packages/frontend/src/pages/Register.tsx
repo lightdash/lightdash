@@ -3,7 +3,10 @@ import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
@@ -70,6 +73,16 @@ const Register: FC = () => {
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
                             <GoogleLoginButton />
+                            <DividerWrapper>
+                                <Divider></Divider>
+                                <b>OR</b>
+                                <Divider></Divider>
+                            </DividerWrapper>
+                        </>
+                    )}
+                    {health.data?.auth.okta.enabled && (
+                        <>
+                            <OktaLoginButton />
                             <DividerWrapper>
                                 <Divider></Divider>
                                 <b>OR</b>

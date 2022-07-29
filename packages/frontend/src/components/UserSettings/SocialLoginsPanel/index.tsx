@@ -4,7 +4,10 @@ import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';
-import { GoogleLoginButton } from '../../common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../../common/GoogleLoginButton';
 import {
     Bold,
     CardContainer,
@@ -26,7 +29,7 @@ const renderIssuerUrl = (url: string): string => {
         case 'https://accounts.google.com':
             return 'Google';
         default:
-            return 'unknown';
+            return new URL(url).hostname;
     }
 };
 
@@ -69,6 +72,9 @@ const SocialLoginsPanel: FC = () => {
             <Title>Add social login</Title>
             <GoogleButtonWrapper>
                 <GoogleLoginButton />
+            </GoogleButtonWrapper>
+            <GoogleButtonWrapper>
+                <OktaLoginButton />
             </GoogleButtonWrapper>
         </div>
     );

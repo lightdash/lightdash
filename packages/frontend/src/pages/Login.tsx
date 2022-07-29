@@ -12,7 +12,10 @@ import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import AnchorLink from '../components/common/AnchorLink/index';
-import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -116,6 +119,16 @@ const Login: FC = () => {
                     {health.data?.auth.google.oauth2ClientId && (
                         <>
                             <GoogleLoginButton />
+                            <DividerWrapper>
+                                <Divider></Divider>
+                                <b>OR</b>
+                                <Divider></Divider>
+                            </DividerWrapper>
+                        </>
+                    )}
+                    {health.data?.auth.okta.enabled && (
+                        <>
+                            <OktaLoginButton />
                             <DividerWrapper>
                                 <Divider></Divider>
                                 <b>OR</b>
