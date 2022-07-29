@@ -18,6 +18,7 @@ import {
     dashboardService,
     projectService,
     savedChartsService,
+    searchService,
     spaceService,
 } from '../services/services';
 
@@ -53,6 +54,19 @@ projectRouter.patch(
             .catch(next);
     },
 );
+
+projectRouter.get('/search/:query', isAuthenticated, async (req, res, next) => {
+    try {
+        const results = await searchService.getSearchResults(
+            req.user!,
+            req.params.projectUuid,
+            req.params.query,
+        );
+        res.json({ status: 'ok', results });
+    } catch (e) {
+        next(e);
+    }
+});
 
 projectRouter.put(
     '/explores',

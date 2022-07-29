@@ -36,21 +36,23 @@ describe('Dashboard', () => {
 
         cy.findByText('Add tile').click();
         cy.findByText('Saved chart').click();
-        cy.get('input').click();
+        cy.findByText('Select saved charts').parent().find('input').click();
         cy.contains('How much revenue').click();
         cy.findByText('Add').click();
 
         cy.findByText('Add tile').click();
         cy.findByText('Markdown').click();
-        cy.get('input').type('Title');
+        cy.findByLabelText('Title').type('Title');
         cy.get('textarea').type('Content');
         cy.findByText('Add').click();
 
         cy.findByText('Add tile').click();
         cy.findByText('Loom video').click();
 
-        cy.get('input').eq(0).type('Title');
-        cy.get('input').eq(1).type('https://www.loom.com/share/12345');
+        cy.findByLabelText('Title *').type('Title');
+        cy.findByLabelText('Loom url *').type(
+            'https://www.loom.com/share/12345',
+        );
         cy.findByText('Add').click();
 
         cy.findByText('Save').click();

@@ -27,6 +27,7 @@ import NavLink from '../NavLink';
 import { ShowErrorsButton } from '../ShowErrorsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
+import GlobalSearch from './GlobalSearch';
 import HelpMenu from './HelpMenu';
 import {
     Divider,
@@ -92,6 +93,8 @@ const NavBar = () => {
                             data-cy="settings-button"
                         />
                     </NavLink>
+                    <Divider />
+                    <GlobalSearch />
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
                     <HelpMenu />

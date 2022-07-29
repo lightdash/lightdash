@@ -13,6 +13,7 @@ import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
+import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
 import { SpaceModel } from './SpaceModel';
 import { UserModel } from './UserModel';
@@ -44,5 +45,8 @@ export const personalAccessTokenModel = new PersonalAccessTokenModel({
     database,
 });
 export const spaceModel = new SpaceModel({
+    database,
+});
+export const searchModel = new SearchModel({
     database,
 });

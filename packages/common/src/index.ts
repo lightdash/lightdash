@@ -51,6 +51,7 @@ import {
     ProjectMemberRole,
 } from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
+import { SearchResults } from './types/search';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -74,6 +75,7 @@ export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
+export * from './types/search';
 export * from './types/space';
 export * from './types/table';
 export * from './types/user';
@@ -648,6 +650,7 @@ type ApiResults =
     | CreatePersonalAccessToken
     | PersonalAccessToken
     | ProjectMemberProfile[]
+    | SearchResults
     | Space;
 
 export type ApiResponse = {
