@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { useUpdateDashboard } from './dashboard/useDashboard';
-import { useUpdateMutation } from './useSavedQuery';
+import { useMoveDashboard } from './dashboard/useDashboard';
+import { useMoveMutation } from './useSavedQuery';
 
 const useMoveToSpace = (
     isChart: boolean | undefined,
@@ -10,8 +10,8 @@ const useMoveToSpace = (
         spaceUuid?: string;
     },
 ) => {
-    const { mutate: chartMutation } = useUpdateMutation(data?.uuid);
-    const { mutate: dashboardMutation } = useUpdateDashboard(data?.uuid || '');
+    const { mutate: chartMutation } = useMoveMutation(data?.uuid);
+    const { mutate: dashboardMutation } = useMoveDashboard(data?.uuid);
 
     const moveDashboard = useCallback(
         (updatedDashboard) => {

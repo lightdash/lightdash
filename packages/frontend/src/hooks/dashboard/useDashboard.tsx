@@ -41,7 +41,7 @@ const duplicateDashboard = async (
     });
 
 const updateDashboard = async (id: string, data: UpdateDashboard) =>
-    lightdashApi<undefined>({
+    lightdashApi<Dashboard>({
         url: `/dashboards/${id}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -132,7 +132,7 @@ export const useUpdateDashboard = (
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
-    return useMutation<undefined, ApiError, UpdateDashboard>(
+    return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => updateDashboard(id, data),
         {
             mutationKey: ['dashboard_update'],
@@ -169,6 +169,52 @@ export const useUpdateDashboard = (
             onError: (error) => {
                 showToastError({
                     title: `Failed to update dashboard`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
+export const useMoveDashboard = (uuid: string | undefined) => {
+    const history = useHistory();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+    return useMutation<
+        Dashboard,
+        ApiError,
+        Pick<Dashboard, 'name' | 'spaceUuid'>
+    >(
+        (data) => {
+            if (uuid) {
+                return updateDashboard(uuid, data);
+            }
+            throw new Error('Dashboard ID is undefined');
+        },
+        {
+            mutationKey: ['dashboard_move'],
+            onSuccess: async (data) => {
+                await queryClient.invalidateQueries(['space']);
+                queryClient.setQueryData(
+                    ['saved_dashboard_query', data.uuid],
+                    data,
+                );
+                showToastSuccess({
+                    title: `Success! Dashboard has been moved to ${data.spaceName}`,
+                    action: {
+                        text: 'Go to space',
+                        icon: 'arrow-right',
+                        onClick: () =>
+                            history.push(
+                                `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
+                            ),
+                    },
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to move dashboard`,
                     subtitle: error.error.message,
                 });
             },

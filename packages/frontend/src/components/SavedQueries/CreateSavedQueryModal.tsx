@@ -56,7 +56,7 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
     }, [spaces, spaceUuid]);
 
     const createSavedChart = useCallback(
-        (selectedSpaceUuid) => {
+        (selectedSpaceUuid: string | undefined) => {
             mutate({
                 ...savedData,
                 name,

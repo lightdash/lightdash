@@ -28,7 +28,18 @@
         },
         "spaceUuid": {
             "type": "string"
+        },
+        "spaceName": {
+            "type": "string"
         }
     },
-    "required": ["uuid", "tiles", "name", "updatedAt", "filters"]
+    "required": [
+        "uuid",
+        "tiles",
+        "name",
+        "updatedAt",
+        "filters",
+        "spaceUuid",
+        "spaceName"
+    ]
 }

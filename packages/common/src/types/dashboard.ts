@@ -82,6 +82,7 @@ export type Dashboard = {
     filters: DashboardFilters;
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
+    spaceName: string;
 };
 
 export type DashboardBasicDetails = Pick<

@@ -1889,9 +1889,20 @@
                     },
                     "spaceUuid": {
                         "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
                     }
                 },
-                "required": ["uuid", "tiles", "name", "updatedAt", "filters"]
+                "required": [
+                    "uuid",
+                    "tiles",
+                    "name",
+                    "updatedAt",
+                    "filters",
+                    "spaceUuid",
+                    "spaceName"
+                ]
             },
             "ProjectTablesConfiguration": {
                 "type": "object",
@@ -2051,6 +2062,9 @@
                     },
                     "spaceUuid": {
                         "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -2061,7 +2075,9 @@
                     "metricQuery",
                     "chartConfig",
                     "tableConfig",
-                    "updatedAt"
+                    "updatedAt",
+                    "spaceUuid",
+                    "spaceName"
                 ]
             },
             "UpdateDashboard": {

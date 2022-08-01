@@ -102,6 +102,7 @@ export const getSpaceWithQueries = async (
                 firstName: savedQuery.first_name,
                 lastName: savedQuery.last_name,
             },
+            spaceUuid: space.space_uuid,
         })),
         projectUuid,
         dashboards: [],
