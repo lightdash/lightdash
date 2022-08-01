@@ -106,26 +106,30 @@ const ModalActionButtons = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            /*setIsOpen(false);
-                            setActionState({
-                                actionType: ActionTypeModal.MOVE_TO_SPACE,
-                                data,
-                            });*/
                         }}
                     >
                         {spaces?.map((space) => {
                             return (
                                 <MenuItem
                                     text={space.name}
-                                    disabled={data.spaceUuid === space.uuid}
+                                    className={
+                                        data.spaceUuid === space.uuid
+                                            ? 'bp4-disabled'
+                                            : ''
+                                    }
                                     onClick={(e) => {
+                                        // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        /*setIsOpen(false);
-                                    setActionState({
-                                        actionType: ActionTypeModal.MOVE_TO_SPACE,
-                                        data,
-                                    });*/
+                                        if (data.spaceUuid !== space.uuid)
+                                            setActionState({
+                                                actionType:
+                                                    ActionTypeModal.MOVE_TO_SPACE,
+                                                data: {
+                                                    ...data,
+                                                    spaceUuid: space.uuid,
+                                                },
+                                            });
                                     }}
                                 />
                             );
@@ -137,12 +141,10 @@ const ModalActionButtons = ({
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-
-                                /*setIsOpen(false);
-                            setActionState({
-                                actionType: ActionTypeModal.MOVE_TO_SPACE,
-                                data,
-                            });*/
+                                setActionState({
+                                    actionType: ActionTypeModal.CREATE_SPACE,
+                                    data,
+                                });
                             }}
                         />
                     </MenuItem>
