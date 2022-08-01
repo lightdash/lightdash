@@ -77,6 +77,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         name: dashboard.name,
         description: dashboard.description,
         updatedAt: dashboard.updatedAt,
+        spaceUuid: 'spaceUuid',
     },
 ];
 
