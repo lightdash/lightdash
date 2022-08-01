@@ -220,7 +220,7 @@ export const oktaPassportStrategy = !(
                       });
                   }
                   const [firstName, lastName] = (
-                      profile.display_name || ''
+                      profile.displayName || ''
                   ).split();
                   console.log(profile);
                   const openIdUser: OpenIdUser = {
