@@ -3,6 +3,7 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     SavedChart,
+    UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
@@ -102,6 +103,50 @@ export const useDeleteMutation = () => {
             });
         },
     });
+};
+
+const updateMultipleSavedQuery = async (
+    projectUuid: string,
+    data: UpdateMultipleSavedChart[],
+): Promise<SavedChart[]> => {
+    return lightdashApi<SavedChart[]>({
+        url: `/projects/${projectUuid}/saved`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+};
+
+export const useMultipleUpdateMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+
+    return useMutation<SavedChart[], ApiError, UpdateMultipleSavedChart[]>(
+        (data) => {
+            return updateMultipleSavedQuery(projectUuid, data);
+        },
+        {
+            mutationKey: ['saved_query_multiple_update'],
+            onSuccess: async (data) => {
+                await queryClient.invalidateQueries(['space', projectUuid]);
+                await queryClient.invalidateQueries('spaces');
+                data.forEach((savedChart) => {
+                    queryClient.setQueryData(
+                        ['saved_query', savedChart.uuid],
+                        savedChart,
+                    );
+                });
+                showToastSuccess({
+                    title: `Success! Chart was updated.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to save chart`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };
 
 export const useUpdateMutation = (savedQueryUuid?: string) => {

@@ -181,6 +181,11 @@ export type UpdateSavedChart = Pick<
     'name' | 'description' | 'spaceUuid'
 >;
 
+export type UpdateMultipleSavedChart = Pick<
+    SavedChart,
+    'uuid' | 'name' | 'description' | 'spaceUuid'
+>;
+
 export type SpaceQuery = Pick<
     SavedChart,
     | 'uuid'

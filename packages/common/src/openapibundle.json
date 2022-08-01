@@ -950,6 +950,65 @@
                         "$ref": "#/components/responses/ErrorResponse"
                     }
                 }
+            },
+            "patch": {
+                "summary": "Update multiple saved charts in project",
+                "tags": ["saved"],
+                "operationId": "patchSavedCharts",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/UpdateMultipleSavedChart"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Details for saved charts",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/Success"
+                                        },
+                                        {
+                                            "properties": {
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/SavedChart"
+                                                    }
+                                                }
+                                            },
+                                            "required": ["results"]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/components/responses/ErrorResponse"
+                    }
+                }
             }
         },
         "/dashboards/{dashboardUuid}": {
@@ -2063,6 +2122,25 @@
                     "tableConfig",
                     "updatedAt"
                 ]
+            },
+            "UpdateMultipleSavedChart": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    }
+                }
             },
             "UpdateDashboard": {
                 "oneOf": [

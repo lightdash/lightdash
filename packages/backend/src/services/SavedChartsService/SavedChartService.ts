@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     SavedChart,
     SessionUser,
+    UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -125,6 +126,28 @@ export class SavedChartService {
             },
         });
         return savedChart;
+    }
+
+    async updateMultiple(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateMultipleSavedChart[],
+    ): Promise<SavedChart[]> {
+        // TODO check permissions of all savedcharts
+        /* const { organizationUuid, projectUuid } =
+            await this.savedChartModel.get(savedChartUuid);
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        } */
+        const savedCharts = await this.savedChartModel.updateMultiple(data);
+
+        return savedCharts;
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {

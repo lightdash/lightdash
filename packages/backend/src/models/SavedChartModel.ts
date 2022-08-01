@@ -9,6 +9,7 @@ import {
     SortField,
     Space,
     UpdatedByUser,
+    UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -296,6 +297,34 @@ export class SavedChartModel {
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);
+    }
+
+    async updateMultiple(
+        data: UpdateMultipleSavedChart[],
+    ): Promise<SavedChart[]> {
+        await this.database.transaction(async (trx) => {
+            try {
+                const promises = data.map(async (savedChart) =>
+                    trx('saved_queries')
+                        .update({
+                            name: savedChart.name,
+                            description: savedChart.description,
+                            space_id: await getSpaceId(
+                                trx,
+                                savedChart.spaceUuid,
+                            ),
+                        })
+                        .where('saved_query_uuid', savedChart.uuid),
+                );
+                await Promise.all(promises);
+            } catch (e) {
+                trx.rollback(e);
+                throw e;
+            }
+        });
+        return Promise.all(
+            data.map(async (savedChart) => this.get(savedChart.uuid)),
+        );
     }
 
     async delete(savedChartUuid: string): Promise<SavedChart> {

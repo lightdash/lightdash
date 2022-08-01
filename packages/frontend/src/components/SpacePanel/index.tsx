@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode, Space } from '@lightdash/common';
-import React from 'react';
+import React, { useState } from 'react';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import {
     useCreateMutation,
@@ -10,6 +10,7 @@ import {
 } from '../../hooks/dashboard/useDashboard';
 import { useApp } from '../../providers/AppProvider';
 import ActionCardList from '../common/ActionCardList';
+import AddToSpaceModal from '../common/modal/AddToSpaceModal';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
 import { SpacePanelWrapper, Title } from './SpacePanel.styles';
@@ -32,6 +33,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const history = useHistory();
     const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
+
+    const [addToSpace, setAddToSpace] = useState<string>();
 
     if (hasCreatedDashboard && newDashboard) {
         return (
@@ -74,15 +77,9 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     user.data?.ability?.can('manage', 'Dashboard') &&
                     !isDemo && (
                         <Button
-                            text="Create dashboard"
+                            text="Add"
                             loading={isCreatingDashboard}
-                            onClick={() =>
-                                createDashboard({
-                                    name: DEFAULT_DASHBOARD_NAME,
-                                    tiles: [],
-                                    spaceUuid: space.uuid,
-                                })
-                            }
+                            onClick={() => setAddToSpace('dashboards')}
                             intent="primary"
                         />
                     )
@@ -93,6 +90,22 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 savedQueries={savedCharts || []}
                 projectUuid={projectUuid}
                 isChart
+                headerAction={
+                    user.data?.ability?.can('manage', 'Dashboard') &&
+                    !isDemo && (
+                        <Button
+                            text="Add"
+                            loading={isCreatingDashboard}
+                            onClick={() => setAddToSpace('charts')}
+                            intent="primary"
+                        />
+                    )
+                }
+            />
+            <AddToSpaceModal
+                isOpen={addToSpace !== undefined}
+                isChart={addToSpace === 'charts'}
+                onClose={() => setAddToSpace(undefined)}
             />
         </SpacePanelWrapper>
     );

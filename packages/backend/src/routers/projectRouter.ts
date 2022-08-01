@@ -236,6 +236,23 @@ projectRouter.post(
     },
 );
 
+projectRouter.patch(
+    '/saved',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        savedChartsService
+            .updateMultiple(req.user!, req.params.projectUuid, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
     spaceService
         .getAllSpaces(req.params.projectUuid, req.user!)
