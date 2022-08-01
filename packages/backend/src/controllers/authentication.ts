@@ -175,10 +175,10 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   );
                   return done(null, user);
               } catch (e) {
-                  Logger.warn(`Failed to authorize user. ${e}`);
                   if (e instanceof LightdashError) {
-                      return done(e);
+                      return done(null, false, { message: e.message });
                   }
+                  Logger.warn(`Unexpected error while authorizing user: ${e}`);
                   return done(null, false, {
                       message: 'Unexpected error authorizing user',
                   });
@@ -245,12 +245,12 @@ export const oktaPassportStrategy = !(
                   );
                   return done(null, user);
               } catch (e) {
-                  Logger.warn(`Failed to authorize user. ${e}`);
                   if (e instanceof LightdashError) {
-                      return done(e);
+                      return done(null, false, { message: e.message });
                   }
+                  Logger.warn(`Unexpected error while authorizing user: ${e}`);
                   return done(null, false, {
-                      message: 'Failed to authorize user',
+                      message: 'Unexpected error authorizing user',
                   });
               }
           },
