@@ -67,6 +67,7 @@ export const dashboard: Dashboard = {
         metrics: [],
     },
     spaceUuid: 'spaceUuid',
+    spaceName: 'space name',
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
