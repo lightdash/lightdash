@@ -5,6 +5,7 @@ import {
     AuthorizationError,
     isOpenIdUser,
     isSessionUser,
+    LightdashError,
     LightdashMode,
     OpenIdUser,
     SessionUser,
@@ -69,9 +70,13 @@ export const localPassportStrategy = new LocalStrategy(
         try {
             const user = await userService.loginWithPassword(email, password);
             return done(null, user);
-        } catch {
+        } catch (e) {
             return done(
-                new AuthorizationError('Email and password not recognized.'),
+                e instanceof LightdashError
+                    ? e
+                    : new AuthorizationError(
+                          'Unexpected error while logging in',
+                      ),
             );
         }
     },
@@ -171,8 +176,11 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                   return done(null, user);
               } catch (e) {
                   Logger.warn(`Failed to authorize user. ${e}`);
+                  if (e instanceof LightdashError) {
+                      return done(e);
+                  }
                   return done(null, false, {
-                      message: 'Failed to authorize user',
+                      message: 'Unexpected error authorizing user',
                   });
               }
           },
@@ -221,7 +229,6 @@ export const oktaPassportStrategy = !(
                   const [firstName, lastName] = (
                       profile.displayName || ''
                   ).split();
-                  console.log(profile);
                   const openIdUser: OpenIdUser = {
                       openId: {
                           issuer,
@@ -239,6 +246,9 @@ export const oktaPassportStrategy = !(
                   return done(null, user);
               } catch (e) {
                   Logger.warn(`Failed to authorize user. ${e}`);
+                  if (e instanceof LightdashError) {
+                      return done(e);
+                  }
                   return done(null, false, {
                       message: 'Failed to authorize user',
                   });
