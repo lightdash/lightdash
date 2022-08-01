@@ -160,7 +160,7 @@ export const useMoveMutation = (savedQueryUuid?: string) => {
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
-                    title: `Success! Chart has been moved to ${data.spaceName}`,
+                    title: `Chart has been moved to ${data.spaceName}`,
                     action: {
                         text: 'Go to space',
                         icon: 'arrow-right',

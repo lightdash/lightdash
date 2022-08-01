@@ -201,7 +201,7 @@ export const useMoveDashboard = (uuid: string | undefined) => {
                     data,
                 );
                 showToastSuccess({
-                    title: `Success! Dashboard has been moved to ${data.spaceName}`,
+                    title: `Dashboard has been moved to ${data.spaceName}`,
                     action: {
                         text: 'Go to space',
                         icon: 'arrow-right',
