@@ -11,6 +11,7 @@ import { getSearchResultId } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { SearchInput, SearchOmnibar } from './globalSearch.styles';
@@ -62,6 +63,7 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { track } = useTracking();
     const [isSearchOpen, toggleSearchOpen] = useToggle(false);
     const [query, setQuery] = useState<string>();
+    const project = useProject(projectUuid);
     useGlobalSearchHotKeys(toggleSearchOpen);
     const { items, isSearching } = useDebouncedSearch(projectUuid, query);
     return (
@@ -91,6 +93,7 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             />
             <SearchOmnibar
                 inputProps={{
+                    placeholder: `Search ${project.data?.name}...`,
                     leftElement: isSearching ? (
                         <Spinner size={16} style={{ margin: 12 }} />
                     ) : undefined,
@@ -107,7 +110,7 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         disabled={true}
                         text={`${
                             !query ? 'Start' : 'Keep'
-                        } typing to search everything in the project`}
+                        } typing to search by a space, dashboard, chart, table or field in this project`}
                     />
                 }
                 noResults={
