@@ -1,8 +1,10 @@
 import { Button, Divider, Menu, MenuItem } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
+import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { ActionTypeModal } from './ActionModal';
 
@@ -29,6 +31,9 @@ const ModalActionButtons = ({
         true,
     );
     const isDashboardPage = url.includes('/dashboards');
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: spaces } = useSpaces(projectUuid);
+
     const { user } = useApp();
 
     useEffect(() => {
@@ -101,13 +106,46 @@ const ModalActionButtons = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setIsOpen(false);
+                            /*setIsOpen(false);
                             setActionState({
                                 actionType: ActionTypeModal.MOVE_TO_SPACE,
                                 data,
-                            });
+                            });*/
                         }}
-                    />
+                    >
+                        {spaces?.map((space) => {
+                            return (
+                                <MenuItem
+                                    text={space.name}
+                                    disabled={data.spaceUuid === space.uuid}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        /*setIsOpen(false);
+                                    setActionState({
+                                        actionType: ActionTypeModal.MOVE_TO_SPACE,
+                                        data,
+                                    });*/
+                                    }}
+                                />
+                            );
+                        })}
+
+                        <Divider />
+                        <MenuItem
+                            text="Crete new space"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                /*setIsOpen(false);
+                            setActionState({
+                                actionType: ActionTypeModal.MOVE_TO_SPACE,
+                                data,
+                            });*/
+                            }}
+                        />
+                    </MenuItem>
                     <Divider />
                     <MenuItem
                         role="button"

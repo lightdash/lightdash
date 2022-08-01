@@ -40,6 +40,7 @@ const ActionCardList = <
         name: string;
         updatedAt: Date;
         updatedByUser?: UpdatedByUser;
+        spaceUuid?: string;
     },
 >({
     dataList,

@@ -21,6 +21,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 new Date(a.updatedAt).getTime(),
         )
         .slice(0, 5);
+
     return (
         <LatestCard
             isLoading={savedChartsRequest.isLoading}
