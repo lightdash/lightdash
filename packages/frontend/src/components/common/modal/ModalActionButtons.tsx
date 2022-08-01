@@ -137,7 +137,7 @@ const ModalActionButtons = ({
 
                         <Divider />
                         <MenuItem
-                            text="Crete new space"
+                            text="+ Create new"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
