@@ -92,7 +92,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             <SavedQueriesContent
                 savedQueries={savedCharts || []}
                 projectUuid={projectUuid}
-                isChart
+                title="Saved charts"
             />
         </SpacePanelWrapper>
     );

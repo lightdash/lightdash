@@ -51,7 +51,7 @@ const SavedDashboards = () => {
     return (
         <Page>
             <ActionCardList
-                title="Dashboards"
+                title="All dashboards"
                 useUpdate={useUpdateDashboardName}
                 useDelete={useDelete}
                 dataList={dashboards}
