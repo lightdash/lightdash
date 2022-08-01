@@ -26,7 +26,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         <SpaceBrowserWrapper>
             <LatestCard
                 isLoading={isLoading}
-                title="Browse spaces"
+                title="Spaces"
                 headerAction={
                     <CreateNewButton
                         minimal
