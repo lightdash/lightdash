@@ -14,10 +14,10 @@ import NavLink from '../../NavLink';
 import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';
 
 interface Props {
-    projectId: string | undefined;
+    projectUuid: string;
 }
 
-const ExploreMenu: FC<Props> = ({ projectId }) => {
+const ExploreMenu: FC<Props> = ({ projectUuid }) => {
     const { user } = useApp();
 
     return (
@@ -25,13 +25,13 @@ const ExploreMenu: FC<Props> = ({ projectId }) => {
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
-                    !projectId ? (
+                    !projectUuid ? (
                         <SpinnerWrapper>
                             <Spinner size={20} />
                         </SpinnerWrapper>
                     ) : (
                         <MenuWrapper>
-                            <NavLink to={`/projects/${projectId}/tables`}>
+                            <NavLink to={`/projects/${projectUuid}/tables`}>
                                 <FirstItem
                                     role="button"
                                     icon="th"
@@ -43,11 +43,11 @@ const ExploreMenu: FC<Props> = ({ projectId }) => {
                                 this={subject('SqlRunner', {
                                     organizationUuid:
                                         user.data?.organizationUuid,
-                                    projectId,
+                                    projectUuid,
                                 })}
                             >
                                 <NavLink
-                                    to={`/projects/${projectId}/sqlRunner`}
+                                    to={`/projects/${projectUuid}/sqlRunner`}
                                 >
                                     <MenuItem
                                         role="button"

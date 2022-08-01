@@ -1,7 +1,6 @@
 import {
     Button,
     Colors,
-    InputGroup,
     KeyCombo,
     MenuItem,
     Spinner,
@@ -10,11 +9,11 @@ import {
 import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
 import { getSearchResultId } from '@lightdash/common';
 import React, { FC, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { SearchOmnibar } from './globalSearch.styles';
+import { SearchInput, SearchOmnibar } from './globalSearch.styles';
 import {
     SearchItem,
     useDebouncedSearch,
@@ -57,18 +56,17 @@ const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
     );
 };
 
-const GlobalSearch: FC = () => {
+const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const history = useHistory();
     const location = useLocation();
     const { track } = useTracking();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isSearchOpen, toggleSearchOpen] = useToggle(false);
     const [query, setQuery] = useState<string>();
     useGlobalSearchHotKeys(toggleSearchOpen);
     const { items, isSearching } = useDebouncedSearch(projectUuid, query);
     return (
         <>
-            <InputGroup
+            <SearchInput
                 leftIcon="search"
                 onClick={() => {
                     track({
@@ -80,9 +78,6 @@ const GlobalSearch: FC = () => {
                     toggleSearchOpen(true);
                 }}
                 placeholder="Search..."
-                style={{
-                    width: 200,
-                }}
                 value={query}
                 rightElement={
                     query ? (
