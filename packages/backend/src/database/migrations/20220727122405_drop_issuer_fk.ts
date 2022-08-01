@@ -20,12 +20,16 @@ export async function down(knex: Knex): Promise<void> {
     }
     if (await knex.schema.hasTable('openid_identities')) {
         await knex.schema.alterTable('openid_identities', (tableBuilder) => {
+            tableBuilder.dropPrimary();
+        });
+        await knex.schema.alterTable('openid_identities', (tableBuilder) => {
             tableBuilder
                 .text('issuer')
                 .notNullable()
                 .references('issuer')
                 .inTable('openid_issuers')
                 .alter();
+            tableBuilder.primary(['issuer', 'subject']);
         });
     }
 }
