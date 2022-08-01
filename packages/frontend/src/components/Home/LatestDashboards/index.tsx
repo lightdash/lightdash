@@ -41,7 +41,7 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                 new Date(b.updatedAt).getTime() -
                 new Date(a.updatedAt).getTime(),
         )
-        .slice(0, 6);
+        .slice(0, 5);
 
     return (
         <LatestCard
