@@ -10,13 +10,13 @@ import SavedQueryForm from './SavedQueryForm';
 type SavedQueriesContentProps = {
     savedQueries: SpaceQuery[];
     projectUuid: string;
-    isChart?: boolean;
+    title: string;
 };
 
 const SavedQueriesContent = ({
     savedQueries,
     projectUuid,
-    isChart,
+    title,
 }: SavedQueriesContentProps) => {
     const orderedCharts = savedQueries.sort(
         (a, b) =>
@@ -24,7 +24,7 @@ const SavedQueriesContent = ({
     );
     return (
         <ActionCardList
-            title="Saved charts"
+            title={title}
             useUpdate={useUpdateMutation}
             useDelete={useDeleteMutation()}
             dataList={orderedCharts}
@@ -33,7 +33,7 @@ const SavedQueriesContent = ({
                 return `/projects/${projectUuid}/saved/${uuid}`;
             }}
             ModalContent={SavedQueryForm}
-            isChart={isChart}
+            isChart
         />
     );
 };
