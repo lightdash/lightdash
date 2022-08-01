@@ -78,7 +78,6 @@ export const NotificationWrapper = styled.div`
     border-radius: 0.214em;
     position: relative;
     color: ${Colors.GRAY5} !important;
-    margin-right: 0.357em;
 
     :hover {
         cursor: pointer;
