@@ -2,6 +2,8 @@ import { Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const Title = styled(H3)`
+    margin-top: 10px;
+    margin-bottom: 30px;
     text-align: left;
 `;
 

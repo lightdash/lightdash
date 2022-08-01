@@ -55,7 +55,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             history.push('/home');
                         },
                     },
-                    { text: space.name, disabled: true },
+                    { text: space.name, disabled: true, icon: 'folder-close' },
                 ]}
             />
             <Title>{space.name}</Title>
