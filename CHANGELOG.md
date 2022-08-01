@@ -1,3 +1,10 @@
+# [0.196.0](https://github.com/lightdash/lightdash/compare/0.195.0...0.196.0) (2022-08-01)
+
+
+### Features
+
+* add breacrumbs to space ([#2808](https://github.com/lightdash/lightdash/issues/2808)) ([d4590b0](https://github.com/lightdash/lightdash/commit/d4590b02750bfe123707a346a64e171f81c64ced))
+
 # [0.195.0](https://github.com/lightdash/lightdash/compare/0.194.3...0.195.0) (2022-07-29)
 
 
