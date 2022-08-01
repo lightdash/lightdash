@@ -13,7 +13,6 @@ export const SpacePanelWrapper = styled.div`
         margin-top: 20px;
     }
 
-
     .home-breadcrumb {
         color: ${Colors.BLUE3};
     }
