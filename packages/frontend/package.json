@@ -6,7 +6,7 @@
         "@blueprintjs/core": "^4.5.1",
         "@blueprintjs/datetime": "^4.3.1",
         "@blueprintjs/datetime2": "^0.2.0",
-        "@blueprintjs/popover2": "^1.4.1",
+        "@blueprintjs/popover2": "^1.5.0",
         "@blueprintjs/select": "^4.4.1",
         "@blueprintjs/table": "^4.3.1",
         "@casl/ability": "^5.4.4",

@@ -13,36 +13,39 @@ import NavLink from '../../NavLink';
 import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';
 
 interface Props {
-    projectId: string;
+    projectUuid: string;
 }
 
-const BrowseMenu: FC<Props> = ({ projectId }) => {
-    const { data: spaces, isLoading } = useSpaces(projectId);
+const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const { data: spaces, isLoading } = useSpaces(projectUuid);
     return (
         <>
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
-                    !projectId || isLoading ? (
+                    !projectUuid || isLoading ? (
                         <SpinnerWrapper>
                             <Spinner size={20} />
                         </SpinnerWrapper>
                     ) : (
                         <MenuWrapper>
-                            <NavLink to={`/projects/${projectId}/dashboards`}>
+                            <NavLink to={`/projects/${projectUuid}/dashboards`}>
                                 <FirstItem
                                     role="button"
-                                    text="Dashboards"
+                                    text="All dashboards"
                                     icon="control"
                                 />
                             </NavLink>
-                            <NavLink to={`/projects/${projectId}/saved`}>
-                                <MenuItem icon="chart" text="Saved charts" />
+                            <NavLink to={`/projects/${projectUuid}/saved`}>
+                                <MenuItem
+                                    icon="chart"
+                                    text="All saved charts"
+                                />
                             </NavLink>
                             <MenuDivider />
                             {spaces?.map((space) => (
                                 <NavLink
-                                    to={`/projects/${projectId}/spaces/${space.uuid}`}
+                                    to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                                 >
                                     <MenuItem
                                         icon="folder-close"
@@ -55,7 +58,7 @@ const BrowseMenu: FC<Props> = ({ projectId }) => {
                 }
                 position={Position.BOTTOM_LEFT}
             >
-                <Button minimal icon="search" text="Browse" />
+                <Button minimal icon="timeline-bar-chart" text="Browse" />
             </Popover2>
         </>
     );

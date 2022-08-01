@@ -74,35 +74,33 @@ const NavBar = () => {
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
                         to={homeUrl}
-                        style={{ marginRight: 24, display: 'flex' }}
+                        style={{ marginRight: 10, display: 'flex' }}
                     >
                         <LogoContainer title="Home" />
                     </NavLink>
                     {!!selectedProjectUuid && (
                         <>
-                            <ExploreMenu projectId={selectedProjectUuid} />
-                            <BrowseMenu projectId={selectedProjectUuid} />
+                            <ExploreMenu projectUuid={selectedProjectUuid} />
+                            <BrowseMenu projectUuid={selectedProjectUuid} />
+                            <GlobalSearch projectUuid={selectedProjectUuid} />
                         </>
                     )}
-
-                    <NavLink to={`/generalSettings`}>
-                        <Button
-                            minimal
-                            icon="cog"
-                            text="Settings"
-                            data-cy="settings-button"
-                        />
-                    </NavLink>
-                    <Divider />
-                    <GlobalSearch />
                 </NavbarGroup>
                 <NavbarGroup align={Alignment.RIGHT}>
-                    <HelpMenu />
-                    <Divider />
                     <ShowErrorsButton
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
+                    <Button
+                        minimal
+                        icon="cog"
+                        data-cy="settings-button"
+                        onClick={() => {
+                            history.push(`/generalSettings`);
+                        }}
+                    />
+                    <HelpMenu />
+                    <Divider />
                     {selectedProjectUuid && (
                         <ProjectDropdown
                             disabled={isLoading || (data || []).length <= 0}

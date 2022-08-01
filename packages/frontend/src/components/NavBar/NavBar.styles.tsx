@@ -7,7 +7,7 @@ import {
     NavbarDivider,
 } from '@blueprintjs/core';
 import styled from 'styled-components';
-import { ReactComponent as Logo } from '../../svgs/logo.svg';
+import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 
 export const NavBarWrapper = styled(Navbar)`
     position: sticky;
@@ -17,12 +17,15 @@ export const NavBarWrapper = styled(Navbar)`
 export const ProjectDropdown = styled(HTMLSelect)`
     margin: 0 1.143em 0 0;
     max-width: 300px;
+
+    select {
+        background-color: rgba(17, 20, 24, 0.3) !important;
+    }
 `;
 
 export const LogoContainer = styled(Logo)`
-    margin-top: 0.143em;
-    height: 2.143em;
-    width: 6.429em;
+    height: 30px;
+    width: 30px;
 `;
 
 export const SpinnerWrapper = styled.div`
@@ -47,5 +50,5 @@ export const FirstItem = styled(MenuItem)`
 `;
 
 export const Divider = styled(NavbarDivider)`
-    margin: 0 1.143em 0 0.429em;
+    margin: 0 10px 0 6px;
 `;
