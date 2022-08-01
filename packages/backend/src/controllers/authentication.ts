@@ -205,7 +205,6 @@ export const oktaPassportStrategy = !(
                   '/oauth2/default/v1/userinfo',
                   `https://${lightdashConfig.auth.okta.oktaDomain}`,
               ).href,
-              scope: 'openid profile',
               passReqToCallback: true,
           },
           async (req, issuer, profile, done) => {
