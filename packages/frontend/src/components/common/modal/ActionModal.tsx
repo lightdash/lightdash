@@ -18,6 +18,7 @@ export enum ActionTypeModal {
     ADD_TO_DASHBOARD,
     DELETE,
     MOVE_TO_SPACE,
+    CREATE_SPACE,
 }
 
 export type ActionModalProps<T> = {

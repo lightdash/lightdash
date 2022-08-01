@@ -1,14 +1,15 @@
 import { Button, InputGroup, NonIdealState } from '@blueprintjs/core';
-import { ApiError, UpdatedByUser } from '@lightdash/common';
+import { ApiError, Space, UpdatedByUser } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { UseMutationResult } from 'react-query';
+import useMoveToSpace from '../../../hooks/useMoveToSpace';
+import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import EmptySavedChartsState from '../../SavedQueries/EmptySavedChartsState';
 import ActionCard from '../ActionCard';
 import { ActionModalProps, ActionTypeModal } from '../modal/ActionModal';
 import DeleteActionModal from '../modal/DeleteActionModal';
-import MoveToSpaceModal from '../modal/MoveToSpaceModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
 import {
     ActionCardListWrapper,
@@ -40,6 +41,7 @@ const ActionCardList = <
         name: string;
         updatedAt: Date;
         updatedByUser?: UpdatedByUser;
+        spaceUuid?: string;
     },
 >({
     dataList,
@@ -59,7 +61,23 @@ const ActionCardList = <
     }>({
         actionType: ActionTypeModal.CLOSE,
     });
+    const { moveChart, moveDashboard } = useMoveToSpace(
+        isChart,
+        actionState.data,
+    );
 
+    const moveToSpaceAction = (data: {
+        uuid: string;
+        name: string;
+        spaceUuid?: string;
+    }) => {
+        if (isChart) moveChart(data);
+        else moveDashboard(data);
+
+        setActionState({
+            actionType: ActionTypeModal.CLOSE,
+        });
+    };
     const displaySearch = isChart && dataList.length >= 5 && !isHomePage;
 
     const filteredQueries = useMemo(() => {
@@ -157,19 +175,28 @@ const ActionCardList = <
             )}
 
             {actionState.actionType === ActionTypeModal.MOVE_TO_SPACE &&
+                actionState.data &&
+                moveToSpaceAction(actionState.data)}
+            {actionState.actionType === ActionTypeModal.CREATE_SPACE &&
                 actionState.data && (
-                    <MoveToSpaceModal
+                    <CreateSpaceModal
                         isOpen={
                             actionState.actionType ===
-                            ActionTypeModal.MOVE_TO_SPACE
+                            ActionTypeModal.CREATE_SPACE
                         }
+                        onCreated={(space: Space) => {
+                            if (actionState.data)
+                                moveToSpaceAction({
+                                    uuid: actionState.data.uuid,
+                                    name: actionState.data.name,
+                                    spaceUuid: space.uuid,
+                                });
+                        }}
                         onClose={() =>
                             setActionState({
                                 actionType: ActionTypeModal.CLOSE,
                             })
                         }
-                        uuid={actionState.data.uuid}
-                        isChart={!!isChart}
                     />
                 )}
 

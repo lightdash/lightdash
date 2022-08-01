@@ -93,6 +93,7 @@ export type DashboardBasicDetails = Pick<
     | 'projectUuid'
     | 'updatedByUser'
     | 'organizationUuid'
+    | 'spaceUuid'
 >;
 
 export type DashboardUnversionedFields = Pick<

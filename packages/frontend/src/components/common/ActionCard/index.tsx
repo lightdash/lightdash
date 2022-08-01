@@ -61,6 +61,7 @@ const ActionCard = <
         name: string;
         updatedAt: Date;
         updatedByUser?: UpdatedByUser;
+        spaceUuid?: string;
     },
 >(
     props: ActionCardProps<T>,

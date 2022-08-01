@@ -1,5 +1,6 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
-import React, { FC, useState } from 'react';
+import { Space } from '@lightdash/common';
+import React, { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSpaces';
 import { FormGroupWrapper } from './CreateSpaceModal.styles';
@@ -7,17 +8,27 @@ import { FormGroupWrapper } from './CreateSpaceModal.styles';
 interface CreateSpaceModalProps {
     isOpen: boolean;
     onClose?: () => void;
+    onCreated?: (data: Space) => void;
 }
 
 export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
     isOpen,
     onClose,
+    onCreated,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { mutate, isLoading: isCreating } = useCreateMutation(projectUuid);
+    const {
+        mutate,
+        isLoading: isCreating,
+        isSuccess: isCreated,
+        data: newSpace,
+    } = useCreateMutation(projectUuid);
     const [name, setName] = useState<string>('');
 
+    useEffect(() => {
+        if (onCreated && newSpace) onCreated(newSpace);
+    }, [onCreated, isCreated, newSpace]);
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create space">
             <form>
@@ -46,7 +57,7 @@ export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
                             onClick={(e) => {
                                 mutate({ name });
                                 setName('');
-                                if (onClose) onClose();
+                                if (onClose && !onCreated) onClose();
                                 e.preventDefault();
                             }}
                             disabled={isCreating || !name}

@@ -99,6 +99,7 @@ export class SpaceModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${SpaceTableName}.space_uuid`,
             ])
             .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
 
@@ -127,6 +128,7 @@ export class SpaceModel {
                     firstName: first_name,
                     lastName: last_name,
                 },
+                spaceUuid,
             }),
         );
     }
@@ -185,6 +187,7 @@ export class SpaceModel {
                 firstName: savedQuery.first_name,
                 lastName: savedQuery.last_name,
             },
+            spaceUuid,
         }));
     }
 

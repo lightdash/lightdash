@@ -214,6 +214,7 @@ export class DashboardModel {
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
                         `${OrganizationTableName}.organization_uuid`,
+                        `${SpaceTableName}.space_uuid`,
                     ])
                     .orderBy([
                         {
@@ -265,6 +266,7 @@ export class DashboardModel {
                 first_name,
                 last_name,
                 organization_uuid,
+                space_uuid,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -277,6 +279,7 @@ export class DashboardModel {
                     firstName: first_name,
                     lastName: last_name,
                 },
+                spaceUuid: space_uuid,
             }),
         );
     }

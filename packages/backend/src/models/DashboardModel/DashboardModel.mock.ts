@@ -272,6 +272,7 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
             lastName: 'lastName',
             userUuid: 'userUuid',
         },
+        spaceUuid: 'spaceUuid',
     },
 ];
 

@@ -183,7 +183,12 @@ export type UpdateSavedChart = Pick<
 
 export type SpaceQuery = Pick<
     SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'updatedByUser' | 'description'
+    | 'uuid'
+    | 'name'
+    | 'updatedAt'
+    | 'updatedByUser'
+    | 'description'
+    | 'spaceUuid'
 >;
 
 export const isCompleteLayout = (
