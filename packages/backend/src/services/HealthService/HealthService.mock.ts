@@ -39,5 +39,8 @@ export const Config = {
             oauth2ClientSecret: '',
             callbackPath: '',
         },
+        okta: {
+            loginPath: '',
+        },
     },
 } as LightdashConfig;
