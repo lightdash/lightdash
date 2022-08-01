@@ -219,14 +219,17 @@ export const oktaPassportStrategy = !(
                           message: 'Could not parse authentication token',
                       });
                   }
+                  const [firstName, lastName] = (
+                      profile.display_name || ''
+                  ).split();
                   console.log(profile);
                   const openIdUser: OpenIdUser = {
                       openId: {
                           issuer,
                           email,
                           subject,
-                          firstName: profile.name?.givenName,
-                          lastName: profile.name?.familyName,
+                          firstName,
+                          lastName,
                       },
                   };
                   const user = await userService.loginWithOpenId(

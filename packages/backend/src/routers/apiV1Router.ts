@@ -89,7 +89,7 @@ apiV1Router.get(
     lightdashConfig.auth.okta.loginPath,
     storeOIDCRedirect,
     passport.authenticate('okta', {
-        scope: ['openid', 'email', 'profile'],
+        scope: ['openid', 'profile', 'email'],
     }),
 );
 
