@@ -1,7 +1,8 @@
 import { Button } from '@blueprintjs/core';
+import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode, Space } from '@lightdash/common';
 import React from 'react';
-import { Redirect, useParams } from 'react-router-dom';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import {
     useCreateMutation,
     useDeleteMutation,
@@ -12,7 +13,6 @@ import ActionCardList from '../common/ActionCardList';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
 import { SpacePanelWrapper, Title } from './SpacePanel.styles';
-
 interface Props {
     space: Space;
 }
@@ -29,7 +29,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
         mutate: createDashboard,
         isSuccess: hasCreatedDashboard,
     } = useCreateMutation(projectUuid);
-
+    const history = useHistory();
     const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
 
@@ -44,6 +44,20 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
     return (
         <SpacePanelWrapper>
+            <Breadcrumbs2
+                items={[
+                    {
+                        href: '/home',
+                        text: 'Home',
+                        className: 'home-breadcrumb',
+                        onClick: (e) => {
+                            e.preventDefault();
+                            history.push('/home');
+                        },
+                    },
+                    { text: space.name, disabled: true },
+                ]}
+            />
             <Title>{space.name}</Title>
 
             <ActionCardList

@@ -1,4 +1,4 @@
-import { H3 } from '@blueprintjs/core';
+import { Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const Title = styled(H3)`
@@ -8,5 +8,9 @@ export const Title = styled(H3)`
 export const SpacePanelWrapper = styled.div`
     .bp4-card:last-child {
         margin-top: 20px;
+    }
+
+    .home-breadcrumb {
+        color: ${Colors.BLUE3};
     }
 `;
