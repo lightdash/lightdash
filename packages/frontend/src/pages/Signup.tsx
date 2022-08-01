@@ -9,7 +9,10 @@ import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
@@ -132,6 +135,44 @@ const Signup: FC = () => {
         return <Redirect to={{ pathname: '/' }} />;
     }
 
+    const signIns = [];
+    if (health.data?.auth.google.oauth2ClientId) {
+        signIns.push(<GoogleLoginButton inviteCode={inviteCode} />);
+    }
+    if (health.data?.auth.okta.enabled) {
+        signIns.push(<OktaLoginButton inviteCode={inviteCode} />);
+    }
+    if (allowPasswordAuthentication) {
+        signIns.push(
+            <CreateUserForm
+                isLoading={isLoading}
+                readOnlyEmail={inviteLinkQuery.data?.email}
+                onSubmit={(data: CreateUserArgs) => {
+                    mutate({
+                        inviteCode,
+                        ...data,
+                    });
+                }}
+            />,
+        );
+    }
+
+    const allSignIns = signIns.reduce((acc, curr) => {
+        return acc === null ? (
+            curr
+        ) : (
+            <>
+                {acc}
+                <DividerWrapper>
+                    <Divider></Divider>
+                    <b>OR</b>
+                    <Divider></Divider>
+                </DividerWrapper>
+                {curr}
+            </>
+        );
+    });
+
     return (
         <Page isFullHeight>
             <FormWrapper>
@@ -150,30 +191,7 @@ const Signup: FC = () => {
                     <>
                         <CardWrapper elevation={2}>
                             <Title>Create your account</Title>
-                            {health.data?.auth.google.oauth2ClientId && (
-                                <>
-                                    <GoogleLoginButton
-                                        inviteCode={inviteCode}
-                                    />
-                                    <DividerWrapper>
-                                        <Divider></Divider>
-                                        <b>OR</b>
-                                        <Divider></Divider>
-                                    </DividerWrapper>
-                                </>
-                            )}
-                            {allowPasswordAuthentication && (
-                                <CreateUserForm
-                                    isLoading={isLoading}
-                                    readOnlyEmail={inviteLinkQuery.data?.email}
-                                    onSubmit={(data: CreateUserArgs) => {
-                                        mutate({
-                                            inviteCode,
-                                            ...data,
-                                        });
-                                    }}
-                                />
-                            )}
+                            {allSignIns}
                         </CardWrapper>
                         <FormFooterCopy>
                             By creating an account, you agree to our{' '}

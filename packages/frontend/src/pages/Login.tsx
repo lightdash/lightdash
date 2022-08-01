@@ -108,6 +108,68 @@ const Login: FC = () => {
         return <Redirect to={{ pathname: '/' }} />;
     }
 
+    const signIns = [];
+    if (health.data?.auth.google.oauth2ClientId) {
+        signIns.push(<GoogleLoginButton />);
+    }
+
+    if (health.data?.auth.okta.enabled) {
+        signIns.push(<OktaLoginButton />);
+    }
+
+    if (allowPasswordAuthentication) {
+        signIns.push(
+            <Form name="login" methods={methods} onSubmit={handleLogin}>
+                <InputField
+                    label="Email address"
+                    name="email"
+                    placeholder="d.attenborough@greenplanet.com"
+                    disabled={isLoading}
+                    rules={{
+                        required: 'Required field',
+                    }}
+                />
+                <PasswordInputField
+                    label="Password"
+                    name="password"
+                    placeholder="Enter a password"
+                    disabled={isLoading}
+                    rules={{
+                        required: 'Required field',
+                    }}
+                />
+                <SubmitButton
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    text="Sign in"
+                    loading={isLoading}
+                    data-cy="login-button"
+                />
+                <AnchorLinkWrapper>
+                    <AnchorLink href="/recover-password">
+                        Forgot your password ?
+                    </AnchorLink>
+                </AnchorLinkWrapper>
+            </Form>,
+        );
+    }
+
+    const allSignIns = signIns.reduce((acc, curr) => {
+        return acc === null ? (
+            curr
+        ) : (
+            <>
+                {acc}
+                <DividerWrapper>
+                    <Divider></Divider>
+                    <b>OR</b>
+                    <Divider></Divider>
+                </DividerWrapper>
+                ,{curr}
+            </>
+        );
+    });
+
     return (
         <Page isFullHeight>
             <FormWrapper>
@@ -116,64 +178,7 @@ const Login: FC = () => {
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Sign in</Title>
-                    {health.data?.auth.google.oauth2ClientId && (
-                        <>
-                            <GoogleLoginButton />
-                            <DividerWrapper>
-                                <Divider></Divider>
-                                <b>OR</b>
-                                <Divider></Divider>
-                            </DividerWrapper>
-                        </>
-                    )}
-                    {health.data?.auth.okta.enabled && (
-                        <>
-                            <OktaLoginButton />
-                            <DividerWrapper>
-                                <Divider></Divider>
-                                <b>OR</b>
-                                <Divider></Divider>
-                            </DividerWrapper>
-                        </>
-                    )}
-                    {allowPasswordAuthentication && (
-                        <Form
-                            name="login"
-                            methods={methods}
-                            onSubmit={handleLogin}
-                        >
-                            <InputField
-                                label="Email address"
-                                name="email"
-                                placeholder="d.attenborough@greenplanet.com"
-                                disabled={isLoading}
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                            />
-                            <PasswordInputField
-                                label="Password"
-                                name="password"
-                                placeholder="Enter a password"
-                                disabled={isLoading}
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                            />
-                            <SubmitButton
-                                type="submit"
-                                intent={Intent.PRIMARY}
-                                text="Sign in"
-                                loading={isLoading}
-                                data-cy="login-button"
-                            />
-                            <AnchorLinkWrapper>
-                                <AnchorLink href="/recover-password">
-                                    Forgot your password ?
-                                </AnchorLink>
-                            </AnchorLinkWrapper>
-                        </Form>
-                    )}
+                    {allSignIns}
                 </CardWrapper>
             </FormWrapper>
         </Page>
