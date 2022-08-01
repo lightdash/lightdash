@@ -120,7 +120,9 @@ describe('DashboardModel', () => {
         const projectUuid = 'project uuid';
         tracker.on
             .select(queryMatcher(DashboardsTableName, [projectUuid]))
-            .response([dashboardWithVersionEntry]);
+            .response([
+                { ...dashboardWithVersionEntry, space_uuid: 'spaceUuid' },
+            ]);
 
         const dashboard = await model.getAllByProject(projectUuid);
 
