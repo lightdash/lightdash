@@ -36,6 +36,14 @@ export const lightdashConfigMock: LightdashConfig = {
             loginPath: '',
             callbackPath: '',
         },
+        okta: {
+            loginPath: '',
+            callbackPath: '',
+            oauth2ClientSecret: undefined,
+            oauth2ClientId: undefined,
+            oauth2Issuer: undefined,
+            oktaDomain: undefined,
+        },
     },
     intercom: {
         appId: '',
