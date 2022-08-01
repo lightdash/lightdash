@@ -46,7 +46,7 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
     return (
         <LatestCard
             isLoading={dashboardsRequest.isLoading}
-            title="Last updated dashboards"
+            title="Recently updated dashboards"
             headerAction={
                 dashboards.length > 0 ? (
                     <ViewAllDashboardsButton

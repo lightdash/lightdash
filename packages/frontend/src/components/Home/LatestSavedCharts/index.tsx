@@ -24,7 +24,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     return (
         <LatestCard
             isLoading={savedChartsRequest.isLoading}
-            title="Last updated charts"
+            title="Recently updated charts"
             headerAction={
                 savedCharts.length > 0 ? (
                     <ViewAllButton
