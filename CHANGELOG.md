@@ -1,3 +1,10 @@
+# [0.197.0](https://github.com/lightdash/lightdash/compare/0.196.0...0.197.0) (2022-08-01)
+
+
+### Features
+
+* submenu move to space ([#2810](https://github.com/lightdash/lightdash/issues/2810)) ([cedbf97](https://github.com/lightdash/lightdash/commit/cedbf9751b5b4d530c8d203a68fe32b31d9d8879))
+
 # [0.196.0](https://github.com/lightdash/lightdash/compare/0.195.0...0.196.0) (2022-08-01)
 
 
