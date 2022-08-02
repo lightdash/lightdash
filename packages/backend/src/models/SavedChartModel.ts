@@ -7,7 +7,6 @@ import {
     SavedChart,
     SessionUser,
     SortField,
-    Space,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -20,11 +19,7 @@ import {
     DbSavedChartTableCalculationInsert,
     SavedChartAdditionalMetricTableName,
 } from '../database/entities/savedCharts';
-import {
-    getSpace,
-    getSpaceId,
-    getSpaceWithQueries,
-} from '../database/entities/spaces';
+import { getSpace, getSpaceId } from '../database/entities/spaces';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -207,12 +202,6 @@ export class SavedChartModel {
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    async getAllSpaces(projectUuid: string): Promise<Space[]> {
-        const space = await getSpaceWithQueries(projectUuid);
-        return [space];
     }
 
     async create(

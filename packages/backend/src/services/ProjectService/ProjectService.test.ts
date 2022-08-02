@@ -11,6 +11,7 @@ import {
     onboardingModel,
     projectModel,
     savedChartModel,
+    spaceModel,
 } from '../../models/models';
 import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
@@ -55,6 +56,9 @@ jest.mock('../../models/models', () => ({
     jobModel: {
         get: jest.fn(async () => job),
     },
+    spaceModel: {
+        getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+    },
 }));
 
 describe('ProjectService', () => {
@@ -67,6 +71,7 @@ describe('ProjectService', () => {
         emailClient: new EmailClient({
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
+        spaceModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

@@ -49,6 +49,7 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -60,6 +61,7 @@ type ProjectServiceDependencies = {
     savedChartModel: SavedChartModel;
     jobModel: JobModel;
     emailClient: EmailClient;
+    spaceModel: SpaceModel;
 };
 
 export class ProjectService {
@@ -75,12 +77,15 @@ export class ProjectService {
 
     emailClient: EmailClient;
 
+    spaceModel: SpaceModel;
+
     constructor({
         projectModel,
         onboardingModel,
         savedChartModel,
         jobModel,
         emailClient,
+        spaceModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -88,6 +93,7 @@ export class ProjectService {
         this.savedChartModel = savedChartModel;
         this.jobModel = jobModel;
         this.emailClient = emailClient;
+        this.spaceModel = spaceModel;
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
@@ -933,7 +939,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         try {
-            const spaces = await this.savedChartModel.getAllSpaces(projectUuid);
+            const spaces = await this.spaceModel.getAllSpaces(projectUuid);
             return spaces.some((space) => space.queries.length > 0);
         } catch (e: any) {
             return false;
