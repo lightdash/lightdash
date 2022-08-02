@@ -1,3 +1,10 @@
+# [0.198.0](https://github.com/lightdash/lightdash/compare/0.197.2...0.198.0) (2022-08-02)
+
+
+### Features
+
+* add multiple charts and dashboards to space ([#2822](https://github.com/lightdash/lightdash/issues/2822)) ([70500e6](https://github.com/lightdash/lightdash/commit/70500e65e8503a65c3202d55e334fb8a73da1fa2))
+
 ## [0.197.2](https://github.com/lightdash/lightdash/compare/0.197.1...0.197.2) (2022-08-02)
 
 
