@@ -276,6 +276,8 @@ export const useDeleteMutation = () => {
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await queryClient.invalidateQueries('dashboards');
+            await queryClient.invalidateQueries('space');
+
             await queryClient.invalidateQueries('dashboards-containing-chart');
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,

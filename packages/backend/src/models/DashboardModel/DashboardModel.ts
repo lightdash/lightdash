@@ -8,6 +8,7 @@ import {
     NotFoundError,
     SessionUser,
     UnexpectedServerError,
+    UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -525,6 +526,44 @@ export class DashboardModel {
             })
             .where('dashboard_uuid', dashboardUuid);
         return this.getById(dashboardUuid);
+    }
+
+    async updateMultiple(
+        projectUuid: string,
+        dashboards: UpdateMultipleDashboards[],
+    ): Promise<Dashboard[]> {
+        await this.database.transaction(async (trx) => {
+            try {
+                await Promise.all(
+                    dashboards.map(async (dashboard) => {
+                        const withSpaceId = dashboard.spaceUuid
+                            ? {
+                                  space_id: await getSpaceId(
+                                      this.database,
+                                      dashboard.spaceUuid,
+                                  ),
+                              }
+                            : {};
+                        await trx(DashboardsTableName)
+                            .update({
+                                name: dashboard.name,
+                                description: dashboard.description,
+                                ...withSpaceId,
+                            })
+                            .where('dashboard_uuid', dashboard.uuid);
+                    }),
+                );
+            } catch (e) {
+                trx.rollback(e);
+                throw e;
+            }
+        });
+
+        return Promise.all(
+            dashboards.map(
+                async (dashboard) => this.getById(dashboard.uuid),
+            ),
+        );
     }
 
     async delete(dashboardUuid: string): Promise<Dashboard> {

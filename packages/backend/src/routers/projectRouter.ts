@@ -372,6 +372,23 @@ projectRouter.post(
     },
 );
 
+projectRouter.patch(
+    '/dashboards',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        dashboardService
+            .updateMultiple(req.user!, req.params.projectUuid, req.body)
+            .then((results) => {
+                res.status(201).json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.post(
     '/sqlQuery',
     isAuthenticated,

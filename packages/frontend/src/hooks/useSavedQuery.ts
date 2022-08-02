@@ -92,6 +92,8 @@ export const useDeleteMutation = () => {
         mutationKey: ['saved_query_create'],
         onSuccess: async () => {
             await queryClient.invalidateQueries('spaces');
+            await queryClient.invalidateQueries('space');
+
             showToastSuccess({
                 title: `Success! Chart was deleted.`,
             });
@@ -116,7 +118,7 @@ const updateMultipleSavedQuery = async (
     });
 };
 
-export const useMultipleUpdateMutation = (projectUuid: string) => {
+export const useUpdateMultipleMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useApp();
 
@@ -136,7 +138,7 @@ export const useMultipleUpdateMutation = (projectUuid: string) => {
                     );
                 });
                 showToastSuccess({
-                    title: `Success! Chart was updated.`,
+                    title: `Success! Charts were updated.`,
                 });
             },
             onError: (error) => {

@@ -133,18 +133,19 @@ export class SavedChartService {
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
-        // TODO check permissions of all savedcharts
-        /* const { organizationUuid, projectUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+        const project = await this.projectModel.get(projectUuid);
 
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('SavedChart', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
-        } */
+        }
         const savedCharts = await this.savedChartModel.updateMultiple(data);
 
         return savedCharts;

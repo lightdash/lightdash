@@ -12,6 +12,8 @@ type SavedQueriesContentProps = {
     projectUuid: string;
     isChart?: boolean;
     headerAction?: ReactNode;
+    emptyBody?: ReactNode;
+    title?: string;
 };
 
 const SavedQueriesContent = ({
@@ -19,6 +21,8 @@ const SavedQueriesContent = ({
     projectUuid,
     isChart,
     headerAction,
+    emptyBody,
+    title,
 }: SavedQueriesContentProps) => {
     const orderedCharts = savedQueries.sort(
         (a, b) =>
@@ -26,7 +30,7 @@ const SavedQueriesContent = ({
     );
     return (
         <ActionCardList
-            title="Saved charts"
+            title={title ? title : 'Saved charts'}
             useUpdate={useUpdateMutation}
             useDelete={useDeleteMutation()}
             dataList={orderedCharts}
@@ -37,6 +41,7 @@ const SavedQueriesContent = ({
             ModalContent={SavedQueryForm}
             isChart={isChart}
             headerAction={headerAction}
+            emptyBody={emptyBody}
         />
     );
 };

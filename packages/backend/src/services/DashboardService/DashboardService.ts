@@ -9,6 +9,7 @@ import {
     isDashboardVersionedFields,
     SessionUser,
     UpdateDashboard,
+    UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
@@ -209,6 +210,31 @@ export class DashboardService {
             });
         }
         return this.getById(user, dashboardUuid);
+    }
+
+    async updateMultiple(
+        user: SessionUser,
+        projectUuid: string,
+        dashboards: UpdateMultipleDashboards[],
+    ): Promise<Dashboard[]> {
+        const space = await getSpace(database, projectUuid);
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', {
+                    organizationUuid: space.organization_uuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.dashboardModel.updateMultiple(
+            projectUuid,
+            dashboards,
+        );
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {

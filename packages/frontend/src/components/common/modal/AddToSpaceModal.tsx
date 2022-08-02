@@ -7,12 +7,18 @@ import {
 } from '@blueprintjs/core';
 import React, { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { useParams } from 'react-router-dom';
-import { useDashboards } from '../../../hooks/dashboard/useDashboards';
-import { useMultipleUpdateMutation } from '../../../hooks/useSavedQuery';
+import { Redirect, useParams } from 'react-router-dom';
+import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import {
+    useDashboards,
+    useUpdateMultipleDashboard,
+} from '../../../hooks/dashboard/useDashboards';
+import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSavedCharts, useSpace } from '../../../hooks/useSpaces';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
+import { DEFAULT_DASHBOARD_NAME } from '../../SpacePanel';
+import { CreateNewText } from './AddToSpaceModal.style';
 
 interface Props {
     isOpen: boolean;
@@ -31,22 +37,28 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
     }>();
 
     const { data: space } = useSpace(projectUuid, spaceUuid);
-    /* const selectItems: any[] = []
-    const isLoading = false 
-    const isSaving = false*/
 
-    const { mutate: chartMutation } = useMultipleUpdateMutation(projectUuid);
+    const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid);
+    const { mutate: dashboardMutation } =
+        useUpdateMultipleDashboard(projectUuid);
 
-    //TODO reset on close
     const methods = useForm<AddItemForm>({
         mode: 'onSubmit',
     });
 
-    // const { data: spaces, isLoading: isLoadingSpace } = useSpaces(projectUuid);
-
     const { data: savedCharts, isLoading } = useSavedCharts(projectUuid);
     const { data: dashboards } = useDashboards(projectUuid);
+    const {
+        isLoading: isCreatingDashboard,
+        isSuccess: hasCreatedDashboard,
+        mutate: createDashboard,
+        data: newDashboard,
+    } = useCreateMutation(projectUuid);
 
+    const closeModal = useCallback(() => {
+        methods.reset();
+        if (onClose) onClose();
+    }, [methods, onClose]);
     const handleSubmit = useCallback(
         (formData: AddItemForm) => {
             if (isChart && savedCharts && formData.items) {
@@ -63,8 +75,31 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
 
                 chartMutation(selectedCharts);
             }
+            if (!isChart && dashboards && formData.items) {
+                const selectedDashboards = formData.items.map((item) => {
+                    const dashboard = dashboards.find(
+                        (dash) => dash.uuid === item.value,
+                    );
+                    return {
+                        uuid: item.value,
+                        name: dashboard?.name || '',
+                        spaceUuid,
+                    };
+                });
+                dashboardMutation(selectedDashboards);
+            }
+
+            closeModal();
         },
-        [chartMutation, savedCharts, isChart, spaceUuid],
+        [
+            chartMutation,
+            savedCharts,
+            isChart,
+            spaceUuid,
+            dashboardMutation,
+            dashboards,
+            closeModal,
+        ],
     );
     const allItems = isChart === true ? savedCharts : dashboards;
 
@@ -81,58 +116,18 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
             };
         },
     );
-    /*
-
-    const { data: savedChart, isLoading: isLoadingChart } = useSavedQuery(
-        isChart ? { id: uuid } : undefined,
-    );
-    const { data: dashboard, isLoading: isLoadingDashboard } =
-        useDashboardQuery(!isChart ? uuid : undefined);
-
-    const selectedItem: SavedChart | Dashboard | undefined = isChart
-        ? savedChart
-        : dashboard;
-    const defaultSelectedSpaceUuid = selectedItem && selectedItem.spaceUuid;
-    const isLoading = isLoadingSpace || isLoadingChart || isLoadingDashboard;
-    const { mutate: chartMutation, isLoading: isSavingChart } =
-        useUpdateMutation(uuid);
-    const { mutate: dashboardMutation, isLoading: isSavingDashboard } =
-        useUpdateDashboard(uuid);
-
-    const isSaving = isSavingChart || isSavingDashboard;
-    const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<
-        string | undefined
-    >(defaultSelectedSpaceUuid);
-
-    useEffect(() => {
-        if (defaultSelectedSpaceUuid) {
-            setSelectedSpaceUuid(defaultSelectedSpaceUuid);
-        }
-    }, [defaultSelectedSpaceUuid, setSelectedSpaceUuid]);
-
-    const handleSubmit = useCallback(() => {
-        if (selectedItem && selectedSpaceUuid) {
-            const data = {
-                name: selectedItem.name,
-                spaceUuid: selectedSpaceUuid,
-            };
-            if (isChart) chartMutation(data);
-            else dashboardMutation(data);
-            if (onClose) onClose();
-        }
-    }, [
-        chartMutation,
-        dashboardMutation,
-        isChart,
-        onClose,
-        selectedSpaceUuid,
-        selectedItem,
-    ]);
-*/
+    if (hasCreatedDashboard && newDashboard) {
+        return (
+            <Redirect
+                push
+                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
+            />
+        );
+    }
     return (
         <Dialog
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={closeModal}
             lazy
             title={`Add ${isChart ? 'chart' : 'dashboard'} to space ${
                 space?.name
@@ -158,10 +153,24 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
                         disabled={isLoading}
                         defaultValue={[]}
                     />
+                    {!isChart && (
+                        <CreateNewText
+                            onClick={() => {
+                                createDashboard({
+                                    name: DEFAULT_DASHBOARD_NAME,
+                                    tiles: [],
+                                    spaceUuid,
+                                });
+                                closeModal();
+                            }}
+                        >
+                            + Create new dashboard
+                        </CreateNewText>
+                    )}
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button onClick={onClose}>Cancel</Button>
+                        <Button onClick={closeModal}>Cancel</Button>
                         <Button
                             intent={Intent.SUCCESS}
                             text={`Move ${isChart ? 'charts' : 'dashboards'}`}

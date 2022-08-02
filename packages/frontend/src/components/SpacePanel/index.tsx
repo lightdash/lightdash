@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Button, NonIdealState } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode, Space } from '@lightdash/common';
 import React, { useState } from 'react';
@@ -13,7 +13,13 @@ import ActionCardList from '../common/ActionCardList';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
-import { SpacePanelWrapper, Title } from './SpacePanel.styles';
+import {
+    EmptyStateIcon,
+    EmptyStateText,
+    EmptyStateWrapper,
+    SpacePanelWrapper,
+    Title,
+} from './SpacePanel.styles';
 interface Props {
     space: Space;
 }
@@ -64,7 +70,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             <Title>{space.name}</Title>
 
             <ActionCardList
-                title="Dashboards"
+                title={`Dashboards (${savedDashboards.length})`}
                 useUpdate={useUpdateDashboardName}
                 useDelete={useDelete}
                 dataList={savedDashboards}
@@ -84,9 +90,23 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         />
                     )
                 }
+                emptyBody={
+                    <NonIdealState
+                        description={
+                            <EmptyStateWrapper>
+                                <EmptyStateIcon icon="control" size={50} />
+                                <EmptyStateText>
+                                    You haven't added any dashboards into this
+                                    space yet
+                                </EmptyStateText>
+                            </EmptyStateWrapper>
+                        }
+                    />
+                }
             />
 
             <SavedQueriesContent
+                title={`Saved charts (${savedCharts.length})`}
                 savedQueries={savedCharts || []}
                 projectUuid={projectUuid}
                 isChart
@@ -100,6 +120,19 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             intent="primary"
                         />
                     )
+                }
+                emptyBody={
+                    <NonIdealState
+                        description={
+                            <EmptyStateWrapper>
+                                <EmptyStateIcon icon="chart" size={50} />
+                                <EmptyStateText>
+                                    You haven't added any charts into this space
+                                    yet
+                                </EmptyStateText>
+                            </EmptyStateWrapper>
+                        }
+                    />
                 }
             />
             <AddToSpaceModal

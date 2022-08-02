@@ -1,6 +1,11 @@
-import { ApiError, DashboardBasicDetails } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import {
+    ApiError,
+    DashboardBasicDetails,
+    UpdateMultipleDashboards,
+} from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
+import { useApp } from '../../providers/AppProvider';
 import useQueryError from '../useQueryError';
 
 const getDashboards = async (projectUuid: string) =>
@@ -40,4 +45,49 @@ export const useDashboardsContainingChart = (
         queryFn: () => getDashboardsContainingChart(projectUuid, chartId),
         onError: (result) => setErrorResponse(result),
     });
+};
+
+const updateMultipleDashboard = async (
+    projectUuid: string,
+    data: UpdateMultipleDashboards[],
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/dashboards`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateMultipleDashboard = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useApp();
+    return useMutation<undefined, ApiError, UpdateMultipleDashboards[]>(
+        (data) => updateMultipleDashboard(projectUuid, data),
+        {
+            mutationKey: ['dashboard_update_multiple'],
+            onSuccess: async (_, variables) => {
+                await queryClient.invalidateQueries(['space', projectUuid]);
+
+                await queryClient.invalidateQueries('dashboards');
+                await queryClient.invalidateQueries(
+                    'dashboards-containing-chart',
+                );
+
+                const invalidateQueries = variables.map((dashboard) => [
+                    'saved_dashboard_query',
+                    dashboard.uuid,
+                ]);
+                await queryClient.invalidateQueries(invalidateQueries);
+
+                showToastSuccess({
+                    title: `Success! Dashboards were updated.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update dashboard`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };
