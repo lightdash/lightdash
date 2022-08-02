@@ -7,8 +7,8 @@ import {
     SavedChart,
     SessionUser,
     SortField,
-    Space,
     UpdatedByUser,
+    UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -19,11 +19,7 @@ import {
     DbSavedChartTableCalculationInsert,
     SavedChartAdditionalMetricTableName,
 } from '../database/entities/savedCharts';
-import {
-    getSpace,
-    getSpaceId,
-    getSpaceWithQueries,
-} from '../database/entities/spaces';
+import { getSpace, getSpaceId } from '../database/entities/spaces';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -208,12 +204,6 @@ export class SavedChartModel {
         this.database = dependencies.database;
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    async getAllSpaces(projectUuid: string): Promise<Space[]> {
-        const space = await getSpaceWithQueries(projectUuid);
-        return [space];
-    }
-
     async create(
         projectUuid: string,
         {
@@ -296,6 +286,34 @@ export class SavedChartModel {
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);
+    }
+
+    async updateMultiple(
+        data: UpdateMultipleSavedChart[],
+    ): Promise<SavedChart[]> {
+        await this.database.transaction(async (trx) => {
+            try {
+                const promises = data.map(async (savedChart) =>
+                    trx('saved_queries')
+                        .update({
+                            name: savedChart.name,
+                            description: savedChart.description,
+                            space_id: await getSpaceId(
+                                trx,
+                                savedChart.spaceUuid,
+                            ),
+                        })
+                        .where('saved_query_uuid', savedChart.uuid),
+                );
+                await Promise.all(promises);
+            } catch (e) {
+                trx.rollback(e);
+                throw e;
+            }
+        });
+        return Promise.all(
+            data.map(async (savedChart) => this.get(savedChart.uuid)),
+        );
     }
 
     async delete(savedChartUuid: string): Promise<SavedChart> {

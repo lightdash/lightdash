@@ -33,6 +33,7 @@ type ActionCardListProps<T extends { uuid: string; name: string }> = {
     headerAction?: React.ReactNode;
     isChart?: boolean;
     isHomePage?: boolean;
+    emptyBody?: React.ReactNode;
 };
 
 const ActionCardList = <
@@ -53,6 +54,7 @@ const ActionCardList = <
     headerAction,
     isChart,
     isHomePage,
+    emptyBody,
 }: ActionCardListProps<T>) => {
     const [search, setSearch] = useState('');
     const [actionState, setActionState] = useState<{
@@ -200,18 +202,19 @@ const ActionCardList = <
                     />
                 )}
 
-            {dataList.length <= 0 && (
-                <NoIdealStateWrapper>
-                    {isChart ? (
-                        <EmptySavedChartsState />
-                    ) : (
-                        <NonIdealState
-                            title="No results available"
-                            icon="search"
-                        />
-                    )}
-                </NoIdealStateWrapper>
-            )}
+            {dataList.length === 0 &&
+                (emptyBody || (
+                    <NoIdealStateWrapper>
+                        {isChart ? (
+                            <EmptySavedChartsState />
+                        ) : (
+                            <NonIdealState
+                                title="No results available"
+                                icon="search"
+                            />
+                        )}
+                    </NoIdealStateWrapper>
+                ))}
         </ActionCardListWrapper>
     );
 };

@@ -1,5 +1,5 @@
 import { SpaceQuery } from '@lightdash/common';
-import React from 'react';
+import React, { ReactNode } from 'react';
 import {
     useDeleteMutation,
     useUpdateMutation,
@@ -10,12 +10,16 @@ import SavedQueryForm from './SavedQueryForm';
 type SavedQueriesContentProps = {
     savedQueries: SpaceQuery[];
     projectUuid: string;
+    headerAction?: ReactNode;
+    emptyBody?: ReactNode;
     title: string;
 };
 
 const SavedQueriesContent = ({
     savedQueries,
     projectUuid,
+    headerAction,
+    emptyBody,
     title,
 }: SavedQueriesContentProps) => {
     const orderedCharts = savedQueries.sort(
@@ -33,6 +37,8 @@ const SavedQueriesContent = ({
                 return `/projects/${projectUuid}/saved/${uuid}`;
             }}
             ModalContent={SavedQueryForm}
+            headerAction={headerAction}
+            emptyBody={emptyBody}
             isChart
         />
     );

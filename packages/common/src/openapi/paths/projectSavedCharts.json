@@ -60,5 +60,64 @@
                 "$ref": "../responses/ErrorResponse.json"
             }
         }
+    },
+    "patch": {
+        "summary": "Update multiple saved charts in project",
+        "tags": ["saved"],
+        "operationId": "patchSavedCharts",
+        "parameters": [
+            {
+                "in": "path",
+                "name": "projectUuid",
+                "schema": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "required": true
+            }
+        ],
+        "requestBody": {
+            "required": false,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "../schemas/SavedChart/UpdateMultipleSavedChart.json"
+                        }
+                    }
+                }
+            }
+        },
+        "responses": {
+            "200": {
+                "description": "Details for saved charts",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "../schemas/Success.json"
+                                },
+                                {
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "../schemas/SavedChart/SavedChart.json"
+                                            }
+                                        }
+                                    },
+                                    "required": ["results"]
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "default": {
+                "$ref": "../responses/ErrorResponse.json"
+            }
+        }
     }
 }

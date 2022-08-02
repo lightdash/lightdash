@@ -303,7 +303,24 @@ type ProjectSearch = BaseTrack & {
         fieldsResultsCount: number;
     };
 };
-
+type DashboardUpdateMultiple = BaseTrack & {
+    event: 'dashboard.updated_multiple';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        dashboardIds: string[];
+        projectId: string;
+    };
+};
+type SavedChartUpdateMultiple = BaseTrack & {
+    event: 'saved_chart.updated_multiple';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        savedChartIds: string[];
+        projectId: string;
+    };
+};
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -329,7 +346,9 @@ type Track =
     | ProjectSearch
     | SpaceCreated
     | SpaceUpdated
-    | SpaceDeleted;
+    | SpaceDeleted
+    | DashboardUpdateMultiple
+    | SavedChartUpdateMultiple;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

@@ -627,6 +627,7 @@ type ApiResults =
     | Organisation
     | LightdashUser
     | SavedChart
+    | SavedChart[]
     | Space[]
     | InviteLink
     | OrganizationProject[]

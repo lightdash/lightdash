@@ -1,4 +1,4 @@
-import { Colors, H3 } from '@blueprintjs/core';
+import { Colors, H3, H4, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const Title = styled(H3)`
@@ -19,4 +19,17 @@ export const SpacePanelWrapper = styled.div`
     h3 {
         font-size: 18px;
     }
+`;
+
+export const EmptyStateWrapper = styled.div`
+    max-width: 250px;
+`;
+
+export const EmptyStateIcon = styled(Icon)`
+    path {
+        fill: ${Colors.LIGHT_GRAY3};
+    }
+`;
+export const EmptyStateText = styled(H4)`
+    margin: 18px auto;
 `;

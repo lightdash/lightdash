@@ -196,6 +196,7 @@ export const useMoveDashboard = (uuid: string | undefined) => {
             mutationKey: ['dashboard_move'],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries(['space']);
+                await queryClient.invalidateQueries(['dashboards']);
                 queryClient.setQueryData(
                     ['saved_dashboard_query', data.uuid],
                     data,
@@ -322,6 +323,8 @@ export const useDeleteMutation = () => {
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await queryClient.invalidateQueries('dashboards');
+            await queryClient.invalidateQueries('space');
+
             await queryClient.invalidateQueries('dashboards-containing-chart');
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,

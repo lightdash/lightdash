@@ -111,6 +111,11 @@ export type UpdateDashboard =
     | DashboardVersionedFields
     | (DashboardUnversionedFields & DashboardVersionedFields);
 
+export type UpdateMultipleDashboards = Pick<
+    Dashboard,
+    'uuid' | 'name' | 'description' | 'spaceUuid'
+>;
+
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
 ): data is DashboardUnversionedFields =>

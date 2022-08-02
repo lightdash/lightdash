@@ -56,6 +56,7 @@ export const projectService = new ProjectService({
     savedChartModel,
     jobModel,
     emailClient,
+    spaceModel,
 });
 
 export const healthService = new HealthService({
