@@ -19,6 +19,9 @@ export async function down(knex: Knex): Promise<void> {
         });
     }
     if (await knex.schema.hasTable('openid_identities')) {
+        await knex('openid_identities')
+            .delete()
+            .whereNot('issuer', 'https://accounts.google.com');
         await knex.schema.alterTable('openid_identities', (tableBuilder) => {
             tableBuilder.dropPrimary();
         });
