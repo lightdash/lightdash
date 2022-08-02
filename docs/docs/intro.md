@@ -53,7 +53,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 ## 🔎 Finding + organizing things
 
-- [Using Spaces](/guides/using-spaces.mdx)
+- [Spaces](/guides/spaces.mdx)
 
 ## 👪 Users
 
