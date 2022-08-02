@@ -129,9 +129,7 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
             isOpen={isOpen}
             onClose={closeModal}
             lazy
-            title={`Add ${isChart ? 'chart' : 'dashboard'} to space ${
-                space?.name
-            }`}
+            title={`Add ${isChart ? 'chart' : 'dashboard'} to '${space?.name}'`}
         >
             <Form
                 name="add_items_to_space"
@@ -140,8 +138,8 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
-                        Select the {isChart ? 'charts' : 'dashboards'} you want
-                        to move into this space {space?.name}
+                        Select the {isChart ? 'charts' : 'dashboards'} that you
+                        would like to move into '{space?.name}'
                     </p>
 
                     <MultiSelect
