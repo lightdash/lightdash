@@ -181,7 +181,7 @@ module.exports = {
       items:[
         "guides/spaces",
       ]
-    }
+    },
     {
       type: "category",
       label: "👪 Users",
