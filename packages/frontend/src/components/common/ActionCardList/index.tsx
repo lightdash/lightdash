@@ -202,19 +202,19 @@ const ActionCardList = <
                     />
                 )}
 
-            {dataList.length === 0 && emptyBody !== undefined && emptyBody}
-            {dataList.length === 0 && !emptyBody && (
-                <NoIdealStateWrapper>
-                    {isChart ? (
-                        <EmptySavedChartsState />
-                    ) : (
-                        <NonIdealState
-                            title="No results available"
-                            icon="search"
-                        />
-                    )}
-                </NoIdealStateWrapper>
-            )}
+            {dataList.length === 0 &&
+                (emptyBody || (
+                    <NoIdealStateWrapper>
+                        {isChart ? (
+                            <EmptySavedChartsState />
+                        ) : (
+                            <NonIdealState
+                                title="No results available"
+                                icon="search"
+                            />
+                        )}
+                    </NoIdealStateWrapper>
+                ))}
         </ActionCardListWrapper>
     );
 };

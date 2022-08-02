@@ -380,7 +380,7 @@ projectRouter.patch(
         dashboardService
             .updateMultiple(req.user!, req.params.projectUuid, req.body)
             .then((results) => {
-                res.status(201).json({
+                res.json({
                     status: 'ok',
                     results,
                 });

@@ -6,4 +6,5 @@ export const CreateNewText = styled.p`
     color: ${Colors.BLUE3};
     cursor: pointer;
     margin-top: 1em;
+    width: fit-content;
 `;

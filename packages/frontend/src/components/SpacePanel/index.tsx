@@ -110,7 +110,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 savedQueries={savedCharts || []}
                 projectUuid={projectUuid}
                 headerAction={
-                    user.data?.ability?.can('manage', 'Dashboard') &&
+                    user.data?.ability?.can('manage', 'SavedChart') &&
                     !isDemo && (
                         <Button
                             text="Add"
