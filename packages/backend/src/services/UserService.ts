@@ -510,7 +510,9 @@ export class UserService {
             !lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers())
         ) {
-            throw new ForbiddenError('User already registered');
+            throw new ForbiddenError(
+                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
+            );
         }
         if (
             !isOpenIdUser(createUser) &&
