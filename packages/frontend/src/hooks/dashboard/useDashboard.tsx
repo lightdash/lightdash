@@ -196,6 +196,7 @@ export const useMoveDashboard = (uuid: string | undefined) => {
             mutationKey: ['dashboard_move'],
             onSuccess: async (data) => {
                 await queryClient.invalidateQueries(['space']);
+                await queryClient.invalidateQueries(['dashboards']);
                 queryClient.setQueryData(
                     ['saved_dashboard_query', data.uuid],
                     data,
