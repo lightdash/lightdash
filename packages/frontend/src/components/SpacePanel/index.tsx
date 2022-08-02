@@ -14,11 +14,11 @@ import AddToSpaceModal from '../common/modal/AddToSpaceModal';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
 import {
+    BreadcrumbsWrapper,
     EmptyStateIcon,
     EmptyStateText,
     EmptyStateWrapper,
     SpacePanelWrapper,
-    Title,
 } from './SpacePanel.styles';
 interface Props {
     space: Space;
@@ -53,21 +53,22 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
     return (
         <SpacePanelWrapper>
-            <Breadcrumbs2
-                items={[
-                    {
-                        href: '/home',
-                        text: 'Home',
-                        className: 'home-breadcrumb',
-                        onClick: (e) => {
-                            e.preventDefault();
-                            history.push('/home');
+            <BreadcrumbsWrapper>
+                <Breadcrumbs2
+                    items={[
+                        {
+                            href: '/home',
+                            text: 'Home',
+                            className: 'home-breadcrumb',
+                            onClick: (e) => {
+                                e.preventDefault();
+                                history.push('/home');
+                            },
                         },
-                    },
-                    { text: space.name, disabled: true, icon: 'folder-close' },
-                ]}
-            />
-            <Title>{space.name}</Title>
+                        { text: space.name },
+                    ]}
+                />
+            </BreadcrumbsWrapper>
 
             <ActionCardList
                 title={`Dashboards (${savedDashboards.length})`}
