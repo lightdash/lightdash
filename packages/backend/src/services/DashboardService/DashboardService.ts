@@ -230,7 +230,14 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
-
+        analytics.track({
+            event: 'dashboard.updated_multiple',
+            userId: user.userUuid,
+            properties: {
+                dashboardIds: dashboards.map((dashboard) => dashboard.uuid),
+                projectId: projectUuid,
+            },
+        });
         return this.dashboardModel.updateMultiple(projectUuid, dashboards);
     }
 

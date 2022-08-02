@@ -147,7 +147,14 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         const savedCharts = await this.savedChartModel.updateMultiple(data);
-
+        analytics.track({
+            event: 'saved_chart.updated_multiple',
+            userId: user.userUuid,
+            properties: {
+                savedChartIds: data.map((chart) => chart.uuid),
+                projectId: projectUuid,
+            },
+        });
         return savedCharts;
     }
 
