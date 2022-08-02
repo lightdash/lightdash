@@ -136,6 +136,7 @@ const COLUMN_WITH_CUSTOM_TIME_INTERVALS: Record<string, DbtModelColumn> = {
 };
 
 export const model: DbtModelNode = {
+    compiled: true,
     unique_id: 'unique_id',
     description: 'my fun table',
     resource_type: 'resource_type',

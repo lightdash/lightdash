@@ -29,6 +29,7 @@ export type DbtNode = {
     config?: DbtNodeConfig;
 };
 export type DbtRawModelNode = DbtNode & {
+    compiled?: boolean;
     columns: { [name: string]: DbtModelColumn };
     config?: { meta?: DbtModelMetadata; materialized?: string };
     meta: DbtModelMetadata;

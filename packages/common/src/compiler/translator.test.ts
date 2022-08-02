@@ -217,4 +217,13 @@ describe('convert tables from dbt models', () => {
             'Found multiple metrics and a dimensions with the same name: user_id,user_id2',
         );
     });
+    it('should throw an error when table is not compiled by dbt', async () => {
+        expect(() =>
+            convertTable(
+                SupportedDbtAdapter.BIGQUERY,
+                { ...model, compiled: false },
+                [],
+            ),
+        ).toThrowError('Model has not been compiled by dbt');
+    });
 });
