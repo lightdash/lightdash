@@ -356,7 +356,7 @@ export const getEchartsSeries = (
         });
 };
 
-const calculateWidthText = (text: string): number => {
+const calculateWidthText = (text: string | undefined): number => {
     if (!text) return 0;
 
     const span = document.createElement('span');
@@ -504,18 +504,24 @@ const getEchartAxis = ({
             (serie) => serie.yAxisIndex === 1,
         )?.encode.yRef.field || validCartesianConfig.layout?.yField?.[1];
 
-    const longestValueYAxisLeft =
+    const longestValueYAxisLeft: string | undefined =
         leftAxisYId &&
         resultsData?.rows
             .map((row) => row[leftAxisYId]?.value?.formatted)
-            .reduce((acc, p) => (p && acc.length > p.length ? acc : p));
+            .reduce<string>(
+                (acc, p) => (p && acc.length > p.length ? acc : p),
+                '',
+            );
     const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
 
-    const longestValueYAxisRight =
+    const longestValueYAxisRight: string | undefined =
         rightAxisYId &&
         resultsData?.rows
             .map((row) => row[rightAxisYId]?.value?.formatted)
-            .reduce((acc, p) => (p && acc.length > p.length ? acc : p));
+            .reduce<string>(
+                (acc, p) => (p && acc.length > p.length ? acc : p),
+                '',
+            );
     const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
 
     const rightAxisYField = rightAxisYId ? itemMap[rightAxisYId] : undefined;
