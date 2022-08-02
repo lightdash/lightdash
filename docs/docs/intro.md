@@ -51,6 +51,10 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 - [Limiting the data in your dashboard with filters](/guides/limiting-data-using-filters.md#adding-filters-to-your-dashboard)
 - [Interactive dashboards](/guides/interactive-dashboards.mdx)
 
+## 🔎 Finding + organizing things
+
+- [Spaces](/guides/spaces.mdx)
+
 ## 👪 Users
 
 - [Resetting your password](/guides/how-to-reset-your-password.md)

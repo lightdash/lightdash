@@ -177,6 +177,13 @@ module.exports = {
     },
     {
       type: "category",
+      label:"🔎 Finding + organizing things",
+      items:[
+        "guides/spaces",
+      ]
+    },
+    {
+      type: "category",
       label: "👪 Users",
       items: [
         "guides/how-to-reset-your-password",
