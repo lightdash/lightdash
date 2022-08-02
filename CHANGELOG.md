@@ -1,3 +1,10 @@
+## [0.197.2](https://github.com/lightdash/lightdash/compare/0.197.1...0.197.2) (2022-08-02)
+
+
+### Bug Fixes
+
+* reduce missing initial value ([#2828](https://github.com/lightdash/lightdash/issues/2828)) ([f2e8669](https://github.com/lightdash/lightdash/commit/f2e86695fbdfd8a28e6569529b4eeee5f8ce39ce))
+
 ## [0.197.1](https://github.com/lightdash/lightdash/compare/0.197.0...0.197.1) (2022-08-02)
 
 
