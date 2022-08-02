@@ -7,7 +7,11 @@ import {
     LineageGraph,
     SupportedDbtAdapter,
 } from '../types/dbt';
-import { MissingCatalogEntryError, ParseError } from '../types/errors';
+import {
+    MissingCatalogEntryError,
+    NonCompiledModelError,
+    ParseError,
+} from '../types/errors';
 import { Explore, ExploreError, Table } from '../types/explore';
 import {
     defaultSql,
@@ -173,6 +177,9 @@ export const convertTable = (
     model: DbtModelNode,
     dbtMetrics: DbtMetric[],
 ): Omit<Table, 'lineageGraph'> => {
+    if (!model.compiled) {
+        throw new NonCompiledModelError(`Model has not been compiled by dbt`);
+    }
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
     const tableLabel = meta.label || friendlyName(model.name);
     const [dimensions, metrics]: [

@@ -83,6 +83,17 @@ export class ParameterError extends LightdashError {
     }
 }
 
+export class NonCompiledModelError extends LightdashError {
+    constructor(message: string, data: { [key: string]: any } = {}) {
+        super({
+            message,
+            name: 'NonCompiledModelError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class MissingCatalogEntryError extends LightdashError {
     constructor(message: string, data: { [key: string]: any }) {
         super({
