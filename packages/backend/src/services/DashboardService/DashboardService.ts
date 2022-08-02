@@ -231,10 +231,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        return this.dashboardModel.updateMultiple(
-            projectUuid,
-            dashboards,
-        );
+        return this.dashboardModel.updateMultiple(projectUuid, dashboards);
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
