@@ -10,7 +10,7 @@ export const TableContainer = styled.div`
 `;
 export const TableScrollableWrapper = styled.div`
     overflow: auto;
-    min-height: 80px;
+    min-height: 90px;
 `;
 
 export const Table = styled(HTMLTable)`
