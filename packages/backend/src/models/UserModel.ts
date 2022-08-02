@@ -19,7 +19,6 @@ import {
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     createEmail,
@@ -142,10 +141,9 @@ export class UserModel {
             .insert<DbUserIn>(userIn)
             .returning('*');
         if (isOpenIdUser(createUser)) {
-            const issuer = new URL('/', createUser.openId.issuer).origin; // normalise issuer
             await trx(OpenIdIdentitiesTableName)
                 .insert({
-                    issuer,
+                    issuer: createUser.openId.issuer,
                     subject: createUser.openId.subject,
                     user_id: newUser.user_id,
                     email: createUser.openId.email,
@@ -420,11 +418,9 @@ export class UserModel {
                         ),
                     });
                 } else {
-                    const issuer = new URL('/', activateUser.openId.issuer)
-                        .origin; // normalise issuer
                     await trx(OpenIdIdentitiesTableName)
                         .insert({
-                            issuer,
+                            issuer: activateUser.openId.issuer,
                             subject: activateUser.openId.subject,
                             user_id: user.user_id,
                             email: activateUser.openId.email,
