@@ -58,6 +58,9 @@
         },
         "spaceUuid": {
             "type": "string"
+        },
+        "spaceName": {
+            "type": "string"
         }
     },
     "required": [
@@ -68,6 +71,8 @@
         "metricQuery",
         "chartConfig",
         "tableConfig",
-        "updatedAt"
+        "updatedAt",
+        "spaceUuid",
+        "spaceName"
     ]
 }

@@ -163,17 +163,29 @@ export type SavedChart = {
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
     organizationUuid: string;
-    spaceUuid?: string;
+    spaceUuid: string;
+    spaceName: string;
 };
 
 export type CreateSavedChart = Omit<
     SavedChart,
-    'uuid' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
->;
+    | 'uuid'
+    | 'updatedAt'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'spaceUuid'
+    | 'spaceName'
+> & { spaceUuid?: string };
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
-    'uuid' | 'name' | 'updatedAt' | 'projectUuid' | 'organizationUuid'
+    | 'uuid'
+    | 'name'
+    | 'updatedAt'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'spaceUuid'
+    | 'spaceName'
 >;
 
 export type UpdateSavedChart = Pick<
