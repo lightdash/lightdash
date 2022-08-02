@@ -307,7 +307,12 @@ export class DashboardModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .select<(GetDashboardQuery & { space_uuid: string })[]>([
+            .select<
+                (GetDashboardQuery & {
+                    space_uuid: string;
+                    spaceName: string;
+                })[]
+            >([
                 `${ProjectTableName}.project_uuid`,
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -317,6 +322,7 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.created_at`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.name as spaceName`,
             ])
             .where('dashboard_uuid', dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -477,6 +483,7 @@ export class DashboardModel {
                 metrics: [],
             },
             spaceUuid: dashboard.space_uuid,
+            spaceName: dashboard.spaceName,
         };
     }
 
@@ -560,9 +567,7 @@ export class DashboardModel {
         });
 
         return Promise.all(
-            dashboards.map(
-                async (dashboard) => this.getById(dashboard.uuid),
-            ),
+            dashboards.map(async (dashboard) => this.getById(dashboard.uuid)),
         );
     }
 

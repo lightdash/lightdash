@@ -109,7 +109,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 title={`Saved charts (${savedCharts.length})`}
                 savedQueries={savedCharts || []}
                 projectUuid={projectUuid}
-                isChart
                 headerAction={
                     user.data?.ability?.can('manage', 'Dashboard') &&
                     !isDemo && (

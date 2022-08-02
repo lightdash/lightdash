@@ -241,6 +241,7 @@ export const spacesWithSavedCharts: Space[] = [
                 uuid: 'savedChartUuid',
                 name: 'saved chart name',
                 updatedAt: new Date(),
+                spaceUuid: 'uuid',
             },
         ],
         projectUuid,

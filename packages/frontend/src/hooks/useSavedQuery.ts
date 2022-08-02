@@ -184,6 +184,50 @@ export const useUpdateMutation = (savedQueryUuid?: string) => {
     );
 };
 
+export const useMoveMutation = (savedQueryUuid?: string) => {
+    const history = useHistory();
+    const queryClient = useQueryClient();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { showToastSuccess, showToastError } = useApp();
+
+    return useMutation<
+        SavedChart,
+        ApiError,
+        Pick<SavedChart, 'name' | 'spaceUuid'>
+    >(
+        (data) => {
+            if (savedQueryUuid) {
+                return updateSavedQuery(savedQueryUuid, data);
+            }
+            throw new Error('Saved chart ID is undefined');
+        },
+        {
+            mutationKey: ['saved_query_move'],
+            onSuccess: async (data) => {
+                await queryClient.invalidateQueries('spaces');
+                queryClient.setQueryData(['saved_query', data.uuid], data);
+                showToastSuccess({
+                    title: `Chart has been moved to ${data.spaceName}`,
+                    action: {
+                        text: 'Go to space',
+                        icon: 'arrow-right',
+                        onClick: () =>
+                            history.push(
+                                `/projects/${projectUuid}/spaces/${data.spaceUuid}`,
+                            ),
+                    },
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to move chart`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
 export const useCreateMutation = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();

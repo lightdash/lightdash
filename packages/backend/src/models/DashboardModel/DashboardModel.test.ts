@@ -79,7 +79,11 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([
-                { ...dashboardWithVersionEntry, space_uuid: 'spaceUuid' },
+                {
+                    ...dashboardWithVersionEntry,
+                    space_uuid: 'spaceUuid',
+                    spaceName: 'space name',
+                },
             ]);
         tracker.on
             .select(

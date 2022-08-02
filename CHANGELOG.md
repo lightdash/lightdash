@@ -1,3 +1,10 @@
+## [0.197.1](https://github.com/lightdash/lightdash/compare/0.197.0...0.197.1) (2022-08-02)
+
+
+### Bug Fixes
+
+* move success message ([#2825](https://github.com/lightdash/lightdash/issues/2825)) ([3368529](https://github.com/lightdash/lightdash/commit/336852990efc2f36ce3fd21d3bc25a6e2a197c75))
+
 # [0.197.0](https://github.com/lightdash/lightdash/compare/0.196.0...0.197.0) (2022-08-01)
 
 
