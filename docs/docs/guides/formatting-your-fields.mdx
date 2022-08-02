@@ -59,8 +59,13 @@ models:
         dimension: 
           group_label: 'Product activity'
     - name: query_executed_num_total
+      meta:
         dimension:
           group_label: 'Product activity'
+        metrics:
+          sum_query_executed:
+            type: sum
+            group_label: 'Product activity'
 ```
 
 This group would appear in the sidebar of my `Users` table like this:
