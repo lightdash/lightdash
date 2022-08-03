@@ -83,7 +83,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     user.data?.ability?.can('manage', 'Dashboard') &&
                     !isDemo && (
                         <Button
-                            text="Add"
+                            text="Add dashboard"
                             loading={isCreatingDashboard}
                             onClick={() => setAddToSpace('dashboards')}
                             intent="primary"
@@ -96,9 +96,9 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             <EmptyStateWrapper>
                                 <EmptyStateIcon icon="control" size={50} />
                                 <EmptyStateText>
-                                    You haven't added any dashboards into this
-                                    space yet
+                                    No dashboards added yet
                                 </EmptyStateText>
+                                <p>Hit 'Add dashboard' to get started.</p>
                             </EmptyStateWrapper>
                         }
                     />
@@ -113,7 +113,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     user.data?.ability?.can('manage', 'SavedChart') &&
                     !isDemo && (
                         <Button
-                            text="Add"
+                            text="Add chart"
                             loading={isCreatingDashboard}
                             onClick={() => setAddToSpace('charts')}
                             intent="primary"
@@ -126,9 +126,9 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             <EmptyStateWrapper>
                                 <EmptyStateIcon icon="chart" size={50} />
                                 <EmptyStateText>
-                                    You haven't added any charts into this space
-                                    yet
+                                    No chart added yet
                                 </EmptyStateText>
+                                <p>Hit 'Add chart' to get started.</p>
                             </EmptyStateWrapper>
                         }
                     />
