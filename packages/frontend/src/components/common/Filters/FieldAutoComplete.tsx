@@ -1,5 +1,6 @@
 import { Icon, MenuItem } from '@blueprintjs/core';
-import { ItemRenderer, Suggest } from '@blueprintjs/select';
+import { MenuItem2 } from '@blueprintjs/popover2';
+import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     Field,
     getItemColor,
@@ -14,7 +15,7 @@ import { createGlobalStyle } from 'styled-components';
 
 type Item = Field | TableCalculation;
 
-const FieldSuggest = Suggest.ofType<Item>();
+const FieldSuggest = Suggest2.ofType<Item>();
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -28,7 +29,7 @@ const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
         return null;
     }
     return (
-        <MenuItem
+        <MenuItem2
             active={modifiers.active}
             key={getItemId(item)}
             icon={<Icon icon={getItemIcon(item)} color={getItemColor(item)} />}
@@ -90,6 +91,7 @@ const FieldAutoComplete: FC<Props> = ({
                 minimal: true,
                 onClosed,
                 popoverClassName: 'autocomplete-max-height',
+                captureDismiss: true,
             }}
             itemRenderer={renderItem}
             selectedItem={activeField}
