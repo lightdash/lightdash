@@ -45,7 +45,7 @@ code {
 /* multi select */
 .bp4-multi-select-popover .bp4-menu {
     max-height: 300px;
-    max-width: 400px;
+    max-width: 470px;
     overflow: auto;
 }
 
