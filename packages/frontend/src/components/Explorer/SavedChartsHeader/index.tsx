@@ -259,7 +259,7 @@ const SavedChartsHeader: FC = () => {
                                         }
                                     />
                                     <MenuItem
-                                        icon="control"
+                                        icon="folder-close"
                                         text="Move to space"
                                         onClick={(e) => {
                                             e.preventDefault();
