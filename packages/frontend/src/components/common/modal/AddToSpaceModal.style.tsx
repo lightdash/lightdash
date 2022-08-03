@@ -17,5 +17,6 @@ export const SpaceLabel = styled.div`
 
     .bp4-icon {
         margin-right: 6px;
+        margin-bottom: 2px;
     }
 `;

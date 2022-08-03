@@ -158,7 +158,6 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
                         Select the {isChart ? 'charts' : 'dashboards'} that you
                         would like to move into '{space?.name}'
                     </p>
-
                     <MultiSelect
                         name="items"
                         rules={{
