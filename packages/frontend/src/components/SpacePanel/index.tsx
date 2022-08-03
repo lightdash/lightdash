@@ -126,7 +126,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             <EmptyStateWrapper>
                                 <EmptyStateIcon icon="chart" size={50} />
                                 <EmptyStateText>
-                                    No chart added yet
+                                    No charts added yet
                                 </EmptyStateText>
                                 <p>Hit 'Add chart' to get started.</p>
                             </EmptyStateWrapper>
