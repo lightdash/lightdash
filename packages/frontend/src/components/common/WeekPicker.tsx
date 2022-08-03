@@ -101,7 +101,7 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
                 value={value.toUTCString()}
                 formatDate={formatDate}
                 parseDate={parseDate}
-                defaultValue={getWeekRange(new Date()).from}
+                defaultValue={getWeekRange(new Date()).from.toString()}
                 onChange={(pickedDate: string | null) => {
                     onChange(getWeekRange(new Date(pickedDate || value)).from);
                 }}
@@ -114,6 +114,7 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
                 }}
                 popoverProps={{
                     popoverClassName: 'WeekPicker',
+                    placement: 'bottom',
                 }}
             />
         </>

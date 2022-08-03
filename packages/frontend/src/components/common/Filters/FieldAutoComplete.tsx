@@ -1,4 +1,4 @@
-import { Icon, MenuItem } from '@blueprintjs/core';
+import { Icon } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
@@ -95,7 +95,7 @@ const FieldAutoComplete: FC<Props> = ({
             }}
             itemRenderer={renderItem}
             selectedItem={activeField}
-            noResults={<MenuItem disabled text="No results." />}
+            noResults={<MenuItem2 disabled text="No results." />}
             onItemSelect={onChange}
             itemPredicate={(
                 query: string,
