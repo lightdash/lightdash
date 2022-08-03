@@ -91,28 +91,32 @@ const getAxisType = ({
         bottomAxisXId ? itemMap[bottomAxisXId] : undefined,
     );
     // horizontal bar chart needs the type 'category' in the left/right axis
+    const defaultRightAxisType = getAxisTypeFromField(
+        rightAxisYId ? itemMap[rightAxisYId] : undefined,
+    );
     const rightAxisType =
         validCartesianConfig.layout.flipAxes &&
+        defaultRightAxisType === 'value' &&
         (
             validCartesianConfig.eChartsConfig.series?.find(
                 (serie) => serie.yAxisIndex === 1,
             ) || validCartesianConfig.eChartsConfig.series?.[0]
         )?.type === CartesianSeriesType.BAR
             ? 'category'
-            : getAxisTypeFromField(
-                  rightAxisYId ? itemMap[rightAxisYId] : undefined,
-              );
+            : defaultRightAxisType;
+    const defaultLeftAxisType = getAxisTypeFromField(
+        leftAxisYId ? itemMap[leftAxisYId] : undefined,
+    );
     const leftAxisType =
         validCartesianConfig.layout.flipAxes &&
+        defaultLeftAxisType === 'value' &&
         (
             validCartesianConfig.eChartsConfig.series?.find(
                 (serie) => serie.yAxisIndex === 0,
             ) || validCartesianConfig.eChartsConfig.series?.[0]
         )?.type === CartesianSeriesType.BAR
             ? 'category'
-            : getAxisTypeFromField(
-                  leftAxisYId ? itemMap[leftAxisYId] : undefined,
-              );
+            : defaultLeftAxisType;
 
     return {
         topAxisType,
