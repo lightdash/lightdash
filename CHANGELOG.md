@@ -1,3 +1,16 @@
+# [0.200.0](https://github.com/lightdash/lightdash/compare/0.199.0...0.200.0) (2022-08-03)
+
+
+### Bug Fixes
+
+* fix color shuffle on hidden series ([#2840](https://github.com/lightdash/lightdash/issues/2840)) ([f5b4248](https://github.com/lightdash/lightdash/commit/f5b42488e0ab574ec8e72432b193bc4cae500420))
+* fix column name header get cut off ([#2833](https://github.com/lightdash/lightdash/issues/2833)) ([3ff6d20](https://github.com/lightdash/lightdash/commit/3ff6d20c3d3159152c0bd0385c65facc23cff011))
+
+
+### Features
+
+* move chart to space on edit mode ([#2837](https://github.com/lightdash/lightdash/issues/2837)) ([2656494](https://github.com/lightdash/lightdash/commit/26564940c4eb3fc3ed5e2bf2b4b3a297042f4ece))
+
 # [0.199.0](https://github.com/lightdash/lightdash/compare/0.198.0...0.199.0) (2022-08-03)
 
 
