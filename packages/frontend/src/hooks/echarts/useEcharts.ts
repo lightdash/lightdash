@@ -43,8 +43,8 @@ const getLabelFromField = (
     }
 };
 
-const getAxisTypeFromField = (item?: Field): string => {
-    if (item) {
+const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
+    if (item && isField(item)) {
         switch (item.type) {
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
@@ -66,6 +66,60 @@ const getAxisTypeFromField = (item?: Field): string => {
     } else {
         return 'value';
     }
+};
+
+type GetAxisTypeArg = {
+    validCartesianConfig: CartesianChart;
+    itemMap: Record<string, Field | TableCalculation>;
+    topAxisXId?: string;
+    bottomAxisXId?: string;
+    rightAxisYId?: string;
+    leftAxisYId?: string;
+};
+const getAxisType = ({
+    validCartesianConfig,
+    itemMap,
+    topAxisXId,
+    bottomAxisXId,
+    rightAxisYId,
+    leftAxisYId,
+}: GetAxisTypeArg) => {
+    const topAxisType = getAxisTypeFromField(
+        topAxisXId ? itemMap[topAxisXId] : undefined,
+    );
+    const bottomAxisType = getAxisTypeFromField(
+        bottomAxisXId ? itemMap[bottomAxisXId] : undefined,
+    );
+    // horizontal bar chart needs the type 'category' in the left/right axis
+    const rightAxisType =
+        validCartesianConfig.layout.flipAxes &&
+        (
+            validCartesianConfig.eChartsConfig.series?.find(
+                (serie) => serie.yAxisIndex === 1,
+            ) || validCartesianConfig.eChartsConfig.series?.[0]
+        )?.type === CartesianSeriesType.BAR
+            ? 'category'
+            : getAxisTypeFromField(
+                  rightAxisYId ? itemMap[rightAxisYId] : undefined,
+              );
+    const leftAxisType =
+        validCartesianConfig.layout.flipAxes &&
+        (
+            validCartesianConfig.eChartsConfig.series?.find(
+                (serie) => serie.yAxisIndex === 0,
+            ) || validCartesianConfig.eChartsConfig.series?.[0]
+        )?.type === CartesianSeriesType.BAR
+            ? 'category'
+            : getAxisTypeFromField(
+                  leftAxisYId ? itemMap[leftAxisYId] : undefined,
+              );
+
+    return {
+        topAxisType,
+        bottomAxisType,
+        rightAxisType,
+        leftAxisType,
+    };
 };
 
 export const getAxisDefaultMinValue = ({
@@ -408,26 +462,6 @@ const getEchartAxis = ({
 
     const yAxisItem = yAxisItemId ? itemMap[yAxisItemId] : undefined;
 
-    const defaultXAxisType = getAxisTypeFromField(
-        isField(xAxisItem) ? xAxisItem : undefined,
-    );
-    const defaultYAxisType = getAxisTypeFromField(
-        isField(yAxisItem) ? yAxisItem : undefined,
-    );
-
-    let xAxisType;
-    let yAxisType;
-
-    if (validCartesianConfig.layout.flipAxes) {
-        xAxisType = defaultXAxisType;
-        yAxisType =
-            defaultYAxisType === 'value' ? 'category' : defaultYAxisType;
-    } else {
-        xAxisType =
-            defaultXAxisType === 'value' ? 'category' : defaultXAxisType;
-        yAxisType = defaultYAxisType;
-    }
-
     const selectedAxisInSeries = Array.from(
         new Set(
             series?.map(({ yAxisIndex, xAxisIndex }) =>
@@ -529,10 +563,20 @@ const getEchartAxis = ({
     const topAxisXField = topAxisXId ? itemMap[topAxisXId] : undefined;
     const bottomAxisXField = bottomAxisXId ? itemMap[bottomAxisXId] : undefined;
 
+    const { bottomAxisType, topAxisType, rightAxisType, leftAxisType } =
+        getAxisType({
+            validCartesianConfig,
+            itemMap,
+            topAxisXId,
+            bottomAxisXId,
+            leftAxisYId,
+            rightAxisYId,
+        });
+
     return {
         xAxis: [
             {
-                type: xAxisType,
+                type: bottomAxisType,
                 name: validCartesianConfig.layout.flipAxes
                     ? getAxisName({
                           isAxisTheSameForAllSeries,
@@ -566,7 +610,7 @@ const getEchartAxis = ({
                 },
             },
             {
-                type: xAxisType,
+                type: topAxisType,
                 name: validCartesianConfig.layout.flipAxes
                     ? getAxisName({
                           isAxisTheSameForAllSeries,
@@ -600,7 +644,7 @@ const getEchartAxis = ({
         ],
         yAxis: [
             {
-                type: yAxisType,
+                type: leftAxisType,
                 name: validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[0]?.name ||
                       (yAxisItem ? getItemLabel(yAxisItem) : undefined)
@@ -635,7 +679,7 @@ const getEchartAxis = ({
                 },
             },
             {
-                type: yAxisType,
+                type: rightAxisType,
                 name: validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[1]?.name
                     : getAxisName({
