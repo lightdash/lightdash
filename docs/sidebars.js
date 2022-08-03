@@ -179,6 +179,7 @@ module.exports = {
       type: "category",
       label:"🔎 Finding + organizing things",
       items:[
+        "guides/exploring-your-content",
         "guides/spaces",
       ]
     },
