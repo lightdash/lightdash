@@ -12,6 +12,7 @@ import {
     formatValue,
     friendlyName,
     getAxisName,
+    getDefaultSeriesColor,
     getFieldLabel,
     getFieldMap,
     getFields,
@@ -761,6 +762,22 @@ const useEcharts = () => {
             serie.type === 'bar' || !!serie.areaStyle ? serie.stack : undefined,
     }));
 
+    const allColors = organisationData?.chartColors || ECHARTS_DEFAULT_COLORS;
+    //Do not use colors from hidden series
+    const colors: string[] = validCartesianConfig.eChartsConfig.series
+        ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
+              (acc, serie, index) => {
+                  if (!serie.hidden)
+                      return [
+                          ...acc,
+                          allColors[index] || getDefaultSeriesColor(index),
+                      ];
+                  else return acc;
+              },
+              [],
+          )
+        : allColors;
+
     return {
         xAxis: axis.xAxis,
         yAxis: axis.yAxis,
@@ -788,7 +805,7 @@ const useEcharts = () => {
             ...defaultGrid,
             ...removeEmptyProperties(validCartesianConfig.eChartsConfig.grid),
         },
-        color: organisationData?.chartColors || ECHARTS_DEFAULT_COLORS,
+        color: colors,
     };
 };
 
