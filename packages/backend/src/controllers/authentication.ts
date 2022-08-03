@@ -166,6 +166,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                           subject,
                           firstName: profile.name?.givenName,
                           lastName: profile.name?.familyName,
+                          issuerType: 'google',
                       },
                   };
                   const user = await userService.loginWithOpenId(
@@ -236,6 +237,7 @@ export const oktaPassportStrategy = !(
                           subject,
                           firstName,
                           lastName,
+                          issuerType: 'okta',
                       },
                   };
                   const user = await userService.loginWithOpenId(

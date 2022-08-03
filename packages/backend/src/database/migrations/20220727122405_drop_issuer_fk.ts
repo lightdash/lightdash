@@ -4,6 +4,13 @@ export async function up(knex: Knex): Promise<void> {
     if (await knex.schema.hasTable('openid_identities')) {
         await knex.schema.alterTable('openid_identities', (tableBuilder) => {
             tableBuilder.dropForeign('issuer');
+            tableBuilder
+                .string('issuer_type')
+                .notNullable()
+                .defaultTo('google');
+        });
+        await knex.schema.alterTable('openid_identities', (tableBuilder) => {
+            tableBuilder.string('issuer_type').notNullable().alter(); // drop default
         });
     }
     await knex.schema.dropTableIfExists('openid_issuers');
@@ -24,6 +31,7 @@ export async function down(knex: Knex): Promise<void> {
             .whereNot('issuer', 'https://accounts.google.com');
         await knex.schema.alterTable('openid_identities', (tableBuilder) => {
             tableBuilder.dropPrimary();
+            tableBuilder.dropColumn('issuer_type');
         });
         await knex.schema.alterTable('openid_identities', (tableBuilder) => {
             tableBuilder

@@ -25,10 +25,7 @@ import {
     deleteEmail,
     EmailTableName,
 } from '../database/entities/emails';
-import {
-    DbOpenIdIssuer,
-    OpenIdIdentitiesTableName,
-} from '../database/entities/openIdIdentities';
+import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     createOrganization,
@@ -143,6 +140,7 @@ export class UserModel {
         if (isOpenIdUser(createUser)) {
             await trx(OpenIdIdentitiesTableName)
                 .insert({
+                    issuer_type: createUser.openId.issuerType,
                     issuer: createUser.openId.issuer,
                     subject: createUser.openId.subject,
                     user_id: newUser.user_id,
@@ -334,7 +332,7 @@ export class UserModel {
             )
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
-            .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
+            .select<DbUserDetails[]>('*');
         if (user === undefined) {
             return user;
         }
@@ -420,6 +418,7 @@ export class UserModel {
                 } else {
                     await trx(OpenIdIdentitiesTableName)
                         .insert({
+                            issuer_type: activateUser.openId.issuerType,
                             issuer: activateUser.openId.issuer,
                             subject: activateUser.openId.subject,
                             user_id: user.user_id,

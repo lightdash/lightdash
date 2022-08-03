@@ -24,12 +24,16 @@ const getIdentitiesQuery = async () =>
         body: undefined,
     });
 
-const renderIssuerUrl = (url: string): string => {
-    switch (url) {
-        case 'https://accounts.google.com':
+const renderIssuerType = (
+    issuerType: OpenIdIdentitySummary['issuerType'],
+): string => {
+    switch (issuerType) {
+        case 'google':
             return 'Google';
+        case 'okta':
+            return 'Okta';
         default:
-            return new URL(url).hostname;
+            return issuerType;
     }
 };
 
@@ -49,7 +53,7 @@ const SocialLoginsPanel: FC = () => {
                                 <Bold
                                     className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                                 >
-                                    {renderIssuerUrl(id.issuer)}
+                                    {renderIssuerType(id.issuerType)}
                                 </Bold>
                                 {id.email && <Tag minimal>{id.email}</Tag>}
                             </Text>

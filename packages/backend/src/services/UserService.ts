@@ -297,6 +297,7 @@ export class UserService {
                 issuer: openIdUser.openId.issuer,
                 subject: openIdUser.openId.subject,
                 email: openIdUser.openId.email,
+                issuerType: openIdUser.openId.issuerType,
             });
             analytics.track({
                 userId: sessionUser.userUuid,
