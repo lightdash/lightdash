@@ -18,7 +18,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <PasswordInput
                 name="dbt.personal_access_token"
                 label="Personal access token"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token-1"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                     validate: {
