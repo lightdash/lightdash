@@ -1,4 +1,4 @@
-import { Button, Colors, H3 } from '@blueprintjs/core';
+import { Button, Colors, H3, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -33,4 +33,28 @@ export const ChartName = styled(H3)`
 
 export const ButtonWithMarginLeft = styled(Button)`
     margin-left: 10px;
+`;
+
+export const Dot = styled(Icon)`
+    margin-left: 11px;
+    margin-right: 11px;
+    margin-top: 10px;
+    color: #75808f;
+`;
+
+export const SpaceName = styled.p`
+    color: #75808f;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 0.38em;
+    line-height: 14px;
+
+    .bp4-icon {
+        margin-right: 6px;
+        margin-bottom: 2px;
+    }
+`;
+export const ChartDetails = styled.div`
+    flex-direction: row;
+    display: flex;
 `;

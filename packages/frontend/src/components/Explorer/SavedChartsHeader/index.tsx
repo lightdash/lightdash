@@ -3,6 +3,7 @@ import {
     Button,
     Classes,
     Divider,
+    Icon,
     Intent,
     Menu,
     MenuItem,
@@ -10,10 +11,12 @@ import {
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import {
     useDuplicateMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
+import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -28,7 +31,10 @@ import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
 import {
     ButtonWithMarginLeft,
+    ChartDetails,
     ChartName,
+    Dot,
+    SpaceName,
     TitleWrapper,
     Wrapper,
 } from './SavedChartsHeader.styles';
@@ -58,8 +64,11 @@ const SavedChartsHeader: FC = () => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
     const { user } = useApp();
-
+    const { data: spaces } = useSpaces(projectUuid);
+    const { moveChart } = useMoveToSpace(true, savedChart);
     const updateSavedChart = useUpdateMutation(savedChart?.uuid);
+
+    const space = spaces?.find((s) => s.uuid === savedChart?.spaceUuid);
 
     const { mutate: duplicateChart } = useDuplicateMutation(
         savedChart?.uuid || '',
@@ -160,10 +169,24 @@ const SavedChartsHeader: FC = () => {
                                 />
                             </ChartName>
 
-                            <UpdatedInfo
-                                updatedAt={savedChart.updatedAt}
-                                user={savedChart.updatedByUser}
-                            />
+                            <ChartDetails>
+                                <UpdatedInfo
+                                    updatedAt={savedChart.updatedAt}
+                                    user={savedChart.updatedByUser}
+                                />
+                                {space && (
+                                    <>
+                                        <Dot icon="dot" size={6} />
+                                        <SpaceName>
+                                            <Icon
+                                                icon="folder-close"
+                                                size={10}
+                                            />
+                                            {space.name}
+                                        </SpaceName>
+                                    </>
+                                )}
+                            </ChartDetails>
                         </>
                     )}
                 </TitleWrapper>
@@ -235,7 +258,43 @@ const SavedChartsHeader: FC = () => {
                                             setIsAddToDashboardModalOpen(true)
                                         }
                                     />
-
+                                    <MenuItem
+                                        icon="folder-close"
+                                        text="Move to space"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                    >
+                                        {spaces?.map((spaceToMove) => {
+                                            return (
+                                                <MenuItem
+                                                    text={spaceToMove.name}
+                                                    className={
+                                                        savedChart?.spaceUuid ===
+                                                        spaceToMove.uuid
+                                                            ? 'bp4-disabled'
+                                                            : ''
+                                                    }
+                                                    onClick={(e) => {
+                                                        // Use className disabled instead of disabled property to capture and preventdefault its clicks
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (
+                                                            savedChart &&
+                                                            savedChart.spaceUuid !==
+                                                                spaceToMove.uuid
+                                                        )
+                                                            moveChart({
+                                                                name: savedChart.name,
+                                                                spaceUuid:
+                                                                    spaceToMove.uuid,
+                                                            });
+                                                    }}
+                                                />
+                                            );
+                                        })}
+                                    </MenuItem>
                                     <Divider />
                                     <MenuItem
                                         icon="trash"
