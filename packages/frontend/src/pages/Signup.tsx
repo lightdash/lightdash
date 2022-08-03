@@ -135,43 +135,44 @@ const Signup: FC = () => {
         return <Redirect to={{ pathname: '/' }} />;
     }
 
-    const signIns = [];
-    if (health.data?.auth.google.oauth2ClientId) {
-        signIns.push(<GoogleLoginButton inviteCode={inviteCode} />);
-    }
-    if (health.data?.auth.okta.enabled) {
-        signIns.push(<OktaLoginButton inviteCode={inviteCode} />);
-    }
-    if (allowPasswordAuthentication) {
-        signIns.push(
-            <CreateUserForm
-                isLoading={isLoading}
-                readOnlyEmail={inviteLinkQuery.data?.email}
-                onSubmit={(data: CreateUserArgs) => {
-                    mutate({
-                        inviteCode,
-                        ...data,
-                    });
-                }}
-            />,
-        );
-    }
-
-    const allSignIns = signIns.reduce((acc, curr) => {
-        return acc === null ? (
-            curr
-        ) : (
-            <>
-                {acc}
+    const ssoAvailable =
+        !!health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.okta.enabled;
+    const ssoLogins = ssoAvailable && (
+        <>
+            {health.data?.auth.google.oauth2ClientId && (
+                <GoogleLoginButton inviteCode={inviteCode} />
+            )}
+            {health.data?.auth.okta.enabled && (
+                <OktaLoginButton inviteCode={inviteCode} />
+            )}
+        </>
+    );
+    const passwordLogin = allowPasswordAuthentication && (
+        <CreateUserForm
+            isLoading={isLoading}
+            readOnlyEmail={inviteLinkQuery.data?.email}
+            onSubmit={(data: CreateUserArgs) => {
+                mutate({
+                    inviteCode,
+                    ...data,
+                });
+            }}
+        />
+    );
+    const logins = (
+        <>
+            {ssoLogins}
+            {ssoLogins && passwordLogin && (
                 <DividerWrapper>
-                    <Divider></Divider>
+                    <Divider />
                     <b>OR</b>
                     <Divider></Divider>
                 </DividerWrapper>
-                {curr}
-            </>
-        );
-    });
+            )}
+            {passwordLogin}
+        </>
+    );
 
     return (
         <Page isFullHeight>
@@ -191,7 +192,7 @@ const Signup: FC = () => {
                     <>
                         <CardWrapper elevation={2}>
                             <Title>Create your account</Title>
-                            {allSignIns}
+                            {logins}
                         </CardWrapper>
                         <FormFooterCopy>
                             By creating an account, you agree to our{' '}

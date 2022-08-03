@@ -62,39 +62,36 @@ const Register: FC = () => {
         return <PageSpinner />;
     }
 
-    const signIns = [];
-    if (health.data?.auth.google.oauth2ClientId) {
-        signIns.push(<GoogleLoginButton />);
-    }
-    if (health.data?.auth.okta.enabled) {
-        signIns.push(<OktaLoginButton />);
-    }
-
-    if (allowPasswordAuthentication) {
-        signIns.push(
-            <CreateUserForm
-                isLoading={isLoading}
-                onSubmit={(data: CreateUserArgs) => {
-                    mutate(data);
-                }}
-            />,
-        );
-    }
-    const allSignIns = signIns.reduce((acc, curr) => {
-        return acc === null ? (
-            curr
-        ) : (
-            <>
-                {acc}
+    const ssoAvailable =
+        !!health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.okta.enabled;
+    const ssoLogins = ssoAvailable && (
+        <>
+            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
+            {health.data?.auth.okta.enabled && <OktaLoginButton />}
+        </>
+    );
+    const passwordLogin = allowPasswordAuthentication && (
+        <CreateUserForm
+            isLoading={isLoading}
+            onSubmit={(data: CreateUserArgs) => {
+                mutate(data);
+            }}
+        />
+    );
+    const logins = (
+        <>
+            {ssoLogins}
+            {ssoLogins && passwordLogin && (
                 <DividerWrapper>
-                    <Divider></Divider>
+                    <Divider />
                     <b>OR</b>
-                    <Divider></Divider>
+                    <Divider />
                 </DividerWrapper>
-                {curr}
-            </>
-        );
-    });
+            )}
+            {passwordLogin}
+        </>
+    );
     return (
         <Page isFullHeight>
             <FormWrapper>
@@ -103,7 +100,7 @@ const Register: FC = () => {
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Create your account</Title>
-                    {allSignIns}
+                    {logins}
                 </CardWrapper>
                 <FormFooterCopy>
                     By creating an account, you agree to our{' '}
