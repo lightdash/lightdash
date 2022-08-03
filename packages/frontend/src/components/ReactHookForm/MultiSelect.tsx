@@ -14,6 +14,7 @@ type MultiselectItem =
           label: string;
           disabled?: boolean;
           title?: string;
+          subLabel?: JSX.Element;
       };
 type MultiselectItems =
     | Array<string>
@@ -22,6 +23,7 @@ type MultiselectItems =
           label: string;
           disabled?: boolean;
           title?: string;
+          subLabel?: JSX.Element;
       }>;
 
 function isItemMatch(value: MultiselectItem, other: MultiselectItem): boolean {
@@ -82,12 +84,22 @@ const ControlledMultiSelect: FC<{
         const disabled = typeof item === 'string' ? false : item.disabled;
         const title = typeof item === 'string' ? '' : item.title;
 
+        const text =
+            typeof item !== 'string' && item.subLabel ? (
+                <>
+                    {label}
+                    <br />
+                    {item.subLabel}
+                </>
+            ) : (
+                label
+            );
         return (
             <MenuItem
                 active={modifiers.active}
                 icon={isSelected ? 'tick' : 'blank'}
                 key={valueId}
-                text={label}
+                text={text}
                 onClick={handleClick}
                 shouldDismissPopover={false}
                 disabled={disabled}

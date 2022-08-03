@@ -2,6 +2,7 @@ import {
     Button,
     Classes,
     Dialog,
+    Icon,
     Intent,
     NonIdealState,
 } from '@blueprintjs/core';
@@ -14,11 +15,11 @@ import {
     useUpdateMultipleDashboard,
 } from '../../../hooks/dashboard/useDashboards';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
-import { useSavedCharts, useSpace } from '../../../hooks/useSpaces';
+import { useSavedCharts, useSpace, useSpaces } from '../../../hooks/useSpaces';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import { DEFAULT_DASHBOARD_NAME } from '../../SpacePanel';
-import { CreateNewText } from './AddToSpaceModal.style';
+import { CreateNewText, SpaceLabel } from './AddToSpaceModal.style';
 
 interface Props {
     isOpen: boolean;
@@ -37,6 +38,7 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
     }>();
 
     const { data: space } = useSpace(projectUuid, spaceUuid);
+    const { data: spaces } = useSpaces(projectUuid);
 
     const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid);
     const { mutate: dashboardMutation } =
@@ -109,10 +111,25 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
     const selectItems = allItems.map(
         ({ uuid: itemUuid, name, spaceUuid: itemSpaceUuid }) => {
             const alreadyAddedChart = spaceUuid === itemSpaceUuid;
+            const spaceName = spaces?.find(
+                (sp) => sp.uuid === itemSpaceUuid,
+            )?.name;
+            const subLabel = (
+                <SpaceLabel>
+                    <Icon size={12} icon="folder-close" />
+                    {spaceName}
+                </SpaceLabel>
+            );
             return {
                 value: itemUuid,
                 label: name,
                 disabled: alreadyAddedChart,
+                title: alreadyAddedChart
+                    ? `${
+                          isChart ? 'Chart' : 'Dashboard'
+                      } already added on this space ${spaceName}`
+                    : '',
+                subLabel: subLabel,
             };
         },
     );
