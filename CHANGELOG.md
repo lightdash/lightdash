@@ -1,3 +1,10 @@
+# [0.199.0](https://github.com/lightdash/lightdash/compare/0.198.0...0.199.0) (2022-08-03)
+
+
+### Features
+
+* add okta sso ([#2792](https://github.com/lightdash/lightdash/issues/2792)) ([ef8877e](https://github.com/lightdash/lightdash/commit/ef8877e578056e687a29a7ba8d3ba6028e72279e)), closes [#2283](https://github.com/lightdash/lightdash/issues/2283) [#2757](https://github.com/lightdash/lightdash/issues/2757)
+
 # [0.198.0](https://github.com/lightdash/lightdash/compare/0.197.2...0.198.0) (2022-08-02)
 
 
