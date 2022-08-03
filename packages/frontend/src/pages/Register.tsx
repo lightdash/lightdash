@@ -3,7 +3,10 @@ import React, { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
@@ -59,6 +62,36 @@ const Register: FC = () => {
         return <PageSpinner />;
     }
 
+    const ssoAvailable =
+        !!health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.okta.enabled;
+    const ssoLogins = ssoAvailable && (
+        <>
+            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
+            {health.data?.auth.okta.enabled && <OktaLoginButton />}
+        </>
+    );
+    const passwordLogin = allowPasswordAuthentication && (
+        <CreateUserForm
+            isLoading={isLoading}
+            onSubmit={(data: CreateUserArgs) => {
+                mutate(data);
+            }}
+        />
+    );
+    const logins = (
+        <>
+            {ssoLogins}
+            {ssoLogins && passwordLogin && (
+                <DividerWrapper>
+                    <Divider />
+                    <b>OR</b>
+                    <Divider />
+                </DividerWrapper>
+            )}
+            {passwordLogin}
+        </>
+    );
     return (
         <Page isFullHeight>
             <FormWrapper>
@@ -67,24 +100,7 @@ const Register: FC = () => {
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Create your account</Title>
-                    {health.data?.auth.google.oauth2ClientId && (
-                        <>
-                            <GoogleLoginButton />
-                            <DividerWrapper>
-                                <Divider></Divider>
-                                <b>OR</b>
-                                <Divider></Divider>
-                            </DividerWrapper>
-                        </>
-                    )}
-                    {allowPasswordAuthentication && (
-                        <CreateUserForm
-                            isLoading={isLoading}
-                            onSubmit={(data: CreateUserArgs) => {
-                                mutate(data);
-                            }}
-                        />
-                    )}
+                    {logins}
                 </CardWrapper>
                 <FormFooterCopy>
                     By creating an account, you agree to our{' '}

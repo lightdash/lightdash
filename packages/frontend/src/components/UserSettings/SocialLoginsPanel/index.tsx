@@ -4,7 +4,10 @@ import React, { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';
-import { GoogleLoginButton } from '../../common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../../common/GoogleLoginButton';
 import {
     Bold,
     CardContainer,
@@ -21,12 +24,16 @@ const getIdentitiesQuery = async () =>
         body: undefined,
     });
 
-const renderIssuerUrl = (url: string): string => {
-    switch (url) {
-        case 'https://accounts.google.com':
+const renderIssuerType = (
+    issuerType: OpenIdIdentitySummary['issuerType'],
+): string => {
+    switch (issuerType) {
+        case 'google':
             return 'Google';
+        case 'okta':
+            return 'Okta';
         default:
-            return 'unknown';
+            return issuerType;
     }
 };
 
@@ -46,7 +53,7 @@ const SocialLoginsPanel: FC = () => {
                                 <Bold
                                     className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                                 >
-                                    {renderIssuerUrl(id.issuer)}
+                                    {renderIssuerType(id.issuerType)}
                                 </Bold>
                                 {id.email && <Tag minimal>{id.email}</Tag>}
                             </Text>
@@ -69,6 +76,9 @@ const SocialLoginsPanel: FC = () => {
             <Title>Add social login</Title>
             <GoogleButtonWrapper>
                 <GoogleLoginButton />
+            </GoogleButtonWrapper>
+            <GoogleButtonWrapper>
+                <OktaLoginButton />
             </GoogleButtonWrapper>
         </div>
     );

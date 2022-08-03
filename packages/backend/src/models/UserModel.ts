@@ -19,17 +19,13 @@ import {
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     createEmail,
     deleteEmail,
     EmailTableName,
 } from '../database/entities/emails';
-import {
-    DbOpenIdIssuer,
-    OpenIdIdentitiesTableName,
-} from '../database/entities/openIdIdentities';
+import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     createOrganization,
@@ -142,10 +138,10 @@ export class UserModel {
             .insert<DbUserIn>(userIn)
             .returning('*');
         if (isOpenIdUser(createUser)) {
-            const issuer = new URL('/', createUser.openId.issuer).origin; // normalise issuer
             await trx(OpenIdIdentitiesTableName)
                 .insert({
-                    issuer,
+                    issuer_type: createUser.openId.issuerType,
+                    issuer: createUser.openId.issuer,
                     subject: createUser.openId.subject,
                     user_id: newUser.user_id,
                     email: createUser.openId.email,
@@ -336,7 +332,7 @@ export class UserModel {
             )
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
-            .select<(DbUserDetails & DbOpenIdIssuer)[]>('*');
+            .select<DbUserDetails[]>('*');
         if (user === undefined) {
             return user;
         }
@@ -420,11 +416,10 @@ export class UserModel {
                         ),
                     });
                 } else {
-                    const issuer = new URL('/', activateUser.openId.issuer)
-                        .origin; // normalise issuer
                     await trx(OpenIdIdentitiesTableName)
                         .insert({
-                            issuer,
+                            issuer_type: activateUser.openId.issuerType,
+                            issuer: activateUser.openId.issuer,
                             subject: activateUser.openId.subject,
                             user_id: user.user_id,
                             email: activateUser.openId.email,

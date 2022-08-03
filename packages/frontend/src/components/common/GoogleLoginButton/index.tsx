@@ -44,3 +44,43 @@ export const GoogleLoginButton: React.FC<{ inviteCode?: string }> = ({
         </GoogleLoginWrapper>
     );
 };
+
+export const OktaLoginButton: React.FC<{ inviteCode?: string }> = ({
+    inviteCode,
+}) => {
+    const { health, showToastError } = useApp();
+    const flashMessages = useFlashMessages();
+
+    if (!health.data?.auth.okta.enabled) {
+        return null;
+    }
+
+    // TODO: will this happen twice if two buttons mounted?
+    // use in app provider?
+    if (flashMessages.data?.error) {
+        showToastError({
+            title: 'Failed to authenticate',
+            subtitle: flashMessages.data.error.join('\n'),
+        });
+    }
+
+    return (
+        <GoogleLoginWrapper
+            href={`/api/v1${
+                health.data.auth.okta.loginPath
+            }?redirect=${encodeURIComponent(window.location.href)}${
+                inviteCode
+                    ? `&inviteCode=${encodeURIComponent(inviteCode)}`
+                    : ''
+            }`}
+        >
+            <LinkContent>
+                <GoogleLogo
+                    src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCI+PHBhdGggZD0iTTMyIDBDMTQuMzcgMCAwIDE0LjI2NyAwIDMyczE0LjI2OCAzMiAzMiAzMiAzMi0xNC4yNjggMzItMzJTNDkuNjMgMCAzMiAwem0wIDQ4Yy04Ljg2NiAwLTE2LTcuMTM0LTE2LTE2czcuMTM0LTE2IDE2LTE2IDE2IDcuMTM0IDE2IDE2LTcuMTM0IDE2LTE2IDE2eiIgZmlsbD0iIzAwN2RjMSIvPjwvc3ZnPg=="
+                    alt="Okta logo"
+                />
+                Sign in with Okta
+            </LinkContent>
+        </GoogleLoginWrapper>
+    );
+};

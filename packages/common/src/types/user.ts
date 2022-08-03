@@ -41,6 +41,7 @@ export interface OpenIdUser {
     openId: {
         subject: string;
         issuer: string;
+        issuerType: 'google' | 'okta';
         email: string;
         firstName: string | undefined;
         lastName: string | undefined;
@@ -56,4 +57,5 @@ export const isOpenIdUser = (user: any): user is OpenIdUser =>
     user.openId !== null &&
     typeof user.openId.subject === 'string' &&
     typeof user.openId.issuer === 'string' &&
-    typeof user.openId.email === 'string';
+    typeof user.openId.email === 'string' &&
+    typeof user.openId.issuerType === 'string';

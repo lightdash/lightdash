@@ -39,3 +39,17 @@ This is a reference to all the SMTP environment variables that can be used to co
 |`EMAIL_SMTP_SENDER_NAME` | The name of the email address that sends emails | | Lightdash |
 
 [1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided
+
+# SSO environment variables
+
+These variables enable you to control Single Sign On (SSO) functionality.
+
+| Variable                               | Description                                          | Required? | Default |
+|----------------------------------------|------------------------------------------------------|-----------|------|
+| `AUTH_DISABLE_PASSWORD_AUTHENTICATION` | If `"true"` disables signing in with plain passwords | | false |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_ID`         | Required for Google SSO                              | |      |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_SECRET`     | Required for Google SSO                              | |      |
+| `AUTH_OKTA_OAUTH2_CLIENT_ID`           | Required for Okta SSO                                | |      |
+| `AUTH_OKTA_OAUTH2_CLIENT_SECRET`       | Required for Okta SSO                                | |      |
+| `AUTH_OKTA_OAUTH2_ISSUER`              | Required for Okta SSO                                | |      |
+| `AUTH_OKTA_DOMAIN`                     | Required for Okta SSO                                | |      |

@@ -14,6 +14,10 @@ export const BaseResponse = {
             loginPath: '',
             oauth2ClientId: '',
         },
+        okta: {
+            enabled: false,
+            loginPath: '',
+        },
     },
     defaultProject: undefined,
     latest: { version: '0.2.7' },
@@ -34,6 +38,9 @@ export const Config = {
             oauth2ClientId: '',
             oauth2ClientSecret: '',
             callbackPath: '',
+        },
+        okta: {
+            loginPath: '',
         },
     },
 } as LightdashConfig;

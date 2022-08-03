@@ -297,6 +297,7 @@ export class UserService {
                 issuer: openIdUser.openId.issuer,
                 subject: openIdUser.openId.subject,
                 email: openIdUser.openId.email,
+                issuerType: openIdUser.openId.issuerType,
             });
             analytics.track({
                 userId: sessionUser.userUuid,
@@ -510,7 +511,9 @@ export class UserService {
             !lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers())
         ) {
-            throw new ForbiddenError('User already registered');
+            throw new ForbiddenError(
+                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
+            );
         }
         if (
             !isOpenIdUser(createUser) &&

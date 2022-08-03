@@ -8,7 +8,6 @@ import {
     UpdateOpenIdentity,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { URL } from 'url';
 import {
     DbOpenIdIdentity,
     OpenIdIdentitiesTableName,
@@ -31,6 +30,7 @@ export class OpenIdIdentityModel {
     ): OpenIdIdentity {
         return {
             issuer: identity.issuer,
+            issuerType: identity.issuer_type,
             subject: identity.subject,
             createdAt: identity.created_at,
             userId: identity.user_id,
@@ -80,6 +80,7 @@ export class OpenIdIdentityModel {
         return identities
             .map(OpenIdIdentityModel._parseDbIdentity)
             .map((id) => ({
+                issuerType: id.issuerType,
                 issuer: id.issuer,
                 email: id.email,
                 createdAt: id.createdAt,
@@ -89,10 +90,11 @@ export class OpenIdIdentityModel {
     async createIdentity(
         createIdentity: CreateOpenIdIdentity,
     ): Promise<OpenIdIdentity> {
-        const issuer = new URL('/', createIdentity.issuer).origin; // normalise issuer
+        const { issuer } = createIdentity;
         const [identity] = await this.database('openid_identities')
             .insert({
                 issuer,
+                issuer_type: createIdentity.issuerType,
                 subject: createIdentity.subject,
                 user_id: createIdentity.userId,
                 email: createIdentity.email,

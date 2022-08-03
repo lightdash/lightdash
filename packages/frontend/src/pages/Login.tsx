@@ -12,7 +12,10 @@ import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import AnchorLink from '../components/common/AnchorLink/index';
-import { GoogleLoginButton } from '../components/common/GoogleLoginButton';
+import {
+    GoogleLoginButton,
+    OktaLoginButton,
+} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -105,6 +108,64 @@ const Login: FC = () => {
         return <Redirect to={{ pathname: '/' }} />;
     }
 
+    const ssoAvailable =
+        !!health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.okta.enabled;
+    const ssoLogins = ssoAvailable && (
+        <>
+            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
+            {health.data?.auth.okta.enabled && <OktaLoginButton />}
+        </>
+    );
+    const passwordLogin = allowPasswordAuthentication && (
+        <Form name="login" methods={methods} onSubmit={handleLogin}>
+            <InputField
+                label="Email address"
+                name="email"
+                placeholder="d.attenborough@greenplanet.com"
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                }}
+            />
+            <PasswordInputField
+                label="Password"
+                name="password"
+                placeholder="Enter a password"
+                disabled={isLoading}
+                rules={{
+                    required: 'Required field',
+                }}
+            />
+            <SubmitButton
+                type="submit"
+                intent={Intent.PRIMARY}
+                text="Sign in"
+                loading={isLoading}
+                data-cy="login-button"
+            />
+            <AnchorLinkWrapper>
+                <AnchorLink href="/recover-password">
+                    Forgot your password ?
+                </AnchorLink>
+            </AnchorLinkWrapper>
+        </Form>
+    );
+
+    const logins = (
+        <>
+            {ssoLogins}
+            {ssoLogins && passwordLogin && (
+                <DividerWrapper>
+                    <Divider></Divider>
+                    <b>OR</b>
+                    <Divider></Divider>
+                </DividerWrapper>
+            )}
+            {passwordLogin}
+        </>
+    );
+
     return (
         <Page isFullHeight>
             <FormWrapper>
@@ -113,54 +174,7 @@ const Login: FC = () => {
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Sign in</Title>
-                    {health.data?.auth.google.oauth2ClientId && (
-                        <>
-                            <GoogleLoginButton />
-                            <DividerWrapper>
-                                <Divider></Divider>
-                                <b>OR</b>
-                                <Divider></Divider>
-                            </DividerWrapper>
-                        </>
-                    )}
-                    {allowPasswordAuthentication && (
-                        <Form
-                            name="login"
-                            methods={methods}
-                            onSubmit={handleLogin}
-                        >
-                            <InputField
-                                label="Email address"
-                                name="email"
-                                placeholder="d.attenborough@greenplanet.com"
-                                disabled={isLoading}
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                            />
-                            <PasswordInputField
-                                label="Password"
-                                name="password"
-                                placeholder="Enter a password"
-                                disabled={isLoading}
-                                rules={{
-                                    required: 'Required field',
-                                }}
-                            />
-                            <SubmitButton
-                                type="submit"
-                                intent={Intent.PRIMARY}
-                                text="Sign in"
-                                loading={isLoading}
-                                data-cy="login-button"
-                            />
-                            <AnchorLinkWrapper>
-                                <AnchorLink href="/recover-password">
-                                    Forgot your password ?
-                                </AnchorLink>
-                            </AnchorLinkWrapper>
-                        </Form>
-                    )}
+                    {logins}
                 </CardWrapper>
             </FormWrapper>
         </Page>

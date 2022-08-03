@@ -539,13 +539,14 @@ export type UpdateUserArgs = {
 export type CreateOpenIdIdentity = {
     subject: string;
     issuer: string;
+    issuerType: 'google' | 'okta';
     userId: number;
     email: string;
 };
 
 export type UpdateOpenIdentity = Pick<
     CreateOpenIdIdentity,
-    'subject' | 'issuer' | 'email'
+    'subject' | 'issuer' | 'email' | 'issuerType'
 >;
 
 export type OpenIdIdentity = CreateOpenIdIdentity & {
@@ -554,7 +555,7 @@ export type OpenIdIdentity = CreateOpenIdIdentity & {
 
 export type OpenIdIdentitySummary = Pick<
     OpenIdIdentity,
-    'issuer' | 'email' | 'createdAt'
+    'issuer' | 'email' | 'createdAt' | 'issuerType'
 >;
 
 export type DeleteOpenIdentity = Pick<
@@ -716,6 +717,10 @@ export type HealthState = {
         disablePasswordAuthentication: boolean;
         google: {
             oauth2ClientId: string | undefined;
+            loginPath: string;
+        };
+        okta: {
+            enabled: boolean;
             loginPath: string;
         };
     };

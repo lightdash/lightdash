@@ -2,9 +2,9 @@ import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
-    getGoogleLogin,
-    getGoogleLoginFailure,
-    getGoogleLoginSuccess,
+    redirectOIDCFailure,
+    redirectOIDCSuccess,
+    storeOIDCRedirect,
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { userModel } from '../models/models';
@@ -86,8 +86,25 @@ apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
 });
 
 apiV1Router.get(
+    lightdashConfig.auth.okta.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('okta', {
+        scope: ['openid', 'profile', 'email'],
+    }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.okta.callbackPath,
+    passport.authenticate('okta', {
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: '/api/v1/oauth/success',
+        failureFlash: true,
+    }),
+);
+
+apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
-    getGoogleLogin,
+    storeOIDCRedirect,
     passport.authenticate('google', {
         scope: ['profile', 'email'],
     }),
@@ -96,17 +113,17 @@ apiV1Router.get(
 apiV1Router.get(
     lightdashConfig.auth.google.callbackPath,
     passport.authenticate('google', {
-        failureRedirect: '/api/v1/oauth/google/failure',
-        successRedirect: '/api/v1/oauth/google/success',
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: '/api/v1/oauth/success',
         failureFlash: true,
     }),
 );
-apiV1Router.get('/oauth/google/failure', getGoogleLoginFailure);
-apiV1Router.get('/oauth/google/success', getGoogleLoginSuccess);
+apiV1Router.get('/oauth/failure', redirectOIDCFailure);
+apiV1Router.get('/oauth/success', redirectOIDCSuccess);
 
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout();
-    req.session.save((err) => {
+    req.session.destroy((err) => {
         if (err) {
             next(err);
         } else {
