@@ -144,9 +144,11 @@ export const renderDateFilterSql = (
                     completedDate,
                 )}'))`;
             }
-            return `(${dimensionSql}) >= ('${dateFormatter(
+            return `((${dimensionSql}) >= ('${dateFormatter(
                 moment().subtract(filter.values?.[0], unitOfTime).toDate(),
-            )}')`;
+            )}') AND (${dimensionSql}) < ('${formatTimestamp(
+                moment().toDate(),
+            )}'))`;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
