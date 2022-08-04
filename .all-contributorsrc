@@ -655,6 +655,15 @@
         "ideas",
         "bug"
       ]
+    },
+    {
+      "login": "toinbis",
+      "name": "Tomas Čerkasas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/68685?v=4",
+      "profile": "https://github.com/toinbis",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
