@@ -7,10 +7,10 @@ const HideTitleColumn = 'hide_title';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.table(DASHBOARD_TILE_LOOMS_TABLE, (table) => {
-        table.string(HideTitleColumn);
+        table.boolean(HideTitleColumn).notNullable().defaultTo(false);
     });
     await knex.schema.table(DASHBOARD_TILE_CHARTS_TABLE, (table) => {
-        table.string(HideTitleColumn);
+        table.boolean(HideTitleColumn).notNullable().defaultTo(false);
     });
 }
 
