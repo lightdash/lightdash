@@ -108,7 +108,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         parseDate={(value) =>
                             moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
                         }
-                        defaultValue={new Date()}
+                        defaultValue={new Date().toString()}
                         onChange={(value: string | null) => {
                             if (value) {
                                 onChange({
@@ -116,6 +116,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     values: [value],
                                 });
                             }
+                        }}
+                        popoverProps={{
+                            placement: 'bottom',
                         }}
                     />
                 );
@@ -132,7 +135,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         formatDate(moment(value).utc(true))
                     }
                     parseDate={parseDate}
-                    defaultValue={new Date()}
+                    defaultValue={new Date().toString()}
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
@@ -140,6 +143,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                 values: [moment(value).utc(true)],
                             });
                         }
+                    }}
+                    popoverProps={{
+                        placement: 'bottom',
                     }}
                 />
             );
