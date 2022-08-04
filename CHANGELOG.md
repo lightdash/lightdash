@@ -1,3 +1,16 @@
+# [0.201.0](https://github.com/lightdash/lightdash/compare/0.200.0...0.201.0) (2022-08-04)
+
+
+### Bug Fixes
+
+* both axis with continuous values ([#2850](https://github.com/lightdash/lightdash/issues/2850)) ([e3d0123](https://github.com/lightdash/lightdash/commit/e3d01230dbdc170794b1b307653ceb45eae0a500))
+* capture dismiss when selecting field in chart config ([#2851](https://github.com/lightdash/lightdash/issues/2851)) ([ecd74f9](https://github.com/lightdash/lightdash/commit/ecd74f9f6bf89dffe01b6b0515a1a75ea70e1fe7))
+
+
+### Features
+
+* show current space on multiselect add chart/dashboard ([#2847](https://github.com/lightdash/lightdash/issues/2847)) ([114e999](https://github.com/lightdash/lightdash/commit/114e999c909fa2040a80fded221ed3b7983cbe9e))
+
 # [0.200.0](https://github.com/lightdash/lightdash/compare/0.199.0...0.200.0) (2022-08-03)
 
 
