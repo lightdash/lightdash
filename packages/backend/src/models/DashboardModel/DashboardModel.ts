@@ -134,6 +134,7 @@ export class DashboardModel {
                                     dashboard_tile_uuid:
                                         insertedTile.dashboard_tile_uuid,
                                     saved_chart_id: savedChart.saved_query_id,
+                                    hide_title: tile.properties.hideTitle,
                                 });
                             }
                             break;
@@ -155,6 +156,7 @@ export class DashboardModel {
                                     insertedTile.dashboard_tile_uuid,
                                 title: tile.properties.title,
                                 url: tile.properties.url,
+                                hide_title: tile.properties.hideTitle,
                             });
                             break;
                         default: {
@@ -350,6 +352,8 @@ export class DashboardModel {
                     url: string | null;
                     markdownTitle: string | null;
                     content: string | null;
+                    loomHideTitle: boolean | false;
+                    chartHideTitle: boolean | false;
                 }[]
             >([
                 `${DashboardTilesTableName}.x_offset`,
@@ -363,6 +367,9 @@ export class DashboardModel {
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.title as markdownTitle`,
                 `${DashboardTileMarkdownsTableName}.content`,
+
+                `${DashboardTileLoomsTableName}.hide_title as loomHideTitle`,
+                `${DashboardTileChartTableName}.hide_title as chartHideTitle`,
             ])
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
@@ -430,6 +437,8 @@ export class DashboardModel {
                     url,
                     markdownTitle,
                     content,
+                    loomHideTitle,
+                    chartHideTitle,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -449,6 +458,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SAVED_CHART,
                                 properties: {
                                     savedChartUuid: saved_query_uuid,
+                                    hideTitle: chartHideTitle,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
@@ -467,6 +477,7 @@ export class DashboardModel {
                                 properties: {
                                     title: loomTitle || '',
                                     url: url || '',
+                                    hideTitle: loomHideTitle,
                                 },
                             };
                         default: {
