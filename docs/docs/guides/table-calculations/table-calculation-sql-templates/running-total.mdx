@@ -13,7 +13,7 @@ Here's an example of a running total:
 And here's the SQL used in the table calculation:
 
 ```sql
-SUM(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})
+SUM(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
 ```
 
 In general, the SQL used for calculating running totals has two bits (with an optional third bit):
@@ -29,6 +29,7 @@ SUM(${table.column_I_want_to_sum}) OVER(
   ORDER BY 
     ${table.column_I_want_to_order_by}, 
     ${table.optional_other_column_I_want_to_order_by}
+  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 )
 ```
 
@@ -45,6 +46,7 @@ SUM(${table.column_I_want_to_sum})
     ORDER BY 
       ${table.column_I_want_to_order_by} ASC, 
       ${table.optional_other_column_I_want_to_order_by} DESC
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 )
 ```
 
