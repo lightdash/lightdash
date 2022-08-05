@@ -1,3 +1,15 @@
+# [0.202.0](https://github.com/lightdash/lightdash/compare/0.201.0...0.202.0) (2022-08-05)
+
+
+### Bug Fixes
+
+* chart flicker ([#2860](https://github.com/lightdash/lightdash/issues/2860)) ([5369a5e](https://github.com/lightdash/lightdash/commit/5369a5e4e442a0a01be0045cd1bbbb401e32361d))
+
+
+### Features
+
+* hide title toggle on dashboards ([#2857](https://github.com/lightdash/lightdash/issues/2857)) ([7adbe14](https://github.com/lightdash/lightdash/commit/7adbe14bbddf39e807f381f3fe4e08e02dbeb378))
+
 # [0.201.0](https://github.com/lightdash/lightdash/compare/0.200.0...0.201.0) (2022-08-04)
 
 
