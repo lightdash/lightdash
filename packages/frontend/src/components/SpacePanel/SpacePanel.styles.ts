@@ -11,6 +11,13 @@ export const SpacePanelWrapper = styled.div`
     }
 `;
 
+export const SpacePanelHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 0px 31px 0px;
+`;
+
 export const BreadcrumbsWrapper = styled.div`
     .bp4-breadcrumb {
         font-size: 22px;
@@ -19,7 +26,6 @@ export const BreadcrumbsWrapper = styled.div`
     .home-breadcrumb {
         color: #5c7080;
     }
-    padding: 11px 0px 31px 0px;
 
     .bp4-breadcrumbs > li::after {
         margin-top: 5px;

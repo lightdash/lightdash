@@ -10,6 +10,7 @@ import {
 import { useApp } from '../../providers/AppProvider';
 import ActionCardList from '../common/ActionCardList';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
+import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
 import {
@@ -17,6 +18,7 @@ import {
     EmptyStateIcon,
     EmptyStateText,
     EmptyStateWrapper,
+    SpacePanelHeader,
     SpacePanelWrapper,
 } from './SpacePanel.styles';
 
@@ -35,25 +37,30 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const savedDashboards = space.dashboards;
 
     const [addToSpace, setAddToSpace] = useState<string>();
-
+    console.log('yo space panel', space);
     return (
         <SpacePanelWrapper>
-            <BreadcrumbsWrapper>
-                <Breadcrumbs2
-                    items={[
-                        {
-                            href: '/home',
-                            text: 'Home',
-                            className: 'home-breadcrumb',
-                            onClick: (e) => {
-                                e.preventDefault();
-                                history.push('/home');
+            <SpacePanelHeader>
+                <BreadcrumbsWrapper>
+                    <Breadcrumbs2
+                        items={[
+                            {
+                                href: '/home',
+                                text: 'Home',
+                                className: 'home-breadcrumb',
+                                onClick: (e) => {
+                                    e.preventDefault();
+                                    history.push('/home');
+                                },
                             },
-                        },
-                        { text: space.name },
-                    ]}
-                />
-            </BreadcrumbsWrapper>
+                            { text: space.name },
+                        ]}
+                    />
+                </BreadcrumbsWrapper>
+                <SpaceBrowserMenu spaceUuid={space.uuid}>
+                    <Button icon="edit" text="Edit space" />
+                </SpaceBrowserMenu>
+            </SpacePanelHeader>
 
             <ActionCardList
                 title={`Dashboards (${savedDashboards.length})`}

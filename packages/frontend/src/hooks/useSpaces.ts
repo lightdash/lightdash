@@ -1,5 +1,6 @@
 import { ApiError, CreateSpace, Space, UpdateSpace } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
 
@@ -43,6 +44,7 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
     });
 
 export const useDeleteMutation = (projectUuid: string) => {
+    const history = useHistory();
     const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
 
@@ -52,7 +54,9 @@ export const useDeleteMutation = (projectUuid: string) => {
             mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
-
+                history.push({
+                    pathname: `/projects/${projectUuid}/home`,
+                });
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
@@ -86,8 +90,12 @@ export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
         (data) => updateSpace(projectUuid, spaceUuid, data),
         {
             mutationKey: ['space_update', projectUuid],
-            onSuccess: async () => {
+            onSuccess: async (data) => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
+                queryClient.setQueryData(
+                    ['space', projectUuid, spaceUuid],
+                    data,
+                );
 
                 showToastSuccess({
                     title: `Success! Space was updated.`,
