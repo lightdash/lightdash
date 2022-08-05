@@ -112,9 +112,8 @@ const ModalActionButtons = ({
                             const isDisabled = data.spaceUuid === space.uuid;
                             return (
                                 <MenuItem
-                                    text={`${isDisabled ? '✓ ' : ''}${
-                                        space.name
-                                    }`}
+                                    text={space.name}
+                                    icon={isDisabled ? 'small-tick' : undefined}
                                     className={isDisabled ? 'bp4-disabled' : ''}
                                     onClick={(e) => {
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
