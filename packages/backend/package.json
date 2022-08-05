@@ -90,7 +90,7 @@
         "build": "tsc --build tsconfig.json",
         "postbuild": "copyfiles --error --up 1 src/**/*.html dist",
         "start": "node dist/index.js",
-        "test": "jest",
+        "test": "TZ=UTC jest",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
         "create-migration": "knex migrate:make --knexfile src/database/knexfile.ts",
