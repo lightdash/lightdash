@@ -13,7 +13,7 @@ export const DatabricksSchemaInput: FC<{
         <Input
             name="warehouse.database"
             label="Schema"
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#databricks"
+            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
             rules={{
                 required: 'Required field',
                 validate: {
@@ -36,7 +36,7 @@ const DatabricksForm: FC<{
             <Input
                 name="warehouse.serverHostName"
                 label="Server host name"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-host-name"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
                 rules={{
                     required: 'Required field',
                     validate: {
