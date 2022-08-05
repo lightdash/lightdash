@@ -92,7 +92,7 @@ const BigQueryForm: FC<{
                 <SelectField
                     name="warehouse.priority"
                     label="Priority"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#timeout-in-seconds"
+                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#priority"
                     options={[
                         {
                             value: 'interactive',

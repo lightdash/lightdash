@@ -44,7 +44,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.host"
                 label="Host"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#host"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#host"
                 rules={{
                     required: 'Required field',
                     validate: {

@@ -18,7 +18,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <PasswordInput
                 name="dbt.personal_access_token"
                 label="Personal access token"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token-1"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token-2"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -75,7 +75,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.host_domain"
                 label="Host domain (for self-hosted instances)"
-                documentationUrl="https://docs.lightdash.com"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#host-domain-1"
                 disabled={disabled}
                 defaultValue="gitlab.com"
                 rules={{
