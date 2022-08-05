@@ -1,3 +1,10 @@
+## [0.202.2](https://github.com/lightdash/lightdash/compare/0.202.1...0.202.2) (2022-08-05)
+
+
+### Bug Fixes
+
+* warehouse doc urls ([#2868](https://github.com/lightdash/lightdash/issues/2868)) ([5ecc577](https://github.com/lightdash/lightdash/commit/5ecc5770df7bfa60d168083542e69c88c01af13f))
+
 ## [0.202.1](https://github.com/lightdash/lightdash/compare/0.202.0...0.202.1) (2022-08-05)
 
 
