@@ -1,4 +1,5 @@
-import { Button, Colors, Icon, Text } from '@blueprintjs/core';
+import { Button, Colors, Icon, IconName, Text } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
 
@@ -6,31 +7,12 @@ export const SpaceBrowserWrapper = styled.div`
     margin-bottom: 40px;
 `;
 
-export const FolderWrapper = styled.div`
-    background: #4c90f01a;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-`;
-export const FolderIcon = styled(Icon)`
-    color: ${Colors.BLUE5} !important;
-    padding: 10px 2px;
-    width: 20px;
-    height: 16px;
-`;
-
 export const SpaceLinkButton = styled(LinkButton)`
-    padding: 15px;
-    height: 4.857em;
-    text-align: center;
-    align-items: center;
-    justify-content: center;
+    padding: 10px;
+
     .bp4-button-text {
         width: 100%;
-        display: flex;
-        align-items: center;
-        color: rgb(41, 55, 66);
-        font-weight: 600;
+        text-align: left;
     }
 `;
 
@@ -47,6 +29,45 @@ export const CreateNewButton = styled(Button)`
 `;
 
 export const SpaceTitle = styled(Text)`
-    text-align: center;
-    margin: auto;
+    font-weight: 600;
+    text-align: left;
+    margin-bottom: 5px;
 `;
+
+export const CountWrapper = styled.span`
+    display: flex;
+    align-items: center;
+`;
+
+export const CountIcon = styled(Icon)`
+    margin-right: 5px;
+`;
+
+export const CountText = styled(Text)`
+    color: ${Colors.GRAY3};
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 10px;
+`;
+
+export const SpaceHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+`;
+
+export const SpaceFooter = styled.div`
+    display: flex;
+`;
+
+export const SpaceItemCount: FC<{ icon: IconName; value: number }> = ({
+    icon,
+    value,
+}) => {
+    return (
+        <CountWrapper>
+            <CountIcon icon={icon} size={12} color={Colors.GRAY3} />
+            <CountText>{value}</CountText>
+        </CountWrapper>
+    );
+};
