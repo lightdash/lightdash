@@ -32,6 +32,7 @@ export type DashboardLoomTileProperties = {
     properties: {
         title: string;
         url: string;
+        hideTitle?: boolean;
     };
 };
 
@@ -39,6 +40,7 @@ export type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
         savedChartUuid: string | null;
+        hideTitle?: boolean;
     };
 };
 

@@ -50,6 +50,7 @@ type DbDashboardTileChart = {
     dashboard_version_id: number;
     dashboard_tile_uuid: string;
     saved_chart_id: number;
+    hide_title?: boolean;
 };
 
 export type DashboardTable = Knex.CompositeTableType<
@@ -80,6 +81,7 @@ type DbDashboardTileLooms = {
     dashboard_tile_uuid: string;
     title: string;
     url: string;
+    hide_title?: boolean;
 };
 
 export type DashboardTileLoomsTable =

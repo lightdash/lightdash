@@ -7,7 +7,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard } from '@lightdash/common';
+import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
 import { TileModal } from '../TileForms/TileModal';
 import {
@@ -46,18 +46,27 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
 
+    const hideTitle =
+        tile.type !== DashboardTileTypes.MARKDOWN
+            ? tile.properties.hideTitle
+            : false;
     return (
         <TileBaseWrapper className={isLoading ? Classes.SKELETON : undefined}>
             <HeaderContainer>
                 <HeaderWrapper>
-                    <TitleWrapper>
-                        <Title className="non-draggable">{title}</Title>
-                        {description && (
-                            <Tooltip2 content={description} position="bottom">
-                                <Button icon="info-sign" minimal />
-                            </Tooltip2>
-                        )}
-                    </TitleWrapper>
+                    {!hideTitle && (
+                        <TitleWrapper>
+                            <Title className="non-draggable">{title}</Title>
+                            {description && (
+                                <Tooltip2
+                                    content={description}
+                                    position="bottom"
+                                >
+                                    <Button icon="info-sign" minimal />
+                                </Tooltip2>
+                            )}
+                        </TitleWrapper>
+                    )}
                     {extraHeaderElement}
                 </HeaderWrapper>
                 {(isEditMode || (!isEditMode && extraMenuItems)) && (
@@ -76,6 +85,29 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             text="Edit tile"
                                             onClick={() => setIsEditing(true)}
                                         />
+                                        {tile.type !==
+                                            DashboardTileTypes.MARKDOWN && (
+                                            <MenuItem
+                                                icon={
+                                                    hideTitle
+                                                        ? 'eye-open'
+                                                        : 'eye-off'
+                                                }
+                                                text={`${
+                                                    hideTitle ? 'Show' : 'Hide'
+                                                } title`}
+                                                onClick={() =>
+                                                    onEdit({
+                                                        ...tile,
+                                                        properties: {
+                                                            ...tile.properties,
+                                                            hideTitle:
+                                                                !hideTitle,
+                                                        },
+                                                    })
+                                                }
+                                            />
+                                        )}
                                         <MenuDivider />
                                         <MenuItem
                                             icon="delete"
