@@ -730,11 +730,18 @@ const useEcharts = () => {
         pivotDimensions,
         resultsData,
     } = useVisualizationContext();
-
-    const formats = explore
-        ? getFieldMap(explore, resultsData?.metricQuery.additionalMetrics)
-        : undefined;
     const { data: organisationData } = useOrganisation();
+
+    const formats = useMemo(
+        () =>
+            explore
+                ? getFieldMap(
+                      explore,
+                      resultsData?.metricQuery.additionalMetrics,
+                  )
+                : undefined,
+        [explore, resultsData],
+    );
 
     const items = useMemo(() => {
         if (!explore || !resultsData) {
@@ -795,6 +802,73 @@ const useEcharts = () => {
         });
     }, [items, series, validCartesianConfig, formats, resultsData]);
 
+    //Remove stacking from invalid series
+    const stackedSeries = useMemo(
+        () =>
+            series.map((serie) => ({
+                ...serie,
+                stack:
+                    serie.type === 'bar' || !!serie.areaStyle
+                        ? serie.stack
+                        : undefined,
+            })),
+        [series],
+    );
+
+    const colors = useMemo<string[]>(() => {
+        const allColors =
+            organisationData?.chartColors || ECHARTS_DEFAULT_COLORS;
+        //Do not use colors from hidden series
+        return validCartesianConfig?.eChartsConfig.series
+            ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
+                  (acc, serie, index) => {
+                      if (!serie.hidden)
+                          return [
+                              ...acc,
+                              allColors[index] || getDefaultSeriesColor(index),
+                          ];
+                      else return acc;
+                  },
+                  [],
+              )
+            : allColors;
+    }, [organisationData?.chartColors, validCartesianConfig]);
+
+    const eChartsOptions = useMemo(
+        () => ({
+            xAxis: axis.xAxis,
+            yAxis: axis.yAxis,
+            useUTC: true,
+            series: stackedSeries,
+            legend: removeEmptyProperties(
+                validCartesianConfig?.eChartsConfig.legend,
+            ) || {
+                show: series.length > 1,
+            },
+            dataset: {
+                id: 'lightdashResults',
+                source: plotData,
+            },
+            tooltip: {
+                show: true,
+                confine: true,
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow',
+                    label: { show: true },
+                },
+            },
+            grid: {
+                ...defaultGrid,
+                ...removeEmptyProperties(
+                    validCartesianConfig?.eChartsConfig.grid,
+                ),
+            },
+            color: colors,
+        }),
+        [axis, colors, plotData, series, stackedSeries, validCartesianConfig],
+    );
+
     if (
         !explore ||
         series.length <= 0 ||
@@ -803,58 +877,8 @@ const useEcharts = () => {
     ) {
         return undefined;
     }
-    //Remove stacking from invalid series
-    const stackedSeries = series.map((serie) => ({
-        ...serie,
-        stack:
-            serie.type === 'bar' || !!serie.areaStyle ? serie.stack : undefined,
-    }));
 
-    const allColors = organisationData?.chartColors || ECHARTS_DEFAULT_COLORS;
-    //Do not use colors from hidden series
-    const colors: string[] = validCartesianConfig.eChartsConfig.series
-        ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
-              (acc, serie, index) => {
-                  if (!serie.hidden)
-                      return [
-                          ...acc,
-                          allColors[index] || getDefaultSeriesColor(index),
-                      ];
-                  else return acc;
-              },
-              [],
-          )
-        : allColors;
-
-    return {
-        xAxis: axis.xAxis,
-        yAxis: axis.yAxis,
-        useUTC: true,
-        series: stackedSeries,
-        legend: removeEmptyProperties(
-            validCartesianConfig.eChartsConfig.legend,
-        ) || {
-            show: series.length > 1,
-        },
-        dataset: {
-            id: 'lightdashResults',
-            source: plotData,
-        },
-        tooltip: {
-            show: true,
-            confine: true,
-            trigger: 'axis',
-            axisPointer: {
-                type: 'shadow',
-                label: { show: true },
-            },
-        },
-        grid: {
-            ...defaultGrid,
-            ...removeEmptyProperties(validCartesianConfig.eChartsConfig.grid),
-        },
-        color: colors,
-    };
+    return eChartsOptions;
 };
 
 export default useEcharts;

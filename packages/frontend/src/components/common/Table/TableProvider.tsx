@@ -53,20 +53,21 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         (acc, col) => (col.id ? [...acc, col.id] : acc),
         [],
     );
+    const reactTableColumnOrder = [
+        ...new Set([
+            ROW_NUMBER_COLUMN_ID,
+            ...(columnOrder || []),
+            ...allColumnIds,
+        ]),
+    ];
     const [tempColumnOrder, setTempColumnOrder] =
-        React.useState<ColumnOrderState>(columnOrder || []);
+        React.useState<ColumnOrderState>(reactTableColumnOrder);
     const table = useReactTable({
         data,
         columns: [rowColumn, ...columns],
         state: {
             columnVisibility,
-            columnOrder: [
-                ...new Set([
-                    ROW_NUMBER_COLUMN_ID,
-                    ...(columnOrder || []),
-                    ...allColumnIds,
-                ]),
-            ],
+            columnOrder: reactTableColumnOrder,
         },
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
