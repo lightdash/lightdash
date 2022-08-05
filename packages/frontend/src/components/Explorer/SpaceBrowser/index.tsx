@@ -41,7 +41,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             >
                 <SpaceListWrapper>
                     {spaces &&
-                        spaces.map(({ uuid, name }) => (
+                        spaces.map(({ uuid, name, dashboards, queries }) => (
                             <SpaceLinkButton
                                 key={uuid}
                                 minimal
@@ -70,10 +70,13 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 </SpaceHeader>
                                 <SpaceTitle ellipsize>{name}</SpaceTitle>
                                 <SpaceFooter>
-                                    <SpaceItemCount icon="control" value={5} />
+                                    <SpaceItemCount
+                                        icon="control"
+                                        value={dashboards.length}
+                                    />
                                     <SpaceItemCount
                                         icon="timeline-bar-chart"
-                                        value={10}
+                                        value={queries.length}
                                     />
                                 </SpaceFooter>
                             </SpaceLinkButton>
