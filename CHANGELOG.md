@@ -1,3 +1,10 @@
+## [0.202.1](https://github.com/lightdash/lightdash/compare/0.202.0...0.202.1) (2022-08-05)
+
+
+### Bug Fixes
+
+* in the last filter ([#2863](https://github.com/lightdash/lightdash/issues/2863)) ([0dc07f0](https://github.com/lightdash/lightdash/commit/0dc07f0bafc4a8b3da41f3241fa0b6113978e198))
+
 # [0.202.0](https://github.com/lightdash/lightdash/compare/0.201.0...0.202.0) (2022-08-05)
 
 
