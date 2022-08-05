@@ -37,7 +37,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const savedDashboards = space.dashboards;
 
     const [addToSpace, setAddToSpace] = useState<string>();
-    console.log('yo space panel', space);
+
     return (
         <SpacePanelWrapper>
             <SpacePanelHeader>
