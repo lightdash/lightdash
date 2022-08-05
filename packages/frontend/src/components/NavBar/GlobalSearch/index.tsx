@@ -55,7 +55,7 @@ const renderItem: ItemRenderer<SearchItem> = (
                         </b>
                     </FirstLine>
                     <SecondLine className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
-                        {field.typeLabel}
+                        <b>{field.typeLabel}</b>
                         {field.description ? (
                             <>
                                 {' '}
