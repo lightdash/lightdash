@@ -109,19 +109,17 @@ const ModalActionButtons = ({
                         }}
                     >
                         {spaces?.map((space) => {
+                            const isDisabled = data.spaceUuid === space.uuid;
                             return (
                                 <MenuItem
                                     text={space.name}
-                                    className={
-                                        data.spaceUuid === space.uuid
-                                            ? 'bp4-disabled'
-                                            : ''
-                                    }
+                                    icon={isDisabled ? 'small-tick' : undefined}
+                                    className={isDisabled ? 'bp4-disabled' : ''}
                                     onClick={(e) => {
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        if (data.spaceUuid !== space.uuid)
+                                        if (!isDisabled)
                                             setActionState({
                                                 actionType:
                                                     ActionTypeModal.MOVE_TO_SPACE,

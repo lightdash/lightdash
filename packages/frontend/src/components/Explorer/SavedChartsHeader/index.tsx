@@ -267,12 +267,19 @@ const SavedChartsHeader: FC = () => {
                                         }}
                                     >
                                         {spaces?.map((spaceToMove) => {
+                                            const isDisabled =
+                                                savedChart?.spaceUuid ===
+                                                spaceToMove.uuid;
                                             return (
                                                 <MenuItem
                                                     text={spaceToMove.name}
+                                                    icon={
+                                                        isDisabled
+                                                            ? 'small-tick'
+                                                            : undefined
+                                                    }
                                                     className={
-                                                        savedChart?.spaceUuid ===
-                                                        spaceToMove.uuid
+                                                        isDisabled
                                                             ? 'bp4-disabled'
                                                             : ''
                                                     }
