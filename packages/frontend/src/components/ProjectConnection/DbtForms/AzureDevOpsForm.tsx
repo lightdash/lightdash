@@ -17,7 +17,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <PasswordInput
                 name="dbt.personal_access_token"
                 label="Personal access token"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token-2"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token-3"
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -41,7 +41,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.project"
                 label="Project"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
+                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project-1"
                 rules={{
                     required: 'Required field',
                     validate: {
