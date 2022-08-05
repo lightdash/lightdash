@@ -10,6 +10,14 @@ import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/TableTree'
 
 export type SearchItem = {
     type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field';
+    typeLabel:
+        | 'Space'
+        | 'Dashboard'
+        | 'Chart'
+        | 'Table'
+        | 'Joined table'
+        | 'Dimension'
+        | 'Metric';
     icon: IconName;
     name: string;
     prefix?: string;
@@ -66,6 +74,7 @@ export const useDebouncedSearch = (
         const spaces =
             data?.spaces.map<SearchItem>((item) => ({
                 type: 'space',
+                typeLabel: 'Space',
                 icon: 'folder-close',
                 name: item.name,
                 meta: item,
@@ -77,6 +86,7 @@ export const useDebouncedSearch = (
         const dashboards =
             data?.dashboards.map<SearchItem>((item) => ({
                 type: 'dashboard',
+                typeLabel: 'Dashboard',
                 icon: 'control',
                 name: item.name,
                 description: item.description,
@@ -89,6 +99,7 @@ export const useDebouncedSearch = (
         const saveCharts =
             data?.savedCharts.map<SearchItem>((item) => ({
                 type: 'saved_chart',
+                typeLabel: 'Chart',
                 icon: 'chart',
                 name: item.name,
                 description: item.description,
@@ -101,8 +112,13 @@ export const useDebouncedSearch = (
         const tables =
             data?.tables.map<SearchItem>((item) => ({
                 type: 'table',
+                typeLabel:
+                    item.name === item.explore ? 'Table' : 'Joined table',
                 icon: 'th',
-                prefix: `${item.exploreLabel} - `,
+                prefix:
+                    item.name === item.explore
+                        ? undefined
+                        : `${item.exploreLabel} - `,
                 name: item.label,
                 description: item.description,
                 meta: item,
@@ -145,8 +161,15 @@ export const useDebouncedSearch = (
                 );
                 return {
                     type: 'field',
+                    typeLabel:
+                        item.fieldType === FieldType.DIMENSION
+                            ? 'Dimension'
+                            : 'Metric',
                     icon: getItemIconName(item.type),
-                    prefix: `${item.exploreLabel} - ${item.tableLabel} - `,
+                    prefix:
+                        item.table === item.explore
+                            ? `${item.tableLabel} - `
+                            : `${item.exploreLabel} - ${item.tableLabel} - `,
                     name: item.label,
                     description: item.description,
                     meta: item,

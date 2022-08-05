@@ -1,6 +1,6 @@
 import {
     Button,
-    Colors,
+    Classes,
     KeyCombo,
     MenuItem,
     Spinner,
@@ -14,7 +14,15 @@ import { useToggle } from 'react-use';
 import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { SearchInput, SearchOmnibar } from './globalSearch.styles';
+import HighlightedText from '../../common/HighlightedText';
+import {
+    FirstLine,
+    Hightlighed,
+    ResultContent,
+    SearchInput,
+    SearchOmnibar,
+    SecondLine,
+} from './globalSearch.styles';
 import {
     SearchItem,
     useDebouncedSearch,
@@ -23,7 +31,7 @@ import {
 
 const renderItem: ItemRenderer<SearchItem> = (
     field,
-    { modifiers, handleClick },
+    { modifiers, handleClick, query },
 ) => {
     if (!modifiers.matchesPredicate) {
         return null;
@@ -35,16 +43,34 @@ const renderItem: ItemRenderer<SearchItem> = (
             disabled={modifiers.disabled}
             icon={field.icon}
             text={
-                <>
-                    {field.prefix}
-                    <b>{field.name}</b>
-                    <span style={{ marginLeft: 10, color: Colors.GRAY1 }}>
-                        {field.description}
-                    </span>
-                </>
+                <ResultContent>
+                    <FirstLine>
+                        <span>{field.prefix}</span>
+                        <b>
+                            <HighlightedText
+                                text={field.name}
+                                query={query}
+                                highlightElement={Hightlighed}
+                            />
+                        </b>
+                    </FirstLine>
+                    <SecondLine className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                        <b>{field.typeLabel}</b>
+                        {field.description ? (
+                            <>
+                                {' '}
+                                •{' '}
+                                <HighlightedText
+                                    text={field.description}
+                                    query={query}
+                                    highlightElement={Hightlighed}
+                                />
+                            </>
+                        ) : null}
+                    </SecondLine>
+                </ResultContent>
             }
             onClick={handleClick}
-            shouldDismissPopover={false}
         />
     );
 };

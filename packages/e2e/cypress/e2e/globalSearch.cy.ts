@@ -20,7 +20,7 @@ describe('Global search', () => {
         // search and select space
         search('jaffle');
         cy.get('.bp4-omnibar')
-            .findByRole('menuitem', { name: 'Jaffle shop' })
+            .findByRole('menuitem', { name: 'Jaffle shop Space' })
             .click();
         cy.url().should(
             'include',
@@ -30,7 +30,7 @@ describe('Global search', () => {
         // search and select dashboard
         search('jaffle');
         cy.get('.bp4-omnibar')
-            .findByRole('menuitem', { name: 'Jaffle dashboard' })
+            .findByRole('menuitem', { name: 'Jaffle dashboard Dashboard' })
             .click();
         cy.url().should(
             'include',
@@ -41,7 +41,7 @@ describe('Global search', () => {
         search('Which');
         cy.get('.bp4-omnibar')
             .findByRole('menuitem', {
-                name: 'Which customers have not recently ordered an item?A table of the 20 customers that least recently placed an order with us',
+                name: 'Which customers have not recently ordered an item? Chart • A table of the 20 customers that least recently placed an order with us',
             })
             .click();
         cy.url().should(
@@ -53,7 +53,7 @@ describe('Global search', () => {
         search('Customers');
         cy.get('.bp4-omnibar')
             .findByRole('menuitem', {
-                name: "Customers - CustomersThis table has basic information about a customer, as well as some derived facts based on a customer's orders",
+                name: "Customers Table • This table has basic information about a customer, as well as some derived facts based on a customer's orders",
             })
             .click();
         cy.url().should(
@@ -65,7 +65,7 @@ describe('Global search', () => {
         search('First order');
         cy.get('.bp4-omnibar')
             .findByRole('menuitem', {
-                name: 'Customers - Customers - First orderDate of the customers first order',
+                name: 'Customers - First order Dimension • Date of the customers first order',
                 exact: false,
             })
             .click();
