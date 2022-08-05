@@ -51,11 +51,19 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     <FolderIcon icon="folder-close"></FolderIcon>
                                 </FolderWrapper>
                                 <SpaceTitle>{name}</SpaceTitle>
-                                <SpaceBrowserMenu spaceUuid={uuid}>
-                                    <Tooltip2 content="View options">
-                                        <Button minimal icon="more" />
-                                    </Tooltip2>
-                                </SpaceBrowserMenu>
+                                <div
+                                    onClick={(e) => {
+                                        // prevent clicks in menu to trigger redirect
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }}
+                                >
+                                    <SpaceBrowserMenu spaceUuid={uuid}>
+                                        <Tooltip2 content="View options">
+                                            <Button minimal icon="more" />
+                                        </Tooltip2>
+                                    </SpaceBrowserMenu>
+                                </div>
                             </SpaceLinkButton>
                         ))}
                 </SpaceListWrapper>
