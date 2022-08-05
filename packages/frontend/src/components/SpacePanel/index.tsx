@@ -2,9 +2,8 @@ import { Button, NonIdealState } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode, Space } from '@lightdash/common';
 import React, { useState } from 'react';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import {
-    useCreateMutation,
     useDeleteMutation,
     useUpdateDashboardName,
 } from '../../hooks/dashboard/useDashboard';
@@ -20,6 +19,7 @@ import {
     EmptyStateWrapper,
     SpacePanelWrapper,
 } from './SpacePanel.styles';
+
 interface Props {
     space: Space;
 }
@@ -30,26 +30,11 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { user, health } = useApp();
     const useDelete = useDeleteMutation();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const {
-        data: newDashboard,
-        isLoading: isCreatingDashboard,
-        mutate: createDashboard,
-        isSuccess: hasCreatedDashboard,
-    } = useCreateMutation(projectUuid);
     const history = useHistory();
     const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
 
     const [addToSpace, setAddToSpace] = useState<string>();
-
-    if (hasCreatedDashboard && newDashboard) {
-        return (
-            <Redirect
-                push
-                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
-            />
-        );
-    }
 
     return (
         <SpacePanelWrapper>
@@ -85,7 +70,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     !isDemo && (
                         <Button
                             text="Add dashboard"
-                            loading={isCreatingDashboard}
                             onClick={() => setAddToSpace('dashboards')}
                             intent="primary"
                         />
@@ -115,7 +99,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     !isDemo && (
                         <Button
                             text="Add chart"
-                            loading={isCreatingDashboard}
                             onClick={() => setAddToSpace('charts')}
                             intent="primary"
                         />
