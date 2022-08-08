@@ -22,7 +22,7 @@ const loginWithToken = async (url: string) => {
     const response = await fetch(userInfoUrl, {
         method: 'GET',
         headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `ApiKey ${token}`,
             'Content-Type': 'application/json',
         },
     });
