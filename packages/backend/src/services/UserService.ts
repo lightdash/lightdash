@@ -118,7 +118,7 @@ export class UserService {
         ) {
             throw new AuthorizationError('Email domain not allowed');
         }
-        if (inviteLink.email !== userEmail) {
+        if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
             Logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
             );
