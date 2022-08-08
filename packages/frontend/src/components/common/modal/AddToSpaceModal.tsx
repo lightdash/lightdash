@@ -8,7 +8,7 @@ import {
 } from '@blueprintjs/core';
 import React, { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { Redirect, useParams } from 'react-router-dom';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useDashboards,
@@ -57,6 +57,7 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
         data: newDashboard,
     } = useCreateMutation(projectUuid);
 
+    const history = useHistory();
     const closeModal = useCallback(() => {
         methods.reset();
         if (onClose) onClose();
@@ -167,20 +168,23 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
                         disabled={isLoading}
                         defaultValue={[]}
                     />
-                    {!isChart && (
-                        <CreateNewText
-                            onClick={() => {
+
+                    <CreateNewText
+                        onClick={() => {
+                            if (isChart) {
+                                history.push(`/projects/${projectUuid}/tables`);
+                            } else {
                                 createDashboard({
                                     name: DEFAULT_DASHBOARD_NAME,
                                     tiles: [],
                                     spaceUuid,
                                 });
-                                closeModal();
-                            }}
-                        >
-                            + Create new dashboard
-                        </CreateNewText>
-                    )}
+                            }
+                            closeModal();
+                        }}
+                    >
+                        {`+ Create new ${isChart ? 'chart' : 'dashboard'}`}
+                    </CreateNewText>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
