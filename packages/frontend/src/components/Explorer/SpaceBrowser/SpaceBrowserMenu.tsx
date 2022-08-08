@@ -1,16 +1,17 @@
 import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
-import { DeleteSpaceModal } from './DeleteSpaceModal';
-import { EditSpaceModal } from './EditSpaceModal';
+import React from 'react';
 
 interface Props {
-    spaceUuid: string;
+    onRename: () => void;
+    onDelete: () => void;
 }
 
-export const SpaceBrowserMenu: React.FC<Props> = ({ spaceUuid, children }) => {
-    const [updateSpace, setUpdateSpace] = useState<boolean>(false);
-    const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+export const SpaceBrowserMenu: React.FC<Props> = ({
+    onRename,
+    onDelete,
+    children,
+}) => {
     return (
         <>
             <Popover2
@@ -20,18 +21,14 @@ export const SpaceBrowserMenu: React.FC<Props> = ({ spaceUuid, children }) => {
                         <MenuItem2
                             icon="edit"
                             text="Rename"
-                            onClick={(e) => {
-                                setUpdateSpace(true);
-                            }}
+                            onClick={onRename}
                         />
                         <MenuDivider />
                         <MenuItem2
                             icon="delete"
                             intent="danger"
                             text="Remove space"
-                            onClick={(e) => {
-                                setDeleteSpace(true);
-                            }}
+                            onClick={onDelete}
                         />
                     </Menu>
                 }
@@ -39,22 +36,6 @@ export const SpaceBrowserMenu: React.FC<Props> = ({ spaceUuid, children }) => {
             >
                 {children}
             </Popover2>
-            {updateSpace && (
-                <EditSpaceModal
-                    spaceUuid={spaceUuid}
-                    onClose={() => {
-                        setUpdateSpace(false);
-                    }}
-                ></EditSpaceModal>
-            )}
-            {deleteSpace && (
-                <DeleteSpaceModal
-                    spaceUuid={spaceUuid}
-                    onClose={() => {
-                        setDeleteSpace(false);
-                    }}
-                ></DeleteSpaceModal>
-            )}
         </>
     );
 };
