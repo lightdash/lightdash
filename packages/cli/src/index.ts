@@ -94,21 +94,33 @@ ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://app.lightdash.cloud ${styles.secondary(
-            '-- Login to Lightdash Cloud instance',
+            '-- Login to Lightdash Cloud US instance',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} https://eu1.lightdash.cloud ${styles.secondary(
+            '-- Login to Lightdash Cloud EU instance',
         )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
             'login',
         )} https://custom.lightdash.domain ${styles.secondary(
             '-- Login to a self-hosted instance at a custom domain',
         )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} https://custom.lightdash.domain --token ${styles.secondary(
+            '-- Login with a personal access token (useful for users that use SSO in the browser)',
+        )}
 `,
     )
+    .option('--token', 'Login with a personal access token')
     .action(login);
 
 // CONFIG
-program
+const configProgram = program
     .command('config')
-    .description('Set configuration')
+    .description('Set configuration');
+configProgram
     .command('set-project')
     .description(
         'Interactively choose project.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#set-active-project for more help and examples',

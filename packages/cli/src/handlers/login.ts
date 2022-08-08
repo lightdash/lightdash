@@ -5,7 +5,36 @@ import { URL } from 'url';
 import { setContext, setDefaultUser } from '../config';
 import { setProjectInteractively } from './setProject';
 
-export const login = async (url: string) => {
+type LoginOptions = {
+    token?: boolean;
+};
+
+const loginWithToken = async (url: string) => {
+    const answers = await inquirer.prompt([
+        {
+            type: 'password',
+            name: 'token',
+            message: 'Enter your personal access token:',
+        },
+    ]);
+    const { token } = answers;
+    const userInfoUrl = new URL(`/api/v1/user`, url).href;
+    const response = await fetch(userInfoUrl, {
+        method: 'GET',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    const userBody = await response.json();
+    const { userUuid } = userBody;
+    return {
+        userUuid,
+        token,
+    };
+};
+
+const loginWithPassword = async (url: string) => {
     const answers = await inquirer.prompt([
         {
             type: 'input',
@@ -48,8 +77,18 @@ export const login = async (url: string) => {
         },
     });
     const patResponseBody = await patResponse.json();
-    const apiKey = patResponseBody.results.token;
-    await setContext({ serverUrl: url, apiKey });
+    const { token } = patResponseBody.results;
+    return {
+        userUuid,
+        token,
+    };
+};
+
+export const login = async (url: string, options: LoginOptions) => {
+    const { userUuid, token } = options.token
+        ? await loginWithToken(url)
+        : await loginWithPassword(url);
+    await setContext({ serverUrl: url, apiKey: token });
     await setDefaultUser(userUuid);
     await setProjectInteractively();
 };
