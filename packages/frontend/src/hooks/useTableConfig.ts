@@ -137,7 +137,7 @@ const useTableConfig = (
 
     const validTableConfig: TableChart = useMemo(
         () => ({
-            showFooterCalculation: showColumnCalculation,
+            showColumnCalculation,
             showTableNames,
             columns: columnProperties,
         }),
