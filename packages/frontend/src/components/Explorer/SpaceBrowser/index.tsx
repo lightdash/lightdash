@@ -1,9 +1,9 @@
+import { Button } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import LatestCard from '../../Home/LatestCard';
 import { CreateSpaceModal } from './CreateSpaceModal';
-import { DeleteSpaceModal } from './DeleteSpaceModal';
-import { EditSpaceModal } from './EditSpaceModal';
 import {
     CreateNewButton,
     FolderIcon,
@@ -19,8 +19,6 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: spaces, isLoading } = useSpaces(projectUuid);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
-    const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
 
     return (
         <SpaceBrowserWrapper>
@@ -53,11 +51,19 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     <FolderIcon icon="folder-close"></FolderIcon>
                                 </FolderWrapper>
                                 <SpaceTitle>{name}</SpaceTitle>
-                                <SpaceBrowserMenu
-                                    spaceUuid={uuid}
-                                    onDeleteSpace={setDeleteSpaceUuid}
-                                    onUpdateSpace={setUpdateSpaceUuid}
-                                />
+                                <div
+                                    onClick={(e) => {
+                                        // prevent clicks in menu to trigger redirect
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }}
+                                >
+                                    <SpaceBrowserMenu spaceUuid={uuid}>
+                                        <Tooltip2 content="View options">
+                                            <Button minimal icon="more" />
+                                        </Tooltip2>
+                                    </SpaceBrowserMenu>
+                                </div>
                             </SpaceLinkButton>
                         ))}
                 </SpaceListWrapper>
@@ -68,23 +74,6 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     setIsCreateModalOpen(false);
                 }}
             ></CreateSpaceModal>
-
-            {updateSpaceUuid && (
-                <EditSpaceModal
-                    spaceUuid={updateSpaceUuid}
-                    onClose={() => {
-                        setUpdateSpaceUuid(undefined);
-                    }}
-                ></EditSpaceModal>
-            )}
-            {deleteSpaceUuid && (
-                <DeleteSpaceModal
-                    spaceUuid={deleteSpaceUuid}
-                    onClose={() => {
-                        setDeleteSpaceUuid(undefined);
-                    }}
-                ></DeleteSpaceModal>
-            )}
         </SpaceBrowserWrapper>
     );
 };

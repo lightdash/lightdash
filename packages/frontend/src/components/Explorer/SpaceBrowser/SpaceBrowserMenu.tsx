@@ -1,71 +1,60 @@
-import {
-    Button,
-    Menu,
-    MenuDivider,
-    MenuItem,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
+import { DeleteSpaceModal } from './DeleteSpaceModal';
+import { EditSpaceModal } from './EditSpaceModal';
 
 interface Props {
     spaceUuid: string;
-    onUpdateSpace: (uuid: string) => void;
-    onDeleteSpace: (uuid: string) => void;
 }
 
-export const SpaceBrowserMenu: React.FC<Props> = ({
-    spaceUuid,
-    onUpdateSpace,
-    onDeleteSpace,
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-
+export const SpaceBrowserMenu: React.FC<Props> = ({ spaceUuid, children }) => {
+    const [updateSpace, setUpdateSpace] = useState<boolean>(false);
+    const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
     return (
-        <Popover2
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            content={
-                <Menu>
-                    <MenuItem
-                        icon="edit"
-                        text="Rename"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onUpdateSpace(spaceUuid);
-                            setIsOpen(false);
-                        }}
-                    />
-                    <MenuDivider />
-
-                    <MenuItem
-                        icon="delete"
-                        intent="danger"
-                        text="Remove space"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            onDeleteSpace(spaceUuid);
-                            setIsOpen(false);
-                        }}
-                    />
-                </Menu>
-            }
-            position={PopoverPosition.BOTTOM_LEFT}
-            lazy
-        >
-            <Tooltip2 content="View options">
-                <Button
-                    minimal
-                    icon="more"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setIsOpen(true);
+        <>
+            <Popover2
+                captureDismiss
+                content={
+                    <Menu>
+                        <MenuItem2
+                            icon="edit"
+                            text="Rename"
+                            onClick={(e) => {
+                                setUpdateSpace(true);
+                            }}
+                        />
+                        <MenuDivider />
+                        <MenuItem2
+                            icon="delete"
+                            intent="danger"
+                            text="Remove space"
+                            onClick={(e) => {
+                                setDeleteSpace(true);
+                            }}
+                        />
+                    </Menu>
+                }
+                position={PopoverPosition.BOTTOM_LEFT}
+            >
+                {children}
+            </Popover2>
+            {updateSpace && (
+                <EditSpaceModal
+                    spaceUuid={spaceUuid}
+                    onClose={() => {
+                        setUpdateSpace(false);
                     }}
-                />
-            </Tooltip2>
-        </Popover2>
+                ></EditSpaceModal>
+            )}
+            {deleteSpace && (
+                <DeleteSpaceModal
+                    spaceUuid={spaceUuid}
+                    onClose={() => {
+                        setDeleteSpace(false);
+                    }}
+                ></DeleteSpaceModal>
+            )}
+        </>
     );
 };

@@ -2,15 +2,15 @@ import { Button, NonIdealState } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode, Space } from '@lightdash/common';
 import React, { useState } from 'react';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import {
-    useCreateMutation,
     useDeleteMutation,
     useUpdateDashboardName,
 } from '../../hooks/dashboard/useDashboard';
 import { useApp } from '../../providers/AppProvider';
 import ActionCardList from '../common/ActionCardList';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
+import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
 import {
@@ -18,8 +18,10 @@ import {
     EmptyStateIcon,
     EmptyStateText,
     EmptyStateWrapper,
+    SpacePanelHeader,
     SpacePanelWrapper,
 } from './SpacePanel.styles';
+
 interface Props {
     space: Space;
 }
@@ -30,45 +32,35 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { user, health } = useApp();
     const useDelete = useDeleteMutation();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const {
-        data: newDashboard,
-        isLoading: isCreatingDashboard,
-        mutate: createDashboard,
-        isSuccess: hasCreatedDashboard,
-    } = useCreateMutation(projectUuid);
     const history = useHistory();
     const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
 
     const [addToSpace, setAddToSpace] = useState<string>();
 
-    if (hasCreatedDashboard && newDashboard) {
-        return (
-            <Redirect
-                push
-                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
-            />
-        );
-    }
-
     return (
         <SpacePanelWrapper>
-            <BreadcrumbsWrapper>
-                <Breadcrumbs2
-                    items={[
-                        {
-                            href: '/home',
-                            text: 'Home',
-                            className: 'home-breadcrumb',
-                            onClick: (e) => {
-                                e.preventDefault();
-                                history.push('/home');
+            <SpacePanelHeader>
+                <BreadcrumbsWrapper>
+                    <Breadcrumbs2
+                        items={[
+                            {
+                                href: '/home',
+                                text: 'Home',
+                                className: 'home-breadcrumb',
+                                onClick: (e) => {
+                                    e.preventDefault();
+                                    history.push('/home');
+                                },
                             },
-                        },
-                        { text: space.name },
-                    ]}
-                />
-            </BreadcrumbsWrapper>
+                            { text: space.name },
+                        ]}
+                    />
+                </BreadcrumbsWrapper>
+                <SpaceBrowserMenu spaceUuid={space.uuid}>
+                    <Button icon="edit" text="Edit space" />
+                </SpaceBrowserMenu>
+            </SpacePanelHeader>
 
             <ActionCardList
                 title={`Dashboards (${savedDashboards.length})`}
@@ -85,7 +77,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     !isDemo && (
                         <Button
                             text="Add dashboard"
-                            loading={isCreatingDashboard}
                             onClick={() => setAddToSpace('dashboards')}
                             intent="primary"
                         />
@@ -115,7 +106,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     !isDemo && (
                         <Button
                             text="Add chart"
-                            loading={isCreatingDashboard}
                             onClick={() => setAddToSpace('charts')}
                             intent="primary"
                         />

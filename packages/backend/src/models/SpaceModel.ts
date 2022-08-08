@@ -29,7 +29,9 @@ export class SpaceModel {
         this.database = dependencies.database;
     }
 
-    async get(spaceUuid: string): Promise<Space> {
+    async get(
+        spaceUuid: string,
+    ): Promise<Omit<Space, 'queries' | 'dashboards'>> {
         const [row] = await this.database(SpaceTableName)
             .leftJoin('projects', 'projects.project_id', 'spaces.project_id')
             .leftJoin(
@@ -53,10 +55,8 @@ export class SpaceModel {
         return {
             organizationUuid: row.organization_uuid,
             name: row.name,
-            queries: [],
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
-            dashboards: [],
         };
     }
 
@@ -264,6 +264,6 @@ export class SpaceModel {
         await this.database(SpaceTableName)
             .update<UpdateSpace>(space)
             .where('space_uuid', spaceUuid);
-        return this.get(spaceUuid);
+        return this.getWithQueriesAndDashboards(spaceUuid);
     }
 }
