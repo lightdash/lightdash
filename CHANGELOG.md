@@ -1,3 +1,10 @@
+# [0.207.0](https://github.com/lightdash/lightdash/compare/0.206.0...0.207.0) (2022-08-08)
+
+
+### Features
+
+* user can login to the cli with a token ([#2894](https://github.com/lightdash/lightdash/issues/2894)) ([59149e0](https://github.com/lightdash/lightdash/commit/59149e0ea1a273306a72071c9382e61e2df269c5))
+
 # [0.206.0](https://github.com/lightdash/lightdash/compare/0.205.2...0.206.0) (2022-08-08)
 
 
