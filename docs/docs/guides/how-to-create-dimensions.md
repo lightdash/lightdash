@@ -78,7 +78,7 @@ npm install -g @lightdash/cli
 Once you've downloaded the CLI, you'll need to authenticate yourself. There are two ways of doing this:
 
 <details>
-  <summary>1. Login with your email and password.</summary>
+  <summary>1. If you use your email + password in the browser, login with your email and password.</summary>
   To login to your Lightdash instance run the following command and provide your login email and password:
 
   ```shell
@@ -92,7 +92,7 @@ cloud users in the US would type `lightdash login https://app.lightdash.cloud` i
 </details>
 
 <details>
-  <summary>2. If you use SSO in the browser, login with a personal access token.</summary>
+  <summary>2. If you use single sign-on (SSO) in the browser, login with a personal access token.</summary>
   First, create a personal access token in the UI by going to Settings > Personal Access Tokens.
   Then, run the following command to login with your personal access token:
 
