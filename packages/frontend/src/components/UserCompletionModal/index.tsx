@@ -15,9 +15,9 @@ import {
     UserCompletionModalCard,
 } from './UserCompletionModal.styles';
 
-function shuffleArray(arr: any[]) {
+function shuffleArray<T extends unknown>(arr: T[]) {
     return arr
-        .map((a) => [Math.random(), a] as [number, any])
+        .map((a) => [Math.random(), a] as [number, T])
         .sort((a, b) => a[0] - b[0])
         .map((a) => a[1]);
 }
@@ -51,7 +51,7 @@ const UserCompletionModal: FC = () => {
         mutate(data);
     };
 
-    if (!user.data || user.data.isSetupComplete) {
+    if (!user.data) {
         return null;
     }
     return (
