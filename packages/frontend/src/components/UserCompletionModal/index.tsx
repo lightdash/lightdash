@@ -17,9 +17,9 @@ import {
 
 function shuffleArray(arr: string[]) {
     return arr
-        .map((a) => [Math.random(), a] as [number, string])
-        .sort((a, b) => a[0] - b[0])
-        .map((a) => a[1]);
+        .map((value) => ({ value, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ value }) => value);
 }
 
 const jobTitles: Array<string | OptionProps> = [
