@@ -51,7 +51,7 @@ const UserCompletionModal: FC = () => {
         mutate(data);
     };
 
-    if (!user.data) {
+    if (!user.data || user.data.isSetupComplete) {
         return null;
     }
     return (
