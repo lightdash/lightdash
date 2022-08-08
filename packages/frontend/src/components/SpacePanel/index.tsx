@@ -10,6 +10,8 @@ import {
 import { useApp } from '../../providers/AppProvider';
 import ActionCardList from '../common/ActionCardList';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
+import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
+import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
 import DashboardForm from '../SavedDashboards/DashboardForm';
 import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
@@ -25,6 +27,7 @@ import {
 interface Props {
     space: Space;
 }
+
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
 export const SpacePanel: React.FC<Props> = ({ space }) => {
@@ -35,6 +38,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const history = useHistory();
     const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
+    const [updateSpace, setUpdateSpace] = useState<boolean>(false);
+    const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
 
     const [addToSpace, setAddToSpace] = useState<string>();
 
@@ -57,9 +62,28 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         ]}
                     />
                 </BreadcrumbsWrapper>
-                <SpaceBrowserMenu spaceUuid={space.uuid}>
+                <SpaceBrowserMenu
+                    onRename={() => setUpdateSpace(true)}
+                    onDelete={() => setDeleteSpace(true)}
+                >
                     <Button icon="edit" text="Edit space" />
                 </SpaceBrowserMenu>
+                {updateSpace && (
+                    <EditSpaceModal
+                        spaceUuid={space.uuid}
+                        onClose={() => {
+                            setUpdateSpace(false);
+                        }}
+                    ></EditSpaceModal>
+                )}
+                {deleteSpace && (
+                    <DeleteSpaceModal
+                        spaceUuid={space.uuid}
+                        onClose={() => {
+                            setDeleteSpace(false);
+                        }}
+                    ></DeleteSpaceModal>
+                )}
             </SpacePanelHeader>
 
             <ActionCardList
