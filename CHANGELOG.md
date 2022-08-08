@@ -1,3 +1,10 @@
+## [0.205.1](https://github.com/lightdash/lightdash/compare/0.205.0...0.205.1) (2022-08-08)
+
+
+### Bug Fixes
+
+* match invite email case insensitive ([#2890](https://github.com/lightdash/lightdash/issues/2890)) ([2926ce9](https://github.com/lightdash/lightdash/commit/2926ce99d116895429b2781fc8a30932d24cdf95))
+
 # [0.205.0](https://github.com/lightdash/lightdash/compare/0.204.1...0.205.0) (2022-08-08)
 
 
