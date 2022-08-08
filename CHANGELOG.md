@@ -1,3 +1,10 @@
+# [0.203.0](https://github.com/lightdash/lightdash/compare/0.202.2...0.203.0) (2022-08-08)
+
+
+### Features
+
+* rename and delete in space page ([#2877](https://github.com/lightdash/lightdash/issues/2877)) ([ecfb17e](https://github.com/lightdash/lightdash/commit/ecfb17e48e8abe2a09ad440649bb21e475823f80))
+
 ## [0.202.2](https://github.com/lightdash/lightdash/compare/0.202.1...0.202.2) (2022-08-05)
 
 
