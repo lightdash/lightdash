@@ -27,6 +27,7 @@ import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { updatePassword } from '../database/entities/passwordLogins';
+import Logger from '../logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
@@ -118,7 +119,12 @@ export class UserService {
             throw new AuthorizationError('Email domain not allowed');
         }
         if (inviteLink.email !== userEmail) {
-            throw new AuthorizationError('Email does not match the invite');
+            Logger.error(
+                `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
+            );
+            throw new AuthorizationError(
+                `Provided email ${userEmail} does not match the invited email.`,
+            );
         }
         const user = await this.userModel.activateUser(
             inviteLink.userUuid,
