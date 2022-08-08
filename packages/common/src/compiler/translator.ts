@@ -187,21 +187,6 @@ export const convertTable = (
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column) => {
-            const columnMetrics = Object.fromEntries(
-                Object.entries(column.meta.metrics || {}).map(
-                    ([name, metric]) => [
-                        name,
-                        convertMetric({
-                            modelName: model.name,
-                            columnName: column.name,
-                            name,
-                            metric,
-                            tableLabel,
-                        }),
-                    ],
-                ),
-            );
-
             const dimension = convertDimension(
                 adapterType,
                 model,
@@ -247,6 +232,22 @@ export const convertTable = (
                     {},
                 );
             }
+
+            const columnMetrics = Object.fromEntries(
+                Object.entries(column.meta.metrics || {}).map(
+                    ([name, metric]) => [
+                        name,
+                        convertMetric({
+                            modelName: model.name,
+                            dimensionName: dimension.name,
+                            dimensionSql: dimension.sql,
+                            name,
+                            metric,
+                            tableLabel,
+                        }),
+                    ],
+                ),
+            );
 
             return [
                 {

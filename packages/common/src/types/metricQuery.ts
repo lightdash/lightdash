@@ -15,7 +15,7 @@ export interface AdditionalMetric {
     label?: string;
     type: MetricType;
     description?: string;
-    sql?: string;
+    sql: string;
     hidden?: boolean;
     round?: number;
     format?: string;
