@@ -28,6 +28,7 @@ export type ColumnProperties = {
     name?: string;
 };
 export type TableChart = {
+    showColumnCalculation?: boolean;
     showTableNames?: boolean;
     columns?: Record<string, ColumnProperties>;
 };

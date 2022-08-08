@@ -6,8 +6,8 @@ import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 
 const TableFooter = () => {
-    const { table, data } = useTableContext();
-    if (data.length <= 0) {
+    const { table, data, footer } = useTableContext();
+    if (!footer?.show || data.length <= 0) {
         return null;
     }
     return (

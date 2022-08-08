@@ -21,6 +21,10 @@ const useTableConfig = (
     explore: Explore | undefined,
     columnOrder: string[],
 ) => {
+    const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
+        !!tableChartConfig?.showColumnCalculation,
+    );
+
     const [showTableNames, setShowTableName] = useState<boolean>(
         tableChartConfig?.showTableNames === undefined
             ? true
@@ -133,15 +137,18 @@ const useTableConfig = (
 
     const validTableConfig: TableChart = useMemo(
         () => ({
+            showColumnCalculation,
             showTableNames,
             columns: columnProperties,
         }),
-        [showTableNames, columnProperties],
+        [showColumnCalculation, showTableNames, columnProperties],
     );
 
     return {
         columnOrder,
         validTableConfig,
+        showColumnCalculation,
+        setShowColumnCalculation,
         showTableNames,
         setShowTableName,
         columns,

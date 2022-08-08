@@ -25,6 +25,9 @@ type Props = {
     pagination?: {
         show?: boolean;
     };
+    footer?: {
+        show?: boolean;
+    };
     columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
 };
