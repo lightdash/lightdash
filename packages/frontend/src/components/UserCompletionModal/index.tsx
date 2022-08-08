@@ -1,4 +1,4 @@
-import { Colors, Intent, Overlay } from '@blueprintjs/core';
+import { Colors, Intent, OptionProps, Overlay } from '@blueprintjs/core';
 import { CompleteUserArgs, LightdashMode } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,20 +15,29 @@ import {
     UserCompletionModalCard,
 } from './UserCompletionModal.styles';
 
-const jobTitles = [
+function shuffleArray(arr: any[]) {
+    return arr
+        .map((a) => [Math.random(), a] as [number, any])
+        .sort((a, b) => a[0] - b[0])
+        .map((a) => a[1]);
+}
+
+const jobTitles: Array<string | OptionProps> = [
     { value: '', label: 'Select an option...' },
-    'Data/analytics Leader (manager, director, etc.)',
-    'Data scientist',
-    'Data analyst',
-    'Data engineer',
-    'Analytics engineer',
-    'Sales',
-    'Marketing',
-    'Product',
-    'Operations',
-    'Customer service',
-    'Student',
-    'Other',
+    ...shuffleArray([
+        'Data/analytics Leader (manager, director, etc.)',
+        'Data scientist',
+        'Data analyst',
+        'Data engineer',
+        'Analytics engineer',
+        'Sales',
+        'Marketing',
+        'Product',
+        'Operations',
+        'Customer service',
+        'Student',
+        'Other',
+    ]),
 ];
 
 const UserCompletionModal: FC = () => {
