@@ -1,3 +1,10 @@
+## [0.205.2](https://github.com/lightdash/lightdash/compare/0.205.1...0.205.2) (2022-08-08)
+
+
+### Bug Fixes
+
+* metric use dimension custom sql ([#2892](https://github.com/lightdash/lightdash/issues/2892)) ([3f08a42](https://github.com/lightdash/lightdash/commit/3f08a424b9b117b427f65d93747b62e969234aff))
+
 ## [0.205.1](https://github.com/lightdash/lightdash/compare/0.205.0...0.205.1) (2022-08-08)
 
 
