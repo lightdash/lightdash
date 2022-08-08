@@ -1,3 +1,10 @@
+# [0.206.0](https://github.com/lightdash/lightdash/compare/0.205.2...0.206.0) (2022-08-08)
+
+
+### Features
+
+* show or hide column calculation in table viz ([#2888](https://github.com/lightdash/lightdash/issues/2888)) ([20b1fc2](https://github.com/lightdash/lightdash/commit/20b1fc2e9e9c3129fc4ad3ffdbed35e8eb73093e))
+
 ## [0.205.2](https://github.com/lightdash/lightdash/compare/0.205.1...0.205.2) (2022-08-08)
 
 
