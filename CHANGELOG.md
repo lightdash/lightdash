@@ -1,3 +1,10 @@
+# [0.205.0](https://github.com/lightdash/lightdash/compare/0.204.1...0.205.0) (2022-08-08)
+
+
+### Features
+
+* add new chart modal on spaces ([#2881](https://github.com/lightdash/lightdash/issues/2881)) ([2bda02c](https://github.com/lightdash/lightdash/commit/2bda02cd0685cc8737bdb9acb8e84cd18a038960))
+
 ## [0.204.1](https://github.com/lightdash/lightdash/compare/0.204.0...0.204.1) (2022-08-08)
 
 
