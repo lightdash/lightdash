@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Colors, Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
@@ -6,9 +6,10 @@ import LatestCard from '../../Home/LatestCard';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import {
     CreateNewButton,
-    FolderIcon,
-    FolderWrapper,
     SpaceBrowserWrapper,
+    SpaceFooter,
+    SpaceHeader,
+    SpaceItemCount,
     SpaceLinkButton,
     SpaceListWrapper,
     SpaceTitle,
@@ -40,30 +41,44 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             >
                 <SpaceListWrapper>
                     {spaces &&
-                        spaces.map(({ uuid, name }) => (
+                        spaces.map(({ uuid, name, dashboards, queries }) => (
                             <SpaceLinkButton
                                 key={uuid}
                                 minimal
                                 outlined
                                 href={`/projects/${projectUuid}/spaces/${uuid}`}
                             >
-                                <FolderWrapper>
-                                    <FolderIcon icon="folder-close"></FolderIcon>
-                                </FolderWrapper>
-                                <SpaceTitle>{name}</SpaceTitle>
-                                <div
-                                    onClick={(e) => {
-                                        // prevent clicks in menu to trigger redirect
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                    }}
-                                >
-                                    <SpaceBrowserMenu spaceUuid={uuid}>
-                                        <Tooltip2 content="View options">
-                                            <Button minimal icon="more" />
-                                        </Tooltip2>
-                                    </SpaceBrowserMenu>
-                                </div>
+                                <SpaceHeader>
+                                    <Icon
+                                        icon="folder-close"
+                                        size={20}
+                                        color={Colors.BLUE5}
+                                    ></Icon>
+                                    <div
+                                        onClick={(e) => {
+                                            // prevent clicks in menu to trigger redirect
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                        }}
+                                    >
+                                        <SpaceBrowserMenu spaceUuid={uuid}>
+                                            <Tooltip2 content="View options">
+                                                <Button minimal icon="more" />
+                                            </Tooltip2>
+                                        </SpaceBrowserMenu>
+                                    </div>
+                                </SpaceHeader>
+                                <SpaceTitle ellipsize>{name}</SpaceTitle>
+                                <SpaceFooter>
+                                    <SpaceItemCount
+                                        icon="control"
+                                        value={dashboards.length}
+                                    />
+                                    <SpaceItemCount
+                                        icon="timeline-bar-chart"
+                                        value={queries.length}
+                                    />
+                                </SpaceFooter>
                             </SpaceLinkButton>
                         ))}
                 </SpaceListWrapper>
