@@ -15,9 +15,9 @@ import {
     UserCompletionModalCard,
 } from './UserCompletionModal.styles';
 
-function shuffleArray<T extends unknown>(arr: T[]) {
+function shuffleArray(arr: string[]) {
     return arr
-        .map((a) => [Math.random(), a] as [number, T])
+        .map((a) => [Math.random(), a] as [number, string])
         .sort((a, b) => a[0] - b[0])
         .map((a) => a[1]);
 }
