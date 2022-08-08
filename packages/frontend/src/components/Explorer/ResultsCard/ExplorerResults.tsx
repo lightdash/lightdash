@@ -91,6 +91,9 @@ export const ExplorerResults = () => {
                     pagination={{
                         show: true,
                     }}
+                    footer={{
+                        show: true,
+                    }}
                 />
             </TableContainer>
         </TrackSection>

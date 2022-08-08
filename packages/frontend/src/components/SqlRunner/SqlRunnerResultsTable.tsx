@@ -65,6 +65,9 @@ const SqlRunnerResultsTable: FC<{
                     pagination={{
                         show: true,
                     }}
+                    footer={{
+                        show: true,
+                    }}
                 />
             </TableContainer>
         </TrackSection>

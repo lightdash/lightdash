@@ -9,7 +9,7 @@ const SimpleTable: FC = () => {
         resultsData,
         isLoading,
         columnOrder,
-        tableConfig: { columns },
+        tableConfig: { columns, showColumnCalculation },
     } = useVisualizationContext();
 
     if (isLoading) return <LoadingChart />;
@@ -21,6 +21,9 @@ const SimpleTable: FC = () => {
                 data={resultsData?.rows || []}
                 columns={columns}
                 columnOrder={columnOrder}
+                footer={{
+                    show: showColumnCalculation,
+                }}
             />
         </TableWrapper>
     );

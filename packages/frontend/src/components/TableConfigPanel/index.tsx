@@ -7,7 +7,12 @@ import { ConfigWrapper, SectionTitle } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {
-        tableConfig: { showTableNames, setShowTableName },
+        tableConfig: {
+            showColumnCalculation,
+            showTableNames,
+            setShowTableName,
+            setShowColumnCalculation,
+        },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -15,6 +20,16 @@ export const TableConfigPanel: React.FC = () => {
         <Popover2
             content={
                 <ConfigWrapper>
+                    <SectionTitle>Show column total</SectionTitle>
+                    <Switch
+                        large
+                        innerLabelChecked="Yes"
+                        innerLabel="No"
+                        checked={showColumnCalculation}
+                        onChange={(e) => {
+                            setShowColumnCalculation(!showColumnCalculation);
+                        }}
+                    />
                     <SectionTitle>Show table names</SectionTitle>
                     <Switch
                         large
