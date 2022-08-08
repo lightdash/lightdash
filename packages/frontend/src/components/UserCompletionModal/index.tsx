@@ -1,4 +1,4 @@
-import { Colors, Intent, OptionProps, Overlay } from '@blueprintjs/core';
+import { Colors, Intent, Overlay } from '@blueprintjs/core';
 import { CompleteUserArgs, LightdashMode } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
@@ -22,7 +22,7 @@ function shuffleArray(arr: string[]) {
         .map(({ value }) => value);
 }
 
-const jobTitles: Array<string | OptionProps> = [
+const jobTitles = [
     { value: '', label: 'Select an option...' },
     ...shuffleArray([
         'Data/analytics Leader (manager, director, etc.)',
