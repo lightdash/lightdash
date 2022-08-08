@@ -1,3 +1,10 @@
+# [0.204.0](https://github.com/lightdash/lightdash/compare/0.203.0...0.204.0) (2022-08-08)
+
+
+### Features
+
+* add email to invite error message ([#2883](https://github.com/lightdash/lightdash/issues/2883)) ([a9171e9](https://github.com/lightdash/lightdash/commit/a9171e9db091951203bb658096701446237e92f1))
+
 # [0.203.0](https://github.com/lightdash/lightdash/compare/0.202.2...0.203.0) (2022-08-08)
 
 
