@@ -77,34 +77,51 @@ npm install -g @lightdash/cli
 
 Once you've downloaded the CLI, you'll need to authenticate yourself. There are two ways of doing this:
 
- _(Note that if you are using Google SSO login you should authenticate via environment variables.)_
-
 <details>
-  <summary>1. Run the Login command to use your email and password.</summary>
+  <summary>1. If you use your email + password in the browser, login with your email and password.</summary>
   To login to your Lightdash instance run the following command and provide your login email and password:
 
   ```shell
   lightdash login https://my-lightdash.domain.com
   ```
 
-  where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash cloud users would type `lightdash login https://app.lightdash.cloud`.
+where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
+cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
+`lightdash login https://eu1.lightdash.com`.
 
 </details>
 
 <details>
-  <summary>2. With environment variable to use a personal access token and help automate CI&CD pipelines.</summary>
-  You can use the following environment variables to authenticate yourself on each command:
+  <summary>2. If you use single sign-on (SSO) in the browser, login with a personal access token.</summary>
+  First, create a personal access token in the UI by going to Settings > Personal Access Tokens.
+  Then, run the following command to login with your personal access token:
 
-  - **LIGHTDASH_API_KEY** a personal access token you can generate in the app under the user settings
-  - **LIGHTDASH_URL** address for your running Lightdash instance
+  ```shell
+  lightdash login https://my-lightdash.domain.com --token
+  ```
 
-  Example:
+where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
+cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
+`lightdash login https://eu1.lightdash.com`.
+
+</details>
+
+<details>
+  <summary>3. If you're running in a CI/CD pipeline, login with environment variables</summary>
+
+You can use the following environment variables to authenticate yourself on each command:
+
+- **LIGHTDASH_API_KEY** a personal access token you can generate in the app under the user settings
+- **LIGHTDASH_URL** address for your running Lightdash instance
+
+Example:
 
   ```shell
   LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" lightdash preview
   ```
 
 </details>
+
 
 ## 3. Choose which project you want to preview
 

@@ -45,18 +45,37 @@ Choose your preferred way to authenticate:
 
 ### Login
 
-To login to your Lightdash instance run the following command and provide your login email and password:
+<details>
+  <summary>1. If you use your email + password in the browser, login with your email and password.</summary>
+  To login to your Lightdash instance run the following command and provide your login email and password:
 
-```shell
-lightdash login https://my-lightdash.domain.com
-```
+  ```shell
+  lightdash login https://my-lightdash.domain.com
+  ```
 
-where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash 
-cloud users would type `lightdash login https://app.lightdash.cloud`.
+where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
+cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
+`lightdash login https://eu1.lightdash.com`.
 
-**Note that if you are using Google SSO login you should authenticate via environment variables instead.**
+</details>
 
-### Environment variables
+<details>
+  <summary>2. If you use single sign-on (SSO) in the browser, login with a personal access token.</summary>
+  First, create a personal access token in the UI by going to Settings > Personal Access Tokens.
+  Then, run the following command to login with your personal access token:
+
+  ```shell
+  lightdash login https://my-lightdash.domain.com --token
+  ```
+
+where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
+cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
+`lightdash login https://eu1.lightdash.com`.
+
+</details>
+
+<details>
+  <summary>3. If you're running in a CI/CD pipeline, login with environment variables</summary>
 
 You can use the following environment variables to authenticate yourself on each command:
 
@@ -65,9 +84,12 @@ You can use the following environment variables to authenticate yourself on each
 
 Example:
 
-```shell
-LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" lightdash preview
-```
+  ```shell
+  LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" lightdash preview
+  ```
+
+</details>
+
 
 ### Set active project
 
