@@ -1,3 +1,10 @@
+## [0.204.1](https://github.com/lightdash/lightdash/compare/0.204.0...0.204.1) (2022-08-08)
+
+
+### Bug Fixes
+
+* rename space in homepage ([#2880](https://github.com/lightdash/lightdash/issues/2880)) ([bf2f6b9](https://github.com/lightdash/lightdash/commit/bf2f6b942b6e4c8163d095d544681f0c0c3aeacf))
+
 # [0.204.0](https://github.com/lightdash/lightdash/compare/0.203.0...0.204.0) (2022-08-08)
 
 
