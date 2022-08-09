@@ -1,3 +1,10 @@
+# [0.209.0](https://github.com/lightdash/lightdash/compare/0.208.1...0.209.0) (2022-08-09)
+
+
+### Features
+
+* open filters panel on add filter ([#2885](https://github.com/lightdash/lightdash/issues/2885)) ([fbe0c37](https://github.com/lightdash/lightdash/commit/fbe0c378c373cf2c57af3f7f9d42654a8d20295a))
+
 ## [0.208.1](https://github.com/lightdash/lightdash/compare/0.208.0...0.208.1) (2022-08-09)
 
 
