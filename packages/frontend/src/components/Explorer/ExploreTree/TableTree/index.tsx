@@ -3,6 +3,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledTable,
     Dimension,
+    getItemId,
     hasIntersection,
     hexToRGB,
     isDimension,
@@ -237,7 +238,10 @@ const TableTree: FC<Props> = ({
                 Dimensions
             </Row>
             <TableTreeProvider
-                itemsMap={table.dimensions}
+                itemsMap={Object.values(table.dimensions).reduce(
+                    (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+                    {},
+                )}
                 selectedItems={selectedItems}
                 onItemClick={(key) => onSelectedNodeChange(key, true)}
             >
@@ -254,7 +258,10 @@ const TableTree: FC<Props> = ({
                 Metrics
             </Row>
             <TableTreeProvider
-                itemsMap={table.metrics}
+                itemsMap={Object.values(table.metrics).reduce(
+                    (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+                    {},
+                )}
                 selectedItems={selectedItems}
                 onItemClick={(key) => onSelectedNodeChange(key, false)}
             >
