@@ -40,6 +40,11 @@ export const useFilters = () => {
                 !!shouldFetchResults,
             );
             if (!filterIsOpen) toggleExpandedSection(ExplorerSection.FILTERS);
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
         },
         [filters, setFilters, filterIsOpen, toggleExpandedSection],
     );
