@@ -1,3 +1,10 @@
+## [0.208.1](https://github.com/lightdash/lightdash/compare/0.208.0...0.208.1) (2022-08-09)
+
+
+### Bug Fixes
+
+* csv export used plot data instead of raw ([#2900](https://github.com/lightdash/lightdash/issues/2900)) ([f60a8c4](https://github.com/lightdash/lightdash/commit/f60a8c4a5ff1c2adaaf841e36a5b4ced86227561))
+
 # [0.208.0](https://github.com/lightdash/lightdash/compare/0.207.0...0.208.0) (2022-08-09)
 
 
