@@ -36,8 +36,8 @@ const jobTitles = [
         'Operations',
         'Customer service',
         'Student',
-        'Other',
     ]),
+    'Other',
 ];
 
 const UserCompletionModal: FC = () => {
