@@ -351,24 +351,25 @@ const getSimpleSeries = ({
         valueFormatter: valueFormatter(yFieldHash, items),
     },
 
-    ...(series.label?.show &&
-        formats &&
-        formats[yFieldHash] && {
-            label: {
-                ...series.label,
-                formatter: (value: any) =>
-                    formatValue(
-                        formats[yFieldHash].format,
-                        formats[yFieldHash].round,
-                        value?.value?.[yFieldHash],
-                    ),
-            },
-            labelLayout: function (params: any) {
-                return {
-                    hideOverlap: true,
-                };
-            },
-        }),
+    ...(series.label?.show && {
+        label: {
+            ...series.label,
+            ...(formats &&
+                formats[yFieldHash] && {
+                    formatter: (value: any) =>
+                        formatValue(
+                            formats[yFieldHash].format,
+                            formats[yFieldHash].round,
+                            value?.value?.[yFieldHash],
+                        ),
+                }),
+        },
+        labelLayout: function (params: any) {
+            return {
+                hideOverlap: true,
+            };
+        },
+    }),
 });
 
 export const getEchartsSeries = (
