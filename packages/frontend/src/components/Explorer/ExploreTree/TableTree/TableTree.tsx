@@ -177,7 +177,7 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
     }
 };
 
-const NodeItemButtons: FC<{
+export const NodeItemButtons: FC<{
     node: Metric | Dimension;
     onOpenSourceDialog: (source: Source) => void;
     isHovered: boolean;

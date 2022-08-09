@@ -13,7 +13,7 @@ import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { TableSearch } from './ExploreTree.styles';
-import TableTree from './TableTree/TableTree';
+import NewTableTree from './TableTree';
 
 type ExploreTreeProps = {
     explore: Explore;
@@ -128,24 +128,15 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     .sort((tableA) =>
                         tableA.name === explore.baseTable ? -1 : 1,
                     )
-                    .map((table, index) => (
-                        <TableTree
+                    .map((table) => (
+                        <NewTableTree
                             key={table.name}
-                            search={search}
-                            table={table}
-                            joinSql={
-                                explore.joinedTables.find(
-                                    (joinTable) =>
-                                        joinTable.table === table.name,
-                                )?.compiledSqlOn
-                            }
-                            selectedNodes={selectedNodes}
-                            onSelectedNodeChange={onSelectedFieldChange}
-                            onOpenSourceDialog={setSource}
-                            hasMultipleTables={
+                            showTableLabel={
                                 Object.keys(explore.tables).length > 1
                             }
-                            isFirstTable={index === 0}
+                            table={table}
+                            selectedItems={selectedNodes}
+                            onSelectedNodeChange={onSelectedFieldChange}
                         />
                     ))}
             </div>

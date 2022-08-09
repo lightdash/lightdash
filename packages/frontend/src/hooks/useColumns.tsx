@@ -14,6 +14,17 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
+export const getItemBgColor = (item: Field | TableCalculation): string => {
+    let bgColor: string;
+
+    if (isField(item)) {
+        bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
+    } else {
+        bgColor = '#d2dfd7';
+    }
+    return bgColor;
+};
+
 export const useColumns = (): TableColumn[] => {
     const {
         state: {
@@ -55,17 +66,6 @@ export const useColumns = (): TableColumn[] => {
         resultsData,
         itemsMap: activeItemsMap,
     });
-
-    const getItemBgColor = (item: Field | TableCalculation): string => {
-        let bgColor: string;
-
-        if (isField(item)) {
-            bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
-        } else {
-            bgColor = '#d2dfd7';
-        }
-        return bgColor;
-    };
 
     return useMemo(() => {
         return Object.entries(activeItemsMap).reduce<TableColumn[]>(
