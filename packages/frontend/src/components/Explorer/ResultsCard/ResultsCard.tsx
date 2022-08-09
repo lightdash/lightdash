@@ -6,6 +6,7 @@ import {
     useExplorer,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
+import UnderlyingDataModal from '../../common/modal/UnderlyingDataModal';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
 import { ExplorerResults } from './ExplorerResults';
@@ -22,6 +23,7 @@ const ResultsCard: FC = () => {
         actions: { setRowLimit, toggleExpandedSection },
     } = useExplorer();
     const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
+    const { fieldsMap, data, status } = useUnderlyingData();
 
     return (
         <Card style={{ padding: 5 }} elevation={1}>
@@ -61,6 +63,13 @@ const ResultsCard: FC = () => {
             <Collapse isOpen={resultsIsOpen}>
                 <ExplorerResults />
             </Collapse>
+
+            <UnderlyingDataModal
+                isOpen={true}
+                resultsData={data}
+                fieldsMap={fieldsMap}
+                status={status}
+            />
         </Card>
     );
 };

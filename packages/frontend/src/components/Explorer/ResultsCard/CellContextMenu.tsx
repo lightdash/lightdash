@@ -15,6 +15,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
     const { track } = useTracking();
+    const { viewUnderlyingData } = useUnderlyingData();
 
     if (item && isField(item) && isFilterableField(item)) {
         const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
@@ -23,6 +24,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                 content={
                     <Menu>
                         <MenuItem
+                            icon={'filter'}
                             text={`Filter by "${value.formatted}"`}
                             onClick={() => {
                                 track({
@@ -33,6 +35,14 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                                     value.raw === undefined ? null : value.raw,
                                     true,
                                 );
+                            }}
+                        />
+                        <MenuItem
+                            text={`View underlying data`}
+                            icon={'layers'}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                viewUnderlyingData(value, meta);
                             }}
                         />
                     </Menu>

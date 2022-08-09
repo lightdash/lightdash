@@ -40,6 +40,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                                 addFilter(item, undefined, false);
                             }}
                         />
+
                         <MenuItem
                             text={`Remove`}
                             icon={'cross'}
