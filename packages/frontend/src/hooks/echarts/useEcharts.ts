@@ -283,24 +283,25 @@ const getPivotSeries = ({
         tooltip: {
             valueFormatter: valueFormatter(series.encode.yRef.field, items),
         },
-        ...(series.label?.show &&
-            formats &&
-            formats[series.encode.yRef.field] && {
-                label: {
-                    ...series.label,
-                    formatter: (val: any) =>
-                        formatValue(
-                            formats[series.encode.yRef.field].format,
-                            formats[series.encode.yRef.field].round,
-                            val?.value?.[yFieldHash],
-                        ),
-                },
-                labelLayout: function (params: any) {
-                    return {
-                        hideOverlap: true,
-                    };
-                },
-            }),
+        ...(series.label?.show && {
+            label: {
+                ...series.label,
+                ...(formats &&
+                    formats[series.encode.yRef.field] && {
+                        formatter: (val: any) =>
+                            formatValue(
+                                formats[series.encode.yRef.field].format,
+                                formats[series.encode.yRef.field].round,
+                                val?.value?.[yFieldHash],
+                            ),
+                    }),
+            },
+            labelLayout: function (params: any) {
+                return {
+                    hideOverlap: true,
+                };
+            },
+        }),
     };
 };
 
