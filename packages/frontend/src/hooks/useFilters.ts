@@ -6,17 +6,19 @@ import {
     getTotalFilterRules,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import { useExplorer } from '../providers/ExplorerProvider';
+import { ExplorerSection, useExplorer } from '../providers/ExplorerProvider';
 
 export const useFilters = () => {
     const {
         state: {
+            expandedSections,
             unsavedChartVersion: {
                 metricQuery: { filters },
             },
         },
-        actions: { setFilters },
+        actions: { setFilters, toggleExpandedSection },
     } = useExplorer();
+    const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
 
     const allFilterRules = useMemo(
         () => getTotalFilterRules(filters),
@@ -32,12 +34,19 @@ export const useFilters = () => {
     );
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any, shouldFetchResults?: boolean) =>
+        (field: FilterableField, value: any, shouldFetchResults?: boolean) => {
             setFilters(
                 addFilterRule({ filters, field, value }),
                 !!shouldFetchResults,
-            ),
-        [filters, setFilters],
+            );
+            if (!filterIsOpen) toggleExpandedSection(ExplorerSection.FILTERS);
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        },
+        [filters, setFilters, filterIsOpen, toggleExpandedSection],
     );
 
     return {
