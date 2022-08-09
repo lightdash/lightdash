@@ -859,6 +859,24 @@ export const ExplorerProvider: FC<{
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
             });
+
+            const sorts = reducerState.unsavedChartVersion.metricQuery.sorts;
+            const isSorted = sorts.find((field) => field.fieldId === oldName);
+            if (isSorted) {
+                const newSorts = sorts.map((field) =>
+                    field.fieldId === oldName
+                        ? { ...field, fieldId: tableCalculation.name }
+                        : field,
+                );
+
+                dispatch({
+                    type: ActionType.SET_SORT_FIELDS,
+                    payload: newSorts,
+                    options: {
+                        shouldFetchResults: true,
+                    },
+                });
+            }
         },
         [reducerState],
     );
