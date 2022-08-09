@@ -1,3 +1,10 @@
+# [0.208.0](https://github.com/lightdash/lightdash/compare/0.207.0...0.208.0) (2022-08-09)
+
+
+### Features
+
+* randomze job titles in the job title selector ([#2897](https://github.com/lightdash/lightdash/issues/2897)) ([d0d7c00](https://github.com/lightdash/lightdash/commit/d0d7c00adbb606aacc9319b0d5accd3caff6b912))
+
 # [0.207.0](https://github.com/lightdash/lightdash/compare/0.206.0...0.207.0) (2022-08-08)
 
 
