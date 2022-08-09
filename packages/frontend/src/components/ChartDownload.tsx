@@ -8,7 +8,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType } from '@lightdash/common';
+import { ChartType, getResultValues } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
@@ -169,7 +169,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                         role="button"
                         tabIndex={0}
                         className="bp4-button"
-                        data={tableData.map((row: {}) => row)}
+                        data={tableData}
                         filename={`lightdash-export-${new Date()
                             .toISOString()
                             .slice(0, 10)}.csv`}
@@ -209,9 +209,9 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 };
 
 export const ChartDownloadMenu: React.FC = () => {
-    const { chartRef, chartType, plotData } = useVisualizationContext();
+    const { chartRef, chartType, originalData } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
-    const disabled = !plotData || chartType === ChartType.BIG_NUMBER;
+    const disabled = !originalData || chartType === ChartType.BIG_NUMBER;
 
     return (
         <Popover2
@@ -219,7 +219,7 @@ export const ChartDownloadMenu: React.FC = () => {
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
-                    tableData={plotData || []}
+                    tableData={getResultValues(originalData || [])}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
