@@ -15,19 +15,28 @@ import {
     UserCompletionModalCard,
 } from './UserCompletionModal.styles';
 
+function shuffleArray(arr: string[]) {
+    return arr
+        .map((value) => ({ value, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ value }) => value);
+}
+
 const jobTitles = [
     { value: '', label: 'Select an option...' },
-    'Data/analytics Leader (manager, director, etc.)',
-    'Data scientist',
-    'Data analyst',
-    'Data engineer',
-    'Analytics engineer',
-    'Sales',
-    'Marketing',
-    'Product',
-    'Operations',
-    'Customer service',
-    'Student',
+    ...shuffleArray([
+        'Data/analytics Leader (manager, director, etc.)',
+        'Data scientist',
+        'Data analyst',
+        'Data engineer',
+        'Analytics engineer',
+        'Sales',
+        'Marketing',
+        'Product',
+        'Operations',
+        'Customer service',
+        'Student',
+    ]),
     'Other',
 ];
 
