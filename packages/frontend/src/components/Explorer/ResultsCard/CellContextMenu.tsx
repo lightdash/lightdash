@@ -29,7 +29,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                             text={`View underlying data`}
                             icon={'layers'}
                             onClick={(e) => {
-                                viewData(value, meta);
+                                viewData(value, meta, cell.row.original);
                             }}
                         />
                         {isEditMode && (

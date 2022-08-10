@@ -4,8 +4,11 @@ import {
     Field,
     fieldId as getFieldId,
     FilterOperator,
+    FilterRule,
     getDimensions,
+    isAndFilterGroup,
     isField,
+    isFilterRule,
     isMetric,
     ResultRow,
 } from '@lightdash/common';
@@ -18,6 +21,7 @@ import React, {
     useMemo,
     useState,
 } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { useQueryResults } from '../../hooks/useQueryResults';
 import { ExplorerState } from '../../providers/ExplorerProvider';
@@ -26,7 +30,11 @@ import { TableColumn } from '../common/Table/types';
 type UnderlyingDataContext = {
     resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<string, Field>;
-    viewData: (value: ResultRow[0]['value'], meta: TableColumn['meta']) => void;
+    viewData: (
+        value: ResultRow[0]['value'],
+        meta: TableColumn['meta'],
+        row: ResultRow | undefined,
+    ) => void;
     closeModal: () => void;
 };
 
@@ -110,8 +118,23 @@ export const UnderlyingDataProvider: FC<Props> = ({
             updateExplore
         ) {
             const dimensionFields = dimensions.map(getFieldId);
+            const dimensionFilters =
+                state.unsavedChartVersion.metricQuery.filters.dimensions;
+            const validDimensionFilters =
+                dimensionFilters && isAndFilterGroup(dimensionFilters)
+                    ? dimensionFilters?.and.reduce((acc, filter) => {
+                          if (isFilterRule(filter)) {
+                              const filterField = filter.target.fieldId;
+                              const isDimension = dimensions.find(
+                                  (dimension) =>
+                                      getFieldId(dimension) === filterField,
+                              );
+                              if (isDimension) return [...acc, filter];
+                          }
+                          return acc;
+                      }, [] as FilterRule[])
+                    : [];
 
-            // const shouldFetchResults =
             setState({
                 ...state,
                 unsavedChartVersion: {
@@ -119,6 +142,12 @@ export const UnderlyingDataProvider: FC<Props> = ({
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
                         dimensions: dimensionFields,
+                        filters: {
+                            dimensions: {
+                                id: uuidv4(),
+                                and: validDimensionFilters,
+                            },
+                        },
                     },
                 },
                 shouldFetchResults: true,
@@ -142,13 +171,13 @@ export const UnderlyingDataProvider: FC<Props> = ({
     }, [explore, mutate, state, setState]);
 
     const viewData = useCallback(
-        (value: ResultRow[0]['value'], meta: TableColumn['meta']) => {
-            if (
-                meta?.item === undefined ||
-                !isField(meta?.item) ||
-                isMetric(meta?.item)
-            ) {
-                // invalid item or table calculation or metric
+        (
+            value: ResultRow[0]['value'],
+            meta: TableColumn['meta'],
+            row: ResultRow | undefined,
+        ) => {
+            if (meta?.item === undefined || !isField(meta?.item)) {
+                // invalid item or table calculation
                 console.warn(
                     `Can't view underlying data on field `,
                     meta?.item,
@@ -159,23 +188,53 @@ export const UnderlyingDataProvider: FC<Props> = ({
             const tableName = meta.item.table;
             const exploreNeedsUpdate = explore?.name !== tableName;
 
+            const dimensionFilters =
+                isMetric(meta?.item) && row
+                    ? Object.entries(row).reduce((acc, r) => {
+                          const [
+                              key,
+                              {
+                                  value: { raw },
+                              },
+                          ] = r;
+
+                          const dimensionFilter: FilterRule = {
+                              id: uuidv4(),
+                              target: {
+                                  fieldId: key,
+                              },
+                              operator: FilterOperator.EQUALS,
+                              values: [raw],
+                          };
+                          const isDimension = dimensions.find(
+                              (dimension) => getFieldId(dimension) === key,
+                          );
+
+                          if (exploreNeedsUpdate || isDimension) {
+                              // Some of these filters might belong to metrics, not dimensions
+                              // we will filter invalid metric filters before doing the request on explore update hook
+                              // because we depend on the `dimensions` state, which might not be uptodate now
+                              return [...acc, dimensionFilter];
+                          }
+                          return acc;
+                      }, [] as FilterRule[])
+                    : [
+                          {
+                              id: uuidv4(),
+                              target: {
+                                  fieldId: getFieldId(meta?.item),
+                              },
+                              operator: FilterOperator.EQUALS,
+                              values: [value.raw],
+                          },
+                      ];
+
             const filters = {
                 dimensions: {
                     ...exploreState?.unsavedChartVersion.metricQuery.filters
                         .dimensions,
-
-                    //TODO
-                    id: '324ea5f7-f0cb-4840-be9c-1c468bee8d28',
-                    and: [
-                        {
-                            id: '3e290596-099b-4361-a7a0-3f0cd91364e1',
-                            target: {
-                                fieldId: getFieldId(meta?.item),
-                            },
-                            operator: FilterOperator.EQUALS,
-                            values: [value.raw],
-                        },
-                    ],
+                    id: uuidv4(),
+                    and: dimensionFilters,
                 },
             };
             if (exploreNeedsUpdate) {
