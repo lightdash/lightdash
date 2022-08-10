@@ -1,8 +1,10 @@
 import {
+    AdditionalMetric,
     Field,
     formatItemValue,
     friendlyName,
     getItemMap,
+    isAdditionalMetric,
     isDimension,
     isField,
     isNumericItem,
@@ -14,10 +16,12 @@ import { useExplorer } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
-export const getItemBgColor = (item: Field | TableCalculation): string => {
+export const getItemBgColor = (
+    item: Field | AdditionalMetric | TableCalculation,
+): string => {
     let bgColor: string;
 
-    if (isField(item)) {
+    if (isField(item) || isAdditionalMetric(item)) {
         bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
     } else {
         bgColor = '#d2dfd7';

@@ -7,7 +7,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Explore, Source } from '@lightdash/common';
+import { AdditionalMetric, Explore, Source } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';
@@ -17,6 +17,7 @@ import NewTableTree from './TableTree';
 
 type ExploreTreeProps = {
     explore: Explore;
+    additionalMetrics: AdditionalMetric[];
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
     selectedNodes: Set<string>;
 };
@@ -93,6 +94,7 @@ const SourceDialog: FC<{ source: Source; onClose: () => void }> = ({
 
 const ExploreTree: FC<ExploreTreeProps> = ({
     explore,
+    additionalMetrics,
     selectedNodes,
     onSelectedFieldChange,
 }) => {
@@ -135,6 +137,9 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                                 Object.keys(explore.tables).length > 1
                             }
                             table={table}
+                            additionalMetrics={additionalMetrics?.filter(
+                                (metric) => metric.table === table.name,
+                            )}
                             selectedItems={selectedNodes}
                             onSelectedNodeChange={onSelectedFieldChange}
                         />

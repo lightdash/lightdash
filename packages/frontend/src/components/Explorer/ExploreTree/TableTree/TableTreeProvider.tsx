@@ -1,16 +1,17 @@
 import {
+    AdditionalMetric,
     Dimension,
     Field,
     fieldId,
-    getItemLabel,
     isDimension,
+    isField,
     Metric,
 } from '@lightdash/common';
 import React, { createContext, FC, useContext } from 'react';
 import { GroupNode, Node, NodeMap } from './index';
 
 const getNodeMapFromFields = (
-    fields: Record<string, Field>,
+    fields: Record<string, Field | AdditionalMetric>,
     selectedItems: Set<string>,
 ): NodeMap => {
     return Object.entries(fields)
@@ -18,9 +19,9 @@ const getNodeMapFromFields = (
         .reduce<NodeMap>((acc, [itemId, item]) => {
             const node: Node = {
                 key: itemId,
-                label: getItemLabel(item),
+                label: item.label || item.name,
             };
-            if (item.groupLabel) {
+            if (isField(item) && item.groupLabel) {
                 // first in group
                 if (!acc[item.groupLabel]) {
                     const groupNode: GroupNode = {
@@ -102,7 +103,7 @@ const getNodeMapFromFields = (
         }, {});
 };
 
-type Item = Dimension | Metric;
+type Item = Dimension | Metric | AdditionalMetric;
 
 type Props = {
     itemsMap: Record<string, Item>;

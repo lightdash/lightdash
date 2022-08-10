@@ -1,11 +1,13 @@
 import { Classes, Collapse, Colors, Icon, Text } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
+    AdditionalMetric,
     CompiledTable,
     Dimension,
     getItemId,
     hasIntersection,
     hexToRGB,
+    isAdditionalMetric,
     isDimension,
     Metric,
     TimeInterval,
@@ -16,7 +18,13 @@ import styled from 'styled-components';
 import { getItemBgColor } from '../../../../hooks/useColumns';
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
-import { getItemIconName, NodeItemButtons } from './TableTree';
+import DocumentationHelpButton from '../../../DocumentationHelpButton';
+import {
+    CustomMetricButtons,
+    getItemIconName,
+    NodeItemButtons,
+} from './TableTree';
+import { TooltipContent } from './TableTree.styles';
 import { TableTreeProvider, useTableTreeContext } from './TableTreeProvider';
 
 export type Node = {
@@ -42,7 +50,8 @@ const timeIntervalSort = [
 ];
 
 const sortNodes =
-    (itemsMap: Record<string, Dimension | Metric>) => (a: Node, b: Node) => {
+    (itemsMap: Record<string, Dimension | Metric | AdditionalMetric>) =>
+    (a: Node, b: Node) => {
         const itemA = itemsMap[a.key];
         const itemB = itemsMap[b.key];
 
@@ -127,12 +136,20 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                 <Text ellipsize>{item.label}</Text>
             </Tooltip2>
             <span style={{ flex: 1 }} />
-            <NodeItemButtons
-                node={item}
-                onOpenSourceDialog={() => undefined}
-                isHovered={isHover}
-                isSelected={isSelected}
-            />
+            {isAdditionalMetric(item) ? (
+                <CustomMetricButtons
+                    node={item}
+                    isHovered={isHover}
+                    isSelected={isSelected}
+                />
+            ) : (
+                <NodeItemButtons
+                    node={item}
+                    onOpenSourceDialog={() => undefined}
+                    isHovered={isHover}
+                    isSelected={isSelected}
+                />
+            )}
         </Row>
     );
 };
@@ -216,6 +233,7 @@ const TreeRoot: FC<{ depth?: number }> = ({ depth }) => {
 type Props = {
     showTableLabel: boolean;
     table: CompiledTable;
+    additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (fieldId: string, isDimension: boolean) => void;
 };
@@ -223,6 +241,7 @@ type Props = {
 const TableTree: FC<Props> = ({
     showTableLabel,
     table,
+    additionalMetrics,
     selectedItems,
     onSelectedNodeChange,
 }) => {
@@ -265,6 +284,46 @@ const TableTree: FC<Props> = ({
                     (acc, item) => ({ ...acc, [getItemId(item)]: item }),
                     {},
                 )}
+                selectedItems={selectedItems}
+                onItemClick={(key) => onSelectedNodeChange(key, false)}
+            >
+                <TreeRoot depth={treeRootDepth} />
+            </TableTreeProvider>
+            <Row
+                depth={1}
+                style={{
+                    fontWeight: 600,
+                    color: Colors.ORANGE1,
+                    marginTop: 10,
+                }}
+            >
+                Custom metrics
+                <span style={{ flex: 1 }} />
+                <DocumentationHelpButton
+                    url={
+                        'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
+                    }
+                    tooltipProps={{
+                        content: (
+                            <TooltipContent>
+                                Add custom metrics by hovering over the
+                                dimension of your choice & selecting the
+                                three-dot Action Menu.{' '}
+                                <b>Click to view docs.</b>
+                            </TooltipContent>
+                        ),
+                    }}
+                    iconProps={{
+                        style: {
+                            color: Colors.GRAY3,
+                        },
+                    }}
+                />
+            </Row>
+            <TableTreeProvider
+                itemsMap={additionalMetrics.reduce<
+                    Record<string, AdditionalMetric>
+                >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {})}
                 selectedItems={selectedItems}
                 onItemClick={(key) => onSelectedNodeChange(key, false)}
             >

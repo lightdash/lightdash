@@ -60,7 +60,10 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
     const {
         state: {
             activeFields,
-            unsavedChartVersion: { tableName: activeTableName },
+            unsavedChartVersion: {
+                tableName: activeTableName,
+                metricQuery: { additionalMetrics },
+            },
         },
         actions: { toggleActiveField, setMagicMetrics },
     } = useExplorer();
@@ -149,6 +152,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                 <TableDivider />
                 <ExploreTree
                     explore={activeExplore}
+                    additionalMetrics={additionalMetrics || []}
                     selectedNodes={activeFields}
                     onSelectedFieldChange={toggleActiveField}
                 />

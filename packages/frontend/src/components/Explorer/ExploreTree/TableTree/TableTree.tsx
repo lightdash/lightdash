@@ -329,10 +329,11 @@ export const NodeItemButtons: FC<{
     );
 };
 
-const CustomMetricButtons: FC<{
+export const CustomMetricButtons: FC<{
     node: AdditionalMetric;
     isHovered: boolean;
-}> = ({ node, isHovered }) => {
+    isSelected: boolean;
+}> = ({ node, isHovered, isSelected }) => {
     const { track } = useTracking();
 
     const {
@@ -363,7 +364,7 @@ const CustomMetricButtons: FC<{
                 gap: '10px',
             }}
         >
-            {menuItems.length > 0 && isHovered && (
+            {menuItems.length > 0 && (isHovered || isSelected) && (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
@@ -820,6 +821,7 @@ const TableTree: FC<TableTreeProps> = ({
                               <CustomMetricButtons
                                   node={metric}
                                   isHovered={hoveredFieldId === fieldId(metric)}
+                                  isSelected={false}
                               />
                           ),
                       })),
