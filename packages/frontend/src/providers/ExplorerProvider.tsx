@@ -580,6 +580,17 @@ function reducer(
                                         ? action.payload.tableCalculation
                                         : tableCalculation,
                             ),
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.map(
+                            (field) =>
+                                field.fieldId === action.payload.oldName
+                                    ? {
+                                          ...field,
+                                          fieldId:
+                                              action.payload.tableCalculation
+                                                  .name,
+                                      }
+                                    : field,
+                        ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
@@ -607,6 +618,9 @@ function reducer(
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
                         tableCalculations: newTableCalculations,
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (sort) => sort.fieldId !== action.payload,
+                        ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
