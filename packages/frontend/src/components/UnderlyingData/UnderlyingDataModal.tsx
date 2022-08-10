@@ -18,7 +18,7 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
                 // TODO class this
 
                 width: '800px',
-                height: '400px',
+                height: '600px',
             }}
         >
             <UnderlyingDataResultsTable

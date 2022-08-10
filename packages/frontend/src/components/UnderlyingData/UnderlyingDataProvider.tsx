@@ -3,11 +3,10 @@ import {
     ChartType,
     Field,
     fieldId as getFieldId,
-    FieldType,
     FilterOperator,
-    friendlyName,
     getDimensions,
     isField,
+    isMetric,
     ResultRow,
 } from '@lightdash/common';
 import React, {
@@ -43,14 +42,14 @@ export const UnderlyingDataProvider: FC<Props> = ({
 }) => {
     const defaultState: ExplorerState = {
         activeFields: new Set([]),
-        isValidQuery: true,
+        isValidQuery: false,
         hasUnsavedChanges: false,
         isEditMode: false,
         savedChart: undefined,
         shouldFetchResults: false,
         expandedSections: [],
         unsavedChartVersion: {
-            tableName: 'test',
+            tableName: '',
             metricQuery: {
                 dimensions: [],
                 metrics: [],
@@ -72,9 +71,15 @@ export const UnderlyingDataProvider: FC<Props> = ({
     };
     const [state, setState] = useState<ExplorerState>(defaultState);
     const { data: explore } = useExplore(state.unsavedChartVersion.tableName);
-
+    const [updateExplore, setUpdateExplore] = useState<boolean>(false);
     const dimensions = useMemo(
-        () => (explore ? getDimensions(explore) : []),
+        () =>
+            explore
+                ? getDimensions(explore).filter(
+                      (dimension) =>
+                          !dimension.timeInterval && !dimension.hidden,
+                  )
+                : [],
         [explore],
     );
 
@@ -85,95 +90,137 @@ export const UnderlyingDataProvider: FC<Props> = ({
     } = useQueryResults(state);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
-        const row = resultsData?.rows?.[0];
-        if (row) {
-            const tableName = state.unsavedChartVersion.tableName;
-
-            const entries = Object.entries(row);
-            const m: Record<string, Field> = entries.reduce(
-                (acc, [key, value]) => {
-                    const fieldName = key.replace(`${tableName}_`, '');
-                    return {
-                        ...acc,
-                        [key]: {
-                            fieldType: FieldType.DIMENSION,
-                            type: 'string', // Discriminator field
-                            name: fieldName, // Field names are unique within a table
-                            label: friendlyName(fieldName), // Friendly name
-                            table: tableName, // Table names are unique within the project
-                            tableLabel: friendlyName(tableName), // Table friendly name
-                            sql: '', // Templated sql
-                            hidden: false,
-                        },
-                    };
-                },
-                {} as Record<string, Field>,
-            );
-            return m;
-        } else {
-            return {};
-        }
-    }, [resultsData?.rows, state.unsavedChartVersion.tableName]);
+        return dimensions.reduce((acc, dimension) => {
+            const fieldId = isField(dimension) ? getFieldId(dimension) : '';
+            return {
+                ...acc,
+                [fieldId]: dimension,
+            };
+        }, {});
+    }, [dimensions]);
 
     const closeModal = useCallback(() => {
         resetQueryResults();
     }, [resetQueryResults]);
 
     useEffect(() => {
-        if (exploreState)
-            setState({ ...exploreState, shouldFetchResults: false });
-    }, [exploreState, setState]);
-
-    useEffect(() => {
-        if (state.shouldFetchResults) {
-            mutate();
-            setState({ ...state, shouldFetchResults: false });
-        }
-    }, [mutate, state, setState]);
-
-    const viewData = useCallback(
-        (value: ResultRow[0]['value'], meta: TableColumn['meta']) => {
-            if (meta?.item === undefined || !isField(meta?.item)) {
-                //TODO disable option
-                console.warn(
-                    `Can't view underlying data on field ${meta?.item}`,
-                );
-                return;
-            }
-
+        //if table name is different, we need to wait for explore to fetch the dimensions before making the SQL request
+        if (
+            explore?.name === state.unsavedChartVersion.tableName &&
+            updateExplore
+        ) {
             const dimensionFields = dimensions.map(getFieldId);
-            // TODO if table name is different, we need to wait for explore to fetch the dimensions before making the SQL request
+
+            // const shouldFetchResults =
             setState({
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
-                        metrics: [],
                         dimensions: dimensionFields,
-                        filters: {
-                            dimensions: {
-                                //TODO
-                                id: '324ea5f7-f0cb-4840-be9c-1c468bee8d28',
-                                and: [
-                                    {
-                                        id: '3e290596-099b-4361-a7a0-3f0cd91364e1',
-                                        target: {
-                                            fieldId: getFieldId(meta?.item),
-                                        },
-                                        operator: FilterOperator.EQUALS,
-                                        values: [value.raw],
-                                    },
-                                ],
-                            },
-                        },
                     },
-                    tableName: meta.item.table,
                 },
                 shouldFetchResults: true,
+                isValidQuery: true,
             });
+
+            setUpdateExplore(false);
+        }
+    }, [explore, state, setState, dimensions, updateExplore]);
+
+    useEffect(() => {
+        //if table name is different, we need to wait for explore to fetch the dimensions before making the SQL request
+        if (
+            state.shouldFetchResults &&
+            explore?.name === state.unsavedChartVersion.tableName &&
+            state.unsavedChartVersion.metricQuery.dimensions.length > 0
+        ) {
+            mutate();
+            setState({ ...state, shouldFetchResults: false });
+        }
+    }, [explore, mutate, state, setState]);
+
+    const viewData = useCallback(
+        (value: ResultRow[0]['value'], meta: TableColumn['meta']) => {
+            if (
+                meta?.item === undefined ||
+                !isField(meta?.item) ||
+                isMetric(meta?.item)
+            ) {
+                // invalid item or table calculation or metric
+                console.warn(
+                    `Can't view underlying data on field `,
+                    meta?.item,
+                );
+                return;
+            }
+
+            const tableName = meta.item.table;
+            const exploreNeedsUpdate = explore?.name !== tableName;
+
+            const filters = {
+                dimensions: {
+                    ...exploreState?.unsavedChartVersion.metricQuery.filters
+                        .dimensions,
+
+                    //TODO
+                    id: '324ea5f7-f0cb-4840-be9c-1c468bee8d28',
+                    and: [
+                        {
+                            id: '3e290596-099b-4361-a7a0-3f0cd91364e1',
+                            target: {
+                                fieldId: getFieldId(meta?.item),
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [value.raw],
+                        },
+                    ],
+                },
+            };
+            if (exploreNeedsUpdate) {
+                setUpdateExplore(true);
+
+                setState({
+                    ...state,
+                    unsavedChartVersion: {
+                        ...state.unsavedChartVersion,
+                        metricQuery: {
+                            ...state.unsavedChartVersion.metricQuery,
+                            filters,
+                        },
+                        tableName: tableName,
+                    },
+                    shouldFetchResults: false,
+                    isValidQuery: true,
+                });
+            } else {
+                const dimensionFields = dimensions.map(getFieldId);
+
+                // const shouldFetchResults =
+                setState({
+                    ...state,
+                    unsavedChartVersion: {
+                        ...state.unsavedChartVersion,
+                        metricQuery: {
+                            ...state.unsavedChartVersion.metricQuery,
+                            dimensions: dimensionFields,
+                            filters,
+                        },
+                        tableName: tableName,
+                    },
+                    shouldFetchResults: true,
+                    isValidQuery: true,
+                });
+            }
         },
-        [state, setState, dimensions],
+        [
+            state,
+            setState,
+            dimensions,
+            exploreState?.unsavedChartVersion.metricQuery,
+            explore?.name,
+        ],
     );
 
     return (
