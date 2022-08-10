@@ -33,7 +33,7 @@ type UnderlyingDataContext = {
     viewData: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
-        row: ResultRow | undefined,
+        row: ResultRow,
     ) => void;
     closeModal: () => void;
 };
@@ -174,22 +174,18 @@ export const UnderlyingDataProvider: FC<Props> = ({
         (
             value: ResultRow[0]['value'],
             meta: TableColumn['meta'],
-            row: ResultRow | undefined,
+            row: ResultRow,
         ) => {
-            if (meta?.item === undefined || !isField(meta?.item)) {
-                // invalid item or table calculation
-                console.warn(
-                    `Can't view underlying data on field `,
-                    meta?.item,
-                );
-                return;
-            }
+            if (meta?.item === undefined) return;
 
-            const tableName = meta.item.table;
+            const tableName: string = isField(meta?.item)
+                ? meta.item.table
+                : exploreState?.unsavedChartVersion.tableName || '';
+
             const exploreNeedsUpdate = explore?.name !== tableName;
 
             const dimensionFilters =
-                isMetric(meta?.item) && row
+                !isField(meta?.item) || isMetric(meta?.item)
                     ? Object.entries(row).reduce((acc, r) => {
                           const [
                               key,
@@ -279,6 +275,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
             dimensions,
             exploreState?.unsavedChartVersion.metricQuery,
             explore?.name,
+            exploreState?.unsavedChartVersion.tableName,
         ],
     );
 
