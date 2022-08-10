@@ -277,7 +277,7 @@ type Props = {
     table: CompiledTable;
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
-    onSelectedNodeChange: (fieldId: string, isDimension: boolean) => void;
+    onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
 };
 
 const TableTree: FC<Props> = ({

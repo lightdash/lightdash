@@ -26,7 +26,7 @@ const getSearchResults = (
     }
     return results;
 };
-const getNodeMapFromFields = (
+const getNodeMapFromItemsMap = (
     itemsMap: Record<string, Item>,
     selectedItems: Set<string>,
 ): NodeMap => {
@@ -143,7 +143,7 @@ export const TableTreeProvider: FC<Props> = ({
     selectedItems,
     ...rest
 }) => {
-    const nodeMap = getNodeMapFromFields(itemsMap, selectedItems);
+    const nodeMap = getNodeMapFromItemsMap(itemsMap, selectedItems);
     const searchResults = getSearchResults(itemsMap, searchQuery);
     const isSearching = !!searchQuery && searchQuery !== '';
     return (
