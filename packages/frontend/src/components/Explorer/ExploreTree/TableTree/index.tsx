@@ -98,12 +98,20 @@ const Row = styled.div<{
     height: 30px;
     display: flex;
     align-items: center;
-    cursor: ${({ onClick }) => (onClick ? 'pointer' : undefined)};
-
-    :hover {
-        background-color: ${({ selected, bgColor }) =>
-            selected && bgColor ? hexToRGB(bgColor, 0.8) : Colors.LIGHT_GRAY5};
-    }
+    ${({ onClick, selected, bgColor }) =>
+        onClick &&
+        `
+        cursor: pointer;
+        
+        :hover {
+            background-color: ${
+                selected && bgColor
+                    ? hexToRGB(bgColor, 0.8)
+                    : Colors.LIGHT_GRAY5
+            }
+        }
+        
+    `}
 
     background-color: ${({ selected, bgColor }) =>
         selected && bgColor ? hexToRGB(bgColor, 1) : undefined};
@@ -290,12 +298,13 @@ const TableTree: FC<Props> = ({
 }) => {
     const [isOpen, toggle] = useToggle(true);
     const treeRootDepth = showTableLabel ? 2 : 1;
+    const sectionDepth = showTableLabel ? 1 : 0;
     const hasNoMetrics = Object.keys(table.metrics).length <= 0;
 
     const itemsTrees = (
         <>
             <Row
-                depth={1}
+                depth={sectionDepth}
                 style={{
                     fontWeight: 600,
                     color: Colors.BLUE1,
@@ -304,7 +313,14 @@ const TableTree: FC<Props> = ({
                 Dimensions
             </Row>
             {Object.keys(table.dimensions).length <= 0 ? (
-                <span>No dimensions defined in your dbt project</span>
+                <div
+                    style={{
+                        color: Colors.GRAY3,
+                        margin: '10px 24px',
+                    }}
+                >
+                    No dimensions defined in your dbt project
+                </div>
             ) : (
                 <TableTreeProvider
                     searchQuery={searchQuery}
@@ -319,7 +335,7 @@ const TableTree: FC<Props> = ({
                 </TableTreeProvider>
             )}
             <Row
-                depth={1}
+                depth={sectionDepth}
                 style={{
                     fontWeight: 600,
                     color: Colors.ORANGE1,
@@ -350,7 +366,14 @@ const TableTree: FC<Props> = ({
                 )}
             </Row>
             {hasNoMetrics ? (
-                <span>No metrics defined in your dbt project</span>
+                <div
+                    style={{
+                        color: Colors.GRAY3,
+                        margin: '10px 24px',
+                    }}
+                >
+                    No metrics defined in your dbt project
+                </div>
             ) : (
                 <TableTreeProvider
                     searchQuery={searchQuery}
@@ -365,7 +388,7 @@ const TableTree: FC<Props> = ({
                 </TableTreeProvider>
             )}
             <Row
-                depth={1}
+                depth={sectionDepth}
                 style={{
                     fontWeight: 600,
                     color: Colors.ORANGE1,
@@ -396,10 +419,15 @@ const TableTree: FC<Props> = ({
                 />
             </Row>
             {hasNoMetrics && additionalMetrics.length <= 0 ? (
-                <span>
+                <div
+                    style={{
+                        color: Colors.GRAY3,
+                        margin: '10px 24px',
+                    }}
+                >
                     Add custom metrics by hovering over the dimension of your
                     choice & selecting the three-dot Action Menu
-                </span>
+                </div>
             ) : (
                 <TableTreeProvider
                     searchQuery={searchQuery}
