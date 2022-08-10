@@ -7,6 +7,7 @@ import {
     Menu,
     MenuItem,
     PopoverPosition,
+    Tag,
     Text,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
@@ -373,7 +374,7 @@ const Row = styled.div<{
     bgColor?: string;
     onClick?: () => void;
 }>`
-    padding-left: ${({ depth }) => depth * 24 + 10}px;
+    padding-left: ${({ depth }) => depth * 24}px;
     padding-right: 10px;
     height: 30px;
     display: flex;
@@ -580,6 +581,10 @@ const TableTree: FC<Props> = ({
     const treeRootDepth = showTableLabel ? 2 : 1;
     const sectionDepth = showTableLabel ? 1 : 0;
     const hasNoMetrics = Object.keys(table.metrics).length <= 0;
+    const tableItemsCount =
+        Object.values(table.dimensions).filter((item) => !item.hidden).length +
+        Object.values(table.metrics).filter((item) => !item.hidden).length +
+        additionalMetrics.length;
 
     const itemsTrees = (
         <>
@@ -673,6 +678,7 @@ const TableTree: FC<Props> = ({
                     fontWeight: 600,
                     color: Colors.ORANGE1,
                     marginTop: 10,
+                    marginBottom: 10,
                 }}
             >
                 Custom metrics
@@ -739,12 +745,18 @@ const TableTree: FC<Props> = ({
                         fontWeight: 600,
                     }}
                 >
-                    <Icon
-                        icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                        size={16}
-                        style={{ marginRight: 8 }}
-                    />
+                    <Icon icon={'th'} size={16} style={{ marginRight: 8 }} />
                     <Text ellipsize>{table.label}</Text>
+                    {!isOpen && (
+                        <Tag minimal round style={{ marginLeft: 10 }}>
+                            {tableItemsCount}
+                        </Tag>
+                    )}
+                    <span style={{ flex: 1 }} />
+                    <Icon
+                        icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                    />
                 </Row>
                 <Collapse isOpen={isOpen}>{itemsTrees}</Collapse>
             </TrackSection>
