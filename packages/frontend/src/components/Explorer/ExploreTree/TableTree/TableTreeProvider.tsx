@@ -1,7 +1,6 @@
 import {
     AdditionalMetric,
     Dimension,
-    Field,
     fieldId,
     isDimension,
     isField,
@@ -11,21 +10,27 @@ import Fuse from 'fuse.js';
 import React, { createContext, FC, useContext } from 'react';
 import { GroupNode, Node, NodeMap } from './index';
 
-const getNodeMapFromFields = (
-    items: Record<string, Field | AdditionalMetric>,
-    selectedItems: Set<string>,
+const getSearchResults = (
+    itemsMap: Record<string, Item>,
     searchQuery?: string,
-): NodeMap => {
+): Set<string> => {
+    const results = new Set<string>();
     if (searchQuery && searchQuery !== '') {
-        items = new Fuse(Object.entries(items), {
+        new Fuse(Object.entries(itemsMap), {
             keys: ['1.label'],
             ignoreLocation: true,
             threshold: 0.3,
         })
             .search(searchQuery)
-            .reduce((acc, res) => ({ ...acc, [res.item[0]]: res.item[1] }), {});
+            .forEach((res) => results.add(res.item[0]));
     }
-    return Object.entries(items)
+    return results;
+};
+const getNodeMapFromFields = (
+    itemsMap: Record<string, Item>,
+    selectedItems: Set<string>,
+): NodeMap => {
+    return Object.entries(itemsMap)
         .filter(([itemId, item]) => !item.hidden || selectedItems.has(itemId))
         .reduce<NodeMap>((acc, [itemId, item]) => {
             const node: Node = {
@@ -126,6 +131,7 @@ type Props = {
 type TableTreeContext = Props & {
     nodeMap: NodeMap;
     isSearching: boolean;
+    searchResults: Set<string>;
 };
 
 const Context = createContext<TableTreeContext | undefined>(undefined);
@@ -137,7 +143,8 @@ export const TableTreeProvider: FC<Props> = ({
     selectedItems,
     ...rest
 }) => {
-    const nodeMap = getNodeMapFromFields(itemsMap, selectedItems, searchQuery);
+    const nodeMap = getNodeMapFromFields(itemsMap, selectedItems);
+    const searchResults = getSearchResults(itemsMap, searchQuery);
     const isSearching = !!searchQuery && searchQuery !== '';
     return (
         <Context.Provider
@@ -147,6 +154,7 @@ export const TableTreeProvider: FC<Props> = ({
                 selectedItems,
                 isSearching,
                 searchQuery,
+                searchResults,
                 ...rest,
             }}
         >

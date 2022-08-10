@@ -42,9 +42,7 @@ export type NodeMap = Record<string, Node>;
 export const isGroupNode = (node: Node): node is GroupNode =>
     'children' in node;
 
-export const Hightlighed = styled.span`
-    color: ${Colors.BLUE3};
-`;
+export const Hightlighed = styled.b``;
 
 const timeIntervalSort = [
     undefined,
@@ -113,14 +111,22 @@ const Row = styled.div<{
 
 const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
     const [isHover, toggle] = useToggle(false);
-    const { itemsMap, selectedItems, searchQuery, onItemClick } =
-        useTableTreeContext();
-
+    const {
+        itemsMap,
+        selectedItems,
+        isSearching,
+        searchResults,
+        searchQuery,
+        onItemClick,
+    } = useTableTreeContext();
+    const isSelected = selectedItems.has(node.key);
+    const isVisible = !isSearching || searchResults.has(node.key);
     const item = itemsMap[node.key];
-    if (!item) {
+
+    if (!item || !isVisible) {
         return null;
     }
-    const isSelected = selectedItems.has(node.key);
+
     const label: string =
         isDimension(item) && item.group
             ? friendlyName(item.name.replace(item?.group, ''))
@@ -175,20 +181,29 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
     node,
     depth,
 }) => {
-    const { selectedItems, isSearching, searchQuery } = useTableTreeContext();
+    const { selectedItems, isSearching, searchQuery, searchResults } =
+        useTableTreeContext();
     const [isOpen, toggle] = useToggle(false);
     const allChildrenKeys: string[] = getAllChildrenKeys([node]);
     const hasSelectedChildren = hasIntersection(
         allChildrenKeys,
         Array.from(selectedItems),
     );
-    const isDisabled = hasSelectedChildren || isSearching;
+    const hasVisibleChildren =
+        !isSearching ||
+        hasIntersection(allChildrenKeys, Array.from(searchResults));
+    const forceOpen = isSearching && hasVisibleChildren;
+    const isDisabled = hasSelectedChildren || forceOpen;
 
     useEffect(() => {
-        if (hasSelectedChildren || isSearching) {
+        if (hasSelectedChildren) {
             toggle(true);
         }
-    }, [hasSelectedChildren, isSearching, toggle]);
+    }, [hasSelectedChildren, toggle]);
+
+    if (!hasVisibleChildren) {
+        return null;
+    }
 
     return (
         <>
@@ -200,7 +215,9 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                 }}
             >
                 <Icon
-                    icon={isOpen ? 'chevron-down' : 'chevron-right'}
+                    icon={
+                        isOpen || forceOpen ? 'chevron-down' : 'chevron-right'
+                    }
                     size={16}
                     style={{ marginRight: 8 }}
                     color={isDisabled ? Colors.LIGHT_GRAY1 : undefined}
@@ -213,7 +230,7 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                     />
                 </Text>
             </Row>
-            <Collapse isOpen={isOpen}>
+            <Collapse isOpen={isOpen || forceOpen}>
                 {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
                 <TreeNodeGroup nodeMap={node.children} depth={depth + 1} />
             </Collapse>
