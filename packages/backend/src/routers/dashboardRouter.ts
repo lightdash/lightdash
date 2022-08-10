@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
@@ -7,19 +8,24 @@ import { dashboardService } from '../services/services';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
 
-dashboardRouter.get('/', isAuthenticated, async (req, res, next) => {
-    try {
-        res.json({
-            status: 'ok',
-            results: await dashboardService.getById(
-                req.user!,
-                req.params.dashboardUuid,
-            ),
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+dashboardRouter.get(
+    '/',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.getById(
+                    req.user!,
+                    req.params.dashboardUuid,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
 dashboardRouter.patch(
     '/',
