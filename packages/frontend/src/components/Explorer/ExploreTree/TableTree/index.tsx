@@ -1,4 +1,4 @@
-import { Collapse, Colors, Icon, Text } from '@blueprintjs/core';
+import { Classes, Collapse, Colors, Icon, Text } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledTable,
@@ -120,7 +120,10 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                 size={16}
                 style={{ marginRight: 8 }}
             />
-            <Tooltip2 content={item.description}>
+            <Tooltip2
+                content={item.description}
+                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
+            >
                 <Text ellipsize>{item.label}</Text>
             </Tooltip2>
             <span style={{ flex: 1 }} />
@@ -167,7 +170,7 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                     style={{ marginRight: 8 }}
                     color={hasSelectedChildren ? Colors.LIGHT_GRAY1 : undefined}
                 />
-                {node.label}
+                <Text ellipsize>{node.label}</Text>
             </Row>
             <Collapse isOpen={isOpen}>
                 {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
@@ -285,7 +288,7 @@ const TableTree: FC<Props> = ({
                         size={16}
                         style={{ marginRight: 8 }}
                     />
-                    {table.label}
+                    <Text ellipsize>{table.label}</Text>
                 </Row>
                 <Collapse isOpen={isOpen}>{itemsTrees}</Collapse>
             </TrackSection>
