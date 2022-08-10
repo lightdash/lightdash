@@ -1,3 +1,10 @@
+## [0.209.3](https://github.com/lightdash/lightdash/compare/0.209.2...0.209.3) (2022-08-10)
+
+
+### Bug Fixes
+
+* fix table calculation renaming sort ([#2899](https://github.com/lightdash/lightdash/issues/2899)) ([e979b84](https://github.com/lightdash/lightdash/commit/e979b847cf3686a218111d6bafc014b15022731a))
+
 ## [0.209.2](https://github.com/lightdash/lightdash/compare/0.209.1...0.209.2) (2022-08-10)
 
 
