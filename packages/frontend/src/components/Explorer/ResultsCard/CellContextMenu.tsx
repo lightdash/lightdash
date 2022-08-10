@@ -6,6 +6,7 @@ import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
+import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
 export const CellContextMenu: React.FC<CellContextMenuProps> = ({
     children,
@@ -15,7 +16,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
     const { track } = useTracking();
-    const { viewUnderlyingData } = useUnderlyingData();
+    const { viewData } = useUnderlyingDataContext();
 
     if (item && isField(item) && isFilterableField(item)) {
         const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
@@ -41,8 +42,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                             text={`View underlying data`}
                             icon={'layers'}
                             onClick={(e) => {
-                                e.stopPropagation();
-                                viewUnderlyingData(value, meta);
+                                viewData(value, meta);
                             }}
                         />
                     </Menu>

@@ -6,9 +6,10 @@ import {
     useExplorer,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
-import UnderlyingDataModal from '../../common/modal/UnderlyingDataModal';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
+import UnderlyingDataModal from '../../UnderlyingData/UnderlyingDataModal';
+import UnderlyingDataProvider from '../../UnderlyingData/UnderlyingDataProvider';
 import { ExplorerResults } from './ExplorerResults';
 import {
     CardHeader,
@@ -18,13 +19,12 @@ import {
 
 const ResultsCard: FC = () => {
     const {
-        state: { isEditMode, unsavedChartVersion, expandedSections },
+        state,
         queryResults,
         actions: { setRowLimit, toggleExpandedSection },
     } = useExplorer();
+    const { isEditMode, unsavedChartVersion, expandedSections } = state;
     const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
-    const { fieldsMap, data, status } = useUnderlyingData();
-
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
@@ -61,15 +61,11 @@ const ResultsCard: FC = () => {
                 )}
             </CardHeader>
             <Collapse isOpen={resultsIsOpen}>
-                <ExplorerResults />
+                <UnderlyingDataProvider exploreState={state}>
+                    <ExplorerResults />
+                    <UnderlyingDataModal />
+                </UnderlyingDataProvider>
             </Collapse>
-
-            <UnderlyingDataModal
-                isOpen={true}
-                resultsData={data}
-                fieldsMap={fieldsMap}
-                status={status}
-            />
         </Card>
     );
 };
