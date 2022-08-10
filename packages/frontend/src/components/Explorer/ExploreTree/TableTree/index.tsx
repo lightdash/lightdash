@@ -247,6 +247,7 @@ const TableTree: FC<Props> = ({
 }) => {
     const [isOpen, toggle] = useToggle(true);
     const treeRootDepth = showTableLabel ? 2 : 1;
+    const hasNoMetrics = Object.keys(table.metrics).length <= 0;
 
     const itemsTrees = (
         <>
@@ -259,16 +260,20 @@ const TableTree: FC<Props> = ({
             >
                 Dimensions
             </Row>
-            <TableTreeProvider
-                itemsMap={Object.values(table.dimensions).reduce(
-                    (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-                    {},
-                )}
-                selectedItems={selectedItems}
-                onItemClick={(key) => onSelectedNodeChange(key, true)}
-            >
-                <TreeRoot depth={treeRootDepth} />
-            </TableTreeProvider>
+            {Object.keys(table.dimensions).length <= 0 ? (
+                <span>No dimensions defined in your dbt project</span>
+            ) : (
+                <TableTreeProvider
+                    itemsMap={Object.values(table.dimensions).reduce(
+                        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+                        {},
+                    )}
+                    selectedItems={selectedItems}
+                    onItemClick={(key) => onSelectedNodeChange(key, true)}
+                >
+                    <TreeRoot depth={treeRootDepth} />
+                </TableTreeProvider>
+            )}
             <Row
                 depth={1}
                 style={{
@@ -278,17 +283,42 @@ const TableTree: FC<Props> = ({
                 }}
             >
                 Metrics
-            </Row>
-            <TableTreeProvider
-                itemsMap={Object.values(table.metrics).reduce(
-                    (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-                    {},
+                <span style={{ flex: 1 }} />
+                {hasNoMetrics && (
+                    <DocumentationHelpButton
+                        url={
+                            'https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#2-add-a-metric-to-your-project'
+                        }
+                        tooltipProps={{
+                            content: (
+                                <TooltipContent>
+                                    <b>View docs</b> - Add a metric to your
+                                    project
+                                </TooltipContent>
+                            ),
+                        }}
+                        iconProps={{
+                            style: {
+                                color: Colors.GRAY3,
+                            },
+                        }}
+                    />
                 )}
-                selectedItems={selectedItems}
-                onItemClick={(key) => onSelectedNodeChange(key, false)}
-            >
-                <TreeRoot depth={treeRootDepth} />
-            </TableTreeProvider>
+            </Row>
+            {hasNoMetrics ? (
+                <span>No metrics defined in your dbt project</span>
+            ) : (
+                <TableTreeProvider
+                    itemsMap={Object.values(table.metrics).reduce(
+                        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+                        {},
+                    )}
+                    selectedItems={selectedItems}
+                    onItemClick={(key) => onSelectedNodeChange(key, false)}
+                >
+                    <TreeRoot depth={treeRootDepth} />
+                </TableTreeProvider>
+            )}
             <Row
                 depth={1}
                 style={{
@@ -320,15 +350,28 @@ const TableTree: FC<Props> = ({
                     }}
                 />
             </Row>
-            <TableTreeProvider
-                itemsMap={additionalMetrics.reduce<
-                    Record<string, AdditionalMetric>
-                >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {})}
-                selectedItems={selectedItems}
-                onItemClick={(key) => onSelectedNodeChange(key, false)}
-            >
-                <TreeRoot depth={treeRootDepth} />
-            </TableTreeProvider>
+            {hasNoMetrics && additionalMetrics.length <= 0 ? (
+                <span>
+                    Add custom metrics by hovering over the dimension of your
+                    choice & selecting the three-dot Action Menu
+                </span>
+            ) : (
+                <TableTreeProvider
+                    itemsMap={additionalMetrics.reduce<
+                        Record<string, AdditionalMetric>
+                    >(
+                        (acc, item) => ({
+                            ...acc,
+                            [getItemId(item)]: item,
+                        }),
+                        {},
+                    )}
+                    selectedItems={selectedItems}
+                    onItemClick={(key) => onSelectedNodeChange(key, false)}
+                >
+                    <TreeRoot depth={treeRootDepth} />
+                </TableTreeProvider>
+            )}
         </>
     );
 
