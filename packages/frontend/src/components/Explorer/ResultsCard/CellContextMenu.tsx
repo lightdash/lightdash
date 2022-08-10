@@ -9,6 +9,7 @@ import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
 export const CellContextMenu: React.FC<CellContextMenuProps> = ({
+    isEditMode,
     children,
     cell,
 }) => {
@@ -25,26 +26,30 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
                 content={
                     <Menu>
                         <MenuItem
-                            icon={'filter'}
-                            text={`Filter by "${value.formatted}"`}
-                            onClick={() => {
-                                track({
-                                    name: EventName.ADD_FILTER_CLICKED,
-                                });
-                                addFilter(
-                                    item,
-                                    value.raw === undefined ? null : value.raw,
-                                    true,
-                                );
-                            }}
-                        />
-                        <MenuItem
                             text={`View underlying data`}
                             icon={'layers'}
                             onClick={(e) => {
                                 viewData(value, meta);
                             }}
                         />
+                        {isEditMode && (
+                            <MenuItem
+                                icon={'filter'}
+                                text={`Filter by "${value.formatted}"`}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.ADD_FILTER_CLICKED,
+                                    });
+                                    addFilter(
+                                        item,
+                                        value.raw === undefined
+                                            ? null
+                                            : value.raw,
+                                        true,
+                                    );
+                                }}
+                            />
+                        )}
                     </Menu>
                 }
             >
