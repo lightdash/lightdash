@@ -1,3 +1,10 @@
+## [0.209.1](https://github.com/lightdash/lightdash/compare/0.209.0...0.209.1) (2022-08-10)
+
+
+### Bug Fixes
+
+* table calculation overlapping labels ([#2908](https://github.com/lightdash/lightdash/issues/2908)) ([57a7918](https://github.com/lightdash/lightdash/commit/57a791890b802abeb4e93ba84db9a970ce61d216))
+
 # [0.209.0](https://github.com/lightdash/lightdash/compare/0.208.1...0.209.0) (2022-08-09)
 
 
