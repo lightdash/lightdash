@@ -28,6 +28,7 @@ import { ExplorerState } from '../../providers/ExplorerProvider';
 import { TableColumn } from '../common/Table/types';
 
 type UnderlyingDataContext = {
+    tableName: string;
     resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<string, Field>;
     viewData: (
@@ -282,6 +283,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
     return (
         <Context.Provider
             value={{
+                tableName: state.unsavedChartVersion.tableName,
                 resultsData,
                 fieldsMap,
                 viewData,
