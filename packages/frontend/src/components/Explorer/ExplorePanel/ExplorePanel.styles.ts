@@ -34,7 +34,6 @@ export const ExpandableHeader = styled.div`
 export const ExpandableWrapper = styled.div`
     box-shadow: none;
     padding: 0 5px 0 2px;
-    margin-top: 12px;
 `;
 
 export const TableDivider = styled(Divider)`
