@@ -1,3 +1,10 @@
+## [0.209.4](https://github.com/lightdash/lightdash/compare/0.209.3...0.209.4) (2022-08-10)
+
+
+### Bug Fixes
+
+* option to remove invalid fields ([#2925](https://github.com/lightdash/lightdash/issues/2925)) ([4be4dd8](https://github.com/lightdash/lightdash/commit/4be4dd823e8c82f343952beed054ed28d64d50b0))
+
 ## [0.209.3](https://github.com/lightdash/lightdash/compare/0.209.2...0.209.3) (2022-08-10)
 
 
