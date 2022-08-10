@@ -1,11 +1,6 @@
 import { Menu, MenuItem } from '@blueprintjs/core';
 import { ContextMenu2 } from '@blueprintjs/popover2';
-import {
-    fieldId,
-    isDimension,
-    isField,
-    isFilterableField,
-} from '@lightdash/common';
+import { fieldId, isField, isFilterableField } from '@lightdash/common';
 import React from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorer } from '../../../providers/ExplorerProvider';
@@ -22,7 +17,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
     const item = meta?.item;
     const { track } = useTracking();
     const {
-        actions: { toggleActiveField },
+        actions: { removeActiveField },
     } = useExplorer();
     if (item && isField(item) && isFilterableField(item)) {
         return (
@@ -45,10 +40,26 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                             icon={'cross'}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                toggleActiveField(
-                                    fieldId(item),
-                                    isDimension(item),
-                                );
+                                removeActiveField(fieldId(item));
+                            }}
+                        />
+                    </Menu>
+                }
+            >
+                {children}
+            </ContextMenu2>
+        );
+    } else if (meta?.isInvalidItem) {
+        return (
+            <ContextMenu2
+                content={
+                    <Menu>
+                        <MenuItem
+                            text={`Remove`}
+                            icon={'cross'}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                removeActiveField(header.column.id);
                             }}
                         />
                     </Menu>

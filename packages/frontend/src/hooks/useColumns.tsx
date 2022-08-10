@@ -1,3 +1,5 @@
+import { Icon } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     Field,
     formatItemValue,
@@ -28,27 +30,41 @@ export const useColumns = (): TableColumn[] => {
     } = useExplorer();
     const { data: exploreData } = useExplore(tableName);
 
-    const activeItemsMap = useMemo(() => {
+    const { activeItemsMap, invalidActiveItems } = useMemo<{
+        activeItemsMap: Record<string, Field | TableCalculation>;
+        invalidActiveItems: string[];
+    }>(() => {
         if (exploreData) {
             const allItemsMap = getItemMap(
                 exploreData,
                 additionalMetrics,
                 tableCalculations,
             );
-            return Object.entries(allItemsMap).reduce<
-                Record<string, Field | TableCalculation>
-            >(
-                (acc, [key, value]) =>
-                    activeFields.has(key)
+            return Array.from(activeFields).reduce<{
+                activeItemsMap: Record<string, Field | TableCalculation>;
+                invalidActiveItems: string[];
+            }>(
+                (acc, key) => {
+                    return allItemsMap[key]
                         ? {
                               ...acc,
-                              [key]: value,
+                              activeItemsMap: {
+                                  ...acc.activeItemsMap,
+                                  [key]: allItemsMap[key],
+                              },
                           }
-                        : acc,
-                {},
+                        : {
+                              ...acc,
+                              invalidActiveItems: [
+                                  ...acc.invalidActiveItems,
+                                  key,
+                              ],
+                          };
+                },
+                { activeItemsMap: {}, invalidActiveItems: [] },
             );
         }
-        return {};
+        return { activeItemsMap: {}, invalidActiveItems: [] };
     }, [additionalMetrics, exploreData, tableCalculations, activeFields]);
 
     const totals = useColumnTotals({
@@ -68,59 +84,93 @@ export const useColumns = (): TableColumn[] => {
     };
 
     return useMemo(() => {
-        return Object.entries(activeItemsMap).reduce<TableColumn[]>(
-            (acc, [fieldId, item]) => {
-                const sortIndex = sorts.findIndex(
-                    (sf) => fieldId === sf.fieldId,
-                );
-                const isFieldSorted = sortIndex !== -1;
+        const validColumns = Object.entries(activeItemsMap).reduce<
+            TableColumn[]
+        >((acc, [fieldId, item]) => {
+            const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
+            const isFieldSorted = sortIndex !== -1;
+            const column: TableColumn = {
+                id: fieldId,
+                header: () =>
+                    isField(item) ? (
+                        <span>
+                            {item.tableLabel} <b>{item.label}</b>
+                        </span>
+                    ) : (
+                        <b>{item.displayName || friendlyName(item.name)}</b>
+                    ),
+                accessorKey: fieldId,
+                cell: (info) => info.getValue()?.value.formatted || '-',
+                footer: () =>
+                    totals[fieldId]
+                        ? formatItemValue(item, totals[fieldId])
+                        : null,
+                meta: {
+                    item,
+                    draggable: true,
+                    bgColor: getItemBgColor(item),
+                    sort: isFieldSorted
+                        ? {
+                              sortIndex,
+                              sort: sorts[sortIndex],
+                              isMultiSort: sorts.length > 1,
+                              isNumeric: isNumericItem(item),
+                          }
+                        : undefined,
+                    onHeaderClick: (e) => {
+                        if (e.metaKey || e.ctrlKey || isFieldSorted) {
+                            toggleSortField(fieldId);
+                        } else {
+                            setSortFields([
+                                {
+                                    fieldId,
+                                    descending: isFieldSorted
+                                        ? !sorts[sortIndex].descending
+                                        : false,
+                                },
+                            ]);
+                        }
+                    },
+                },
+            };
+            return [...acc, column];
+        }, []);
+        const invalidColumns = invalidActiveItems.reduce<TableColumn[]>(
+            (acc, fieldId) => {
                 const column: TableColumn = {
                     id: fieldId,
-                    header: () =>
-                        isField(item) ? (
-                            <span>
-                                {item.tableLabel} <b>{item.label}</b>
-                            </span>
-                        ) : (
-                            <b>{item.displayName || friendlyName(item.name)}</b>
-                        ),
+                    header: () => (
+                        <span>
+                            <Tooltip2
+                                content="This field was not found in the dbt project."
+                                position={'top'}
+                            >
+                                <Icon
+                                    icon={'warning-sign'}
+                                    intent="warning"
+                                    style={{ marginRight: 10 }}
+                                />
+                            </Tooltip2>
+                            <b>{fieldId}</b>
+                        </span>
+                    ),
                     accessorKey: fieldId,
                     cell: (info) => info.getValue()?.value.formatted || '-',
-                    footer: () =>
-                        totals[fieldId]
-                            ? formatItemValue(item, totals[fieldId])
-                            : null,
                     meta: {
-                        item,
-                        draggable: true,
-                        bgColor: getItemBgColor(item),
-                        sort: isFieldSorted
-                            ? {
-                                  sortIndex,
-                                  sort: sorts[sortIndex],
-                                  isMultiSort: sorts.length > 1,
-                                  isNumeric: isNumericItem(item),
-                              }
-                            : undefined,
-                        onHeaderClick: (e) => {
-                            if (e.metaKey || e.ctrlKey || isFieldSorted) {
-                                toggleSortField(fieldId);
-                            } else {
-                                setSortFields([
-                                    {
-                                        fieldId,
-                                        descending: isFieldSorted
-                                            ? !sorts[sortIndex].descending
-                                            : false,
-                                    },
-                                ]);
-                            }
-                        },
+                        isInvalidItem: true,
                     },
                 };
                 return [...acc, column];
             },
             [],
         );
-    }, [activeItemsMap, sorts, totals, toggleSortField, setSortFields]);
+        return [...validColumns, ...invalidColumns];
+    }, [
+        activeItemsMap,
+        invalidActiveItems,
+        sorts,
+        totals,
+        toggleSortField,
+        setSortFields,
+    ]);
 };
