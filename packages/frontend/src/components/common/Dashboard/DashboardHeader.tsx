@@ -9,6 +9,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import ShareLinkButton from '../../ShareLinkButton';
 import EditableHeader from '../EditableHeader';
 import {
     ActionButton,
@@ -76,6 +77,7 @@ const DashboardHeader = ({
                 />
                 {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
             </TitleContainer>
+
             <EditContainer>
                 {isEditMode ? (
                     <>
@@ -102,15 +104,21 @@ const DashboardHeader = ({
                         />
                     </>
                 ) : (
-                    <Button
-                        icon="edit"
-                        text="Edit dashboard"
-                        onClick={() => {
-                            history.replace(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                            );
-                        }}
-                    />
+                    <>
+                        <Button
+                            icon="edit"
+                            text="Edit dashboard"
+                            onClick={() => {
+                                history.replace(
+                                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                                );
+                            }}
+                        />
+
+                        <ShareLinkButton
+                            url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
+                        />
+                    </>
                 )}
             </EditContainer>
         </WrapperAddTileButton>
