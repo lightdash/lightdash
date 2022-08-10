@@ -283,8 +283,11 @@ const Dashboard = () => {
                     want to leave without saving?{' '}
                 </p>
             </Alert>
+
             <DashboardHeader
                 dashboardName={dashboard.name}
+                dashboardUpdatedByUser={dashboard.updatedByUser}
+                dashboardUpdatedAt={dashboard.updatedAt}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={

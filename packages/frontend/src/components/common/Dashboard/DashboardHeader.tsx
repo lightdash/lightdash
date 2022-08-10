@@ -1,7 +1,7 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard } from '@lightdash/common';
-import React, { useState } from 'react';
+import { Dashboard, UpdatedByUser } from '@lightdash/common';
+import { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
@@ -10,6 +10,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import ShareLinkButton from '../../ShareLinkButton';
+import { UpdatedInfo } from '../ActionCard';
 import EditableHeader from '../EditableHeader';
 import {
     ActionButton,
@@ -28,6 +29,8 @@ type DashboardHeaderProps = {
     dashboardName: string;
     onSaveTitle: (title: string) => void;
     onCancel: () => void;
+    dashboardUpdatedByUser?: UpdatedByUser;
+    dashboardUpdatedAt: Date;
 };
 
 const DashboardHeader = ({
@@ -37,6 +40,8 @@ const DashboardHeader = ({
     hasDashboardChanged,
     isSaving,
     dashboardName,
+    dashboardUpdatedByUser,
+    dashboardUpdatedAt,
     onSaveTitle,
     onCancel,
 }: DashboardHeaderProps) => {
@@ -77,6 +82,11 @@ const DashboardHeader = ({
                 />
                 {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
             </TitleContainer>
+
+            <UpdatedInfo
+                updatedAt={dashboardUpdatedAt}
+                user={dashboardUpdatedByUser}
+            />
 
             <EditContainer>
                 {isEditMode ? (
