@@ -295,7 +295,7 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </InputWrapper>
                             <GridSettings style={{ marginTop: 10 }}>
-                                <Label style={{ marginTop: 5 }}>Sorting</Label>
+                                <Label style={{ marginTop: 5 }}>Sort</Label>
                                 <HTMLSelect
                                     options={[
                                         {
