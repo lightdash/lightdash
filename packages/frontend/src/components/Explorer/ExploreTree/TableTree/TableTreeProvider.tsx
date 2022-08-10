@@ -7,14 +7,25 @@ import {
     isField,
     Metric,
 } from '@lightdash/common';
+import Fuse from 'fuse.js';
 import React, { createContext, FC, useContext } from 'react';
 import { GroupNode, Node, NodeMap } from './index';
 
 const getNodeMapFromFields = (
-    fields: Record<string, Field | AdditionalMetric>,
+    items: Record<string, Field | AdditionalMetric>,
     selectedItems: Set<string>,
+    searchQuery?: string,
 ): NodeMap => {
-    return Object.entries(fields)
+    if (searchQuery && searchQuery !== '') {
+        items = new Fuse(Object.entries(items), {
+            keys: ['1.label'],
+            ignoreLocation: true,
+            threshold: 0.3,
+        })
+            .search(searchQuery)
+            .reduce((acc, res) => ({ ...acc, [res.item[0]]: res.item[1] }), {});
+    }
+    return Object.entries(items)
         .filter(([itemId, item]) => !item.hidden || selectedItems.has(itemId))
         .reduce<NodeMap>((acc, [itemId, item]) => {
             const node: Node = {
@@ -106,6 +117,7 @@ const getNodeMapFromFields = (
 type Item = Dimension | Metric | AdditionalMetric;
 
 type Props = {
+    searchQuery?: string;
     itemsMap: Record<string, Item>;
     selectedItems: Set<string>;
     onItemClick: (key: string, item: Item) => void;
@@ -113,24 +125,28 @@ type Props = {
 
 type TableTreeContext = Props & {
     nodeMap: NodeMap;
+    isSearching: boolean;
 };
 
 const Context = createContext<TableTreeContext | undefined>(undefined);
 
 export const TableTreeProvider: FC<Props> = ({
+    searchQuery,
     children,
     itemsMap,
     selectedItems,
     ...rest
 }) => {
-    const nodeMap = getNodeMapFromFields(itemsMap, selectedItems);
-
+    const nodeMap = getNodeMapFromFields(itemsMap, selectedItems, searchQuery);
+    const isSearching = !!searchQuery && searchQuery !== '';
     return (
         <Context.Provider
             value={{
                 itemsMap,
                 nodeMap,
                 selectedItems,
+                isSearching,
+                searchQuery,
                 ...rest,
             }}
         >

@@ -19,6 +19,7 @@ import styled from 'styled-components';
 import { getItemBgColor } from '../../../../hooks/useColumns';
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
+import HighlightedText from '../../../common/HighlightedText';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import {
     CustomMetricButtons,
@@ -40,6 +41,10 @@ export type NodeMap = Record<string, Node>;
 
 export const isGroupNode = (node: Node): node is GroupNode =>
     'children' in node;
+
+export const Hightlighed = styled.span`
+    color: ${Colors.BLUE3};
+`;
 
 const timeIntervalSort = [
     undefined,
@@ -108,17 +113,18 @@ const Row = styled.div<{
 
 const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
     const [isHover, toggle] = useToggle(false);
-    const { itemsMap, selectedItems, onItemClick } = useTableTreeContext();
+    const { itemsMap, selectedItems, searchQuery, onItemClick } =
+        useTableTreeContext();
 
     const item = itemsMap[node.key];
     if (!item) {
         return null;
     }
     const isSelected = selectedItems.has(node.key);
-    const label =
+    const label: string =
         isDimension(item) && item.group
             ? friendlyName(item.name.replace(item?.group, ''))
-            : item.label;
+            : item.label || item.name;
     return (
         <Row
             depth={depth}
@@ -138,7 +144,13 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                 content={item.description}
                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >
-                <Text ellipsize>{label}</Text>
+                <Text ellipsize>
+                    <HighlightedText
+                        text={label}
+                        query={searchQuery || ''}
+                        highlightElement={Hightlighed}
+                    />
+                </Text>
             </Tooltip2>
             <span style={{ flex: 1 }} />
             {isAdditionalMetric(item) ? (
@@ -163,25 +175,26 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
     node,
     depth,
 }) => {
+    const { selectedItems, isSearching, searchQuery } = useTableTreeContext();
     const [isOpen, toggle] = useToggle(false);
-    const { selectedItems } = useTableTreeContext();
     const allChildrenKeys: string[] = getAllChildrenKeys([node]);
     const hasSelectedChildren = hasIntersection(
         allChildrenKeys,
         Array.from(selectedItems),
     );
+    const isDisabled = hasSelectedChildren || isSearching;
 
     useEffect(() => {
-        if (hasSelectedChildren) {
+        if (hasSelectedChildren || isSearching) {
             toggle(true);
         }
-    }, [hasSelectedChildren, toggle]);
+    }, [hasSelectedChildren, isSearching, toggle]);
 
     return (
         <>
             <Row
                 depth={depth}
-                onClick={hasSelectedChildren ? undefined : toggle}
+                onClick={isDisabled ? undefined : toggle}
                 style={{
                     fontWeight: 600,
                 }}
@@ -190,9 +203,15 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                     icon={isOpen ? 'chevron-down' : 'chevron-right'}
                     size={16}
                     style={{ marginRight: 8 }}
-                    color={hasSelectedChildren ? Colors.LIGHT_GRAY1 : undefined}
+                    color={isDisabled ? Colors.LIGHT_GRAY1 : undefined}
                 />
-                <Text ellipsize>{node.label}</Text>
+                <Text ellipsize>
+                    <HighlightedText
+                        text={node.label}
+                        query={searchQuery || ''}
+                        highlightElement={Hightlighed}
+                    />
+                </Text>
             </Row>
             <Collapse isOpen={isOpen}>
                 {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
@@ -236,6 +255,7 @@ const TreeRoot: FC<{ depth?: number }> = ({ depth }) => {
 };
 
 type Props = {
+    searchQuery?: string;
     showTableLabel: boolean;
     table: CompiledTable;
     additionalMetrics: AdditionalMetric[];
@@ -244,6 +264,7 @@ type Props = {
 };
 
 const TableTree: FC<Props> = ({
+    searchQuery,
     showTableLabel,
     table,
     additionalMetrics,
@@ -269,6 +290,7 @@ const TableTree: FC<Props> = ({
                 <span>No dimensions defined in your dbt project</span>
             ) : (
                 <TableTreeProvider
+                    searchQuery={searchQuery}
                     itemsMap={Object.values(table.dimensions).reduce(
                         (acc, item) => ({ ...acc, [getItemId(item)]: item }),
                         {},
@@ -314,6 +336,7 @@ const TableTree: FC<Props> = ({
                 <span>No metrics defined in your dbt project</span>
             ) : (
                 <TableTreeProvider
+                    searchQuery={searchQuery}
                     itemsMap={Object.values(table.metrics).reduce(
                         (acc, item) => ({ ...acc, [getItemId(item)]: item }),
                         {},
@@ -362,6 +385,7 @@ const TableTree: FC<Props> = ({
                 </span>
             ) : (
                 <TableTreeProvider
+                    searchQuery={searchQuery}
                     itemsMap={additionalMetrics.reduce<
                         Record<string, AdditionalMetric>
                     >(

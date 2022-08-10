@@ -133,6 +133,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     .map((table) => (
                         <NewTableTree
                             key={table.name}
+                            searchQuery={search}
                             showTableLabel={
                                 Object.keys(explore.tables).length > 1
                             }
