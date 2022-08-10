@@ -1,3 +1,10 @@
+## [0.209.2](https://github.com/lightdash/lightdash/compare/0.209.1...0.209.2) (2022-08-10)
+
+
+### Bug Fixes
+
+* string, date and boolean metric types ([#2920](https://github.com/lightdash/lightdash/issues/2920)) ([cce4bee](https://github.com/lightdash/lightdash/commit/cce4beefcd51a1de989c89262941113c4f36bcd8))
+
 ## [0.209.1](https://github.com/lightdash/lightdash/compare/0.209.0...0.209.1) (2022-08-10)
 
 
