@@ -4,6 +4,7 @@ import {
     AdditionalMetric,
     CompiledTable,
     Dimension,
+    friendlyName,
     getItemId,
     hasIntersection,
     hexToRGB,
@@ -114,6 +115,10 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
         return null;
     }
     const isSelected = selectedItems.has(node.key);
+    const label =
+        isDimension(item) && item.group
+            ? friendlyName(item.name.replace(item?.group, ''))
+            : item.label;
     return (
         <Row
             depth={depth}
@@ -133,7 +138,7 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                 content={item.description}
                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >
-                <Text ellipsize>{item.label}</Text>
+                <Text ellipsize>{label}</Text>
             </Tooltip2>
             <span style={{ flex: 1 }} />
             {isAdditionalMetric(item) ? (
