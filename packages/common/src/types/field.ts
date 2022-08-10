@@ -116,9 +116,9 @@ export enum MetricType {
     MIN = 'min',
     MAX = 'max',
     NUMBER = 'number',
-    STRING = ' string',
-    DATE = ' date',
-    BOOLEAN = ' boolean',
+    STRING = 'string',
+    DATE = 'date',
+    BOOLEAN = 'boolean',
 }
 
 export const parseMetricType = (metricType: string): MetricType => {
