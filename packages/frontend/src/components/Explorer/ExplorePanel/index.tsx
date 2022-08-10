@@ -116,7 +116,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                             content={`${
                                 headerIsOpen ? 'Hide' : 'View'
                             } table information`}
-                            position="bottom"
+                            position="right"
                         >
                             <Button
                                 icon={

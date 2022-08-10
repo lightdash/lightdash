@@ -24,10 +24,9 @@ export const ExpandableHeader = styled.div`
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
 
     h4 {
-        margin: 0;
+        margin: 0 10px 0 0;
         padding: 0;
     }
 `;
