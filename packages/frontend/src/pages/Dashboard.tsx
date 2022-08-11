@@ -286,6 +286,7 @@ const Dashboard = () => {
 
             <DashboardHeader
                 dashboardName={dashboard.name}
+                dashboardDescription={dashboard.description}
                 dashboardUpdatedByUser={dashboard.updatedByUser}
                 dashboardUpdatedAt={dashboard.updatedAt}
                 isEditMode={isEditMode}

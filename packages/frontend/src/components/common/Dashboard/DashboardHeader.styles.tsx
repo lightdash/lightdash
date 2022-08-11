@@ -23,7 +23,6 @@ export const Title = styled.p`
     color: ${Colors.GRAY1};
     font-size: 12px;
     font-weight: 500;
-    margin: 0 0.714em;
     white-space: nowrap;
 `;
 

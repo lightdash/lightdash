@@ -10,12 +10,11 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import ShareLinkButton from '../../ShareLinkButton';
-import { UpdatedInfo } from '../ActionCard';
+import { UpdatedInfo, UpdatedLabel } from '../ActionCard';
 import EditableHeader from '../EditableHeader';
 import {
     ActionButton,
     EditContainer,
-    Title,
     TitleContainer,
     WrapperAddTileButton,
 } from './DashboardHeader.styles';
@@ -27,10 +26,11 @@ type DashboardHeaderProps = {
     hasDashboardChanged: boolean;
     isSaving: boolean;
     dashboardName: string;
-    onSaveTitle: (title: string) => void;
-    onCancel: () => void;
+    dashboardDescription?: string;
     dashboardUpdatedByUser?: UpdatedByUser;
     dashboardUpdatedAt: Date;
+    onSaveTitle: (title: string) => void;
+    onCancel: () => void;
 };
 
 const DashboardHeader = ({
@@ -40,6 +40,7 @@ const DashboardHeader = ({
     hasDashboardChanged,
     isSaving,
     dashboardName,
+    dashboardDescription,
     dashboardUpdatedByUser,
     dashboardUpdatedAt,
     onSaveTitle,
@@ -67,26 +68,47 @@ const DashboardHeader = ({
 
     return (
         <WrapperAddTileButton>
-            <TitleContainer
-                $isEditing={
-                    !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
-                }
-            >
-                <EditableHeader
-                    readonly={!isEditMode}
-                    isDisabled={isSaving}
-                    onChange={onRename}
-                    value={dashboardName}
-                    placeholder="Type the dashboard name"
-                    onIsEditingChange={setIsEditing}
-                />
-                {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
-            </TitleContainer>
+            <div>
+                <TitleContainer
+                    $isEditing={
+                        !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
+                    }
+                >
+                    <EditableHeader
+                        readonly={!isEditMode}
+                        isDisabled={isSaving}
+                        onChange={onRename}
+                        value={dashboardName}
+                        placeholder="Type the dashboard name"
+                        onIsEditingChange={setIsEditing}
+                    />
 
-            <UpdatedInfo
-                updatedAt={dashboardUpdatedAt}
-                user={dashboardUpdatedByUser}
-            />
+                    {dashboardDescription && (
+                        <Tooltip2
+                            content={dashboardDescription}
+                            position="bottom"
+                        >
+                            <Button icon="info-sign" minimal />
+                        </Tooltip2>
+                    )}
+
+                    <Button
+                        icon="edit"
+                        disabled={isSaving}
+                        onClick={() => console.log('test')}
+                        minimal
+                    />
+                </TitleContainer>
+
+                <UpdatedInfo
+                    updatedAt={dashboardUpdatedAt}
+                    user={dashboardUpdatedByUser}
+                />
+
+                <UpdatedLabel>
+                    Last refreshed <b>{timeAgo}</b>
+                </UpdatedLabel>
+            </div>
 
             <EditContainer>
                 {isEditMode ? (
