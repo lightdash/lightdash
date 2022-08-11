@@ -21,8 +21,10 @@ import React, {
     useMemo,
     useState,
 } from 'react';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useQueryResults } from '../../hooks/useQueryResults';
 import { ExplorerState } from '../../providers/ExplorerProvider';
 import { TableColumn } from '../common/Table/types';
@@ -31,6 +33,7 @@ type UnderlyingDataContext = {
     tableName: string;
     resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<string, Field>;
+    exploreFromHereUrl: string;
     viewData: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
@@ -49,6 +52,10 @@ export const UnderlyingDataProvider: FC<Props> = ({
     exploreState,
     children,
 }) => {
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+    }>();
+
     const defaultState: ExplorerState = {
         activeFields: new Set([]),
         isValidQuery: false,
@@ -280,6 +287,14 @@ export const UnderlyingDataProvider: FC<Props> = ({
         ],
     );
 
+    const exploreFromHereUrl = useMemo(() => {
+        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
+            projectUuid,
+            state.unsavedChartVersion,
+        );
+        return `${pathname}?${search}`;
+    }, [state.unsavedChartVersion, projectUuid]);
+
     return (
         <Context.Provider
             value={{
@@ -288,6 +303,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 fieldsMap,
                 viewData,
                 closeModal,
+                exploreFromHereUrl,
             }}
         >
             {children}
