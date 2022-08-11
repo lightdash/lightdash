@@ -253,7 +253,6 @@ export const UnderlyingDataProvider: FC<Props> = ({
             } else {
                 const dimensionFields = dimensions.map(getFieldId);
 
-                // const shouldFetchResults =
                 setState({
                     ...state,
                     unsavedChartVersion: {
