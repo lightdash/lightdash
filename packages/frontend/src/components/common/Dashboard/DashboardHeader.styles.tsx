@@ -12,12 +12,6 @@ export const WrapperAddTileButton = styled.div`
     border-bottom: 0.071em solid #d8e1e8;
 `;
 
-export const TitleContainer = styled.div`
-    display: flex;
-    align-items: center;
-    color: ${Colors.GRAY1};
-`;
-
 export const Title = styled.p`
     color: ${Colors.GRAY1};
     font-size: 12px;

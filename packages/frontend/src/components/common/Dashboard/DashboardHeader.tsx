@@ -8,17 +8,19 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import {
-    ChartName,
-    Dot,
-} from '../../Explorer/SavedChartsHeader/SavedChartsHeader.styles';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo, UpdatedLabel } from '../ActionCard';
 import {
+    PageDetailsContainer,
+    PageTitle,
+    PageTitleAndDetailsContainer,
+    PageTitleContainer,
+    SeparatorDot,
+} from '../PageHeader';
+import {
     ActionButton,
     EditContainer,
-    TitleContainer,
     WrapperAddTileButton,
 } from './DashboardHeader.styles';
 
@@ -71,9 +73,9 @@ const DashboardHeader = ({
 
     return (
         <WrapperAddTileButton>
-            <div>
-                <TitleContainer>
-                    <ChartName>{dashboardName}</ChartName>
+            <PageTitleAndDetailsContainer>
+                <PageTitleContainer>
+                    <PageTitle>{dashboardName}</PageTitle>
 
                     {dashboardDescription && (
                         <Tooltip2
@@ -98,22 +100,21 @@ const DashboardHeader = ({
                         isOpen={isUpdating}
                         onClose={() => setIsUpdating(false)}
                     />
-                </TitleContainer>
+                </PageTitleContainer>
 
-                {/* TODO: use styled components, share common styles between charts page */}
-                <div style={{ display: 'flex' }}>
+                <PageDetailsContainer>
                     <UpdatedLabel>
                         Last refreshed <b>{timeAgo}</b>
                     </UpdatedLabel>
 
-                    <Dot icon="dot" size={6} />
+                    <SeparatorDot icon="dot" size={6} />
 
                     <UpdatedInfo
                         updatedAt={dashboardUpdatedAt}
                         user={dashboardUpdatedByUser}
                     />
-                </div>
-            </div>
+                </PageDetailsContainer>
+            </PageTitleAndDetailsContainer>
 
             <EditContainer>
                 {isEditMode ? (

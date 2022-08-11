@@ -3,13 +3,12 @@ import {
     Button,
     Classes,
     Divider,
-    Icon,
     Intent,
     Menu,
     MenuItem,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import {
@@ -24,6 +23,13 @@ import { SectionName } from '../../../types/Events';
 import { UpdatedInfo } from '../../common/ActionCard';
 import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
+import {
+    IconWithRightMargin,
+    PageDetailsContainer,
+    PageTitle,
+    PageTitleContainer,
+    SeparatorDot,
+} from '../../common/PageHeader';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
@@ -31,10 +37,6 @@ import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
 import {
     ButtonWithMarginLeft,
-    ChartDetails,
-    ChartName,
-    Dot,
-    SpaceName,
     TitleWrapper,
     Wrapper,
 } from './SavedChartsHeader.styles';
@@ -139,10 +141,10 @@ const SavedChartsHeader: FC = () => {
                 <TitleWrapper>
                     {savedChart && (
                         <>
-                            <ChartName
+                            <PageTitleContainer
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
-                                {savedChart.name}
+                                <PageTitle>{savedChart.name}</PageTitle>
                                 {savedChart.description && (
                                     <Tooltip2
                                         content={savedChart.description}
@@ -167,26 +169,25 @@ const SavedChartsHeader: FC = () => {
                                     isOpen={isRenamingChart}
                                     onClose={() => setIsRenamingChart(false)}
                                 />
-                            </ChartName>
+                            </PageTitleContainer>
 
-                            <ChartDetails>
+                            <PageDetailsContainer>
                                 <UpdatedInfo
                                     updatedAt={savedChart.updatedAt}
                                     user={savedChart.updatedByUser}
                                 />
+
                                 {space && (
                                     <>
-                                        <Dot icon="dot" size={6} />
-                                        <SpaceName>
-                                            <Icon
-                                                icon="folder-close"
-                                                size={10}
-                                            />
-                                            {space.name}
-                                        </SpaceName>
+                                        <SeparatorDot icon="dot" size={6} />
+                                        <IconWithRightMargin
+                                            icon="folder-close"
+                                            size={10}
+                                        />
+                                        {space.name}
                                     </>
                                 )}
-                            </ChartDetails>
+                            </PageDetailsContainer>
                         </>
                     )}
                 </TitleWrapper>
