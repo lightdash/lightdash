@@ -1,3 +1,10 @@
+## [0.209.5](https://github.com/lightdash/lightdash/compare/0.209.4...0.209.5) (2022-08-11)
+
+
+### Bug Fixes
+
+* broken developing in lightdash link in docs ([#2928](https://github.com/lightdash/lightdash/issues/2928)) ([d16d97f](https://github.com/lightdash/lightdash/commit/d16d97f34a0fcdd623b84fd3827a885c7f190263))
+
 ## [0.209.4](https://github.com/lightdash/lightdash/compare/0.209.3...0.209.4) (2022-08-10)
 
 
