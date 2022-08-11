@@ -29,6 +29,10 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
             }}
         >
             <HeaderRightContent>
+                <DownloadCsvButton
+                    fileName={tableName}
+                    rows={resultsData && getResultValues(resultsData.rows)}
+                />
                 <AnchorButton
                     intent="primary"
                     href={exploreFromHereUrl}
@@ -37,10 +41,6 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
                 >
                     Explore from here
                 </AnchorButton>
-                <DownloadCsvButton
-                    fileName={tableName}
-                    rows={resultsData && getResultValues(resultsData.rows)}
-                />
             </HeaderRightContent>
             <UnderlyingDataResultsTable
                 resultsData={resultsData}
