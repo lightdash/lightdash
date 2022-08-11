@@ -258,6 +258,11 @@ export const expectedDashboard: Dashboard = {
     },
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',
+    updatedByUser: {
+        firstName: 'firstName',
+        lastName: 'lastName',
+        userUuid: 'userUuid',
+    },
 };
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [
