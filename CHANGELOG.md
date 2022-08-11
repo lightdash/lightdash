@@ -1,3 +1,10 @@
+# [0.210.0](https://github.com/lightdash/lightdash/compare/0.209.5...0.210.0) (2022-08-11)
+
+
+### Features
+
+* inverse X axis values ([#2901](https://github.com/lightdash/lightdash/issues/2901)) ([f28a799](https://github.com/lightdash/lightdash/commit/f28a7998bbd0253083a0cc6347a5554adbd55641))
+
 ## [0.209.5](https://github.com/lightdash/lightdash/compare/0.209.4...0.209.5) (2022-08-11)
 
 
