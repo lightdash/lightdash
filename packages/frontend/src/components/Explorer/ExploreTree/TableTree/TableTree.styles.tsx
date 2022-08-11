@@ -1,4 +1,4 @@
-import { Colors, Icon } from '@blueprintjs/core';
+import { Colors, Icon, Tag } from '@blueprintjs/core';
 import { hexToRGB } from '@lightdash/common';
 import styled from 'styled-components';
 
@@ -52,4 +52,47 @@ export const Row = styled.div<{
         selected && bgColor ? bgColor : undefined};
 `;
 
-export const Hightlighed = styled.b``;
+export const TableRow = styled(Row)`
+    font-weight: 600;
+`;
+
+export const RowIcon = styled(Icon)`
+    margin-right: 8px;
+`;
+
+export const DimensionsSectionRow = styled(Row)`
+    font-weight: 600;
+    color: ${Colors.BLUE1};
+`;
+
+export const MetricsSectionRow = styled(Row)`
+    font-weight: 600;
+    color: ${Colors.ORANGE1};
+    margin-top: 10px;
+`;
+
+export const CustomMetricsSectionRow = styled(Row)`
+    font-weight: 600;
+    color: ${Colors.ORANGE1};
+    margin-top: 10px;
+    margin-bottom: 10px;
+`;
+
+export const Highlighted = styled.b``;
+
+export const TagCount = styled(Tag)`
+    margin-left: 10px;
+`;
+
+export const SpanFlex = styled.span`
+    flex: 1;
+`;
+
+export const EmptyState = styled.div`
+    color: ${Colors.GRAY3};
+    margin: 10px 24px;
+`;
+
+export const GroupNodeRow = styled(Row)`
+    font-weight: 600;
+`;

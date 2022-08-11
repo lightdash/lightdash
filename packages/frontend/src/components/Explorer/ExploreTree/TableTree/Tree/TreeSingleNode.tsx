@@ -1,4 +1,4 @@
-import { Classes, Colors, Icon, Text } from '@blueprintjs/core';
+import { Classes, Colors, Text } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     DimensionType,
@@ -11,7 +11,7 @@ import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import HighlightedText from '../../../../common/HighlightedText';
-import { Hightlighed, Row } from '../TableTree.styles';
+import { Highlighted, Row, RowIcon, SpanFlex } from '../TableTree.styles';
 import CustomMetricButtons from './CustomMetricButtons';
 import FieldButtons from './FieldButtons';
 import { Node, useTableTreeContext } from './TreeProvider';
@@ -64,11 +64,10 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
             onMouseEnter={() => toggle(true)}
             onMouseLeave={() => toggle(false)}
         >
-            <Icon
+            <RowIcon
                 icon={getItemIconName(item.type)}
                 color={isDimension(item) ? Colors.BLUE1 : Colors.ORANGE1}
                 size={16}
-                style={{ marginRight: 8 }}
             />
             <Tooltip2
                 content={item.description}
@@ -78,11 +77,11 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                     <HighlightedText
                         text={label}
                         query={searchQuery || ''}
-                        highlightElement={Hightlighed}
+                        highlightElement={Highlighted}
                     />
                 </Text>
             </Tooltip2>
-            <span style={{ flex: 1 }} />
+            <SpanFlex />
             {isAdditionalMetric(item) ? (
                 <CustomMetricButtons
                     node={item}

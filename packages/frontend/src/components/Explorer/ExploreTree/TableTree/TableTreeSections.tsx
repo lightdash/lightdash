@@ -2,7 +2,14 @@ import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
 import React, { FC } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
-import { Row, TooltipContent } from './TableTree.styles';
+import {
+    CustomMetricsSectionRow,
+    DimensionsSectionRow,
+    EmptyState,
+    MetricsSectionRow,
+    SpanFlex,
+    TooltipContent,
+} from './TableTree.styles';
 import { TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
 
@@ -27,24 +34,13 @@ const TableTreeSections: FC<Props> = ({
     const hasNoMetrics = Object.keys(table.metrics).length <= 0;
     return (
         <>
-            <Row
-                depth={sectionDepth}
-                style={{
-                    fontWeight: 600,
-                    color: Colors.BLUE1,
-                }}
-            >
+            <DimensionsSectionRow depth={sectionDepth}>
                 Dimensions
-            </Row>
+            </DimensionsSectionRow>
             {Object.keys(table.dimensions).length <= 0 ? (
-                <div
-                    style={{
-                        color: Colors.GRAY3,
-                        margin: '10px 24px',
-                    }}
-                >
+                <EmptyState>
                     No dimensions defined in your dbt project
-                </div>
+                </EmptyState>
             ) : (
                 <TreeProvider
                     searchQuery={searchQuery}
@@ -58,16 +54,9 @@ const TableTreeSections: FC<Props> = ({
                     <TreeRoot depth={treeRootDepth} />
                 </TreeProvider>
             )}
-            <Row
-                depth={sectionDepth}
-                style={{
-                    fontWeight: 600,
-                    color: Colors.ORANGE1,
-                    marginTop: 10,
-                }}
-            >
+            <MetricsSectionRow depth={sectionDepth}>
                 Metrics
-                <span style={{ flex: 1 }} />
+                <SpanFlex />
                 {hasNoMetrics && (
                     <DocumentationHelpButton
                         url={
@@ -88,16 +77,9 @@ const TableTreeSections: FC<Props> = ({
                         }}
                     />
                 )}
-            </Row>
+            </MetricsSectionRow>
             {hasNoMetrics ? (
-                <div
-                    style={{
-                        color: Colors.GRAY3,
-                        margin: '10px 24px',
-                    }}
-                >
-                    No metrics defined in your dbt project
-                </div>
+                <EmptyState>No metrics defined in your dbt project</EmptyState>
             ) : (
                 <TreeProvider
                     searchQuery={searchQuery}
@@ -111,17 +93,9 @@ const TableTreeSections: FC<Props> = ({
                     <TreeRoot depth={treeRootDepth} />
                 </TreeProvider>
             )}
-            <Row
-                depth={sectionDepth}
-                style={{
-                    fontWeight: 600,
-                    color: Colors.ORANGE1,
-                    marginTop: 10,
-                    marginBottom: 10,
-                }}
-            >
+            <CustomMetricsSectionRow depth={sectionDepth}>
                 Custom metrics
-                <span style={{ flex: 1 }} />
+                <SpanFlex />
                 <DocumentationHelpButton
                     url={
                         'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
@@ -142,17 +116,12 @@ const TableTreeSections: FC<Props> = ({
                         },
                     }}
                 />
-            </Row>
+            </CustomMetricsSectionRow>
             {hasNoMetrics && additionalMetrics.length <= 0 ? (
-                <div
-                    style={{
-                        color: Colors.GRAY3,
-                        margin: '10px 24px',
-                    }}
-                >
+                <EmptyState>
                     Add custom metrics by hovering over the dimension of your
                     choice & selecting the three-dot Action Menu
-                </div>
+                </EmptyState>
             ) : (
                 <TreeProvider
                     searchQuery={searchQuery}

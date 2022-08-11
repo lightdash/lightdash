@@ -1,8 +1,8 @@
-import { Collapse, Icon, Tag, Text } from '@blueprintjs/core';
+import { Collapse, Icon, Text } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import { Row } from './TableTree.styles';
+import { RowIcon, SpanFlex, TableRow, TagCount } from './TableTree.styles';
 
 type Props = {
     table: CompiledTable;
@@ -21,23 +21,17 @@ const CollapsibleTableTree: FC<Props> = ({
         additionalMetrics.length;
     return (
         <>
-            <Row
-                depth={0}
-                onClick={toggle}
-                style={{
-                    fontWeight: 600,
-                }}
-            >
-                <Icon icon={'th'} size={16} style={{ marginRight: 8 }} />
+            <TableRow depth={0} onClick={toggle}>
+                <RowIcon icon={'th'} size={16} />
                 <Text ellipsize>{table.label}</Text>
                 {!isOpen && (
-                    <Tag minimal round style={{ marginLeft: 10 }}>
+                    <TagCount minimal round>
                         {tableItemsCount}
-                    </Tag>
+                    </TagCount>
                 )}
-                <span style={{ flex: 1 }} />
+                <SpanFlex />
                 <Icon icon={isOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-            </Row>
+            </TableRow>
             <Collapse isOpen={isOpen}>{children}</Collapse>
         </>
     );

@@ -5,6 +5,7 @@ import React, { FC, ReactNode, useMemo } from 'react';
 import { useExplorer } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
+import { ItemOptions } from '../TableTree.styles';
 
 const CustomMetricButtons: FC<{
     node: AdditionalMetric;
@@ -35,12 +36,7 @@ const CustomMetricButtons: FC<{
     }, [removeAdditionalMetric, node, track]);
 
     return (
-        <div
-            style={{
-                display: 'inline-flex',
-                gap: '10px',
-            }}
-        >
+        <ItemOptions>
             {menuItems.length > 0 && (isHovered || isSelected) && (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
@@ -65,7 +61,7 @@ const CustomMetricButtons: FC<{
                     )}
                 />
             )}
-        </div>
+        </ItemOptions>
     );
 };
 
