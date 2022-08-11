@@ -205,6 +205,7 @@ projectRouter.post(
 
 projectRouter.post(
     '/saved',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -253,19 +254,25 @@ projectRouter.patch(
     },
 );
 
-projectRouter.get('/spaces', isAuthenticated, async (req, res, next) => {
-    spaceService
-        .getAllSpaces(req.params.projectUuid, req.user!)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
+projectRouter.get(
+    '/spaces',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        spaceService
+            .getAllSpaces(req.params.projectUuid, req.user!)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 projectRouter.get(
     '/spaces/:spaceUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         spaceService
@@ -279,17 +286,22 @@ projectRouter.get(
             .catch(next);
     },
 );
-projectRouter.post('/spaces', isAuthenticated, async (req, res, next) => {
-    spaceService
-        .createSpace(req.params.projectUuid, req.user!, req.body)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
+projectRouter.post(
+    '/spaces',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        spaceService
+            .createSpace(req.params.projectUuid, req.user!, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 
 projectRouter.delete(
     '/spaces/:spaceUUid',
@@ -341,6 +353,7 @@ projectRouter.get('/dashboards', isAuthenticated, async (req, res, next) => {
 
 projectRouter.post(
     '/dashboards',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {

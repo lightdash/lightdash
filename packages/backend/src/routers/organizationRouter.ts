@@ -106,16 +106,20 @@ organizationRouter.delete(
             .catch(next),
 );
 
-organizationRouter.get('/users', isAuthenticated, async (req, res, next) =>
-    organizationService
-        .getUsers(req.user!)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next),
+organizationRouter.get(
+    '/users',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) =>
+        organizationService
+            .getUsers(req.user!)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
 );
 
 organizationRouter.patch(

@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
@@ -9,6 +10,7 @@ export const savedChartRouter = express.Router();
 
 savedChartRouter.get(
     '/:savedQueryUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         savedChartsService
