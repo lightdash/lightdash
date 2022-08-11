@@ -31,6 +31,10 @@ export const UpdatedLabel = styled.p`
     margin-bottom: 0;
 `;
 
+export const UpdateInfoContainer = styled.div`
+    margin-top: 0.38em;
+`;
+
 export const UpdatedInfo: FC<{
     updatedAt: Date;
     user: Partial<SessionUser> | undefined;
@@ -100,7 +104,13 @@ const ActionCard = <
             }
         >
             <strong>{name}</strong>
-            <UpdatedInfo updatedAt={data.updatedAt} user={data.updatedByUser} />
+
+            <UpdateInfoContainer>
+                <UpdatedInfo
+                    updatedAt={data.updatedAt}
+                    user={data.updatedByUser}
+                />
+            </UpdateInfoContainer>
         </LinkButtonWrapper>
     );
 };

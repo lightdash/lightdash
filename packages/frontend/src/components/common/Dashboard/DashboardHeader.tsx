@@ -10,7 +10,7 @@ import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
-import { UpdatedInfo, UpdatedLabel } from '../ActionCard';
+import { UpdatedInfo } from '../ActionCard';
 import {
     PageDetailsContainer,
     PageTitle,
@@ -103,12 +103,8 @@ const DashboardHeader = ({
                 </PageTitleContainer>
 
                 <PageDetailsContainer>
-                    <UpdatedLabel>
-                        Last refreshed <b>{timeAgo}</b>
-                    </UpdatedLabel>
-
+                    Last refreshed <b>{timeAgo}</b>
                     <SeparatorDot icon="dot" size={6} />
-
                     <UpdatedInfo
                         updatedAt={dashboardUpdatedAt}
                         user={dashboardUpdatedByUser}
