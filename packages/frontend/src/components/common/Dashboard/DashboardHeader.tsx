@@ -111,7 +111,9 @@ const DashboardHeader = ({
                 </PageTitleContainer>
 
                 <PageDetailsContainer>
-                    Last refreshed <b>{timeAgo}</b>
+                    <span>
+                        Last refreshed <b>{timeAgo}</b>
+                    </span>
                     <SeparatorDot icon="dot" size={6} />
                     <UpdatedInfo
                         updatedAt={dashboardUpdatedAt}
