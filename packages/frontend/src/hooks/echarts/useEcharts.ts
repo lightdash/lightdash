@@ -615,6 +615,7 @@ const getEchartAxis = ({
                         ? showGridY
                         : showGridX,
                 },
+                inverse: !!xAxisConfiguration?.[0].inverse,
             },
             {
                 type: topAxisType,
@@ -684,6 +685,7 @@ const getEchartAxis = ({
                         ? showGridX
                         : showGridY,
                 },
+                inverse: !!yAxisConfiguration?.[0].inverse,
             },
             {
                 type: rightAxisType,
@@ -835,7 +837,6 @@ const useEcharts = () => {
               )
             : allColors;
     }, [organisationData?.chartColors, validCartesianConfig]);
-
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axis.xAxis,

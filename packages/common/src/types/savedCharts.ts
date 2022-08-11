@@ -118,6 +118,7 @@ type Axis = {
     name?: string;
     min?: string | undefined;
     max?: string | undefined;
+    inverse?: boolean;
 };
 
 export type CompleteCartesianChartLayout = {

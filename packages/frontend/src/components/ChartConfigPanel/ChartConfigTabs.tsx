@@ -1,4 +1,11 @@
-import { InputGroup, Label, Switch, Tab, Tabs } from '@blueprintjs/core';
+import {
+    HTMLSelect,
+    InputGroup,
+    Label,
+    Switch,
+    Tab,
+    Tabs,
+} from '@blueprintjs/core';
 import {
     convertAdditionalMetric,
     fieldId,
@@ -113,6 +120,7 @@ const ChartConfigTabs: FC = () => {
             setYMaxValue,
             setShowGridX,
             setShowGridY,
+            setInverseX,
         },
     } = useVisualizationContext();
     const [tab, setTab] = useState<string | number>('layout');
@@ -286,6 +294,31 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
+                            <GridSettings style={{ marginTop: 10 }}>
+                                <Label style={{ marginTop: 5 }}>Sort</Label>
+                                <HTMLSelect
+                                    options={[
+                                        {
+                                            value: 'ascending',
+                                            label: 'Ascending',
+                                        },
+                                        {
+                                            value: 'descending',
+                                            label: 'Descending',
+                                        },
+                                    ]}
+                                    defaultValue={
+                                        dirtyEchartsConfig?.xAxis?.[0]?.inverse
+                                            ? 'descending'
+                                            : 'ascending'
+                                    }
+                                    onChange={(e) => {
+                                        setInverseX(
+                                            e.target.value === 'descending',
+                                        );
+                                    }}
+                                />
+                            </GridSettings>
 
                             <InputWrapper
                                 label={`${
