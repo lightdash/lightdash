@@ -6,10 +6,9 @@ import {
     fieldId as getFieldId,
     FilterOperator,
     FilterRule,
+    Filters,
     getDimensions,
-    isAndFilterGroup,
     isField,
-    isFilterRule,
     isMetric,
     ResultRow,
     TimeInterval,
@@ -44,7 +43,8 @@ type UnderlyingDataContext = {
 const Context = createContext<UnderlyingDataContext | undefined>(undefined);
 
 type Props = {
-    exploreState?: ExplorerState;
+    tableName: string;
+    filters?: Filters;
 };
 
 const isDateDimension = (dimensions: Field[], dimensionName: string) => {
@@ -65,7 +65,8 @@ const isDateDimension = (dimensions: Field[], dimensionName: string) => {
 };
 
 export const UnderlyingDataProvider: FC<Props> = ({
-    exploreState,
+    tableName,
+    filters,
     children,
 }) => {
     const defaultState: ExplorerState = {
@@ -77,7 +78,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
         shouldFetchResults: false,
         expandedSections: [],
         unsavedChartVersion: {
-            tableName: '',
+            tableName: tableName,
             metricQuery: {
                 dimensions: [],
                 metrics: [],
@@ -98,18 +99,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
         },
     };
     const [state, setState] = useState<ExplorerState>(defaultState);
-    const { data: explore } = useExplore(state.unsavedChartVersion.tableName);
-    const [updateExplore, setUpdateExplore] = useState<boolean>(false);
-    const dimensions = useMemo(
-        () =>
-            explore
-                ? getDimensions(explore).filter(
-                      (dimension) =>
-                          !dimension.timeInterval && !dimension.hidden,
-                  )
-                : [],
-        [explore],
-    );
+    const { data: explore } = useExplore(tableName);
 
     const {
         mutate,
@@ -118,6 +108,15 @@ export const UnderlyingDataProvider: FC<Props> = ({
     } = useQueryResults(state);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
+        const dimensions = explore
+            ? getDimensions(explore).filter(
+                  (dimension) =>
+                      dimension.table === state.unsavedChartVersion.tableName &&
+                      !dimension.timeInterval &&
+                      !dimension.hidden,
+              )
+            : [];
+
         return dimensions.reduce((acc, dimension) => {
             const fieldId = isField(dimension) ? getFieldId(dimension) : '';
             return {
@@ -125,74 +124,20 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 [fieldId]: dimension,
             };
         }, {});
-    }, [dimensions]);
-
+    }, [explore, state.unsavedChartVersion.tableName]);
     const closeModal = useCallback(() => {
         resetQueryResults();
     }, [resetQueryResults]);
 
     useEffect(() => {
-        //if table name is different, we need to wait for explore to fetch the dimensions before making the SQL request
-        if (
-            explore?.name === state.unsavedChartVersion.tableName &&
-            updateExplore
-        ) {
-            const dimensionFields = dimensions.map(getFieldId);
-            const dimensionFilters =
-                state.unsavedChartVersion.metricQuery.filters.dimensions;
-            const validDimensionFilters =
-                dimensionFilters && isAndFilterGroup(dimensionFilters)
-                    ? dimensionFilters?.and.reduce((acc, filter) => {
-                          if (isFilterRule(filter)) {
-                              const filterField = filter.target.fieldId;
-                              const isDimension = dimensions.find(
-                                  (dimension) =>
-                                      getFieldId(dimension) === filterField,
-                              );
-                              if (
-                                  isDimension ||
-                                  isDateDimension(dimensions, filterField)
-                              )
-                                  return [...acc, filter];
-                          }
-                          return acc;
-                      }, [] as FilterRule[])
-                    : [];
-
-            setState({
-                ...state,
-                unsavedChartVersion: {
-                    ...state.unsavedChartVersion,
-                    metricQuery: {
-                        ...state.unsavedChartVersion.metricQuery,
-                        dimensions: dimensionFields,
-                        filters: {
-                            dimensions: {
-                                id: uuidv4(),
-                                and: validDimensionFilters,
-                            },
-                        },
-                    },
-                },
-                shouldFetchResults: true,
-                isValidQuery: true,
-            });
-
-            setUpdateExplore(false);
-        }
-    }, [explore, state, setState, dimensions, updateExplore]);
-
-    useEffect(() => {
-        //if table name is different, we need to wait for explore to fetch the dimensions before making the SQL request
         if (
             state.shouldFetchResults &&
-            explore?.name === state.unsavedChartVersion.tableName &&
             state.unsavedChartVersion.metricQuery.dimensions.length > 0
         ) {
             mutate();
             setState({ ...state, shouldFetchResults: false });
         }
-    }, [explore, mutate, state, setState]);
+    }, [mutate, state, setState]);
 
     const viewData = useCallback(
         (
@@ -202,12 +147,24 @@ export const UnderlyingDataProvider: FC<Props> = ({
         ) => {
             if (meta?.item === undefined) return;
 
-            const tableName: string = isField(meta?.item)
-                ? meta.item.table
-                : exploreState?.unsavedChartVersion.tableName || '';
+            // If we are viewing data form a joined table, we filter that table and those fields in the query
+            const filterTable =
+                isField(meta?.item) && !isMetric(meta?.item)
+                    ? meta.item.table
+                    : undefined;
 
-            const exploreNeedsUpdate = explore?.name !== tableName;
+            const availableDimensions = explore
+                ? getDimensions(explore).filter(
+                      (dimension) =>
+                          (filterTable !== undefined
+                              ? dimension.table === filterTable
+                              : true) &&
+                          !dimension.timeInterval &&
+                          !dimension.hidden,
+                  )
+                : [];
 
+            // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
             const dimensionFilters =
                 !isField(meta?.item) || isMetric(meta?.item)
                     ? Object.entries(row).reduce((acc, r) => {
@@ -226,18 +183,14 @@ export const UnderlyingDataProvider: FC<Props> = ({
                               operator: FilterOperator.EQUALS,
                               values: [raw],
                           };
-                          const isDimension = dimensions.find(
+                          const isDimension = availableDimensions.find(
                               (dimension) => getFieldId(dimension) === key,
                           );
 
                           if (
-                              exploreNeedsUpdate ||
                               isDimension ||
-                              isDateDimension(dimensions, key)
+                              isDateDimension(availableDimensions, key)
                           ) {
-                              // Some of these filters might belong to metrics, not dimensions
-                              // we will filter invalid metric filters before doing the request on explore update hook
-                              // because we depend on the `dimensions` state, which might not be uptodate now
                               return [...acc, dimensionFilter];
                           }
                           return acc;
@@ -253,57 +206,32 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           },
                       ];
 
-            const filters = {
+            const metricFilters = {
                 dimensions: {
-                    ...exploreState?.unsavedChartVersion.metricQuery.filters
-                        .dimensions,
+                    ...filters?.dimensions,
                     id: uuidv4(),
                     and: dimensionFilters,
                 },
             };
-            if (exploreNeedsUpdate) {
-                setUpdateExplore(true);
 
-                setState({
-                    ...state,
-                    unsavedChartVersion: {
-                        ...state.unsavedChartVersion,
-                        metricQuery: {
-                            ...state.unsavedChartVersion.metricQuery,
-                            filters,
-                        },
-                        tableName: tableName,
+            const dimensionFields = availableDimensions.map(getFieldId);
+            setState({
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        dimensions: dimensionFields,
+                        filters: metricFilters,
                     },
-                    shouldFetchResults: false,
-                    isValidQuery: true,
-                });
-            } else {
-                const dimensionFields = dimensions.map(getFieldId);
-
-                setState({
-                    ...state,
-                    unsavedChartVersion: {
-                        ...state.unsavedChartVersion,
-                        metricQuery: {
-                            ...state.unsavedChartVersion.metricQuery,
-                            dimensions: dimensionFields,
-                            filters,
-                        },
-                        tableName: tableName,
-                    },
-                    shouldFetchResults: true,
-                    isValidQuery: true,
-                });
-            }
+                    tableName:
+                        filterTable !== undefined ? filterTable : tableName,
+                },
+                shouldFetchResults: true,
+                isValidQuery: true,
+            });
         },
-        [
-            state,
-            setState,
-            dimensions,
-            exploreState?.unsavedChartVersion.metricQuery,
-            explore?.name,
-            exploreState?.unsavedChartVersion.tableName,
-        ],
+        [state, setState, explore, filters?.dimensions, tableName],
     );
 
     return (

@@ -61,7 +61,10 @@ const ResultsCard: FC = () => {
                 )}
             </CardHeader>
             <Collapse isOpen={resultsIsOpen}>
-                <UnderlyingDataProvider exploreState={state}>
+                <UnderlyingDataProvider
+                    tableName={state.unsavedChartVersion.tableName}
+                    filters={state.unsavedChartVersion.metricQuery.filters}
+                >
                     <ExplorerResults />
                     <UnderlyingDataModal />
                 </UnderlyingDataProvider>
