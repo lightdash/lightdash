@@ -108,23 +108,19 @@ export const UnderlyingDataProvider: FC<Props> = ({
     } = useQueryResults(state);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
-        const dimensions = explore
-            ? getDimensions(explore).filter(
-                  (dimension) =>
-                      dimension.table === state.unsavedChartVersion.tableName &&
-                      !dimension.timeInterval &&
-                      !dimension.hidden,
-              )
-            : [];
-
+        const selectedDimensions =
+            state.unsavedChartVersion.metricQuery.dimensions;
+        const dimensions = explore ? getDimensions(explore) : [];
         return dimensions.reduce((acc, dimension) => {
             const fieldId = isField(dimension) ? getFieldId(dimension) : '';
-            return {
-                ...acc,
-                [fieldId]: dimension,
-            };
+            if (selectedDimensions.includes(fieldId))
+                return {
+                    ...acc,
+                    [fieldId]: dimension,
+                };
+            else return acc;
         }, {});
-    }, [explore, state.unsavedChartVersion.tableName]);
+    }, [explore, state.unsavedChartVersion.metricQuery.dimensions]);
     const closeModal = useCallback(() => {
         resetQueryResults();
     }, [resetQueryResults]);
@@ -149,7 +145,9 @@ export const UnderlyingDataProvider: FC<Props> = ({
 
             // If we are viewing data form a joined table, we filter that table and those fields in the query
             const filterTable =
-                isField(meta?.item) && !isMetric(meta?.item)
+                isField(meta?.item) &&
+                !isMetric(meta?.item) &&
+                meta.item.table !== tableName
                     ? meta.item.table
                     : undefined;
 
@@ -163,7 +161,6 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           !dimension.hidden,
                   )
                 : [];
-
             // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
             const dimensionFilters =
                 !isField(meta?.item) || isMetric(meta?.item)
