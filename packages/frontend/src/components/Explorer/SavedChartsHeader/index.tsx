@@ -26,7 +26,9 @@ import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import {
     IconWithRightMargin,
     PageDetailsContainer,
+    PageHeaderContainer,
     PageTitle,
+    PageTitleAndDetailsContainer,
     PageTitleContainer,
     SeparatorDot,
 } from '../../common/PageHeader';
@@ -35,11 +37,7 @@ import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
-import {
-    ButtonWithMarginLeft,
-    TitleWrapper,
-    Wrapper,
-} from './SavedChartsHeader.styles';
+import { ButtonWithMarginLeft } from './SavedChartsHeader.styles';
 
 const SavedChartsHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -137,8 +135,8 @@ const SavedChartsHeader: FC = () => {
                     want to leave without saving?{' '}
                 </p>
             </Alert>
-            <Wrapper>
-                <TitleWrapper>
+            <PageHeaderContainer>
+                <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
                             <PageTitleContainer
@@ -190,7 +188,7 @@ const SavedChartsHeader: FC = () => {
                             </PageDetailsContainer>
                         </>
                     )}
-                </TitleWrapper>
+                </PageTitleAndDetailsContainer>
                 {user.data?.ability?.can('manage', 'SavedChart') && (
                     <div>
                         {!isEditMode ? (
@@ -322,7 +320,8 @@ const SavedChartsHeader: FC = () => {
                         </Popover2>
                     </div>
                 )}
-            </Wrapper>
+            </PageHeaderContainer>
+
             {unsavedChartVersion && (
                 <CreateSavedQueryModal
                     isOpen={isQueryModalOpen}

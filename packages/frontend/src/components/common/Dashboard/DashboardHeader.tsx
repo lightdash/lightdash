@@ -1,4 +1,4 @@
-import { Button, Intent } from '@blueprintjs/core';
+import { Button, Classes, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, UpdatedByUser } from '@lightdash/common';
 import { useState } from 'react';
@@ -13,16 +13,12 @@ import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo } from '../ActionCard';
 import {
     PageDetailsContainer,
+    PageHeaderContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
-import {
-    ActionButton,
-    EditContainer,
-    WrapperAddTileButton,
-} from './DashboardHeader.styles';
 
 type DashboardHeaderProps = {
     isEditMode: boolean;
@@ -60,6 +56,8 @@ const DashboardHeader = ({
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
+
+    // TODO: on rename tracking is not working
     const onRename = (value: string) => {
         track({
             name: EventName.UPDATE_DASHBOARD_NAME_CLICKED,
@@ -72,9 +70,9 @@ const DashboardHeader = ({
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
 
     return (
-        <WrapperAddTileButton>
+        <PageHeaderContainer>
             <PageTitleAndDetailsContainer>
-                <PageTitleContainer>
+                <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                     <PageTitle>{dashboardName}</PageTitle>
 
                     {dashboardDescription && (
@@ -112,50 +110,48 @@ const DashboardHeader = ({
                 </PageDetailsContainer>
             </PageTitleAndDetailsContainer>
 
-            <EditContainer>
-                {isEditMode ? (
-                    <>
-                        <AddTileButton onAddTiles={onAddTiles} />
-                        <Tooltip2
-                            position="top"
-                            content={
-                                !hasDashboardChanged
-                                    ? 'No changes to save'
-                                    : undefined
-                            }
-                        >
-                            <ActionButton
-                                text="Save"
-                                disabled={!hasDashboardChanged || isSaving}
-                                intent={Intent.PRIMARY}
-                                onClick={onSaveDashboard}
-                            />
-                        </Tooltip2>
-                        <ActionButton
-                            text="Cancel"
-                            disabled={isSaving}
-                            onClick={onCancel}
-                        />
-                    </>
-                ) : (
-                    <>
+            {isEditMode ? (
+                <>
+                    <AddTileButton onAddTiles={onAddTiles} />
+                    <Tooltip2
+                        position="top"
+                        content={
+                            !hasDashboardChanged
+                                ? 'No changes to save'
+                                : undefined
+                        }
+                    >
                         <Button
-                            icon="edit"
-                            text="Edit dashboard"
-                            onClick={() => {
-                                history.replace(
-                                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                                );
-                            }}
+                            text="Save"
+                            disabled={!hasDashboardChanged || isSaving}
+                            intent={Intent.PRIMARY}
+                            onClick={onSaveDashboard}
                         />
+                    </Tooltip2>
+                    <Button
+                        text="Cancel"
+                        disabled={isSaving}
+                        onClick={onCancel}
+                    />
+                </>
+            ) : (
+                <>
+                    <Button
+                        icon="edit"
+                        text="Edit dashboard"
+                        onClick={() => {
+                            history.replace(
+                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                            );
+                        }}
+                    />
 
-                        <ShareLinkButton
-                            url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
-                        />
-                    </>
-                )}
-            </EditContainer>
-        </WrapperAddTileButton>
+                    <ShareLinkButton
+                        url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
+                    />
+                </>
+            )}
+        </PageHeaderContainer>
     );
 };
 
