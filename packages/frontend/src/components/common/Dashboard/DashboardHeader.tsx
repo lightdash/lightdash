@@ -1,6 +1,10 @@
 import { Button, Classes, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard, UpdatedByUser } from '@lightdash/common';
+import {
+    Dashboard,
+    UpdateDashboardDetails,
+    UpdatedByUser,
+} from '@lightdash/common';
 import { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -30,7 +34,7 @@ type DashboardHeaderProps = {
     dashboardDescription?: string;
     dashboardUpdatedByUser?: UpdatedByUser;
     dashboardUpdatedAt: Date;
-    onSaveTitle: (title: string) => void;
+    onUpdate: (values?: UpdateDashboardDetails) => void;
     onCancel: () => void;
 };
 
@@ -44,7 +48,7 @@ const DashboardHeader = ({
     dashboardDescription,
     dashboardUpdatedByUser,
     dashboardUpdatedAt,
-    onSaveTitle,
+    onUpdate,
     onCancel,
 }: DashboardHeaderProps) => {
     const [pageLoadedAt] = useState(new Date());
@@ -57,12 +61,14 @@ const DashboardHeader = ({
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
 
-    // TODO: on rename tracking is not working
-    const onRename = (value: string) => {
-        track({
-            name: EventName.UPDATE_DASHBOARD_NAME_CLICKED,
-        });
-        onSaveTitle(value);
+    const handleEditClick = () => {
+        setIsUpdating(true);
+        track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
+    };
+
+    const handleUpdate = (value?: UpdateDashboardDetails) => {
+        onUpdate(value);
+        setIsUpdating(false);
     };
 
     const { user } = useApp();
@@ -88,7 +94,7 @@ const DashboardHeader = ({
                         <Button
                             icon="edit"
                             disabled={isSaving}
-                            onClick={() => setIsUpdating(true)}
+                            onClick={handleEditClick}
                             minimal
                         />
                     )}
@@ -96,7 +102,7 @@ const DashboardHeader = ({
                     <UpdateDashboardModal
                         dashboardUuid={dashboardUuid}
                         isOpen={isUpdating}
-                        onClose={() => setIsUpdating(false)}
+                        onClose={handleUpdate}
                     />
                 </PageTitleContainer>
 

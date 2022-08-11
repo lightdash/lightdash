@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
-import { DashboardBasicDetails, UpdateSavedChart } from '@lightdash/common';
+import { UpdateDashboardDetails } from '@lightdash/common';
 import { FC, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -12,7 +12,7 @@ import Input from '../ReactHookForm/Input';
 interface Props {
     dashboardUuid: string;
     isOpen: boolean;
-    onClose?: () => void;
+    onClose?: (value?: UpdateDashboardDetails) => void;
 }
 
 const UpdateDashboardModal: FC<Props> = ({
@@ -23,7 +23,7 @@ const UpdateDashboardModal: FC<Props> = ({
     const { data: dashboard, isLoading } = useDashboardQuery(dashboardUuid);
     const { mutate, isLoading: isSaving } =
         useUpdateDashboardName(dashboardUuid);
-    const methods = useForm<UpdateSavedChart>({
+    const methods = useForm<UpdateDashboardDetails>({
         mode: 'onSubmit',
     });
     const { setValue } = methods;
@@ -36,9 +36,9 @@ const UpdateDashboardModal: FC<Props> = ({
     }, [dashboard, setValue]);
 
     const handleSubmit = useCallback(
-        (data: DashboardBasicDetails) => {
+        (data: UpdateDashboardDetails) => {
             mutate(data);
-            if (onClose) onClose();
+            onClose?.(data);
         },
         [mutate, onClose],
     );
@@ -46,7 +46,7 @@ const UpdateDashboardModal: FC<Props> = ({
     return (
         <Dialog
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={() => onClose?.()}
             lazy
             title="Rename your dashboard"
         >
@@ -74,7 +74,7 @@ const UpdateDashboardModal: FC<Props> = ({
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button onClick={onClose}>Cancel</Button>
+                        <Button onClick={() => onClose?.()}>Cancel</Button>
                         <Button
                             intent={Intent.SUCCESS}
                             text="Save"

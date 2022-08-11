@@ -311,7 +311,7 @@ const Dashboard = () => {
                         name: dashboardName || dashboard.name,
                     })
                 }
-                onSaveTitle={(name) => updateTitle(name)}
+                onUpdate={(values) => values && updateTitle(values.name)}
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>
