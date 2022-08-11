@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { createContext, FC, useContext } from 'react';
-import { GroupNode, Node, NodeMap } from './index';
 
 const getSearchResults = (
     itemsMap: Record<string, Item>,
@@ -119,6 +118,19 @@ const getNodeMapFromItemsMap = (
         }, {});
 };
 
+export type Node = {
+    key: string;
+    label: string;
+    children?: NodeMap;
+};
+
+export type GroupNode = Required<Node>;
+
+export type NodeMap = Record<string, Node>;
+
+export const isGroupNode = (node: Node): node is GroupNode =>
+    'children' in node;
+
 type Item = Dimension | Metric | AdditionalMetric;
 
 type Props = {
@@ -136,7 +148,7 @@ type TableTreeContext = Props & {
 
 const Context = createContext<TableTreeContext | undefined>(undefined);
 
-export const TableTreeProvider: FC<Props> = ({
+export const TreeProvider: FC<Props> = ({
     searchQuery,
     children,
     itemsMap,
