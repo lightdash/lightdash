@@ -12,6 +12,7 @@ import {
     ChartName,
     Dot,
 } from '../../Explorer/SavedChartsHeader/SavedChartsHeader.styles';
+import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo, UpdatedLabel } from '../ActionCard';
 import {
@@ -56,7 +57,7 @@ const DashboardHeader = ({
     }>();
     const history = useHistory();
     const { track } = useTracking();
-    const [isEditing, setIsEditing] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
     const onRename = (value: string) => {
         track({
             name: EventName.UPDATE_DASHBOARD_NAME_CLICKED,
@@ -83,11 +84,19 @@ const DashboardHeader = ({
                         </Tooltip2>
                     )}
 
-                    <Button
-                        icon="edit"
-                        disabled={isSaving}
-                        onClick={() => console.log('test')}
-                        minimal
+                    {user.data?.ability?.can('manage', 'Dashboard') && (
+                        <Button
+                            icon="edit"
+                            disabled={isSaving}
+                            onClick={() => setIsUpdating(true)}
+                            minimal
+                        />
+                    )}
+
+                    <UpdateDashboardModal
+                        dashboardUuid={dashboardUuid}
+                        isOpen={isUpdating}
+                        onClose={() => setIsUpdating(false)}
                     />
                 </TitleContainer>
 
