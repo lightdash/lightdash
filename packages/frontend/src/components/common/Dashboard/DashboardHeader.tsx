@@ -16,6 +16,7 @@ import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo } from '../ActionCard';
 import {
+    IconWithRightMargin,
     PageActionsContainer,
     PageDetailsContainer,
     PageHeaderContainer,
@@ -35,6 +36,7 @@ type DashboardHeaderProps = {
     dashboardDescription?: string;
     dashboardUpdatedByUser?: UpdatedByUser;
     dashboardUpdatedAt: Date;
+    dashboardSpaceName?: string;
     onUpdate: (values?: UpdateDashboardDetails) => void;
     onCancel: () => void;
 };
@@ -49,6 +51,7 @@ const DashboardHeader = ({
     dashboardDescription,
     dashboardUpdatedByUser,
     dashboardUpdatedAt,
+    dashboardSpaceName,
     onUpdate,
     onCancel,
 }: DashboardHeaderProps) => {
@@ -114,6 +117,16 @@ const DashboardHeader = ({
                         updatedAt={dashboardUpdatedAt}
                         user={dashboardUpdatedByUser}
                     />
+                    {dashboardSpaceName && (
+                        <>
+                            <SeparatorDot icon="dot" size={6} />
+                            <IconWithRightMargin
+                                icon="folder-close"
+                                size={10}
+                            />
+                            {dashboardSpaceName}
+                        </>
+                    )}
                 </PageDetailsContainer>
             </PageTitleAndDetailsContainer>
 

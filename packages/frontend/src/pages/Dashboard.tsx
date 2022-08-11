@@ -289,6 +289,7 @@ const Dashboard = () => {
                 dashboardDescription={dashboard.description}
                 dashboardUpdatedByUser={dashboard.updatedByUser}
                 dashboardUpdatedAt={dashboard.updatedAt}
+                dashboardSpaceName={dashboard.spaceName}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={
