@@ -307,7 +307,11 @@ const ChartConfigTabs: FC = () => {
                                             label: 'Descending',
                                         },
                                     ]}
-                                    defaultValue="ascending"
+                                    defaultValue={
+                                        dirtyEchartsConfig?.xAxis?.[0]?.inverse
+                                            ? 'descending'
+                                            : 'ascending'
+                                    }
                                     onChange={(e) => {
                                         setInverseX(
                                             e.target.value === 'descending',
