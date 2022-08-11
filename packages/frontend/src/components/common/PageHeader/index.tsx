@@ -48,3 +48,10 @@ export const IconWithRightMargin = styled(Icon)`
     margin-right: 4px;
     color: ${Colors.GRAY2};
 `;
+
+export const PageActionsContainer = styled.div`
+    display: flex;
+    > *:not(:last-child) {
+        margin-right: 10px;
+    }
+`;

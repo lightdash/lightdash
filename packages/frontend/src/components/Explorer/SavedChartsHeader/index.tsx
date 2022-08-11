@@ -25,6 +25,7 @@ import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import {
     IconWithRightMargin,
+    PageActionsContainer,
     PageDetailsContainer,
     PageHeaderContainer,
     PageTitle,
@@ -37,7 +38,6 @@ import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
-import { ButtonWithMarginLeft } from './SavedChartsHeader.styles';
 
 const SavedChartsHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -190,7 +190,7 @@ const SavedChartsHeader: FC = () => {
                     )}
                 </PageTitleAndDetailsContainer>
                 {user.data?.ability?.can('manage', 'SavedChart') && (
-                    <div>
+                    <PageActionsContainer>
                         {!isEditMode ? (
                             <>
                                 <Button
@@ -207,7 +207,8 @@ const SavedChartsHeader: FC = () => {
                         ) : (
                             <>
                                 <SaveChartButton />
-                                <ButtonWithMarginLeft
+
+                                <Button
                                     onClick={() => {
                                         reset();
                                         history.push({
@@ -216,13 +217,14 @@ const SavedChartsHeader: FC = () => {
                                     }}
                                 >
                                     Cancel
-                                </ButtonWithMarginLeft>
+                                </Button>
                             </>
                         )}
 
                         <ShareLinkButton
                             url={`${window.location.origin}/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`}
                         />
+
                         <Popover2
                             placement="bottom"
                             disabled={!unsavedChartVersion.tableName}
@@ -301,7 +303,9 @@ const SavedChartsHeader: FC = () => {
                                             );
                                         })}
                                     </MenuItem>
+
                                     <Divider />
+
                                     <MenuItem
                                         icon="trash"
                                         text="Delete"
@@ -313,12 +317,12 @@ const SavedChartsHeader: FC = () => {
                                 </Menu>
                             }
                         >
-                            <ButtonWithMarginLeft
+                            <Button
                                 icon="more"
                                 disabled={!unsavedChartVersion.tableName}
                             />
                         </Popover2>
-                    </div>
+                    </PageActionsContainer>
                 )}
             </PageHeaderContainer>
 

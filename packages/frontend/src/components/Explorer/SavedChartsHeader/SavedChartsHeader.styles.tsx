@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const TitleWrapper = styled.div`
@@ -9,10 +8,6 @@ export const TitleWrapper = styled.div`
     overflow: hidden;
     margin-right: 10px;
     flex-direction: column;
-`;
-
-export const ButtonWithMarginLeft = styled(Button)`
-    margin-left: 10px;
 `;
 
 export const SpaceName = styled.p`

@@ -16,6 +16,7 @@ import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo } from '../ActionCard';
 import {
+    PageActionsContainer,
     PageDetailsContainer,
     PageHeaderContainer,
     PageTitle,
@@ -117,8 +118,9 @@ const DashboardHeader = ({
             </PageTitleAndDetailsContainer>
 
             {isEditMode ? (
-                <>
+                <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
+
                     <Tooltip2
                         position="top"
                         content={
@@ -134,14 +136,15 @@ const DashboardHeader = ({
                             onClick={onSaveDashboard}
                         />
                     </Tooltip2>
+
                     <Button
                         text="Cancel"
                         disabled={isSaving}
                         onClick={onCancel}
                     />
-                </>
+                </PageActionsContainer>
             ) : (
-                <>
+                <PageActionsContainer>
                     <Button
                         icon="edit"
                         text="Edit dashboard"
@@ -155,7 +158,7 @@ const DashboardHeader = ({
                     <ShareLinkButton
                         url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
                     />
-                </>
+                </PageActionsContainer>
             )}
         </PageHeaderContainer>
     );
