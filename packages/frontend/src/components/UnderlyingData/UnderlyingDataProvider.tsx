@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ChartType,
+    DimensionType,
     Field,
     fieldId as getFieldId,
     FilterOperator,
@@ -11,6 +12,7 @@ import {
     isFilterRule,
     isMetric,
     ResultRow,
+    TimeInterval,
 } from '@lightdash/common';
 import React, {
     createContext,
@@ -43,6 +45,23 @@ const Context = createContext<UnderlyingDataContext | undefined>(undefined);
 
 type Props = {
     exploreState?: ExplorerState;
+};
+
+const isDateDimension = (dimensions: Field[], dimensionName: string) => {
+    const dateDimensions = dimensions.filter(
+        (dimension) =>
+            dimension.type === DimensionType.TIMESTAMP ||
+            dimension.type === DimensionType.DATE,
+    );
+    const dateDimension = dateDimensions.find((dimension) => {
+        const dateIntervals = Object.values(TimeInterval).map(
+            (interval) => `${getFieldId(dimension)}_${interval.toLowerCase()}`,
+        );
+        return dateIntervals.find(
+            (fieldInterval) => fieldInterval === dimensionName,
+        );
+    });
+    return dateDimension !== undefined;
 };
 
 export const UnderlyingDataProvider: FC<Props> = ({
@@ -130,7 +149,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
                                   (dimension) =>
                                       getFieldId(dimension) === filterField,
                               );
-                              if (isDimension) return [...acc, filter];
+                              if (
+                                  isDimension ||
+                                  isDateDimension(dimensions, filterField)
+                              )
+                                  return [...acc, filter];
                           }
                           return acc;
                       }, [] as FilterRule[])
@@ -207,7 +230,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
                               (dimension) => getFieldId(dimension) === key,
                           );
 
-                          if (exploreNeedsUpdate || isDimension) {
+                          if (
+                              exploreNeedsUpdate ||
+                              isDimension ||
+                              isDateDimension(dimensions, key)
+                          ) {
                               // Some of these filters might belong to metrics, not dimensions
                               // we will filter invalid metric filters before doing the request on explore update hook
                               // because we depend on the `dimensions` state, which might not be uptodate now
