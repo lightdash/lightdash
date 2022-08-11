@@ -8,15 +8,14 @@ export const WrapperAddTileButton = styled.div`
     align-items: center;
     height: 5.286em;
     background: ${Colors.WHITE};
-    padding: 2em;
+    padding: 0 2em;
     border-bottom: 0.071em solid #d8e1e8;
 `;
 
-export const TitleContainer = styled.div<{ $isEditing: boolean }>`
+export const TitleContainer = styled.div`
     display: flex;
-    align-items: baseline;
-    color: ${($isEditing) => ($isEditing ? Colors.GRAY1 : undefined)};
-    overflow: hidden;
+    align-items: center;
+    color: ${Colors.GRAY1};
 `;
 
 export const Title = styled.p`
