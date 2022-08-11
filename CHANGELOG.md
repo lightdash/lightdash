@@ -1,3 +1,10 @@
+# [0.211.0](https://github.com/lightdash/lightdash/compare/0.210.0...0.211.0) (2022-08-11)
+
+
+### Features
+
+* add api auth to more api endpoints ([#2923](https://github.com/lightdash/lightdash/issues/2923)) ([43bf047](https://github.com/lightdash/lightdash/commit/43bf047f649bef4917d8a42d99e3e1220556967e))
+
 # [0.210.0](https://github.com/lightdash/lightdash/compare/0.209.5...0.210.0) (2022-08-11)
 
 
