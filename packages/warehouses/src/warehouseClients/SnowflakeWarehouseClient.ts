@@ -120,7 +120,6 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
     }
 
     async runQuery(sqlText: string) {
-        console.time('double');
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
