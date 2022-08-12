@@ -18,6 +18,7 @@ import {
     getFields,
     getItemId,
     getItemLabel,
+    getResultValues,
     hashFieldReference,
     isField,
     Metric,
@@ -850,7 +851,7 @@ const useEcharts = () => {
             },
             dataset: {
                 id: 'lightdashResults',
-                source: plotData,
+                source: getResultValues(plotData, true),
             },
             tooltip: {
                 show: true,

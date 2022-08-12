@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     Explore,
-    getResultValues,
     hashFieldReference,
     isCompleteLayout,
     ResultRow,
@@ -63,17 +62,14 @@ const usePlottedData = (
             chartConfig &&
             isCompleteLayout(chartConfig.layout)
         ) {
-            return getResultValues(
-                getPivotedData(
-                    resultsData.rows,
-                    pivotDimension,
-                    chartConfig.layout.yField,
-                    [chartConfig.layout.xField],
-                ),
-                true,
+            return getPivotedData(
+                resultsData.rows,
+                pivotDimension,
+                chartConfig.layout.yField,
+                [chartConfig.layout.xField],
             );
         }
-        return getResultValues(resultsData.rows, true);
+        return resultsData.rows;
     }, [explore, resultsData, chartConfig, pivotDimensions]);
 };
 
