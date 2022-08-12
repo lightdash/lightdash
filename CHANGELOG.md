@@ -1,3 +1,11 @@
+# [0.212.0](https://github.com/lightdash/lightdash/compare/0.211.1...0.212.0) (2022-08-12)
+
+
+### Features
+
+* improve sidebar UX ([#2910](https://github.com/lightdash/lightdash/issues/2910)) ([b86f55c](https://github.com/lightdash/lightdash/commit/b86f55ce44465cbf151ea76b24fe9d372042adf2))
+* update dashboard header ([#2929](https://github.com/lightdash/lightdash/issues/2929)) ([63f6f63](https://github.com/lightdash/lightdash/commit/63f6f637499fd94bb4c719f8ea5d48786f30aac0))
+
 ## [0.211.1](https://github.com/lightdash/lightdash/compare/0.211.0...0.211.1) (2022-08-12)
 
 
