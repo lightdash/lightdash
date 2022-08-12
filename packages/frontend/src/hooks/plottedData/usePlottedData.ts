@@ -1,9 +1,6 @@
 import {
     ApiQueryResults,
-    CartesianChart,
-    Explore,
     hashFieldReference,
-    isCompleteLayout,
     ResultRow,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -47,30 +44,26 @@ export const getPivotedData = (
 };
 
 const usePlottedData = (
-    explore: Explore | undefined,
-    chartConfig: CartesianChart | undefined,
-    resultsData: ApiQueryResults | undefined,
+    rows: ApiQueryResults['rows'] | undefined,
     pivotDimensions: string[] | undefined,
+    pivotedKeys: string[] | undefined,
+    nonPivotedKeys: string[] | undefined,
 ): ApiQueryResults['rows'] => {
     return useMemo(() => {
-        if (!explore || !resultsData) {
+        if (!rows) {
             return [];
         }
         const pivotDimension = pivotDimensions?.[0];
-        if (
-            pivotDimension &&
-            chartConfig &&
-            isCompleteLayout(chartConfig.layout)
-        ) {
+        if (pivotDimension && pivotedKeys && nonPivotedKeys) {
             return getPivotedData(
-                resultsData.rows,
+                rows,
                 pivotDimension,
-                chartConfig.layout.yField,
-                [chartConfig.layout.xField],
+                pivotedKeys,
+                nonPivotedKeys,
             );
         }
-        return resultsData.rows;
-    }, [explore, resultsData, chartConfig, pivotDimensions]);
+        return rows;
+    }, [rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 };
 
 export default usePlottedData;

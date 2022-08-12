@@ -20,6 +20,7 @@ import {
     getItemLabel,
     getResultValues,
     hashFieldReference,
+    isCompleteLayout,
     isField,
     Metric,
     MetricType,
@@ -738,10 +739,14 @@ const useEcharts = () => {
     const { data: organisationData } = useOrganisation();
 
     const plotData = usePlottedData(
-        explore,
-        validCartesianConfig,
-        resultsData,
+        resultsData?.rows,
         pivotDimensions,
+        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
+            ? validCartesianConfig.layout.yField
+            : undefined,
+        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
+            ? [validCartesianConfig.layout.xField]
+            : undefined,
     );
 
     const formats = useMemo(
