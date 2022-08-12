@@ -1,3 +1,10 @@
+## [0.211.1](https://github.com/lightdash/lightdash/compare/0.211.0...0.211.1) (2022-08-12)
+
+
+### Bug Fixes
+
+* renaming and removing spaces always renamed/removed the last item ([#2937](https://github.com/lightdash/lightdash/issues/2937)) ([68b0fb0](https://github.com/lightdash/lightdash/commit/68b0fb0607fd53e42d013467661f69d0b734101c))
+
 # [0.211.0](https://github.com/lightdash/lightdash/compare/0.210.0...0.211.0) (2022-08-11)
 
 
