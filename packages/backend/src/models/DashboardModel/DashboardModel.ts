@@ -295,6 +295,11 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .leftJoin(
+                UserTableName,
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
@@ -322,6 +327,9 @@ export class DashboardModel {
                 `${DashboardsTableName}.description`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
@@ -329,6 +337,7 @@ export class DashboardModel {
             .where('dashboard_uuid', dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
+
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
         }
@@ -367,7 +376,6 @@ export class DashboardModel {
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.title as markdownTitle`,
                 `${DashboardTileMarkdownsTableName}.content`,
-
                 `${DashboardTileLoomsTableName}.hide_title as loomHideTitle`,
                 `${DashboardTileChartTableName}.hide_title as chartHideTitle`,
             ])
@@ -495,6 +503,11 @@ export class DashboardModel {
             },
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.spaceName,
+            updatedByUser: {
+                userUuid: dashboard.user_uuid,
+                firstName: dashboard.first_name,
+                lastName: dashboard.last_name,
+            },
         };
     }
 

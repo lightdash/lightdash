@@ -1,22 +1,30 @@
-import { Button, Intent } from '@blueprintjs/core';
+import { Button, Classes, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard } from '@lightdash/common';
-import React, { useState } from 'react';
+import {
+    Dashboard,
+    UpdateDashboardDetails,
+    UpdatedByUser,
+} from '@lightdash/common';
+import { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import EditableHeader from '../EditableHeader';
+import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
+import ShareLinkButton from '../../ShareLinkButton';
+import { UpdatedInfo } from '../ActionCard';
 import {
-    ActionButton,
-    EditContainer,
-    Title,
-    TitleContainer,
-    WrapperAddTileButton,
-} from './DashboardHeader.styles';
+    IconWithRightMargin,
+    PageActionsContainer,
+    PageDetailsContainer,
+    PageHeaderContainer,
+    PageTitle,
+    PageTitleAndDetailsContainer,
+    PageTitleContainer,
+    SeparatorDot,
+} from '../PageHeader';
 
 type DashboardHeaderProps = {
     isEditMode: boolean;
@@ -25,7 +33,11 @@ type DashboardHeaderProps = {
     hasDashboardChanged: boolean;
     isSaving: boolean;
     dashboardName: string;
-    onSaveTitle: (title: string) => void;
+    dashboardDescription?: string;
+    dashboardUpdatedByUser?: UpdatedByUser;
+    dashboardUpdatedAt: Date;
+    dashboardSpaceName?: string;
+    onUpdate: (values?: UpdateDashboardDetails) => void;
     onCancel: () => void;
 };
 
@@ -36,7 +48,11 @@ const DashboardHeader = ({
     hasDashboardChanged,
     isSaving,
     dashboardName,
-    onSaveTitle,
+    dashboardDescription,
+    dashboardUpdatedByUser,
+    dashboardUpdatedAt,
+    dashboardSpaceName,
+    onUpdate,
     onCancel,
 }: DashboardHeaderProps) => {
     const [pageLoadedAt] = useState(new Date());
@@ -47,12 +63,16 @@ const DashboardHeader = ({
     }>();
     const history = useHistory();
     const { track } = useTracking();
-    const [isEditing, setIsEditing] = useState(false);
-    const onRename = (value: string) => {
-        track({
-            name: EventName.UPDATE_DASHBOARD_NAME_CLICKED,
-        });
-        onSaveTitle(value);
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    const handleEditClick = () => {
+        setIsUpdating(true);
+        track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
+    };
+
+    const handleUpdate = (value?: UpdateDashboardDetails) => {
+        onUpdate(value);
+        setIsUpdating(false);
     };
 
     const { user } = useApp();
@@ -60,48 +80,86 @@ const DashboardHeader = ({
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
 
     return (
-        <WrapperAddTileButton>
-            <TitleContainer
-                $isEditing={
-                    !isEditing && dashboardName === DEFAULT_DASHBOARD_NAME
-                }
-            >
-                <EditableHeader
-                    readonly={!isEditMode}
-                    isDisabled={isSaving}
-                    onChange={onRename}
-                    value={dashboardName}
-                    placeholder="Type the dashboard name"
-                    onIsEditingChange={setIsEditing}
-                />
-                {!isEditMode && <Title>Last refreshed {timeAgo}</Title>}
-            </TitleContainer>
-            <EditContainer>
-                {isEditMode ? (
-                    <>
-                        <AddTileButton onAddTiles={onAddTiles} />
+        <PageHeaderContainer>
+            <PageTitleAndDetailsContainer>
+                <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                    <PageTitle>{dashboardName}</PageTitle>
+
+                    {dashboardDescription && (
                         <Tooltip2
-                            position="top"
-                            content={
-                                !hasDashboardChanged
-                                    ? 'No changes to save'
-                                    : undefined
-                            }
+                            content={dashboardDescription}
+                            position="bottom"
                         >
-                            <ActionButton
-                                text="Save"
-                                disabled={!hasDashboardChanged || isSaving}
-                                intent={Intent.PRIMARY}
-                                onClick={onSaveDashboard}
-                            />
+                            <Button icon="info-sign" minimal />
                         </Tooltip2>
-                        <ActionButton
-                            text="Cancel"
+                    )}
+
+                    {user.data?.ability?.can('manage', 'Dashboard') && (
+                        <Button
+                            icon="edit"
                             disabled={isSaving}
-                            onClick={onCancel}
+                            onClick={handleEditClick}
+                            minimal
                         />
-                    </>
-                ) : (
+                    )}
+
+                    <UpdateDashboardModal
+                        dashboardUuid={dashboardUuid}
+                        isOpen={isUpdating}
+                        onClose={handleUpdate}
+                    />
+                </PageTitleContainer>
+
+                <PageDetailsContainer>
+                    <span>
+                        Last refreshed <b>{timeAgo}</b>
+                    </span>
+                    <SeparatorDot icon="dot" size={6} />
+                    <UpdatedInfo
+                        updatedAt={dashboardUpdatedAt}
+                        user={dashboardUpdatedByUser}
+                    />
+                    {dashboardSpaceName && (
+                        <>
+                            <SeparatorDot icon="dot" size={6} />
+                            <IconWithRightMargin
+                                icon="folder-close"
+                                size={10}
+                            />
+                            {dashboardSpaceName}
+                        </>
+                    )}
+                </PageDetailsContainer>
+            </PageTitleAndDetailsContainer>
+
+            {isEditMode ? (
+                <PageActionsContainer>
+                    <AddTileButton onAddTiles={onAddTiles} />
+
+                    <Tooltip2
+                        position="top"
+                        content={
+                            !hasDashboardChanged
+                                ? 'No changes to save'
+                                : undefined
+                        }
+                    >
+                        <Button
+                            text="Save"
+                            disabled={!hasDashboardChanged || isSaving}
+                            intent={Intent.PRIMARY}
+                            onClick={onSaveDashboard}
+                        />
+                    </Tooltip2>
+
+                    <Button
+                        text="Cancel"
+                        disabled={isSaving}
+                        onClick={onCancel}
+                    />
+                </PageActionsContainer>
+            ) : (
+                <PageActionsContainer>
                     <Button
                         icon="edit"
                         text="Edit dashboard"
@@ -111,9 +169,13 @@ const DashboardHeader = ({
                             );
                         }}
                     />
-                )}
-            </EditContainer>
-        </WrapperAddTileButton>
+
+                    <ShareLinkButton
+                        url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
+                    />
+                </PageActionsContainer>
+            )}
+        </PageHeaderContainer>
     );
 };
 

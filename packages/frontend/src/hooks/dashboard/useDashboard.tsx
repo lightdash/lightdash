@@ -2,10 +2,10 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
-    DashboardBasicDetails,
     DashboardTileTypes,
     FilterableField,
     UpdateDashboard,
+    UpdateDashboardDetails,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
@@ -230,7 +230,7 @@ export const useUpdateDashboardName = (
     const hook = useUpdateDashboard(id, showRedirectButton);
     return {
         ...hook,
-        mutate: ({ name, description }: DashboardBasicDetails) =>
+        mutate: ({ name, description }: UpdateDashboardDetails) =>
             hook.mutate({ name, description }),
     };
 };

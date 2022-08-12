@@ -3,13 +3,12 @@ import {
     Button,
     Classes,
     Divider,
-    Icon,
     Intent,
     Menu,
     MenuItem,
 } from '@blueprintjs/core';
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import {
@@ -24,20 +23,21 @@ import { SectionName } from '../../../types/Events';
 import { UpdatedInfo } from '../../common/ActionCard';
 import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
+import {
+    IconWithRightMargin,
+    PageActionsContainer,
+    PageDetailsContainer,
+    PageHeaderContainer,
+    PageTitle,
+    PageTitleAndDetailsContainer,
+    PageTitleContainer,
+    SeparatorDot,
+} from '../../common/PageHeader';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
-import {
-    ButtonWithMarginLeft,
-    ChartDetails,
-    ChartName,
-    Dot,
-    SpaceName,
-    TitleWrapper,
-    Wrapper,
-} from './SavedChartsHeader.styles';
 
 const SavedChartsHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -135,14 +135,14 @@ const SavedChartsHeader: FC = () => {
                     want to leave without saving?{' '}
                 </p>
             </Alert>
-            <Wrapper>
-                <TitleWrapper>
+            <PageHeaderContainer>
+                <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
-                            <ChartName
+                            <PageTitleContainer
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
-                                {savedChart.name}
+                                <PageTitle>{savedChart.name}</PageTitle>
                                 {savedChart.description && (
                                     <Tooltip2
                                         content={savedChart.description}
@@ -167,31 +167,30 @@ const SavedChartsHeader: FC = () => {
                                     isOpen={isRenamingChart}
                                     onClose={() => setIsRenamingChart(false)}
                                 />
-                            </ChartName>
+                            </PageTitleContainer>
 
-                            <ChartDetails>
+                            <PageDetailsContainer>
                                 <UpdatedInfo
                                     updatedAt={savedChart.updatedAt}
                                     user={savedChart.updatedByUser}
                                 />
+
                                 {space && (
                                     <>
-                                        <Dot icon="dot" size={6} />
-                                        <SpaceName>
-                                            <Icon
-                                                icon="folder-close"
-                                                size={10}
-                                            />
-                                            {space.name}
-                                        </SpaceName>
+                                        <SeparatorDot icon="dot" size={6} />
+                                        <IconWithRightMargin
+                                            icon="folder-close"
+                                            size={10}
+                                        />
+                                        {space.name}
                                     </>
                                 )}
-                            </ChartDetails>
+                            </PageDetailsContainer>
                         </>
                     )}
-                </TitleWrapper>
+                </PageTitleAndDetailsContainer>
                 {user.data?.ability?.can('manage', 'SavedChart') && (
-                    <div>
+                    <PageActionsContainer>
                         {!isEditMode ? (
                             <>
                                 <Button
@@ -208,7 +207,8 @@ const SavedChartsHeader: FC = () => {
                         ) : (
                             <>
                                 <SaveChartButton />
-                                <ButtonWithMarginLeft
+
+                                <Button
                                     onClick={() => {
                                         reset();
                                         history.push({
@@ -217,13 +217,14 @@ const SavedChartsHeader: FC = () => {
                                     }}
                                 >
                                     Cancel
-                                </ButtonWithMarginLeft>
+                                </Button>
                             </>
                         )}
 
                         <ShareLinkButton
                             url={`${window.location.origin}/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`}
                         />
+
                         <Popover2
                             placement="bottom"
                             disabled={!unsavedChartVersion.tableName}
@@ -302,7 +303,9 @@ const SavedChartsHeader: FC = () => {
                                             );
                                         })}
                                     </MenuItem>
+
                                     <Divider />
+
                                     <MenuItem
                                         icon="trash"
                                         text="Delete"
@@ -314,14 +317,15 @@ const SavedChartsHeader: FC = () => {
                                 </Menu>
                             }
                         >
-                            <ButtonWithMarginLeft
+                            <Button
                                 icon="more"
                                 disabled={!unsavedChartVersion.tableName}
                             />
                         </Popover2>
-                    </div>
+                    </PageActionsContainer>
                 )}
-            </Wrapper>
+            </PageHeaderContainer>
+
             {unsavedChartVersion && (
                 <CreateSavedQueryModal
                     isOpen={isQueryModalOpen}

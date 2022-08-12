@@ -31,6 +31,9 @@
         },
         "spaceName": {
             "type": "string"
+        },
+        "updatedByUser": {
+            "$ref": "#/components/schemas/UpdatedByUser"
         }
     },
     "required": [
