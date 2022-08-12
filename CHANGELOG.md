@@ -1,3 +1,10 @@
+## [0.212.1](https://github.com/lightdash/lightdash/compare/0.212.0...0.212.1) (2022-08-12)
+
+
+### Bug Fixes
+
+* use default utc timezone for snowflake queries ([#2934](https://github.com/lightdash/lightdash/issues/2934)) ([ac944af](https://github.com/lightdash/lightdash/commit/ac944afa2ca17dd37480240fa9dc6ecc55eae8c6))
+
 # [0.212.0](https://github.com/lightdash/lightdash/compare/0.211.1...0.212.0) (2022-08-12)
 
 
