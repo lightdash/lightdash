@@ -2,22 +2,44 @@ import { Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { isField } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
-import React from 'react';
+import React, { FC } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
 
+const Dummy: FC = ({ children }) => <span>{children}</span>;
+
 const TableHeader = () => {
     const { table, headerButton, headerContextMenu, columns } =
         useTableContext();
-    const HeaderContextMenu = headerContextMenu || React.Fragment;
-    const HeaderButton = headerButton || React.Fragment;
+    const HeaderContextMenu = headerContextMenu || Dummy;
+    const HeaderButton = headerButton || Dummy;
     const currentColOrder = React.useRef<Array<string>>([]);
     if (columns.length <= 0) {
         return null;
     }
+    //
+    // return (
+    //     <thead>
+    //         {table.getHeaderGroups().map((headerGroup) => (
+    //             <tr key={headerGroup.id}>
+    //                 {headerGroup.headers.map((header) => (
+    //                     <th key={header.id} colSpan={header.colSpan}>
+    //                         {header.isPlaceholder
+    //                             ? null
+    //                             : flexRender(
+    //                                   header.column.columnDef.header,
+    //                                   header.getContext(),
+    //                               )}
+    //                     </th>
+    //                 ))}
+    //             </tr>
+    //         ))}
+    //     </thead>
+    // );
+
     return (
         <>
             <thead>

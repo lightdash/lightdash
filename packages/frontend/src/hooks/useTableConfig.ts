@@ -7,12 +7,14 @@ import {
     getItemId,
     getItemLabel,
     getItemMap,
+    hashFieldReference,
+    isDimension,
     isField,
     TableCalculation,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TableColumn } from '../components/common/Table/types';
+import { columnHelper, TableColumn } from '../components/common/Table/types';
 import useColumnTotals from './useColumnTotals';
 
 const useTableConfig = (
@@ -20,6 +22,7 @@ const useTableConfig = (
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
     columnOrder: string[],
+    pivotDimensions: string[] | undefined,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -84,7 +87,111 @@ const useTableConfig = (
 
     const totals = useColumnTotals({ resultsData, itemsMap });
 
+    const pivotDimension = pivotDimensions?.[0];
+    const uniquePivotValues: Record<string, { raw: any; formatted: any }> =
+        useMemo(
+            () =>
+                pivotDimension && itemsMap[pivotDimension] && resultsData
+                    ? resultsData.rows.reduce<
+                          Record<string, { raw: any; formatted: any }>
+                      >((acc, row) => {
+                          const value = row[pivotDimension].value;
+                          return { ...acc, [`${value.raw}`]: value };
+                      }, {})
+                    : {},
+            [pivotDimension, itemsMap, resultsData],
+        );
+
     const columns = useMemo(() => {
+        if (
+            pivotDimension &&
+            itemsMap[pivotDimension] &&
+            Object.keys(uniquePivotValues).length > 0
+        ) {
+            const dimensionHeaders = Object.values(itemsMap).reduce<
+                TableColumn[]
+            >((acc, item) => {
+                const itemId = getItemId(item);
+                if (
+                    !isColumnVisible(itemId) ||
+                    itemId === pivotDimension ||
+                    !isDimension(item)
+                ) {
+                    return acc;
+                }
+                const column: TableColumn = columnHelper.accessor(itemId, {
+                    id: itemId,
+                    header: getHeader(itemId) || getDefaultColumnLabel(itemId),
+                    cell: (info) => {
+                        return info.getValue() || '-';
+                    },
+                    footer: () =>
+                        totals[itemId]
+                            ? formatItemValue(item, totals[itemId])
+                            : null,
+                    meta: {
+                        item,
+                    },
+                });
+                return [...acc, column];
+            }, []);
+            const pivotHeaderGroup = columnHelper.group({
+                id: 'pivot_header_group',
+                header:
+                    getHeader(pivotDimension) ||
+                    getDefaultColumnLabel(pivotDimension),
+                columns: Object.entries(uniquePivotValues).map(
+                    ([_, { raw, formatted }]) => {
+                        return columnHelper.group({
+                            id: `pivot_header_group_${raw}`,
+                            header: () => formatted,
+                            columns: Object.values(itemsMap).reduce<
+                                TableColumn[]
+                            >((acc, item) => {
+                                const itemId = getItemId(item);
+                                if (
+                                    !isColumnVisible(itemId) ||
+                                    isDimension(item)
+                                ) {
+                                    return acc;
+                                }
+                                const key = hashFieldReference({
+                                    field: itemId,
+                                    pivotValues: [
+                                        { field: pivotDimension, value: raw },
+                                    ],
+                                });
+                                console.log('hash', key);
+                                const column: TableColumn =
+                                    columnHelper.accessor((row) => row[key], {
+                                        id: key,
+                                        header:
+                                            getHeader(itemId) ||
+                                            getDefaultColumnLabel(itemId),
+                                        cell: (info) => {
+                                            return info.getValue() || '-';
+                                        },
+                                        footer: () =>
+                                            totals[itemId]
+                                                ? formatItemValue(
+                                                      item,
+                                                      totals[itemId],
+                                                  )
+                                                : null,
+                                        meta: {
+                                            item,
+                                        },
+                                    });
+                                return [...acc, column];
+                            }, []),
+                        });
+                    },
+                ),
+            });
+
+            return [...dimensionHeaders, pivotHeaderGroup];
+        }
+
         return Object.values(itemsMap).reduce<TableColumn[]>((acc, item) => {
             const itemId = getItemId(item);
             if (!isColumnVisible(itemId)) {
@@ -105,7 +212,15 @@ const useTableConfig = (
             };
             return [...acc, column];
         }, []);
-    }, [getDefaultColumnLabel, getHeader, isColumnVisible, itemsMap, totals]);
+    }, [
+        getDefaultColumnLabel,
+        getHeader,
+        isColumnVisible,
+        itemsMap,
+        pivotDimension,
+        totals,
+        uniquePivotValues,
+    ]);
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {

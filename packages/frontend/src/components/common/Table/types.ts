@@ -4,12 +4,17 @@ import {
     SortField,
     TableCalculation,
 } from '@lightdash/common';
-import { Cell, ColumnDef, Header } from '@tanstack/react-table';
+import {
+    Cell,
+    ColumnDef,
+    createColumnHelper,
+    Header,
+} from '@tanstack/react-table';
 import { MouseEventHandler } from 'react';
 
-export type HeaderProps = { header: Header<ResultRow> };
+export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
-    cell: Cell<ResultRow>;
+    cell: Cell<ResultRow, any>;
     onOpen: () => void;
     onClose: () => void;
     boundaryElement: HTMLDivElement | null;
@@ -22,7 +27,7 @@ export type Sort = {
     isMultiSort: boolean;
 };
 
-export type TableColumn = ColumnDef<ResultRow> & {
+export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
     meta?: {
         isInvalidItem?: boolean;
         width?: number;
@@ -33,6 +38,8 @@ export type TableColumn = ColumnDef<ResultRow> & {
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
     };
 };
+
+export const columnHelper = createColumnHelper<ResultRow>();
 
 export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 5000;

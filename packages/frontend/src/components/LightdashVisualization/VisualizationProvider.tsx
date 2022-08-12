@@ -111,6 +111,7 @@ export const VisualizationProvider: FC<Props> = ({
         lastValidResultsData,
         explore,
         columnOrder,
+        validPivotDimensions,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;

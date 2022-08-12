@@ -11,16 +11,19 @@ const SimpleTable: FC = () => {
         isLoading,
         columnOrder,
         tableConfig: { columns, showColumnCalculation },
+        pivotDimensions,
+        plotData,
     } = useVisualizationContext();
 
     if (isLoading) return <LoadingChart />;
-
+    const pivotDimension = pivotDimensions?.[0];
+    console.log('plotData', plotData);
     return (
         <TableWrapper>
             <Table
                 status={'success'}
-                data={resultsData?.rows || []}
-                columns={columns}
+                data={pivotDimension ? plotData : resultsData?.rows || []}
+                columns={columns as any}
                 columnOrder={columnOrder}
                 footer={{
                     show: showColumnCalculation,
