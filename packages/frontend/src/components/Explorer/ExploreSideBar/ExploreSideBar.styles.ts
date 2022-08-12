@@ -27,7 +27,6 @@ export const MenuWrapper = styled(Menu)`
 
 export const FooterWrapper = styled.div`
     height: 100%;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
 `;

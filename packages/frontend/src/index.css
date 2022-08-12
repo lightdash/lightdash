@@ -14,34 +14,6 @@ code {
         monospace;
 }
 
-/*sidebar-menus*/
-.bp4-tree-root {
-    /* Visual alignment */
-    margin-left: -6px;
-}
-
-.bp4-tree-node-content-0:hover {
-    background: none;
-}
-
-.bp4-tree-node-content-0 .bp4-tree-node-label {
-    font-weight: 600;
-    white-space: normal;
-}
-
-/* When there is a join tables remove hove state from the first item of the treeNode */
-.bp4-tree-node .bp4-tree-node-expanded .bp4-tree-node-content-1:hover {
-    background: none;
-    cursor: auto;
-}
-
-.bp4-tree-node-content-2:hover,
-.bp4-tree-node-content-3:hover,
-.bp4-tree-node-content-4:hover {
-    background: rgba(143, 153, 168, 0.15);
-    cursor: pointer;
-}
-
 /* multi select */
 .bp4-multi-select-popover .bp4-menu {
     max-height: 300px;

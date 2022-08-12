@@ -1,5 +1,5 @@
-import { Button, Collapse, H4, MenuDivider, MenuItem } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, Collapse, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     CompiledTable,
@@ -12,7 +12,6 @@ import { useExplorer } from '../../../providers/ExplorerProvider';
 import { LineageButton } from '../../LineageButton';
 import ExploreTree from '../ExploreTree';
 import {
-    BackButton,
     ContentWrapper,
     ExpandableHeader,
     ExpandableWrapper,
@@ -60,7 +59,10 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
     const {
         state: {
             activeFields,
-            unsavedChartVersion: { tableName: activeTableName },
+            unsavedChartVersion: {
+                tableName: activeTableName,
+                metricQuery: { additionalMetrics },
+            },
         },
         actions: { toggleActiveField, setMagicMetrics },
     } = useExplorer();
@@ -97,23 +99,30 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
         ].sqlTable
             .replace(/["'`]/g, '')
             .split('.');
+
         return (
             <>
-                {onBack && (
-                    <BackButton
-                        text="All tables"
-                        onClick={onBack}
-                        icon="chevron-left"
-                    />
-                )}
                 <ExpandableWrapper>
                     <ExpandableHeader>
-                        <H4>{data.label}</H4>
+                        <Breadcrumbs2
+                            items={
+                                onBack
+                                    ? [
+                                          {
+                                              text: 'All tables',
+                                              className: 'home-breadcrumb',
+                                              onClick: onBack,
+                                          },
+                                          { text: data.label },
+                                      ]
+                                    : [{ text: data.label }]
+                            }
+                        />
                         <Tooltip2
                             content={`${
                                 headerIsOpen ? 'Hide' : 'View'
                             } table information`}
-                            position="bottom"
+                            position="right"
                         >
                             <Button
                                 icon={
@@ -149,6 +158,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                 <TableDivider />
                 <ExploreTree
                     explore={activeExplore}
+                    additionalMetrics={additionalMetrics || []}
                     selectedNodes={activeFields}
                     onSelectedFieldChange={toggleActiveField}
                 />

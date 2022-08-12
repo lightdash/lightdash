@@ -1,10 +1,12 @@
 import { Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
+    AdditionalMetric,
     Field,
     formatItemValue,
     friendlyName,
     getItemMap,
+    isAdditionalMetric,
     isDimension,
     isField,
     isNumericItem,
@@ -15,6 +17,19 @@ import { TableColumn } from '../components/common/Table/types';
 import { useExplorer } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
+
+export const getItemBgColor = (
+    item: Field | AdditionalMetric | TableCalculation,
+): string => {
+    let bgColor: string;
+
+    if (isField(item) || isAdditionalMetric(item)) {
+        bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
+    } else {
+        bgColor = '#d2dfd7';
+    }
+    return bgColor;
+};
 
 export const useColumns = (): TableColumn[] => {
     const {
@@ -71,17 +86,6 @@ export const useColumns = (): TableColumn[] => {
         resultsData,
         itemsMap: activeItemsMap,
     });
-
-    const getItemBgColor = (item: Field | TableCalculation): string => {
-        let bgColor: string;
-
-        if (isField(item)) {
-            bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
-        } else {
-            bgColor = '#d2dfd7';
-        }
-        return bgColor;
-    };
 
     return useMemo(() => {
         const validColumns = Object.entries(activeItemsMap).reduce<

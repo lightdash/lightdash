@@ -6,7 +6,7 @@ import useGlobalSearch from '../../../hooks/globalSearch/useGlobalSearch';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/TableTree';
+import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 export type SearchItem = {
     type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field';
