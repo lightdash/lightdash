@@ -17,9 +17,9 @@ import React, {
 } from 'react';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import usePlottedData from '../../hooks/plottedData/usePlottedData';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
-import usePlottedData from '../../hooks/usePlottedData';
 import useTableConfig from '../../hooks/useTableConfig';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
