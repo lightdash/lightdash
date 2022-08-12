@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -55,8 +54,6 @@ const DashboardHeader = ({
     onUpdate,
     onCancel,
 }: DashboardHeaderProps) => {
-    const [pageLoadedAt] = useState(new Date());
-    const timeAgo = useTimeAgo(pageLoadedAt);
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -111,17 +108,15 @@ const DashboardHeader = ({
                 </PageTitleContainer>
 
                 <PageDetailsContainer>
-                    <span>
-                        Last refreshed <b>{timeAgo}</b>
-                    </span>
-                    <SeparatorDot icon="dot" size={6} />
                     <UpdatedInfo
                         updatedAt={dashboardUpdatedAt}
                         user={dashboardUpdatedByUser}
                     />
+
                     {dashboardSpaceName && (
                         <>
                             <SeparatorDot icon="dot" size={6} />
+
                             <IconWithRightMargin
                                 icon="folder-close"
                                 size={10}
