@@ -6,8 +6,8 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import ChartConfigTabs from './ChartConfigTabs';
 
 export const ChartConfigPanel: React.FC = () => {
-    const { chartType, plotData } = useVisualizationContext();
-    const disabled = !plotData || chartType === ChartType.TABLE;
+    const { chartType } = useVisualizationContext();
+    const disabled = chartType === ChartType.TABLE;
 
     return (
         <Popover2

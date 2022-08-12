@@ -30,6 +30,7 @@ import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
+import usePlottedData from '../plottedData/usePlottedData';
 
 const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
@@ -730,12 +731,18 @@ const useEcharts = () => {
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
-        plotData,
         originalData,
         pivotDimensions,
         resultsData,
     } = useVisualizationContext();
     const { data: organisationData } = useOrganisation();
+
+    const plotData = usePlottedData(
+        explore,
+        validCartesianConfig,
+        resultsData,
+        pivotDimensions,
+    );
 
     const formats = useMemo(
         () =>

@@ -17,7 +17,6 @@ import React, {
 } from 'react';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
-import usePlottedData from '../../hooks/plottedData/usePlottedData';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import useTableConfig from '../../hooks/useTableConfig';
@@ -32,7 +31,6 @@ type VisualizationContext = {
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     originalData: ApiQueryResults['rows'];
-    plotData: ApiQueryResults['rows'];
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
@@ -132,13 +130,6 @@ export const VisualizationProvider: FC<Props> = ({
 
     const { validCartesianConfig } = cartesianConfig;
 
-    const plotData = usePlottedData(
-        explore,
-        validCartesianConfig,
-        lastValidResultsData,
-        validPivotDimensions,
-    );
-
     useEffect(() => {
         let validConfig: ChartConfig['config'];
         switch (chartType) {
@@ -179,7 +170,6 @@ export const VisualizationProvider: FC<Props> = ({
                 chartType,
                 explore,
                 originalData: lastValidResultsData?.rows || [],
-                plotData,
                 resultsData: lastValidResultsData,
                 isLoading,
                 columnOrder,
