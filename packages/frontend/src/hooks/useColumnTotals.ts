@@ -24,8 +24,6 @@ const isSummable = (item: Field | TableCalculation) => {
             MetricType.COUNT,
             MetricType.COUNT_DISTINCT,
             MetricType.SUM,
-            MetricType.MIN,
-            MetricType.MAX,
         ];
         const isPercent = item.format === 'percent';
         return numericTypes.includes(item.type) && !isPercent;
