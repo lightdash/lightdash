@@ -11,11 +11,12 @@ const getSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useSpaces = (projectUuid: string) =>
-    useQuery<Space[], ApiError>({
+export const useSpaces = (projectUuid: string) => {
+    return useQuery<Space[], ApiError>({
         queryKey: ['spaces', projectUuid],
         queryFn: () => getSpaces(projectUuid),
     });
+};
 
 export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
