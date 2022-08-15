@@ -48,6 +48,16 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         }
     }
 
+    tbody tr {
+        :nth-child(even) {
+            background-color: ${Colors.LIGHT_GRAY5};
+        }
+
+        :hover {
+            background: ${Colors.LIGHT_GRAY3};
+        }
+    }
+
     tfoot {
         position: sticky;
         bottom: 0;
@@ -82,11 +92,6 @@ const CellStyles = css<{ $isNaN: boolean }>`
 
 export const BodyCell = styled.td<{ $isNaN: boolean; $rowIndex: number }>`
     ${CellStyles}
-    ${({ $rowIndex }) =>
-        $rowIndex % 2 &&
-        `
-        background-color: ${Colors.LIGHT_GRAY5}
-  `}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
