@@ -206,9 +206,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
 
             const metricFilters = {
                 dimensions: {
-                    ...filters?.dimensions,
                     id: uuidv4(),
-                    and: dimensionFilters,
+                    and:
+                        filters?.dimensions !== undefined
+                            ? [filters?.dimensions, ...dimensionFilters]
+                            : dimensionFilters,
                 },
             };
 
