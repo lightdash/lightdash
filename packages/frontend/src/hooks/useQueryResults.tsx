@@ -49,6 +49,12 @@ export const useQueryResults = (state: ExplorerState) => {
                 tableId: state.unsavedChartVersion.tableName,
                 query: state.unsavedChartVersion.metricQuery,
             });
+        } else {
+            console.warn(
+                `Can't make SQL request, invalid state`,
+                state.unsavedChartVersion.tableName,
+                state.isValidQuery,
+            );
         }
     }, [mutation, projectUuid, state]);
 

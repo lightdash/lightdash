@@ -8,6 +8,8 @@ import {
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
+import UnderlyingDataModal from '../../UnderlyingData/UnderlyingDataModal';
+import UnderlyingDataProvider from '../../UnderlyingData/UnderlyingDataProvider';
 import { ExplorerResults } from './ExplorerResults';
 import {
     CardHeader,
@@ -17,12 +19,12 @@ import {
 
 const ResultsCard: FC = () => {
     const {
-        state: { isEditMode, unsavedChartVersion, expandedSections },
+        state,
         queryResults,
         actions: { setRowLimit, toggleExpandedSection },
     } = useExplorer();
+    const { isEditMode, unsavedChartVersion, expandedSections } = state;
     const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
-
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
@@ -59,7 +61,13 @@ const ResultsCard: FC = () => {
                 )}
             </CardHeader>
             <Collapse isOpen={resultsIsOpen}>
-                <ExplorerResults />
+                <UnderlyingDataProvider
+                    tableName={state.unsavedChartVersion.tableName}
+                    filters={state.unsavedChartVersion.metricQuery.filters}
+                >
+                    <ExplorerResults />
+                    <UnderlyingDataModal />
+                </UnderlyingDataProvider>
             </Collapse>
         </Card>
     );

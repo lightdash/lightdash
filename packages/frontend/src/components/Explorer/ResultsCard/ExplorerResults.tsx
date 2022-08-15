@@ -104,7 +104,9 @@ export const ExplorerResults = () => {
                     columns={columns}
                     columnOrder={explorerColumnOrder}
                     onColumnOrderChange={setColumnOrder}
-                    cellContextMenu={isEditMode ? CellContextMenu : undefined}
+                    cellContextMenu={(props) => (
+                        <CellContextMenu isEditMode={isEditMode} {...props} />
+                    )}
                     headerContextMenu={
                         isEditMode ? ColumnHeaderContextMenu : undefined
                     }

@@ -11,9 +11,14 @@ import useColumnTotals from './useColumnTotals';
 type Args = {
     resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<FieldId, Field>;
+    columnHeader?: (dimension: Field) => JSX.Element;
 };
 
-const useSqlRunnerColumns = ({ resultsData, fieldsMap }: Args) => {
+const useSqlRunnerColumns = ({
+    resultsData,
+    fieldsMap,
+    columnHeader,
+}: Args) => {
     const totals = useColumnTotals({ resultsData, itemsMap: fieldsMap });
 
     return useMemo(() => {
@@ -22,7 +27,10 @@ const useSqlRunnerColumns = ({ resultsData, fieldsMap }: Args) => {
                 const fieldId = getFieldId(dimension);
                 return {
                     id: fieldId,
-                    header: dimension.label,
+                    header: () =>
+                        columnHeader !== undefined
+                            ? columnHeader(dimension)
+                            : dimension.label,
                     accessorKey: fieldId,
                     cell: (info) => {
                         const {
@@ -41,7 +49,7 @@ const useSqlRunnerColumns = ({ resultsData, fieldsMap }: Args) => {
             });
         }
         return [];
-    }, [fieldsMap, totals]);
+    }, [fieldsMap, totals, columnHeader]);
 };
 
 export default useSqlRunnerColumns;
