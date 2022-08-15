@@ -1,3 +1,10 @@
+# [0.214.0](https://github.com/lightdash/lightdash/compare/0.213.0...0.214.0) (2022-08-15)
+
+
+### Features
+
+* remove average and percent from table totals ([#2951](https://github.com/lightdash/lightdash/issues/2951)) ([dbdc49a](https://github.com/lightdash/lightdash/commit/dbdc49aab6b836670994c9ade30cc27ab719bd2b))
+
 # [0.213.0](https://github.com/lightdash/lightdash/compare/0.212.1...0.213.0) (2022-08-15)
 
 
