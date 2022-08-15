@@ -122,9 +122,7 @@ const useTableConfig = (
                 const column: TableColumn = columnHelper.accessor(itemId, {
                     id: itemId,
                     header: getHeader(itemId) || getDefaultColumnLabel(itemId),
-                    cell: (info) => {
-                        return info.getValue() || '-';
-                    },
+                    cell: (info) => info.getValue()?.value.formatted || '-',
                     footer: () =>
                         totals[itemId]
                             ? formatItemValue(item, totals[itemId])
@@ -168,9 +166,9 @@ const useTableConfig = (
                                         header:
                                             getHeader(itemId) ||
                                             getDefaultColumnLabel(itemId),
-                                        cell: (info) => {
-                                            return info.getValue() || '-';
-                                        },
+                                        cell: (info) =>
+                                            info.getValue()?.value.formatted ||
+                                            '-',
                                         footer: () =>
                                             totals[itemId]
                                                 ? formatItemValue(

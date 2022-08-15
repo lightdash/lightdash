@@ -738,7 +738,6 @@ const useEcharts = () => {
         pivotDimensions,
         resultsData,
     } = useVisualizationContext();
-    console.log('echarts data', plotData);
     const { data: organisationData } = useOrganisation();
 
     const plotData = usePlottedData(
