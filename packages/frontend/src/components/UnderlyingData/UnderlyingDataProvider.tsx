@@ -9,8 +9,8 @@ import {
     Filters,
     getDimensions,
     getFields,
+    isDimension,
     isField,
-    isMetric,
     ResultRow,
     TimeInterval,
 } from '@lightdash/common';
@@ -163,54 +163,46 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 tableName,
             ]);
 
-            const availableDimensions = allDimensions.filter(
-                (dimension) =>
-                    tablesInQuery.has(dimension.table) &&
-                    !dimension.timeInterval &&
-                    !dimension.hidden,
-            );
-
             // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
-            const dimensionFilters =
-                !isField(meta?.item) || isMetric(meta?.item)
-                    ? Object.entries(row).reduce((acc, r) => {
-                          const [
-                              key,
-                              {
-                                  value: { raw },
-                              },
-                          ] = r;
-
-                          const dimensionFilter: FilterRule = {
-                              id: uuidv4(),
-                              target: {
-                                  fieldId: key,
-                              },
-                              operator: FilterOperator.EQUALS,
-                              values: [raw],
-                          };
-                          const isDimension = availableDimensions.find(
-                              (dimension) => getFieldId(dimension) === key,
-                          );
-
-                          if (
-                              isDimension ||
-                              isDateDimension(availableDimensions, key)
-                          ) {
-                              return [...acc, dimensionFilter];
-                          }
-                          return acc;
-                      }, [] as FilterRule[])
-                    : [
+            const dimensionFilters = !isDimension(meta?.item)
+                ? Object.entries(row).reduce((acc, r) => {
+                      const [
+                          key,
                           {
-                              id: uuidv4(),
-                              target: {
-                                  fieldId: getFieldId(meta?.item),
-                              },
-                              operator: FilterOperator.EQUALS,
-                              values: [value.raw],
+                              value: { raw },
                           },
-                      ];
+                      ] = r;
+
+                      const dimensionFilter: FilterRule = {
+                          id: uuidv4(),
+                          target: {
+                              fieldId: key,
+                          },
+                          operator: FilterOperator.EQUALS,
+                          values: [raw],
+                      };
+                      const isValidDimension = allDimensions.find(
+                          (dimension) => getFieldId(dimension) === key,
+                      );
+
+                      if (
+                          isValidDimension ||
+                          isDateDimension(allDimensions, key)
+                      ) {
+                          return [...acc, dimensionFilter];
+                      }
+                      return acc;
+                  }, [] as FilterRule[])
+                : [
+                      {
+                          id: uuidv4(),
+                          target: {
+                              fieldId: getFieldId(meta?.item),
+                          },
+                          operator: FilterOperator.EQUALS,
+                          values: [value.raw],
+                      },
+                  ];
 
             const metricFilters = {
                 dimensions: {
@@ -220,6 +212,12 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 },
             };
 
+            const availableDimensions = allDimensions.filter(
+                (dimension) =>
+                    tablesInQuery.has(dimension.table) &&
+                    !dimension.timeInterval &&
+                    !dimension.hidden,
+            );
             const dimensionFields = availableDimensions.map(getFieldId);
             setState({
                 ...state,

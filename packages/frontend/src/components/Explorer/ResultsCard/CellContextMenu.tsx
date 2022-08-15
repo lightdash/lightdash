@@ -8,11 +8,9 @@ import { EventName } from '../../../types/Events';
 import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
-export const CellContextMenu: React.FC<CellContextMenuProps> = ({
-    isEditMode,
-    children,
-    cell,
-}) => {
+export const CellContextMenu: React.FC<
+    CellContextMenuProps & { isEditMode: boolean }
+> = ({ isEditMode, children, cell }) => {
     const { addFilter } = useFilters();
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
