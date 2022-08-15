@@ -8,6 +8,7 @@ import {
     FilterRule,
     Filters,
     getDimensions,
+    getFields,
     isField,
     isMetric,
     ResultRow,
@@ -135,6 +136,15 @@ export const UnderlyingDataProvider: FC<Props> = ({
         }
     }, [mutate, state, setState]);
 
+    const allFields = useMemo(
+        () => (explore ? getFields(explore) : []),
+        [explore],
+    );
+    const allDimensions = useMemo(
+        () => (explore ? getDimensions(explore) : []),
+        [explore],
+    );
+
     const viewData = useCallback(
         (
             value: ResultRow[0]['value'],
@@ -143,24 +153,23 @@ export const UnderlyingDataProvider: FC<Props> = ({
         ) => {
             if (meta?.item === undefined) return;
 
-            // If we are viewing data form a joined table, we filter that table and those fields in the query
-            const filterTable =
-                isField(meta?.item) &&
-                !isMetric(meta?.item) &&
-                meta.item.table !== tableName
-                    ? meta.item.table
-                    : undefined;
+            // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
+            const rowFields = Object.keys(row);
+            const fieldsInQuery = allFields.filter((field) =>
+                rowFields.includes(getFieldId(field)),
+            );
+            const tablesInQuery = new Set([
+                ...fieldsInQuery.map((field) => field.table),
+                tableName,
+            ]);
 
-            const availableDimensions = explore
-                ? getDimensions(explore).filter(
-                      (dimension) =>
-                          (filterTable !== undefined
-                              ? dimension.table === filterTable
-                              : true) &&
-                          !dimension.timeInterval &&
-                          !dimension.hidden,
-                  )
-                : [];
+            const availableDimensions = allDimensions.filter(
+                (dimension) =>
+                    tablesInQuery.has(dimension.table) &&
+                    !dimension.timeInterval &&
+                    !dimension.hidden,
+            );
+
             // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
             const dimensionFilters =
                 !isField(meta?.item) || isMetric(meta?.item)
@@ -221,14 +230,20 @@ export const UnderlyingDataProvider: FC<Props> = ({
                         dimensions: dimensionFields,
                         filters: metricFilters,
                     },
-                    tableName:
-                        filterTable !== undefined ? filterTable : tableName,
+                    //tableName: filterTable !== undefined ? filterTable : tableName,
                 },
                 shouldFetchResults: true,
                 isValidQuery: true,
             });
         },
-        [state, setState, explore, filters?.dimensions, tableName],
+        [
+            state,
+            setState,
+            filters?.dimensions,
+            tableName,
+            allFields,
+            allDimensions,
+        ],
     );
 
     return (
