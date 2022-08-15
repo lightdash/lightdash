@@ -16,9 +16,6 @@ export const getPivotedData = (
 
         const pivotedRow: ResultRow = {};
         Object.entries(row).forEach(([key, value]) => {
-            if (key === pivotKey) {
-                return;
-            }
             if (pivotedKeys.includes(key)) {
                 const pivotedKeyHash: string = hashFieldReference({
                     field: key,

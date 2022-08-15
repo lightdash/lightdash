@@ -1,8 +1,10 @@
 import { getPivotedData } from './usePlottedData';
 import {
+    EXPECTED_PIVOT_ON_ITSELF_RESULTS,
     EXPECTED_PIVOT_RESULTS_WITH_ALL_DIMENSIONS,
     EXPECTED_PIVOT_RESULTS_WITH_SOME_DIMENSIONS,
     EXPECTED_SIMPLE_PIVOT_RESULTS,
+    RESULTS_FOR_PIVOT_ON_ITSELF,
     RESULTS_FOR_PIVOT_WITH_MULTIPLE_DIMENSIONS,
     RESULTS_FOR_SIMPLE_PIVOT,
 } from './usePlottedData.mock';
@@ -37,5 +39,15 @@ describe('usePlottedData', () => {
                 ['dim1'],
             ),
         ).toEqual(EXPECTED_PIVOT_RESULTS_WITH_SOME_DIMENSIONS);
+    });
+    it('should pivot data on itself', () => {
+        expect(
+            getPivotedData(
+                RESULTS_FOR_PIVOT_ON_ITSELF,
+                'dim1',
+                ['metric1', 'metric2'],
+                ['dim1'],
+            ),
+        ).toEqual(EXPECTED_PIVOT_ON_ITSELF_RESULTS);
     });
 });
