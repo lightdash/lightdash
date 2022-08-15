@@ -19,9 +19,18 @@ const UnderlyingDataResultsTable: FC<{
     fieldsMap: Record<string, Field>;
     resultsData: ApiQueryResults | undefined;
 }> = ({ fieldsMap, resultsData }) => {
+    const columnHeader = (dimension: Field) => {
+        return (
+            <span>
+                {' '}
+                {dimension.tableLabel} <b>{dimension.name}</b>
+            </span>
+        );
+    };
     const columns = useSqlRunnerColumns({
         resultsData,
         fieldsMap,
+        columnHeader,
     });
 
     return (

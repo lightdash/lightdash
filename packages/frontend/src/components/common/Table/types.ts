@@ -8,10 +8,7 @@ import { Cell, ColumnDef, Header } from '@tanstack/react-table';
 import { MouseEventHandler } from 'react';
 
 export type HeaderProps = { header: Header<ResultRow> };
-export type CellContextMenuProps = {
-    isEditMode?: boolean;
-    cell: Cell<ResultRow>;
-};
+export type CellContextMenuProps = { cell: Cell<ResultRow> };
 
 export type Sort = {
     sortIndex: number;
