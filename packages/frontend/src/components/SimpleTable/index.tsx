@@ -27,7 +27,13 @@ const SimpleTable: FC = () => {
               ].filter((itemId) => isColumnVisible(itemId))
             : undefined,
 
-        resultsData ? resultsData.metricQuery.dimensions : undefined,
+        resultsData
+            ? resultsData.metricQuery.dimensions.filter(
+                  (itemId) =>
+                      isColumnVisible(itemId) &&
+                      !pivotDimensions?.includes(itemId),
+              )
+            : undefined,
     );
 
     if (isLoading) return <LoadingChart />;

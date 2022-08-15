@@ -21,10 +21,10 @@ import useColumnTotals from './useColumnTotals';
 const sortByRawValue = (a: any, b: any) => {
     const typeOfA = typeof a;
     const typeOfB = typeof b;
-    if (typeOfA === 'string' && typeOfB === 'string') {
-        return a.raw.localeCompare(b.raw);
-    }
     try {
+        if (typeOfA === 'string' && typeOfB === 'string') {
+            return a.localeCompare(b);
+        }
         return a - b;
     } catch (e) {
         return -1;
