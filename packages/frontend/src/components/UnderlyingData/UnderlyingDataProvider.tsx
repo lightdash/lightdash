@@ -1,7 +1,6 @@
 import {
     ApiQueryResults,
     ChartType,
-    DimensionType,
     Field,
     fieldId as getFieldId,
     FilterOperator,
@@ -12,7 +11,6 @@ import {
     isDimension,
     isField,
     ResultRow,
-    TimeInterval,
 } from '@lightdash/common';
 import React, {
     createContext,
@@ -46,23 +44,6 @@ const Context = createContext<UnderlyingDataContext | undefined>(undefined);
 type Props = {
     tableName: string;
     filters?: Filters;
-};
-
-const isDateDimension = (dimensions: Field[], dimensionName: string) => {
-    const dateDimensions = dimensions.filter(
-        (dimension) =>
-            dimension.type === DimensionType.TIMESTAMP ||
-            dimension.type === DimensionType.DATE,
-    );
-    const dateDimension = dateDimensions.find((dimension) => {
-        const dateIntervals = Object.values(TimeInterval).map(
-            (interval) => `${getFieldId(dimension)}_${interval.toLowerCase()}`,
-        );
-        return dateIntervals.find(
-            (fieldInterval) => fieldInterval === dimensionName,
-        );
-    });
-    return dateDimension !== undefined;
 };
 
 export const UnderlyingDataProvider: FC<Props> = ({
@@ -185,10 +166,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           (dimension) => getFieldId(dimension) === key,
                       );
 
-                      if (
-                          isValidDimension ||
-                          isDateDimension(allDimensions, key)
-                      ) {
+                      if (isValidDimension) {
                           return [...acc, dimensionFilter];
                       }
                       return acc;
