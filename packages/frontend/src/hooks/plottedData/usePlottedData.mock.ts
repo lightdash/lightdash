@@ -123,3 +123,34 @@ export const EXPECTED_PIVOT_ON_ITSELF_RESULTS: ResultRow[] = [
         'metric2.dim1.3': { value: { raw: 30, formatted: 30 } },
     },
 ];
+
+export const EXPECTED_PIVOT_RESULTS_WITH_SAME_FIELD_PIVOTED_AND_NON_PIVOTED: ResultRow[] =
+    [
+        {
+            metric1: {
+                value: {
+                    formatted: 10,
+                    raw: 10,
+                },
+            },
+            'metric1.dim1.1': { value: { raw: 10, formatted: 10 } },
+        },
+        {
+            metric1: {
+                value: {
+                    formatted: 20,
+                    raw: 20,
+                },
+            },
+            'metric1.dim1.1': { value: { raw: 20, formatted: 20 } },
+        },
+        {
+            metric1: {
+                value: {
+                    formatted: 30,
+                    raw: 30,
+                },
+            },
+            'metric1.dim1.3': { value: { raw: 30, formatted: 30 } },
+        },
+    ];

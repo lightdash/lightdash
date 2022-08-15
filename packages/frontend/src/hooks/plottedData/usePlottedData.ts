@@ -24,7 +24,8 @@ export const getPivotedData = (
                     ],
                 });
                 pivotedRow[pivotedKeyHash] = value;
-            } else if (nonPivotedKeys.includes(key)) {
+            }
+            if (nonPivotedKeys.includes(key)) {
                 unpivotedKeysAndValues.push(key, `${value.value.raw}`);
                 pivotedRow[key] = value;
             }

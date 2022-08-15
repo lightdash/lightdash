@@ -2,6 +2,7 @@ import { getPivotedData } from './usePlottedData';
 import {
     EXPECTED_PIVOT_ON_ITSELF_RESULTS,
     EXPECTED_PIVOT_RESULTS_WITH_ALL_DIMENSIONS,
+    EXPECTED_PIVOT_RESULTS_WITH_SAME_FIELD_PIVOTED_AND_NON_PIVOTED,
     EXPECTED_PIVOT_RESULTS_WITH_SOME_DIMENSIONS,
     EXPECTED_SIMPLE_PIVOT_RESULTS,
     RESULTS_FOR_PIVOT_ON_ITSELF,
@@ -49,5 +50,17 @@ describe('usePlottedData', () => {
                 ['dim1'],
             ),
         ).toEqual(EXPECTED_PIVOT_ON_ITSELF_RESULTS);
+    });
+    it('should pivot data with same field pivoted and non pivoted', () => {
+        expect(
+            getPivotedData(
+                RESULTS_FOR_SIMPLE_PIVOT,
+                'dim1',
+                ['metric1'],
+                ['metric1'],
+            ),
+        ).toEqual(
+            EXPECTED_PIVOT_RESULTS_WITH_SAME_FIELD_PIVOTED_AND_NON_PIVOTED,
+        );
     });
 });
