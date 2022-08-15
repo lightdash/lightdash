@@ -1,3 +1,74 @@
+## [0.212.1](https://github.com/lightdash/lightdash/compare/0.212.0...0.212.1) (2022-08-12)
+
+
+### Bug Fixes
+
+* use default utc timezone for snowflake queries ([#2934](https://github.com/lightdash/lightdash/issues/2934)) ([ac944af](https://github.com/lightdash/lightdash/commit/ac944afa2ca17dd37480240fa9dc6ecc55eae8c6))
+
+# [0.212.0](https://github.com/lightdash/lightdash/compare/0.211.1...0.212.0) (2022-08-12)
+
+
+### Features
+
+* improve sidebar UX ([#2910](https://github.com/lightdash/lightdash/issues/2910)) ([b86f55c](https://github.com/lightdash/lightdash/commit/b86f55ce44465cbf151ea76b24fe9d372042adf2))
+* update dashboard header ([#2929](https://github.com/lightdash/lightdash/issues/2929)) ([63f6f63](https://github.com/lightdash/lightdash/commit/63f6f637499fd94bb4c719f8ea5d48786f30aac0))
+
+## [0.211.1](https://github.com/lightdash/lightdash/compare/0.211.0...0.211.1) (2022-08-12)
+
+
+### Bug Fixes
+
+* renaming and removing spaces always renamed/removed the last item ([#2937](https://github.com/lightdash/lightdash/issues/2937)) ([68b0fb0](https://github.com/lightdash/lightdash/commit/68b0fb0607fd53e42d013467661f69d0b734101c))
+
+# [0.211.0](https://github.com/lightdash/lightdash/compare/0.210.0...0.211.0) (2022-08-11)
+
+
+### Features
+
+* add api auth to more api endpoints ([#2923](https://github.com/lightdash/lightdash/issues/2923)) ([43bf047](https://github.com/lightdash/lightdash/commit/43bf047f649bef4917d8a42d99e3e1220556967e))
+
+# [0.210.0](https://github.com/lightdash/lightdash/compare/0.209.5...0.210.0) (2022-08-11)
+
+
+### Features
+
+* inverse X axis values ([#2901](https://github.com/lightdash/lightdash/issues/2901)) ([f28a799](https://github.com/lightdash/lightdash/commit/f28a7998bbd0253083a0cc6347a5554adbd55641))
+
+## [0.209.5](https://github.com/lightdash/lightdash/compare/0.209.4...0.209.5) (2022-08-11)
+
+
+### Bug Fixes
+
+* broken developing in lightdash link in docs ([#2928](https://github.com/lightdash/lightdash/issues/2928)) ([d16d97f](https://github.com/lightdash/lightdash/commit/d16d97f34a0fcdd623b84fd3827a885c7f190263))
+
+## [0.209.4](https://github.com/lightdash/lightdash/compare/0.209.3...0.209.4) (2022-08-10)
+
+
+### Bug Fixes
+
+* option to remove invalid fields ([#2925](https://github.com/lightdash/lightdash/issues/2925)) ([4be4dd8](https://github.com/lightdash/lightdash/commit/4be4dd823e8c82f343952beed054ed28d64d50b0))
+
+## [0.209.3](https://github.com/lightdash/lightdash/compare/0.209.2...0.209.3) (2022-08-10)
+
+
+### Bug Fixes
+
+* fix table calculation renaming sort ([#2899](https://github.com/lightdash/lightdash/issues/2899)) ([e979b84](https://github.com/lightdash/lightdash/commit/e979b847cf3686a218111d6bafc014b15022731a))
+
+## [0.209.2](https://github.com/lightdash/lightdash/compare/0.209.1...0.209.2) (2022-08-10)
+
+
+### Bug Fixes
+
+* string, date and boolean metric types ([#2920](https://github.com/lightdash/lightdash/issues/2920)) ([cce4bee](https://github.com/lightdash/lightdash/commit/cce4beefcd51a1de989c89262941113c4f36bcd8))
+
+## [0.209.1](https://github.com/lightdash/lightdash/compare/0.209.0...0.209.1) (2022-08-10)
+
+
+### Bug Fixes
+
+* table calculation overlapping labels ([#2908](https://github.com/lightdash/lightdash/issues/2908)) ([57a7918](https://github.com/lightdash/lightdash/commit/57a791890b802abeb4e93ba84db9a970ce61d216))
+
 # [0.209.0](https://github.com/lightdash/lightdash/compare/0.208.1...0.209.0) (2022-08-09)
 
 

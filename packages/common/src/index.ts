@@ -980,8 +980,8 @@ export const findItem = (
     items.find((item) =>
         isField(item) ? fieldId(item) === id : item.name === id,
     );
-export const getItemId = (item: Field | TableCalculation) =>
-    isField(item) ? fieldId(item) : item.name;
+export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
+    isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
 export const getItemLabel = (item: Field | TableCalculation) =>
     isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
 export const getItemIcon = (item: Field | TableCalculation) => {

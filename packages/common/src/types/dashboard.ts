@@ -108,6 +108,8 @@ export type DashboardVersionedFields = Pick<
     'tiles' | 'filters' | 'updatedByUser'
 >;
 
+export type UpdateDashboardDetails = Pick<Dashboard, 'name' | 'description'>;
+
 export type UpdateDashboard =
     | DashboardUnversionedFields
     | DashboardVersionedFields

@@ -1,6 +1,4 @@
----
-sidebar_label: How install the Lightdash CLI
----
+import PersonalAccessToken from './assets/personal-access-token.png';
 
 # How to install the Lightdash CLI
 
@@ -61,11 +59,15 @@ cloud users in the US would type `lightdash login https://app.lightdash.cloud` i
 
 <details>
   <summary>2. If you use single sign-on (SSO) in the browser, login with a personal access token.</summary>
-  First, create a personal access token in the UI by going to Settings > Personal Access Tokens.
+  First, you'll need to create a new personal access token in the UI by going to Settings > Personal Access Tokens. 
+  You can't use an existing personal access token! You have to create a new one just for yourself.  
+
+  <img src={PersonalAccessToken} width="1304" height="517" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
   Then, run the following command to login with your personal access token:
 
   ```shell
-  lightdash login https://my-lightdash.domain.com --token
+  lightdash login https://my-lightdash.domain.com --my-personal-access-token
   ```
 
 where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash

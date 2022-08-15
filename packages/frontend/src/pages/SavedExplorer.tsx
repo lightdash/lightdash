@@ -77,6 +77,7 @@ const SavedExplorer = () => {
             savedChart={data}
         >
             <SavedChartsHeader />
+
             <PageWrapper>
                 <StickySidebar>
                     <Transition in={isEditMode} timeout={500}>

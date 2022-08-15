@@ -34,6 +34,7 @@ type UnderlyingDataContext = {
     resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<string, Field>;
     exploreFromHereUrl: string;
+
     viewData: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],

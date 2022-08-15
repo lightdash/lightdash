@@ -38,6 +38,7 @@ export enum ExplorerSection {
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
+    REMOVE_FIELD,
     TOGGLE_DIMENSION,
     TOGGLE_METRIC,
     TOGGLE_SORT_FIELD,
@@ -65,6 +66,7 @@ type Action =
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
     | {
           type:
+              | ActionType.REMOVE_FIELD
               | ActionType.TOGGLE_DIMENSION
               | ActionType.TOGGLE_METRIC
               | ActionType.TOGGLE_SORT_FIELD;
@@ -144,6 +146,7 @@ interface ExplorerContext {
         clear: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
+        removeActiveField: (fieldId: FieldId) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
@@ -285,6 +288,37 @@ function reducer(
                     state.expandedSections,
                     action.payload,
                 ),
+            };
+        }
+        case ActionType.REMOVE_FIELD: {
+            const dimensions =
+                state.unsavedChartVersion.metricQuery.dimensions.filter(
+                    (fieldId) => fieldId !== action.payload,
+                );
+            const metrics =
+                state.unsavedChartVersion.metricQuery.metrics.filter(
+                    (fieldId) => fieldId !== action.payload,
+                );
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        dimensions,
+                        metrics,
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (s) => s.fieldId !== action.payload,
+                        ),
+                    },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder:
+                            state.unsavedChartVersion.tableConfig.columnOrder.filter(
+                                (fieldId) => fieldId !== action.payload,
+                            ),
+                    },
+                },
             };
         }
         case ActionType.TOGGLE_DIMENSION: {
@@ -580,6 +614,17 @@ function reducer(
                                         ? action.payload.tableCalculation
                                         : tableCalculation,
                             ),
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.map(
+                            (field) =>
+                                field.fieldId === action.payload.oldName
+                                    ? {
+                                          ...field,
+                                          fieldId:
+                                              action.payload.tableCalculation
+                                                  .name,
+                                      }
+                                    : field,
+                        ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
@@ -607,6 +652,9 @@ function reducer(
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
                         tableCalculations: newTableCalculations,
+                        sorts: state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (sort) => sort.fieldId !== action.payload,
+                        ),
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
@@ -723,6 +771,12 @@ export const ExplorerProvider: FC<{
         },
         [],
     );
+    const removeActiveField = useCallback((fieldId: FieldId) => {
+        dispatch({
+            type: ActionType.REMOVE_FIELD,
+            payload: fieldId,
+        });
+    }, []);
     const toggleSortField = useCallback((fieldId: FieldId) => {
         dispatch({
             type: ActionType.TOGGLE_SORT_FIELD,
@@ -950,6 +1004,7 @@ export const ExplorerProvider: FC<{
                 clear,
                 reset,
                 setTableName,
+                removeActiveField,
                 toggleActiveField,
                 toggleSortField,
                 setSortFields,
@@ -972,6 +1027,7 @@ export const ExplorerProvider: FC<{
                 clear,
                 reset,
                 setTableName,
+                removeActiveField,
                 toggleActiveField,
                 toggleSortField,
                 setSortFields,

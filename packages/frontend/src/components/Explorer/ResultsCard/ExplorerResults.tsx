@@ -1,4 +1,5 @@
-import { Colors } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { isField } from '@lightdash/common';
 import React, { FC, ReactNode } from 'react';
 import { useColumns } from '../../../hooks/useColumns';
@@ -20,10 +21,31 @@ import {
 import { TableContainer } from './ResultsCard.styles';
 
 const HeaderButton: React.FC<HeaderProps> = ({ header }) => {
+    const {
+        actions: { removeActiveField },
+    } = useExplorer();
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
     if (item && !isField(item)) {
         return <TableCalculationHeaderButton tableCalculation={item} />;
+    } else if (meta?.isInvalidItem) {
+        return (
+            <Tooltip2 content="Remove">
+                <Button
+                    minimal
+                    small
+                    icon={'cross'}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        removeActiveField(header.column.id);
+                    }}
+                    style={{
+                        minHeight: 'auto',
+                        minWidth: 'auto',
+                    }}
+                />
+            </Tooltip2>
+        );
     }
     return null;
 };

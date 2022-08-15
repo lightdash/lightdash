@@ -127,50 +127,60 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         } catch (e) {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
-
         try {
-            return await new Promise<{
-                fields: Record<string, { type: DimensionType }>;
-                rows: any[];
-            }>((resolve, reject) => {
-                connection.execute({
-                    sqlText,
-                    complete: (err, stmt, data) => {
-                        if (err) {
-                            reject(err);
-                        }
-                        if (data) {
-                            const fields = stmt.getColumns().reduce(
-                                (acc, column) => ({
-                                    ...acc,
-                                    [column.getName()]: {
-                                        type: mapFieldType(
-                                            column.getType().toUpperCase(),
-                                        ),
-                                    },
-                                }),
-                                {},
-                            );
-                            resolve({ fields, rows: parseRows(data) });
-                        } else {
-                            reject(
-                                new WarehouseQueryError(
-                                    'Query result is undefined',
-                                ),
-                            );
-                        }
-                    },
-                });
-            });
+            await this.executeStatement(
+                connection,
+                "ALTER SESSION SET TIMEZONE = 'UTC'",
+            );
+            const result = await this.executeStatement(connection, sqlText);
+            return result;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
+            // todo: does this need to be promisified? uncaught error in callback?
             connection.destroy((err) => {
                 if (err) {
                     throw new WarehouseConnectionError(err.message);
                 }
             });
         }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async executeStatement(connection: Connection, sqlText: string) {
+        return new Promise<{
+            fields: Record<string, { type: DimensionType }>;
+            rows: any[];
+        }>((resolve, reject) => {
+            connection.execute({
+                sqlText,
+                complete: (err, stmt, data) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    if (data) {
+                        const fields = stmt.getColumns().reduce(
+                            (acc, column) => ({
+                                ...acc,
+                                [column.getName()]: {
+                                    type: mapFieldType(
+                                        column.getType().toUpperCase(),
+                                    ),
+                                },
+                            }),
+                            {},
+                        );
+                        resolve({ fields, rows: parseRows(data) });
+                    } else {
+                        reject(
+                            new WarehouseQueryError(
+                                'Query result is undefined',
+                            ),
+                        );
+                    }
+                },
+            });
+        });
     }
 
     async test(): Promise<void> {

@@ -1,7 +1,7 @@
 import styled from 'styled-components';
 
 export const TableSearch = styled.div`
-    padding: 4px 2px 12px;
+    padding: 4px 0 12px;
 
     .bp4-input {
         border: 0.7px solid #d3d8de;

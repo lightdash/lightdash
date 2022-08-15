@@ -1951,6 +1951,9 @@
                     },
                     "spaceName": {
                         "type": "string"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
                     }
                 },
                 "required": [
@@ -1960,7 +1963,8 @@
                     "updatedAt",
                     "filters",
                     "spaceUuid",
-                    "spaceName"
+                    "spaceName",
+                    "updatedByUser"
                 ]
             },
             "ProjectTablesConfiguration": {

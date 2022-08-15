@@ -1,7 +1,7 @@
 import { Button, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { SessionUser, UpdatedByUser } from '@lightdash/common';
-import React, { Dispatch, FC, SetStateAction } from 'react';
+import { Dispatch, FC, SetStateAction } from 'react';
 import styled from 'styled-components';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -27,9 +27,12 @@ export const UpdatedLabel = styled.p`
     color: ${Colors.GRAY2};
     font-size: 12px;
     font-weight: 400;
-    margin-top: 0.38em;
     line-height: 14px;
     margin-bottom: 0;
+`;
+
+export const UpdateInfoContainer = styled.div`
+    margin-top: 0.38em;
 `;
 
 export const UpdatedInfo: FC<{
@@ -101,7 +104,13 @@ const ActionCard = <
             }
         >
             <strong>{name}</strong>
-            <UpdatedInfo updatedAt={data.updatedAt} user={data.updatedByUser} />
+
+            <UpdateInfoContainer>
+                <UpdatedInfo
+                    updatedAt={data.updatedAt}
+                    user={data.updatedByUser}
+                />
+            </UpdateInfoContainer>
         </LinkButtonWrapper>
     );
 };

@@ -193,7 +193,16 @@ const useCartesianChartConfig = ({
             showGridY: show,
         }));
     }, []);
-
+    const setInverseX = useCallback((inverse: boolean) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            const x = {
+                ...prevState,
+                xAxis: [{ ...firstAxis, inverse }, ...axes],
+            };
+            return x;
+        });
+    }, []);
     const addSingleSeries = useCallback((yField: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -628,6 +637,7 @@ const useCartesianChartConfig = ({
         setGrid,
         setShowGridX,
         setShowGridY,
+        setInverseX,
     };
 };
 

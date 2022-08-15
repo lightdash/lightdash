@@ -30,7 +30,7 @@ describe('Global search', () => {
         // search and select dashboard
         search('jaffle');
         cy.get('.bp4-omnibar')
-            .findByRole('menuitem', { name: 'Jaffle dashboard Dashboard' })
+            .findByRole('menuitem', { name: /Jaffle dashboard Dashboard/ })
             .click();
         cy.url().should(
             'include',

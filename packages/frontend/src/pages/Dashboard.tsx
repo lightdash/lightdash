@@ -283,8 +283,13 @@ const Dashboard = () => {
                     want to leave without saving?{' '}
                 </p>
             </Alert>
+
             <DashboardHeader
                 dashboardName={dashboard.name}
+                dashboardDescription={dashboard.description}
+                dashboardUpdatedByUser={dashboard.updatedByUser}
+                dashboardUpdatedAt={dashboard.updatedAt}
+                dashboardSpaceName={dashboard.spaceName}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={
@@ -307,7 +312,7 @@ const Dashboard = () => {
                         name: dashboardName || dashboard.name,
                     })
                 }
-                onSaveTitle={(name) => updateTitle(name)}
+                onUpdate={(values) => values && updateTitle(values.name)}
                 onCancel={onCancel}
             />
             <Page isContentFullWidth>

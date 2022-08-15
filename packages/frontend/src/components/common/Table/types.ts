@@ -19,6 +19,7 @@ export type Sort = {
 
 export type TableColumn = ColumnDef<ResultRow> & {
     meta?: {
+        isInvalidItem?: boolean;
         width?: number;
         draggable?: boolean;
         item?: Field | TableCalculation;

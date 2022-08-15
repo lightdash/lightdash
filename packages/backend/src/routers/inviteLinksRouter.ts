@@ -1,6 +1,7 @@
 import { CreateInviteLink } from '@lightdash/common';
 import express from 'express';
 import {
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
@@ -27,6 +28,7 @@ inviteLinksRouter.get(
 
 inviteLinksRouter.post(
     '/',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -49,6 +51,7 @@ inviteLinksRouter.post(
 
 inviteLinksRouter.delete(
     '/',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
