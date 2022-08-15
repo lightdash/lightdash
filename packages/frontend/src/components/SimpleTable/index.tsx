@@ -27,12 +27,11 @@ const SimpleTable: FC = () => {
               ].filter((itemId) => isColumnVisible(itemId))
             : undefined,
 
-        resultsData ? [resultsData.metricQuery.dimensions[0]] : undefined,
+        resultsData ? resultsData.metricQuery.dimensions : undefined,
     );
 
     if (isLoading) return <LoadingChart />;
     const pivotDimension = pivotDimensions?.[0];
-    console.log('plotData', plotData);
     return (
         <TableWrapper>
             <Table

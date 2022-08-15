@@ -1,3 +1,4 @@
+import { Colors } from '@blueprintjs/core';
 import {
     ApiQueryResults,
     ColumnProperties,
@@ -16,6 +17,19 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { columnHelper, TableColumn } from '../components/common/Table/types';
 import useColumnTotals from './useColumnTotals';
+
+const sortByRawValue = (a: any, b: any) => {
+    const typeOfA = typeof a;
+    const typeOfB = typeof b;
+    if (typeOfA === 'string' && typeOfB === 'string') {
+        return a.raw.localeCompare(b.raw);
+    }
+    try {
+        return a - b;
+    } catch (e) {
+        return -1;
+    }
+};
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -133,19 +147,36 @@ const useTableConfig = (
                 });
                 return [...acc, column];
             }, []);
-            const pivotHeaderGroup = columnHelper.group({
-                id: 'pivot_header_group',
+            const dimensionsHeaderGroup = columnHelper.group({
+                id: 'dimensions_header_group',
                 header:
                     getHeader(pivotDimension) ||
                     getDefaultColumnLabel(pivotDimension),
-                columns: Object.entries(uniquePivotValues).map(
-                    ([_, { raw, formatted }]) => {
-                        return columnHelper.group({
-                            id: `pivot_header_group_${raw}`,
-                            header: () => formatted,
-                            columns: Object.values(itemsMap).reduce<
-                                TableColumn[]
-                            >((acc, item) => {
+                columns: dimensionHeaders,
+                meta: {
+                    bgColor: Colors.GRAY4,
+                },
+            });
+            const pivotValueHeaderGroups = Object.entries(uniquePivotValues)
+                .sort(([_, a], [__, b]) => sortByRawValue(a.raw, b.raw))
+                .map(([_, { raw, formatted }]) => {
+                    return columnHelper.group({
+                        id: `pivot_header_group_${raw}`,
+                        header: () => formatted,
+                        meta: {
+                            bgColor: Colors.GRAY4,
+                        },
+                        columns: Object.values(itemsMap)
+                            .sort(
+                                (a, b) =>
+                                    columnOrder.findIndex(
+                                        (id) => id === getItemId(a),
+                                    ) -
+                                    columnOrder.findIndex(
+                                        (id) => id === getItemId(b),
+                                    ),
+                            )
+                            .reduce<TableColumn[]>((acc, item) => {
                                 const itemId = getItemId(item);
                                 if (
                                     !isColumnVisible(itemId) ||
@@ -159,7 +190,6 @@ const useTableConfig = (
                                         { field: pivotDimension, value: raw },
                                     ],
                                 });
-                                console.log('hash', key);
                                 const column: TableColumn =
                                     columnHelper.accessor((row) => row[key], {
                                         id: key,
@@ -182,12 +212,10 @@ const useTableConfig = (
                                     });
                                 return [...acc, column];
                             }, []),
-                        });
-                    },
-                ),
-            });
+                    });
+                });
 
-            return [...dimensionHeaders, pivotHeaderGroup];
+            return [dimensionsHeaderGroup, ...pivotValueHeaderGroups];
         }
 
         return Object.values(itemsMap).reduce<TableColumn[]>((acc, item) => {
@@ -218,6 +246,7 @@ const useTableConfig = (
         pivotDimension,
         totals,
         uniquePivotValues,
+        columnOrder,
     ]);
 
     // Remove columProperties from map if the column has been removed from results

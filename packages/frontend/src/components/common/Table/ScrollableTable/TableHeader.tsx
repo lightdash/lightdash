@@ -20,25 +20,6 @@ const TableHeader = () => {
     if (columns.length <= 0) {
         return null;
     }
-    //
-    // return (
-    //     <thead>
-    //         {table.getHeaderGroups().map((headerGroup) => (
-    //             <tr key={headerGroup.id}>
-    //                 {headerGroup.headers.map((header) => (
-    //                     <th key={header.id} colSpan={header.colSpan}>
-    //                         {header.isPlaceholder
-    //                             ? null
-    //                             : flexRender(
-    //                                   header.column.columnDef.header,
-    //                                   header.getContext(),
-    //                               )}
-    //                     </th>
-    //                 ))}
-    //             </tr>
-    //         ))}
-    //     </thead>
-    // );
 
     return (
         <>
