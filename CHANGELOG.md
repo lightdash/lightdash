@@ -1,3 +1,10 @@
+# [0.213.0](https://github.com/lightdash/lightdash/compare/0.212.1...0.213.0) (2022-08-15)
+
+
+### Features
+
+* underlying data on results table ([#2904](https://github.com/lightdash/lightdash/issues/2904)) ([d56db24](https://github.com/lightdash/lightdash/commit/d56db247256e76768aa66ba482c4485f42db9db2))
+
 ## [0.212.1](https://github.com/lightdash/lightdash/compare/0.212.0...0.212.1) (2022-08-12)
 
 
