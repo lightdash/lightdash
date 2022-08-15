@@ -208,7 +208,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                         dimensions: dimensionFields,
                         filters: metricFilters,
                     },
-                    //tableName: filterTable !== undefined ? filterTable : tableName,
+                    tableName: tableName,
                 },
                 shouldFetchResults: true,
                 isValidQuery: true,
