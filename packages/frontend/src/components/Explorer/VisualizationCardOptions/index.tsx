@@ -17,13 +17,12 @@ const VisualizationCardOptions: FC = () => {
         chartType,
         setChartType,
         isLoading,
-        plotData,
+        resultsData,
         cartesianConfig,
-        pivotDimensions,
         setPivotDimensions,
         cartesianConfig: { setStacking },
     } = useVisualizationContext();
-    const disabled = isLoading || plotData.length <= 0;
+    const disabled = isLoading || (resultsData && resultsData.rows.length <= 0);
     const cartesianType = cartesianConfig.dirtyChartType;
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);

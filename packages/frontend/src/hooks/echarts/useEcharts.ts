@@ -18,7 +18,9 @@ import {
     getFields,
     getItemId,
     getItemLabel,
+    getResultValues,
     hashFieldReference,
+    isCompleteLayout,
     isField,
     Metric,
     MetricType,
@@ -29,6 +31,7 @@ import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
+import usePlottedData from '../plottedData/usePlottedData';
 
 const getLabelFromField = (
     fields: Array<Field | TableCalculation>,
@@ -729,12 +732,22 @@ const useEcharts = () => {
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
-        plotData,
         originalData,
         pivotDimensions,
         resultsData,
     } = useVisualizationContext();
     const { data: organisationData } = useOrganisation();
+
+    const plotData = usePlottedData(
+        resultsData?.rows,
+        pivotDimensions,
+        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
+            ? validCartesianConfig.layout.yField
+            : undefined,
+        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
+            ? [validCartesianConfig.layout.xField]
+            : undefined,
+    );
 
     const formats = useMemo(
         () =>
@@ -850,7 +863,7 @@ const useEcharts = () => {
             },
             dataset: {
                 id: 'lightdashResults',
-                source: plotData,
+                source: getResultValues(plotData, true),
             },
             tooltip: {
                 show: true,
