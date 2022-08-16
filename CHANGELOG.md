@@ -1,3 +1,10 @@
+# [0.215.0](https://github.com/lightdash/lightdash/compare/0.214.0...0.215.0) (2022-08-16)
+
+
+### Features
+
+* add dashboard header actions ([#2950](https://github.com/lightdash/lightdash/issues/2950)) ([68785c1](https://github.com/lightdash/lightdash/commit/68785c160006cc8f3fa040dd6624e6f2494d5321))
+
 # [0.214.0](https://github.com/lightdash/lightdash/compare/0.213.0...0.214.0) (2022-08-15)
 
 
