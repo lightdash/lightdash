@@ -21,8 +21,12 @@ import TileBase from '../components/DashboardTiles/TileBase/index';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
+    useDeleteMutation,
+    useDuplicateDashboardMutation,
+    useMoveDashboard,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import { useSpaces } from '../hooks/useSpaces';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -60,6 +64,8 @@ const Dashboard = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
+    const { data: spaces } = useSpaces(projectUuid);
+
     const {
         dashboardFilters,
         dashboardTemporaryFilters,
@@ -86,6 +92,12 @@ const Dashboard = () => {
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
+    const { mutate: moveDashboardToSpace } = useMoveDashboard(dashboardUuid);
+    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
+        dashboardUuid,
+        true,
+    );
+    const { mutateAsync: deleteDashboard } = useDeleteMutation();
 
     const layouts = useMemo(
         () => ({
@@ -204,6 +216,23 @@ const Dashboard = () => {
         setDashboardFilters,
     ]);
 
+    const handleMoveDashboardToSpace = (spaceUuid: string) => {
+        if (!dashboard) return;
+        moveDashboardToSpace({ name: dashboard.name, spaceUuid });
+    };
+
+    const handleDuplicateDashboard = () => {
+        if (!dashboard) return;
+        duplicateDashboard(dashboard.uuid);
+    };
+
+    const handleDeleteDashboard = () => {
+        if (!dashboard) return;
+        deleteDashboard(dashboard.uuid).then(() => {
+            history.replace(`/projects/${projectUuid}/dashboards`);
+        });
+    };
+
     const updateTitle = (name: string) => {
         setHasTilesChanged(true);
         setDashboardName(name);
@@ -285,11 +314,13 @@ const Dashboard = () => {
             </Alert>
 
             <DashboardHeader
+                spaces={spaces}
                 dashboardName={dashboard.name}
                 dashboardDescription={dashboard.description}
                 dashboardUpdatedByUser={dashboard.updatedByUser}
                 dashboardUpdatedAt={dashboard.updatedAt}
                 dashboardSpaceName={dashboard.spaceName}
+                dashboardSpaceUuid={dashboard.spaceUuid}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={
@@ -314,6 +345,9 @@ const Dashboard = () => {
                 }
                 onUpdate={(values) => values && updateTitle(values.name)}
                 onCancel={onCancel}
+                onMoveToSpace={handleMoveDashboardToSpace}
+                onDuplicate={handleDuplicateDashboard}
+                onDelete={handleDeleteDashboard}
             />
             <Page isContentFullWidth>
                 {dashboardChartTiles.length > 0 && (

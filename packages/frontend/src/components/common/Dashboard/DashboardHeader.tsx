@@ -1,7 +1,8 @@
-import { Button, Classes, Intent } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
+import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     Dashboard,
+    Space,
     UpdateDashboardDetails,
     UpdatedByUser,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo } from '../ActionCard';
@@ -26,33 +28,43 @@ import {
 } from '../PageHeader';
 
 type DashboardHeaderProps = {
-    isEditMode: boolean;
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
-    onSaveDashboard: () => void;
-    hasDashboardChanged: boolean;
-    isSaving: boolean;
-    dashboardName: string;
+    spaces?: Space[];
     dashboardDescription?: string;
-    dashboardUpdatedByUser?: UpdatedByUser;
-    dashboardUpdatedAt: Date;
+    dashboardName: string;
     dashboardSpaceName?: string;
-    onUpdate: (values?: UpdateDashboardDetails) => void;
+    dashboardSpaceUuid?: string;
+    dashboardUpdatedAt: Date;
+    dashboardUpdatedByUser?: UpdatedByUser;
+    hasDashboardChanged: boolean;
+    isEditMode: boolean;
+    isSaving: boolean;
+    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
+    onSaveDashboard: () => void;
+    onUpdate: (values?: UpdateDashboardDetails) => void;
+    onDelete: () => void;
+    onDuplicate: () => void;
+    onMoveToSpace: (spaceUuid: string) => void;
 };
 
 const DashboardHeader = ({
-    isEditMode,
-    onAddTiles,
-    onSaveDashboard,
-    hasDashboardChanged,
-    isSaving,
-    dashboardName,
+    spaces = [],
     dashboardDescription,
-    dashboardUpdatedByUser,
-    dashboardUpdatedAt,
+    dashboardName,
     dashboardSpaceName,
-    onUpdate,
+    dashboardSpaceUuid,
+    dashboardUpdatedAt,
+    dashboardUpdatedByUser,
+    hasDashboardChanged,
+    isEditMode,
+    isSaving,
+    onAddTiles,
     onCancel,
+    onSaveDashboard,
+    onUpdate,
+    onDelete,
+    onDuplicate,
+    onMoveToSpace,
 }: DashboardHeaderProps) => {
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -61,6 +73,7 @@ const DashboardHeader = ({
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
 
     const handleEditClick = () => {
         setIsUpdating(true);
@@ -167,6 +180,95 @@ const DashboardHeader = ({
 
                     <ShareLinkButton
                         url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
+                    />
+
+                    <Popover2
+                        placement="bottom"
+                        content={
+                            <Menu>
+                                <MenuItem2
+                                    icon="duplicate"
+                                    text="Duplicate"
+                                    onClick={onDuplicate}
+                                />
+
+                                <MenuItem2
+                                    icon="folder-close"
+                                    text="Move to space"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    {spaces?.map((spaceToMove) => {
+                                        const isDisabled =
+                                            dashboardSpaceUuid ===
+                                            spaceToMove.uuid;
+                                        return (
+                                            <MenuItem2
+                                                text={spaceToMove.name}
+                                                icon={
+                                                    isDisabled
+                                                        ? 'small-tick'
+                                                        : undefined
+                                                }
+                                                className={
+                                                    isDisabled
+                                                        ? 'bp4-disabled'
+                                                        : ''
+                                                }
+                                                onClick={(e) => {
+                                                    // Use className disabled instead of disabled property to capture and preventdefault its clicks
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (
+                                                        dashboardSpaceUuid !==
+                                                        spaceToMove.uuid
+                                                    ) {
+                                                        onMoveToSpace(
+                                                            spaceToMove.uuid,
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    })}
+
+                                    <Divider />
+
+                                    <MenuItem2
+                                        text="+ Create new"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsCreatingNewSpace(true);
+                                        }}
+                                    />
+                                </MenuItem2>
+
+                                <Divider />
+
+                                <MenuItem2
+                                    icon="trash"
+                                    text="Delete"
+                                    intent="danger"
+                                    onClick={onDelete}
+                                />
+                            </Menu>
+                        }
+                    >
+                        <Button icon="more" />
+                    </Popover2>
+
+                    <CreateSpaceModal
+                        isOpen={isCreatingNewSpace}
+                        onCreated={(space: Space) => {
+                            setIsCreatingNewSpace(false);
+                            onMoveToSpace(space.uuid);
+                        }}
+                        onClose={() => {
+                            setIsCreatingNewSpace(false);
+                        }}
                     />
                 </PageActionsContainer>
             )}

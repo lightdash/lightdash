@@ -11,11 +11,12 @@ const getSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useSpaces = (projectUuid: string) =>
-    useQuery<Space[], ApiError>({
+export const useSpaces = (projectUuid: string) => {
+    return useQuery<Space[], ApiError>({
         queryKey: ['spaces', projectUuid],
         queryFn: () => getSpaces(projectUuid),
     });
+};
 
 export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
@@ -118,7 +119,12 @@ const createSpace = async (projectUuid: string, data: CreateSpace) =>
         body: JSON.stringify(data),
     });
 
-export const useCreateMutation = (projectUuid: string) => {
+export const useCreateMutation = (
+    projectUuid: string,
+    options?: {
+        onSuccess?: (space: Space) => void;
+    },
+) => {
     const { showToastSuccess, showToastError } = useApp();
     const queryClient = useQueryClient();
 
@@ -126,8 +132,10 @@ export const useCreateMutation = (projectUuid: string) => {
         (data) => createSpace(projectUuid, data),
         {
             mutationKey: ['space_create', projectUuid],
-            onSuccess: async () => {
+            onSuccess: async (space) => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
+
+                options?.onSuccess?.(space);
 
                 showToastSuccess({
                     title: `Success! Space was created.`,
