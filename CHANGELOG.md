@@ -1,3 +1,15 @@
+# [0.216.0](https://github.com/lightdash/lightdash/compare/0.215.0...0.216.0) (2022-08-16)
+
+
+### Bug Fixes
+
+* do not convert timezones for dates ([#2949](https://github.com/lightdash/lightdash/issues/2949)) ([71dd421](https://github.com/lightdash/lightdash/commit/71dd421874423873a229285e50bf9bff0a2f7f0c))
+
+
+### Features
+
+* underlying data explore from here ([#2927](https://github.com/lightdash/lightdash/issues/2927)) ([977440a](https://github.com/lightdash/lightdash/commit/977440af58f28781c995fac69f3df9e79a8aaf9c))
+
 # [0.215.0](https://github.com/lightdash/lightdash/compare/0.214.0...0.215.0) (2022-08-16)
 
 
