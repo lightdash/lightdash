@@ -9,13 +9,13 @@ import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
 
-const Dummy: FC = ({ children }) => <span>{children}</span>;
+const Placeholder: FC = ({ children }) => <span>{children}</span>;
 
 const TableHeader = () => {
     const { table, headerButton, headerContextMenu, columns } =
         useTableContext();
-    const HeaderContextMenu = headerContextMenu || Dummy;
-    const HeaderButton = headerButton || Dummy;
+    const HeaderContextMenu = headerContextMenu || Placeholder;
+    const HeaderButton = headerButton || Placeholder;
     const currentColOrder = React.useRef<Array<string>>([]);
     if (columns.length <= 0) {
         return null;

@@ -6,13 +6,12 @@ import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import RichBodyCell from './RichBodyCell';
 
-const Dummy: FC = ({ children }) => <span>{children}</span>;
-const Dummy2: FC = ({ children }) => <span />;
+const Placeholder: FC = ({ children }) => <span>{children}</span>;
 
 const TableBody: FC = () => {
     const { table, cellContextMenu, tableWrapperRef, setIsScrollable } =
         useTableContext();
-    const CellContextMenu = cellContextMenu || Dummy;
+    const CellContextMenu = cellContextMenu || Placeholder;
     const [selectedCell, setSelectedCell] = useState<string>();
 
     const handleCellSelect = (cellId: string | undefined) => {

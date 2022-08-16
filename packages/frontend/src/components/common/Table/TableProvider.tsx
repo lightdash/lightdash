@@ -21,11 +21,12 @@ import {
     MAX_PAGE_SIZE,
     ROW_NUMBER_COLUMN_ID,
     TableColumn,
+    TableHeader,
 } from './types';
 
 type Props = {
     data: ResultRow[];
-    columns: TableColumn[];
+    columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<HeaderProps>;
     headerButton?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;

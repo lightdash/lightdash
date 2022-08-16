@@ -27,6 +27,7 @@ export type Sort = {
     isMultiSort: boolean;
 };
 
+export type TableHeader = ColumnDef<ResultRow, unknown>;
 export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
     meta?: {
         isInvalidItem?: boolean;

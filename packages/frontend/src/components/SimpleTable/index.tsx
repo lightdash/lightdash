@@ -43,7 +43,7 @@ const SimpleTable: FC = () => {
             <Table
                 status={'success'}
                 data={pivotDimension ? plotData : resultsData?.rows || []}
-                columns={columns as any}
+                columns={columns}
                 columnOrder={columnOrder}
                 footer={{
                     show: showColumnCalculation,
