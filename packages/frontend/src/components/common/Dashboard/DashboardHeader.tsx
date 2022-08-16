@@ -12,6 +12,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import { UpdatedInfo } from '../ActionCard';
@@ -72,6 +73,7 @@ const DashboardHeader = ({
     const history = useHistory();
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
 
     const handleEditClick = () => {
         setIsUpdating(true);
@@ -231,6 +233,17 @@ const DashboardHeader = ({
                                             />
                                         );
                                     })}
+
+                                    <Divider />
+
+                                    <MenuItem2
+                                        text="+ Create new"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsCreatingNewSpace(true);
+                                        }}
+                                    />
                                 </MenuItem2>
 
                                 <Divider />
@@ -246,6 +259,17 @@ const DashboardHeader = ({
                     >
                         <Button icon="more" />
                     </Popover2>
+
+                    <CreateSpaceModal
+                        isOpen={isCreatingNewSpace}
+                        onCreated={(space: Space) => {
+                            setIsCreatingNewSpace(false);
+                            onMoveToSpace(space.uuid);
+                        }}
+                        onClose={() => {
+                            setIsCreatingNewSpace(false);
+                        }}
+                    />
                 </PageActionsContainer>
             )}
         </PageHeaderContainer>
