@@ -115,8 +115,16 @@ const useTableConfig = (
                     : {},
             [pivotDimension, itemsMap, resultsData],
         );
+    const exceedsMaxPivotValues = useMemo<boolean>(
+        () => Object.keys(uniquePivotValues).length > 20,
+        [uniquePivotValues],
+    );
 
     const columns = useMemo(() => {
+        if (exceedsMaxPivotValues) {
+            return [];
+        }
+
         if (
             pivotDimension &&
             itemsMap[pivotDimension] &&
@@ -245,6 +253,7 @@ const useTableConfig = (
         itemsMap,
         pivotDimension,
         totals,
+        exceedsMaxPivotValues,
         uniquePivotValues,
         columnOrder,
     ]);
@@ -293,6 +302,7 @@ const useTableConfig = (
         setShowColumnCalculation,
         showTableNames,
         setShowTableName,
+        exceedsMaxPivotValues,
         columns,
         columnProperties,
         setColumnProperties,
