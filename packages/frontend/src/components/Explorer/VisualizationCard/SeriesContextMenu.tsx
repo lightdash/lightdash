@@ -1,15 +1,15 @@
 import { Button, H5, Menu, MenuItem, Portal } from '@blueprintjs/core';
 import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
-import { fieldId, getDimensions, ResultRow } from '@lightdash/common';
+import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
-import {
-    ExplorerSection,
-    useExplorer,
-} from '../../../providers/ExplorerProvider';
+import { useExplorer } from '../../../providers/ExplorerProvider';
 import { TableColumn } from '../../common/Table/types';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
-import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
+import {
+    getDataFromChartClick,
+    useUnderlyingDataContext,
+} from '../../UnderlyingData/UnderlyingDataProvider';
 import {
     CardHeader,
     CardHeaderTitle,
@@ -20,17 +20,9 @@ export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
 }> = ({ echartSeriesClickEvent }) => {
     const {
-        state: { isEditMode, unsavedChartVersion, expandedSections },
-        queryResults,
-        actions: {
-            setPivotFields,
-            setChartType,
-            setChartConfig,
-            toggleExpandedSection,
-        },
+        state: { unsavedChartVersion },
     } = useExplorer();
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
-    const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { viewData } = useUnderlyingDataContext();
@@ -60,17 +52,17 @@ export const SeriesContextMenu: FC<{
 
     const viewUnderlyingData = useCallback(() => {
         if (explore !== undefined && echartSeriesClickEvent !== undefined) {
-            const e: EchartSeriesClickEvent = echartSeriesClickEvent;
-            const dimensions = getDimensions(explore).filter((dimension) =>
-                e.dimensionNames.includes(fieldId(dimension)),
+            const underlyingData = getDataFromChartClick(
+                echartSeriesClickEvent,
+                explore,
             );
-            const selectedDimension = dimensions[0];
-            const selectedValue = e.data[fieldId(selectedDimension)];
+            setViewUnderlyingDataOptions(underlyingData);
 
-            const meta = { item: selectedDimension };
-            const value = { raw: selectedValue, formatted: selectedValue };
-            const row = e.data as ResultRow;
-            viewData(value, meta, row);
+            viewData(
+                underlyingData.value,
+                underlyingData.meta,
+                underlyingData.row,
+            );
         }
     }, [explore, echartSeriesClickEvent, viewData]);
     const contextMenuRenderTarget = useCallback(

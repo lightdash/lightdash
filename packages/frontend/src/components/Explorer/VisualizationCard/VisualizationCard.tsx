@@ -54,25 +54,6 @@ const VisualizationCard: FC = () => {
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
             setEchartSeriesClickEvent(e);
-
-            /* if (explore) {
-                const dimensions = getDimensions(explore).filter((dimension) =>
-                    e.dimensionNames.includes(fieldId(dimension)),
-                );
-                const selectedDimension = dimensions[0];
-                const selectedValue = e.data[fieldId(selectedDimension)];
-
-                setViewUnderlyingDataOptions({
-                    meta: { item: selectedDimension },
-                    value: { raw: selectedValue, formatted: selectedValue },
-                    row: e.data as ResultRow,
-                });
-                setContextMenuIsOpen(true);
-                setContextMenuTargetOffset({
-                    left: e.event.event.pageX,
-                    top: e.event.event.pageY,
-                });
-            }*/
         },
         [],
     );

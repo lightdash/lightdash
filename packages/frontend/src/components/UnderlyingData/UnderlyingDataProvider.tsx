@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ChartType,
+    Explore,
     Field,
     fieldId as getFieldId,
     FilterOperator,
@@ -28,6 +29,7 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplor
 import { useQueryResults } from '../../hooks/useQueryResults';
 import { ExplorerState } from '../../providers/ExplorerProvider';
 import { TableColumn } from '../common/Table/types';
+import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type UnderlyingDataContext = {
     tableName: string;
@@ -40,9 +42,40 @@ type UnderlyingDataContext = {
         meta: TableColumn['meta'],
         row: ResultRow,
     ) => void;
+
     closeModal: () => void;
 };
 
+export const getDataFromChartClick = (
+    e: EchartSeriesClickEvent,
+    explore: Explore,
+) => {
+    const selectedFields = getFields(explore).filter((field) =>
+        e.dimensionNames.includes(getFieldId(field)),
+    );
+    const selectedDimensions = getFields(explore).filter((dimension) =>
+        e.dimensionNames.includes(getFieldId(dimension)),
+    );
+
+    const selectedField =
+        selectedDimensions.length > 0
+            ? selectedDimensions[0]
+            : selectedFields[0];
+    const selectedValue = e.data[getFieldId(selectedField)];
+    const row: ResultRow = Object.entries(e.data as Record<string, any>).reduce(
+        (acc, entry) => {
+            const [key, val] = entry;
+            return { ...acc, [key]: { value: { raw: val, formatted: val } } };
+        },
+        {},
+    );
+
+    return {
+        meta: { item: selectedField },
+        value: { raw: selectedValue, formatted: selectedValue },
+        row,
+    };
+};
 const Context = createContext<UnderlyingDataContext | undefined>(undefined);
 
 type Props = {
