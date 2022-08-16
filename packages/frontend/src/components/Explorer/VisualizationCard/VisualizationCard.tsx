@@ -1,18 +1,5 @@
-import {
-    Button,
-    Collapse,
-    H5,
-    Menu,
-    MenuItem,
-    Portal,
-} from '@blueprintjs/core';
-import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
-import {
-    ChartType,
-    fieldId,
-    getDimensions,
-    ResultRow,
-} from '@lightdash/common';
+import { Button, Collapse, H5 } from '@blueprintjs/core';
+import { ChartType } from '@lightdash/common';
 import { FC, useCallback, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
@@ -23,13 +10,12 @@ import {
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
-import { TableColumn } from '../../common/Table/types';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import TableConfigPanel from '../../TableConfigPanel';
-import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+import { SeriesContextMenu } from './SeriesContextMenu';
 import {
     CardHeader,
     CardHeaderButtons,
@@ -62,22 +48,14 @@ const VisualizationCard: FC = () => {
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
 
-    const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { viewData } = useUnderlyingDataContext();
+    const [echartSeriesClickEvent, setEchartSeriesClickEvent] =
+        useState<EchartSeriesClickEvent>();
 
-    const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
-        left: number;
-        top: number;
-    }>();
-
-    const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        value: ResultRow[0]['value'];
-        meta: TableColumn['meta'];
-        row: ResultRow;
-    }>();
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
-            if (explore) {
+            setEchartSeriesClickEvent(e);
+
+            /* if (explore) {
                 const dimensions = getDimensions(explore).filter((dimension) =>
                     e.dimensionNames.includes(fieldId(dimension)),
                 );
@@ -94,24 +72,8 @@ const VisualizationCard: FC = () => {
                     left: e.event.event.pageX,
                     top: e.event.event.pageY,
                 });
-            }
+            }*/
         },
-        [explore],
-    );
-    const contextMenuRenderTarget = useCallback(
-        ({ ref }: Popover2TargetProps) => (
-            <Portal>
-                <div
-                    style={{ position: 'absolute', ...contextMenuTargetOffset }}
-                    ref={ref}
-                />
-            </Portal>
-        ),
-        [contextMenuTargetOffset],
-    );
-
-    const cancelContextMenu = useCallback(
-        (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
         [],
     );
 
@@ -178,37 +140,8 @@ const VisualizationCard: FC = () => {
                     <VisualizationCardContentWrapper className="cohere-block">
                         <LightdashVisualization />
 
-                        <Popover2
-                            content={
-                                <div onContextMenu={cancelContextMenu}>
-                                    <Menu>
-                                        <MenuItem
-                                            text={`View underlying data`}
-                                            icon={'layers'}
-                                            onClick={(e) => {
-                                                if (
-                                                    viewUnderlyingDataOptions !==
-                                                    undefined
-                                                ) {
-                                                    const { value, meta, row } =
-                                                        viewUnderlyingDataOptions;
-                                                    viewData(value, meta, row);
-                                                }
-                                            }}
-                                        />
-                                    </Menu>
-                                </div>
-                            }
-                            enforceFocus={false}
-                            hasBackdrop={true}
-                            isOpen={contextMenuIsOpen}
-                            minimal={true}
-                            onClose={() => setContextMenuIsOpen(false)}
-                            placement="right-start"
-                            positioningStrategy="fixed"
-                            rootBoundary={'viewport'}
-                            renderTarget={contextMenuRenderTarget}
-                            transitionDuration={100}
+                        <SeriesContextMenu
+                            echartSeriesClickEvent={echartSeriesClickEvent}
                         />
                     </VisualizationCardContentWrapper>
                 </Collapse>
