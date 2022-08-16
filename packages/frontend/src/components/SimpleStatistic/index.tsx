@@ -1,7 +1,8 @@
 import { NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
+import { BigNumberContextMenu } from './BigNumberContextMenu';
 import {
     BigNumber,
     BigNumberContainer,
@@ -15,6 +16,11 @@ const SimpleStatistic: FC = () => {
         isLoading,
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
     } = useVisualizationContext();
+    const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
+    const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
+        left: number;
+        top: number;
+    }>({ left: 0, top: 0 });
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -23,12 +29,26 @@ const SimpleStatistic: FC = () => {
     return (
         <>
             {validData ? (
-                <SimpleStatisticsWrapper>
+                <SimpleStatisticsWrapper
+                    onContextMenu={(e: any) => {
+                        setIsContextMenuOpen(true);
+                        setContextMenuTargetOffset({
+                            left: e.pageX,
+                            top: e.pageY,
+                        });
+                        e.preventDefault();
+                    }}
+                >
                     <BigNumberContainer>
                         <BigNumber>{bigNumber}</BigNumber>
                         <BigNumberLabel>
                             {bigNumberLabel || defaultLabel}
                         </BigNumberLabel>
+                        <BigNumberContextMenu
+                            position={contextMenuTargetOffset}
+                            isOpen={isContextMenuOpen}
+                            onClose={() => setIsContextMenuOpen(false)}
+                        />
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (
