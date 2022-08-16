@@ -549,6 +549,13 @@ function reducer(
                             (sort) => sort.fieldId !== action.payload,
                         ),
                     },
+                    tableConfig: {
+                        ...state.unsavedChartVersion.tableConfig,
+                        columnOrder:
+                            state.unsavedChartVersion.tableConfig.columnOrder.filter(
+                                (fieldId) => fieldId !== action.payload,
+                            ),
+                    },
                 },
             };
         }
