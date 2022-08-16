@@ -49,11 +49,12 @@ const GridTile: FC<
         tile.type === DashboardTileTypes.SAVED_CHART
             ? tile.properties?.savedChartUuid || undefined
             : undefined;
-    const { data: savedQuery } = useSavedQuery({
+    const { data: savedQuery, isLoading } = useSavedQuery({
         id: savedChartUuid,
     });
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
+            if (isLoading) return <></>;
             return (
                 <UnderlyingDataProvider tableName={savedQuery?.tableName || ''}>
                     <ChartTile {...props} tile={tile} />

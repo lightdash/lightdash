@@ -34,7 +34,6 @@ export const BigNumberContextMenu: FC<{
 
             const row: ResultRow = resultsData?.rows?.[0] || {};
             const value = row[bigNumberConfig.selectedField]?.value;
-
             viewData(value, meta, row);
         }
     }, [explore, resultsData, bigNumberConfig, viewData]);
@@ -59,7 +58,7 @@ export const BigNumberContextMenu: FC<{
                         <MenuItem
                             text={`View underlying data`}
                             icon={'layers'}
-                            onClick={(e) => {
+                            onClick={() => {
                                 viewUnderlyingData();
                             }}
                         />
