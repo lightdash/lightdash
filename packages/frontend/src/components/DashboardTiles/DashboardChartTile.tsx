@@ -234,22 +234,6 @@ const DashboardChartTile: FC<Props> = (props) => {
                 top: e.event.event.pageY,
             });
 
-            /*const selectedFields = getFields(explore).filter((dimension) =>
-                e.dimensionNames.includes(fieldId(dimension)),
-            );
-            const selectedField = selectedFields[0];
-            const selectedValue = e.data[fieldId(selectedField)];
-            const row: ResultRow = Object.entries(e.data as Record<string,any>).reduce((acc, entry) => {
-                const [key, val] = entry
-               return {...acc, 
-                    [key]: {value: {raw: val, formatted: val}}
-                }
-            }, {}) 
-            setViewUnderlyingDataOptions({
-                meta: { item: selectedField },
-                value: { raw: selectedValue, formatted: selectedValue },
-                row,
-            });*/
             const underlyingData = getDataFromChartClick(e, explore);
             setViewUnderlyingDataOptions(underlyingData);
         },
