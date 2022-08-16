@@ -1,10 +1,8 @@
 import { Button, H5, Menu, MenuItem, Portal } from '@blueprintjs/core';
 import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
-import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import { TableColumn } from '../../common/Table/types';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import {
     getDataFromChartClick,
@@ -32,12 +30,6 @@ export const SeriesContextMenu: FC<{
         top: number;
     }>();
 
-    const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        value: ResultRow[0]['value'];
-        meta: TableColumn['meta'];
-        row: ResultRow;
-    }>();
-
     useEffect(() => {
         if (echartSeriesClickEvent !== undefined) {
             const e: EchartSeriesClickEvent = echartSeriesClickEvent;
@@ -56,7 +48,6 @@ export const SeriesContextMenu: FC<{
                 echartSeriesClickEvent,
                 explore,
             );
-            setViewUnderlyingDataOptions(underlyingData);
 
             viewData(
                 underlyingData.value,
