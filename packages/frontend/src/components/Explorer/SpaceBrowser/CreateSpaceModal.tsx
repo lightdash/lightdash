@@ -1,6 +1,6 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
 import { Space } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSpaces';
 import { FormGroupWrapper } from './CreateSpaceModal.styles';
@@ -18,17 +18,14 @@ export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const {
-        mutate,
-        isLoading: isCreating,
-        isSuccess: isCreated,
-        data: newSpace,
-    } = useCreateMutation(projectUuid);
+    const { mutate, isLoading: isCreating } = useCreateMutation(projectUuid, {
+        onSuccess: (space: Space) => {
+            onCreated?.(space);
+        },
+    });
+
     const [name, setName] = useState<string>('');
 
-    useEffect(() => {
-        if (onCreated && newSpace) onCreated(newSpace);
-    }, [onCreated, isCreated, newSpace]);
     return (
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create space">
             <form>
