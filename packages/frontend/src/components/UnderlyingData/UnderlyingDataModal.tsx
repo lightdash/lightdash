@@ -1,4 +1,4 @@
-import { Dialog } from '@blueprintjs/core';
+import { AnchorButton, Dialog } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
 import React, { FC } from 'react';
 import DownloadCsvButton from '../DownloadCsvButton';
@@ -9,8 +9,13 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 interface Props {}
 
 const UnderlyingDataModal: FC<Props> = ({}) => {
-    const { resultsData, fieldsMap, closeModal, tableName } =
-        useUnderlyingDataContext();
+    const {
+        resultsData,
+        fieldsMap,
+        closeModal,
+        tableName,
+        exploreFromHereUrl,
+    } = useUnderlyingDataContext();
 
     return (
         <Dialog
@@ -20,7 +25,7 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
             title={`View underlying data`}
             style={{
                 width: '800px',
-                height: '600px',
+                maxHeight: '600px',
             }}
         >
             <HeaderRightContent>
@@ -28,6 +33,14 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
                     fileName={tableName}
                     rows={resultsData && getResultValues(resultsData.rows)}
                 />
+                <AnchorButton
+                    intent="primary"
+                    href={exploreFromHereUrl}
+                    icon="series-search"
+                    target="_blank"
+                >
+                    Explore from here
+                </AnchorButton>
             </HeaderRightContent>
             <UnderlyingDataResultsTable
                 resultsData={resultsData}

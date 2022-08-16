@@ -90,7 +90,7 @@ const testCompile = () => {
     cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 60000 });
 
-    cy.contains('selected 6 models');
+    cy.contains('selected 7 models');
     // Configure
     cy.findByText('Start exploring!')
         .parent('button')

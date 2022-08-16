@@ -26,7 +26,8 @@ import {
 } from '../types/field';
 import { compileExplore } from './exploreCompiler';
 
-const getDataTruncSql = (
+// TODO: move this to querybuilder to compute and query-time
+const truncateTimeField = (
     adapterType: SupportedDbtAdapter,
     timeInterval: string,
     field: string,
@@ -39,11 +40,46 @@ const getDataTruncSql = (
             }
             return `DATE_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
         case SupportedDbtAdapter.SNOWFLAKE:
-            return `TO_TIMESTAMP_NTZ(DATE_TRUNC('${timeInterval.toUpperCase()}', CONVERT_TIMEZONE('UTC', ${field})))`;
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.DATABRICKS:
             return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
+        default:
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const never: never = adapterType;
+            throw new ParseError(`Cannot recognise warehouse ${adapterType}`);
+    }
+};
+
+const convertTimezone = (
+    timestampSql: string,
+    default_source_tz: string,
+    target_tz: string,
+    adapterType: SupportedDbtAdapter,
+) => {
+    // todo: implement default_source_tz
+    // todo: implement target_tz
+    // todo: implement conversion for all adapters
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            // TIMESTAMPS: stored as utc. returns utc. convert from utc to target_tz
+            //   DATETIME: no tz. assume default_source_tz. covert from default_source_tz to target_tz
+            return timestampSql;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            // TIMESTAMP_NTZ: no tz. assume default_source_tz. convert from default_source_tz to target_tz
+            // TIMESTAMP_LTZ: stored in utc. returns in session tz. convert from session tz to target_tz
+            // TIMESTAMP_TZ: stored with tz. returns with tz. convert from value tz to target_tz
+            return `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${timestampSql}))`;
+        case SupportedDbtAdapter.REDSHIFT:
+            // TIMESTAMP WITH TIME ZONE: stored in utc. returns utc. convert from utc to target_tz
+            // TIMESTAMP WITHOUT TIME ZONE: no tz. assume utc. convert from utc to target_tz
+            return timestampSql;
+        case SupportedDbtAdapter.POSTGRES:
+            // TIMESTAMP WITH TIME ZONE: stored as utc. returns in session tz. convert from session tz to target tz
+            // TIMESTAMP WITHOUT TIME ZONE: no tz. assume default_source_tz. convert from default_source_tz to target_tz
+            return timestampSql;
+        case SupportedDbtAdapter.DATABRICKS:
+            return timestampSql;
         default:
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const never: never = adapterType;
@@ -77,9 +113,12 @@ const convertDimension = (
     let name = column.meta.dimension?.name || column.name;
     let sql = column.meta.dimension?.sql || defaultSql(column.name);
     let label = column.meta.dimension?.label || friendlyName(name);
+    if (type === DimensionType.TIMESTAMP) {
+        sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
+    }
     if (timeInterval) {
         if (timeInterval !== 'RAW') {
-            sql = getDataTruncSql(targetWarehouse, timeInterval, sql, type);
+            sql = truncateTimeField(targetWarehouse, timeInterval, sql, type);
         }
         name = `${column.name}_${timeInterval.toLowerCase()}`;
         label = `${label} ${timeInterval.toLowerCase()}`;
