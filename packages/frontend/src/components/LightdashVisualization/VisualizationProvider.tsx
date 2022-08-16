@@ -117,6 +117,7 @@ export const VisualizationProvider: FC<Props> = ({
     const { validTableConfig } = tableConfig;
 
     const cartesianConfig = useCartesianChartConfig({
+        chartType,
         initialChartConfig:
             initialChartConfig?.type === ChartType.CARTESIAN
                 ? initialChartConfig.config

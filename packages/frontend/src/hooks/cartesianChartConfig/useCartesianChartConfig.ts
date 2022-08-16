@@ -2,6 +2,7 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
+    ChartType,
     DimensionType,
     EchartsGrid,
     EchartsLegend,
@@ -16,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type Args = {
+    chartType: ChartType;
     initialChartConfig: CartesianChart | undefined;
     pivotKey: string | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -24,6 +26,67 @@ type Args = {
     >;
     columnOrder: string[];
     explore: Explore | undefined;
+};
+
+// https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
+const getDefaultLayout = (
+    availableDimensions: string[],
+    availableMetrics: string[],
+) => {
+    let xField: string | undefined = undefined;
+    let yFields: string[] = [];
+    let pivotFields: string[] = [];
+
+    // one metric , one dimension
+    if (availableMetrics.length === 1 && availableDimensions.length === 1) {
+        xField = availableDimensions[0];
+        yFields = [availableMetrics[0]];
+    }
+
+    // one metric, two dimensions
+    else if (
+        availableMetrics.length === 1 &&
+        availableDimensions.length === 2
+    ) {
+        xField = availableDimensions[0];
+        yFields = [availableMetrics[0]];
+        pivotFields = [availableDimensions[1]];
+    }
+
+    // two metrics, one dimension
+    else if (
+        availableMetrics.length === 2 &&
+        availableDimensions.length === 1
+    ) {
+        xField = availableDimensions[0];
+        yFields = availableMetrics;
+    }
+
+    // 2+ dimensions and 1+ metrics
+    else if (availableMetrics.length >= 1 && availableDimensions.length >= 2) {
+        //Max 4 metrics in Y-axis
+        xField = availableDimensions[0];
+        yFields = availableMetrics.slice(0, 4);
+        pivotFields = [availableDimensions[1]];
+    }
+
+    // 2+ metrics with no dimensions
+    else if (availableMetrics.length >= 2 && availableDimensions.length === 0) {
+        xField = availableMetrics[0];
+        yFields = [availableMetrics[1]];
+    }
+
+    // 2+ dimensions with no metrics
+    else if (availableMetrics.length === 0 && availableDimensions.length >= 2) {
+        xField = availableDimensions[0];
+        yFields = [availableDimensions[1]];
+    }
+
+    return {
+        xField,
+        yFields,
+        pivotFields,
+    };
 };
 
 export const sortDimensions = (
@@ -74,6 +137,7 @@ export const sortDimensions = (
 };
 
 const useCartesianChartConfig = ({
+    chartType,
     initialChartConfig,
     pivotKey,
     resultsData,
@@ -81,11 +145,6 @@ const useCartesianChartConfig = ({
     columnOrder,
     explore,
 }: Args) => {
-    const hasInitialValue =
-        !!initialChartConfig &&
-        isCompleteLayout(initialChartConfig.layout) &&
-        isCompleteEchartsConfig(initialChartConfig.eChartsConfig);
-
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
@@ -307,172 +366,40 @@ const useCartesianChartConfig = ({
         [dirtyLayout?.yField, updateAllGroupedSeries, pivotKey],
     );
 
-    const sortedDimensions = useMemo(() => {
-        return sortDimensions(
+    const [availableDimensions, availableMetrics] = useMemo(() => {
+        const sortedDimensions = sortDimensions(
             resultsData?.metricQuery.dimensions || [],
             explore,
             columnOrder,
         );
-    }, [resultsData?.metricQuery.dimensions, explore, columnOrder]);
-
-    const [
-        availableFields,
-        availableDimensions,
-        availableMetrics,
-        availableTableCalculations,
-    ] = useMemo(() => {
         const metrics = resultsData?.metricQuery.metrics || [];
-        const tableCalculations =
-            resultsData?.metricQuery.tableCalculations.map(
-                ({ name }) => name,
-            ) || [];
-        return [
-            [...sortedDimensions, ...metrics, ...tableCalculations],
-            sortedDimensions,
-            metrics,
-            tableCalculations,
-        ];
-    }, [resultsData, sortedDimensions]);
+        return [sortedDimensions, metrics];
+    }, [columnOrder, explore, resultsData]);
 
-    // Set fallout layout values
-    // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
+    // Set default layout and pivot
     useEffect(() => {
-        if (availableFields.length > 0) {
-            setDirtyLayout((prev) => {
-                const isCurrentXFieldValid: boolean =
-                    !!prev?.xField && availableFields.includes(prev.xField);
-                const currentValidYFields = prev?.yField
-                    ? prev.yField.filter((y) => availableFields.includes(y))
-                    : [];
-                const isCurrentYFieldsValid: boolean =
-                    currentValidYFields.length > 0;
-
-                // current configuration is still valid
-                if (isCurrentXFieldValid && isCurrentYFieldsValid) {
-                    return {
-                        ...prev,
-                        xField: prev?.xField,
-                        yField: currentValidYFields,
-                    };
-                }
-
-                // try to fix partially invalid configuration
-                if (
-                    (isCurrentXFieldValid && !isCurrentYFieldsValid) ||
-                    (!isCurrentXFieldValid && isCurrentYFieldsValid)
-                ) {
-                    const usedFields: string[] = [];
-
-                    if (isCurrentXFieldValid && prev?.xField) {
-                        usedFields.push(prev?.xField);
-                    }
-                    if (isCurrentYFieldsValid) {
-                        usedFields.push(...currentValidYFields);
-                    }
-
-                    const fallbackXField = availableFields.filter(
-                        (f) => !usedFields.includes(f),
-                    )[0];
-
-                    if (!isCurrentXFieldValid && fallbackXField) {
-                        return {
-                            ...prev,
-                            xField: fallbackXField,
-                            yField: currentValidYFields,
-                        };
-                    }
-
-                    const fallbackYFields = [
-                        ...availableMetrics,
-                        ...availableDimensions,
-                    ].filter((f) => !usedFields.includes(f))[0];
-
-                    if (!isCurrentYFieldsValid && fallbackYFields) {
-                        return {
-                            ...prev,
-                            yField: [fallbackYFields],
-                        };
-                    }
-                }
-
-                let newXField: string | undefined = undefined;
-                let newYFields: string[] = [];
-                let newPivotFields: string[] = [];
-
-                // one metric , one dimension
-                if (
-                    availableMetrics.length === 1 &&
-                    availableDimensions.length === 1
-                ) {
-                    newXField = availableDimensions[0];
-                    newYFields = [availableMetrics[0]];
-                }
-
-                // one metric, two dimensions
-                else if (
-                    availableMetrics.length === 1 &&
-                    availableDimensions.length === 2
-                ) {
-                    newXField = availableDimensions[0];
-                    newYFields = [availableMetrics[0]];
-                    newPivotFields = [availableDimensions[1]];
-                }
-
-                // two metrics, one dimension
-                else if (
-                    availableMetrics.length === 2 &&
-                    availableDimensions.length === 1
-                ) {
-                    newXField = availableDimensions[0];
-                    newYFields = availableMetrics;
-                }
-
-                // 2+ dimensions and 1+ metrics
-                else if (
-                    availableMetrics.length >= 1 &&
-                    availableDimensions.length >= 2
-                ) {
-                    //Max 4 metrics in Y-axis
-                    newXField = availableDimensions[0];
-                    newYFields = availableMetrics.slice(0, 4);
-                    newPivotFields = [availableDimensions[1]];
-                }
-
-                // 2+ metrics with no dimensions
-                else if (
-                    availableMetrics.length >= 2 &&
-                    availableDimensions.length === 0
-                ) {
-                    newXField = availableMetrics[0];
-                    newYFields = [availableMetrics[1]];
-                }
-
-                // 2+ dimensions with no metrics
-                else if (
-                    availableMetrics.length === 0 &&
-                    availableDimensions.length >= 2
-                ) {
-                    newXField = availableDimensions[0];
-                    newYFields = [availableDimensions[1]];
-                }
-
-                setPivotDimensions(newPivotFields);
-                return {
-                    ...prev,
-                    xField: newXField,
-                    yField: newYFields,
-                };
+        if (
+            chartType === ChartType.CARTESIAN &&
+            [...availableDimensions, ...availableMetrics].length > 0 &&
+            (!dirtyLayout || Object.keys(dirtyLayout).length === 0)
+        ) {
+            const { xField, yFields, pivotFields } = getDefaultLayout(
+                availableDimensions,
+                availableMetrics,
+            );
+            setPivotDimensions(pivotFields);
+            setDirtyLayout({
+                xField: xField,
+                yField: yFields,
             });
         }
     }, [
-        pivotKey,
-        availableFields,
+        dirtyLayout,
         availableDimensions,
         availableMetrics,
-        availableTableCalculations,
-        hasInitialValue,
         setPivotDimensions,
-        setType,
+        setDirtyLayout,
+        chartType,
     ]);
 
     // Generate expected series
@@ -619,6 +546,7 @@ const useCartesianChartConfig = ({
         dirtyChartType,
         dirtyLayout,
         dirtyEchartsConfig,
+        setDirtyLayout,
         setXField,
         setType,
         setXAxisName,

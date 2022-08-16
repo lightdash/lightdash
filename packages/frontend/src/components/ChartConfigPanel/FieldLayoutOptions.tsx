@@ -103,6 +103,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 <AxisFieldDropdown>
                     <FieldAutoComplete
                         fields={items}
+                        placeholder={
+                            !!dirtyLayout?.xField && !xAxisField
+                                ? `${dirtyLayout?.xField} not available`
+                                : undefined
+                        }
                         activeField={xAxisField}
                         onChange={(item) => {
                             setXField(getItemId(item));
@@ -122,6 +127,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     return (
                         <AxisFieldDropdown key={`${field}-y-axis`}>
                             <FieldAutoComplete
+                                placeholder={
+                                    !!field && !activeField
+                                        ? `${field} not available`
+                                        : undefined
+                                }
                                 fields={
                                     activeField
                                         ? [activeField, ...availableYFields]
@@ -161,7 +171,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 <AxisFieldDropdown>
                     <FieldAutoComplete
                         fields={availableDimensions}
-                        placeholder="Select a field to group by"
+                        placeholder={
+                            !!pivotDimension && !groupSelectedField
+                                ? `${pivotDimension} not available`
+                                : 'Select a field to group by'
+                        }
                         activeField={groupSelectedField}
                         onChange={(item) => {
                             setPivotDimensions([getItemId(item)]);
