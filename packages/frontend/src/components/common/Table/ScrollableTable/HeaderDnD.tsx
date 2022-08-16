@@ -3,6 +3,7 @@ import { flexRender, HeaderGroup } from '@tanstack/react-table';
 import React, { FC, MutableRefObject } from 'react';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { useTableContext } from '../TableProvider';
+import { ROW_NUMBER_COLUMN_ID } from '../types';
 
 type HeaderDndContextProps = {
     colOrderRef: MutableRefObject<string[]>;
@@ -12,7 +13,7 @@ export const HeaderDndContext: FC<HeaderDndContextProps> = ({
     colOrderRef,
     children,
 }) => {
-    const { table } = useTableContext();
+    const { table, onColumnOrderChange } = useTableContext();
     return (
         <DragDropContext
             onDragStart={() => {
@@ -28,10 +29,18 @@ export const HeaderDndContext: FC<HeaderDndContextProps> = ({
                 if (typeof dIndex === 'number') {
                     colOrder.splice(sIndex, 1);
                     colOrder.splice(dIndex, 0, dragUpdateObj.draggableId);
-                    table.setColumnOrder(colOrder);
+                    table.setColumnOrder([ROW_NUMBER_COLUMN_ID, ...colOrder]);
                 }
             }}
-            onDragEnd={() => undefined}
+            onDragEnd={() => {
+                onColumnOrderChange?.(
+                    table
+                        .getState()
+                        .columnOrder.filter(
+                            (value) => value !== ROW_NUMBER_COLUMN_ID,
+                        ),
+                );
+            }}
         >
             {children}
         </DragDropContext>

@@ -49,28 +49,22 @@ const rowColumn: TableColumn = {
 };
 
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
-    const { data, columns, columnOrder, pagination, onColumnOrderChange } =
-        rest;
+    const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = React.useState({});
-    const allColumnIds = columns.reduce<string[]>(
-        (acc, col) => (col.id ? [...acc, col.id] : acc),
-        [],
-    );
-    const reactTableColumnOrder = [
-        ...new Set([
+    const [tempColumnOrder, setTempColumnOrder] =
+        React.useState<ColumnOrderState>([
             ROW_NUMBER_COLUMN_ID,
             ...(columnOrder || []),
-            ...allColumnIds,
-        ]),
-    ];
-    const [tempColumnOrder, setTempColumnOrder] =
-        React.useState<ColumnOrderState>(reactTableColumnOrder);
+        ]);
+    useEffect(() => {
+        setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
+    }, [columnOrder]);
     const table = useReactTable({
         data,
         columns: [rowColumn, ...columns],
         state: {
             columnVisibility,
-            columnOrder: reactTableColumnOrder,
+            columnOrder: tempColumnOrder,
         },
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
@@ -81,11 +75,6 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     useEffect(() => {
         setPageSize(pagination?.show ? DEFAULT_PAGE_SIZE : MAX_PAGE_SIZE);
     }, [pagination, setPageSize]);
-    useEffect(() => {
-        onColumnOrderChange?.(
-            tempColumnOrder.filter((value) => value !== ROW_NUMBER_COLUMN_ID),
-        );
-    }, [tempColumnOrder, onColumnOrderChange]);
     return (
         <Context.Provider
             value={{
