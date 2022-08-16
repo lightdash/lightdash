@@ -1,3 +1,10 @@
+## [0.216.1](https://github.com/lightdash/lightdash/compare/0.216.0...0.216.1) (2022-08-16)
+
+
+### Bug Fixes
+
+* performance when ordering columns ([#2958](https://github.com/lightdash/lightdash/issues/2958)) ([c51ad6e](https://github.com/lightdash/lightdash/commit/c51ad6e3feb2fe904e172b412bcd047b0b49b4d9))
+
 # [0.216.0](https://github.com/lightdash/lightdash/compare/0.215.0...0.216.0) (2022-08-16)
 
 
