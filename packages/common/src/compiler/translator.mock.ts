@@ -529,7 +529,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.TIMESTAMP,
-            sql: '${TABLE}.user_created',
+            sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
             name: 'user_created',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
@@ -546,7 +546,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.TIMESTAMP,
-            sql: '${TABLE}.user_created',
+            sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
             name: 'user_created_raw',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -565,7 +565,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.DATE,
-            sql: "TO_TIMESTAMP_NTZ(DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sql: "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_day',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
@@ -584,7 +584,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.DATE,
-            sql: "TO_TIMESTAMP_NTZ(DATE_TRUNC('WEEK', CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sql: "DATE_TRUNC('WEEK', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_week',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -604,7 +604,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.DATE,
-            sql: "TO_TIMESTAMP_NTZ(DATE_TRUNC('MONTH', CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sql: "DATE_TRUNC('MONTH', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_month',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -624,7 +624,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             fieldType: FieldType.DIMENSION,
             description: undefined,
             type: DimensionType.DATE,
-            sql: "TO_TIMESTAMP_NTZ(DATE_TRUNC('YEAR', CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sql: "DATE_TRUNC('YEAR', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             name: 'user_created_year',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
