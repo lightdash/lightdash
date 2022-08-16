@@ -366,15 +366,54 @@ const useCartesianChartConfig = ({
         [dirtyLayout?.yField, updateAllGroupedSeries, pivotKey],
     );
 
-    const [availableDimensions, availableMetrics] = useMemo(() => {
-        const sortedDimensions = sortDimensions(
+    const sortedDimensions = useMemo(() => {
+        return sortDimensions(
             resultsData?.metricQuery.dimensions || [],
             explore,
             columnOrder,
         );
-        const metrics = resultsData?.metricQuery.metrics || [];
-        return [sortedDimensions, metrics];
-    }, [columnOrder, explore, resultsData]);
+    }, [resultsData?.metricQuery.dimensions, explore, columnOrder]);
+
+    const [availableFields, availableDimensions, availableMetrics] =
+        useMemo(() => {
+            const metrics = resultsData?.metricQuery.metrics || [];
+            const tableCalculations =
+                resultsData?.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                ) || [];
+            return [
+                [...sortedDimensions, ...metrics, ...tableCalculations],
+                sortedDimensions,
+                metrics,
+                tableCalculations,
+            ];
+        }, [resultsData, sortedDimensions]);
+
+    // Clean invalid layout config
+    useEffect(() => {
+        if (dirtyLayout && Object.keys(dirtyLayout).length > 0) {
+            const isCurrentXFieldInvalid: boolean =
+                !!dirtyLayout.xField &&
+                !availableFields.includes(dirtyLayout.xField);
+            const currentValidYFields = dirtyLayout?.yField
+                ? dirtyLayout.yField.filter((y) => availableFields.includes(y))
+                : [];
+            const isCurrentYFieldsInvalid: boolean =
+                !!dirtyLayout?.yField &&
+                currentValidYFields.length !== dirtyLayout.yField.length;
+
+            if (isCurrentXFieldInvalid || isCurrentYFieldsInvalid) {
+                setDirtyLayout({
+                    xField: isCurrentXFieldInvalid
+                        ? undefined
+                        : dirtyLayout?.xField,
+                    yField: isCurrentYFieldsInvalid
+                        ? currentValidYFields
+                        : dirtyLayout?.yField,
+                });
+            }
+        }
+    }, [dirtyLayout, availableFields]);
 
     // Set default layout and pivot
     useEffect(() => {
@@ -404,7 +443,7 @@ const useCartesianChartConfig = ({
 
     // Generate expected series
     useEffect(() => {
-        if (isCompleteLayout(dirtyLayout) && resultsData) {
+        if (resultsData) {
             setDirtyEchartsConfig((prev) => {
                 const defaultCartesianType =
                     prev?.series?.[0]?.type || CartesianSeriesType.BAR;
@@ -412,19 +451,72 @@ const useCartesianChartConfig = ({
                     defaultCartesianType === CartesianSeriesType.LINE
                         ? prev?.series?.[0]?.areaStyle
                         : undefined;
-                let expectedSeriesMap: Record<string, Series>;
-                if (pivotKey) {
-                    const uniquePivotValues: string[] = Array.from(
-                        new Set(
-                            resultsData?.rows.map(
-                                (row) => row[pivotKey].value.raw,
+                let expectedSeriesMap: Record<string, Series> = {};
+                console.log('generate series', dirtyLayout);
+                if (isCompleteLayout(dirtyLayout)) {
+                    if (pivotKey) {
+                        const uniquePivotValues: string[] = Array.from(
+                            new Set(
+                                resultsData?.rows.map(
+                                    (row) => row[pivotKey].value.raw,
+                                ),
                             ),
-                        ),
-                    );
-                    expectedSeriesMap = (dirtyLayout.yField || []).reduce<
-                        Record<string, Series>
-                    >((sum, yField) => {
-                        if (availableDimensions.includes(yField)) {
+                        );
+                        expectedSeriesMap = (dirtyLayout.yField || []).reduce<
+                            Record<string, Series>
+                        >((sum, yField) => {
+                            if (availableDimensions.includes(yField)) {
+                                const series = {
+                                    encode: {
+                                        xRef: { field: dirtyLayout.xField },
+                                        yRef: {
+                                            field: yField,
+                                        },
+                                    },
+                                    type: defaultCartesianType,
+                                    areaStyle: defaultAreaStyle,
+                                };
+                                return {
+                                    ...sum,
+                                    [getSeriesId(series)]: series,
+                                };
+                            }
+                            const stack =
+                                defaultAreaStyle || isStacked
+                                    ? yField
+                                    : undefined;
+                            const groupSeries = uniquePivotValues.reduce<
+                                Record<string, Series>
+                            >((acc, rawValue) => {
+                                const pivotSeries: Series = {
+                                    type: defaultCartesianType,
+                                    encode: {
+                                        xRef: { field: dirtyLayout.xField },
+                                        yRef: {
+                                            field: yField,
+                                            pivotValues: [
+                                                {
+                                                    field: pivotKey,
+                                                    value: rawValue,
+                                                },
+                                            ],
+                                        },
+                                    },
+                                    areaStyle: defaultAreaStyle,
+                                    stack,
+                                };
+                                return {
+                                    ...acc,
+                                    [getSeriesId(pivotSeries)]: pivotSeries,
+                                };
+                            }, {});
+
+                            return { ...sum, ...groupSeries };
+                        }, {});
+                    } else {
+                        expectedSeriesMap = (dirtyLayout.yField || []).reduce<
+                            Record<string, Series>
+                        >((sum, yField) => {
                             const series = {
                                 encode: {
                                     xRef: { field: dirtyLayout.xField },
@@ -434,60 +526,16 @@ const useCartesianChartConfig = ({
                                 },
                                 type: defaultCartesianType,
                                 areaStyle: defaultAreaStyle,
+                                stack:
+                                    isStacked || !!defaultAreaStyle
+                                        ? 'stack-all-series'
+                                        : undefined,
                             };
                             return { ...sum, [getSeriesId(series)]: series };
-                        }
-                        const stack =
-                            defaultAreaStyle || isStacked ? yField : undefined;
-                        const groupSeries = uniquePivotValues.reduce<
-                            Record<string, Series>
-                        >((acc, rawValue) => {
-                            const pivotSeries: Series = {
-                                type: defaultCartesianType,
-                                encode: {
-                                    xRef: { field: dirtyLayout.xField },
-                                    yRef: {
-                                        field: yField,
-                                        pivotValues: [
-                                            {
-                                                field: pivotKey,
-                                                value: rawValue,
-                                            },
-                                        ],
-                                    },
-                                },
-                                areaStyle: defaultAreaStyle,
-                                stack,
-                            };
-                            return {
-                                ...acc,
-                                [getSeriesId(pivotSeries)]: pivotSeries,
-                            };
                         }, {});
-
-                        return { ...sum, ...groupSeries };
-                    }, {});
-                } else {
-                    expectedSeriesMap = (dirtyLayout.yField || []).reduce<
-                        Record<string, Series>
-                    >((sum, yField) => {
-                        const series = {
-                            encode: {
-                                xRef: { field: dirtyLayout.xField },
-                                yRef: {
-                                    field: yField,
-                                },
-                            },
-                            type: defaultCartesianType,
-                            areaStyle: defaultAreaStyle,
-                            stack:
-                                isStacked || !!defaultAreaStyle
-                                    ? 'stack-all-series'
-                                    : undefined,
-                        };
-                        return { ...sum, [getSeriesId(series)]: series };
-                    }, {});
+                    }
                 }
+
                 const existingValidSeriesMap =
                     prev?.series?.reduce<Record<string, Series>>(
                         (sum, series) => {
