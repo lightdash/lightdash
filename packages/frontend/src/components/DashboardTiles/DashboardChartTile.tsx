@@ -15,6 +15,7 @@ import {
     getResultValues,
     getVisibleFields,
     isFilterableField,
+    ResultRow,
     SavedChart,
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
@@ -31,11 +32,13 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { getFilterRuleLabel } from '../common/Filters/configs';
+import { TableColumn } from '../common/Table/types';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 import { VisualizationWrapper } from './DashboardChartTile.styles';
 import TileBase from './TileBase/index';
 import { FilterLabel } from './TileBase/TileBase.styles';
@@ -148,6 +151,8 @@ const DashboardChartTile: FC<Props> = (props) => {
         left: number;
         top: number;
     }>();
+    const { viewData } = useUnderlyingDataContext();
+
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
@@ -166,6 +171,11 @@ const DashboardChartTile: FC<Props> = (props) => {
     const [dashboardTileFilterOptions, setDashboardFilterOptions] = useState<
         DashboardFilterRule[]
     >([]);
+    const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
+        value: ResultRow[0]['value'];
+        meta: TableColumn['meta'];
+        row: ResultRow;
+    }>();
     const { user } = useApp();
 
     const onSeriesContextMenu = useCallback(
@@ -193,6 +203,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 (field) => `${field.table}_${field.name}` === pivot,
             );
             const seriesName = serie.encode.seriesName;
+
             const pivotValue =
                 pivot && seriesName.includes(`.${pivot}.`)
                     ? seriesName.split(`.${pivot}.`)[1]
@@ -212,6 +223,16 @@ const DashboardChartTile: FC<Props> = (props) => {
                           },
                       ]
                     : [];
+
+            //TODO can we have more than 1 ?
+            const selectedDimension = dimensions[0];
+            const selectedValue = e.data[fieldId(selectedDimension)];
+
+            setViewUnderlyingDataOptions({
+                meta: { item: selectedDimension },
+                value: { raw: selectedValue, formatted: selectedValue },
+                row: e.data as ResultRow,
+            });
             setDashboardFilterOptions([...dimensionOptions, ...pivotOptions]);
             setContextMenuIsOpen(true);
             setContextMenuTargetOffset({
@@ -366,7 +387,25 @@ const DashboardChartTile: FC<Props> = (props) => {
                             content={
                                 <div onContextMenu={cancelContextMenu}>
                                     <Menu>
-                                        <MenuItem text="Filter dashboard to...">
+                                        <MenuItem
+                                            text={`View underlying data`}
+                                            icon={'layers'}
+                                            onClick={(e) => {
+                                                if (
+                                                    viewUnderlyingDataOptions !==
+                                                    undefined
+                                                ) {
+                                                    const { value, meta, row } =
+                                                        viewUnderlyingDataOptions;
+                                                    viewData(value, meta, row);
+                                                }
+                                            }}
+                                        />
+
+                                        <MenuItem
+                                            icon="filter"
+                                            text="Filter dashboard to..."
+                                        >
                                             {dashboardTileFilterOptions.map(
                                                 (filter) => (
                                                     <MenuItem

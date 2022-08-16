@@ -850,6 +850,7 @@ const useEcharts = () => {
               )
             : allColors;
     }, [organisationData?.chartColors, validCartesianConfig]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axis.xAxis,
