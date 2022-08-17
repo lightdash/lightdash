@@ -1,4 +1,4 @@
-import { Label, Switch } from '@blueprintjs/core';
+import { Switch } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { ShowTotalsToggleWrapper } from './ShowTotalsToggle.styles';
@@ -9,11 +9,12 @@ const ShowTotalsToggle: FC = () => {
     } = useVisualizationContext();
     return (
         <ShowTotalsToggleWrapper>
-            <Label>Show column total</Label>
             <Switch
                 large
                 innerLabelChecked="Yes"
                 innerLabel="No"
+                label={'Show column total'}
+                alignIndicator={'right'}
                 checked={showColumnCalculation}
                 onChange={(e) => {
                     setShowColumnCalculation(!showColumnCalculation);

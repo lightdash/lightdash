@@ -99,7 +99,9 @@ const VisualizationCard: FC = () => {
                                     />
                                 </>
                             )}
-                            {!isEditMode && <ShowTotalsToggle />}
+                            {!isEditMode &&
+                                unsavedChartVersion.chartConfig.type ===
+                                    'table' && <ShowTotalsToggle />}
                             <ChartDownloadMenu />
                         </CardHeaderButtons>
                     )}
