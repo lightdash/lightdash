@@ -40,7 +40,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
             {value.raw && isUrl(value.raw) && (
                 <MenuItem2
                     icon="link"
-                    text="Open URL in new tab"
+                    text="Go to link"
                     onClick={() => {
                         window.open(value.raw, '_blank');
                     }}
