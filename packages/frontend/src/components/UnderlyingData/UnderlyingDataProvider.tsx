@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ChartType,
+    DimensionType,
     Explore,
     Field,
     fieldId as getFieldId,
@@ -56,7 +57,7 @@ export const getDataFromChartClick = (
     const selectedFields = getFields(explore).filter((field) =>
         e.dimensionNames.includes(getFieldId(field)),
     );
-    const selectedDimensions = getFields(explore).filter((dimension) =>
+    const selectedDimensions = getDimensions(explore).filter((dimension) =>
         e.dimensionNames.includes(getFieldId(dimension)),
     );
 
@@ -73,9 +74,20 @@ export const getDataFromChartClick = (
         {},
     );
 
+    const getPivotValue = () => {
+        const pivotField = getDimensions(explore).find(
+            (dimension) => getFieldId(dimension) === pivot,
+        );
+        switch (pivotField?.type) {
+            case DimensionType.BOOLEAN:
+                return e.seriesName === 'Yes' ? true : false;
+            default:
+                return e.seriesName;
+        }
+    };
     const withPivot =
         pivot !== undefined
-            ? { fieldId: pivot, value: e.seriesName }
+            ? { fieldId: pivot, value: getPivotValue() }
             : undefined;
 
     return {
