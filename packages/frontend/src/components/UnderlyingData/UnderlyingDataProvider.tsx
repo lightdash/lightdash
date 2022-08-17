@@ -41,6 +41,7 @@ type UnderlyingDataContext = {
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
         row: ResultRow,
+        dimensions?: string[],
         pivot?: { fieldId: string; value: any },
     ) => void;
 
@@ -71,6 +72,7 @@ export const getDataFromChartClick = (
         },
         {},
     );
+
     const withPivot =
         pivot !== undefined
             ? { fieldId: pivot, value: e.seriesName }
@@ -179,17 +181,20 @@ export const UnderlyingDataProvider: FC<Props> = ({
             value: ResultRow[0]['value'],
             meta: TableColumn['meta'],
             row: ResultRow,
+            dimensions?: string[],
             pivot?: { fieldId: string; value: any },
         ) => {
             if (meta?.item === undefined) return;
 
             // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-            const rowFields = pivot
+            const rowFieldIds = pivot
                 ? [pivot.fieldId, ...Object.keys(row)]
                 : Object.keys(row);
 
+            // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
+            const dimensionFieldIds = dimensions ? dimensions : rowFieldIds;
             const fieldsInQuery = allFields.filter((field) =>
-                rowFields.includes(getFieldId(field)),
+                dimensionFieldIds.includes(getFieldId(field)),
             );
             const tablesInQuery = new Set([
                 ...fieldsInQuery.map((field) => field.table),

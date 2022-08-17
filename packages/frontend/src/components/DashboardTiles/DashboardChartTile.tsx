@@ -178,6 +178,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         value: ResultRow[0]['value'];
         meta: TableColumn['meta'];
         row: ResultRow;
+        dimensions: string[];
         pivot?: { fieldId: string; value: any };
     }>();
     const { user } = useApp();
@@ -236,9 +237,17 @@ const DashboardChartTile: FC<Props> = (props) => {
             });
 
             const underlyingData = getDataFromChartClick(e, pivot, explore);
-            setViewUnderlyingDataOptions(underlyingData);
+            const queryDimensions = savedQuery?.metricQuery.dimensions || [];
+            setViewUnderlyingDataOptions({
+                ...underlyingData,
+                dimensions: queryDimensions,
+            });
         },
-        [explore, savedQuery?.pivotConfig?.columns],
+        [
+            explore,
+            savedQuery?.pivotConfig?.columns,
+            savedQuery?.metricQuery.dimensions,
+        ],
     );
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
@@ -397,12 +406,14 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         value,
                                                         meta,
                                                         row,
+                                                        dimensions,
                                                         pivot,
                                                     } = viewUnderlyingDataOptions;
                                                     viewData(
                                                         value,
                                                         meta,
                                                         row,
+                                                        dimensions,
                                                         pivot,
                                                     );
                                                 }

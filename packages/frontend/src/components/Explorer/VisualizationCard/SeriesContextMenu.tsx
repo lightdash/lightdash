@@ -1,7 +1,6 @@
 import { Button, H5, Menu, MenuItem, Portal } from '@blueprintjs/core';
 import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
 import { FC, useCallback, useEffect, useState } from 'react';
-import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
@@ -17,9 +16,9 @@ import {
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
-    series: EChartSeries[];
+    dimensions: string[];
     pivot: string | undefined;
-}> = ({ echartSeriesClickEvent, series, pivot }) => {
+}> = ({ echartSeriesClickEvent, dimensions, pivot }) => {
     const {
         state: { unsavedChartVersion },
     } = useExplorer();
@@ -57,10 +56,11 @@ export const SeriesContextMenu: FC<{
                 underlyingData.value,
                 underlyingData.meta,
                 underlyingData.row,
+                dimensions,
                 underlyingData.pivot,
             );
         }
-    }, [explore, echartSeriesClickEvent, viewData, pivot]);
+    }, [explore, echartSeriesClickEvent, viewData, pivot, dimensions]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
