@@ -1,3 +1,10 @@
+## [0.216.2](https://github.com/lightdash/lightdash/compare/0.216.1...0.216.2) (2022-08-17)
+
+
+### Bug Fixes
+
+* update jaffle with customers.sql fix ([#2966](https://github.com/lightdash/lightdash/issues/2966)) ([785d48c](https://github.com/lightdash/lightdash/commit/785d48c9a8d5b0d4474e8b096623ac867ccc8467))
+
 ## [0.216.1](https://github.com/lightdash/lightdash/compare/0.216.0...0.216.1) (2022-08-16)
 
 

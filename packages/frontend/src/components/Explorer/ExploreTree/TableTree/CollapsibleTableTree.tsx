@@ -25,7 +25,7 @@ const CollapsibleTableTree: FC<Props> = ({
                 <RowIcon icon={'th'} size={16} />
                 <Text ellipsize>{table.label}</Text>
                 {!isOpen && (
-                    <TagCount minimal round>
+                    <TagCount minimal round multiline>
                         {tableItemsCount}
                     </TagCount>
                 )}
