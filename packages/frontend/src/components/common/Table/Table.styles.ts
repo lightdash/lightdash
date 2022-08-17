@@ -38,16 +38,6 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         }
     }
 
-    tbody tr:first-child {
-        td:first-child {
-            box-shadow: none !important;
-        }
-
-        td {
-            box-shadow: inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
-        }
-    }
-
     tbody tr {
         :nth-child(even) {
             background-color: ${Colors.LIGHT_GRAY5};
@@ -99,8 +89,8 @@ export const BodyCell = styled.td<{
     ${({ $isSelected }) =>
         $isSelected &&
         `
-            /* rgb color is ${Colors.CERULEAN5} + 50% alpha */
-            background-color: rgba(104, 193, 239, 0.5) !important;
+            box-shadow: inset 0 0 0 1px #4170CB !important;
+            background-color: #ECF6FE;
         `}
 `;
 
