@@ -219,7 +219,6 @@ const VisualizationCardOptions: FC = () => {
                         icon="panel-table"
                         onClick={() => {
                             setChartType(ChartType.TABLE);
-                            setPivotDimensions(undefined);
                             setIsOpen(false);
                         }}
                         disabled={disabled}
