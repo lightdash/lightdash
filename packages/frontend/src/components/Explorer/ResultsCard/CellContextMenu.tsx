@@ -64,17 +64,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
     );
 };
 
-type ContextMenuWrapperProps = CellContextMenuProps & {
-    isEditMode: boolean;
-};
-
-const ContextMenuWrapper: FC<ContextMenuWrapperProps> = ({
-    isEditMode,
-    children,
-    cell,
-    onOpen,
-    onClose,
-}) => {
+const CellContextMenu: FC<
+    CellContextMenuProps & {
+        isEditMode: boolean;
+    }
+> = ({ isEditMode, children, cell, onOpen, onClose }) => {
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
 
@@ -112,4 +106,4 @@ const ContextMenuWrapper: FC<ContextMenuWrapperProps> = ({
     );
 };
 
-export default ContextMenuWrapper;
+export default CellContextMenu;
