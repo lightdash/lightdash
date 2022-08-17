@@ -48,14 +48,22 @@ const VisualizationCard: FC = () => {
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
 
-    const [echartSeriesClickEvent, setEchartSeriesClickEvent] =
-        useState<EchartSeriesClickEvent>();
+    const [echartsClickEvent, setEchartsClickEvent] = useState<{
+        event: EchartSeriesClickEvent;
+        series: EChartSeries[];
+        pivot: string | undefined;
+    }>();
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
-            setEchartSeriesClickEvent(e);
+            const pivot = unsavedChartVersion?.pivotConfig?.columns?.[0];
+            setEchartsClickEvent({
+                event: e,
+                series,
+                pivot,
+            });
         },
-        [],
+        [unsavedChartVersion],
     );
 
     if (!unsavedChartVersion.tableName) {
@@ -122,7 +130,9 @@ const VisualizationCard: FC = () => {
                         <LightdashVisualization />
 
                         <SeriesContextMenu
-                            echartSeriesClickEvent={echartSeriesClickEvent}
+                            echartSeriesClickEvent={echartsClickEvent?.event}
+                            series={echartsClickEvent?.series || []}
+                            pivot={echartsClickEvent?.pivot}
                         />
                     </VisualizationCardContentWrapper>
                 </Collapse>

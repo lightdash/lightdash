@@ -56,7 +56,10 @@ const GridTile: FC<
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading) return <></>;
             return (
-                <UnderlyingDataProvider tableName={savedQuery?.tableName || ''}>
+                <UnderlyingDataProvider
+                    filters={savedQuery?.metricQuery.filters}
+                    tableName={savedQuery?.tableName || ''}
+                >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
                 </UnderlyingDataProvider>

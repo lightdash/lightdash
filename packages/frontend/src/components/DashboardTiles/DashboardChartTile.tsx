@@ -178,6 +178,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         value: ResultRow[0]['value'];
         meta: TableColumn['meta'];
         row: ResultRow;
+        pivot?: { fieldId: string; value: any };
     }>();
     const { user } = useApp();
 
@@ -234,7 +235,12 @@ const DashboardChartTile: FC<Props> = (props) => {
                 top: e.event.event.pageY,
             });
 
-            const underlyingData = getDataFromChartClick(e, explore);
+            const underlyingData = getDataFromChartClick(
+                e,
+                series,
+                pivot,
+                explore,
+            );
             setViewUnderlyingDataOptions(underlyingData);
         },
         [explore, savedQuery?.pivotConfig?.columns],
@@ -392,9 +398,18 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                     viewUnderlyingDataOptions !==
                                                     undefined
                                                 ) {
-                                                    const { value, meta, row } =
-                                                        viewUnderlyingDataOptions;
-                                                    viewData(value, meta, row);
+                                                    const {
+                                                        value,
+                                                        meta,
+                                                        row,
+                                                        pivot,
+                                                    } = viewUnderlyingDataOptions;
+                                                    viewData(
+                                                        value,
+                                                        meta,
+                                                        row,
+                                                        pivot,
+                                                    );
                                                 }
                                             }}
                                         />

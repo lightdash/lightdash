@@ -17,7 +17,10 @@ const Explorer: FC = () => {
         <ExplorerWrapper>
             <ExplorerHeader />
             <FiltersCard />
-            <UnderlyingDataProvider tableName={unsavedChartVersion.tableName}>
+            <UnderlyingDataProvider
+                filters={unsavedChartVersion.metricQuery.filters}
+                tableName={unsavedChartVersion.tableName}
+            >
                 <VisualizationCard />
                 <UnderlyingDataModal />
             </UnderlyingDataProvider>
