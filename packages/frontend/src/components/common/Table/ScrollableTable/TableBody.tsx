@@ -42,22 +42,22 @@ const TableBody = () => {
                         const meta = cell.column.columnDef
                             .meta as TableColumn['meta'];
                         return (
-                            <BodyCell
-                                key={cell.id}
-                                $rowIndex={rowIndex}
-                                $isNaN={
-                                    !meta?.item || !isNumericItem(meta.item)
-                                }
-                            >
-                                <CellContextMenu cell={cell}>
+                            <CellContextMenu cell={cell}>
+                                <BodyCell
+                                    key={cell.id}
+                                    $rowIndex={rowIndex}
+                                    $isNaN={
+                                        !meta?.item || !isNumericItem(meta.item)
+                                    }
+                                >
                                     <RichBodyCell cell={cell}>
                                         {flexRender(
                                             cell.column.columnDef.cell,
                                             cell.getContext(),
                                         )}
                                     </RichBodyCell>
-                                </CellContextMenu>
-                            </BodyCell>
+                                </BodyCell>
+                            </CellContextMenu>
                         );
                     })}
                 </tr>
