@@ -49,7 +49,6 @@ export const SeriesContextMenu: FC<{
         if (explore !== undefined && echartSeriesClickEvent !== undefined) {
             const underlyingData = getDataFromChartClick(
                 echartSeriesClickEvent,
-                series,
                 pivot,
                 explore,
             );
@@ -61,7 +60,7 @@ export const SeriesContextMenu: FC<{
                 underlyingData.pivot,
             );
         }
-    }, [explore, echartSeriesClickEvent, viewData, series, pivot]);
+    }, [explore, echartSeriesClickEvent, viewData, pivot]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>

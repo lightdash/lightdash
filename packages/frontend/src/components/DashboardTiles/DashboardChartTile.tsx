@@ -235,12 +235,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 top: e.event.event.pageY,
             });
 
-            const underlyingData = getDataFromChartClick(
-                e,
-                series,
-                pivot,
-                explore,
-            );
+            const underlyingData = getDataFromChartClick(e, pivot, explore);
             setViewUnderlyingDataOptions(underlyingData);
         },
         [explore, savedQuery?.pivotConfig?.columns],

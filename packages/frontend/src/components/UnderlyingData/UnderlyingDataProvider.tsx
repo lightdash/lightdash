@@ -24,7 +24,6 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useQueryResults } from '../../hooks/useQueryResults';
@@ -50,7 +49,6 @@ type UnderlyingDataContext = {
 
 export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
-    series: EChartSeries[],
     pivot: string | undefined,
     explore: Explore,
 ) => {
