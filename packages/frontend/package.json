@@ -52,8 +52,7 @@
         "typescript": "^4.5.5",
         "uuid": "^8.3.2",
         "vite": "^3.0.8",
-        "vite-plugin-svgr": "^2.2.1",
-        "web-vitals": "^2.1.4"
+        "vite-plugin-svgr": "^2.2.1"
     },
     "scripts": {
         "start": "vite",
@@ -110,7 +109,6 @@
         "eslint-plugin-react-hooks": "^4.3.0",
         "postcss-normalize": "10.0.1",
         "prettier": "^2.5.1",
-        "prettier-plugin-organize-imports": "^2.3.4",
-        "react-scripts": "5.0.0"
+        "prettier-plugin-organize-imports": "^2.3.4"
     }
 }
