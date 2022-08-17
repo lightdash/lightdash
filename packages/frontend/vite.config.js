@@ -9,6 +9,11 @@ export default defineConfig({
     build: {
         outDir: 'build',
     },
+    resolve: {
+        alias: {
+            '@lightdash/common': '@lightdash/common/src',
+        },
+    },
     server: {
         port: 3000,
         proxy: {
