@@ -1,39 +1,15 @@
-import { isNumericItem, ResultRow } from '@lightdash/common';
-import { Cell, flexRender } from '@tanstack/react-table';
-import React, { FC } from 'react';
-import styled from 'styled-components';
+import { isNumericItem } from '@lightdash/common';
+import { flexRender } from '@tanstack/react-table';
+import { FC, Fragment, useState } from 'react';
 import { BodyCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
+import RichBodyCell from './RichBodyCell';
 
-const Link = styled.a``;
-
-interface RichBodyCellProps {
-    cell: Cell<ResultRow>;
-}
-
-const RichBodyCell: FC<RichBodyCellProps> = ({ children, cell }) => {
-    const rawValue = cell.getValue()?.value?.raw;
-
-    if (
-        rawValue &&
-        typeof rawValue === 'string' &&
-        (rawValue.startsWith('http://') || rawValue.startsWith('https://'))
-    ) {
-        return (
-            <Link href={rawValue} target="_blank">
-                {children}
-            </Link>
-        );
-    } else {
-        return <>{children}</>;
-    }
-};
-
-const TableBody = () => {
+const TableBody: FC = () => {
     const { table, cellContextMenu } = useTableContext();
-    const CellContextMenu = cellContextMenu || React.Fragment;
-    const [selectedCell, setSelectedCell] = React.useState<string>();
+    const CellContextMenu = cellContextMenu || Fragment;
+    const [selectedCell, setSelectedCell] = useState<string>();
 
     return (
         <tbody>
