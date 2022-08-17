@@ -193,15 +193,15 @@ const convertDbtMetricToLightdashMetric = (
             sql = metric.sql;
         }
     }
-    if (metric.filters) {
+    if (metric.filters && metric.filters.length > 0) {
         const filterSql = metric.filters
             .map(
                 (filter) =>
                     // eslint-disable-next-line no-useless-escape
-                    `\$\{TABLE\}.${filter.field} ${filter.operator} ${filter.value}`,
+                    `(\$\{TABLE\}.${filter.field} ${filter.operator} ${filter.value})`,
             )
             .join(' AND ');
-        sql = `CASE WHEN (${filterSql}) THEN ${sql} ELSE NULL END`;
+        sql = `CASE WHEN ${filterSql} THEN ${sql} ELSE NULL END`;
     }
 
     return {
