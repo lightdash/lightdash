@@ -1,4 +1,4 @@
-import { Button, H5, Menu, MenuItem, Portal } from '@blueprintjs/core';
+import { Menu, MenuItem, Portal } from '@blueprintjs/core';
 import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
 import { FC, useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -8,11 +8,6 @@ import {
     getDataFromChartClick,
     useUnderlyingDataContext,
 } from '../../UnderlyingData/UnderlyingDataProvider';
-import {
-    CardHeader,
-    CardHeaderTitle,
-    MainCard,
-} from './VisualizationCard.styles';
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
@@ -77,19 +72,6 @@ export const SeriesContextMenu: FC<{
         (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
         [],
     );
-
-    if (!unsavedChartVersion.tableName) {
-        return (
-            <MainCard elevation={1}>
-                <CardHeader>
-                    <CardHeaderTitle>
-                        <Button icon={'chevron-right'} minimal disabled />
-                        <H5>Charts</H5>
-                    </CardHeaderTitle>
-                </CardHeader>
-            </MainCard>
-        );
-    }
 
     return (
         <Popover2
