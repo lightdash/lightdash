@@ -463,6 +463,51 @@ export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
 };
 
+export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: [],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    or: [
+                        {
+                            id: '1-1',
+                            target: {
+                                fieldId: 'table2_dim2',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [0],
+                        },
+                        {
+                            id: '1-2',
+                            target: {
+                                fieldId: 'table2_dim2',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [1],
+                        },
+                    ],
+                },
+                {
+                    id: '2',
+                    target: {
+                        fieldId: 'table2_dim2',
+                    },
+                    operator: FilterOperator.NOT_NULL,
+                },
+            ],
+        },
+    },
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+};
+
 export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table2_additional_metric'],
@@ -583,9 +628,9 @@ export const METRIC_QUERY_WITH_FILTER_SQL = `SELECT
 FROM "db"."schema"."table1" AS "table1"
 LEFT JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
-WHERE (
+WHERE ((
   ("table2".dim2) IN (0)
-)
+))
 GROUP BY 1
 ORDER BY "table1_dim1" DESC
 LIMIT 10`;
@@ -595,11 +640,27 @@ export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL = `SELECT
 FROM "db"."schema"."table1" AS "table1"
 LEFT JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)
-WHERE (
+WHERE ((
   ("table2".dim2) IN (0)
 ) OR (
   ("table2".dim2) IS NOT NULL
-)
+))
+GROUP BY 1
+ORDER BY "table1_dim1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL = `SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM "db"."schema"."table1" AS "table1"
+LEFT JOIN "db"."schema"."table2" AS "table2"
+  ON ("table1".shared) = ("table2".shared)
+WHERE (((
+  ("table2".dim2) IN (0)
+) OR (
+  ("table2".dim2) IN (1)
+)) AND (
+  ("table2".dim2) IS NOT NULL
+))
 GROUP BY 1
 ORDER BY "table1_dim1" DESC
 LIMIT 10`;

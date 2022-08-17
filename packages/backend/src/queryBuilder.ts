@@ -16,6 +16,7 @@ import {
     getMetrics,
     getQuoteChar,
     isAndFilterGroup,
+    isFilterGroup,
     isMetric,
     MetricType,
     parseAllReferences,
@@ -357,24 +358,39 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
-    const whereFilters = getFilterRulesFromGroup(filters.dimensions).map(
-        (filter) => {
-            const field = getFields(explore).find(
-                (d) => fieldId(d) === filter.target.fieldId,
+    const sqlFilterRule = (filter: FilterRule) => {
+        const field = getFields(explore).find(
+            (d) => fieldId(d) === filter.target.fieldId,
+        );
+        if (!field) {
+            throw new Error(
+                `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
             );
-            if (!field) {
-                throw new Error(
-                    `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
-                );
-            }
-            return renderFilterRuleSql(filter, field, q);
-        },
-    );
+        }
+        return renderFilterRuleSql(filter, field, q);
+    };
+
+    const getNestedFilterSQLFromGroup = (
+        filterGroup: FilterGroup | undefined,
+    ): string => {
+        if (filterGroup) {
+            const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
+            const items = isAndFilterGroup(filterGroup)
+                ? filterGroup.and
+                : filterGroup.or;
+            const filterRules = items.reduce((sum, item) => {
+                const filterSql = isFilterGroup(item)
+                    ? getNestedFilterSQLFromGroup(item)
+                    : `(\n  ${sqlFilterRule(item)}\n)`;
+                return [...sum, filterSql];
+            }, [] as string[]);
+            return `(${filterRules.join(` ${operator} `)})`;
+        }
+        return `${filterGroup}`;
+    };
     const sqlWhere =
-        whereFilters.length > 0
-            ? `WHERE ${whereFilters
-                  .map((w) => `(\n  ${w}\n)`)
-                  .join(getOperatorSql(filters.dimensions))}`
+        filters?.dimensions !== undefined
+            ? `WHERE ${getNestedFilterSQLFromGroup(filters.dimensions)}`
             : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
