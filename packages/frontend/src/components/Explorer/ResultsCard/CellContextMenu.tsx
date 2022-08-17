@@ -12,6 +12,7 @@ import { cloneElement, FC, isValidElement } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { isUrl } from '../../common/Table/ScrollableTable/RichBodyCell';
 import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
@@ -36,6 +37,16 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
     return (
         <Menu>
+            {value.raw && isUrl(value.raw) && (
+                <MenuItem2
+                    icon="link"
+                    text="Open URL in new tab"
+                    onClick={() => {
+                        window.open(value.raw, '_blank');
+                    }}
+                />
+            )}
+
             <MenuItem2
                 text="View underlying data"
                 icon="layers"

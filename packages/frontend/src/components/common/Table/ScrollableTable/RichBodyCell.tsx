@@ -13,14 +13,18 @@ const Link = styled.a`
     }
 `;
 
+export const isUrl = (value: string) => {
+    return (
+        value &&
+        typeof value === 'string' &&
+        (value.startsWith('http://') || value.startsWith('https://'))
+    );
+};
+
 const RichBodyCell: FC<RichBodyCellProps> = ({ children, cell }) => {
     const rawValue = cell.getValue()?.value?.raw;
 
-    if (
-        rawValue &&
-        typeof rawValue === 'string' &&
-        (rawValue.startsWith('http://') || rawValue.startsWith('https://'))
-    ) {
+    if (isUrl(rawValue)) {
         return <Link>{children}</Link>;
     } else {
         return <>{children}</>;

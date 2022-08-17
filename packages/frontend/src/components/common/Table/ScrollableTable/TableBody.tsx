@@ -28,6 +28,7 @@ const TableBody: FC = () => {
                                     key={cell.id}
                                     $rowIndex={rowIndex}
                                     $isSelected={cell.id === selectedCell}
+                                    $hasData={!!meta?.item}
                                     $isNaN={
                                         !meta?.item || !isNumericItem(meta.item)
                                     }

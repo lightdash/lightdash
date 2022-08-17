@@ -84,15 +84,19 @@ export const BodyCell = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;
     $isSelected: boolean;
+    $hasData: boolean;
 }>`
     ${CellStyles}
-    cursor: pointer;
+
+    ${({ $hasData }) => ($hasData ? ` cursor: pointer;` : '')}
+
     ${({ $isSelected }) =>
-        $isSelected &&
-        `
-            box-shadow: inset 0 0 0 1px #4170CB !important;
-            background-color: #ECF6FE;
-        `}
+        $isSelected
+            ? `
+                box-shadow: inset 0 0 0 1px #4170CB !important;
+                background-color: #ECF6FE;
+            `
+            : ''}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
