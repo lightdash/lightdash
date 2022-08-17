@@ -184,7 +184,10 @@ export const UnderlyingDataProvider: FC<Props> = ({
             if (meta?.item === undefined) return;
 
             // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-            const rowFields = Object.keys(row);
+            const rowFields = pivot
+                ? [pivot.fieldId, ...Object.keys(row)]
+                : Object.keys(row);
+
             const fieldsInQuery = allFields.filter((field) =>
                 rowFields.includes(getFieldId(field)),
             );
