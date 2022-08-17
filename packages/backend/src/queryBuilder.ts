@@ -285,38 +285,33 @@ export const buildQuery = ({
     });
 
     const selectedTables = new Set<string>([
-        ...metrics.reduce<string[]>(
-            (acc, field) => [
-                ...acc,
-                ...getMetricFromId(field, explore, compiledMetricQuery)
-                    .tablesReferences,
-            ],
-            [],
-        ),
-        ...dimensions.reduce<string[]>(
-            (acc, field) => [
-                ...acc,
-                ...getDimensionFromId(field, explore).tablesReferences,
-            ],
-            [],
-        ),
+        ...metrics.reduce<string[]>((acc, field) => {
+            const metric = getMetricFromId(field, explore, compiledMetricQuery);
+            return [...acc, ...(metric.tablesReferences || [metric.table])];
+        }, []),
+        ...dimensions.reduce<string[]>((acc, field) => {
+            const dim = getDimensionFromId(field, explore);
+            return [...acc, ...(dim.tablesReferences || [dim.table])];
+        }, []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
-            (acc, filterRule) => [
-                ...acc,
-                ...getDimensionFromId(filterRule.target.fieldId, explore)
-                    .tablesReferences,
-            ],
+            (acc, filterRule) => {
+                const dim = getDimensionFromId(
+                    filterRule.target.fieldId,
+                    explore,
+                );
+                return [...acc, ...(dim.tablesReferences || [dim.table])];
+            },
             [],
         ),
         ...getFilterRulesFromGroup(filters.metrics).reduce<string[]>(
-            (acc, filterRule) => [
-                ...acc,
-                ...getMetricFromId(
+            (acc, filterRule) => {
+                const metric = getMetricFromId(
                     filterRule.target.fieldId,
                     explore,
                     compiledMetricQuery,
-                ).tablesReferences,
-            ],
+                );
+                return [...acc, ...(metric.tablesReferences || [metric.table])];
+            },
             [],
         ),
     ]);
