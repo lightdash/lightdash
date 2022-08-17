@@ -284,23 +284,40 @@ export const buildQuery = ({
         return `  ${metric.compiledSql} AS ${q}${alias}${q}`;
     });
 
-    const selectedTables = new Set([
-        ...metrics.map(
-            (field) =>
-                getMetricFromId(field, explore, compiledMetricQuery).table,
+    const selectedTables = new Set<string>([
+        ...metrics.reduce<string[]>(
+            (acc, field) => [
+                ...acc,
+                ...getMetricFromId(field, explore, compiledMetricQuery)
+                    .tablesReferences,
+            ],
+            [],
         ),
-        ...dimensions.map((field) => getDimensionFromId(field, explore).table),
-        ...getFilterRulesFromGroup(filters.dimensions).map(
-            (filterRule) =>
-                getDimensionFromId(filterRule.target.fieldId, explore).table,
+        ...dimensions.reduce<string[]>(
+            (acc, field) => [
+                ...acc,
+                ...getDimensionFromId(field, explore).tablesReferences,
+            ],
+            [],
         ),
-        ...getFilterRulesFromGroup(filters.metrics).map(
-            (filterRule) =>
-                getMetricFromId(
+        ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
+            (acc, filterRule) => [
+                ...acc,
+                ...getDimensionFromId(filterRule.target.fieldId, explore)
+                    .tablesReferences,
+            ],
+            [],
+        ),
+        ...getFilterRulesFromGroup(filters.metrics).reduce<string[]>(
+            (acc, filterRule) => [
+                ...acc,
+                ...getMetricFromId(
                     filterRule.target.fieldId,
                     explore,
                     compiledMetricQuery,
-                ).table,
+                ).tablesReferences,
+            ],
+            [],
         ),
     ]);
 

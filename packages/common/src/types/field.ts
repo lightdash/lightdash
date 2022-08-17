@@ -66,6 +66,7 @@ export interface Dimension extends Field {
 
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
+    tablesReferences: Array<string>;
 }
 
 export type CompiledField = CompiledDimension | CompiledMetric;
@@ -74,6 +75,7 @@ export const isDimension = (field: any): field is Dimension =>
 
 export interface CompiledMetric extends Metric {
     compiledSql: string;
+    tablesReferences: Array<string>;
 }
 
 export interface FilterableDimension extends Dimension {

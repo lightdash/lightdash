@@ -13,6 +13,7 @@ const generateCompiledDimension = (
 ): CompiledDimension => {
     return {
         compiledSql: '',
+        tablesReferences: [],
         fieldType: FieldType.DIMENSION,
         hidden: false,
         label: '',

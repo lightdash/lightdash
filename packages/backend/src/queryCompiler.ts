@@ -76,9 +76,11 @@ const compileAdditionalMetric = ({
     const quoteChar = getQuoteChar(explore.targetDatabase); // quote char
 
     const metric = convertAdditionalMetric({ additionalMetric, table });
+    const compiledMetric = compileMetricSql(metric, explore.tables, quoteChar);
     return {
         ...metric,
-        compiledSql: compileMetricSql(metric, explore.tables, quoteChar),
+        compiledSql: compiledMetric.sql,
+        tablesReferences: Array.from(compiledMetric.tablesReferences),
     };
 };
 

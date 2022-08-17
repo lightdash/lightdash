@@ -62,12 +62,13 @@ export const compileDimensionSql = (
     dimension: Dimension,
     tables: Record<string, Table>,
     quoteChar: string,
-): string => {
+): { sql: string; tablesReferences: Set<string> } => {
     // Dimension might have references to other dimensions
     // Check we don't reference ourself
     const currentRef = `${dimension.table}.${dimension.name}`;
     const currentShortRef = dimension.name;
-    return dimension.sql.replace(lightdashVariablePattern, (_, p1) => {
+    let tablesReferences = new Set([dimension.table]);
+    const sql = dimension.sql.replace(lightdashVariablePattern, (_, p1) => {
         if ([currentShortRef, currentRef].includes(p1)) {
             throw new CompileError(
                 `Dimension "${dimension.name}" in table "${dimension.table}" has a sql string referencing itself: "${dimension.sql}"`,
@@ -75,13 +76,19 @@ export const compileDimensionSql = (
             );
         }
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        return compileDimensionReference(
+        const compiledReference = compileDimensionReference(
             p1,
             tables,
             dimension.table,
             quoteChar,
         );
+        tablesReferences = new Set([
+            ...tablesReferences,
+            ...compiledReference.tablesReferences,
+        ]);
+        return compiledReference.sql;
     });
+    return { sql, tablesReferences };
 };
 
 const compileDimensionReference = (
@@ -89,10 +96,13 @@ const compileDimensionReference = (
     tables: Record<string, Table>,
     currentTable: string,
     quoteChar: string,
-): string => {
+): { sql: string; tablesReferences: Set<string> } => {
     // Reference to current table
     if (ref === 'TABLE') {
-        return `${quoteChar}${currentTable}${quoteChar}`;
+        return {
+            sql: `${quoteChar}${currentTable}${quoteChar}`,
+            tablesReferences: new Set([currentTable]),
+        };
     }
     const { refTable, refName } = getParsedReference(ref, currentTable);
 
@@ -103,8 +113,19 @@ const compileDimensionReference = (
             {},
         );
     }
+    const compiledDimension = compileDimensionSql(
+        referencedDimension,
+        tables,
+        quoteChar,
+    );
 
-    return `(${compileDimensionSql(referencedDimension, tables, quoteChar)})`;
+    return {
+        sql: `(${compiledDimension.sql})`,
+        tablesReferences: new Set([
+            refTable,
+            ...compiledDimension.tablesReferences,
+        ]),
+    };
 };
 
 const compileMetricReference = (
@@ -112,10 +133,13 @@ const compileMetricReference = (
     tables: Record<string, Table>,
     currentTable: string,
     quoteChar: string,
-) => {
+): { sql: string; tablesReferences: Set<string> } => {
     // Reference to current table
     if (ref === 'TABLE') {
-        return `${quoteChar}${currentTable}${quoteChar}`;
+        return {
+            sql: `${quoteChar}${currentTable}${quoteChar}`,
+            tablesReferences: new Set([currentTable]),
+        };
     }
     const { refTable, refName } = getParsedReference(ref, currentTable);
 
@@ -128,14 +152,25 @@ const compileMetricReference = (
     }
 
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    return `(${compileMetricSql(referencedMetric, tables, quoteChar)})`;
+    const compiledMetric = compileMetricSql(
+        referencedMetric,
+        tables,
+        quoteChar,
+    );
+    return {
+        sql: `(${compiledMetric.sql})`,
+        tablesReferences: new Set([
+            refTable,
+            ...compiledMetric.tablesReferences,
+        ]),
+    };
 };
 
 export const compileMetricSql = (
     metric: Metric,
     tables: Record<string, Table>,
     quoteChar: string,
-): string => {
+): { sql: string; tablesReferences: Set<string> } => {
     const compileReference = isNonAggregateMetric(metric)
         ? compileMetricReference
         : compileDimensionReference;
@@ -148,6 +183,7 @@ export const compileMetricSql = (
     }
     const currentRef = `${metric.table}.${metric.name}`;
     const currentShortRef = metric.name;
+    let tablesReferences = new Set([metric.table]);
     let renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => {
         if ([currentShortRef, currentRef].includes(p1)) {
             throw new CompileError(
@@ -155,7 +191,17 @@ export const compileMetricSql = (
                 {},
             );
         }
-        return compileReference(p1, tables, metric.table, quoteChar);
+        const compiledReference = compileReference(
+            p1,
+            tables,
+            metric.table,
+            quoteChar,
+        );
+        tablesReferences = new Set([
+            ...tablesReferences,
+            ...compiledReference.tablesReferences,
+        ]);
+        return compiledReference.sql;
     });
     const metricType = metric.type;
     switch (metricType) {
@@ -191,7 +237,7 @@ export const compileMetricSql = (
             );
     }
 
-    return renderedSql;
+    return { sql: renderedSql, tablesReferences };
 };
 
 export const compileExploreJoinSql = (
@@ -200,26 +246,36 @@ export const compileExploreJoinSql = (
     quoteChar: string,
 ): string =>
     // Sql join contains references to dimensions
-    join.sqlOn.replace(lightdashVariablePattern, (_, p1) =>
-        compileDimensionReference(p1, tables, join.table, quoteChar),
+    join.sqlOn.replace(
+        lightdashVariablePattern,
+        (_, p1) =>
+            compileDimensionReference(p1, tables, join.table, quoteChar).sql,
     );
 const compileDimension = (
     dimension: Dimension,
     tables: Record<string, Table>,
     quoteChar: string,
-): CompiledDimension => ({
-    ...dimension,
-    compiledSql: compileDimensionSql(dimension, tables, quoteChar),
-});
+): CompiledDimension => {
+    const compiledDimension = compileDimensionSql(dimension, tables, quoteChar);
+    return {
+        ...dimension,
+        compiledSql: compiledDimension.sql,
+        tablesReferences: Array.from(compiledDimension.tablesReferences),
+    };
+};
 
 const compileMetric = (
     metric: Metric,
     tables: Record<string, Table>,
     quoteChar: string,
-): CompiledMetric => ({
-    ...metric,
-    compiledSql: compileMetricSql(metric, tables, quoteChar),
-});
+): CompiledMetric => {
+    const compiledMetric = compileMetricSql(metric, tables, quoteChar);
+    return {
+        ...metric,
+        compiledSql: compiledMetric.sql,
+        tablesReferences: Array.from(compiledMetric.tablesReferences),
+    };
+};
 
 const compileJoin = (
     join: ExploreJoin,
