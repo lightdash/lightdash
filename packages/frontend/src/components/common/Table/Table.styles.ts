@@ -90,8 +90,18 @@ const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
 `;
 
-export const BodyCell = styled.td<{ $isNaN: boolean; $rowIndex: number }>`
+export const BodyCell = styled.td<{
+    $isNaN: boolean;
+    $rowIndex: number;
+    $isSelected: boolean;
+}>`
     ${CellStyles}
+    ${({ $isSelected }) =>
+        $isSelected &&
+        `
+            /* rgb color is ${Colors.CERULEAN5} + 50% alpha */
+            background-color: rgba(104, 193, 239, 0.5) !important;
+        `}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`

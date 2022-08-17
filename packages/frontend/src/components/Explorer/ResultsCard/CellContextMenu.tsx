@@ -64,12 +64,16 @@ const ContextMenu: FC<ContextMenuProps> = ({
     );
 };
 
-type ContextMenuWrapperProps = CellContextMenuProps & { isEditMode: boolean };
+type ContextMenuWrapperProps = CellContextMenuProps & {
+    isEditMode: boolean;
+};
 
 const ContextMenuWrapper: FC<ContextMenuWrapperProps> = ({
     isEditMode,
     children,
     cell,
+    onOpen,
+    onClose,
 }) => {
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
@@ -102,6 +106,8 @@ const ContextMenuWrapper: FC<ContextMenuWrapperProps> = ({
                     );
                 }
             }}
+            onOpening={onOpen}
+            onClosing={onClose}
         />
     );
 };

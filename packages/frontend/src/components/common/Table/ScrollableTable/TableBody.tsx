@@ -33,6 +33,7 @@ const RichBodyCell: FC<RichBodyCellProps> = ({ children, cell }) => {
 const TableBody = () => {
     const { table, cellContextMenu } = useTableContext();
     const CellContextMenu = cellContextMenu || React.Fragment;
+    const [selectedCell, setSelectedCell] = React.useState<string>();
 
     return (
         <tbody>
@@ -42,10 +43,15 @@ const TableBody = () => {
                         const meta = cell.column.columnDef
                             .meta as TableColumn['meta'];
                         return (
-                            <CellContextMenu cell={cell}>
+                            <CellContextMenu
+                                cell={cell}
+                                onOpen={() => setSelectedCell(cell.id)}
+                                onClose={() => setSelectedCell(undefined)}
+                            >
                                 <BodyCell
                                     key={cell.id}
                                     $rowIndex={rowIndex}
+                                    $isSelected={cell.id === selectedCell}
                                     $isNaN={
                                         !meta?.item || !isNumericItem(meta.item)
                                     }
