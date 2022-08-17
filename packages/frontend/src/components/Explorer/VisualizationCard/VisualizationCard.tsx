@@ -13,6 +13,7 @@ import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import TableConfigPanel from '../../TableConfigPanel';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+import ShowTotalsToggle from './ShowTotalsToggle';
 import {
     CardHeader,
     CardHeaderButtons,
@@ -98,6 +99,7 @@ const VisualizationCard: FC = () => {
                                     />
                                 </>
                             )}
+                            {!isEditMode && <ShowTotalsToggle />}
                             <ChartDownloadMenu />
                         </CardHeaderButtons>
                     )}
