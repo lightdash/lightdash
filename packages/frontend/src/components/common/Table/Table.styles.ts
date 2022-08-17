@@ -86,6 +86,7 @@ export const BodyCell = styled.td<{
     $isSelected: boolean;
 }>`
     ${CellStyles}
+    cursor: pointer;
     ${({ $isSelected }) =>
         $isSelected &&
         `
