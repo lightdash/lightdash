@@ -1,5 +1,5 @@
-import { isNumericItem } from '@lightdash/common';
-import { flexRender } from '@tanstack/react-table';
+import { isNumericItem, ResultRow } from '@lightdash/common';
+import { Cell, flexRender } from '@tanstack/react-table';
 import React, { FC, useState } from 'react';
 import { BodyCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
@@ -44,7 +44,14 @@ const TableBody: FC = () => {
                                         !meta?.item || !isNumericItem(meta.item)
                                     }
                                 >
-                                    <RichBodyCell cell={cell}>
+                                    <RichBodyCell
+                                        cell={
+                                            cell as Cell<
+                                                ResultRow,
+                                                ResultRow[0]
+                                            >
+                                        }
+                                    >
                                         {flexRender(
                                             cell.column.columnDef.cell,
                                             cell.getContext(),

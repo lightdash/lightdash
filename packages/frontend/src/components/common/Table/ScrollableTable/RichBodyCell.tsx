@@ -4,7 +4,7 @@ import { FC } from 'react';
 import styled from 'styled-components';
 
 interface RichBodyCellProps {
-    cell: Cell<ResultRow>;
+    cell: Cell<ResultRow, ResultRow[0]>;
 }
 
 const Link = styled.a`
