@@ -1,3 +1,10 @@
+## [0.221.2](https://github.com/lightdash/lightdash/compare/0.221.1...0.221.2) (2022-08-18)
+
+
+### Bug Fixes
+
+* join tables referenced in custom sql ([#2974](https://github.com/lightdash/lightdash/issues/2974)) ([c5f7761](https://github.com/lightdash/lightdash/commit/c5f7761e3226939f90b334274e8b9c8ff02a27e8))
+
 ## [0.221.1](https://github.com/lightdash/lightdash/compare/0.221.0...0.221.1) (2022-08-18)
 
 
