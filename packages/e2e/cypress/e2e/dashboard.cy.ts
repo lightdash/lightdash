@@ -27,7 +27,7 @@ describe('Dashboard', () => {
         cy.get('thead th').should('have.length', 6); // Table chart
     });
 
-    it.only('Should create dashboard with tiles', () => {
+    it('Should create dashboard with tiles', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         cy.contains('Create dashboard').click();
