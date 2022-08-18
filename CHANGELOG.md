@@ -1,3 +1,10 @@
+# [0.219.0](https://github.com/lightdash/lightdash/compare/0.218.0...0.219.0) (2022-08-18)
+
+
+### Features
+
+* show column total on chart view mode ([#2976](https://github.com/lightdash/lightdash/issues/2976)) ([a386d32](https://github.com/lightdash/lightdash/commit/a386d32e505664cd0528c0ea3dd4a808ae37f1ed))
+
 # [0.218.0](https://github.com/lightdash/lightdash/compare/0.217.0...0.218.0) (2022-08-18)
 
 
