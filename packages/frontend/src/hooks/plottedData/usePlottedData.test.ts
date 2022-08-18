@@ -18,7 +18,7 @@ describe('usePlottedData', () => {
                 'dim2',
                 ['metric1'],
                 ['dim1'],
-            ),
+            ).rows,
         ).toEqual(EXPECTED_SIMPLE_PIVOT_RESULTS);
     });
     it('should pivot data with all dimension and 1 metric', () => {
@@ -28,7 +28,7 @@ describe('usePlottedData', () => {
                 'dim3',
                 ['metric1'],
                 ['dim1', 'dim2'],
-            ),
+            ).rows,
         ).toEqual(EXPECTED_PIVOT_RESULTS_WITH_ALL_DIMENSIONS);
     });
     it('should pivot data with some dimension and 1 metric', () => {
@@ -38,7 +38,7 @@ describe('usePlottedData', () => {
                 'dim3',
                 ['metric1'],
                 ['dim1'],
-            ),
+            ).rows,
         ).toEqual(EXPECTED_PIVOT_RESULTS_WITH_SOME_DIMENSIONS);
     });
     it('should pivot data on itself', () => {
@@ -48,7 +48,7 @@ describe('usePlottedData', () => {
                 'dim1',
                 ['metric1', 'metric2'],
                 ['dim1'],
-            ),
+            ).rows,
         ).toEqual(EXPECTED_PIVOT_ON_ITSELF_RESULTS);
     });
     it('should pivot data with same field pivoted and non pivoted', () => {
@@ -58,7 +58,7 @@ describe('usePlottedData', () => {
                 'dim1',
                 ['metric1'],
                 ['metric1'],
-            ),
+            ).rows,
         ).toEqual(
             EXPECTED_PIVOT_RESULTS_WITH_SAME_FIELD_PIVOTED_AND_NON_PIVOTED,
         );

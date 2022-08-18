@@ -45,7 +45,7 @@ export enum CartesianSeriesType {
     AREA = 'area',
 }
 
-type PivotReference = {
+export type PivotReference = {
     field: string;
     pivotValues?: { field: string; value: any }[];
 };
