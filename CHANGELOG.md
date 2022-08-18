@@ -1,3 +1,10 @@
+# [0.220.0](https://github.com/lightdash/lightdash/compare/0.219.0...0.220.0) (2022-08-18)
+
+
+### Features
+
+* revert nested filter metric ([#2979](https://github.com/lightdash/lightdash/issues/2979)) ([40dde07](https://github.com/lightdash/lightdash/commit/40dde0788eaa37b112248b44cc8dddedcbd2b311))
+
 # [0.219.0](https://github.com/lightdash/lightdash/compare/0.218.0...0.219.0) (2022-08-18)
 
 
