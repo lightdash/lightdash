@@ -25,12 +25,12 @@ const TableBody: FC = () => {
                             .meta as TableColumn['meta'];
                         return (
                             <CellContextMenu
+                                key={cell.id}
                                 cell={cell}
                                 onOpen={() => handleSetIsScrollable(cell.id)}
                                 onClose={() => handleSetIsScrollable(undefined)}
                             >
                                 <BodyCell
-                                    key={cell.id}
                                     $rowIndex={rowIndex}
                                     $isSelected={cell.id === selectedCell}
                                     $hasData={!!meta?.item}
