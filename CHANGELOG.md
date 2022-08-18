@@ -1,3 +1,10 @@
+# [0.217.0](https://github.com/lightdash/lightdash/compare/0.216.2...0.217.0) (2022-08-18)
+
+
+### Features
+
+* nested filters SQL ([#2970](https://github.com/lightdash/lightdash/issues/2970)) ([1307aa7](https://github.com/lightdash/lightdash/commit/1307aa72cc08662627472aabfbea8f84d6207b7b))
+
 ## [0.216.2](https://github.com/lightdash/lightdash/compare/0.216.1...0.216.2) (2022-08-17)
 
 
