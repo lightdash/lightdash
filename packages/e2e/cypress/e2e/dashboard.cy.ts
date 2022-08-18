@@ -58,5 +58,9 @@ describe('Dashboard', () => {
         cy.findByText('Save').click();
 
         cy.contains('Dashboard was updated');
+
+        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+        cy.findAllByText('No chart available').should('have.length', 0);
+        cy.findAllByText('No data available').should('have.length', 0);
     });
 });
