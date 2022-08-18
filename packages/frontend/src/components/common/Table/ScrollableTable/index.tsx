@@ -5,10 +5,10 @@ import TableFooter from './TableFooter';
 import TableHeader from './TableHeader';
 
 const ScrollableTable = () => {
-    const { footer, isScrollable } = useTableContext();
+    const { footer, setTableWrapperRef } = useTableContext();
 
     return (
-        <TableScrollableWrapper $isScrollable={isScrollable}>
+        <TableScrollableWrapper ref={setTableWrapperRef} $isScrollable>
             <Table bordered condensed showFooter={!!footer?.show}>
                 <TableHeader />
                 <TableBody />

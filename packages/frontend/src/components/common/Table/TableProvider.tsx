@@ -11,6 +11,7 @@ import React, {
     FC,
     useContext,
     useEffect,
+    useRef,
     useState,
 } from 'react';
 import {
@@ -39,8 +40,8 @@ type Props = {
 };
 
 type TableContext = Props & {
-    isScrollable: boolean;
-    setIsScrollable: React.Dispatch<React.SetStateAction<boolean>>;
+    tableWrapperRef: React.MutableRefObject<HTMLDivElement | null>;
+    setTableWrapperRef: (instance: HTMLDivElement | null) => void;
     table: Table<ResultRow>;
 };
 
@@ -59,7 +60,7 @@ const rowColumn: TableColumn = {
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
-    const [isScrollable, setIsScrollable] = useState(true);
+    const tableWrapperRef = useRef<HTMLDivElement | null>(null);
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
         ROW_NUMBER_COLUMN_ID,
         ...(columnOrder || []),
@@ -87,12 +88,16 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         setPageSize(pagination?.show ? DEFAULT_PAGE_SIZE : MAX_PAGE_SIZE);
     }, [pagination, setPageSize]);
 
+    const setTableWrapperRef = (instance: HTMLDivElement | null) => {
+        tableWrapperRef.current = instance;
+    };
+
     return (
         <Context.Provider
             value={{
                 table,
-                isScrollable,
-                setIsScrollable,
+                tableWrapperRef,
+                setTableWrapperRef,
                 ...rest,
             }}
         >

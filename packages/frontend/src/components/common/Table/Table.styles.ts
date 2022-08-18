@@ -15,6 +15,7 @@ interface TableScrollableProps {
 
 export const TableScrollableWrapper = styled.div<TableScrollableProps>`
     overflow: ${({ $isScrollable }) => ($isScrollable ? 'auto' : 'hidden')};
+    position: relative;
     min-height: 90px;
 `;
 
@@ -28,6 +29,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
 
     thead {
         position: sticky;
+        z-index: 21; /* Blueprint's scss var($pt-z-index-overlay) + 1 */
         top: 0;
         inset-block-start: 0; /* "top" */
         background: ${Colors.GRAY5};
@@ -55,6 +57,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
 
     tfoot {
         position: sticky;
+        z-index: 21; /* Blueprint's scss var($pt-z-index-overlay) + 1 */
         bottom: 0;
         inset-block-end: 0; /* "bottom" */
 

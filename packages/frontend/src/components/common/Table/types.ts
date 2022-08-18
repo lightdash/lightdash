@@ -12,6 +12,7 @@ export type CellContextMenuProps = {
     cell: Cell<ResultRow>;
     onOpen: () => void;
     onClose: () => void;
+    boundaryElement: HTMLDivElement | null;
 };
 
 export type Sort = {

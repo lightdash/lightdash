@@ -82,11 +82,11 @@ const CellContextMenu: FC<
     CellContextMenuProps & {
         isEditMode: boolean;
     }
-> = ({ isEditMode, children, cell, onOpen, onClose }) => {
+> = ({ isEditMode, boundaryElement, children, cell, onOpen, onClose }) => {
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
 
-    if (!item) {
+    if (!item || !boundaryElement) {
         return <>{children}</>;
     }
 
@@ -95,6 +95,7 @@ const CellContextMenu: FC<
             minimal
             lazy
             position={Position.BOTTOM_RIGHT}
+            portalContainer={boundaryElement}
             content={
                 <ContextMenu
                     cell={cell}
