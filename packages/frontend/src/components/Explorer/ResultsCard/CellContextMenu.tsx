@@ -90,6 +90,7 @@ const CellContextMenu: FC<
     return (
         <Popover2
             minimal
+            lazy
             position={Position.BOTTOM_RIGHT}
             content={
                 <ContextMenu

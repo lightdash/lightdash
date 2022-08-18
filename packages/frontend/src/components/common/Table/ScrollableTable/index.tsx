@@ -1,4 +1,3 @@
-import React from 'react';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import TableBody from './TableBody';
@@ -6,9 +5,10 @@ import TableFooter from './TableFooter';
 import TableHeader from './TableHeader';
 
 const ScrollableTable = () => {
-    const { footer } = useTableContext();
+    const { footer, isScrollable } = useTableContext();
+
     return (
-        <TableScrollableWrapper>
+        <TableScrollableWrapper $isScrollable={isScrollable}>
             <Table bordered condensed showFooter={!!footer?.show}>
                 <TableHeader />
                 <TableBody />

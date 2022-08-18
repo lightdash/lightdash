@@ -6,7 +6,13 @@ import {
     Table,
     useReactTable,
 } from '@tanstack/react-table';
-import React, { createContext, FC, useContext, useEffect } from 'react';
+import React, {
+    createContext,
+    FC,
+    useContext,
+    useEffect,
+    useState,
+} from 'react';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -33,6 +39,8 @@ type Props = {
 };
 
 type TableContext = Props & {
+    isScrollable: boolean;
+    setIsScrollable: React.Dispatch<React.SetStateAction<boolean>>;
     table: Table<ResultRow>;
 };
 
@@ -50,15 +58,17 @@ const rowColumn: TableColumn = {
 
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
-    const [columnVisibility, setColumnVisibility] = React.useState({});
-    const [tempColumnOrder, setTempColumnOrder] =
-        React.useState<ColumnOrderState>([
-            ROW_NUMBER_COLUMN_ID,
-            ...(columnOrder || []),
-        ]);
+    const [columnVisibility, setColumnVisibility] = useState({});
+    const [isScrollable, setIsScrollable] = useState(true);
+    const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
+        ROW_NUMBER_COLUMN_ID,
+        ...(columnOrder || []),
+    ]);
+
     useEffect(() => {
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
+
     const table = useReactTable({
         data,
         columns: [rowColumn, ...columns],
@@ -71,14 +81,18 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
     const { setPageSize } = table;
     useEffect(() => {
         setPageSize(pagination?.show ? DEFAULT_PAGE_SIZE : MAX_PAGE_SIZE);
     }, [pagination, setPageSize]);
+
     return (
         <Context.Provider
             value={{
                 table,
+                isScrollable,
+                setIsScrollable,
                 ...rest,
             }}
         >

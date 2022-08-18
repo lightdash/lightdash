@@ -7,9 +7,14 @@ import { TableColumn } from '../types';
 import RichBodyCell from './RichBodyCell';
 
 const TableBody: FC = () => {
-    const { table, cellContextMenu } = useTableContext();
+    const { table, cellContextMenu, setIsScrollable } = useTableContext();
     const CellContextMenu = cellContextMenu || Fragment;
     const [selectedCell, setSelectedCell] = useState<string>();
+
+    const handleSetIsScrollable = (value: string | undefined) => {
+        setIsScrollable(!value);
+        setSelectedCell(value);
+    };
 
     return (
         <tbody>
@@ -21,8 +26,8 @@ const TableBody: FC = () => {
                         return (
                             <CellContextMenu
                                 cell={cell}
-                                onOpen={() => setSelectedCell(cell.id)}
-                                onClose={() => setSelectedCell(undefined)}
+                                onOpen={() => handleSetIsScrollable(cell.id)}
+                                onClose={() => handleSetIsScrollable(undefined)}
                             >
                                 <BodyCell
                                     key={cell.id}

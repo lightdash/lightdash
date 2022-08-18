@@ -8,8 +8,13 @@ export const TableContainer = styled.div`
     display: flex;
     flex-direction: column;
 `;
-export const TableScrollableWrapper = styled.div`
-    overflow: auto;
+
+interface TableScrollableProps {
+    $isScrollable: boolean;
+}
+
+export const TableScrollableWrapper = styled.div<TableScrollableProps>`
+    overflow: ${({ $isScrollable }) => ($isScrollable ? 'auto' : 'hidden')};
     min-height: 90px;
 `;
 
