@@ -508,6 +508,38 @@ export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
 };
 
+export const METRIC_QUERY_WITH_EMPTY_FILTER: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: [],
+    filters: {
+        dimensions: {
+            id: 'true',
+            and: [],
+        },
+    },
+    sorts: [{ fieldId: 'table1_dim1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+};
+
+export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER: CompiledMetricQuery = {
+    dimensions: ['table1_dim1'],
+    metrics: ['table1_metric1'],
+    filters: {
+        metrics: {
+            id: 'root',
+            and: [],
+        },
+    },
+    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+};
+
 export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
     dimensions: ['table1_dim1'],
     metrics: ['table2_additional_metric'],
@@ -633,6 +665,25 @@ WHERE ((
 ))
 GROUP BY 1
 ORDER BY "table1_dim1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_EMPTY_FILTER_SQL = `SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+ORDER BY "table1_dim1" DESC
+LIMIT 10`;
+
+export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL = `SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
 export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL = `SELECT
