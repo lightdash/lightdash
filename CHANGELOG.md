@@ -1,3 +1,10 @@
+# [0.221.0](https://github.com/lightdash/lightdash/compare/0.220.0...0.221.0) (2022-08-18)
+
+
+### Features
+
+* view underlying data on charts ([#2957](https://github.com/lightdash/lightdash/issues/2957)) ([09a169a](https://github.com/lightdash/lightdash/commit/09a169a27682836734d8f9f58dd02c6c9c382f11))
+
 # [0.220.0](https://github.com/lightdash/lightdash/compare/0.219.0...0.220.0) (2022-08-18)
 
 
