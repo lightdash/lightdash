@@ -30,7 +30,7 @@ const TableBody: FC = () => {
                         return (
                             <CellContextMenu
                                 key={cell.id}
-                                cell={cell}
+                                cell={cell as Cell<ResultRow, ResultRow[0]>}
                                 boundaryElement={tableWrapperRef.current}
                                 onOpen={() => handleCellSelect(cell.id)}
                                 onClose={() => handleCellSelect(undefined)}
