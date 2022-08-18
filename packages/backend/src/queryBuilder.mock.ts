@@ -677,9 +677,9 @@ GROUP BY 1
 SELECT
   *
 FROM metrics
-WHERE ((
+WHERE (
   ("table1_metric1") IN (0)
-))
+)
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
