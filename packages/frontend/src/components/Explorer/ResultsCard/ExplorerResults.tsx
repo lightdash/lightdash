@@ -10,7 +10,7 @@ import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
 import TableCalculationHeaderButton from '../../TableCalculationHeaderButton';
-import { CellContextMenu } from './CellContextMenu';
+import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
     EmptyStateExploreLoading,

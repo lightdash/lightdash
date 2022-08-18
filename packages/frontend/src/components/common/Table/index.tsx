@@ -22,6 +22,7 @@ const ResultsTable: FC<Props> = ({
     const LoadingState = loadingState || States.LoadingState;
     const IdleState = idleState || States.IdleState;
     const EmptyState = emptyState || States.EmptyState;
+
     return (
         <TableProvider {...rest}>
             <TableContainer className="cohere-block">

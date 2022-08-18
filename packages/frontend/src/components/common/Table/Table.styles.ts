@@ -8,8 +8,13 @@ export const TableContainer = styled.div`
     display: flex;
     flex-direction: column;
 `;
-export const TableScrollableWrapper = styled.div`
-    overflow: auto;
+
+interface TableScrollableProps {
+    $isScrollable: boolean;
+}
+
+export const TableScrollableWrapper = styled.div<TableScrollableProps>`
+    overflow: ${({ $isScrollable }) => ($isScrollable ? 'auto' : 'hidden')};
     min-height: 90px;
 `;
 
@@ -38,13 +43,13 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         }
     }
 
-    tbody tr:first-child {
-        td:first-child {
-            box-shadow: none !important;
+    tbody tr {
+        :nth-child(even) {
+            background-color: ${Colors.LIGHT_GRAY5};
         }
 
-        td {
-            box-shadow: inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
+        :hover {
+            background: ${Colors.LIGHT_GRAY3};
         }
     }
 
@@ -80,13 +85,29 @@ const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
 `;
 
-export const BodyCell = styled.td<{ $isNaN: boolean; $rowIndex: number }>`
+export const BodyCell = styled.td<{
+    $isNaN: boolean;
+    $rowIndex: number;
+    $isSelected: boolean;
+    $isInteractive: boolean;
+    $hasData: boolean;
+}>`
     ${CellStyles}
-    ${({ $rowIndex }) =>
-        $rowIndex % 2 &&
-        `
-        background-color: ${Colors.LIGHT_GRAY5}
-  `}
+
+    ${({ $isInteractive, $hasData }) =>
+        $isInteractive && $hasData
+            ? `
+                cursor: pointer;
+            `
+            : ''}
+
+    ${({ $isInteractive, $isSelected, $hasData }) =>
+        $isInteractive && $isSelected && $hasData
+            ? `
+                box-shadow: inset 0 0 0 1px #4170CB !important;
+                background-color: #ECF6FE;
+            `
+            : ''}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`

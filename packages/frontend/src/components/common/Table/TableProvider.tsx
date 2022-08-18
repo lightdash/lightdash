@@ -6,7 +6,14 @@ import {
     Table,
     useReactTable,
 } from '@tanstack/react-table';
-import React, { createContext, FC, useContext, useEffect } from 'react';
+import React, {
+    createContext,
+    FC,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -33,6 +40,10 @@ type Props = {
 };
 
 type TableContext = Props & {
+    tableWrapperRef: React.MutableRefObject<HTMLDivElement | null>;
+    setTableWrapperRef: (instance: HTMLDivElement | null) => void;
+    isScrollable: boolean;
+    setIsScrollable: React.Dispatch<React.SetStateAction<boolean>>;
     table: Table<ResultRow>;
 };
 
@@ -50,15 +61,18 @@ const rowColumn: TableColumn = {
 
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
-    const [columnVisibility, setColumnVisibility] = React.useState({});
-    const [tempColumnOrder, setTempColumnOrder] =
-        React.useState<ColumnOrderState>([
-            ROW_NUMBER_COLUMN_ID,
-            ...(columnOrder || []),
-        ]);
+    const [columnVisibility, setColumnVisibility] = useState({});
+    const [isScrollable, setIsScrollable] = useState(true);
+    const tableWrapperRef = useRef<HTMLDivElement | null>(null);
+    const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
+        ROW_NUMBER_COLUMN_ID,
+        ...(columnOrder || []),
+    ]);
+
     useEffect(() => {
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
+
     const table = useReactTable({
         data,
         columns: [rowColumn, ...columns],
@@ -71,14 +85,24 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
     const { setPageSize } = table;
     useEffect(() => {
         setPageSize(pagination?.show ? DEFAULT_PAGE_SIZE : MAX_PAGE_SIZE);
     }, [pagination, setPageSize]);
+
+    const setTableWrapperRef = (instance: HTMLDivElement | null) => {
+        tableWrapperRef.current = instance;
+    };
+
     return (
         <Context.Provider
             value={{
                 table,
+                tableWrapperRef,
+                setTableWrapperRef,
+                isScrollable,
+                setIsScrollable,
                 ...rest,
             }}
         >
