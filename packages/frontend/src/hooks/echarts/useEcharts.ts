@@ -195,6 +195,7 @@ export type EChartSeries = {
         focus?: string;
     };
     areaStyle?: any;
+    pivotRawValue?: any;
 };
 
 const getFormattedValue = (
@@ -266,6 +267,7 @@ const getPivotSeries = ({
             tooltip: [yFieldHash],
             seriesName: yFieldHash,
         },
+        pivotRawValue: pivotField.value,
         dimensions: [
             {
                 name: xFieldHash,
@@ -850,6 +852,7 @@ const useEcharts = () => {
               )
             : allColors;
     }, [organisationData?.chartColors, validCartesianConfig]);
+
     const eChartsOptions = useMemo(
         () => ({
             xAxis: axis.xAxis,

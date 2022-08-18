@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
+import { CellContextMenu } from './CellContextMenu';
 import { TableWrapper } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
@@ -24,6 +25,7 @@ const SimpleTable: FC = () => {
                 footer={{
                     show: showColumnCalculation,
                 }}
+                cellContextMenu={(props) => <CellContextMenu {...props} />}
             />
         </TableWrapper>
     );

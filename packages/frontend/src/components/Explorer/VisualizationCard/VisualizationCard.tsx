@@ -1,6 +1,7 @@
 import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { ChartType } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, useCallback, useState } from 'react';
+import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
@@ -11,8 +12,10 @@ import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
+import { EchartSeriesClickEvent } from '../../SimpleChart';
 import TableConfigPanel from '../../TableConfigPanel';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+import { SeriesContextMenu } from './SeriesContextMenu';
 import ShowTotalsToggle from './ShowTotalsToggle';
 import {
     CardHeader,
@@ -46,6 +49,27 @@ const VisualizationCard: FC = () => {
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
 
+    const [echartsClickEvent, setEchartsClickEvent] = useState<{
+        event: EchartSeriesClickEvent;
+        dimensions: string[];
+        pivot: string | undefined;
+        series: EChartSeries[];
+    }>();
+
+    const onSeriesContextMenu = useCallback(
+        (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
+            const pivot = unsavedChartVersion?.pivotConfig?.columns?.[0];
+
+            setEchartsClickEvent({
+                event: e,
+                dimensions: unsavedChartVersion.metricQuery.dimensions,
+                pivot,
+                series,
+            });
+        },
+        [unsavedChartVersion],
+    );
+
     if (!unsavedChartVersion.tableName) {
         return (
             <MainCard elevation={1}>
@@ -58,6 +82,7 @@ const VisualizationCard: FC = () => {
             </MainCard>
         );
     }
+
     return (
         <MainCard elevation={1}>
             <VisualizationProvider
@@ -73,6 +98,7 @@ const VisualizationCard: FC = () => {
                 onChartTypeChange={setChartType}
                 onPivotDimensionsChange={setPivotFields}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
+                onSeriesContextMenu={onSeriesContextMenu}
             >
                 <CardHeader>
                     <CardHeaderTitle>
@@ -109,6 +135,13 @@ const VisualizationCard: FC = () => {
                 <Collapse className="explorer-chart" isOpen={vizIsOpen}>
                     <VisualizationCardContentWrapper className="cohere-block">
                         <LightdashVisualization />
+
+                        <SeriesContextMenu
+                            echartSeriesClickEvent={echartsClickEvent?.event}
+                            dimensions={echartsClickEvent?.dimensions || []}
+                            pivot={echartsClickEvent?.pivot}
+                            series={echartsClickEvent?.series || []}
+                        />
                     </VisualizationCardContentWrapper>
                 </Collapse>
             </VisualizationProvider>

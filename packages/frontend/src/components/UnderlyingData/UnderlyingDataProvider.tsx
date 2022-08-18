@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ChartType,
+    Explore,
     Field,
     fieldId as getFieldId,
     FilterOperator,
@@ -23,11 +24,13 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useQueryResults } from '../../hooks/useQueryResults';
 import { ExplorerState } from '../../providers/ExplorerProvider';
 import { TableColumn } from '../common/Table/types';
+import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type UnderlyingDataContext = {
     tableName: string;
@@ -39,10 +42,51 @@ type UnderlyingDataContext = {
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
         row: ResultRow,
+        dimensions?: string[],
+        pivot?: { fieldId: string; value: any },
     ) => void;
+
     closeModal: () => void;
 };
 
+export const getDataFromChartClick = (
+    e: EchartSeriesClickEvent,
+    pivot: string | undefined,
+    explore: Explore,
+    series: EChartSeries[],
+) => {
+    const selectedFields = getFields(explore).filter((field) =>
+        e.dimensionNames.includes(getFieldId(field)),
+    );
+    const selectedDimensions = getDimensions(explore).filter((dimension) =>
+        e.dimensionNames.includes(getFieldId(dimension)),
+    );
+
+    const selectedField =
+        selectedDimensions.length > 0
+            ? selectedDimensions[0]
+            : selectedFields[0];
+    const selectedValue = e.data[getFieldId(selectedField)];
+    const row: ResultRow = Object.entries(e.data as Record<string, any>).reduce(
+        (acc, entry) => {
+            const [key, val] = entry;
+            return { ...acc, [key]: { value: { raw: val, formatted: val } } };
+        },
+        {},
+    );
+
+    const withPivot =
+        pivot !== undefined
+            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
+            : undefined;
+
+    return {
+        meta: { item: selectedField },
+        value: { raw: selectedValue, formatted: selectedValue },
+        row,
+        pivot: withPivot,
+    };
+};
 const Context = createContext<UnderlyingDataContext | undefined>(undefined);
 
 type Props = {
@@ -139,13 +183,20 @@ export const UnderlyingDataProvider: FC<Props> = ({
             value: ResultRow[0]['value'],
             meta: TableColumn['meta'],
             row: ResultRow,
+            dimensions?: string[],
+            pivot?: { fieldId: string; value: any },
         ) => {
             if (meta?.item === undefined) return;
 
             // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-            const rowFields = Object.keys(row);
+            const rowFieldIds = pivot
+                ? [pivot.fieldId, ...Object.keys(row)]
+                : Object.keys(row);
+
+            // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
+            const dimensionFieldIds = dimensions ? dimensions : rowFieldIds;
             const fieldsInQuery = allFields.filter((field) =>
-                rowFields.includes(getFieldId(field)),
+                dimensionFieldIds.includes(getFieldId(field)),
             );
             const tablesInQuery = new Set([
                 ...fieldsInQuery.map((field) => field.table),
@@ -190,13 +241,31 @@ export const UnderlyingDataProvider: FC<Props> = ({
                       },
                   ];
 
+            const pivotFilter: FilterRule[] = pivot
+                ? [
+                      {
+                          id: uuidv4(),
+                          target: {
+                              fieldId: pivot.fieldId,
+                          },
+                          operator: FilterOperator.EQUALS,
+                          values: [pivot.value],
+                      },
+                  ]
+                : [];
+
+            const exploreFilters =
+                filters?.dimensions !== undefined ? [filters?.dimensions] : [];
+            const combinedFilters = [
+                ...exploreFilters,
+                ...dimensionFilters,
+                ...pivotFilter,
+            ];
+
             const metricFilters = {
                 dimensions: {
                     id: uuidv4(),
-                    and:
-                        filters?.dimensions !== undefined
-                            ? [filters?.dimensions, ...dimensionFilters]
-                            : dimensionFilters,
+                    and: combinedFilters,
                 },
             };
 
@@ -222,14 +291,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 isValidQuery: true,
             });
         },
-        [
-            state,
-            setState,
-            filters?.dimensions,
-            tableName,
-            allFields,
-            allDimensions,
-        ],
+        [state, setState, filters, tableName, allFields, allDimensions],
     );
 
     const exploreFromHereUrl = useMemo(() => {

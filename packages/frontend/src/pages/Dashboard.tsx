@@ -18,6 +18,8 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
+import UnderlyingDataModal from '../components/UnderlyingData/UnderlyingDataModal';
+import UnderlyingDataProvider from '../components/UnderlyingData/UnderlyingDataProvider';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
@@ -26,6 +28,7 @@ import {
     useMoveDashboard,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
+import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
@@ -41,9 +44,26 @@ const GridTile: FC<
     >
 > = memo((props) => {
     const { tile } = props;
+
+    const savedChartUuid: string | undefined =
+        tile.type === DashboardTileTypes.SAVED_CHART
+            ? tile.properties?.savedChartUuid || undefined
+            : undefined;
+    const { data: savedQuery, isLoading } = useSavedQuery({
+        id: savedChartUuid,
+    });
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
-            return <ChartTile {...props} tile={tile} />;
+            if (isLoading) return <></>;
+            return (
+                <UnderlyingDataProvider
+                    filters={savedQuery?.metricQuery.filters}
+                    tableName={savedQuery?.tableName || ''}
+                >
+                    <ChartTile {...props} tile={tile} />
+                    <UnderlyingDataModal />
+                </UnderlyingDataProvider>
+            );
         case DashboardTileTypes.MARKDOWN:
             return <MarkdownTile {...props} tile={tile} />;
         case DashboardTileTypes.LOOM:
