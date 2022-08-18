@@ -16,6 +16,7 @@ import {
     getMetrics,
     getQuoteChar,
     isAndFilterGroup,
+    isFilterGroup,
     isMetric,
     MetricType,
     parseAllReferences,
@@ -357,47 +358,55 @@ export const buildQuery = ({
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
 
-    const whereFilters = getFilterRulesFromGroup(filters.dimensions).map(
-        (filter) => {
-            const field = getFields(explore).find(
-                (d) => fieldId(d) === filter.target.fieldId,
+    const sqlFilterRule = (filter: FilterRule, isMetricFilter?: boolean) => {
+        const field = isMetricFilter
+            ? getMetricFromId(
+                  filter.target.fieldId,
+                  explore,
+                  compiledMetricQuery,
+              )
+            : getFields(explore).find(
+                  (d) => fieldId(d) === filter.target.fieldId,
+              );
+        if (!field) {
+            throw new Error(
+                `Filter has a reference to an unknown ${
+                    isMetricFilter ? 'metric' : 'dimension'
+                }: ${filter.target.fieldId}`,
             );
-            if (!field) {
-                throw new Error(
-                    `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
-                );
-            }
-            return renderFilterRuleSql(filter, field, q);
-        },
-    );
-    const sqlWhere =
-        whereFilters.length > 0
-            ? `WHERE ${whereFilters
-                  .map((w) => `(\n  ${w}\n)`)
-                  .join(getOperatorSql(filters.dimensions))}`
-            : '';
+        }
+        return renderFilterRuleSql(filter, field, q);
+    };
 
-    const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
-        (filter) => {
-            const field = getMetricFromId(
-                filter.target.fieldId,
-                explore,
-                compiledMetricQuery,
-            );
-            if (!field) {
-                throw new Error(
-                    `Filter has a reference to an unknown metric: ${filter.target.fieldId}`,
-                );
-            }
-            return renderFilterRuleSql(filter, field, q);
-        },
-    );
+    const getNestedFilterSQLFromGroup = (
+        filterGroup: FilterGroup | undefined,
+        isMetricFilter?: boolean,
+    ): string => {
+        if (filterGroup) {
+            const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
+            const items = isAndFilterGroup(filterGroup)
+                ? filterGroup.and
+                : filterGroup.or;
+            const filterRules = items.reduce((sum, item) => {
+                const filterSql = isFilterGroup(item)
+                    ? getNestedFilterSQLFromGroup(item)
+                    : `(\n  ${sqlFilterRule(item, isMetricFilter)}\n)`;
+                return [...sum, filterSql];
+            }, [] as string[]);
+            return `(${filterRules.join(` ${operator} `)})`;
+        }
+        return `${filterGroup}`;
+    };
+    const sqlWhere =
+        filters?.dimensions !== undefined
+            ? `WHERE ${getNestedFilterSQLFromGroup(filters.dimensions)}`
+            : '';
 
     const sqlLimit = `LIMIT ${limit}`;
 
     if (
         compiledMetricQuery.compiledTableCalculations.length > 0 ||
-        whereMetricFilters.length > 0
+        filters.metrics !== undefined
     ) {
         const cteSql = [
             sqlSelect,
@@ -419,12 +428,12 @@ export const buildQuery = ({
             ',\n',
         )}`;
         const finalFrom = `FROM ${cteName}`;
+
         const finalSqlWhere =
-            whereMetricFilters.length > 0
-                ? `WHERE ${whereMetricFilters
-                      .map((w) => `(\n  ${w}\n)`)
-                      .join(getOperatorSql(filters.metrics))}`
+            filters?.metrics !== undefined
+                ? `WHERE ${getNestedFilterSQLFromGroup(filters.metrics, true)}`
                 : '';
+
         const secondQuery = [finalSelect, finalFrom, finalSqlWhere].join('\n');
 
         return {
