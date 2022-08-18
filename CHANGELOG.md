@@ -1,3 +1,10 @@
+# [0.218.0](https://github.com/lightdash/lightdash/compare/0.217.0...0.218.0) (2022-08-18)
+
+
+### Features
+
+* support dbt metric filters ([#2967](https://github.com/lightdash/lightdash/issues/2967)) ([6704cf7](https://github.com/lightdash/lightdash/commit/6704cf74c74b52b83767b2e85e5ace2201f0901d))
+
 # [0.217.0](https://github.com/lightdash/lightdash/compare/0.216.2...0.217.0) (2022-08-18)
 
 
