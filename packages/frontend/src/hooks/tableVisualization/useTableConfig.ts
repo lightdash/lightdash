@@ -6,10 +6,12 @@ import {
     getItemLabel,
     getItemMap,
     isField,
+    ResultRow,
     TableCalculation,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import getDataAndColumns from './getDataAndColumns';
 import getPivotDataAndColumns from './getPivotDataAndColumns';
 
@@ -81,7 +83,11 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const { rows, columns, error } = useMemo(() => {
+    const { rows, columns, error } = useMemo<{
+        rows: ResultRow[];
+        columns: Array<TableColumn | TableHeader>;
+        error?: string;
+    }>(() => {
         const pivotDimension = pivotDimensions?.[0];
         if (!resultsData) {
             return {
