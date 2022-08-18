@@ -95,7 +95,7 @@ const CellContextMenu: FC<
             minimal
             lazy
             position={Position.BOTTOM_RIGHT}
-            portalContainer={boundaryElement}
+            boundary={boundaryElement}
             content={
                 <ContextMenu
                     cell={cell}
