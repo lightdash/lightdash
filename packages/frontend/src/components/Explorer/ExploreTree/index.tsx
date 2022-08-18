@@ -8,11 +8,11 @@ import {
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { AdditionalMetric, Explore, Source } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { TableSearch } from './ExploreTree.styles';
+import { FormField } from '../ExploreSideBar/ExploreSideBar.styles';
 import NewTableTree from './TableTree';
 
 type ExploreTreeProps = {
@@ -110,7 +110,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 overflow: 'hidden',
             }}
         >
-            <TableSearch>
+            <FormField>
                 <InputGroup
                     leftIcon="search"
                     rightElement={
@@ -124,7 +124,8 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
-            </TableSearch>
+            </FormField>
+
             <div style={{ overflowY: 'auto' }}>
                 {Object.values(explore.tables)
                     .sort((tableA) =>

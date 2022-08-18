@@ -109,7 +109,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                                 onBack
                                     ? [
                                           {
-                                              text: 'All tables',
+                                              text: 'Tables',
                                               className: 'home-breadcrumb',
                                               onClick: onBack,
                                           },
@@ -118,6 +118,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                                     : [{ text: data.label }]
                             }
                         />
+
                         <Tooltip2
                             content={`${
                                 headerIsOpen ? 'Hide' : 'View'
@@ -133,6 +134,7 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                             />
                         </Tooltip2>
                     </ExpandableHeader>
+
                     <Collapse isOpen={headerIsOpen}>
                         <ContentWrapper>
                             <TableTitle>
@@ -155,7 +157,9 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
                         </TableDescription>
                     </Collapse>
                 </ExpandableWrapper>
+
                 <TableDivider />
+
                 <ExploreTree
                     explore={activeExplore}
                     additionalMetrics={additionalMetrics || []}

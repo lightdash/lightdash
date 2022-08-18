@@ -37,7 +37,7 @@ export const ExpandableWrapper = styled.div`
 `;
 
 export const TableDivider = styled(Divider)`
-    margin: 18px 0;
+    margin: 12px 0 18px 0;
 `;
 
 export const TableDescription = styled.p`
