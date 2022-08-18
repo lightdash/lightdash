@@ -256,6 +256,7 @@ export type DbtMetric = {
     meta?: Record<string, any> & DbtMetricLightdashMetadata;
     tags?: string[];
     sql?: string | null;
+    metrics?: string[][];
 };
 export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
