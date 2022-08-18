@@ -44,7 +44,8 @@ type GenericEvent = {
         | EventName.ADD_CUSTOM_METRIC_CLICKED
         | EventName.REMOVE_CUSTOM_METRIC_CLICKED
         | EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED
-        | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED;
+        | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
+        | EventName.GO_TO_LINK_CLICKED;
     properties?: {};
 };
 

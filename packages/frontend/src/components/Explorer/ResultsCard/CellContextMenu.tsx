@@ -42,6 +42,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon="link"
                     text="Go to link"
                     onClick={() => {
+                        track({
+                            name: EventName.GO_TO_LINK_CLICKED,
+                        });
                         window.open(value.raw, '_blank');
                     }}
                 />
