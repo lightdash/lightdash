@@ -1,3 +1,10 @@
+# [0.222.0](https://github.com/lightdash/lightdash/compare/0.221.2...0.222.0) (2022-08-18)
+
+
+### Features
+
+* table interactions ([#2977](https://github.com/lightdash/lightdash/issues/2977)) ([c938be7](https://github.com/lightdash/lightdash/commit/c938be77bdfde947b3aa5ca1844cbf671644e71e))
+
 ## [0.221.2](https://github.com/lightdash/lightdash/compare/0.221.1...0.221.2) (2022-08-18)
 
 
