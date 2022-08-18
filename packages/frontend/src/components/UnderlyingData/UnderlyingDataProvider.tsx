@@ -1,7 +1,6 @@
 import {
     ApiQueryResults,
     ChartType,
-    DimensionType,
     Explore,
     Field,
     fieldId as getFieldId,
@@ -25,6 +24,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useQueryResults } from '../../hooks/useQueryResults';
@@ -53,6 +53,7 @@ export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
     pivot: string | undefined,
     explore: Explore,
+    series: EChartSeries[],
 ) => {
     const selectedFields = getFields(explore).filter((field) =>
         e.dimensionNames.includes(getFieldId(field)),
@@ -74,20 +75,9 @@ export const getDataFromChartClick = (
         {},
     );
 
-    const getPivotValue = () => {
-        const pivotField = getDimensions(explore).find(
-            (dimension) => getFieldId(dimension) === pivot,
-        );
-        switch (pivotField?.type) {
-            case DimensionType.BOOLEAN:
-                return e.seriesName === 'Yes' ? true : false;
-            default:
-                return e.seriesName;
-        }
-    };
     const withPivot =
         pivot !== undefined
-            ? { fieldId: pivot, value: getPivotValue() }
+            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
             : undefined;
 
     return {

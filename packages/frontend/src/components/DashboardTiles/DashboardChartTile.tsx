@@ -236,7 +236,12 @@ const DashboardChartTile: FC<Props> = (props) => {
                 top: e.event.event.pageY,
             });
 
-            const underlyingData = getDataFromChartClick(e, pivot, explore);
+            const underlyingData = getDataFromChartClick(
+                e,
+                pivot,
+                explore,
+                series,
+            );
             const queryDimensions = savedQuery?.metricQuery.dimensions || [];
             setViewUnderlyingDataOptions({
                 ...underlyingData,

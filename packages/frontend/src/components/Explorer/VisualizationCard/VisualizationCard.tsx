@@ -52,6 +52,7 @@ const VisualizationCard: FC = () => {
         event: EchartSeriesClickEvent;
         dimensions: string[];
         pivot: string | undefined;
+        series: EChartSeries[];
     }>();
 
     const onSeriesContextMenu = useCallback(
@@ -62,6 +63,7 @@ const VisualizationCard: FC = () => {
                 event: e,
                 dimensions: unsavedChartVersion.metricQuery.dimensions,
                 pivot,
+                series,
             });
         },
         [unsavedChartVersion],
@@ -134,6 +136,7 @@ const VisualizationCard: FC = () => {
                             echartSeriesClickEvent={echartsClickEvent?.event}
                             dimensions={echartsClickEvent?.dimensions || []}
                             pivot={echartsClickEvent?.pivot}
+                            series={echartsClickEvent?.series || []}
                         />
                     </VisualizationCardContentWrapper>
                 </Collapse>

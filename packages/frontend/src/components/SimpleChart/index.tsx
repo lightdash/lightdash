@@ -29,6 +29,7 @@ type EchartBaseClickEvent = {
     // color of the shape, works when componentType is 'series'.
     color: string;
     event: { event: MouseEvent };
+    pivotRawValue: any;
 };
 
 export type EchartSeriesClickEvent = EchartBaseClickEvent & {
@@ -36,6 +37,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     data: Record<string, any>;
     seriesIndex: number;
     dimensionNames: string[];
+    pivotRawValue: any;
 };
 
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
