@@ -92,14 +92,20 @@ export const BodyCell = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;
     $isSelected: boolean;
+    $isInteractive: boolean;
     $hasData: boolean;
 }>`
     ${CellStyles}
 
-    ${({ $hasData }) => ($hasData ? ` cursor: pointer;` : '')}
+    ${({ $isInteractive, $hasData }) =>
+        $isInteractive && $hasData
+            ? `
+                cursor: pointer;
+            `
+            : ''}
 
-    ${({ $isSelected }) =>
-        $isSelected
+    ${({ $isInteractive, $isSelected, $hasData }) =>
+        $isInteractive && $isSelected && $hasData
             ? `
                 box-shadow: inset 0 0 0 1px #4170CB !important;
                 background-color: #ECF6FE;

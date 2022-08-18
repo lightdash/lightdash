@@ -29,6 +29,7 @@ const TableBody: FC = () => {
                                 <BodyCell
                                     $rowIndex={rowIndex}
                                     $isSelected={cell.id === selectedCell}
+                                    $isInteractive={!!cellContextMenu}
                                     $hasData={!!meta?.item}
                                     $isNaN={
                                         !meta?.item || !isNumericItem(meta.item)
