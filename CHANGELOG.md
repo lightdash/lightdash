@@ -1,3 +1,10 @@
+## [0.221.1](https://github.com/lightdash/lightdash/compare/0.221.0...0.221.1) (2022-08-18)
+
+
+### Bug Fixes
+
+* fix empty filter ([#2984](https://github.com/lightdash/lightdash/issues/2984)) ([8c49316](https://github.com/lightdash/lightdash/commit/8c49316df5e3660b4536ce2990e8e6818a3de7bd))
+
 # [0.221.0](https://github.com/lightdash/lightdash/compare/0.220.0...0.221.0) (2022-08-18)
 
 
