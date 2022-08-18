@@ -1,3 +1,24 @@
+# [0.219.0](https://github.com/lightdash/lightdash/compare/0.218.0...0.219.0) (2022-08-18)
+
+
+### Features
+
+* show column total on chart view mode ([#2976](https://github.com/lightdash/lightdash/issues/2976)) ([a386d32](https://github.com/lightdash/lightdash/commit/a386d32e505664cd0528c0ea3dd4a808ae37f1ed))
+
+# [0.218.0](https://github.com/lightdash/lightdash/compare/0.217.0...0.218.0) (2022-08-18)
+
+
+### Features
+
+* support dbt metric filters ([#2967](https://github.com/lightdash/lightdash/issues/2967)) ([6704cf7](https://github.com/lightdash/lightdash/commit/6704cf74c74b52b83767b2e85e5ace2201f0901d))
+
+# [0.217.0](https://github.com/lightdash/lightdash/compare/0.216.2...0.217.0) (2022-08-18)
+
+
+### Features
+
+* nested filters SQL ([#2970](https://github.com/lightdash/lightdash/issues/2970)) ([1307aa7](https://github.com/lightdash/lightdash/commit/1307aa72cc08662627472aabfbea8f84d6207b7b))
+
 ## [0.216.2](https://github.com/lightdash/lightdash/compare/0.216.1...0.216.2) (2022-08-17)
 
 
