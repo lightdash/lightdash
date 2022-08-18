@@ -8,6 +8,7 @@ import {
 
 export const ColumnConfiguration: React.FC = () => {
     const {
+        pivotDimensions,
         tableConfig: {
             columnOrder,
             updateColumnProperty,
@@ -16,6 +17,7 @@ export const ColumnConfiguration: React.FC = () => {
             isColumnVisible,
         },
     } = useVisualizationContext();
+    const pivotDimension = pivotDimensions?.[0];
     return (
         <ColumnConfigurationWrapper>
             {columnOrder.map((fieldId) => {
@@ -33,18 +35,20 @@ export const ColumnConfiguration: React.FC = () => {
                             }}
                         />
 
-                        <Button
-                            icon={
-                                isColumnVisible(fieldId)
-                                    ? 'eye-off'
-                                    : 'eye-open'
-                            }
-                            onClick={() => {
-                                updateColumnProperty(fieldId, {
-                                    visible: !isColumnVisible(fieldId),
-                                });
-                            }}
-                        />
+                        {fieldId !== pivotDimension && (
+                            <Button
+                                icon={
+                                    isColumnVisible(fieldId)
+                                        ? 'eye-off'
+                                        : 'eye-open'
+                                }
+                                onClick={() => {
+                                    updateColumnProperty(fieldId, {
+                                        visible: !isColumnVisible(fieldId),
+                                    });
+                                }}
+                            />
+                        )}
                     </ColumnWrapper>
                 );
             })}

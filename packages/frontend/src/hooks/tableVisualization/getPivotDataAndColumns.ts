@@ -106,6 +106,7 @@ const getPivotDataAndColumns = ({
         columns: dimensionHeaders,
         meta: {
             bgColor: Colors.GRAY4,
+            item: itemsMap[pivotDimension],
         },
     });
     const pivotValueHeaderGroups = Object.values(pivotValuesMap)
