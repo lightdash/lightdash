@@ -284,23 +284,35 @@ export const buildQuery = ({
         return `  ${metric.compiledSql} AS ${q}${alias}${q}`;
     });
 
-    const selectedTables = new Set([
-        ...metrics.map(
-            (field) =>
-                getMetricFromId(field, explore, compiledMetricQuery).table,
+    const selectedTables = new Set<string>([
+        ...metrics.reduce<string[]>((acc, field) => {
+            const metric = getMetricFromId(field, explore, compiledMetricQuery);
+            return [...acc, ...(metric.tablesReferences || [metric.table])];
+        }, []),
+        ...dimensions.reduce<string[]>((acc, field) => {
+            const dim = getDimensionFromId(field, explore);
+            return [...acc, ...(dim.tablesReferences || [dim.table])];
+        }, []),
+        ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
+            (acc, filterRule) => {
+                const dim = getDimensionFromId(
+                    filterRule.target.fieldId,
+                    explore,
+                );
+                return [...acc, ...(dim.tablesReferences || [dim.table])];
+            },
+            [],
         ),
-        ...dimensions.map((field) => getDimensionFromId(field, explore).table),
-        ...getFilterRulesFromGroup(filters.dimensions).map(
-            (filterRule) =>
-                getDimensionFromId(filterRule.target.fieldId, explore).table,
-        ),
-        ...getFilterRulesFromGroup(filters.metrics).map(
-            (filterRule) =>
-                getMetricFromId(
+        ...getFilterRulesFromGroup(filters.metrics).reduce<string[]>(
+            (acc, filterRule) => {
+                const metric = getMetricFromId(
                     filterRule.target.fieldId,
                     explore,
                     compiledMetricQuery,
-                ).table,
+                );
+                return [...acc, ...(metric.tablesReferences || [metric.table])];
+            },
+            [],
         ),
     ]);
 

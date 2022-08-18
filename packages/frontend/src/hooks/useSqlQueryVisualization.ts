@@ -48,6 +48,7 @@ const useSqlQueryVisualization = ({
                             tableLabel: '',
                             sql: '',
                             compiledSql: '',
+                            tablesReferences: [SQL_RESULTS_TABLE_NAME],
                             hidden: false,
                         };
                         return {
@@ -67,6 +68,7 @@ const useSqlQueryVisualization = ({
                             tableLabel: '',
                             sql: '',
                             compiledSql: '',
+                            tablesReferences: [SQL_RESULTS_TABLE_NAME],
                             hidden: false,
                         };
                         return {

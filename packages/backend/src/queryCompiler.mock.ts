@@ -20,6 +20,7 @@ const DIMENSION: CompiledDimension = {
     hidden: false,
     sql: '${TABLE}.dim_1',
     compiledSql: '`some`.`table1`.`dim_1`',
+    tablesReferences: ['table1'],
 };
 
 export const EXPLORE: Pick<Explore, 'targetDatabase' | 'tables'> = {
@@ -139,6 +140,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 tableLabel: 'table1',
                 hidden: false,
                 compiledSql: 'COUNT("table1".dim_1)',
+                tablesReferences: ['table1'],
                 fieldType: FieldType.METRIC,
                 round: undefined,
                 source: undefined,

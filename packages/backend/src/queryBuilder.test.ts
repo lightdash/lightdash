@@ -35,6 +35,8 @@ import {
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
+    METRIC_QUERY_WITH_TABLE_REFERENCE,
+    METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
@@ -63,6 +65,15 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
+    });
+
+    test('Should build metric query where a field references another table', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
 
     test('Should join table from filter dimension', () => {
