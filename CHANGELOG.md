@@ -1,3 +1,24 @@
+# [0.218.0](https://github.com/lightdash/lightdash/compare/0.217.0...0.218.0) (2022-08-18)
+
+
+### Features
+
+* support dbt metric filters ([#2967](https://github.com/lightdash/lightdash/issues/2967)) ([6704cf7](https://github.com/lightdash/lightdash/commit/6704cf74c74b52b83767b2e85e5ace2201f0901d))
+
+# [0.217.0](https://github.com/lightdash/lightdash/compare/0.216.2...0.217.0) (2022-08-18)
+
+
+### Features
+
+* nested filters SQL ([#2970](https://github.com/lightdash/lightdash/issues/2970)) ([1307aa7](https://github.com/lightdash/lightdash/commit/1307aa72cc08662627472aabfbea8f84d6207b7b))
+
+## [0.216.2](https://github.com/lightdash/lightdash/compare/0.216.1...0.216.2) (2022-08-17)
+
+
+### Bug Fixes
+
+* update jaffle with customers.sql fix ([#2966](https://github.com/lightdash/lightdash/issues/2966)) ([785d48c](https://github.com/lightdash/lightdash/commit/785d48c9a8d5b0d4474e8b096623ac867ccc8467))
+
 ## [0.216.1](https://github.com/lightdash/lightdash/compare/0.216.0...0.216.1) (2022-08-16)
 
 

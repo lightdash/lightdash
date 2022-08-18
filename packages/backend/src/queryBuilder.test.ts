@@ -29,6 +29,8 @@ import {
     METRIC_QUERY_WITH_FILTER_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER,
     METRIC_QUERY_WITH_METRIC_FILTER_SQL,
+    METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
+    METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
@@ -85,7 +87,14 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
-
+    test('Should build query with nested filter operators', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
+    });
     test('Should build second query with metric filter', () => {
         expect(
             buildQuery({

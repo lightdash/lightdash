@@ -16,6 +16,7 @@ import { EchartSeriesClickEvent } from '../../SimpleChart';
 import TableConfigPanel from '../../TableConfigPanel';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import { SeriesContextMenu } from './SeriesContextMenu';
+import ShowTotalsToggle from './ShowTotalsToggle';
 import {
     CardHeader,
     CardHeaderButtons,
@@ -124,6 +125,9 @@ const VisualizationCard: FC = () => {
                                     />
                                 </>
                             )}
+                            {!isEditMode &&
+                                unsavedChartVersion.chartConfig.type ===
+                                    'table' && <ShowTotalsToggle />}
                             <ChartDownloadMenu />
                         </CardHeaderButtons>
                     )}
