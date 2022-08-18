@@ -4,6 +4,7 @@ import { attachTypesToModels, convertTable } from './translator';
 import {
     DBT_METRIC,
     DBT_METRIC_WITH_CUSTOM_SQL,
+    DBT_METRIC_WITH_FILTER,
     DBT_METRIC_WITH_SQL_FIELD,
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
@@ -125,6 +126,7 @@ describe('convert tables from dbt models', () => {
                 DBT_METRIC,
                 DBT_METRIC_WITH_SQL_FIELD,
                 DBT_METRIC_WITH_CUSTOM_SQL,
+                DBT_METRIC_WITH_FILTER,
             ]),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
     });
