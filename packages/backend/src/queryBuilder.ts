@@ -378,6 +378,7 @@ export const buildQuery = ({
             const items = isAndFilterGroup(filterGroup)
                 ? filterGroup.and
                 : filterGroup.or;
+            if (items.length === 0) return '';
             const filterRules = items.reduce((sum, item) => {
                 const filterSql = isFilterGroup(item)
                     ? getNestedFilterSQLFromGroup(item)
@@ -388,9 +389,11 @@ export const buildQuery = ({
         }
         return `${filterGroup}`;
     };
+
+    const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);
     const sqlWhere =
-        filters?.dimensions !== undefined
-            ? `WHERE ${getNestedFilterSQLFromGroup(filters.dimensions)}`
+        filters.dimensions !== undefined && nestedFilterSql
+            ? `WHERE ${nestedFilterSql}`
             : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
