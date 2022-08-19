@@ -187,7 +187,7 @@ const createSavedChartVersion = async (
                 );
             });
             await Promise.all(promises);
-        } catch (e) {
+        } catch (e: any) {
             await trx.rollback(e);
             throw e;
         }
@@ -242,7 +242,7 @@ export class SavedChartModel {
                         },
                     );
                     return newSavedChart.saved_query_uuid;
-                } catch (e) {
+                } catch (e: any) {
                     await trx.rollback(e);
                     throw e;
                 }
@@ -266,7 +266,7 @@ export class SavedChartModel {
                     ...data,
                     updatedByUser: user,
                 });
-            } catch (e) {
+            } catch (e: any) {
                 trx.rollback(e);
                 throw e;
             }
@@ -306,7 +306,7 @@ export class SavedChartModel {
                         .where('saved_query_uuid', savedChart.uuid),
                 );
                 await Promise.all(promises);
-            } catch (e) {
+            } catch (e: any) {
                 trx.rollback(e);
                 throw e;
             }

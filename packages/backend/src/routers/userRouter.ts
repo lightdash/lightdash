@@ -39,7 +39,7 @@ userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
                 results: lightdashUser,
             });
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });

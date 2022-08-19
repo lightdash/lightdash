@@ -20,7 +20,7 @@ inviteLinksRouter.get(
                 status: 'ok',
                 results: inviteLink,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -43,7 +43,7 @@ inviteLinksRouter.post(
                 status: 'ok',
                 results: inviteLink,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -60,7 +60,7 @@ inviteLinksRouter.delete(
             res.status(200).json({
                 status: 'ok',
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },

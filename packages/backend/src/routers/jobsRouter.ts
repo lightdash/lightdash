@@ -16,7 +16,7 @@ jobsRouter.get('/:jobUuid', isAuthenticated, async (req, res, next) => {
             status: 'ok',
             results: job,
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });

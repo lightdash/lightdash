@@ -21,7 +21,7 @@ dashboardRouter.get(
                     req.params.dashboardUuid,
                 ),
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -41,7 +41,7 @@ dashboardRouter.patch(
                     req.body,
                 ),
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -58,7 +58,7 @@ dashboardRouter.delete(
                 status: 'ok',
                 results: undefined,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },

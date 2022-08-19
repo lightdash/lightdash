@@ -125,7 +125,7 @@ export class PostgresClient implements WarehouseClient {
         try {
             const pool = new pg.Pool(config);
             this.pool = pool;
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
     }
@@ -143,7 +143,7 @@ export class PostgresClient implements WarehouseClient {
                 {},
             );
             return { fields, rows: results.rows };
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         }
     }

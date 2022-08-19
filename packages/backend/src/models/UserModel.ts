@@ -288,7 +288,7 @@ export class UserModel {
                         is_primary: true,
                     });
                 }
-            } catch (e) {
+            } catch (e: any) {
                 await trx.rollback(e);
                 throw e;
             }
@@ -426,7 +426,7 @@ export class UserModel {
                         })
                         .returning('*');
                 }
-            } catch (e) {
+            } catch (e: any) {
                 await trx.rollback(e);
                 throw e;
             }

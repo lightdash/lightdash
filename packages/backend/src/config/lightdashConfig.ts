@@ -13,7 +13,7 @@ const loadRawConfig = (): any => {
     }
     try {
         return yaml.load(fs.readFileSync(path, 'utf-8'));
-    } catch (e) {
+    } catch (e: any) {
         throw new ParseError(`Failed to read config file at ${path}: ${e}`, {});
     }
 };

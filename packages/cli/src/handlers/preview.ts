@@ -37,7 +37,7 @@ export const previewHandler = async (
     let project: Project;
     try {
         project = await createProject({ ...options, name });
-    } catch (e) {
+    } catch (e: any) {
         spinner.fail();
         throw e;
     }
@@ -58,7 +58,7 @@ export const previewHandler = async (
             anyKey: true,
             pressToContinueMessage: 'Press any key to shutdown preview',
         });
-    } catch (e) {
+    } catch (e: any) {
         spinner.fail('Error creating developer preview');
         await lightdashApi({
             method: 'DELETE',

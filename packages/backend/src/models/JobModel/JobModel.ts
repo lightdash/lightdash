@@ -183,7 +183,7 @@ export class JobModel {
                 jobStepType,
             );
             return result;
-        } catch (e) {
+        } catch (e: any) {
             const formatJobErrorMessage = (error: unknown) => {
                 if (error instanceof LightdashError) {
                     return `${error.name}: ${error.message}${

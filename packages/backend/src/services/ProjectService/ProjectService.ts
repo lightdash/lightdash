@@ -213,7 +213,7 @@ export class ProjectService {
                     },
                 });
                 this.projectAdapters[projectUuid] = adapter;
-            } catch (error) {
+            } catch (error: any) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.ERROR,
@@ -320,7 +320,7 @@ export class ProjectService {
                 if (this.projectAdapters[projectUuid] !== undefined)
                     await this.projectAdapters[projectUuid].destroy();
                 this.projectAdapters[projectUuid] = adapter;
-            } catch (error) {
+            } catch (error: any) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.ERROR,
@@ -351,7 +351,7 @@ export class ProjectService {
         );
         try {
             await adapter.test();
-        } catch (e) {
+        } catch (e: any) {
             await adapter.destroy();
             throw e;
         }
@@ -624,7 +624,7 @@ export class ProjectService {
                                         ).length
                                     );
                                 }
-                            } catch (e) {
+                            } catch (e: any) {
                                 Logger.error(
                                     `Unable to reduce formattedFieldsCount. ${e}`,
                                 );
@@ -636,7 +636,7 @@ export class ProjectService {
                 },
             });
             return explores;
-        } catch (e) {
+        } catch (e: any) {
             const errorResponse = errorHandler(e);
             analytics.track({
                 event: 'project.error',
@@ -727,7 +727,7 @@ export class ProjectService {
                     await this.jobModel.update(job.jobUuid, {
                         jobStatus: JobStatusType.DONE,
                     });
-                } catch (e) {
+                } catch (e: any) {
                     await this.jobModel.update(job.jobUuid, {
                         jobStatus: JobStatusType.ERROR,
                     });

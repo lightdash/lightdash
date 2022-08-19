@@ -189,7 +189,7 @@ const convertDbtMetricToLightdashMetric = (
     } else {
         try {
             type = parseMetricType(metric.type);
-        } catch (e) {
+        } catch (e: any) {
             throw new ParseError(
                 `Cannot parse metric '${metric.unique_id}: type ${metric.type} is not a valid Lightdash metric type`,
             );
@@ -390,6 +390,8 @@ const modelCanUseMetric = (
     return false;
 };
 
+type TablesErrorsTuple = [Table[], ExploreError[]];
+
 export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
@@ -397,7 +399,7 @@ export const convertExplores = async (
     metrics: DbtMetric[],
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
-    const [tables, exploreErrors] = models.reduce(
+    const [tables, exploreErrors] = models.reduce<TablesErrorsTuple>(
         ([accTables, accErrors], model) => {
             const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
             // If there are any errors compiling the table return an ExploreError
@@ -420,7 +422,7 @@ export const convertExplores = async (
                 };
 
                 return [[...accTables, tableWithLineage], accErrors];
-            } catch (e) {
+            } catch (e: any) {
                 const exploreError: ExploreError = {
                     name: model.name,
                     label: meta.label || friendlyName(model.name),
@@ -437,7 +439,7 @@ export const convertExplores = async (
                 return [accTables, [...accErrors, exploreError]];
             }
         },
-        [[], []] as [Table[], ExploreError[]],
+        [[], []],
     );
     const tableLookup: Record<string, Table> = tables.reduce(
         (prev, table) => ({ ...prev, [table.name]: table }),
@@ -461,7 +463,7 @@ export const convertExplores = async (
                 tables: tableLookup,
                 targetDatabase: adapterType,
             });
-        } catch (e) {
+        } catch (e: any) {
             return {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),

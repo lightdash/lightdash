@@ -175,7 +175,7 @@ organizationRouter.get(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -191,7 +191,7 @@ organizationRouter.post(
                 status: 'ok',
                 results: undefined,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },

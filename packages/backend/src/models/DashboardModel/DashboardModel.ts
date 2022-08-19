@@ -584,7 +584,7 @@ export class DashboardModel {
                             .where('dashboard_uuid', dashboard.uuid);
                     }),
                 );
-            } catch (e) {
+            } catch (e: any) {
                 trx.rollback(e);
                 throw e;
             }

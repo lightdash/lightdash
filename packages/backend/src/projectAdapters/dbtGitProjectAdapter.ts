@@ -111,7 +111,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                 recursive: true,
                 force: true,
             });
-        } catch (e) {
+        } catch (e: any) {
             throw new UnexpectedServerError(
                 `Unexpected error while removing local git directory: ${e}`,
             );
@@ -122,7 +122,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         try {
             Logger.debug(`Clean ${this.localRepositoryDir}`);
             await fspromises.emptyDir(this.localRepositoryDir);
-        } catch (e) {
+        } catch (e: any) {
             throw new UnexpectedServerError(
                 `Unexpected error while cleaning local git directory: ${e}`,
             );
@@ -147,7 +147,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     this.localRepositoryDir,
                     defaultCloneOptions,
                 );
-        } catch (e) {
+        } catch (e: any) {
             gitErrorHandler(e);
         }
     }
@@ -165,7 +165,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     '--no-tags': null,
                     '--progress': null,
                 });
-        } catch (e) {
+        } catch (e: any) {
             gitErrorHandler(e);
         }
     }
@@ -173,7 +173,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
     private async _refreshRepo() {
         try {
             await this._pull();
-        } catch (e) {
+        } catch (e: any) {
             Logger.debug(`Failed git pull ${e}`);
             await this._cleanLocal();
             await this._clone();

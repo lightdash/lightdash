@@ -124,7 +124,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         try {
             connection = createConnection(this.connectionOptions);
             await Util.promisify(connection.connect)();
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
@@ -134,7 +134,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             );
             const result = await this.executeStatement(connection, sqlText);
             return result;
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
             // todo: does this need to be promisified? uncaught error in callback?

@@ -1,6 +1,6 @@
 import { AnchorButton, Dialog } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { HeaderRightContent } from './UnderlyingDataModal.styles';
 import { useUnderlyingDataContext } from './UnderlyingDataProvider';
@@ -8,7 +8,7 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}
 
-const UnderlyingDataModal: FC<Props> = ({}) => {
+const UnderlyingDataModal: FC<Props> = () => {
     const {
         resultsData,
         fieldsMap,

@@ -114,7 +114,7 @@ export class LightdashAnalytics {
                 },
                 body: JSON.stringify(body),
             });
-        } catch (e) {
+        } catch (e: any) {
             // do nothing
         }
     }

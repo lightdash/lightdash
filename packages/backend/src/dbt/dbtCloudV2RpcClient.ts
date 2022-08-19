@@ -25,7 +25,7 @@ export class DbtCloudV2RpcClient extends DbtRpcClientBase {
     async _post(method: string, params: Record<string, any>) {
         try {
             return await super._post(method, params);
-        } catch (e) {
+        } catch (e: any) {
             if (e instanceof NetworkError) {
                 // handle common dbt Cloud expected responses
                 if (
@@ -57,7 +57,7 @@ export class DbtCloudV2RpcClient extends DbtRpcClientBase {
     async _isServerReady(): Promise<boolean> {
         try {
             return await super._isServerReady();
-        } catch (e) {
+        } catch (e: any) {
             if (e instanceof LightdashError) {
                 e.message = `${e.message}\n${this.unreachableMessage}`;
                 throw e;

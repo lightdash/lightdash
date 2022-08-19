@@ -37,7 +37,7 @@ export const getDbtConfig = async (
     const configPath = path.join(dbtProjectDirectory, 'dbt_project.yml');
     try {
         config = loadYaml(await fs.readFile(configPath, 'utf-8'));
-    } catch (e) {
+    } catch (e: any) {
         throw new ParseError(
             `dbt_project.yml was not found or isn't a valid yaml document: ${e.message}`,
             {},
@@ -126,7 +126,7 @@ export class DbtCliClient implements DbtClient {
                 },
             });
             return dbtProcess.all;
-        } catch (e) {
+        } catch (e: any) {
             throw new DbtError(
                 `Failed to run "dbt ${command.join(' ')}"\n${e.all}`,
                 {
@@ -209,7 +209,7 @@ export class DbtCliClient implements DbtClient {
                 return JSON.parse(file);
             }
             return yaml.load(file);
-        } catch (e) {
+        } catch (e: any) {
             throw new DbtError(
                 `Cannot read response from dbt, could not read dbt artifact: ${fullPath}`,
                 {},

@@ -159,7 +159,7 @@ export class ProjectModel {
             encryptedCredentials = this.encryptionService.encrypt(
                 JSON.stringify(data),
             );
-        } catch (e) {
+        } catch (e: any) {
             throw new UnexpectedServerError('Could not save credentials.');
         }
         await trx('warehouse_credentials')
@@ -203,7 +203,7 @@ export class ProjectModel {
                     encryptedCredentials = this.encryptionService.encrypt(
                         JSON.stringify(data.dbtConnection),
                     );
-                } catch (e) {
+                } catch (e: any) {
                     throw new UnexpectedServerError(
                         'Could not save credentials.',
                     );
@@ -230,7 +230,7 @@ export class ProjectModel {
                 });
 
                 return project.project_uuid;
-            } catch (e) {
+            } catch (e: any) {
                 await trx.rollback(e);
                 throw e;
             }
@@ -245,7 +245,7 @@ export class ProjectModel {
                     encryptedCredentials = this.encryptionService.encrypt(
                         JSON.stringify(data.dbtConnection),
                     );
-                } catch (e) {
+                } catch (e: any) {
                     throw new UnexpectedServerError(
                         'Could not save credentials.',
                     );
@@ -270,7 +270,7 @@ export class ProjectModel {
                     project.project_id,
                     data.warehouseConnection,
                 );
-            } catch (e) {
+            } catch (e: any) {
                 await trx.rollback(e);
                 throw e;
             }
@@ -347,7 +347,7 @@ export class ProjectModel {
             dbtSensitiveCredentials = JSON.parse(
                 this.encryptionService.decrypt(project.dbt_connection),
             ) as DbtProjectConfig;
-        } catch (e) {
+        } catch (e: any) {
             throw new UnexpectedServerError('Failed to load dbt credentials');
         }
         const result = {
@@ -365,7 +365,7 @@ export class ProjectModel {
             sensitiveCredentials = JSON.parse(
                 this.encryptionService.decrypt(project.encrypted_credentials),
             ) as CreateWarehouseCredentials;
-        } catch (e) {
+        } catch (e: any) {
             throw new UnexpectedServerError(
                 'Failed to load warehouse credentials',
             );

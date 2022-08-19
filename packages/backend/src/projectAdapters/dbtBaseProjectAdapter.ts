@@ -145,7 +145,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 metrics,
             );
             return [...lazyExplores, ...failedExplores];
-        } catch (e) {
+        } catch (e: any) {
             if (e instanceof MissingCatalogEntryError) {
                 Logger.debug(
                     'Get warehouse catalog after missing catalog error',
@@ -195,7 +195,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const validator = getMetricValidator();
         metrics.forEach((metric) => {
             const isValid = validator(metric);
-            if (!isValid) {
+            if (isValid !== true) {
                 throw new ParseError(
                     `Could not parse dbt metric with id ${
                         metric.unique_id
@@ -212,7 +212,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         models: DbtRawModelNode[],
     ): [DbtModelNode[], ExploreError[]] {
         const validator = getModelValidator();
-        return models.reduce(
+        return models.reduce<[DbtModelNode[], ExploreError[]]>(
             ([validModels, invalidModels], model) => {
                 let error: InlineError | undefined;
                 // Match against json schema
@@ -246,7 +246,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 );
                 return [[...validModels, validatedModel], invalidModels];
             },
-            [[] as DbtModelNode[], [] as ExploreError[]],
+            [[], []],
         );
     }
 }

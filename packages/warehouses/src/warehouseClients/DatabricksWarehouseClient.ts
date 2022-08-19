@@ -154,7 +154,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         let connection: odbc.Connection;
         try {
             connection = await odbc.connect(this.connectionString);
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
         try {
@@ -171,7 +171,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 {},
             );
             return { fields, rows: result };
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
             await connection.close();
@@ -193,7 +193,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         let results: Result<SparkSchemaResult>[];
         try {
             pool = await odbc.pool(this.connectionString);
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
         try {
@@ -201,7 +201,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 let connection: odbc.Connection;
                 try {
                     connection = await pool.connect();
-                } catch (e) {
+                } catch (e: any) {
                     throw new WarehouseConnectionError(e.message);
                 }
                 try {
@@ -213,7 +213,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                         '',
                     )) as Result<SparkSchemaResult>;
                     return columns;
-                } catch (e) {
+                } catch (e: any) {
                     throw new WarehouseQueryError(e.message);
                 } finally {
                     await connection.close();

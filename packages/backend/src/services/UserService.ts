@@ -427,7 +427,7 @@ export class UserService {
         if (inviteLink.expiresAt <= now) {
             try {
                 await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
-            } catch (e) {
+            } catch (e: any) {
                 throw new NotExistsError('Invite link not found');
             }
             throw new ExpiredError('Invite link expired');
@@ -459,7 +459,7 @@ export class UserService {
                 },
             });
             return user;
-        } catch (e) {
+        } catch (e: any) {
             if (e instanceof NotFoundError) {
                 throw new AuthorizationError(
                     'Email and password not recognized',
@@ -481,7 +481,7 @@ export class UserService {
                 userUuid,
                 data.password,
             );
-        } catch (e) {
+        } catch (e: any) {
             if (e instanceof NotFoundError) {
                 throw new AuthorizationError('Password not recognized.');
             }
@@ -571,7 +571,7 @@ export class UserService {
         if (link.isExpired) {
             try {
                 await this.passwordResetLinkModel.deleteByCode(link.code);
-            } catch (e) {
+            } catch (e: any) {
                 throw new NotExistsError('Password reset link not found');
             }
             throw new NotExistsError('Password reset link expired');

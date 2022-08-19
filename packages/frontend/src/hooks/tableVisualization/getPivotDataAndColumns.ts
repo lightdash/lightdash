@@ -22,7 +22,7 @@ const sortByRawValue = (a: any, b: any) => {
             return a.localeCompare(b);
         }
         return a - b;
-    } catch (e) {
+    } catch (e: any) {
         return -1;
     }
 };

@@ -97,7 +97,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     outputFilePath,
                     yaml.dump(updatedYml, { quotingType: '"' }),
                 );
-            } catch (e) {
+            } catch (e: any) {
                 throw new ParseError(
                     `Failed to write file ${outputFilePath}\n ${e}`,
                 );

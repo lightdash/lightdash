@@ -33,7 +33,7 @@ projectRouter.get('/', isAuthenticated, async (req, res, next) => {
                 req.user!,
             ),
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });
@@ -63,7 +63,7 @@ projectRouter.get('/search/:query', isAuthenticated, async (req, res, next) => {
             req.params.query,
         );
         res.json({ status: 'ok', results });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });
@@ -97,7 +97,7 @@ projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
             status: 'ok',
             results,
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });
@@ -113,7 +113,7 @@ projectRouter.get(
                 req.params.exploreId,
             );
             res.json({ status: 'ok', results });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -146,7 +146,7 @@ projectRouter.post(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -177,7 +177,7 @@ projectRouter.post(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -197,7 +197,7 @@ projectRouter.post(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -418,7 +418,7 @@ projectRouter.post(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -434,7 +434,7 @@ projectRouter.get('/catalog', isAuthenticated, async (req, res, next) => {
             status: 'ok',
             results,
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });
@@ -453,7 +453,7 @@ projectRouter.get(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -475,7 +475,7 @@ projectRouter.patch(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -494,7 +494,7 @@ projectRouter.get(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -510,7 +510,7 @@ projectRouter.get('/access', isAuthenticated, async (req, res, next) => {
             status: 'ok',
             results,
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });
@@ -526,7 +526,7 @@ projectRouter.post('/access', isAuthenticated, async (req, res, next) => {
             status: 'ok',
             results,
         });
-    } catch (e) {
+    } catch (e: any) {
         next(e);
     }
 });
@@ -545,7 +545,7 @@ projectRouter.patch(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },
@@ -564,7 +564,7 @@ projectRouter.delete(
                 status: 'ok',
                 results,
             });
-        } catch (e) {
+        } catch (e: any) {
             next(e);
         }
     },

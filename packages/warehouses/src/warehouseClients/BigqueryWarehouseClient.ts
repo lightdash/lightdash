@@ -124,7 +124,7 @@ export class BigqueryWarehouseClient implements WarehouseClient {
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
             });
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseConnectionError(
                 `Failed connection to ${credentials.project} in ${credentials.location}. ${e.message}`,
             );
@@ -164,7 +164,7 @@ export class BigqueryWarehouseClient implements WarehouseClient {
                 return acc;
             }, {});
             return { fields, rows: parseRows(rows) };
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         }
     }

@@ -70,7 +70,7 @@ const findModelInYaml = async ({
                 Required<Pick<YamlSchema, 'models'>>,
             modelIndex,
         };
-    } catch (e) {
+    } catch (e: any) {
         if (e.code === 'ENOENT') {
             return undefined;
         }

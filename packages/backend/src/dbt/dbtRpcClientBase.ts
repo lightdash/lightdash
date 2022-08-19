@@ -57,7 +57,7 @@ const pollOverNetwork = async <T>({
                 resolve(result);
                 return;
             }
-        } catch (e) {
+        } catch (e: any) {
             if (!(e instanceof RetryableNetworkError)) {
                 reject(e);
                 return;
@@ -100,7 +100,7 @@ export class DbtRpcClientBase implements DbtClient {
                 body: JSON.stringify(payload),
             });
             data = await response.json();
-        } catch (e) {
+        } catch (e: any) {
             // Network errors or not a json response - server not available or not ready
             throw new RetryableNetworkError(`Network error: ${e}, try again.`);
         }

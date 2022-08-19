@@ -70,7 +70,7 @@ export const localPassportStrategy = new LocalStrategy(
         try {
             const user = await userService.loginWithPassword(email, password);
             return done(null, user);
-        } catch (e) {
+        } catch (e: any) {
             return done(
                 e instanceof LightdashError
                     ? e
@@ -115,7 +115,7 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
             ) {
                 req.session.oauth.returnTo = redirect;
             }
-        } catch (e) {
+        } catch (e: any) {
             next(); // fail silently if we can't parse url
         }
     }
@@ -175,7 +175,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                       inviteCode,
                   );
                   return done(null, user);
-              } catch (e) {
+              } catch (e: any) {
                   if (e instanceof LightdashError) {
                       return done(null, false, { message: e.message });
                   }
@@ -246,7 +246,7 @@ export const oktaPassportStrategy = !(
                       inviteCode,
                   );
                   return done(null, user);
-              } catch (e) {
+              } catch (e: any) {
                   if (e instanceof LightdashError) {
                       return done(null, false, { message: e.message });
                   }

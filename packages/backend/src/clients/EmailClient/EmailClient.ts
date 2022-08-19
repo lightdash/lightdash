@@ -94,7 +94,7 @@ export default class EmailClient {
             try {
                 const info = await this.transporter.sendMail(options);
                 Logger.debug(`Email sent: ${info.messageId}`);
-            } catch (error) {
+            } catch (error: any) {
                 throw new SmptError(`Failed to send email. ${error}`, {
                     error,
                 });
