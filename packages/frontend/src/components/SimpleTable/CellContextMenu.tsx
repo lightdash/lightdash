@@ -15,6 +15,12 @@ const ContextMenu: FC<ContextMenuProps> = ({ meta, cell }) => {
     const { viewData } = useUnderlyingDataContext();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const pivot = meta?.pivotReference?.pivotValues?.[0]
+        ? {
+              fieldId: meta?.pivotReference?.pivotValues?.[0].field,
+              value: meta?.pivotReference?.pivotValues?.[0].value,
+          }
+        : undefined;
 
     return (
         <Menu>
@@ -22,7 +28,13 @@ const ContextMenu: FC<ContextMenuProps> = ({ meta, cell }) => {
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(value, meta, cell.row.original || {});
+                    viewData(
+                        value,
+                        meta,
+                        cell.row.original || {},
+                        undefined,
+                        pivot,
+                    );
                 }}
             />
         </Menu>
