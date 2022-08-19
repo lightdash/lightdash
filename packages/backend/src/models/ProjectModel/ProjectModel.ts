@@ -67,7 +67,7 @@ export class ProjectModel {
         }
         return {
             ...incompleteConfig,
-            ...sensitiveDbtCredentialsFieldNames.reduce(
+            ...sensitiveDbtCredentialsFieldNames.reduce<Record<string, any>>(
                 (sum, secretKey) =>
                     !(incompleteConfig as any)[secretKey] &&
                     (completeConfig as any)[secretKey]

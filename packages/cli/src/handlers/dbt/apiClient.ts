@@ -52,12 +52,15 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 case 'ok':
                     return d.results as T;
                 case 'error':
+                    // eslint-disable-next-line @typescript-eslint/no-throw-literal
                     throw d;
                 default:
+                    // eslint-disable-next-line @typescript-eslint/no-throw-literal
                     throw d;
             }
         })
         .catch((err) => {
+            // eslint-disable-next-line @typescript-eslint/no-throw-literal
             throw handleError(err).error;
         });
 };
