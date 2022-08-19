@@ -1,14 +1,12 @@
 import {
     Button,
-    Divider,
-    H3,
     InputGroup,
     Menu,
     MenuDivider,
     MenuItem,
     NonIdealState,
-    Text,
 } from '@blueprintjs/core';
+import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -20,13 +18,12 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
+import { TableDivider } from '../ExplorePanel/ExplorePanel.styles';
 import ExplorePanel from '../ExplorePanel/index';
 import {
     FooterWrapper,
+    FormField,
     MenuWrapper,
-    SearchWrapper,
-    SideBarDescription,
-    SideBarTitleWrapper,
     SwitchFilter,
 } from './ExploreSideBar.styles';
 
@@ -69,38 +66,38 @@ const BasePanel = () => {
         return (
             <>
                 <div>
-                    <SideBarTitleWrapper>
-                        <H3>Tables</H3>
-                    </SideBarTitleWrapper>
-                    <SideBarDescription>
-                        <Text>
-                            Select a table to start exploring your metrics
-                        </Text>
-                        <SearchWrapper>
-                            <InputGroup
-                                leftIcon="search"
-                                rightElement={
-                                    <Button
-                                        minimal
-                                        icon="cross"
-                                        onClick={() => setSearch('')}
-                                    />
-                                }
-                                placeholder="Search tables"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </SearchWrapper>
+                    <Breadcrumbs2 items={[{ text: 'Tables' }]} />
+
+                    <TableDivider />
+
+                    <FormField>
+                        <InputGroup
+                            leftIcon="search"
+                            rightElement={
+                                <Button
+                                    minimal
+                                    icon="cross"
+                                    onClick={() => setSearch('')}
+                                />
+                            }
+                            placeholder="Search tables"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </FormField>
+
+                    <FormField>
                         <SwitchFilter
                             checked={!filterExplores}
                             label="Show hidden tables"
                             onChange={toggleFilterExplores}
                         />
-                    </SideBarDescription>
-                    <Divider />
+                    </FormField>
                 </div>
 
                 <MenuWrapper>
+                    <MenuDivider />
+
                     {filteredTables
                         .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
@@ -113,6 +110,7 @@ const BasePanel = () => {
                                         );
                                     }}
                                 />
+
                                 <MenuDivider />
                             </React.Fragment>
                         ))}
