@@ -1,3 +1,10 @@
+# [0.224.0](https://github.com/lightdash/lightdash/compare/0.223.0...0.224.0) (2022-08-19)
+
+
+### Features
+
+* allow to pivot table chart ([#2942](https://github.com/lightdash/lightdash/issues/2942)) ([5e31d9e](https://github.com/lightdash/lightdash/commit/5e31d9e063b441d8dc26c9b540c78452fc8d0918))
+
 # [0.223.0](https://github.com/lightdash/lightdash/compare/0.222.1...0.223.0) (2022-08-19)
 
 
