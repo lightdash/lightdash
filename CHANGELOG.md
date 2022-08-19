@@ -1,3 +1,10 @@
+## [0.222.1](https://github.com/lightdash/lightdash/compare/0.222.0...0.222.1) (2022-08-19)
+
+
+### Bug Fixes
+
+* table viz context menu ([#3004](https://github.com/lightdash/lightdash/issues/3004)) ([67e13e0](https://github.com/lightdash/lightdash/commit/67e13e0d543f4f652080f45b03c9aef7eaf23ae8))
+
 # [0.222.0](https://github.com/lightdash/lightdash/compare/0.221.2...0.222.0) (2022-08-18)
 
 
