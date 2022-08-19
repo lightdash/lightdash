@@ -1,8 +1,8 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
-import { CellContextMenu } from './CellContextMenu';
+import CellContextMenu from './CellContextMenu';
 import { TableWrapper } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
