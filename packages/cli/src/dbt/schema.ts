@@ -1,4 +1,8 @@
-import { DimensionType, lightdashDbtYamlSchema } from '@lightdash/common';
+import {
+    DimensionType,
+    lightdashDbtYamlSchema,
+    ParseError,
+} from '@lightdash/common';
 import betterAjvErrors from 'better-ajv-errors';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
@@ -35,9 +39,10 @@ const loadYamlSchema = async (path: string): Promise<YamlSchema> => {
             lightdashDbtYamlSchema,
             schemaFile,
             validate.errors || [],
+            { indent: 2 },
         );
-        throw new Error(
-            `Couldn't parse existing yaml file at ${path}:\n  ${errors}`,
+        throw new ParseError(
+            `Couldn't parse existing yaml file at ${path}\n${errors}`,
         );
     }
     return schemaFile;

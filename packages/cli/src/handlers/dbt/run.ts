@@ -10,6 +10,7 @@ type DbtRunHandlerOptions = {
     profile: string | undefined;
     select: string[] | undefined;
     models: string[] | undefined;
+    excludeDimensionTypes: boolean;
 };
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
@@ -36,5 +37,9 @@ export const dbtRunHandler = async (
         });
         throw new ParseError(`Failed to run dbt:\n  ${e.message}`);
     }
-    await generateHandler({ ...options, assumeYes: true });
+    await generateHandler({
+        ...options,
+        assumeYes: true,
+        excludeDimensionTypes: !options.excludeDimensionTypes,
+    });
 };

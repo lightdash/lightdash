@@ -178,6 +178,11 @@ ${styles.bold('Examples:')}
     .option('--defer')
     .option('--no-defer')
     .option('--full-refresh')
+    .option(
+        '--exclude-dimension-types',
+        'include the Lightdash dimension type in generated schema.yml files',
+        false,
+    )
     .action(dbtRunHandler);
 
 program
@@ -331,9 +336,9 @@ ${styles.bold('Examples:')}
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option(
-        '--include-dimension-types',
+        '--exclude-dimension-types',
         'include the Lightdash dimension type in generated schema.yml files',
-        true,
+        false,
     )
     .action(generateHandler);
 
