@@ -1,17 +1,15 @@
 import { isNumericItem, ResultRow } from '@lightdash/common';
 import { Cell, flexRender } from '@tanstack/react-table';
-import React, { FC, useState } from 'react';
+import React, { FC, Fragment, useState } from 'react';
 import { BodyCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import RichBodyCell from './RichBodyCell';
 
-const Placeholder: FC = ({ children }) => <span>{children}</span>;
-
 const TableBody: FC = () => {
     const { table, cellContextMenu, tableWrapperRef, setIsScrollable } =
         useTableContext();
-    const CellContextMenu = cellContextMenu || Placeholder;
+    const CellContextMenu = cellContextMenu || Fragment;
     const [selectedCell, setSelectedCell] = useState<string>();
 
     const handleCellSelect = (cellId: string | undefined) => {
