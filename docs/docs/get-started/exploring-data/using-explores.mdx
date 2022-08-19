@@ -1,7 +1,5 @@
----
-sidebar_position: 1
-sidebar_label: Using Tables and the Explore view in Lightdash
----
+import UnderlyingClick from './assets/view-underlying-data-click.png';
+import UnderlyingResults from './assets/view-underlying-data-table.png';
 
 # Using Tables and the Explore view in Lightdash
 
@@ -24,13 +22,13 @@ There are 5 areas to the Explore view:
 
 ![explore screenshot](./assets/explore_screenshot.png)
 
-## Learn how to create your first saved chart from the Explore view
+## Learn how to create a saved chart from the Explore view
 
 Not a fan of videos? You can [follow along with the steps below.](#running-your-first-query)
 
 [![tutorial creating saved chart explore](./assets/tutorial_creating_saved_chart_explore.png)](https://youtu.be/NGlsiCOV7gA)
 
-## Running your first query
+## Running your query
 
 To run a query:
 
@@ -41,7 +39,7 @@ To run a query:
 For example, if I wanted to know the "total number of orders split by order status", I'd select the `Unique order
 count` metric to calculate the number of orders and the `Status` dimension to split that by status.
 
-## Ordering your results in your table
+## Ordering the results in your table
 
 Click on the table headers that you want to sort by and click again if you want to change from ascending to descending.
 If you need multiple sorts you can add more by pressing `⌃ Control` or `⌘ Command` and click on the table header.
@@ -52,6 +50,18 @@ Once the query executes, the results will show in the results table. You can the
 a chart type to visualise the metric.
 
 ![results screenshot](./assets/results_screenshot.png)
+
+## View the underlying data in a cell
+
+You can click on any cell in your results table and view the records from your table which make up that cell.
+
+For example, I can click on the `page view count` in my results table here and I'd see all of the rows in my `Pages` table that make up my 32,880 count.
+
+<img src={UnderlyingClick} width="656" height="224" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+<img src={UnderlyingResults} width="667" height="538" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+I can then export this as a CSV or explore from this underlying data.
 
 ## Saving a chart
 

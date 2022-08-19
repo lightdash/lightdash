@@ -1,13 +1,27 @@
 import CrossFilteringImage from './assets/cross-filtering.png';
 import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
+import UnderlyingChart from './assets/underlying-data-click-chart.png';
+import UnderlyingResults from './assets/view-underlying-data-table-chart.png';
 
 # Interacting with your dashboards
 
+## Viewing the underlying data for a point on a chart
+
+You can click on any point on a chart and view the records which make up that data point.
+
+For example, I can click on the page views bar in my chart and I'd see all of the rows in the underlying table that make up the 19,120 page views count.
+
+<img src={UnderlyingChart} width="646" height="353" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+<img src={UnderlyingResults} width="681" height="526" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+I can then export this as a CSV or explore from this underlying data.
+
 ## Using a chart to filter your dashboard (a.k.a. cross-filtering)
 
-When you right-click on the value in a chart (e.g. a point in your scatter plot), you can choose to filter on that value and update all of the other relevant charts in the dashboard. This type of chart-to-dashboard filtering is sometimes called `cross-filtering`. 
+When you click on the value in a chart (e.g. a point in your scatter plot), you can choose to filter on that value and update all of the other relevant charts in the dashboard. This type of chart-to-dashboard filtering is sometimes called `cross-filtering`. 
 
-<img src={CrossFilteringImage} width="1388" height="702" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={CrossFilteringImage} width="694" height="351" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### You can see which tiles had the filter applied by hovering over the `dashboard filter applied` text on your chart tile.
 
@@ -15,7 +29,7 @@ Once you've clicked on your filter, all of the tiles in your dashboard with the 
 
 You can see which tiles had the filter applied by hovering over the `dashboard filter applied` text on your chart tile.
 
-<img src={CrossFilteringAppliedImage} width="1400" height="724" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={CrossFilteringAppliedImage} width="700" height="362" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Your cross-filtering will not change the saved chart unless you're in `edit` mode
 

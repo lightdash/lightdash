@@ -66,7 +66,7 @@ It's easy to add filters directly from the list of fields in the sidebar. Just c
 
 ### Adding a filter from the results table
 
-Once you have some results in your results table, you can add filters by right-clicking on the value you want to filter by.
+Once you have some results in your results table, you can add filters by clicking on the value you want to filter by.
 
 ![add-filter-results-table](assets/add-filter-results-table.png)
 
@@ -92,7 +92,7 @@ There are two ways to add temporary filters to your dashboard.
 
 Cross-filtering lets you interact with one chart and apply that interaction as a filter to other charts in the dashboard. You can filter the dashboard using cross filtering by:
 
-1. Right-clicking on one of the values in the chart.
+1. Clicking on one of the values in the chart.
 2. Selecting the value you want to filter on from the drop-down list.
 ![cross-filtering-dashboard](assets/cross-filtering-dashboard.png)
 3. Now, your filter will pop up on the top of your dashboard.
