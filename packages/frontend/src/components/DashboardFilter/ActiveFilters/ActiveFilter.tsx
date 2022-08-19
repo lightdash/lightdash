@@ -45,7 +45,6 @@ const ActiveFilter: FC<Props> = ({
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             position="bottom"
-            lazy={false}
         >
             <TagContainer interactive onRemove={onRemove} onClick={onClick}>
                 <Tooltip2

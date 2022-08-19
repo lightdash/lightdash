@@ -245,7 +245,6 @@ const VisualizationCardOptions: FC = () => {
             isOpen={isOpen}
             onInteraction={setIsOpen}
             position="bottom"
-            lazy={false}
             disabled={disabled}
         >
             <Button

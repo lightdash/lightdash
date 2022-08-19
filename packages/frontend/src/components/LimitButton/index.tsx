@@ -45,7 +45,6 @@ const LimitButton: FC<Props> = ({ disabled, limit, onLimitChange }) => {
             isOpen={isOpen}
             onInteraction={setIsOpen}
             position="bottom"
-            lazy={false}
             disabled={disabled}
         >
             <GreyButton

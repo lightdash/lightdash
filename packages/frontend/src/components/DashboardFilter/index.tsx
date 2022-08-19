@@ -47,7 +47,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     isOpen={isOpen}
                     onInteraction={setIsOpen}
                     position="bottom-right"
-                    lazy={false}
                     disabled={!hasChartTiles || isLoading}
                 >
                     <Tooltip2
