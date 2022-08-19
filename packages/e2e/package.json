@@ -10,20 +10,20 @@
         "format": "prettier --check --ignore-unknown ./cypress"
     },
     "devDependencies": {
-        "@types/node": "^17.0.42",
+        "@types/node": "^18.7.6",
         "@typescript-eslint/eslint-plugin": "^5.11.0",
         "eslint": "^8.7.0",
         "eslint-config-airbnb-base": "^15.0.0",
-        "eslint-config-airbnb-typescript": "^16.1.0",
+        "eslint-config-airbnb-typescript": "^17.0.0",
         "eslint-config-prettier": "^8.3.0",
-        "eslint-plugin-import": "^2.25.4",
+        "eslint-plugin-import": "^2.26.0",
         "eslint-plugin-json": "^3.1.0",
         "prettier": "^2.5.1"
     },
     "dependencies": {
+        "@lightdash/common": "^0.226.2"
         "@testing-library/cypress": "^8.0.3",
         "cypress": "^10.1.0",
-        "cypress-file-upload": "^5.0.8",
-        "@lightdash/common": "^0.226.2"
+        "cypress-file-upload": "^5.0.8"
     }
 }
