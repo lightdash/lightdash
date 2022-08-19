@@ -10,7 +10,7 @@ type DbtRunHandlerOptions = {
     profile: string | undefined;
     select: string[] | undefined;
     models: string[] | undefined;
-    excludeDimensionTypes: boolean;
+    excludeMeta: boolean;
 };
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
@@ -40,6 +40,6 @@ export const dbtRunHandler = async (
     await generateHandler({
         ...options,
         assumeYes: true,
-        excludeDimensionTypes: !options.excludeDimensionTypes,
+        excludeMeta: options.excludeMeta,
     });
 };

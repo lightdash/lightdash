@@ -64,18 +64,18 @@ export const getWarehouseTableForModel = async ({
 type GenerateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
-    includeDimensionTypes: boolean;
+    includeMeta: boolean;
 };
 const generateModelYml = ({
     model,
     table,
-    includeDimensionTypes,
+    includeMeta,
 }: GenerateModelYamlArgs) => ({
     name: model.name,
     columns: Object.entries(table).map(([columnName, dimensionType]) => ({
         name: columnName,
         description: '',
-        ...(includeDimensionTypes
+        ...(includeMeta
             ? {
                   meta: {
                       dimension: {
@@ -133,14 +133,14 @@ type FindAndUpdateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
     docs: Record<string, DbtDoc>;
-    includeDimensionTypes: boolean;
+    includeMeta: boolean;
     spinner: ora.Ora;
 };
 export const findAndUpdateModelYaml = async ({
     model,
     table,
     docs,
-    includeDimensionTypes,
+    includeMeta,
     spinner,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
@@ -149,7 +149,7 @@ export const findAndUpdateModelYaml = async ({
     const generatedModel = generateModelYml({
         model,
         table,
-        includeDimensionTypes,
+        includeMeta,
     });
     const filenames = [];
     const { patchPath } = model;
@@ -183,7 +183,7 @@ export const findAndUpdateModelYaml = async ({
                     existingDimensionType ||
                     (table[column.name] as DimensionType | undefined);
                 let { meta } = column;
-                if (includeDimensionTypes && dimensionType) {
+                if (includeMeta && dimensionType) {
                     meta = {
                         ...(meta || {}),
                         dimension: {
