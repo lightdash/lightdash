@@ -1,3 +1,10 @@
+# [0.223.0](https://github.com/lightdash/lightdash/compare/0.222.1...0.223.0) (2022-08-19)
+
+
+### Features
+
+* add support for dbt expression metrics ([#2978](https://github.com/lightdash/lightdash/issues/2978)) ([4f513cc](https://github.com/lightdash/lightdash/commit/4f513cc851f7d7076004420f53b6bfb796837987))
+
 ## [0.222.1](https://github.com/lightdash/lightdash/compare/0.222.0...0.222.1) (2022-08-19)
 
 
