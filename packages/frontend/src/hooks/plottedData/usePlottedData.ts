@@ -1,6 +1,8 @@
 import {
     ApiQueryResults,
+    FieldId,
     hashFieldReference,
+    PivotReference,
     ResultRow,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -10,24 +12,35 @@ export const getPivotedData = (
     pivotKey: string,
     pivotedKeys: string[],
     nonPivotedKeys: string[],
-): ApiQueryResults['rows'] => {
+): {
+    pivotValuesMap: Record<string, ResultRow[0]['value']>;
+    rowKeyMap: Record<string, FieldId | PivotReference>;
+    rows: ApiQueryResults['rows'];
+} => {
+    const pivotValuesMap: Record<string, ResultRow[0]['value']> = {};
+    const rowKeyMap: Record<string, FieldId | PivotReference> = {};
     const pivotedRowMap = rows.reduce<Record<string, ResultRow>>((acc, row) => {
         const unpivotedKeysAndValues: string[] = [];
 
         const pivotedRow: ResultRow = {};
         Object.entries(row).forEach(([key, value]) => {
             if (pivotedKeys.includes(key)) {
-                const pivotedKeyHash: string = hashFieldReference({
+                const pivotReference: PivotReference = {
                     field: key,
                     pivotValues: [
                         { field: pivotKey, value: row[pivotKey].value.raw },
                     ],
-                });
+                };
+                const pivotedKeyHash: string =
+                    hashFieldReference(pivotReference);
+                pivotValuesMap[row[pivotKey].value.raw] = row[pivotKey].value;
                 pivotedRow[pivotedKeyHash] = value;
+                rowKeyMap[pivotedKeyHash] = pivotReference;
             }
             if (nonPivotedKeys.includes(key)) {
                 unpivotedKeysAndValues.push(key, `${value.value.raw}`);
                 pivotedRow[key] = value;
+                rowKeyMap[key] = key;
             }
         });
 
@@ -38,7 +51,11 @@ export const getPivotedData = (
         };
     }, {});
 
-    return Object.values(pivotedRowMap);
+    return {
+        pivotValuesMap,
+        rowKeyMap,
+        rows: Object.values(pivotedRowMap),
+    };
 };
 
 const usePlottedData = (
@@ -58,7 +75,7 @@ const usePlottedData = (
                 pivotDimension,
                 pivotedKeys,
                 nonPivotedKeys,
-            );
+            ).rows;
         }
         return rows;
     }, [rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);

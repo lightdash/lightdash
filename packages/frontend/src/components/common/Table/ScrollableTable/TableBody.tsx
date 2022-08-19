@@ -1,6 +1,6 @@
-import { isNumericItem } from '@lightdash/common';
-import { flexRender } from '@tanstack/react-table';
-import { FC, Fragment, useState } from 'react';
+import { isNumericItem, ResultRow } from '@lightdash/common';
+import { Cell, flexRender } from '@tanstack/react-table';
+import React, { FC, Fragment, useState } from 'react';
 import { BodyCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
@@ -28,7 +28,7 @@ const TableBody: FC = () => {
                         return (
                             <CellContextMenu
                                 key={cell.id}
-                                cell={cell}
+                                cell={cell as Cell<ResultRow, ResultRow[0]>}
                                 boundaryElement={tableWrapperRef.current}
                                 onOpen={() => handleCellSelect(cell.id)}
                                 onClose={() => handleCellSelect(undefined)}
@@ -42,7 +42,14 @@ const TableBody: FC = () => {
                                         !meta?.item || !isNumericItem(meta.item)
                                     }
                                 >
-                                    <RichBodyCell cell={cell}>
+                                    <RichBodyCell
+                                        cell={
+                                            cell as Cell<
+                                                ResultRow,
+                                                ResultRow[0]
+                                            >
+                                        }
+                                    >
                                         {flexRender(
                                             cell.column.columnDef.cell,
                                             cell.getContext(),

@@ -1,4 +1,5 @@
-import { FC } from 'react';
+import { NonIdealState } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
@@ -7,19 +8,28 @@ import { TableWrapper } from './SimpleTable.styles';
 
 const SimpleTable: FC = () => {
     const {
-        resultsData,
         isLoading,
         columnOrder,
-        tableConfig: { columns, showColumnCalculation },
+        tableConfig: { rows, error, columns, showColumnCalculation },
     } = useVisualizationContext();
 
     if (isLoading) return <LoadingChart />;
+
+    if (error) {
+        return (
+            <NonIdealState
+                title="Results not available"
+                description={error}
+                icon="error"
+            />
+        );
+    }
 
     return (
         <TableWrapper>
             <Table
                 status={'success'}
-                data={resultsData?.rows || []}
+                data={rows}
                 columns={columns}
                 columnOrder={columnOrder}
                 footer={{

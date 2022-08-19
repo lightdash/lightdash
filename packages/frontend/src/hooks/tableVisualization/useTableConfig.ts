@@ -3,23 +3,24 @@ import {
     ColumnProperties,
     Explore,
     Field,
-    formatItemValue,
-    getItemId,
     getItemLabel,
     getItemMap,
     isField,
+    ResultRow,
     TableCalculation,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TableColumn } from '../components/common/Table/types';
-import useColumnTotals from './useColumnTotals';
+import { TableColumn, TableHeader } from '../../components/common/Table/types';
+import getDataAndColumns from './getDataAndColumns';
+import getPivotDataAndColumns from './getPivotDataAndColumns';
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
     resultsData: ApiQueryResults | undefined,
     explore: Explore | undefined,
     columnOrder: string[],
+    pivotDimensions: string[] | undefined,
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -82,30 +83,46 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const totals = useColumnTotals({ resultsData, itemsMap });
-
-    const columns = useMemo(() => {
-        return Object.values(itemsMap).reduce<TableColumn[]>((acc, item) => {
-            const itemId = getItemId(item);
-            if (!isColumnVisible(itemId)) {
-                return acc;
-            }
-            const column: TableColumn = {
-                id: itemId,
-                header: getHeader(itemId) || getDefaultColumnLabel(itemId),
-                accessorKey: itemId,
-                cell: (info: any) => info.getValue()?.value.formatted || '-',
-                footer: () =>
-                    totals[itemId]
-                        ? formatItemValue(item, totals[itemId])
-                        : null,
-                meta: {
-                    item,
-                },
+    const { rows, columns, error } = useMemo<{
+        rows: ResultRow[];
+        columns: Array<TableColumn | TableHeader>;
+        error?: string;
+    }>(() => {
+        const pivotDimension = pivotDimensions?.[0];
+        if (!resultsData) {
+            return {
+                rows: [],
+                columns: [],
             };
-            return [...acc, column];
-        }, []);
-    }, [getDefaultColumnLabel, getHeader, isColumnVisible, itemsMap, totals]);
+        }
+        if (pivotDimension) {
+            return getPivotDataAndColumns({
+                columnOrder,
+                itemsMap,
+                resultsData,
+                pivotDimension,
+                isColumnVisible,
+                getHeader,
+                getDefaultColumnLabel,
+            });
+        } else {
+            return getDataAndColumns({
+                itemsMap,
+                resultsData,
+                isColumnVisible,
+                getHeader,
+                getDefaultColumnLabel,
+            });
+        }
+    }, [
+        columnOrder,
+        itemsMap,
+        resultsData,
+        pivotDimensions,
+        isColumnVisible,
+        getHeader,
+        getDefaultColumnLabel,
+    ]);
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
@@ -151,6 +168,8 @@ const useTableConfig = (
         setShowColumnCalculation,
         showTableNames,
         setShowTableName,
+        rows,
+        error,
         columns,
         columnProperties,
         setColumnProperties,

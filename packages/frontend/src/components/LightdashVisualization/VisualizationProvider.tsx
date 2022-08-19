@@ -17,9 +17,9 @@ import React, {
 } from 'react';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
-import useTableConfig from '../../hooks/useTableConfig';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type VisualizationContext = {
@@ -111,12 +111,14 @@ export const VisualizationProvider: FC<Props> = ({
         lastValidResultsData,
         explore,
         columnOrder,
+        validPivotDimensions,
     );
 
     const { validBigNumberConfig } = bigNumberConfig;
     const { validTableConfig } = tableConfig;
 
     const cartesianConfig = useCartesianChartConfig({
+        chartType,
         initialChartConfig:
             initialChartConfig?.type === ChartType.CARTESIAN
                 ? initialChartConfig.config

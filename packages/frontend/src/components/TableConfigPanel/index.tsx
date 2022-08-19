@@ -1,25 +1,67 @@
 import { Button, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
+import { fieldId, getDimensions, getItemId } from '@lightdash/common';
 import React, { useState } from 'react';
+import {
+    AxisFieldDropdown,
+    DeleteFieldButton,
+} from '../ChartConfigPanel/ChartConfigPanel.styles';
+import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
 import { ConfigWrapper, SectionTitle } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {
+        explore,
+        resultsData,
+        pivotDimensions,
         tableConfig: {
             showColumnCalculation,
             showTableNames,
             setShowTableName,
             setShowColumnCalculation,
         },
+        setPivotDimensions,
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
+    const pivotDimension = pivotDimensions?.[0];
+
+    const availableDimensions = explore
+        ? getDimensions(explore).filter((field) =>
+              resultsData?.metricQuery.dimensions.includes(fieldId(field)),
+          )
+        : [];
+
+    // Group series logic
+    const groupSelectedField = availableDimensions.find(
+        (item) => getItemId(item) === pivotDimension,
+    );
 
     return (
         <Popover2
             content={
                 <ConfigWrapper>
+                    <SectionTitle>Group</SectionTitle>
+                    <AxisFieldDropdown>
+                        <FieldAutoComplete
+                            fields={availableDimensions}
+                            placeholder="Select a field to group by"
+                            activeField={groupSelectedField}
+                            onChange={(item) => {
+                                setPivotDimensions([getItemId(item)]);
+                            }}
+                        />
+                        {groupSelectedField && (
+                            <DeleteFieldButton
+                                minimal
+                                icon="cross"
+                                onClick={() => {
+                                    setPivotDimensions([]);
+                                }}
+                            />
+                        )}
+                    </AxisFieldDropdown>
                     <SectionTitle>Show column total</SectionTitle>
                     <Switch
                         large

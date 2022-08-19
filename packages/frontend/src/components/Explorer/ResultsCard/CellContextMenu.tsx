@@ -17,7 +17,7 @@ import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
 interface ContextMenuProps {
-    cell: Cell<ResultRow>;
+    cell: Cell<ResultRow, ResultRow[0]>;
     item?: Field | TableCalculation;
     meta: TableColumn['meta'];
     isEditMode: boolean;

@@ -1033,27 +1033,6 @@ export const getResultValues = (
         }, {}),
     );
 
-export const getResultColumnTotals = (
-    rows: ResultRow[],
-    items: Array<Field | TableCalculation>,
-): Record<FieldId, number | undefined> => {
-    if (items.length > 0) {
-        return rows.reduce<Record<FieldId, number | undefined>>(
-            (acc, row: ResultRow) => {
-                items.forEach((item) => {
-                    const key = getItemId(item);
-                    if (row[key]) {
-                        acc[key] = (acc[key] || 0) + Number(row[key].value.raw);
-                    }
-                });
-                return acc;
-            },
-            {},
-        );
-    }
-    return {};
-};
-
 export const getAxisName = ({
     isAxisTheSameForAllSeries,
     selectedAxisIndex,

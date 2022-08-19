@@ -2,22 +2,25 @@ import { Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { isField } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
-import React from 'react';
+import React, { FC } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
 
+const Placeholder: FC = ({ children }) => <span>{children}</span>;
+
 const TableHeader = () => {
     const { table, headerButton, headerContextMenu, columns } =
         useTableContext();
-    const HeaderContextMenu = headerContextMenu || React.Fragment;
-    const HeaderButton = headerButton || React.Fragment;
+    const HeaderContextMenu = headerContextMenu || Placeholder;
+    const HeaderButton = headerButton || Placeholder;
     const currentColOrder = React.useRef<Array<string>>([]);
     if (columns.length <= 0) {
         return null;
     }
+
     return (
         <>
             <thead>

@@ -8,7 +8,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType, getResultValues } from '@lightdash/common';
+import { ChartType, getResultValues, ResultRow } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
@@ -101,7 +101,7 @@ function downloadPdf(base64: string, width: number, height: number) {
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
-    tableData: Record<string, any>[];
+    tableData: ResultRow[];
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
@@ -209,9 +209,15 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 };
 
 export const ChartDownloadMenu: React.FC = () => {
-    const { chartRef, chartType, originalData } = useVisualizationContext();
+    const {
+        chartRef,
+        chartType,
+        tableConfig: { rows },
+    } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
-    const disabled = !originalData || chartType === ChartType.BIG_NUMBER;
+    const disabled =
+        (chartType === ChartType.TABLE && !rows) ||
+        chartType === ChartType.BIG_NUMBER;
 
     return (
         <Popover2
@@ -219,7 +225,7 @@ export const ChartDownloadMenu: React.FC = () => {
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
-                    tableData={getResultValues(originalData || [])}
+                    tableData={getResultValues(rows)}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
