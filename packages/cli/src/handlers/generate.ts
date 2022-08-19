@@ -27,6 +27,7 @@ type GenerateHandlerOptions = {
     target: string | undefined;
     profile: string | undefined;
     assumeYes: boolean;
+    includeDimensionTypes: boolean;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
     const select = options.select || options.models;
@@ -87,6 +88,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     model: compiledModel,
                     table,
                     docs: manifest.docs,
+                    includeDimensionTypes: options.includeDimensionTypes,
                     spinner,
                 },
             );

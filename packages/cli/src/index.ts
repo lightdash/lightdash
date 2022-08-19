@@ -330,6 +330,11 @@ ${styles.bold('Examples:')}
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option(
+        '--include-dimension-types',
+        'include the Lightdash dimension type in generated schema.yml files',
+        true,
+    )
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {
