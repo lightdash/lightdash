@@ -13,6 +13,7 @@ import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { RefObject, useCallback, useState } from 'react';
 import { CSVLink } from 'react-csv';
+import useEcharts from '../hooks/echarts/useEcharts';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -214,10 +215,12 @@ export const ChartDownloadMenu: React.FC = () => {
         chartType,
         tableConfig: { rows },
     } = useVisualizationContext();
+    const eChartsOptions = useEcharts();
     const [isOpen, setIsOpen] = useState(false);
     const disabled =
         (chartType === ChartType.TABLE && !rows) ||
-        chartType === ChartType.BIG_NUMBER;
+        chartType === ChartType.BIG_NUMBER ||
+        !eChartsOptions;
 
     return (
         <Popover2
