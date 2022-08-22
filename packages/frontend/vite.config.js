@@ -29,6 +29,9 @@ export default defineConfig({
             },
         },
     },
+    vite: {
+        clearScreen: false,
+    },
     plugins: [
         react(),
         eslint(),
