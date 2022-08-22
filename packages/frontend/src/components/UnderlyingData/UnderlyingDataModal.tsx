@@ -26,6 +26,8 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
             style={{
                 width: '90%',
                 height: '90vh',
+                minHeight: '400px',
+                minWidth: '500px',
             }}
         >
             <HeaderRightContent>
