@@ -25,7 +25,7 @@ you can change this later.
 
 ## 3. Choose a chart to add to your dashboard
 
-Charts can only be added to a dashboard if they've been saved. See [instructions for saving charts](./using-explores.md) for more
+Charts can only be added to a dashboard if they've been saved. See [instructions for saving charts](./using-explores.mdx) for more
 information.
 
 Click "add chart" to see a list of charts that have been saved. Clicking any chart will add it at the top of your
