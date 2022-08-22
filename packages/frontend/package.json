@@ -111,7 +111,6 @@
         "postcss-normalize": "10.0.1",
         "prettier": "^2.5.1",
         "prettier-plugin-organize-imports": "^3.1.0",
-        "ts-jest": "^28.0.8",
         "typescript": "^4.7.4",
         "vite": "^3.0.8",
         "vite-plugin-eslint": "^1.8.1",
