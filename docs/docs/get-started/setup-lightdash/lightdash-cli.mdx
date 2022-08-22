@@ -10,13 +10,6 @@ This doc is for someone who's just getting started with Lightdash and **has an e
 
 :::
 
-
-:::caution
-
-Make sure your dbt project is compatible with dbt version 1.0.0 - if you're not sure about this, we're happy to help upgrade if you [contact us](https://docs.lightdash.com/help-and-contact/contact/contact_info/), or reach out via the #help channel in [our Slack community](https://join.slack.com/t/lightdash-community/shared_invite/zt-1bfmfnyfq-nSeTVj0cT7i2ekAHYbBVdQ)!
-
-:::
-
 In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
 But, before you hook up your dbt project to Lightdash, we want to make sure it's ready for exploring. We'll walk you through the steps of installing + using the Lightdash CLI and generating the .yml you need for your dbt project.
@@ -26,13 +19,10 @@ But, before you hook up your dbt project to Lightdash, we want to make sure it's
 If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up) 
 before proceeding with setting up Lightdash.
 
-## Installing the Lightdash CLI tool
+## Install the Lightdash CLI tool
 
 The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
 easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
-
-To install Lightdash, you'll need to have [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) 
-installed. Mac/Linux users usually already have `npm` available (you can check by running `npm` in your command line).
 
 To install the Lightdash CLI, run the following on your command line.
 
@@ -40,39 +30,28 @@ To install the Lightdash CLI, run the following on your command line.
 npm install -g @lightdash/cli
 ```
 
-Or install a specific version (eg: 0.162.0)
-
-```shell
-npm install -g @lightdash/cli@0.162.0
-```
-
-You _may_ need to install an additional package if you see any errors:
-
-**Mac OS**
+<details>
+  <summary>If you see any errors, you might need to install an extra package:</summary>
+  **Mac OS**
 
 
-```shell
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" # install homebrew if you don't have it
-brew install unixodbc
-npm install -g @lightdash/cli
-```
+  ```shell
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" # install homebrew if you don't have it
+  brew install unixodbc
+  npm install -g @lightdash/cli
+  ```
 
-**Ubuntu**
+  **Ubuntu**
 
-```shell
-sudo apt install unixodbc
-npm install -g @lightdash/cli
-```
+  ```shell
+  sudo apt install unixodbc
+  npm install -g @lightdash/cli
+  ```
+</details>
 
-## Adding Tables to your Lightdash project
+## What are Tables?
 
-Tables in Lightdash are tied 1:1 with models in your dbt project. They're the foundation of your data exploration, the backbone to figuring out your unknowns, the art behind your charts...basically, they're pretty important.
-
-So, we wanted to go through how to actually add these Tables to your Lightdash project, and once they're in there, how you can configure them to make the most of them. 
-
-<img src={TablesView} width="1257" height="959" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
+Tables are the starting point to any data exploration in Lightdash - they're the data in Lightdash that you can query. The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
 
 If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
 
@@ -82,58 +61,20 @@ Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.g
 
 :::
 
-For example, if we had a file called `projects.yml` in dbt that looked something like the one below, we'd see a Table called `Projects` in Lightdash.
-
 ```yaml
 version: 2
 
 models:
-  - name: projects
+  - name: Community stats daily
     columns: 
-      - name: dashboards_created_num_total
-      - name: days_since_project_created
+      - name: source
+      - name: date_joined_community
+      ...
 ```
 
-<img src={ExampleTable} width="385" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={TablesView} width="754" height="575" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-We recommend structuring your dbt project with one .yml file per model (or .sql file).
-
-We've found that this makes it easier to navigate through your .yml files and easier to manage your dbt models, especially as your project becomes bigger. 
-
-Here's an example of our dbt project at Lightdash too see what that looks like in practice:
-
-- We have one .sql file per model (these are the files where all of our models' business logic sits)
-- We have one .yml file per model (these are the files where all of your Tables' configuration sits)
-
-<img src={dbtRepoExample} width="316" height="431" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-### But, in my dbt project, I have a single schema.yml file. Not one for each model. Will that still work?
-
-Yep! We realize that schema files come in all shapes and sizes. 
-
-Some people prefer to write the .yml files for all of their models in a single .yml file at the directory level, and that's totally fine - it will still work with Lightdash. 
-
-But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one .yml file per model.**
-
-## Creating Tables and their dimensions in Lightdash using `lightdash dbt run`
-
-Dimensions are attributes of your data. They are directly linked to a column in a dbt model.
-
-To explore data in Lightdash, you need to have dimensions defined in your Tables. Dimensions are created automatically when you define columns in your dbt model properties. 
-
-For example, if we go back to our `projects.yml` file from above, we'd have a Table called `Projects` and it would have the dimensions: `Dashboards created num total` and `Days since project created`.
-
-```yaml
-version: 2
-
-models:
-  - name: projects
-    columns: 
-      - name: dashboards_created_num_total
-      - name: days_since_project_created
-```
-
-<img src={ExampleTable} width="385" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
+## Adding Tables to Lightdash using `lightdash dbt run`
 
 :::info
 
@@ -147,76 +88,58 @@ To get our dbt project Lightdash-ready, we need to define all of the columns in 
 lightdash dbt run
 ```
 
-This command runs our dbt project to create our analysis-ready tables in our data warehouse. Then, it auto-generates our Lightdash configuration.
+This will generate Tables and dimensions for your **_entire_** dbt project. It will document all of the columns in your models and these are what we explore in Lightdash as `Dimensions`.
 
-You have a few options with this command though:
-
-### 1. Generate Tables and dimensions for my **_entire_** dbt project
-
-To do this, you just need to run the following on your command line:
-
-```shell
-lightdash dbt run
-```
-
-This command will run + generate tables for all of the models with `.yml` files. It will also generate dimensions for all of the columns in your dbt project. 
-
-### 2. Generate Tables and dimensions for **_some_** of the models in my dbt project
-
-There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
+For example, if we have a `projects.yml` file, we'd have a Table called `Projects` and it would have the dimensions: `Dashboards created num total` and `Days since project created`.
 
 ```yaml
-{{
-  config(
-    materialized='table',
-    tags=['lightdash']
-  )
-}}
-```
-
-The `lightdash dbt run` command supports dbt model selection syntax to generate .yml files for a group of models. This means you can use tags or other model selection syntax to specify which models you want to generate dimensions for in your dbt project.
-
-```shell
-lightdash dbt run -s tag:lightdash # all models with the lightdash tag
-lightdash dbt run -s payments  # just payments
-lightdash dbt run -s payments+ # payments and all children
-lightdash dbt run -s +payments # payments and all parents
-lightdash dbt run -s payments+ +customers tag:lightdash # mix and match
-```
-
-After running our dbt project, `lightdash dbt run` is going to auto-generate all the configuration that Lightdash needs to build your semantic layer. Here’s an example of an auto-generated `.yml` file that you might see:
-
-```yaml
-# customers.yml
 version: 2
+
 models:
-  - name: customers
-    columns:
-      - name: customer_id
-				meta:
-					dimension:
-						type: string
-      - name: name
-				meta:
-					dimension: 
-						type: string
-      - name: created_at
-        meta:
-          dimension:
-						type: timestamp
+  - name: projects
+    columns: 
+      - name: dashboards_created_num_total
+      - name: days_since_project_created
 ```
 
-The `customers.yml` file tells Lightdash about all the attributes of customers. So by now our Lightdash project usually looks a little like this:
+<img src={ExampleTable} width="385" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-```bash
-lightdash-project
-├── dbt_project.yml
-└── models
-    ├── customers.sql
-    └── customers.yml
-```
 
-Now let’s push this project to Lightdash so we can start exploring our data through the UI.
+### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
+<details>
+  <summary>Generate Tables and dimensions for some of the models in my dbt project:</summary>
+  There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
+
+  ```yaml
+  {{
+    config(
+      materialized='table',
+      tags=['lightdash']
+    )
+  }}
+  ```
+
+  The `lightdash dbt run` command supports dbt model selection syntax to generate .yml files for a group of models. This means you can use tags or other model selection syntax to specify which models you want to generate dimensions for in your dbt project.
+
+  ```shell
+  lightdash dbt run -s tag:lightdash # all models with the lightdash tag
+  lightdash dbt run -s payments  # just payments
+  lightdash dbt run -s payments+ # payments and all children
+  lightdash dbt run -s +payments # payments and all parents
+  lightdash dbt run -s payments+ +customers tag:lightdash # mix and match
+  ```
+</details>
+
+<details>
+  <summary>Generate Tables and dimensions for my entire dbt project:</summary>
+  To do this, you just need to run the following on your command line:
+
+  ```shell
+  lightdash dbt run
+  ```
+
+  This command will run + generate tables for all of the models with `.yml` files. It will also generate dimensions for all of the columns in your dbt project. 
+</details>
 
 ## Make sure your changes are in production, then you're ready to go!
 
