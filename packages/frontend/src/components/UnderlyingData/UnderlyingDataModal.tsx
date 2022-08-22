@@ -24,8 +24,8 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
             lazy
             title={`View underlying data`}
             style={{
-                width: '800px',
-                maxHeight: '600px',
+                width: '90%',
+                height: '90vh',
             }}
         >
             <HeaderRightContent>

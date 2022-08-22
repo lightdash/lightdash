@@ -42,6 +42,7 @@ const UnderlyingDataResultsTable: FC<{
                     columns={columns}
                     pagination={{
                         show: true,
+                        defaultScroll: true,
                     }}
                     footer={{
                         show: true,
