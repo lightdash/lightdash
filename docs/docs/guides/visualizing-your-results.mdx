@@ -2,6 +2,23 @@ import ConfigureAxesRange from './assets/configure-axes-range.png';
 import Legend from './assets/legend.png';
 import Margins from './assets/margins.png';
 import AreaChart from './assets/stacked-area-chart.png';
+import ChartTypes from './assets/chart-types.png';
+import ConfigButton from './assets/config-button.png';
+import BigValue from './assets/big-value-chart.png';
+import TableChart from './assets/table-chart.png';
+import BarChart from './assets/bar-chart.png';
+import StackedBarChart from './assets/stacked-bar-chart.png';
+import LineChart from './assets/line-chart.png';
+import MultipleLineChart from './assets/multi-line-chart.png';
+import HorizontalBarChart from './assets/horizontal-bar-chart.png';
+import ScatterChart from './assets/scatter-chart.png';
+import ScatterChartGrouped from './assets/scatter-chart-grouped.png';
+import MixedChart from './assets/mixed-chart.png';
+import MixedChartConfigure from './assets/mixed-chart-configure.png';
+import MixedChartConvertToOne from './assets/mixed-chart-convert-to-one.png';
+import ConfigureLayout from './assets/configure-layout.png';
+import ConfigureSeries from './assets/series-configure.png';
+import ConfigureMultipleSeries from './assets/multiple-series-configure.png';
 
 # Visualizing your results
 
@@ -20,11 +37,11 @@ In Lightdash, the data in your results tables can be visualized in a bunch of di
 
 The visualization type that you pick determines how Lightdash shows the data series in your chart. To change how your data is displayed, go into the `charts` tab in the Explore view. You have the option to change the chart type shown by selecting a style from the drop-down:
 
-![chart-types](./assets/chart-types.png)
+<img src={ChartTypes} width="634" height="258" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 you can also adjust all of the configuration settings for your chart type by clicking on the `configure` button:
 
-![config-button](./assets/config-button.png)
+<img src={ConfigButton} width="634" height="258" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Once you've finished creating your chart, you can share it using the URL,  save the chart, download it as an image, or save it to a dashboard.
 
@@ -34,7 +51,7 @@ Each chart type has its own configuration options. Click the `configure` button 
 
 ### Big value
 
-![big value chart](./assets/big-number-chart.png)
+<img src={BigValue} width="494" height="193" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 The Big value option is for displaying a single value, well, big.
 
@@ -47,7 +64,7 @@ The options for Big value include:
 
 ### Table
 
-![table chart](./assets/table-chart.png)
+<img src={TableChart} width="575" height="276" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 The Table option is good for looking at (surprise, surprise) tabular data, or for lists of things like user IDs or transactions. 
 
@@ -61,7 +78,7 @@ By default, we attach the table name to your field name (just in case you've got
 
 ### Bar chart
 
-![bar chart](./assets/column-chart.png)
+<img src={BarChart} width="665" height="238" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Bar charts are helpful to:
 
@@ -70,7 +87,7 @@ Bar charts are helpful to:
 
 #### Stacked bar chart
 
-![stacked bar chart](./assets/stacked-column-chart.png)
+<img src={StackedBarChart} width="645" height="238" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can also stack bar charts to compare proportions across different groups. 
 
@@ -83,7 +100,7 @@ You can see more details about bar chart configurations [here](#configure-your-b
 
 ### Area chart
 
-<img src={AreaChart} width="971" height="347" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={AreaChart} width="651" height="233" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Area charts are best if:
 
@@ -95,7 +112,7 @@ Area charts are best if:
 
 ### Line chart
 
-![line chart](./assets/line-chart.png)
+<img src={LineChart} width="647" height="239" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Line charts are used to show changes in a number over a short or long period of time. 
 
@@ -106,13 +123,13 @@ They're a good option when:
 
 Line charts with multiple lines can also be used to compare changes over the same period of time for more than one group.
 
-![multiple line chart](./assets/multi-line-chart.png)
+<img src={MultipleLineChart} width="645" height="241" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can see more details about line chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
 ### Horizontal bar chart
 
-![horizontal bar chart](./assets/bar-chart.png)
+<img src={HorizontalBarChart} width="643" height="216" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Horizontal bar charts are just bar charts, except the columns are placed on the chart horizontally instead of vertically. 
 
@@ -125,19 +142,19 @@ You can see more details about horizontal bar chart configurations [here](#confi
 
 ### Scatter chart
 
-![scatter chart](./assets/scatter-chart.png)
+<img src={ScatterChart} width="646" height="239" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 A scatter chart is useful if you want to to look at the relationship, a.k.a. correlation, between two variables. Something like the age of your users vs. the amount of time they've spent on your website.
 
 You can group your scatter chart using a third variable. This will make the points on the scatter the same colour if they have the same group value.
 
-![scatter chart grouped](./assets/scatter-chart-grouped.png)
+<img src={ScatterChartGrouped} width="646" height="239" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can see more details about scatter chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
 ### Mixed chart
 
-![mixed chart](./assets/mixed-chart.png)
+<img src={MixedChart} width="648" height="213" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can combine bars, line, and scatter charts on the same chart using a Mixed chart.
 
@@ -145,11 +162,11 @@ To use a Mixed chart, you'll need to start with either a line, scatter or horizo
 
 Once you have the series you want on your chart, you can pick and choose the different chart types you'd like for each series in the `series` tab of the `Configure` space.
 
-![mixed chart configure](./assets/mixed-chart-configure.png)
+<img src={MixedChartConfigure} width="495" height="272" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can easily revert all of the series on your chart to a single type using the `chart type` toggle list in the `series` tab.
 
-![mixed chart convert back to one type](./assets/mixed-chart-convert-to-one.png)
+<img src={MixedChartConvertToOne} width="281" height="279" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can see more details about mixed chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
@@ -163,13 +180,13 @@ This is where you can pick the columns from your results table that you want to 
 
 For bar charts, this is also where you have the option to stack your bars, or leave them unstacked (grouped).
 
-![configure layout options](./assets/configure-layout.png)
+<img src={ConfigureLayout} width="273" height="301" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Series
 
 The series tab is where you can adjust how your chart shows each data series. A **data series** is a set of related data points plotted on a chart. For example, the number of new users created each day over a set of dates is a series. In a bar chart, a series is represented by bars of the same color; in a line chart, a series is represented by a single line. You can see a list of the series for your chart in the `series` menu, and on the chart legend.
 
-![configure series options](./assets/series-configure.png)
+<img src={ConfigureSeries} width="287" height="209" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 The options available in here will depend on the data in your chart. But, in here you can:
 
@@ -180,7 +197,7 @@ The options available in here will depend on the data in your chart. But, in her
 
 If you have multiple series in your chart, you can adjust these settings for **_all_** of the series in your chart at once using the configuration options at the top. Or, you can adjust these setting for each of the series individually.
 
-![configure multiple series options](./assets/multiple-series-configure.png)
+<img src={ConfigureMultipleSeries} width="285" height="319" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Axes
 
@@ -191,7 +208,7 @@ You have the options to:
 - change the text for your axes labels.
 - set the axis limits for your y-axes. You can either leave the auto-axis range or manually enter your own limits.
 
-<img src={ConfigureAxesRange} width="357" height="393" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ConfigureAxesRange} width="286" height="315" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Legend
 
@@ -204,7 +221,7 @@ This tab is where you're able to control the legend in your chart. You can:
 - Set your legend to scroll (if you have so many groups that they overlap your chart).
 - Orientate the values in your legened to form a list vertically, or horizontally
 
-<img src={Legend} width="348" height="371" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={Legend} width="261" height="278" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Margins
 
@@ -212,4 +229,4 @@ The Margin tab is where you're able to add or remove margin around the grid (aka
 
 You can either add numbers or percent values to the margin settings listed. The default margin is set to `top` = 70, `bottom` = 30, `left` = 5%, `right` = 5%
 
-<img src={Margins} width="354" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={Margins} width="266" height="146" style={{display: "block", margin: "0 auto 20px auto"}}/>
