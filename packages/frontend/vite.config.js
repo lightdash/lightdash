@@ -34,7 +34,10 @@ export default defineConfig({
     },
     plugins: [
         react(),
-        eslint(),
+        eslint({
+            failOnError: false,
+            failOnWarning: false,
+        }),
         svgrPlugin({
             svgrOptions: {
                 icon: true,
