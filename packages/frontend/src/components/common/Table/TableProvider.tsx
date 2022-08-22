@@ -32,6 +32,7 @@ type Props = {
     cellContextMenu?: FC<CellContextMenuProps>;
     pagination?: {
         show?: boolean;
+        defaultScroll?: boolean;
     };
     footer?: {
         show?: boolean;
@@ -89,7 +90,13 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
 
     const { setPageSize } = table;
     useEffect(() => {
-        setPageSize(pagination?.show ? DEFAULT_PAGE_SIZE : MAX_PAGE_SIZE);
+        if (pagination?.show) {
+            setPageSize(
+                pagination?.defaultScroll ? MAX_PAGE_SIZE : DEFAULT_PAGE_SIZE,
+            );
+        } else {
+            setPageSize(MAX_PAGE_SIZE);
+        }
     }, [pagination, setPageSize]);
 
     const setTableWrapperRef = (instance: HTMLDivElement | null) => {
