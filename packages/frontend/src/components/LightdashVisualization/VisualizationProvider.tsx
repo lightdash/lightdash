@@ -12,6 +12,7 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react';
@@ -34,6 +35,7 @@ type VisualizationContext = {
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     columnOrder: string[];
+    isSqlRunner: boolean;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
@@ -117,6 +119,10 @@ export const VisualizationProvider: FC<Props> = ({
     const { validBigNumberConfig } = bigNumberConfig;
     const { validTableConfig } = tableConfig;
 
+    const isSqlRunner = useMemo(() => {
+        return explore?.name === 'sql_runner';
+    }, [explore?.name]);
+
     const cartesianConfig = useCartesianChartConfig({
         chartType,
         initialChartConfig:
@@ -126,8 +132,8 @@ export const VisualizationProvider: FC<Props> = ({
         pivotKey: validPivotDimensions?.[0],
         resultsData: lastValidResultsData,
         setPivotDimensions,
-        columnOrder: explore?.name === 'sql_runner' ? [] : columnOrder,
-        explore: explore?.name === 'sql_runner' ? undefined : explore,
+        columnOrder: isSqlRunner ? [] : columnOrder,
+        explore: isSqlRunner ? undefined : explore,
     });
 
     const { validCartesianConfig } = cartesianConfig;
@@ -175,6 +181,7 @@ export const VisualizationProvider: FC<Props> = ({
                 resultsData: lastValidResultsData,
                 isLoading,
                 columnOrder,
+                isSqlRunner,
                 onSeriesContextMenu,
                 setChartType,
                 setPivotDimensions,
