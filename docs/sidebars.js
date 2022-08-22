@@ -30,8 +30,8 @@ module.exports = {
           },
           items: [
             "get-started/setup-lightdash/get-project-lightdash-ready",
-            "get-started/setup-lightdash/install-lightdash",
             "get-started/setup-lightdash/connect-project",
+            "get-started/setup-lightdash/install-lightdash",
             "get-started/exploring-data/using-explores",
             "get-started/setup-lightdash/add-metrics",
             "get-started/exploring-data/sharing-insights"
