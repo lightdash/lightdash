@@ -1,3 +1,10 @@
+## [0.226.2](https://github.com/lightdash/lightdash/compare/0.226.1...0.226.2) (2022-08-22)
+
+
+### Bug Fixes
+
+* disable charts options for empty chart ([#3026](https://github.com/lightdash/lightdash/issues/3026)) ([084877f](https://github.com/lightdash/lightdash/commit/084877fb06fa175bfc9eb65ce9232095335283fa))
+
 ## [0.226.1](https://github.com/lightdash/lightdash/compare/0.226.0...0.226.1) (2022-08-22)
 
 
