@@ -1,5 +1,5 @@
 import { Icon, Tag } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { Sort } from '../types';
 
 const SortIndicator: FC<Sort> = ({

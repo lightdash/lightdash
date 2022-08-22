@@ -1,5 +1,5 @@
 import { Intent, Radio } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import RadioGroup from '../../ReactHookForm/RadioGroup';
 import InviteExpertFooter from './InviteExpertFooter';

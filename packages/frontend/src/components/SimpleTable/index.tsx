@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';

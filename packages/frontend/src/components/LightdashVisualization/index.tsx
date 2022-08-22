@@ -1,5 +1,5 @@
 import { ChartType } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';

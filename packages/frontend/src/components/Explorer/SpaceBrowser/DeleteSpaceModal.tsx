@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDeleteMutation, useSpace } from '../../../hooks/useSpaces';
 

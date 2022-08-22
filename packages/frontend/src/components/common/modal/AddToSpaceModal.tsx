@@ -6,7 +6,7 @@ import {
     Intent,
     NonIdealState,
 } from '@blueprintjs/core';
-import React, { FC, useCallback } from 'react';
+import { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';

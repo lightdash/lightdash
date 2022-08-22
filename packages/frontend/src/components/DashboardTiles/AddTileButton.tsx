@@ -7,7 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import React, { FC, useCallback, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { AddTileModal } from './TileForms/TileModal';
 

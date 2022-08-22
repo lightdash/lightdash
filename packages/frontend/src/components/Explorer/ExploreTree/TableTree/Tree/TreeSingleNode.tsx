@@ -7,7 +7,7 @@ import {
     isDimension,
     MetricType,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import HighlightedText from '../../../../common/HighlightedText';

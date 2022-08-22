@@ -5,7 +5,7 @@ import {
     Explore,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
-import React, {
+import {
     createContext,
     FC,
     RefObject,

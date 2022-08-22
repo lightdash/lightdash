@@ -1,5 +1,5 @@
 import { Collapse } from '@blueprintjs/core';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';

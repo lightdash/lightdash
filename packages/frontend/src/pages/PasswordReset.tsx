@@ -1,5 +1,5 @@
 import { Intent, NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';

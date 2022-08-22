@@ -5,7 +5,7 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
 import { useApp } from '../../../providers/AppProvider';

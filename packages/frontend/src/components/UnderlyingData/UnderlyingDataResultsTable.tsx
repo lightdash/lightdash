@@ -1,6 +1,5 @@
 import { ApiQueryResults, Field } from '@lightdash/common';
-import React, { FC } from 'react';
-import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
+import { FC } from 'react';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import Table from '../common/Table';

@@ -10,7 +10,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromField,
 } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import {
     ApplyFilterButton,

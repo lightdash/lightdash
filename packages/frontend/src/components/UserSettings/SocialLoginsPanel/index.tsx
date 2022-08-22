@@ -1,6 +1,6 @@
 import { Button, Classes, Tag } from '@blueprintjs/core';
 import { ApiError, OpenIdIdentitySummary } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';

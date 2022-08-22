@@ -1,5 +1,5 @@
 import { AnchorButton } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { Redirect } from 'react-router-dom';
 import {
     useCreateMutation,

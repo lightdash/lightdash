@@ -1,5 +1,5 @@
 import { Button, Icon } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { CSVLink } from 'react-csv';
 
 type Props = {

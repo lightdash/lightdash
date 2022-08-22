@@ -10,7 +10,7 @@ import {
     isField,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
 type Item = Field | TableCalculation;

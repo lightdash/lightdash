@@ -1,6 +1,6 @@
 import { Collapse, Colors, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useToggle } from 'react-use';
 import HighlightedText from '../../../../common/HighlightedText';
 import { GroupNodeRow, Highlighted, RowIcon } from '../TableTree.styles';

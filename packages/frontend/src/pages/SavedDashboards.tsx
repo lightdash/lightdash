@@ -1,6 +1,5 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { LightdashMode } from '@lightdash/common';
-import React from 'react';
 import { Redirect, useParams } from 'react-router-dom';
 import ActionCardList from '../components/common/ActionCardList';
 import Page from '../components/common/Page/Page';

@@ -3,7 +3,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { ProjectCatalog } from '@lightdash/common';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import AceEditor from 'react-ace';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import { useProjectCatalogAceEditorCompleter } from '../../hooks/useProjectCatalogAceEditorCompleter';

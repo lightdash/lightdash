@@ -1,5 +1,4 @@
 import { AnchorButton } from '@blueprintjs/core';
-import React from 'react';
 import {
     Content,
     DarkLogo,

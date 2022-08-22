@@ -1,5 +1,5 @@
 import { Project } from '@lightdash/common';
-import React, { createContext, FC, useContext } from 'react';
+import { createContext, FC, useContext } from 'react';
 
 type ProjectFormContext = {
     savedProject?: Project;

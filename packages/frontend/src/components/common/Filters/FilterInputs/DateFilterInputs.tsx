@@ -11,7 +11,7 @@ import {
     UnitOfTime,
 } from '@lightdash/common';
 import moment from 'moment';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
 import WeekPicker from '../../WeekPicker';
 import YearInput from '../../YearInput';

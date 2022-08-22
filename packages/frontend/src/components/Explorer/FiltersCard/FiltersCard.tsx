@@ -13,7 +13,7 @@ import {
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,

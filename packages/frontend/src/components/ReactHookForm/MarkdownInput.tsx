@@ -1,5 +1,5 @@
 import MDEditor, { MDEditorProps } from '@uiw/react-md-editor';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 interface TextareaProps extends Omit<InputWrapperProps, 'render'> {

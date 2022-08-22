@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 
 const AnchorLink: FC<{ href: string; onClick?: () => void }> = ({

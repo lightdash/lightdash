@@ -1,6 +1,6 @@
 import { NumericInput } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import {
     ApplyButton,
     GreyButton,

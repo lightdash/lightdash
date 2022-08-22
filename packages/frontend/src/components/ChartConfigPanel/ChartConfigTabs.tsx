@@ -22,7 +22,7 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { useToggle } from 'react-use';
 import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import { useTracking } from '../../providers/TrackingProvider';

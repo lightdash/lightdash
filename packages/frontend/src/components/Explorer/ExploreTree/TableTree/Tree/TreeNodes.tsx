@@ -5,7 +5,7 @@ import {
     Metric,
     TimeInterval,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import TreeGroupNode from './TreeGroupNode';
 import {
     isGroupNode,

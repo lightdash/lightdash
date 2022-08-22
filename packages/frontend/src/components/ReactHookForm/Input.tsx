@@ -1,5 +1,5 @@
 import { InputGroup } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 const Input: FC<Omit<InputWrapperProps, 'render'>> = ({ ...rest }) => (

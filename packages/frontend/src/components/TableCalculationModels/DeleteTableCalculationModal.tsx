@@ -1,6 +1,6 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { TableCalculation } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useExplorer } from '../../providers/ExplorerProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';

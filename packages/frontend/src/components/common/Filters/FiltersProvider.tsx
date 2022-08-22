@@ -1,5 +1,5 @@
 import { FilterableField, FilterRule } from '@lightdash/common';
-import React, { createContext, FC, useCallback, useContext } from 'react';
+import { createContext, FC, useCallback, useContext } from 'react';
 
 export type FieldWithSuggestions = FilterableField & {
     suggestions?: string[];

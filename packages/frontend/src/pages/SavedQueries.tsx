@@ -1,5 +1,5 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import SavedQueriesContent from '../components/SavedQueries/SavedQueriesContent';

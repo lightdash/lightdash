@@ -1,6 +1,6 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { Organisation } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';

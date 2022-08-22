@@ -8,7 +8,7 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';

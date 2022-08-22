@@ -7,7 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import NavLink from '../../NavLink';

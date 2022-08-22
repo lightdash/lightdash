@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import BigQuery from './Assets/bigquery.svg';
 import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';

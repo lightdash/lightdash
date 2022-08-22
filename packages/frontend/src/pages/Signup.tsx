@@ -5,7 +5,7 @@ import {
     CreateUserArgs,
     LightdashUser,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';

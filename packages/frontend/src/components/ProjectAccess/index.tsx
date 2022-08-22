@@ -1,6 +1,6 @@
 import { Colors, Icon } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     ContentContainer,

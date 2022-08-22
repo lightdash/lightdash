@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import React, { ComponentProps, FC } from 'react';
+import { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';

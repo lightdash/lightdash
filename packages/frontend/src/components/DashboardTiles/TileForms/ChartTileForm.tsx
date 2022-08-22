@@ -1,5 +1,4 @@
 import { DashboardChartTile, SpaceQuery } from '@lightdash/common';
-import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { ActionModalProps } from '../../common/modal/ActionModal';

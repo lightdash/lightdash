@@ -1,5 +1,5 @@
 import { Button, Colors, Icon, IconName, Text } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
 

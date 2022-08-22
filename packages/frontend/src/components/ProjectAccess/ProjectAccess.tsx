@@ -16,7 +16,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {

@@ -1,5 +1,5 @@
 import { SpaceQuery } from '@lightdash/common';
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import {
     useDeleteMutation,
     useUpdateMutation,

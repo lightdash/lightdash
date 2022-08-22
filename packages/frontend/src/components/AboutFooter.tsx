@@ -10,7 +10,7 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import { LightdashMode } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
 import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';

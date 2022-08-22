@@ -1,5 +1,5 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { Redirect, useParams } from 'react-router-dom';
 import { getLastProject, useProjects } from '../hooks/useProjects';
 

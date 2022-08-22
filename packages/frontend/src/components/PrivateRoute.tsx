@@ -1,4 +1,4 @@
-import React, { ComponentProps, FC, useEffect } from 'react';
+import { ComponentProps, FC, useEffect } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useApp } from '../providers/AppProvider';
 import { useAbilityContext } from './common/Authorization';

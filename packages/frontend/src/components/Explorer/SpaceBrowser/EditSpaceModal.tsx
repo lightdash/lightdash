@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSpace, useUpdateMutation } from '../../../hooks/useSpaces';
 import { FormGroupWrapper } from './CreateSpaceModal.styles';

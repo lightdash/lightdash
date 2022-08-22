@@ -1,6 +1,6 @@
 import { Button, InputGroup, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 const PasswordInput: FC<Omit<InputWrapperProps, 'render'>> = (props) => {

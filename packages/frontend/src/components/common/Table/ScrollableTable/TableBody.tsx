@@ -1,6 +1,6 @@
 import { isNumericItem, ResultRow } from '@lightdash/common';
 import { Cell, flexRender } from '@tanstack/react-table';
-import React, { FC, Fragment, useState } from 'react';
+import { FC, Fragment, useState } from 'react';
 import { BodyCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';

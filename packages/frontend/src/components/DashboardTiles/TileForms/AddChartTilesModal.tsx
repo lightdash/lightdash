@@ -4,7 +4,7 @@ import {
     DashboardTileTypes,
     defaultTileSize,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';

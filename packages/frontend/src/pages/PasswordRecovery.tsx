@@ -1,5 +1,5 @@
 import { Intent } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { Redirect } from 'react-router-dom';
 import AnchorLink from '../components/common/AnchorLink';

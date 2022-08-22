@@ -1,6 +1,6 @@
 import { NumericInput } from '@blueprintjs/core';
 import moment from 'moment';
-import React, { FC } from 'react';
+import { FC } from 'react';
 
 type Props = {
     value: Date;

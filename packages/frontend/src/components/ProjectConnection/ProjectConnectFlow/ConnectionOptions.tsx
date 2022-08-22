@@ -1,6 +1,6 @@
 import { Icon, Intent } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
     ButtonLabel,

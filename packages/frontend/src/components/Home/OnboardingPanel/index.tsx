@@ -1,5 +1,5 @@
 import { Intent } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
 import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';

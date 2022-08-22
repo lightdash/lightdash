@@ -1,6 +1,6 @@
 import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import FilterConfiguration from '../FilterConfiguration';
 import {

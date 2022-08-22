@@ -1,5 +1,5 @@
 import { EchartsGrid } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Form from '../../ReactHookForm/Form';

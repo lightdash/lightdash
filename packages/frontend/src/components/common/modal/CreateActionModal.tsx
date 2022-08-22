@@ -1,6 +1,6 @@
 import { Intent } from '@blueprintjs/core';
 import { ApiError } from '@lightdash/common';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { UseMutationResult } from 'react-query';
 import ActionModal, { ActionModalProps, ActionTypeModal } from './ActionModal';

@@ -7,7 +7,7 @@ import {
     NonIdealState,
 } from '@blueprintjs/core';
 import { formatDate, PersonalAccessToken } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import {
     useAccessToken,
     useDeleteAccessToken,

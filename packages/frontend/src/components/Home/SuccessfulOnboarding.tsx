@@ -1,5 +1,5 @@
 import { Toast } from '@blueprintjs/core';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useOnboardingShownSuccess } from '../../hooks/useOnboardingStatus';
 
 const SuccessfulOnboarding: FC<{ onDismiss: () => void }> = ({ onDismiss }) => {

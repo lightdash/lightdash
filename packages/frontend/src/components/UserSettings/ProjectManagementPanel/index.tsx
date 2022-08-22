@@ -8,7 +8,7 @@ import {
 } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
     deleteLastProject,

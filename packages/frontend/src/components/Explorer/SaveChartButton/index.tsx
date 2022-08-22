@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';

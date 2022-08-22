@@ -1,6 +1,6 @@
 import { Collapse, Icon, Text } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { RowIcon, SpanFlex, TableRow, TagCount } from './TableTree.styles';
 

@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
 import { WarehouseTypeLabels as ChosenWarehouse } from '../../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
 import { SelectedWarehouse } from '../../pages/CreateProject';

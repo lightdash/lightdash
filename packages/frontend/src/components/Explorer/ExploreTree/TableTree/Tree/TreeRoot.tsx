@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import TreeNodes from './TreeNodes';
 import { useTableTreeContext } from './TreeProvider';
 

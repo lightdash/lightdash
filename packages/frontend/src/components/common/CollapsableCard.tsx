@@ -1,5 +1,5 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useToggle } from 'react-use';
 
 type Props = {

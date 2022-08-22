@@ -1,5 +1,5 @@
 import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';

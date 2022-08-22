@@ -4,7 +4,7 @@ import {
     formatTimestamp,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';

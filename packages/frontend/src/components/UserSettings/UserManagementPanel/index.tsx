@@ -13,7 +13,7 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useLocation } from 'react-router-dom';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';

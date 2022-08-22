@@ -4,7 +4,7 @@ import {
     CartesianSeriesType,
     Series,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import {
     SeriesExtraInputs,
     SeriesExtraInputWrapper,

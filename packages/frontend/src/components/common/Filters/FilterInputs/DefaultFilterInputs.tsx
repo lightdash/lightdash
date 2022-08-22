@@ -5,7 +5,7 @@ import {
     FilterRule,
     FilterType,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import StringMultiSelect from './StringAutoComplete';
 

@@ -1,6 +1,6 @@
 import { Button, Classes, Dialog, HTMLSelect, Intent } from '@blueprintjs/core';
 import { Dashboard, friendlyName, SavedChart } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     useDashboardQuery,

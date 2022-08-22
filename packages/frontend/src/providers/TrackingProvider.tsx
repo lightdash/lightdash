@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import React, {
+import {
     createContext,
     FC,
     memo,

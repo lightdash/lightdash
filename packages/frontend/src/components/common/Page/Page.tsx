@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import styled from 'styled-components';
 import AboutFooter from '../../AboutFooter';
 import Content from './Content';

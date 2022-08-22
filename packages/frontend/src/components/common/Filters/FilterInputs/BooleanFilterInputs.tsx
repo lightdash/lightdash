@@ -1,6 +1,6 @@
 import { HTMLSelect } from '@blueprintjs/core';
 import { FilterOperator } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
 const BooleanFilterInputs: FC<FilterInputsProps> = (props) => {

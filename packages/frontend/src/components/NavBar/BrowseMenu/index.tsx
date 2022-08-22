@@ -7,7 +7,7 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import NavLink from '../../NavLink';
 import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';

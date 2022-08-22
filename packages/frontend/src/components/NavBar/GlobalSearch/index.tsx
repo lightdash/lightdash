@@ -8,7 +8,7 @@ import {
 } from '@blueprintjs/core';
 import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
 import { getSearchResultId } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useProject } from '../../../hooks/useProject';

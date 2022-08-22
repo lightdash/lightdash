@@ -1,7 +1,7 @@
 import { Colors, Icon, InputGroup, Intent, Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';

@@ -1,5 +1,5 @@
 import { Classes, Dialog, IconName, MaybeElement } from '@blueprintjs/core';
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import Form from '../../ReactHookForm/Form';
 import Wrap from '../Wrap';

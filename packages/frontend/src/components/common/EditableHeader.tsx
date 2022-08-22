@@ -4,7 +4,7 @@ import {
     EditableText as BluePrintEditableText,
     H3,
 } from '@blueprintjs/core';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 
 type Props = {
     value: string;

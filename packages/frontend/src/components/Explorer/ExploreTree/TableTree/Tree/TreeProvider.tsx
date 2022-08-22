@@ -7,7 +7,7 @@ import {
     Metric,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
-import React, { createContext, FC, useContext } from 'react';
+import { createContext, FC, useContext } from 'react';
 
 const getSearchResults = (
     itemsMap: Record<string, Item>,

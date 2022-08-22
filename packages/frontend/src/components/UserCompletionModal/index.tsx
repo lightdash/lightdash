@@ -1,6 +1,6 @@
 import { Colors, Intent, Overlay } from '@blueprintjs/core';
 import { CompleteUserArgs, LightdashMode } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useApp } from '../../providers/AppProvider';

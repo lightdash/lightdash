@@ -5,7 +5,7 @@ import {
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import useEcharts from '../../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {

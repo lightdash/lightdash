@@ -1,6 +1,6 @@
 import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
 import { CreatePersonalAccessToken, formatTimestamp } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';

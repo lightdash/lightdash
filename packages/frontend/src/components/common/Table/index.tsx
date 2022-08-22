@@ -1,4 +1,4 @@
-import React, { ComponentProps, FC } from 'react';
+import { ComponentProps, FC } from 'react';
 import ScrollableTable from './ScrollableTable';
 import * as States from './States';
 import { TableContainer } from './Table.styles';

@@ -14,7 +14,7 @@ import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import MDEditor from '@uiw/react-md-editor';
 import Cohere from 'cohere-js';
-import React, {
+import {
     createContext,
     Dispatch,
     FC,

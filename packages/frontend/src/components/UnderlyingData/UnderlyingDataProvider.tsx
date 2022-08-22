@@ -13,7 +13,7 @@ import {
     isField,
     ResultRow,
 } from '@lightdash/common';
-import React, {
+import {
     createContext,
     FC,
     useCallback,

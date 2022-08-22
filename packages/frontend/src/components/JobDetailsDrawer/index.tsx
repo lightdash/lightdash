@@ -6,7 +6,7 @@ import {
     JobStepStatusType,
 } from '@lightdash/common';
 import moment from 'moment';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import {
     jobStatusLabel,
     jobStepStatusLabel,

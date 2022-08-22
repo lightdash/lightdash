@@ -1,6 +1,5 @@
 import { isNumericItem } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
-import React from 'react';
 import { FooterCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';

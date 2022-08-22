@@ -1,6 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import {
     CustomMetricsSectionRow,

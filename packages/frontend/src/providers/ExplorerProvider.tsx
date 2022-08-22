@@ -16,7 +16,7 @@ import {
     TableCalculation,
     toggleArrayValue,
 } from '@lightdash/common';
-import React, {
+import {
     createContext,
     FC,
     useCallback,

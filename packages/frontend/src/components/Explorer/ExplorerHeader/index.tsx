@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import ExploreFromHereButton from '../../ExploreFromHereButton';

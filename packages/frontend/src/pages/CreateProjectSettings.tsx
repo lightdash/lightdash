@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';

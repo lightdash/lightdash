@@ -1,5 +1,5 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
 import Explorer from '../components/Explorer';

@@ -1,6 +1,6 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { FilterableField, FilterRule } from '@lightdash/common';
-import React, { FC, useCallback } from 'react';
+import { FC, useCallback } from 'react';
 import {
     FilterGroupHeader,
     FilterGroupItemsWrapper,

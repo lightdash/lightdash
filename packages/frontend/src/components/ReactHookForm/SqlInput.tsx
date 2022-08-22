@@ -1,6 +1,6 @@
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import AceEditor, { IAceEditorProps } from 'react-ace';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 

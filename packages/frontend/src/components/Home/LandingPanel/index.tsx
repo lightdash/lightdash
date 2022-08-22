@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import LinkButton from '../../common/LinkButton';
 import SpaceBrowser from '../../Explorer/SpaceBrowser';
 import LatestDashboards from '../LatestDashboards';

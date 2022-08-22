@@ -1,6 +1,6 @@
 import { Intent } from '@blueprintjs/core';
 import { CreateUserArgs } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { isValidEmail } from '../../utils/fieldValidators';
 import Form from '../ReactHookForm/Form';

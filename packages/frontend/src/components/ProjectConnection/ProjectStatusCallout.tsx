@@ -1,6 +1,6 @@
 import { Callout, Classes, Spinner } from '@blueprintjs/core';
 import MDEditor from '@uiw/react-md-editor';
-import React, { ComponentProps, FC } from 'react';
+import { ComponentProps, FC } from 'react';
 import { useCreateMutation, useUpdateMutation } from '../../hooks/useProject';
 
 type CalloutProps = ComponentProps<typeof Callout>;

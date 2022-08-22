@@ -2,7 +2,7 @@ import { Colors } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import { formatDate, hexToRGB, parseDate } from '@lightdash/common';
 import moment from 'moment';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
 const SelectedWeekStyles = createGlobalStyle`

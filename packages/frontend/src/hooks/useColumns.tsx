@@ -12,7 +12,7 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { TableColumn } from '../components/common/Table/types';
 import { useExplorer } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';

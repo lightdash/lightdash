@@ -7,7 +7,7 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import React, { FC, useMemo } from 'react';
+import { FC, useMemo } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';

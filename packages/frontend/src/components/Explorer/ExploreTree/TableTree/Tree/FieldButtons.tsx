@@ -9,7 +9,7 @@ import {
     MetricType,
     Source,
 } from '@lightdash/common';
-import React, { FC, ReactNode, useCallback, useMemo } from 'react';
+import { FC, ReactNode, useCallback, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorer } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
