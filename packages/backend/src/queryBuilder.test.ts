@@ -149,7 +149,7 @@ describe('Query builder', () => {
 
 describe('Filter SQL', () => {
     beforeAll(() => {
-        jest.useFakeTimers('modern');
+        jest.useFakeTimers();
         jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
     });
     afterAll(() => {
