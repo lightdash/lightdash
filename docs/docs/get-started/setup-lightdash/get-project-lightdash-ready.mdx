@@ -1,6 +1,6 @@
 import dbtRepoExample from './assets/dbt-repo-example.png';
 import TablesView from './assets/tables-view.jpg';
-import ExampleTable from './assets/example_table.png';
+import ExampleTable from './assets/example-table.jpg';
 import Overview from './assets/overview-intro.jpg';
 
 # Get your dbt project Lightdash-ready
@@ -94,17 +94,7 @@ This will generate Tables and dimensions for your **_entire_** dbt project. It w
 
 For example, if we have a `projects.yml` file, we'd have a Table called `Projects` and it would have the dimensions: `Dashboards created num total` and `Days since project created`.
 
-```yaml
-version: 2
-
-models:
-  - name: projects
-    columns: 
-      - name: dashboards_created_num_total
-      - name: days_since_project_created
-```
-
-<img src={ExampleTable} width="385" height="210" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 
 ### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
