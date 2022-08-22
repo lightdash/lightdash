@@ -1,3 +1,10 @@
+## [0.226.1](https://github.com/lightdash/lightdash/compare/0.226.0...0.226.1) (2022-08-22)
+
+
+### Bug Fixes
+
+* fix underyling data on sql runner ([#3038](https://github.com/lightdash/lightdash/issues/3038)) ([ab65ebe](https://github.com/lightdash/lightdash/commit/ab65ebefd489a5137ab1fdda298cd6d521bf4819))
+
 # [0.226.0](https://github.com/lightdash/lightdash/compare/0.225.1...0.226.0) (2022-08-22)
 
 
