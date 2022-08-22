@@ -37,6 +37,7 @@ type UnderlyingDataContext = {
     resultsData: ApiQueryResults | undefined;
     fieldsMap: Record<string, Field>;
     exploreFromHereUrl: string;
+    hasJoins: boolean;
 
     viewData: (
         value: ResultRow[0]['value'],
@@ -302,6 +303,9 @@ export const UnderlyingDataProvider: FC<Props> = ({
         return `${pathname}?${search}`;
     }, [state.unsavedChartVersion, projectUuid]);
 
+    const hasJoins = useMemo(() => {
+        return (explore?.joinedTables || []).length > 0;
+    }, [explore?.joinedTables]);
     return (
         <Context.Provider
             value={{
@@ -311,6 +315,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 viewData,
                 closeModal,
                 exploreFromHereUrl,
+                hasJoins,
             }}
         >
             {children}

@@ -18,11 +18,16 @@ const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
 const UnderlyingDataResultsTable: FC<{
     fieldsMap: Record<string, Field>;
     resultsData: ApiQueryResults | undefined;
-}> = ({ fieldsMap, resultsData }) => {
+    hasJoins?: boolean;
+}> = ({ fieldsMap, resultsData, hasJoins }) => {
     const columnHeader = (dimension: Field) => {
-        return (
+        return hasJoins === true ? (
             <span>
-                {dimension.tableLabel} <b>{dimension.name}</b>
+                {dimension.tableLabel} <b>{dimension.label}</b>
+            </span>
+        ) : (
+            <span>
+                <b>{dimension.label}</b>
             </span>
         );
     };
