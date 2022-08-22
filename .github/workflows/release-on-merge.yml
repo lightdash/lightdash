@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     concurrency: ${{ github.ref }}
     steps:
       - uses: actions/checkout@v2
