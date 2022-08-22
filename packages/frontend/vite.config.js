@@ -1,7 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import eslint from 'vite-plugin-eslint';
-import progress from 'vite-plugin-progress';
 import svgrPlugin from 'vite-plugin-svgr';
 
 // https://vitejs.dev/config/
@@ -44,6 +43,5 @@ export default defineConfig({
                 // ...svgr options (https://react-svgr.com/docs/options/)
             },
         }),
-        progress(),
     ],
 });
