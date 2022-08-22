@@ -12,7 +12,12 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+import {
+    TableHeaderBoldLabel,
+    TableHeaderLabelContainer,
+    TableHeaderRegularLabel,
+} from '../components/common/Table/Table.styles';
 import { TableColumn } from '../components/common/Table/types';
 import { useExplorer } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
@@ -97,20 +102,27 @@ export const useColumns = (): TableColumn[] => {
             const isFieldSorted = sortIndex !== -1;
             const column: TableColumn = {
                 id: fieldId,
-                header: () =>
-                    isField(item) ? (
-                        hasJoins ? (
-                            <span>
-                                {item.tableLabel} <b>{item.label}</b>
-                            </span>
+                header: () => (
+                    <TableHeaderLabelContainer>
+                        {isField(item) ? (
+                            <>
+                                {hasJoins && (
+                                    <TableHeaderRegularLabel>
+                                        {item.tableLabel} -{' '}
+                                    </TableHeaderRegularLabel>
+                                )}
+
+                                <TableHeaderBoldLabel>
+                                    {item.label}
+                                </TableHeaderBoldLabel>
+                            </>
                         ) : (
-                            <span>
-                                <b>{item.label}</b>
-                            </span>
-                        )
-                    ) : (
-                        <b>{item.displayName || friendlyName(item.name)}</b>
-                    ),
+                            <TableHeaderBoldLabel>
+                                {item.displayName || friendlyName(item.name)}
+                            </TableHeaderBoldLabel>
+                        )}
+                    </TableHeaderLabelContainer>
+                ),
                 accessorKey: fieldId,
                 cell: (info) => info.getValue()?.value.formatted || '-',
                 footer: () =>
