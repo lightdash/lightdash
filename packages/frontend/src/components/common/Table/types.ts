@@ -1,5 +1,6 @@
 import {
     Field,
+    PivotReference,
     ResultRow,
     SortField,
     TableCalculation,
@@ -34,6 +35,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         width?: number;
         draggable?: boolean;
         item?: Field | TableCalculation;
+        pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;

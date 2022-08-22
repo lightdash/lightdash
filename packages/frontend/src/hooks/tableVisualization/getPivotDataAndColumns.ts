@@ -154,6 +154,7 @@ const getPivotDataAndColumns = ({
                                         : null,
                                 meta: {
                                     item,
+                                    pivotReference: ref,
                                 },
                             },
                         );
