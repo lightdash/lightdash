@@ -22,7 +22,6 @@ const UnderlyingDataResultsTable: FC<{
     const columnHeader = (dimension: Field) => {
         return (
             <span>
-                {' '}
                 {dimension.tableLabel} <b>{dimension.name}</b>
             </span>
         );

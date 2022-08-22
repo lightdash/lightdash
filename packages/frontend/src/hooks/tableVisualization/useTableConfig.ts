@@ -31,6 +31,14 @@ const useTableConfig = (
             ? true
             : tableChartConfig.showTableNames,
     );
+    useEffect(() => {
+        if (
+            tableChartConfig?.showTableNames === undefined &&
+            explore !== undefined
+        ) {
+            setShowTableName(explore.joinedTables.length > 0);
+        }
+    }, [explore, tableChartConfig?.showTableNames]);
 
     const [columnProperties, setColumnProperties] = useState<
         Record<string, ColumnProperties>
