@@ -21,16 +21,16 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 ## 👩‍🔧 Installation + operation
 
-- [The Lightdash CLI](/guides/cli/intro)
 - [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
 - [Connect a project](/get-started/setup-lightdash/connect-project.mdx)
 - [Deploy to Kubernetes](/guides/how-to-deploy-to-kubernetes.md)
 - [Update Lightdash](/references/update-lightdash.md)
 - [Create multiple projects](/guides/how-to-create-multiple-projects.md)
 
-## 👷‍♀️ Building Tables
+## 👷‍♀️ Developing your project
 
-- [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/lightdash-cli.mdx)
+- [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/get-project-lightdash-ready.mdx)
+- [The Lightdash CLI](/guides/cli/intro)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
 - [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.md)
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)

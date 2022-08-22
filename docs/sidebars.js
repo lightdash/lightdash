@@ -29,7 +29,7 @@ module.exports = {
             id: 'get-started/setup-lightdash/intro'
           },
           items: [
-            "get-started/setup-lightdash/lightdash-cli",
+            "get-started/setup-lightdash/get-project-lightdash-ready",
             "get-started/setup-lightdash/install-lightdash",
             "get-started/setup-lightdash/connect-project",
             "get-started/exploring-data/using-explores",
@@ -70,6 +70,28 @@ module.exports = {
       type: "category",
       label: "👩‍🔧 Installation + operation",
       items: [
+        "get-started/setup-lightdash/install-lightdash",
+        "get-started/setup-lightdash/connect-project",
+        "guides/how-to-deploy-to-kubernetes",
+        "references/update-lightdash",
+        "guides/how-to-create-multiple-projects",
+        "references/lightdashyaml",
+        "references/personal_tokens",
+      ]
+    },
+    {
+      type: "category",
+      label: "👷‍♀️ Developing your project",
+      items: [
+        "get-started/setup-lightdash/get-project-lightdash-ready",
+        {
+          type: "category",
+          label: "Tables",
+          items: [
+            "guides/adding-tables-to-lightdash",
+            "references/tables",
+          ],
+        },
         {
           type: "category",
           label: "The Lightdash CLI",
@@ -86,28 +108,6 @@ module.exports = {
             "guides/cli/how-to-auto-generate-schema-files",
             "guides/cli/how-to-use-lightdash-preview",
             "guides/cli/how-to-use-lightdash-deploy"
-          ],
-        },
-        "get-started/setup-lightdash/install-lightdash",
-        "get-started/setup-lightdash/connect-project",
-        "guides/how-to-deploy-to-kubernetes",
-        "references/update-lightdash",
-        "guides/how-to-create-multiple-projects",
-        "references/lightdashyaml",
-        "references/personal_tokens",
-      ]
-    },
-    {
-      type: "category",
-      label: "👷‍♀️ Building Tables",
-      items: [
-        "get-started/setup-lightdash/lightdash-cli",
-        {
-          type: "category",
-          label: "Tables",
-          items: [
-            "guides/adding-tables-to-lightdash",
-            "references/tables",
           ],
         },
         {

@@ -36,7 +36,7 @@ const ConnectionOptions: FC<Props> = ({ setHasDimensions }) => {
                         targetTagName="div"
                     >
                         <LinkToDocsButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli"
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
                             target="_blank"
                         >
                             <ButtonLabel>

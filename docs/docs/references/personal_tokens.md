@@ -6,7 +6,7 @@ This document is a draft of an experimental feature
 
 :::
 
-You can create a personal access token (PAT) to use in the [CLI](../get-started/setup-lightdash/lightdash-cli.mdx) or
+You can create a personal access token (PAT) to use in the [CLI](../get-started/setup-lightdash/get-project-lightdash-ready.mdx) or
 with the API.
 
 To provide additional security, we highly recommend adding an expiration to your personal access tokens.
