@@ -31,7 +31,6 @@ const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
             }
             position="bottom"
             hasBackdrop
-            lazy={true}
             backdropProps={{
                 onClick: (e) => {
                     e.stopPropagation();

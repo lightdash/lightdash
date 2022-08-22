@@ -80,7 +80,6 @@ export const BigNumberConfigPanel: React.FC = () => {
             isOpen={isOpen}
             onInteraction={setIsOpen}
             position="bottom"
-            lazy={false}
         >
             <Button minimal rightIcon="caret-down" text="Configure" />
         </Popover2>

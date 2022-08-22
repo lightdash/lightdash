@@ -232,7 +232,6 @@ export const ChartDownloadMenu: React.FC = () => {
             isOpen={isOpen}
             onInteraction={setIsOpen}
             position={PopoverPosition.BOTTOM_LEFT}
-            lazy={false}
             disabled={disabled}
         >
             <Button
