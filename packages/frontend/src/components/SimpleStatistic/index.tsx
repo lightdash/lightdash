@@ -15,6 +15,7 @@ const SimpleStatistic: FC = () => {
         resultsData,
         isLoading,
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
+        isSqlRunner,
     } = useVisualizationContext();
     const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
@@ -44,11 +45,13 @@ const SimpleStatistic: FC = () => {
                         <BigNumberLabel>
                             {bigNumberLabel || defaultLabel}
                         </BigNumberLabel>
-                        <BigNumberContextMenu
-                            position={contextMenuTargetOffset}
-                            isOpen={isContextMenuOpen}
-                            onClose={() => setIsContextMenuOpen(false)}
-                        />
+                        {!isSqlRunner && (
+                            <BigNumberContextMenu
+                                position={contextMenuTargetOffset}
+                                isOpen={isContextMenuOpen}
+                                onClose={() => setIsContextMenuOpen(false)}
+                            />
+                        )}
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (

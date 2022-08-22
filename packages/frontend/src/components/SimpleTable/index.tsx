@@ -11,6 +11,7 @@ const SimpleTable: FC = () => {
         isLoading,
         columnOrder,
         tableConfig: { rows, error, columns, showColumnCalculation },
+        isSqlRunner,
     } = useVisualizationContext();
 
     if (isLoading) return <LoadingChart />;
@@ -35,7 +36,10 @@ const SimpleTable: FC = () => {
                 footer={{
                     show: showColumnCalculation,
                 }}
-                cellContextMenu={(props) => <CellContextMenu {...props} />}
+                cellContextMenu={(props) => {
+                    if (isSqlRunner) return <>{props.children}</>;
+                    return <CellContextMenu {...props} />;
+                }}
             />
         </TableWrapper>
     );
