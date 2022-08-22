@@ -178,6 +178,11 @@ ${styles.bold('Examples:')}
     .option('--defer')
     .option('--no-defer')
     .option('--full-refresh')
+    .option(
+        '--exclude-meta',
+        'exclude Lightdash metadata from the generated .yml',
+        false,
+    )
     .action(dbtRunHandler);
 
 program
@@ -330,6 +335,11 @@ ${styles.bold('Examples:')}
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option(
+        '--exclude-meta',
+        'exclude Lightdash metadata from the generated .yml',
+        false,
+    )
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {

@@ -64,17 +64,26 @@ export const getWarehouseTableForModel = async ({
 type GenerateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
+    includeMeta: boolean;
 };
-const generateModelYml = ({ model, table }: GenerateModelYamlArgs) => ({
+const generateModelYml = ({
+    model,
+    table,
+    includeMeta,
+}: GenerateModelYamlArgs) => ({
     name: model.name,
     columns: Object.entries(table).map(([columnName, dimensionType]) => ({
         name: columnName,
         description: '',
-        meta: {
-            dimension: {
-                type: dimensionType,
-            },
-        },
+        ...(includeMeta
+            ? {
+                  meta: {
+                      dimension: {
+                          type: dimensionType,
+                      },
+                  },
+              }
+            : {}),
     })),
 });
 
@@ -124,18 +133,24 @@ type FindAndUpdateModelYamlArgs = {
     model: CompiledModel;
     table: WarehouseTableSchema;
     docs: Record<string, DbtDoc>;
+    includeMeta: boolean;
     spinner: ora.Ora;
 };
 export const findAndUpdateModelYaml = async ({
     model,
     table,
     docs,
+    includeMeta,
     spinner,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
 }> => {
-    const generatedModel = generateModelYml({ model, table });
+    const generatedModel = generateModelYml({
+        model,
+        table,
+        includeMeta,
+    });
     const filenames = [];
     const { patchPath } = model;
     if (patchPath) {
@@ -167,7 +182,16 @@ export const findAndUpdateModelYaml = async ({
                 const dimensionType =
                     existingDimensionType ||
                     (table[column.name] as DimensionType | undefined);
-
+                let { meta } = column;
+                if (includeMeta && dimensionType) {
+                    meta = {
+                        ...(meta || {}),
+                        dimension: {
+                            ...(meta?.dimension || {}),
+                            type: dimensionType,
+                        },
+                    };
+                }
                 return {
                     ...column,
                     name: column.name,
@@ -177,13 +201,7 @@ export const findAndUpdateModelYaml = async ({
                         newDescription,
                         spinner,
                     ),
-                    meta: {
-                        ...(column.meta || {}),
-                        dimension: {
-                            ...(column.meta?.dimension || {}),
-                            ...(dimensionType ? { type: dimensionType } : {}),
-                        },
-                    },
+                    ...(meta !== undefined ? { meta } : {}),
                 };
             },
         );
