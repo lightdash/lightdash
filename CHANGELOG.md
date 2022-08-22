@@ -1,3 +1,11 @@
+# [0.226.0](https://github.com/lightdash/lightdash/compare/0.225.1...0.226.0) (2022-08-22)
+
+
+### Features
+
+* larger and scrollable underlying data modal ([#3029](https://github.com/lightdash/lightdash/issues/3029)) ([1bb8f5b](https://github.com/lightdash/lightdash/commit/1bb8f5b0750e9e63c801479863afb366b9fb255b))
+* underlying data table format ([#3028](https://github.com/lightdash/lightdash/issues/3028)) ([6c9d77d](https://github.com/lightdash/lightdash/commit/6c9d77d87e16f7282ff6b40c05d97cca8c03c92d))
+
 ## [0.225.1](https://github.com/lightdash/lightdash/compare/0.225.0...0.225.1) (2022-08-22)
 
 
