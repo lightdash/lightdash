@@ -21,7 +21,7 @@
         "prettier": "^2.5.1"
     },
     "dependencies": {
-        "@lightdash/common": "^0.226.2"
+        "@lightdash/common": "^0.226.2",
         "@testing-library/cypress": "^8.0.3",
         "cypress": "^10.1.0",
         "cypress-file-upload": "^5.0.8"
