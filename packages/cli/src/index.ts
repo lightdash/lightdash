@@ -85,7 +85,7 @@ program
     .command('login <url>')
     .description('Login to a Lightdash instance')
     .description(
-        'Login to a Lightdash instance.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#authentication for more help and examples',
+        'Login to a Lightdash instance.\n\n👀 See https://docs.lightdash.com/guides/how-to-create-dimensions#2-login-to-the-lightdash-cli for more help and examples',
     )
     .addHelpText(
         'after',
@@ -346,7 +346,7 @@ const errorHandler = (err: Error) => {
     console.error(styles.error(err.message || 'Error had no message'));
     if (err.name === 'AuthorizationError') {
         console.error(
-            `Looks like you did not authenticate or the personal access token expired.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#authentication for help and examples`,
+            `Looks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/how-to-create-dimensions#2-login-to-the-lightdash-cli for help and examples`,
         );
     } else if (!(err instanceof LightdashError)) {
         console.error(err);
