@@ -1,6 +1,8 @@
 /** @type {import('ts-jest/dist/types').InitialOptionsTsJest} */
 module.exports = {
-    preset: 'ts-jest/presets/js-with-ts-esm',
+    transform: {
+        '^.+\\.tsx?$': 'esbuild-jest',
+    },
     testEnvironment: 'jest-environment-jsdom',
     automock: false,
     testPathIgnorePatterns: ['/node_modules/', '/build/'],
