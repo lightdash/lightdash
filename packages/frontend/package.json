@@ -52,7 +52,7 @@
     },
     "scripts": {
         "start": "vite",
-        "build": "tsc && vite build",
+        "build": "vite build",
         "serve": "vite preview",
         "test": "jest --watchAll=false",
         "lint": "eslint ./src",
@@ -114,6 +114,7 @@
         "typescript": "^4.7.4",
         "vite": "^3.0.8",
         "vite-plugin-eslint": "^1.8.1",
+        "vite-plugin-progress": "^0.0.3",
         "vite-plugin-svgr": "^2.2.1"
     }
 }
