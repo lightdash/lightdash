@@ -1,3 +1,10 @@
+# [0.225.0](https://github.com/lightdash/lightdash/compare/0.224.0...0.225.0) (2022-08-22)
+
+
+### Features
+
+* toggle generating dimension types ([#3000](https://github.com/lightdash/lightdash/issues/3000)) ([d9788ad](https://github.com/lightdash/lightdash/commit/d9788ad3c190fa73ec5a2a0fc462c484e670ea0a))
+
 # [0.224.0](https://github.com/lightdash/lightdash/compare/0.223.0...0.224.0) (2022-08-19)
 
 
