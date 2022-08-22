@@ -64,6 +64,20 @@ export const getOpenIdUserFromRequest = ({
     return undefined;
 };
 
+export const generateOktaUrl = (path: string): string => {
+    let baseUrl = '/oauth2';
+
+    if (lightdashConfig.auth.okta.authorizationServerId) {
+        baseUrl += `/${lightdashConfig.auth.okta.authorizationServerId}`;
+    }
+    baseUrl += '/v1';
+
+    return new URL(
+        `${baseUrl}${path}`,
+        `https://${lightdashConfig.auth.okta.oktaDomain}`,
+    ).href;
+};
+
 export const localPassportStrategy = new LocalStrategy(
     { usernameField: 'email', passwordField: 'password' },
     async (email, password, done) => {
@@ -202,18 +216,9 @@ export const oktaPassportStrategy = !(
                   `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
                   lightdashConfig.siteUrl,
               ).href,
-              authorizationURL: new URL(
-                  '/oauth2/default/v1/authorize',
-                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
-              ).href,
-              tokenURL: new URL(
-                  '/oauth2/default/v1/token',
-                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
-              ).href,
-              userInfoURL: new URL(
-                  '/oauth2/default/v1/userinfo',
-                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
-              ).href,
+              authorizationURL: generateOktaUrl('/authorize'),
+              tokenURL: generateOktaUrl('/token'),
+              userInfoURL: generateOktaUrl('/userinfo'),
               passReqToCallback: true,
           },
           async (req, issuer, profile, done) => {
