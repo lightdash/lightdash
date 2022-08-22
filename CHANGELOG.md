@@ -1,3 +1,10 @@
+## [0.225.1](https://github.com/lightdash/lightdash/compare/0.225.0...0.225.1) (2022-08-22)
+
+
+### Bug Fixes
+
+* view underlying data of pivot table ([#3018](https://github.com/lightdash/lightdash/issues/3018)) ([562597a](https://github.com/lightdash/lightdash/commit/562597ab0fdbb144a28fb1d50343a17c13d13a86))
+
 # [0.225.0](https://github.com/lightdash/lightdash/compare/0.224.0...0.225.0) (2022-08-22)
 
 
