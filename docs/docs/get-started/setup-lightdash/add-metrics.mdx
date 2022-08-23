@@ -1,15 +1,10 @@
----
-sidebar_position: 5
-sidebar_label: Create your first metrics
----
+import DataQuestion from './assets/data-question.jpg';
 
-# Create your first metrics
+# An intro to metrics and dimensions
 
-import DataQuestion from './assets/data-question.svg';
+## What are metrics and dimensions?
 
-## What is a metric?
-
-Metrics are defined in your dbt project alongside your dbt model properties.
+Metrics and dimensions are defined in your dbt project alongside your dbt model properties.
 
 * **Dimensions** are used to **segment data** in your Tables.
 * **Metrics** are used to **perform calculations** on your Tables.
@@ -17,9 +12,7 @@ Metrics are defined in your dbt project alongside your dbt model properties.
 Say we're running an ecommerce business, we probably have a table containing all order data. We might want to
 ask:
 
-<div style={{textAlign: 'center', paddingBottom: 30, paddingTop: 10}}>
-  <DataQuestion width="70%"/>
-</div>
+<img src={DataQuestion} width="1004" height="227" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 This question can be answered using a single metric "the total number of unique orders" and a single dimension for
 splitting the metric by "status of order". In Lightdash you'd get the following chart:
