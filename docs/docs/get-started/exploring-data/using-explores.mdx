@@ -1,5 +1,7 @@
-import UnderlyingClick from './assets/view-underlying-data-click.png';
-import UnderlyingResults from './assets/view-underlying-data-table.png';
+import UnderlyingData from './assets/view-underlying-data.jpg';
+import ExploreScreenshot from './assets/explore-screenshot.jpg';
+import ResultsTable from './assets/results-table.png';
+import SaveChart from './assets/save-chart.jpg';
 
 # Using Tables and the Explore view in Lightdash
 
@@ -8,11 +10,13 @@ Now that you've connected your dbt project to Lightdash, it's time to start expl
 A **Table** is the main starting point for exploring data in Lightdash. It contains a group of related
 dbt models, dimensions, and metrics. You **explore Tables in the Explore view**.
 
-Watch this quick 2 minute tutorial where we talk through the key components of Tables and how to explore them in the Explore view:
+## An intro to Tables and the Explore view
 
 [![tutorial exploring the explore view](./assets/tutorial_exploring_the_explore_view.png)](https://youtu.be/q6CAP4nhn4E)
 
-There are 5 areas to the Explore view:
+### There are 5 areas to the Explore view
+
+<img src={ExploreScreenshot} width="1122" height="891" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 1. The list of metrics and dimensions available on the Table
 2. The filters panel, which lets you restrict the data pulled into Lightdash
@@ -20,15 +24,13 @@ There are 5 areas to the Explore view:
 4. The results panel to explore the results of queries as a table
 5. The SQL panel, which shows the raw SQL that produced the results
 
-![explore screenshot](./assets/explore_screenshot.png)
+## How to create a saved chart from the Explore view
 
-## Learn how to create a saved chart from the Explore view
-
-Not a fan of videos? You can [follow along with the steps below.](#running-your-first-query)
+Not a fan of videos? You can [follow along with the steps below.](#run-your-query)
 
 [![tutorial creating saved chart explore](./assets/tutorial_creating_saved_chart_explore.png)](https://youtu.be/NGlsiCOV7gA)
 
-## Running your query
+### Run your query
 
 To run a query:
 
@@ -39,45 +41,43 @@ To run a query:
 For example, if I wanted to know the "total number of orders split by order status", I'd select the `Unique order
 count` metric to calculate the number of orders and the `Status` dimension to split that by status.
 
-## Ordering the results in your table
+### Order the results in your table
 
 Click on the table headers that you want to sort by and click again if you want to change from ascending to descending.
 If you need multiple sorts you can add more by pressing `⌃ Control` or `⌘ Command` and click on the table header.
 
-## Visualising query results as a chart
+### Visualize query results as a chart
 
 Once the query executes, the results will show in the results table. You can then open the charts section and choose
 a chart type to visualise the metric.
 
-![results screenshot](./assets/results_screenshot.png)
+You can read more about [configuring your charts here](/guides/visualizing-your-results).
 
-## View the underlying data in a cell
+<img src={ResultsTable} width="692" height="389" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### View the underlying data in a cell
 
 You can click on any cell in your results table and view the records from your table which make up that cell.
 
 For example, I can click on the `page view count` in my results table here and I'd see all of the rows in my `Pages` table that make up my 32,880 count.
 
-<img src={UnderlyingClick} width="656" height="224" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-<img src={UnderlyingResults} width="667" height="538" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={UnderlyingData} width="1220" height="524" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 I can then export this as a CSV or explore from this underlying data.
 
-## Saving a chart
+### Save your chart
 
 Saved Charts allow you to save a specific chart or visualisation so you can share it or revisit it again in future.
 
-When you open a saved charts, it will always update to display the latest data in your database.
+When you open a saved chart, it will always update to display the latest data in your database.
 
-![save chart button](./assets/save_chart_action.png)
+<img src={SaveChart} width="1425" height="953" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 To save a chart:
 
 1. In chart panel of the Explore view you will find the button to save your chart.
 2. Enter a memorable name for the chart, a good idea is to use a question as the name "How many orders are there at each stage?"
 3. Click on `Saved charts` to see your finished work of art 😚👌
-
-![view saved charts](./assets/view_charts_action.png)
 
 ## Next steps
 
