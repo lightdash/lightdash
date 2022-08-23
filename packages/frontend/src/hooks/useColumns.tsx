@@ -91,15 +91,23 @@ export const useColumns = (): TableColumn[] => {
         const validColumns = Object.entries(activeItemsMap).reduce<
             TableColumn[]
         >((acc, [fieldId, item]) => {
+            const hasJoins = (exploreData?.joinedTables || []).length > 0;
+
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
             const column: TableColumn = {
                 id: fieldId,
                 header: () =>
                     isField(item) ? (
-                        <span>
-                            {item.tableLabel} <b>{item.label}</b>
-                        </span>
+                        hasJoins ? (
+                            <span>
+                                {item.tableLabel} <b>{item.label}</b>
+                            </span>
+                        ) : (
+                            <span>
+                                <b>{item.label}</b>
+                            </span>
+                        )
                     ) : (
                         <b>{item.displayName || friendlyName(item.name)}</b>
                     ),
@@ -174,6 +182,7 @@ export const useColumns = (): TableColumn[] => {
         invalidActiveItems,
         sorts,
         totals,
+        exploreData,
         toggleSortField,
         setSortFields,
     ]);

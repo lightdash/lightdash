@@ -15,6 +15,7 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
         closeModal,
         tableName,
         exploreFromHereUrl,
+        hasJoins,
     } = useUnderlyingDataContext();
 
     return (
@@ -47,6 +48,7 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
             <UnderlyingDataResultsTable
                 resultsData={resultsData}
                 fieldsMap={fieldsMap}
+                hasJoins={hasJoins}
             />
         </Dialog>
     );
