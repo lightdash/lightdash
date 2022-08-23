@@ -5,8 +5,11 @@ import TablesView from './assets/tables-view.jpg';
 import PickTables from './assets/pick-tables.png';
 import LightdashTag from './assets/lightdash-tag.png';
 import ExampleTable from './assets/example-table.jpg';
+import OverviewTables from './assets/overview-tables.png';
 
 # Adding and managing Tables in your Lightdash project
+
+<img src={OverviewTables} width="1359" height="265" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
@@ -92,11 +95,11 @@ To get to your Table Configuration settings, just:
 3. Click on the `Settings` button for the project's tables you want to configure
 4. Once you're in your `Project settings`, click on the `Tables configuration` in the sidebar.
 
-<img src={TablesConfiguration} width="1233" height="397" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={TablesConfiguration} width="2113" height="681" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Now that you're in the right place, let's get to the juicy stuff. You have three options for configuring the Tables that pop up in Lightdash:
 
-<img src={PickTables} width="352" height="205" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PickTables} width="493" height="286" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 1. **Show entire project**: I hope this one isn't too much of a surprise. If you select this option, it shows _all_ of the models with .yml files in your dbt project in Lightdash.
 
@@ -112,14 +115,16 @@ You can still access + explore all of the Tables from your dbt project (with .ym
 
 ## Changing your Table's labels, adding joins, and more!
 
-Once you're happy with which Tables are showing up in Lightdash, you can add configurations to your Tables like:
+Once you're happy with which Tables are showing up in Lightdash, you can [add configurations to your Tables](/references/tables) like:
 
 - Changing how the Table name appears in Lightdash (using the `labels` config)
 - [Joining your Table to other Tables](/guides/how-to-join-tables) (using the `joins` config)
 
 All of these configurations and more are outlined in the [Tables reference doc here](/references/tables).
 
-## Advanced tips for managing Tables
+---
+
+## 👩‍💻 Advanced tips for managing Tables
 
 ### We recommend structuring your dbt project with one .yml file per model (or .sql file).
 
