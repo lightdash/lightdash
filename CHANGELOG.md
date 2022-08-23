@@ -1,3 +1,10 @@
+# [0.227.0](https://github.com/lightdash/lightdash/compare/0.226.2...0.227.0) (2022-08-23)
+
+
+### Features
+
+* only show table names if there are joins (explore) ([#3031](https://github.com/lightdash/lightdash/issues/3031)) ([5ffed9d](https://github.com/lightdash/lightdash/commit/5ffed9dfad058aa540039ef84be57b5ebc01a47e))
+
 ## [0.226.2](https://github.com/lightdash/lightdash/compare/0.226.1...0.226.2) (2022-08-22)
 
 
