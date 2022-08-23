@@ -115,7 +115,12 @@ type CliCompileError = BaseTrack & {
         error: string;
     };
 };
-
+type CliDeployTriggered = BaseTrack & {
+    event: 'deploy.triggered';
+    properties: {
+        projectId: string;
+    };
+};
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -127,7 +132,8 @@ type Track =
     | CliPreviewError
     | CliCompileStarted
     | CliCompileCompleted
-    | CliCompileError;
+    | CliCompileError
+    | CliDeployTriggered;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
