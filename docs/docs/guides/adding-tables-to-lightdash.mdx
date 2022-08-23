@@ -42,9 +42,9 @@ Here's an example of our `Community stats daily` model we've defined in dbt. In 
 
 ---
 
-## Adding Tables to your Lightdash project
+## Adding Tables to your Lightdash project using the CLI
 
-### Step 1. Install the Lightdash CLI tool
+### Step 1. Install the Lightdash CLI tool (if you haven't already)
 
 The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
 easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
@@ -74,9 +74,15 @@ For example, if I ran `lightdash dbt run -s projects`, we would get:
 
 <img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-Now, let’s push our Table to Lightdash so we can start exploring our data through the UI.
+### Step 3. Preview your changes using `lightdash preview`
 
-### Step 3. Make sure your changes are in production, then you're ready to go!
+Once you've generated your Tables in dbt, you can test them out in a Lightdash preview environment. 
+
+To spin up a preview environment, just run `lightdash preview`.
+
+You can read more about [Lightdash preview environments here](/guides/cli/how-to-use-lightdash-preview).
+
+### Step 4. Make sure your changes are in production, then you're ready to explore!
 
 If you're working with a version controlled project, make sure to **merge your changes into production** (e.g. `main` or `master`). 
 
