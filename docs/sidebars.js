@@ -86,14 +86,6 @@ module.exports = {
         "get-started/setup-lightdash/get-project-lightdash-ready",
         {
           type: "category",
-          label: "Tables",
-          items: [
-            "guides/adding-tables-to-lightdash",
-            "references/tables",
-          ],
-        },
-        {
-          type: "category",
           label: "The Lightdash CLI",
           link: {
             type: 'generated-index',
@@ -109,6 +101,14 @@ module.exports = {
             "guides/cli/how-to-auto-generate-schema-files",
             "guides/cli/how-to-use-lightdash-preview",
             "guides/cli/how-to-use-lightdash-deploy"
+          ],
+        },
+        {
+          type: "category",
+          label: "Tables",
+          items: [
+            "guides/adding-tables-to-lightdash",
+            "references/tables",
           ],
         },
         {

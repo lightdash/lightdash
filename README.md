@@ -108,7 +108,7 @@ Step 1 - ⚡️ [Install Lightdash](https://docs.lightdash.com/get-started/setup
 
 Step 2 - 🔌 [Connect a project](https://docs.lightdash.com/get-started/setup-lightdash/connect-project)
 
-Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-started/setup-lightdash/add-metrics)
+Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-started/setup-lightdash/intro-metrics-dimensions)
 
 ## Community Support
 

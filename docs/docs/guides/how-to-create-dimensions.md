@@ -2,7 +2,7 @@
 
 **Dimensions** are fields that are used to **segment data** from your Tables.
 
-If you're completely new to Lightdash, we'd recommend checking out our Tutorial on [creating your first dimensions and metrics in Lightdash](/get-started/setup-lightdash/add-metrics) to learn a bit more about dimensions, metrics, and how to use them in Lightdash.
+If you're completely new to Lightdash, we'd recommend checking out our Tutorial on [creating your first dimensions and metrics in Lightdash](/get-started/setup-lightdash/intro-metrics-dimensions) to learn a bit more about dimensions, metrics, and how to use them in Lightdash.
 
 ## New to dbt?
 
