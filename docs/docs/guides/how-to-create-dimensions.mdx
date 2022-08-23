@@ -6,7 +6,9 @@ import Overview from './assets/add-new-dimension-overview.png';
 
 <img src={Overview} width="1359" height="265" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-**Dimensions** are fields that are used to **segment data** from your Tables. They are directly linked to a column in a dbt model.
+**Dimensions** are fields that are used to **segment data** from your Tables. They are **directly linked to a column in a dbt model**. 
+
+For a dimension to exist in Lightdash, it needs to be a column in your dbt model first.
 
 :::tip
 
@@ -52,7 +54,7 @@ If you haven't installed the Lightdash CLI yet, then [follow this guide to insta
 
 :::
 
-Dimensions are attributes of your data. They are directly linked to a column in a dbt model.
+Dimensions are attributes of your data. They are **directly linked to a column in a dbt model**.
 
 To explore data in Lightdash, you need to have dimensions defined in your dbt model properties. Dimensions are created automatically when you define columns in your dbt model properties.
 
@@ -161,3 +163,9 @@ This will deploy the changes in your dbt project to the Lightdash project you se
 :::
 
 And voilà! Your new dbt dimension is available to explore in Lightdash.
+
+---
+
+## Check out the [dimensions reference doc](/references/dimensions) for more information about setting up your dimensions
+
+In the [reference doc](/references/dimensions) you'll find all of the dimension types, configurations, and more.
