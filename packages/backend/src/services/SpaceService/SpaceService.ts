@@ -86,7 +86,10 @@ export class SpaceService {
         analytics.track({
             event: 'space.created',
             userId: user.userUuid,
-            properties: space,
+            properties: {
+                name: space.name,
+                projectId: projectUuid,
+            },
         });
         return newSpace;
     }
@@ -115,7 +118,10 @@ export class SpaceService {
         analytics.track({
             event: 'space.updated',
             userId: user.userUuid,
-            properties: space,
+            properties: {
+                name: space.name,
+                projectId: space.projectUuid,
+            },
         });
         return updatedSpace;
     }
@@ -134,11 +140,14 @@ export class SpaceService {
             throw new ForbiddenError();
         }
 
-        const deletedChart = await this.spaceModel.deleteSpace(spaceUuid);
+        await this.spaceModel.deleteSpace(spaceUuid);
         analytics.track({
             event: 'space.deleted',
             userId: user.userUuid,
-            properties: space,
+            properties: {
+                name: space.name,
+                projectId: space.projectUuid,
+            },
         });
     }
 }

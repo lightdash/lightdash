@@ -272,6 +272,7 @@ type SpaceCreated = BaseTrack & {
     anonymousId?: string;
     properties: {
         name: string;
+        projectId: string;
     };
 };
 type SpaceUpdated = BaseTrack & {
@@ -280,6 +281,7 @@ type SpaceUpdated = BaseTrack & {
     anonymousId?: string;
     properties: {
         name: string;
+        projectId: string;
     };
 };
 type SpaceDeleted = BaseTrack & {
@@ -288,6 +290,7 @@ type SpaceDeleted = BaseTrack & {
     anonymousId?: string;
     properties: {
         name: string;
+        projectId: string;
     };
 };
 
