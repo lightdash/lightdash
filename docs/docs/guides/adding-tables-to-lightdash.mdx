@@ -78,7 +78,11 @@ For example, if I ran `lightdash dbt run -s projects`, we would get:
 
 Once you've generated your Tables in dbt, you can test them out in a Lightdash preview environment. 
 
-To spin up a preview environment, just run `lightdash preview`.
+To spin up a preview environment, just run:
+
+```shell
+lightdash preview
+```
 
 You can read more about [Lightdash preview environments here](/guides/cli/how-to-use-lightdash-preview).
 
@@ -89,6 +93,8 @@ If you're working with a version controlled project, make sure to **merge your c
 If you're working with a local project that isn't version controlled, you don't need to worry about syncing your changes.
 
 Now, your Table is Lightdash-ready: so, open up Lightdash and click `refresh dbt` and your Table should pop up in your project.
+
+---
 
 ## Configuring which Tables appear in your Lightdash project
 
@@ -118,6 +124,8 @@ Now that you're in the right place, let's get to the juicy stuff. You have three
 You can still access + explore all of the Tables from your dbt project (with .yml files), even if you've filtered them from appearing in the sidebar. Just click on the `Show hidden tables` toggle in the Tables sidebar. 
 
 <img src={ShowHiddenTables} width="276" height="136" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+---
 
 ## Changing your Table's labels, adding joins, and more!
 
