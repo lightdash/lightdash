@@ -6,6 +6,7 @@ import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import Table from '../common/Table';
 import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
+import { LoadingPanel } from './UnderlyingDataModal.styles';
 
 const UnderlyingDataResultsTable: FC<{
     fieldsMap: Record<string, Field>;
@@ -31,12 +32,12 @@ const UnderlyingDataResultsTable: FC<{
 
     if (resultsData === undefined) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <LoadingPanel>
                 <NonIdealState
                     title="Loading underlying data"
                     icon={<Spinner />}
                 />
-            </div>
+            </LoadingPanel>
         );
     }
 
