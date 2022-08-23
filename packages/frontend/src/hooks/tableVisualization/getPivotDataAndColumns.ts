@@ -109,6 +109,7 @@ const getPivotDataAndColumns = ({
             item: itemsMap[pivotDimension],
         },
     });
+
     const pivotValueHeaderGroups = Object.values(pivotValuesMap)
         .sort((a, b) => sortByRawValue(a.raw, b.raw))
         .map(({ raw, formatted }) => {
