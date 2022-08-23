@@ -21,6 +21,7 @@ type Args = {
     resultsData: ApiQueryResults;
     isColumnVisible: (key: string) => boolean;
     showTableNames: boolean;
+    getHeader: (key: string) => string | undefined;
 };
 
 const getDataAndColumns = ({
@@ -28,6 +29,7 @@ const getDataAndColumns = ({
     resultsData,
     isColumnVisible,
     showTableNames,
+    getHeader,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -45,11 +47,17 @@ const getDataAndColumns = ({
             return acc;
         }
 
+        const headerOverride = getHeader(itemId);
+
         const column: TableHeader | TableColumn = {
             id: itemId,
             header: () => (
                 <TableHeaderLabelContainer>
-                    {isField(item) ? (
+                    {!!headerOverride ? (
+                        <TableHeaderBoldLabel>
+                            {headerOverride}
+                        </TableHeaderBoldLabel>
+                    ) : isField(item) ? (
                         <>
                             {showTableNames && (
                                 <TableHeaderRegularLabel>

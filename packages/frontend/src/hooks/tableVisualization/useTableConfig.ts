@@ -119,6 +119,7 @@ const useTableConfig = (
                 resultsData,
                 isColumnVisible,
                 showTableNames,
+                getHeader,
             });
         }
     }, [
