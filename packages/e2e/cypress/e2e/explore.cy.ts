@@ -15,7 +15,7 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th b').first().should('have.text', 'First name').click();
+        cy.get('th:nth-child(2)').findByText('First name').click();
         cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
     });
 
@@ -25,7 +25,7 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th b').first().should('have.text', 'First name').click();
+        cy.get('th').contains('First name').click();
         cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
 
         cy.findByText('Charts').prev().click(); // open chart
@@ -52,40 +52,50 @@ describe('Explore', () => {
     it('Should change chart config type', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        // choose table and select fields
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th b').first().should('have.text', 'First name').click();
+
+        // check that selected fields are in the table headers
+        cy.get('th').contains('Customers - First name').should('exist');
+        cy.get('th').contains('Orders - Unique order count').should('exist');
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // sort by first name
+        cy.get('th').contains('First name').click();
+
+        // check sorted result
         cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
 
-        cy.findByText('Charts').prev().click(); // open chart
+        // open chart
+        cy.findByText('Charts').prev('button').click();
 
-        cy.findByText('Customers First name');
+        // open chart menu and change chart types
+        cy.get('button').contains('Bar chart').click();
 
-        cy.findByText('Bar chart').click(); // Change chart type
-        cy.findByText('Horizontal bar chart').click();
+        cy.get('[role="menuitem"]').contains('Bar chart').click();
+        cy.get('button').contains('Bar chart').click();
 
-        cy.findByText('Customers First name');
+        cy.get('[role="menuitem"]').contains('Horizontal bar chart').click();
+        cy.get('button').contains('Horizontal bar chart').click();
 
-        cy.findByText('Horizontal bar chart').click();
-        cy.findByText('Line chart').click();
+        cy.get('[role="menuitem"]').contains('Line chart').click();
+        cy.get('button').contains('Line chart').click();
 
-        cy.findByText('Customers First name');
+        cy.get('[role="menuitem"]').contains('Area chart').click();
+        cy.get('button').contains('Area chart').click();
 
-        cy.findByText('Line chart').click();
-        cy.findByText('Scatter chart').click();
+        cy.get('[role="menuitem"]').contains('Scatter chart').click();
+        cy.get('button').contains('Scatter chart').click();
 
-        cy.findByText('Customers First name');
+        cy.get('[role="menuitem"]').contains('Table').click();
+        cy.get('button').contains('Table').click();
 
-        cy.findByText('Scatter chart').click();
-        cy.get('[name="Table"]').click();
-
-        cy.findByText('Customers First name');
-
-        cy.get('.bp4-icon-panel-table').first().parent().click();
-        cy.findByText('Big value').click();
-
-        cy.findByText('Orders Unique order count'); // Different label ¿?
+        cy.get('[role="menuitem"]').contains('Big value').click();
+        cy.get('button').contains('Big value');
     });
 
     it('Should change chart config layout', () => {
@@ -94,12 +104,14 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th b').first().should('have.text', 'First name').click();
+
+        // sorts by first name
+        cy.get('th').contains('Customers - First name').should('exist').click();
+
         cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
 
         cy.findByText('Charts').prev().click(); // open chart
 
-        cy.findByText('Customers First name');
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
 
         cy.findByText('Configure').click();
