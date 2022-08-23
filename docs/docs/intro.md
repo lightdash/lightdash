@@ -31,6 +31,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 - [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/get-project-lightdash-ready.mdx)
 - [The Lightdash CLI](/guides/cli/intro)
+- [An intro to metrics and dimensions](/get-started/setup-lightdash/intro-metrics-dimensions.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
 - [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.md)
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)
