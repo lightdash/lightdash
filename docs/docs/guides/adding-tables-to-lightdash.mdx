@@ -1,7 +1,5 @@
 import dbtRepoExample from './assets/dbt-repo-example.png';
-import ExploreTables from './assets/explore-tables.png';
-import ProjectManagement from './assets/project-management.png';
-import TablesConfiguration from './assets/tables-configuration.png';
+import TablesConfiguration from './assets/tables-configuration.jpg';
 import ShowHiddenTables from './assets/show-hidden-tables.png';
 import TablesView from './assets/tables-view.jpg';
 import PickTables from './assets/pick-tables.png';
@@ -94,54 +92,23 @@ To get to your Table Configuration settings, just:
 3. Click on the `Settings` button for the project's tables you want to configure
 4. Once you're in your `Project settings`, click on the `Tables configuration` in the sidebar.
 
-<img src={ProjectManagement} width="712" height="506" style={{display: "block", margin: "0 auto 20px auto"}}/>
-<img src={TablesConfiguration} width="1525" height="782" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={TablesConfiguration} width="1233" height="397" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Now that you're in the right place, let's get to the juicy stuff. You have three options for configuring the Tables that pop up in Lightdash:
 
-<img src={PickTables} width="704" height="410" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PickTables} width="352" height="205" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 1. **Show entire project**: I hope this one isn't too much of a surprise. If you select this option, it shows _all_ of the models with .yml files in your dbt project in Lightdash.
-2. **Show models with any of these tags**: This option depends on dbt tags. If you're not familiar with dbt tags, [we'd recommend checking them out](https://docs.getdbt.com/reference/resource-configs/tags) (they're really handy for managing models!). If you already have a specific model tag (or tags) you want to limit Lightdash to using, this is where you can add them in. For example, all of our production models have the tag `prod`, so we've configured our Tables using that tag.
+
+2. **Show models with any of these tags**: This option depends on dbt tags. You can learn more about [using tags to manage your project here](#limiting-the-tables-in-lightdash-using-dbt-tags). If you already have a specific model tag (or tags) you want to limit Lightdash to using, this is where you can add them in. For example, all of our production models have the tag `prod`, so we've configured our Tables using that tag. 
+
 3. **Show models in this list**: If you're not keen on using tags then you can manually select the models you want to include as Tables in your Lightdash project using this option. 
-
-:::info
-
-🔥 **Hot tip**: if you want to manage the models you're using in Lightdash **_in your dbt project_**, then you can use [dbt's tags](https://docs.getdbt.com/reference/resource-configs/tags) to tag all of your models with `lightdash` then setup your Tables Configuration to limit tables with the tag `lightdash` (see option 2 above).
-
-So, for the models you want to include in Lightdash, you'd just add the tag to your model's .yml file:
-
-```yaml
-version: 2
-
-models:
-  - name: model_name
-    config:
-      tags: ['lightdash']
-...
-```
-
-Or, to your model's `.sql` file in the config block:
-
-```yaml
-{{ config(
-    tags=["lightdash"]
-) }}
-
-select ...
-```
-
-Then, you'll set your Table Configuration:
-
-<img src={LightdashTag} width="708" height="414" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-:::
 
 ### Showing hidden tables in Lightdash
 
-You can still access + explore all of the Tables from your dbt project (with .yml files), even if you've filtered them from appearing in the sidebar. You can access these hidden table by just clicking on the `Show hidden tables` toggle in the Tables sidebar. 
+You can still access + explore all of the Tables from your dbt project (with .yml files), even if you've filtered them from appearing in the sidebar. Just click on the `Show hidden tables` toggle in the Tables sidebar. 
 
-<img src={ShowHiddenTables} width="460" height="227" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ShowHiddenTables} width="276" height="136" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ## Changing your Table's labels, adding joins, and more!
 
@@ -151,17 +118,6 @@ Once you're happy with which Tables are showing up in Lightdash, you can add con
 - [Joining your Table to other Tables](/guides/how-to-join-tables) (using the `joins` config)
 
 All of these configurations and more are outlined in the [Tables reference doc here](/references/tables).
-
-## Next up: adding metrics + exploring your Tables
-
-Now that you have some of your Tables in Lightdash, it's time to enrich them with some metrics and learn how to explore them. 
-
-We'd recommend checking out these docs next:
-- [Using Tables and the Explore view in Lightdash](/get-started/exploring-data/using-explores) 
-- [Adding metrics to your Tables](/get-started/setup-lightdash/add-metrics)
-
-
-
 
 ## Advanced tips for managing Tables
 
@@ -184,18 +140,35 @@ Some people prefer to write the .yml files for all of their models in a single .
 
 But, like we said just above, if you're trying to decide how to setup your dbt project, **we'd recommend having one .yml file per model.**
 
-### Limiting the Tables in Lightdash using dbt's `tags`
+### Limiting the Tables in Lightdash using dbt tags
 
-There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
+There may be a specific set of models that you want include as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. 
 
-  ```yaml
-  {{
-    config(
-      materialized='table',
-      tags=['lightdash']
-    )
-  }}
-  ```
+You can add tags to your model's `.yml` file like this:
+
+```yaml
+version: 2
+
+models:
+  - name: model_name
+    config:
+      tags: ['lightdash']
+...
+```
+
+Or, to your model's `.sql` file in the config block:
+
+```yaml
+{{ config(
+    tags=["lightdash"]
+) }}
+
+select ...
+```
+
+Then, you'll set your [Table Configuration](#configuring-which-tables-appear-in-your-lightdash-project):
+
+<img src={LightdashTag} width="708" height="414" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Select the models you want to run using dbt selection syntax
 
