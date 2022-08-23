@@ -10,7 +10,7 @@ Dimensions are the columns in your table. They are the "attributes" of your data
 
 ## Adding dimensions to your project
 
-Read more about [adding dimensions to your project in our docs here](/guides/how-to-create-dimensions.md).
+Read more about [adding dimensions to your project in our docs here](/guides/how-to-create-dimensions.mdx).
 
 For a dimension to appear in Lightdash, you just need to declare it in your dbt model's YAML file.
 

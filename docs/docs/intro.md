@@ -33,7 +33,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 - [The Lightdash CLI](/guides/cli/intro)
 - [An intro to metrics and dimensions](/get-started/setup-lightdash/intro-metrics-dimensions.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
-- [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.md)
+- [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.mdx)
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)
 - [Syncing your dbt changes to Lightdash](/references/syncing_your_dbt_changes.md)
 - [How to join tables](/guides/how-to-join-tables.md)
