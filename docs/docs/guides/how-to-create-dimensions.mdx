@@ -1,0 +1,152 @@
+import DimensionsExploreView from './assets/dimensions-in-the-explore-view.jpg';
+
+# Adding dimensions to Lightdash
+
+**In this tutorial, we'll walk you through the steps of installing + using the Lightdash CLI and adding your first dimension to your Lightdash project!**
+
+**Dimensions** are fields that are used to **segment data** from your Tables. They are directly linked to a column in a dbt model.
+
+:::tip
+
+**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up) 
+before proceeding with setting up Lightdash.
+
+:::
+
+## What are dimensions?
+
+Lightdash dimensions are columns that have been defined in your dbt project's .yml files.
+
+Basically, they're just the fields from your dbt models. Lightdash lets you explore these columns if you define them in your dbt model properties (i.e. their `.yml` files).
+
+For example, the following dbt project file contains properties that create a single dimension, `source`, for the `Pages` Table in Lightdash:
+
+```yaml
+version: 2
+models:
+  - name: Pages
+    description: "A table of all page views on Lightdash webpages."
+    columns:
+      - name: source
+        description: "The source of the page view: the demo site, docs site, or lightdash.com"
+        ...
+```
+
+The name of the dimension is `source` and the type will be inferred from the column in your database. You can see the [full list of dimension types supported in Lightdash here](/references/dimensions.md#dimension-types).
+
+Once you've added your dimensions, you can use them in Lightdash to build charts and filter results. Dimensions appear in the Explore view, above metrics and, if selected, pop us as blue fields in your results table.
+
+<img src={DimensionsExploreView} width="1300" height="769" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+## Step 1. Install the Lightdash CLI tool (if you haven't already)
+
+The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
+easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
+
+If you haven't installed the Lightdash CLI yet, then [follow this guide to installing and setting it up](/guides/cli/how-to-install-the-lightdash-cli), then come back to these docs once you're ready!
+
+## Step 2. Create a dimension in Lightdash using `lightdash dbt run -s my_model`
+
+Dimensions are attributes of your data. They are directly linked to a column in a dbt model.
+
+To explore data in Lightdash, you need to have dimensions defined in your dbt model properties. Dimensions are created automatically when you define columns in your dbt model properties.
+
+For example, if I had:
+- a `projects.yml` file for my `projects` model in dbt
+- in Lightdash, we'd have a Table called `Projects` 
+- our `Projects` table would have the dimensions: `Dashboards created num total` and `Days since project created`.
+
+<img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+:::info
+
+Before you get started with the next steps, you might want to check out onto a new branch if you're working with a version controlled project!
+
+:::
+
+Now, we're going to try adding a new column to our dbt project, then syncing it with Lightdash. We've made this really easy to do using our CLI tool.
+
+### Add a column to one of your dbt models
+
+Head to your dbt project and add a column to one of your dbt models. 
+
+If you can't think of anything, just try adding:
+
+```yaml
+'test' AS test,
+```
+
+### Do `lightdash dbt run -s my_model` to generate the column and its .yml
+
+Now that you have your new column, you're going to do:
+
+```shell
+lightdash dbt run -s my_model # replace my_model with the name of your model
+```
+
+This command will run your dbt model (i.e. update the table in your data warehouse), then it will update the model's .yml file with any new dimensions.
+
+Now, you should have your model .yml file with its new dimension `test` added in!
+
+## Step 3: Preview your changes using `lightdash preview`
+
+Once you've added a dimension to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy.
+
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
+without affecting your production project.
+
+So, let's spin up a developer preview and check out our changes. In your terminal, run the commands:
+
+```shell
+lightdash preview
+```
+
+Then `cmd` + `click` to open the preview link from your terminal. Once you're in Lightdash go to `Explore` --> `Tables`, then click on the model you just updated to see your `test` column and play around with it.
+
+## Step 4: Configuring your dimensions
+
+You can jazz up your dimensions by configuring them in your .yml files. These dimension configurations live under the `meta` tag of your columns:
+
+```yaml
+version: 2
+models:
+  - name: orders
+    description: "A table of all orders."
+    columns:
+      - name: status
+        description: "Status from org256 settings codes. Referenced at 
+        delivery from stat5 zone."
+        meta:
+          dimension:
+            label: "Status latest"
+            description: "Status of an order: ordered/processed/complete"
+            ...etc
+```
+
+Things like the format, the label that people see in Lightdash, rounding, etc. - these are all configurations that you can apply to your dimensions.
+
+You can [see all of the dimension configurations in our dimensions docs here](/references/dimensions.md#dimension-configuration).
+
+## Step 5: Once you're happy with your changes, you can deploy them to production
+
+If you're working with a version controlled project, you'll just want to make sure to merge your changes into the branch you've connected to your Lightdash project (e.g. `main` or `master`).
+
+Once they've been merged or if you're just working off of `main` (_rebel_ 😏), you can deploy your changes.
+
+Once you've merged your changes, you'll want to deploy them to production. To do this, just run these commands in your terminal from your dbt project:
+
+```shell
+git checkout main # checkout main or master - or whatever your production branch name is
+git pull
+lightdash deploy # --target prod. If you use developer profiles in your dbt project, you might need this flag. See below.
+```
+
+This will deploy the changes in your dbt project to the Lightdash project you set up on your CLI tool earlier.
+
+:::info
+
+**Note:** Lightdash's deploy commnd will deploy using your **default dbt target** unless you specify to use a different target. For example, if you've set up a developer profile where it targets a dev dataset (like `dbt_khindson.my_model_names`), then you'll need to pass the production target in your `lightdash deploy` command. Something like: `lightdash deploy --target prod`.
+
+:::
+
+And voilà! Your new dbt dimension is available to explore in Lightdash.
