@@ -80,12 +80,54 @@ type CliDbtError = BaseTrack & {
         error: string;
     };
 };
+
+type CliPreviewStarted = BaseTrack & {
+    event: 'preview.started';
+    properties: {
+        projectId: string;
+    };
+};
+type CliPreviewCompleted = BaseTrack & {
+    event: 'preview.completed';
+    properties: {
+        projectId: string;
+    };
+};
+type CliPreviewError = BaseTrack & {
+    event: 'preview.error';
+    properties: {
+        projectId: string;
+        error: string;
+    };
+};
+
+type CliCompileStarted = BaseTrack & {
+    event: 'compile.started';
+    properties: {};
+};
+type CliCompileCompleted = BaseTrack & {
+    event: 'compile.completed';
+    properties: {};
+};
+type CliCompileError = BaseTrack & {
+    event: 'compile.error';
+    properties: {
+        error: string;
+    };
+};
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
     | CliGenerateError
     | CliDbtCommand
-    | CliDbtError;
+    | CliDbtError
+    | CliPreviewStarted
+    | CliPreviewCompleted
+    | CliPreviewError
+    | CliCompileStarted
+    | CliCompileCompleted
+    | CliCompileError;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {

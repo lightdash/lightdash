@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import path from 'path';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import { loadManifest } from '../dbt/manifest';
 import { getModelsFromManifest } from '../dbt/models';
@@ -24,7 +25,13 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     profile: string | undefined;
 };
 export const compile = async (options: GenerateHandlerOptions) => {
+    LightdashAnalytics.track({
+        event: 'compile.started',
+        properties: {},
+    });
+
     await dbtCompile(options);
+
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -46,6 +53,12 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const typedModels = attachTypesToModels(models, catalog, false);
     if (!isSupportedDbtAdapter(manifest.metadata)) {
+        LightdashAnalytics.track({
+            event: 'compile.error',
+            properties: {
+                error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
+            },
+        });
         throw new ParseError(
             `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
         );
@@ -56,6 +69,11 @@ export const compile = async (options: GenerateHandlerOptions) => {
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
     );
+
+    LightdashAnalytics.track({
+        event: 'compile.completed',
+        properties: {},
+    });
     return explores;
 };
 export const compileHandler = async (options: GenerateHandlerOptions) => {
