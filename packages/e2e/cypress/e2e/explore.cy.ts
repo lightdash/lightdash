@@ -153,14 +153,6 @@ describe('Explore', () => {
                     cy.findByText('First name').click();
                     cy.findByText('Unique order count').click();
 
-                    // check that selected fields are in the results table headers
-                    cy.get('th')
-                        .contains('Customers - First name')
-                        .should('exist');
-                    cy.get('th')
-                        .contains('Orders - Unique order count')
-                        .should('exist');
-
                     // run query
                     cy.get('button').contains('Run query').click();
 
@@ -176,7 +168,7 @@ describe('Explore', () => {
                         .contains('Customers - First name')
                         .should('exist');
 
-                    // flip Show table names in the config
+                    // open configuration and flip Show table names in the config
                     cy.get('button').contains('Configure').click();
                     cy.findByText('Show table names')
                         .next('label')
@@ -189,6 +181,44 @@ describe('Explore', () => {
                         .should('not.exist');
                     cy.get('.explorer-chart th')
                         .contains('First name')
+                        .should('exist');
+                });
+
+                it('should show header overrides according to the config', () => {
+                    cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+                    // choose table and select fields
+                    cy.findByText('Orders').click();
+                    cy.findByText('First name').click();
+                    cy.findByText('Unique order count').click();
+
+                    // run query
+                    cy.get('button').contains('Run query').click();
+
+                    // open chart
+                    cy.findByText('Charts').prev('button').click();
+
+                    // open chart menu and change chart type to Table
+                    cy.get('button').contains('Bar chart').click();
+                    cy.get('[role="menuitem"]').contains('Table').click();
+
+                    // check that chart table headers are correct
+                    cy.get('.explorer-chart th')
+                        .eq(1)
+                        .contains('Customers - First name')
+                        .should('exist');
+
+                    // open configuration and flip Show table names in the config
+                    cy.get('button').contains('Configure').click();
+                    cy.findByPlaceholderText('Customers First name')
+                        .focus()
+                        .type('Overridden header')
+                        .blur();
+
+                    // check that chart table headers are overridden
+                    cy.get('.explorer-chart th')
+                        .eq(1)
+                        .contains('Overridden header')
                         .should('exist');
                 });
             });
