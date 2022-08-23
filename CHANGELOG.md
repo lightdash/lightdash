@@ -1,3 +1,11 @@
+# [0.228.0](https://github.com/lightdash/lightdash/compare/0.227.0...0.228.0) (2022-08-23)
+
+
+### Features
+
+* add new analytics for cli preview and compile ([#3053](https://github.com/lightdash/lightdash/issues/3053)) ([2947423](https://github.com/lightdash/lightdash/commit/294742336daec4bf386cf10055e506389054ed90))
+* add project id to space analytics ([#3051](https://github.com/lightdash/lightdash/issues/3051)) ([97f7c62](https://github.com/lightdash/lightdash/commit/97f7c62e548f3eeac5adf449aafaf62eb6b6d520))
+
 # [0.227.0](https://github.com/lightdash/lightdash/compare/0.226.2...0.227.0) (2022-08-23)
 
 
