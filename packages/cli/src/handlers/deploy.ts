@@ -1,4 +1,5 @@
 import { AuthorizationError } from '@lightdash/common';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import * as styles from '../styles';
 import { compile } from './compile';
@@ -21,6 +22,12 @@ export const deploy = async (options: DeployArgs): Promise<void> => {
         method: 'PUT',
         url: `/api/v1/projects/${options.projectUuid}/explores`,
         body: JSON.stringify(explores),
+    });
+    LightdashAnalytics.track({
+        event: 'deploy.triggered',
+        properties: {
+            projectId: options.projectUuid,
+        },
     });
 };
 

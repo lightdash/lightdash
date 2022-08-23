@@ -8,6 +8,7 @@ import {
     uniqueNamesGenerator,
 } from 'unique-names-generator';
 import { URL } from 'url';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
@@ -35,12 +36,20 @@ export const previewHandler = async (
     console.error('');
     const spinner = ora(`  Setting up preview environment`).start();
     let project: Project;
+
     try {
         project = await createProject({ ...options, name });
     } catch (e) {
         spinner.fail();
         throw e;
     }
+
+    LightdashAnalytics.track({
+        event: 'preview.started',
+        properties: {
+            projectId: project.projectUuid,
+        },
+    });
     try {
         const projectUrl =
             config.context?.serverUrl &&
@@ -65,13 +74,27 @@ export const previewHandler = async (
             url: `/api/v1/org/projects/${project.projectUuid}`,
             body: undefined,
         });
+        LightdashAnalytics.track({
+            event: 'preview.error',
+            properties: {
+                projectId: project.projectUuid,
+                error: `Error creating developer preview ${e}`,
+            },
+        });
         throw e;
     }
     const teardownSpinner = ora(`  Cleaning up`).start();
+
     await lightdashApi({
         method: 'DELETE',
         url: `/api/v1/org/projects/${project.projectUuid}`,
         body: undefined,
+    });
+    LightdashAnalytics.track({
+        event: 'preview.completed',
+        properties: {
+            projectId: project.projectUuid,
+        },
     });
     teardownSpinner.succeed(`  Cleaned up`);
 };
