@@ -1,3 +1,4 @@
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiQueryResults, Field } from '@lightdash/common';
 import React, { FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
@@ -27,6 +28,17 @@ const UnderlyingDataResultsTable: FC<{
         fieldsMap,
         columnHeader,
     });
+
+    if (resultsData === undefined) {
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState
+                    title="Loading underlying data"
+                    icon={<Spinner />}
+                />
+            </div>
+        );
+    }
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>

@@ -16,11 +16,12 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
         tableName,
         exploreFromHereUrl,
         hasJoins,
+        isModalOpen,
     } = useUnderlyingDataContext();
 
     return (
         <Dialog
-            isOpen={resultsData !== undefined}
+            isOpen={isModalOpen}
             onClose={closeModal}
             lazy
             title={`View underlying data`}
