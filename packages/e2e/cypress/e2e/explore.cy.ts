@@ -15,7 +15,7 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th:nth-child(2)').findByText('First name').click();
+        cy.get('th').eq(1).findByText('First name').click();
         cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
     });
 
