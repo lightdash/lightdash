@@ -1,7 +1,7 @@
 import ThreeDotOption from './assets/three-dot-option.png';
-import CustomMetricAdded from './assets/custom-metric-added.png';
+import CustomMetricAdded from './assets/custom-metric-added.jpg';
 import DeleteCustomMetric from './assets/delete-custom-metric.png';
-import MetricsExploreView from './assets/metrics-in-explore-view.png';
+import MetricsExploreView from './assets/metrics-explore-view.jpg';
 
 # Adding metrics to Lightdash
 
@@ -40,7 +40,7 @@ We support metrics defined using either Lightdash or dbt syntax! You can read mo
 
 Once you've added your metrics, you can use them in Lightdash to build charts and filter results. Metrics appear in the Explore view, above dimensions and, if selected, pop us as brownish-yellow fields in your results table.
 
-<img src={MetricsExploreView} width="1546" height="942" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={MetricsExploreView} width="1132" height="883" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ## Let's try adding a metric to our dbt project
 
@@ -150,17 +150,6 @@ But, if there's something missing from this list of metrics, you can use `custom
 
 So, we're going to break it down for you: what are custom metrics? and how can I use them? 🪄
 
-### Custom metrics are different from the metrics defined in your YAML
-
-Like we mentioned above, custom metrics are on-the-fly calculations in the Explore view. They're a bit different to the regular metrics you define in your Table's YAML, but some things are the same.
-
-Here are some things about custom metrics we thought would be worth mentioning:
-
-- **It's harder to manage custom metrics in your project than regular metrics.** We recommend adding the metrics that everyone is going to use regularly [to your dbt project](#-adding-metrics-in-your-dbt-project). This is because custom metrics are missing out on things like [formatting](/guides/formatting-your-fields), [custom descriptions](https://docs.lightdash.com/references/metrics#adding-your-own-metric-descriptions), and any other [configuration options](https://docs.lightdash.com/references/metrics#metric-configuration) that you have available to you for metrics defined in your dbt project. So, for metrics that are going to have a lot of use, we recommend taking the next step in your data "relationships" and making them a bit more permanent 😉
-- **You can't persist your custom metrics in the Table.** If you add some custom metrics in the Explore view, then these custom metrics won't pop up for the next person that opens the Table.
-- **But, you can use custom metrics in a saved chart.** If you've added custom metrics to your saved chart, and someone else opens the saved chart, they'll see your custom metrics. But, if they open a new, fresh Table in the Explore view, your custom metrics won't appear there. 
-- **You can't use custom SQL in your custom metrics.** If you need to write some more complicated SQL to define your metric, then you'll need to [define it as a metric in your dbt project](#-adding-metrics-in-your-dbt-project).  
-
 ### Creating a custom metrics from a dimension
 
 To create a custom metric from a dimension, you just need to:
@@ -173,10 +162,21 @@ To create a custom metric from a dimension, you just need to:
 
 Then, your new metric will be added to your results table automatically and will appear in the `custom metrics` space in your sidebar.
 
-<img src={CustomMetricAdded} width="803" height="575" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={CustomMetricAdded} width="928" height="690" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you want to delete the custom metric, you can just click on the three-dot `options` menu and hit `Remove custom metric`
 
 <img src={DeleteCustomMetric} width="527" height="137" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-Now, go forth and aggregate!
+### Custom metrics are different from the metrics defined in your YAML
+
+Like we mentioned above, custom metrics are on-the-fly calculations in the Explore view. They're a bit different to the regular metrics you define in your Table's YAML, but some things are the same.
+
+Here are some things about custom metrics we thought would be worth mentioning:
+
+- **It's harder to manage custom metrics in your project than regular metrics.** We recommend adding the metrics that everyone is going to use regularly [to your dbt project](#-adding-metrics-in-your-dbt-project). This is because custom metrics are missing out on things like [formatting](/guides/formatting-your-fields), [custom descriptions](https://docs.lightdash.com/references/metrics#adding-your-own-metric-descriptions), and any other [configuration options](https://docs.lightdash.com/references/metrics#metric-configuration) that you have available to you for metrics defined in your dbt project. So, for metrics that are going to have a lot of use, we recommend taking the next step in your data "relationships" and making them a bit more permanent 😉
+- **You can't persist your custom metrics in the Table.** If you add some custom metrics in the Explore view, then these custom metrics won't pop up for the next person that opens the Table.
+- **But, you can use custom metrics in a saved chart.** If you've added custom metrics to your saved chart, and someone else opens the saved chart, they'll see your custom metrics. But, if they open a new, fresh Table in the Explore view, your custom metrics won't appear there. 
+- **You can't use custom SQL in your custom metrics.** If you need to write some more complicated SQL to define your metric, then you'll need to [define it as a metric in your dbt project](#-adding-metrics-in-your-dbt-project).  
+
+### Now, go forth and aggregate!
