@@ -49,7 +49,7 @@ module.exports = {
             "get-started/exploring-data/using-explores",
             "guides/how-to-create-dimensions",
             "guides/how-to-create-metrics",
-            "guides/formatting-your-fields",
+            "guides/exploring-your-content",
           ],
         },
         {
@@ -60,6 +60,7 @@ module.exports = {
             id: 'get-started/exploring-data/intro'
           },
           items: [
+            "guides/exploring-your-content",
             "get-started/exploring-data/using-explores",
             "get-started/exploring-data/sharing-insights",
             "get-started/exploring-data/dashboards"
@@ -145,6 +146,7 @@ module.exports = {
       label: "📈 Querying + visualizing your data",
       items: [
         "get-started/exploring-data/using-explores",
+        "guides/exploring-your-content",
         "guides/limiting-data-using-filters",
         "guides/table-calculations/adding-table-calculations",
         {

@@ -42,6 +42,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 ## 📈 Querying + visualizing your data
 
 - [Using Tables and the Explore view](/get-started/exploring-data/using-explores.mdx)
+- [Exploring your content](/guides/exploring-your-content.mdx)
 - [Limiting your data using filters](/guides/limiting-data-using-filters.md#adding-filters-in-the-explore-view)
 - [Adding table calculations in the Explore view](/guides/table-calculations/adding-table-calculations.mdx)
 - [Visualizing your results](/guides/visualizing-your-results.mdx)
