@@ -274,7 +274,7 @@ export const UpdateProjectConnection: FC<{
                     </p>
                     Read docs{' '}
                     <a
-                        href="https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#create-a-developer-preview-environment"
+                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                         target="_blank"
                         rel="noreferrer"
                     >

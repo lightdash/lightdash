@@ -123,7 +123,7 @@ const configProgram = program
 configProgram
     .command('set-project')
     .description(
-        'Interactively choose project.\nSee https://docs.lightdash.com/get-started/setup-lightdash/lightdash-cli#set-active-project for more help and examples',
+        'Interactively choose project.\nSee https://docs.lightdash.com/guides/cli/cli-authentication#set-active-project for more help and examples',
     )
     .description('Interactively choose project')
     .action(setProjectInteractively);
