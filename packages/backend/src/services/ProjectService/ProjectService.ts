@@ -31,6 +31,7 @@ import {
     ProjectCatalog,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectType,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -372,7 +373,7 @@ export class ProjectService {
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, type } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (
@@ -385,13 +386,23 @@ export class ProjectService {
         }
 
         await this.projectModel.delete(projectUuid);
-        analytics.track({
-            event: 'project.deleted',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-            },
-        });
+        if (type === ProjectType.DEFAULT) {
+            analytics.track({
+                event: 'project.deleted',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                },
+            });
+        } else {
+            analytics.track({
+                event: 'preview_project.deleted',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                },
+            });
+        }
 
         const runningAdapter = this.projectAdapters[projectUuid];
         if (runningAdapter !== undefined) {
