@@ -1,3 +1,10 @@
+# [0.230.0](https://github.com/lightdash/lightdash/compare/0.229.2...0.230.0) (2022-08-24)
+
+
+### Features
+
+* analytics permission updated ([#3064](https://github.com/lightdash/lightdash/issues/3064)) ([7fbff23](https://github.com/lightdash/lightdash/commit/7fbff23a98c1c7e4cb9255fc624fb0d30ef12d7e))
+
 ## [0.229.2](https://github.com/lightdash/lightdash/compare/0.229.1...0.229.2) (2022-08-24)
 
 
