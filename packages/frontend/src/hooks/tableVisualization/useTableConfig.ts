@@ -135,7 +135,7 @@ const useTableConfig = (
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
-        if (Object.keys(columnProperties).length > 0 && resultsData) {
+        if (Object.keys(columnProperties).length > 0) {
             const columnsRemoved = Object.keys(columnProperties).filter(
                 (field) => !selectedItemIds.includes(field),
             );
@@ -143,7 +143,7 @@ const useTableConfig = (
 
             setColumnProperties(columnProperties);
         }
-    }, [selectedItemIds, resultsData, columnProperties]);
+    }, [selectedItemIds, columnProperties]);
 
     const updateColumnProperty = (
         field: string,

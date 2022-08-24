@@ -18,7 +18,6 @@ export const ColumnConfiguration: React.FC = () => {
         },
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
-    console.log(selectedItemIds);
     return (
         <ColumnConfigurationWrapper>
             {selectedItemIds.map((fieldId) => {
