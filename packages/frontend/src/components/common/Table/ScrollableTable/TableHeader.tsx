@@ -25,7 +25,10 @@ const TableHeader = () => {
         <>
             <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
-                    <HeaderDndContext colOrderRef={currentColOrder}>
+                    <HeaderDndContext
+                        key={headerGroup.id}
+                        colOrderRef={currentColOrder}
+                    >
                         <HeaderDroppable headerGroup={headerGroup}>
                             {headerGroup.headers.map((header) => {
                                 const meta = header.column.columnDef
