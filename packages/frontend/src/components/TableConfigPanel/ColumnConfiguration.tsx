@@ -21,7 +21,7 @@ export const ColumnConfiguration: React.FC = () => {
     console.log(selectedItemIds);
     return (
         <ColumnConfigurationWrapper>
-            {Object.keys(selectedItemIds).map((fieldId) => {
+            {selectedItemIds.map((fieldId) => {
                 return (
                     <ColumnWrapper>
                         <InputGroup

@@ -14,27 +14,17 @@ type Props = {
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
 };
 
+const EmptyWrapper: FC<Partial<Props>> = ({ children }) => <>{children}</>;
 const TableTree: FC<Props> = ({
     showTableLabel,
     table,
     additionalMetrics,
     ...rest
 }) => {
-    const Wrapper: FC = ({ children }) => {
-        return showTableLabel ? (
-            <CollapsibleTableTree
-                table={table}
-                additionalMetrics={additionalMetrics}
-            >
-                {children}
-            </CollapsibleTableTree>
-        ) : (
-            <>children</>
-        );
-    };
+    const Wrapper = showTableLabel ? CollapsibleTableTree : EmptyWrapper;
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Wrapper>
+            <Wrapper table={table} additionalMetrics={additionalMetrics}>
                 <TableTreeSections
                     depth={showTableLabel ? 1 : 0}
                     table={table}
