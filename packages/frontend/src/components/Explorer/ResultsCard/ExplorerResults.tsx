@@ -1,6 +1,5 @@
 import { Button, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { isField } from '@lightdash/common';
 import React, { FC, ReactNode } from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
@@ -9,7 +8,6 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
-import TableCalculationHeaderButton from '../../TableCalculationHeaderButton';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
@@ -25,23 +23,16 @@ const HeaderButton: React.FC<HeaderProps> = ({ header }) => {
         actions: { removeActiveField },
     } = useExplorer();
     const meta = header.column.columnDef.meta as TableColumn['meta'];
-    const item = meta?.item;
-    if (item && !isField(item)) {
-        return <TableCalculationHeaderButton tableCalculation={item} />;
-    } else if (meta?.isInvalidItem) {
+
+    if (meta?.isInvalidItem) {
         return (
             <Tooltip2 content="Remove">
                 <Button
                     minimal
                     small
-                    icon={'cross'}
-                    onClick={(e) => {
-                        e.stopPropagation();
+                    icon="cross"
+                    onClick={() => {
                         removeActiveField(header.column.id);
-                    }}
-                    style={{
-                        minHeight: 'auto',
-                        minWidth: 'auto',
                     }}
                 />
             </Tooltip2>

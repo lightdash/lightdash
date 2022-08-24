@@ -4,6 +4,7 @@ import { isField } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import React from 'react';
 import { Draggable } from 'react-beautiful-dnd';
+import styled from 'styled-components';
 import {
     Th,
     ThActionsContainer,
@@ -14,6 +15,10 @@ import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
+
+const FlatButton = styled(Button)`
+    min-height: 16px !important;
+`;
 
 const TableHeader = () => {
     const { table, headerButton, headerContextMenu, columns } =
@@ -103,11 +108,7 @@ const TableHeader = () => {
                                                     </Tooltip2>
                                                 </ThLabelContainer>
 
-                                                <ThActionsContainer
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                >
+                                                <ThActionsContainer>
                                                     {meta?.sort && (
                                                         <SortIndicator
                                                             {...meta?.sort}
@@ -122,26 +123,34 @@ const TableHeader = () => {
 
                                                     {meta?.item &&
                                                         HeaderContextMenu && (
-                                                            <Popover2
-                                                                lazy
-                                                                minimal
-                                                                position={
-                                                                    Position.BOTTOM_RIGHT
-                                                                }
-                                                                content={
-                                                                    <HeaderContextMenu
-                                                                        header={
-                                                                            header
-                                                                        }
-                                                                    />
-                                                                }
+                                                            <div
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                }}
                                                             >
-                                                                <Button
+                                                                <Popover2
+                                                                    lazy
                                                                     minimal
-                                                                    small
-                                                                    icon="more"
-                                                                />
-                                                            </Popover2>
+                                                                    position={
+                                                                        Position.BOTTOM_RIGHT
+                                                                    }
+                                                                    content={
+                                                                        <HeaderContextMenu
+                                                                            header={
+                                                                                header
+                                                                            }
+                                                                        />
+                                                                    }
+                                                                >
+                                                                    <FlatButton
+                                                                        minimal
+                                                                        small
+                                                                        icon="more"
+                                                                    />
+                                                                </Popover2>
+                                                            </div>
                                                         )}
                                                 </ThActionsContainer>
                                             </ThContainer>

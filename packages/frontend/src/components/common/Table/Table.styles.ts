@@ -129,20 +129,15 @@ export const PageCount = styled.span`
     color: ${Colors.GRAY1};
 `;
 
-export const Th = styled.th`
-    padding: 0 !important;
-`;
+export const Th = styled.th``;
 
 export const ThContainer = styled.div`
     display: flex;
     flex-direction: row;
-    align-items: center;
-    margin: 0 11px;
+    align-items: flex-start;
 `;
 
-export const ThLabelContainer = styled.div`
-    margin: 6px 0;
-`;
+export const ThLabelContainer = styled.div``;
 
 export const ThActionsContainer = styled.div`
     flex: 1;
@@ -151,6 +146,7 @@ export const ThActionsContainer = styled.div`
     justify-content: flex-end;
     align-items: center;
 
+    margin-left: 5px;
     > *:not(:last-child) {
         margin-right: 10px;
     }
