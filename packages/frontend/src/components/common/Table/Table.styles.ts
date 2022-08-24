@@ -128,3 +128,14 @@ export const PaginationWrapper = styled.div`
 export const PageCount = styled.span`
     color: ${Colors.GRAY1};
 `;
+
+export const TableHeaderLabelContainer = styled.div``;
+
+export const TableHeaderRegularLabel = styled.span`
+    font-weight: 400;
+    opacity: 0.7;
+`;
+
+export const TableHeaderBoldLabel = styled.span`
+    font-weight: 600;
+`;

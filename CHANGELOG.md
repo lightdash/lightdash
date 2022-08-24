@@ -1,3 +1,10 @@
+# [0.229.0](https://github.com/lightdash/lightdash/compare/0.228.0...0.229.0) (2022-08-24)
+
+
+### Features
+
+* result table header styles ([#3046](https://github.com/lightdash/lightdash/issues/3046)) ([b484fdb](https://github.com/lightdash/lightdash/commit/b484fdbcf9602f46edc36f8bcb5ab6edcd769559))
+
 # [0.228.0](https://github.com/lightdash/lightdash/compare/0.227.0...0.228.0) (2022-08-23)
 
 

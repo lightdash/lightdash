@@ -1,17 +1,13 @@
-import { Button, IconName } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Button, IconName, Menu } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     CartesianSeriesType,
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import useEcharts from '../../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import {
-    ChartOption,
-    ChartOptionsWrapper,
-} from './VisualizationCardOptions.style';
 
 const VisualizationCardOptions: FC = () => {
     const {
@@ -105,9 +101,8 @@ const VisualizationCardOptions: FC = () => {
     return (
         <Popover2
             content={
-                <ChartOptionsWrapper>
-                    <ChartOption
-                        minimal
+                <Menu>
+                    <MenuItem2
                         active={
                             isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
@@ -125,12 +120,10 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Column"
                         text="Bar chart"
                     />
 
-                    <ChartOption
-                        minimal
+                    <MenuItem2
                         active={
                             isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
@@ -148,12 +141,10 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Bar"
                         text="Horizontal bar chart"
                     />
 
-                    <ChartOption
-                        minimal
+                    <MenuItem2
                         active={
                             isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
@@ -170,12 +161,10 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Line"
                         text="Line chart"
                     />
 
-                    <ChartOption
-                        minimal
+                    <MenuItem2
                         active={
                             isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
@@ -192,12 +181,10 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="area"
                         text="Area chart"
                     />
 
-                    <ChartOption
-                        minimal
+                    <MenuItem2
                         active={
                             isChartTypeTheSameForAllSeries &&
                             chartType === ChartType.CARTESIAN &&
@@ -214,12 +201,10 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Scatter"
                         text="Scatter chart"
                     />
 
-                    <ChartOption
-                        minimal
+                    <MenuItem2
                         active={chartType === ChartType.TABLE}
                         icon="panel-table"
                         onClick={() => {
@@ -227,12 +212,10 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Table"
                         text="Table"
                     />
 
-                    <ChartOption
-                        minimal
+                    <MenuItem2
                         active={chartType === ChartType.BIG_NUMBER}
                         icon="numerical"
                         onClick={() => {
@@ -241,10 +224,9 @@ const VisualizationCardOptions: FC = () => {
                             setIsOpen(false);
                         }}
                         disabled={disabled}
-                        name="Big Value"
                         text="Big value"
                     />
-                </ChartOptionsWrapper>
+                </Menu>
             }
             interactionKind="click"
             isOpen={isOpen}
