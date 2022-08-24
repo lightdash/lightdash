@@ -1,3 +1,10 @@
+## [0.231.1](https://github.com/lightdash/lightdash/compare/0.231.0...0.231.1) (2022-08-24)
+
+
+### Bug Fixes
+
+* table config whith columns that arent in the results ([#3011](https://github.com/lightdash/lightdash/issues/3011)) ([73aa8dd](https://github.com/lightdash/lightdash/commit/73aa8dd5e20ac662e523d045460dfdfa49c047c0))
+
 # [0.231.0](https://github.com/lightdash/lightdash/compare/0.230.0...0.231.0) (2022-08-24)
 
 
