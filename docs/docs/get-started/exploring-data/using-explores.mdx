@@ -1,7 +1,7 @@
-import UnderlyingData from './assets/view-underlying-data.jpg';
 import ExploreScreenshot from './assets/explore-screenshot.jpg';
 import ResultsTable from './assets/results-table.png';
 import SaveChart from './assets/save-chart.jpg';
+import SelectTable from './assets/select-table.jpg';
 
 # Using Tables and the Explore view in Lightdash
 
@@ -16,7 +16,11 @@ dbt models, dimensions, and metrics. You **explore Tables in the Explore view**.
 
 ### There are 5 areas to the Explore view
 
-<img src={ExploreScreenshot} width="1122" height="891" style={{display: "block", margin: "0 auto 20px auto"}}/>
+To access the Explore view, you just need to go to `Explore` --> `Tables` -> then select the Table you want to explore.
+
+<img src={SelectTable} width="870" height="360" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+The Explore view is really made up of 5 areas:
 
 1. The list of metrics and dimensions available on the Table
 2. The filters panel, which lets you restrict the data pulled into Lightdash
@@ -24,13 +28,19 @@ dbt models, dimensions, and metrics. You **explore Tables in the Explore view**.
 4. The results panel to explore the results of queries as a table
 5. The SQL panel, which shows the raw SQL that produced the results
 
-## How to create a saved chart from the Explore view
+<img src={ExploreScreenshot} width="1122" height="891" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-Not a fan of videos? You can [follow along with the steps below.](#run-your-query)
+## How to create a saved chart from the Explore view in 5 easy steps
 
 [![tutorial creating saved chart explore](./assets/tutorial_creating_saved_chart_explore.png)](https://youtu.be/NGlsiCOV7gA)
 
-### Run your query
+### Step 1: Select the Table you want to explore
+
+Go to `Explore` --> `Tables` --> then select the Table that you want to explore.
+
+<img src={SelectTable} width="870" height="360" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+### Step 2: Run your query
 
 To run a query:
 
@@ -41,12 +51,12 @@ To run a query:
 For example, if I wanted to know the "total number of orders split by order status", I'd select the `Unique order
 count` metric to calculate the number of orders and the `Status` dimension to split that by status.
 
-### Order the results in your table
+### Step 3: Order the results in your table
 
 Click on the table headers that you want to sort by and click again if you want to change from ascending to descending.
 If you need multiple sorts you can add more by pressing `⌃ Control` or `⌘ Command` and click on the table header.
 
-### Visualize query results as a chart
+### Step 4: Visualize query results as a chart
 
 Once the query executes, the results will show in the results table. You can then open the charts section and choose
 a chart type to visualise the metric.
@@ -55,17 +65,7 @@ You can read more about [configuring your charts here](/guides/visualizing-your-
 
 <img src={ResultsTable} width="692" height="389" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### View the underlying data in a cell
-
-You can click on any cell in your results table and view the records from your table which make up that cell.
-
-For example, I can click on the `page view count` in my results table here and I'd see all of the rows in my `Pages` table that make up my 32,880 count.
-
-<img src={UnderlyingData} width="1220" height="524" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-I can then export this as a CSV or explore from this underlying data.
-
-### Save your chart
+### Step 5: Save your chart
 
 Saved Charts allow you to save a specific chart or visualisation so you can share it or revisit it again in future.
 
@@ -78,8 +78,3 @@ To save a chart:
 1. In chart panel of the Explore view you will find the button to save your chart.
 2. Enter a memorable name for the chart, a good idea is to use a question as the name "How many orders are there at each stage?"
 3. Click on `Saved charts` to see your finished work of art 😚👌
-
-## Next steps
-
-Creating a chart is cool, creating three charts is 3x cooler. Creating a dashboard with your three charts is 300x
-cooler 😎. Learn [how to create and share dashboards](./dashboards.md)

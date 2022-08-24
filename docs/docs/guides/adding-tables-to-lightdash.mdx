@@ -78,7 +78,10 @@ For example, if I ran `lightdash dbt run -s projects`, we would get:
 
 Once you've generated your Tables in dbt, you can test them out in a Lightdash preview environment. 
 
-To spin up a preview environment, just run:
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
+without affecting your production project.
+
+So, let's spin up a developer preview and check out our changes. In your terminal, run the commands:
 
 ```shell
 lightdash preview
@@ -92,7 +95,23 @@ If you're working with a version controlled project, make sure to **merge your c
 
 If you're working with a local project that isn't version controlled, you don't need to worry about syncing your changes.
 
-Now, your Table is Lightdash-ready: so, open up Lightdash and click `refresh dbt` and your Table should pop up in your project.
+Once you've merged your changes, you'll want to deploy them to production. To do this, just run these commands in your terminal from your dbt project:
+
+```shell
+git checkout main # checkout main or master - or whatever your production branch name is
+git pull
+lightdash deploy # --target prod. If you use developer profiles in your dbt project, you might need this flag. See below.
+```
+
+This will deploy the changes in your dbt project to the Lightdash project you set up on your CLI tool earlier.
+
+:::info
+
+**Note:** Lightdash's deploy commnd will deploy using your **default dbt target** unless you specify to use a different target. For example, if you've set up a developer profile where it targets a dev dataset (like `dbt_khindson.my_model_names`), then you'll need to pass the production target in your `lightdash deploy` command. Something like: `lightdash deploy --target prod`.
+
+:::
+
+Now, your Table is Lightdash-ready: so, open up Lightdash and your Table should pop up in your project!
 
 ---
 

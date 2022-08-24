@@ -31,8 +31,9 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 - [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/get-project-lightdash-ready.mdx)
 - [The Lightdash CLI](/guides/cli/intro)
+- [An intro to metrics and dimensions](/get-started/setup-lightdash/intro-metrics-dimensions.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
-- [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.md)
+- [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.mdx)
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)
 - [Syncing your dbt changes to Lightdash](/references/syncing_your_dbt_changes.md)
 - [How to join tables](/guides/how-to-join-tables.md)
@@ -41,6 +42,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 ## 📈 Querying + visualizing your data
 
 - [Using Tables and the Explore view](/get-started/exploring-data/using-explores.mdx)
+- [Exploring your content](/guides/exploring-your-content.mdx)
 - [Limiting your data using filters](/guides/limiting-data-using-filters.md#adding-filters-in-the-explore-view)
 - [Adding table calculations in the Explore view](/guides/table-calculations/adding-table-calculations.mdx)
 - [Visualizing your results](/guides/visualizing-your-results.mdx)

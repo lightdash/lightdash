@@ -1,0 +1,23 @@
+import DataQuestion from './assets/data-question.jpg';
+
+# An intro to metrics and dimensions
+
+## What are metrics and dimensions?
+
+Metrics and dimensions are defined in your dbt project alongside your dbt model properties.
+
+* **Dimensions** are used to **segment data** in your Tables.
+* **Metrics** are used to **perform calculations** on your Tables.
+
+Say we're running an ecommerce business, we probably have a table containing all order data. We might want to
+ask:
+
+<img src={DataQuestion} width="1004" height="227" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+This question can be answered using a single metric "the total number of unique orders" and a single dimension for
+splitting the metric by "status of order". In Lightdash you'd get the following chart:
+
+![two metrics on a bar chart](./assets/metric-on-bar-chart.png)
+
+To learn more about why we use dimensions and metrics in Lightdash, [read the Lightdash approach to BI](/best-practice/lightdash-way).
+

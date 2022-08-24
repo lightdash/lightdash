@@ -60,7 +60,7 @@ const TableTreeSections: FC<Props> = ({
                 {hasNoMetrics && (
                     <DocumentationHelpButton
                         url={
-                            'https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#2-add-a-metric-to-your-project'
+                            'https://docs.lightdash.com/guides/how-to-create-metrics'
                         }
                         tooltipProps={{
                             content: (

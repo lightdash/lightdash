@@ -2,6 +2,9 @@ import HomeButton from './assets/home-button.png';
 import HomePage from './assets/home-page.png';
 import BrowseButton from './assets/browse-button.png';
 import SearchBar from './assets/search-bar.png';
+import ExploreFromHere from './assets/explore-from-here.jpg';
+import SelectTable from './assets/select-table.jpg';
+import UnderlyingData from './assets/underlying-data.jpg';
 
 # Exploring your content
 
@@ -27,8 +30,41 @@ If you already know what you're looking for, then you can use the search bar to 
 
 This global search matches content from everywhere in the project: dashboard names, field descriptions, table names, saved chart descriptions, etc.
 
+## Exploring data in a chart
+
+### View underlying data in a chart
+
+You can click on any point on a chart or any cell in a results table and view the records which make up that data point.
+
+For example, I can click on the page views bar in my chart or the value in the results table cell and I'd see all of the rows in the underlying table that make up the 19,120 page views count.
+
+I can then export this as a CSV or explore from this underlying data.
+
+<img src={UnderlyingData} width="1103" height="580" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+
 ## Exploring data in a dashboard
 
 Dashboards allow you to arrange multiple charts that are related to each other into a single view. 
 
 You can interact with dashboards in your project in a few different ways. [Learn more about it here](/guides/interactive-dashboards.mdx).
+
+## Using "Explore from here" to explore from existing charts
+
+One of the best ways of exploring data is using saved charts and charts in dashboards as the starting point to your data exploration. You can do this in Lightdash using the `Explore from here` button. 
+
+`Explore from here` gives you a copy of the same chart you can play around with. Any changes you make here **will not affect** the original chart - so you can Explore away without any worry of breaking things! 
+
+If you've never used the Explore View, then checkout this tutorial on [using the Explore View in Lightdash](/get-started/exploring-data/using-explores).
+
+<img src={ExploreFromHere} width="1302" height="768" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+## Exploring from scratch with Tables
+
+If you can't find any relevant saved charts or dashboards that answer your question, you can always explore your Tables from scratch. 
+
+To start an Explore view from scratch, just click on `Explore` --> `Tables` --> then select the table that you want to explore. 
+
+If you've never used the Explore View, then checkout this tutorial on [using the Explore View in Lightdash](/get-started/exploring-data/using-explores).
+
+<img src={SelectTable} width="870" height="360" style={{display: "block", margin: "0 auto 20px auto"}}/>

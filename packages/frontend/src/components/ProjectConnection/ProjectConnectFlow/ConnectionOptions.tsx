@@ -52,7 +52,7 @@ const ConnectionOptions: FC<Props> = ({ setHasDimensions }) => {
                         targetTagName="div"
                     >
                         <LinkToDocsButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#2-add-a-metric-to-your-project"
+                            href="https://docs.lightdash.com/guides/how-to-create-metrics"
                             target="_blank"
                         >
                             <ButtonLabel>

@@ -11,7 +11,7 @@ type ExploreMenuItemProps = {
 const NoDimensionsIcon = () => (
     <a
         role="button"
-        href="https://docs.lightdash.com/get-started/setup-lightdash/add-metrics/#1-add-a-dimension-to-your-project"
+        href="https://docs.lightdash.com/guides/how-to-create-dimensions"
         target="_blank"
         rel="noreferrer"
         style={{ color: Colors.GRAY5 }}

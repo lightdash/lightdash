@@ -32,8 +32,9 @@ module.exports = {
             "get-started/setup-lightdash/get-project-lightdash-ready",
             "get-started/setup-lightdash/connect-project",
             "get-started/setup-lightdash/install-lightdash",
+            "get-started/setup-lightdash/intro-metrics-dimensions",
             "get-started/exploring-data/using-explores",
-            "get-started/setup-lightdash/add-metrics",
+            "guides/how-to-create-metrics",
             "get-started/exploring-data/sharing-insights"
           ],
         },
@@ -45,10 +46,11 @@ module.exports = {
             id: 'get-started/develop-in-lightdash/intro'
           },
           items: [
+            "get-started/setup-lightdash/intro-metrics-dimensions",
             "get-started/exploring-data/using-explores",
             "guides/how-to-create-dimensions",
             "guides/how-to-create-metrics",
-            "guides/formatting-your-fields",
+            "guides/exploring-your-content",
           ],
         },
         {
@@ -59,6 +61,7 @@ module.exports = {
             id: 'get-started/exploring-data/intro'
           },
           items: [
+            "guides/exploring-your-content",
             "get-started/exploring-data/using-explores",
             "get-started/exploring-data/sharing-insights",
             "get-started/exploring-data/dashboards"
@@ -86,14 +89,6 @@ module.exports = {
         "get-started/setup-lightdash/get-project-lightdash-ready",
         {
           type: "category",
-          label: "Tables",
-          items: [
-            "guides/adding-tables-to-lightdash",
-            "references/tables",
-          ],
-        },
-        {
-          type: "category",
           label: "The Lightdash CLI",
           link: {
             type: 'generated-index',
@@ -109,6 +104,14 @@ module.exports = {
             "guides/cli/how-to-auto-generate-schema-files",
             "guides/cli/how-to-use-lightdash-preview",
             "guides/cli/how-to-use-lightdash-deploy"
+          ],
+        },
+        {
+          type: "category",
+          label: "Tables",
+          items: [
+            "guides/adding-tables-to-lightdash",
+            "references/tables",
           ],
         },
         {
@@ -144,6 +147,7 @@ module.exports = {
       label: "📈 Querying + visualizing your data",
       items: [
         "get-started/exploring-data/using-explores",
+        "guides/exploring-your-content",
         "guides/limiting-data-using-filters",
         "guides/table-calculations/adding-table-calculations",
         {
