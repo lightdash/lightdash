@@ -449,6 +449,9 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                                         : 'viewer',
                                                                 },
                                                             });
+                                                            track({
+                                                                name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                                                            });
                                                             addDimensionDashboardFilter(
                                                                 filter,
                                                                 !isEditMode,

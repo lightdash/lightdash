@@ -83,4 +83,5 @@ export enum EventName {
     SEARCH_RESULT_CLICKED = 'search_result.clicked',
     GLOBAL_SEARCH_OPEN = 'global_search.open',
     GLOBAL_SEARCH_CLOSED = 'global_search.closed',
+    CROSS_FILTER_DASHBOARD_APPLIED = 'cross_filtering_apply.click',
 }
