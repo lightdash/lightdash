@@ -1,3 +1,10 @@
+## [0.229.2](https://github.com/lightdash/lightdash/compare/0.229.1...0.229.2) (2022-08-24)
+
+
+### Bug Fixes
+
+* fix empty column order on explore from here for underlying data ([#3050](https://github.com/lightdash/lightdash/issues/3050)) ([3c57242](https://github.com/lightdash/lightdash/commit/3c572423e6514048b13ad09f88c46357015b9291))
+
 ## [0.229.1](https://github.com/lightdash/lightdash/compare/0.229.0...0.229.1) (2022-08-24)
 
 
