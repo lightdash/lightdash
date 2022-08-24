@@ -18,7 +18,7 @@ const UnderlyingDataResultsTable: FC<{
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     hasJoins?: boolean;
-}> = ({ fieldsMap, resultsData, hasJoins }) => {
+}> = ({ fieldsMap, resultsData, isLoading, hasJoins }) => {
     const columnHeader = (dimension: Field) => (
         <TableHeaderLabelContainer>
             {hasJoins === true && (
