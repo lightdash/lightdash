@@ -1,3 +1,10 @@
+## [0.229.1](https://github.com/lightdash/lightdash/compare/0.229.0...0.229.1) (2022-08-24)
+
+
+### Bug Fixes
+
+* table header keys ([#3065](https://github.com/lightdash/lightdash/issues/3065)) ([aa92c70](https://github.com/lightdash/lightdash/commit/aa92c709f1328b4e93b7f851dae29b7a213faa74))
+
 # [0.229.0](https://github.com/lightdash/lightdash/compare/0.228.0...0.229.0) (2022-08-24)
 
 
