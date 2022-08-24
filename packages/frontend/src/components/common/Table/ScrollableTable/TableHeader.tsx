@@ -4,16 +4,16 @@ import { isField } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import React from 'react';
 import { Draggable } from 'react-beautiful-dnd';
-import styled from 'styled-components';
-import { TableHeaderActionsContainer } from '../Table.styles';
+import {
+    Th,
+    ThActionsContainer,
+    ThContainer,
+    ThLabelContainer,
+} from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
-
-const FlatButton = styled(Button)`
-    min-height: 16px;
-`;
 
 const TableHeader = () => {
     const { table, headerButton, headerContextMenu, columns } =
@@ -38,7 +38,7 @@ const TableHeader = () => {
                                 .meta as TableColumn['meta'];
 
                             return (
-                                <th
+                                <Th
                                     colSpan={header.colSpan}
                                     style={{
                                         width: meta?.width,
@@ -57,54 +57,53 @@ const TableHeader = () => {
                                         isDragDisabled={!meta?.draggable}
                                     >
                                         {(provided, snapshot) => (
-                                            <div
-                                                ref={provided.innerRef}
-                                                {...provided.draggableProps}
-                                                {...provided.dragHandleProps}
-                                                style={{
-                                                    ...provided.draggableProps
-                                                        .style,
-                                                    ...(!snapshot.isDragging && {
-                                                        transform:
-                                                            'translate(0,0)',
-                                                    }),
-                                                    ...(snapshot.isDropAnimating && {
-                                                        transitionDuration:
-                                                            '0.001s',
-                                                    }),
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent:
-                                                        'space-between',
-                                                }}
-                                            >
-                                                <Tooltip2
-                                                    lazy
-                                                    fill
-                                                    content={
-                                                        meta?.item &&
-                                                        isField(meta?.item)
-                                                            ? meta.item
-                                                                  .description
-                                                            : undefined
-                                                    }
-                                                    position="top"
-                                                    disabled={
-                                                        snapshot.isDropAnimating ||
-                                                        snapshot.isDragging
-                                                    }
+                                            <ThContainer>
+                                                <ThLabelContainer
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    style={{
+                                                        ...provided
+                                                            .draggableProps
+                                                            .style,
+                                                        ...(!snapshot.isDragging && {
+                                                            transform:
+                                                                'translate(0,0)',
+                                                        }),
+                                                        ...(snapshot.isDropAnimating && {
+                                                            transitionDuration:
+                                                                '0.001s',
+                                                        }),
+                                                    }}
                                                 >
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(
-                                                              header.column
-                                                                  .columnDef
-                                                                  .header,
-                                                              header.getContext(),
-                                                          )}
-                                                </Tooltip2>
+                                                    <Tooltip2
+                                                        lazy
+                                                        fill
+                                                        content={
+                                                            meta?.item &&
+                                                            isField(meta?.item)
+                                                                ? meta.item
+                                                                      .description
+                                                                : undefined
+                                                        }
+                                                        position="top"
+                                                        disabled={
+                                                            snapshot.isDropAnimating ||
+                                                            snapshot.isDragging
+                                                        }
+                                                    >
+                                                        {header.isPlaceholder
+                                                            ? null
+                                                            : flexRender(
+                                                                  header.column
+                                                                      .columnDef
+                                                                      .header,
+                                                                  header.getContext(),
+                                                              )}
+                                                    </Tooltip2>
+                                                </ThLabelContainer>
 
-                                                <TableHeaderActionsContainer
+                                                <ThActionsContainer
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                     }}
@@ -137,18 +136,18 @@ const TableHeader = () => {
                                                                     />
                                                                 }
                                                             >
-                                                                <FlatButton
+                                                                <Button
                                                                     minimal
                                                                     small
                                                                     icon="more"
                                                                 />
                                                             </Popover2>
                                                         )}
-                                                </TableHeaderActionsContainer>
-                                            </div>
+                                                </ThActionsContainer>
+                                            </ThContainer>
                                         )}
                                     </Draggable>
-                                </th>
+                                </Th>
                             );
                         })}
                     </HeaderDroppable>
