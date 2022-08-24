@@ -127,6 +127,19 @@ export class ProjectService {
             user.organizationUuid,
             data,
         );
+        analytics.track({
+            event: 'preview_project.created',
+            userId: user.userUuid,
+            properties: {
+                projectName: data.name,
+                projectId: projectUuid,
+                projectType: data.dbtConnection.type,
+                warehouseConnectionType: data.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
+            },
+        });
+
         return this.projectModel.get(projectUuid);
     }
 
