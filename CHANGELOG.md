@@ -1,3 +1,10 @@
+## [0.231.2](https://github.com/lightdash/lightdash/compare/0.231.1...0.231.2) (2022-08-24)
+
+
+### Bug Fixes
+
+* update docs links ([#3069](https://github.com/lightdash/lightdash/issues/3069)) ([818bd27](https://github.com/lightdash/lightdash/commit/818bd2785fce4104d250347835655de59013c7d1))
+
 ## [0.231.1](https://github.com/lightdash/lightdash/compare/0.231.0...0.231.1) (2022-08-24)
 
 
