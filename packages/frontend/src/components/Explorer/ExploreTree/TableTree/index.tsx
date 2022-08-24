@@ -20,10 +20,21 @@ const TableTree: FC<Props> = ({
     additionalMetrics,
     ...rest
 }) => {
-    const Wrapper = showTableLabel ? CollapsibleTableTree : React.Fragment;
+    const Wrapper: FC = ({ children }) => {
+        return showTableLabel ? (
+            <CollapsibleTableTree
+                table={table}
+                additionalMetrics={additionalMetrics}
+            >
+                {children}
+            </CollapsibleTableTree>
+        ) : (
+            <>children</>
+        );
+    };
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Wrapper table={table} additionalMetrics={additionalMetrics}>
+            <Wrapper>
                 <TableTreeSections
                     depth={showTableLabel ? 1 : 0}
                     table={table}

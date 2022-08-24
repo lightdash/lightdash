@@ -2,12 +2,11 @@ import {
     ApiQueryResults,
     ColumnProperties,
     Explore,
-    Field,
     getItemLabel,
     getItemMap,
     isField,
+    itemsInMetricQuery,
     ResultRow,
-    TableCalculation,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -44,32 +43,29 @@ const useTableConfig = (
         Record<string, ColumnProperties>
     >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
+    const selectedItemIds = useMemo(
+        () => itemsInMetricQuery(resultsData?.metricQuery),
+        [resultsData],
+    );
     const itemsMap = useMemo(() => {
         if (explore) {
-            const allItemsMap = getItemMap(
+            return getItemMap(
                 explore,
                 resultsData?.metricQuery.additionalMetrics,
                 resultsData?.metricQuery.tableCalculations,
             );
-            return Object.entries(allItemsMap).reduce<
-                Record<string, Field | TableCalculation>
-            >(
-                (acc, [key, value]) =>
-                    columnOrder.includes(key)
-                        ? {
-                              ...acc,
-                              [key]: value,
-                          }
-                        : acc,
-                {},
-            );
         }
         return {};
-    }, [explore, resultsData, columnOrder]);
+    }, [explore, resultsData]);
 
     const getDefaultColumnLabel = useCallback(
         (fieldId: string) => {
-            const item = itemsMap[fieldId];
+            const item = itemsMap[fieldId] as
+                | typeof itemsMap[number]
+                | undefined;
+            if (item === undefined) {
+                return '';
+            }
             if (isField(item) && !showTableNames) {
                 return item.label;
             } else {
@@ -79,6 +75,8 @@ const useTableConfig = (
         [itemsMap, showTableNames],
     );
 
+    // This is controlled by the state in this component.
+    // User configures the names and visibilty of these in the config panel
     const isColumnVisible = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
         [columnProperties],
@@ -116,6 +114,7 @@ const useTableConfig = (
         } else {
             return getDataAndColumns({
                 itemsMap,
+                selectedItemIds,
                 resultsData,
                 isColumnVisible,
                 showTableNames,
@@ -123,6 +122,7 @@ const useTableConfig = (
             });
         }
     }, [
+        selectedItemIds,
         columnOrder,
         itemsMap,
         resultsData,
@@ -135,15 +135,15 @@ const useTableConfig = (
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
-        if (Object.keys(columnProperties).length > 0) {
+        if (Object.keys(columnProperties).length > 0 && resultsData) {
             const columnsRemoved = Object.keys(columnProperties).filter(
-                (field) => !columnOrder.includes(field),
+                (field) => !selectedItemIds.includes(field),
             );
             columnsRemoved.forEach((field) => delete columnProperties[field]);
 
             setColumnProperties(columnProperties);
         }
-    }, [columnOrder, columnProperties]);
+    }, [selectedItemIds, resultsData, columnProperties]);
 
     const updateColumnProperty = (
         field: string,
@@ -171,6 +171,7 @@ const useTableConfig = (
     );
 
     return {
+        selectedItemIds,
         columnOrder,
         validTableConfig,
         showColumnCalculation,

@@ -59,6 +59,7 @@ const CellContextMenu: FC<CellContextMenuProps> = ({
         <Popover2
             minimal
             lazy
+            usePortal
             position={Position.BOTTOM_RIGHT}
             boundary={boundaryElement}
             content={<ContextMenu cell={cell} meta={meta} />}
