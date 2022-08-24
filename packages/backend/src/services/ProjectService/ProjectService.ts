@@ -129,7 +129,7 @@ export class ProjectService {
             data,
         );
         analytics.track({
-            event: 'preview_project.created',
+            event: 'project.created',
             userId: user.userUuid,
             properties: {
                 projectName: data.name,
@@ -138,6 +138,7 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection.type,
                 organizationId: user.organizationUuid,
                 dbtConnectionType: data.dbtConnection.type,
+                isPreview: true,
             },
         });
 
@@ -224,6 +225,7 @@ export class ProjectService {
                         warehouseConnectionType: data.warehouseConnection.type,
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
+                        isPreview: data.type === ProjectType.PREVIEW,
                     },
                 });
                 this.projectAdapters[projectUuid] = adapter;
@@ -329,6 +331,7 @@ export class ProjectService {
                             updatedProject.warehouseConnection.type,
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
+                        isPreview: savedProject.type === ProjectType.PREVIEW,
                     },
                 });
                 if (this.projectAdapters[projectUuid] !== undefined)
@@ -386,23 +389,15 @@ export class ProjectService {
         }
 
         await this.projectModel.delete(projectUuid);
-        if (type === ProjectType.DEFAULT) {
-            analytics.track({
-                event: 'project.deleted',
-                userId: user.userUuid,
-                properties: {
-                    projectId: projectUuid,
-                },
-            });
-        } else {
-            analytics.track({
-                event: 'preview_project.deleted',
-                userId: user.userUuid,
-                properties: {
-                    projectId: projectUuid,
-                },
-            });
-        }
+
+        analytics.track({
+            event: 'project.deleted',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                isPreview: type === ProjectType.PREVIEW,
+            },
+        });
 
         const runningAdapter = this.projectAdapters[projectUuid];
         if (runningAdapter !== undefined) {

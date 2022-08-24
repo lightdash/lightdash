@@ -169,6 +169,7 @@ type ProjectEvent = BaseTrack & {
         warehouseConnectionType: WarehouseTypes;
         organizationId: string;
         dbtConnectionType: DbtProjectType;
+        isPreview: boolean;
     };
 };
 
@@ -177,6 +178,7 @@ type ProjectDeletedEvent = BaseTrack & {
     userId: string;
     properties: {
         projectId: string;
+        isPreview: boolean;
     };
 };
 
