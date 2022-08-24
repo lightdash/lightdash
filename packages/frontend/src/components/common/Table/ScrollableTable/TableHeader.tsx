@@ -52,41 +52,42 @@ const TableHeader = () => {
                                         isDragDisabled={!meta?.draggable}
                                     >
                                         {(provided, snapshot) => (
-                                            <Tooltip2
-                                                fill
-                                                content={
-                                                    meta?.item &&
-                                                    isField(meta?.item)
-                                                        ? meta.item.description
-                                                        : undefined
-                                                }
-                                                position="top"
-                                                disabled={
-                                                    snapshot.isDropAnimating ||
-                                                    snapshot.isDragging
-                                                }
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                {...provided.dragHandleProps}
+                                                style={{
+                                                    ...provided.draggableProps
+                                                        .style,
+                                                    ...(!snapshot.isDragging && {
+                                                        transform:
+                                                            'translate(0,0)',
+                                                    }),
+                                                    ...(snapshot.isDropAnimating && {
+                                                        transitionDuration:
+                                                            '0.001s',
+                                                    }),
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent:
+                                                        'space-between',
+                                                }}
                                             >
-                                                <div
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    style={{
-                                                        ...provided
-                                                            .draggableProps
-                                                            .style,
-                                                        ...(!snapshot.isDragging && {
-                                                            transform:
-                                                                'translate(0,0)',
-                                                        }),
-                                                        ...(snapshot.isDropAnimating && {
-                                                            transitionDuration:
-                                                                '0.001s',
-                                                        }),
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent:
-                                                            'space-between',
-                                                    }}
+                                                <Tooltip2
+                                                    lazy
+                                                    fill
+                                                    content={
+                                                        meta?.item &&
+                                                        isField(meta?.item)
+                                                            ? meta.item
+                                                                  .description
+                                                            : undefined
+                                                    }
+                                                    position="top"
+                                                    disabled={
+                                                        snapshot.isDropAnimating ||
+                                                        snapshot.isDragging
+                                                    }
                                                 >
                                                     {header.isPlaceholder
                                                         ? null
@@ -96,50 +97,50 @@ const TableHeader = () => {
                                                                   .header,
                                                               header.getContext(),
                                                           )}
+                                                </Tooltip2>
 
-                                                    <TableHeaderActionsContainer
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                        }}
-                                                    >
-                                                        {meta?.sort && (
-                                                            <SortIndicator
-                                                                {...meta?.sort}
-                                                            />
-                                                        )}
+                                                <TableHeaderActionsContainer
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                >
+                                                    {meta?.sort && (
+                                                        <SortIndicator
+                                                            {...meta?.sort}
+                                                        />
+                                                    )}
 
-                                                        {HeaderButton && (
-                                                            <HeaderButton
-                                                                header={header}
-                                                            />
-                                                        )}
+                                                    {HeaderButton && (
+                                                        <HeaderButton
+                                                            header={header}
+                                                        />
+                                                    )}
 
-                                                        {meta?.item &&
-                                                            HeaderContextMenu && (
-                                                                <Popover2
-                                                                    lazy
-                                                                    minimal
-                                                                    position={
-                                                                        Position.BOTTOM_RIGHT
-                                                                    }
-                                                                    content={
-                                                                        <HeaderContextMenu
-                                                                            header={
-                                                                                header
-                                                                            }
-                                                                        />
-                                                                    }
-                                                                >
-                                                                    <Button
-                                                                        minimal
-                                                                        small
-                                                                        icon="more"
+                                                    {meta?.item &&
+                                                        HeaderContextMenu && (
+                                                            <Popover2
+                                                                lazy
+                                                                minimal
+                                                                position={
+                                                                    Position.BOTTOM_RIGHT
+                                                                }
+                                                                content={
+                                                                    <HeaderContextMenu
+                                                                        header={
+                                                                            header
+                                                                        }
                                                                     />
-                                                                </Popover2>
-                                                            )}
-                                                    </TableHeaderActionsContainer>
-                                                </div>
-                                            </Tooltip2>
+                                                                }
+                                                            >
+                                                                <Button
+                                                                    minimal
+                                                                    small
+                                                                    icon="more"
+                                                                />
+                                                            </Popover2>
+                                                        )}
+                                                </TableHeaderActionsContainer>
+                                            </div>
                                         )}
                                     </Draggable>
                                 </th>
