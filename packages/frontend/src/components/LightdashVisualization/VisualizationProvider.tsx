@@ -106,13 +106,34 @@ export const VisualizationProvider: FC<Props> = ({
         explore,
     );
 
+    // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
+    // so we initialize it with the fields from resultData
+    const defaultColumnOrder = useMemo(() => {
+        if (columnOrder.length > 0) {
+            return columnOrder;
+        } else {
+            const metricQuery = resultsData?.metricQuery;
+            const metricQueryFields =
+                metricQuery !== undefined
+                    ? [
+                          ...metricQuery.dimensions,
+                          ...metricQuery.metrics,
+                          ...metricQuery.tableCalculations.map(
+                              ({ name }) => name,
+                          ),
+                      ]
+                    : [];
+            return metricQueryFields;
+        }
+    }, [resultsData?.metricQuery, columnOrder]);
+
     const tableConfig = useTableConfig(
         initialChartConfig?.type === ChartType.TABLE
             ? initialChartConfig.config
             : undefined,
         lastValidResultsData,
         explore,
-        columnOrder,
+        (columnOrder = defaultColumnOrder),
         validPivotDimensions,
     );
 
@@ -132,7 +153,7 @@ export const VisualizationProvider: FC<Props> = ({
         pivotKey: validPivotDimensions?.[0],
         resultsData: lastValidResultsData,
         setPivotDimensions,
-        columnOrder: isSqlRunner ? [] : columnOrder,
+        columnOrder: isSqlRunner ? [] : defaultColumnOrder,
         explore: isSqlRunner ? undefined : explore,
     });
 
