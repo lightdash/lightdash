@@ -34,6 +34,7 @@ module.exports = {
             "get-started/setup-lightdash/install-lightdash",
             "get-started/setup-lightdash/intro-metrics-dimensions",
             "get-started/exploring-data/using-explores",
+            "guides/how-to-create-metrics",
             "get-started/exploring-data/sharing-insights"
           ],
         },

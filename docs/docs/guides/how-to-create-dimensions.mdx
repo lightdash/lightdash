@@ -19,9 +19,7 @@ before proceeding with setting up Lightdash.
 
 ## What are dimensions?
 
-Lightdash dimensions are columns that have been defined in your dbt project's .yml files.
-
-Basically, they're just the fields from your dbt models. Lightdash lets you explore these columns if you define them in your dbt model properties (i.e. their `.yml` files).
+Lightdash dimensions are columns that have been defined in your dbt project's .yml files. Basically, they're just the fields from your data models in dbt. 
 
 For example, the following dbt project file contains properties that create a single dimension, `source`, for the `Pages` Table in Lightdash:
 
@@ -114,9 +112,9 @@ Then `cmd` + `click` to open the preview link from your terminal. Once you're in
 
 ---
 
-## Step 3: Configure your dimension
+## Step 3: Configure your dimension (optional)
 
-You can jazz up your dimensions by configuring them in your .yml files. These dimension configurations live under the `meta` tag of your columns:
+You can jazz up your dimensions by configuring them in your .yml files. These dimension configurations live under the `meta` tag of your columns, under `dimension`:
 
 ```yaml
 version: 2
@@ -136,7 +134,7 @@ models:
 
 Things like the format, the label that people see in Lightdash, rounding, etc. - these are all configurations that you can apply to your dimensions.
 
-You can [see all of the dimension configurations in our dimensions docs here](/references/dimensions.md#dimension-configuration).
+You can [see all of the dimension configurations in our dimensions reference doc here](/references/dimensions.md#dimension-configuration).
 
 ---
 
