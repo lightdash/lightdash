@@ -1,3 +1,10 @@
+# [0.231.0](https://github.com/lightdash/lightdash/compare/0.230.0...0.231.0) (2022-08-24)
+
+
+### Features
+
+* analytics cross filter applied click on dashboards ([#3066](https://github.com/lightdash/lightdash/issues/3066)) ([7d670d8](https://github.com/lightdash/lightdash/commit/7d670d89c9b49e93137a6bd92a904f0e53b88469))
+
 # [0.230.0](https://github.com/lightdash/lightdash/compare/0.229.2...0.230.0) (2022-08-24)
 
 
