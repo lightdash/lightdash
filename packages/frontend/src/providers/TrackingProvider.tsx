@@ -110,6 +110,15 @@ export type FormClickedEvent = {
     };
 };
 
+export type CrossFilterDashboardAppliedEvent = {
+    name: EventName.CROSS_FILTER_DASHBOARD_APPLIED;
+    properties: {
+        fieldType: string | undefined;
+        dashboardId: string;
+        projectId: string;
+    };
+};
+
 type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -118,7 +127,8 @@ type EventData =
     | SearchResultClickedEvent
     | GlobalSearchOpenEvent
     | GlobalSearchClosedEvent
-    | OnboardingStepClickedEvent;
+    | OnboardingStepClickedEvent
+    | CrossFilterDashboardAppliedEvent;
 
 type IdentifyData = {
     id: string;
