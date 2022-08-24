@@ -4,6 +4,11 @@ import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import Table from '../common/Table';
+import {
+    TableHeaderBoldLabel,
+    TableHeaderLabelContainer,
+    TableHeaderRegularLabel,
+} from '../common/Table/Table.styles';
 import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 
 const UnderlyingDataResultsTable: FC<{
@@ -11,17 +16,18 @@ const UnderlyingDataResultsTable: FC<{
     resultsData: ApiQueryResults | undefined;
     hasJoins?: boolean;
 }> = ({ fieldsMap, resultsData, hasJoins }) => {
-    const columnHeader = (dimension: Field) => {
-        return hasJoins === true ? (
-            <span>
-                {dimension.tableLabel} <b>{dimension.label}</b>
-            </span>
-        ) : (
-            <span>
-                <b>{dimension.label}</b>
-            </span>
-        );
-    };
+    const columnHeader = (dimension: Field) => (
+        <TableHeaderLabelContainer>
+            {hasJoins === true && (
+                <TableHeaderRegularLabel>
+                    {dimension.tableLabel} -{' '}
+                </TableHeaderRegularLabel>
+            )}
+
+            <TableHeaderBoldLabel>{dimension.label}</TableHeaderBoldLabel>
+        </TableHeaderLabelContainer>
+    );
+
     const columns = useUnderlyingDataColumns({
         resultsData,
         fieldsMap,
