@@ -4,11 +4,16 @@ import { isField } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import React from 'react';
 import { Draggable } from 'react-beautiful-dnd';
+import styled from 'styled-components';
 import { TableHeaderActionsContainer } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
+
+const FlatButton = styled(Button)`
+    min-height: 16px;
+`;
 
 const TableHeader = () => {
     const { table, headerButton, headerContextMenu, columns } =
@@ -132,7 +137,7 @@ const TableHeader = () => {
                                                                     />
                                                                 }
                                                             >
-                                                                <Button
+                                                                <FlatButton
                                                                     minimal
                                                                     small
                                                                     icon="more"
