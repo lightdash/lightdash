@@ -139,7 +139,10 @@ const DashboardChartTile: FC<Props> = (props) => {
         },
         isEditMode,
     } = props;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
     const { data: savedQuery, isLoading } = useSavedQuery({
         id: savedChartUuid || undefined,
     });
@@ -449,9 +452,36 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                                         : 'viewer',
                                                                 },
                                                             });
+
+                                                            const fields =
+                                                                explore
+                                                                    ? getFields(
+                                                                          explore,
+                                                                      )
+                                                                    : [];
+                                                            const field =
+                                                                fields.find(
+                                                                    (f) =>
+                                                                        fieldId(
+                                                                            f,
+                                                                        ) ===
+                                                                        filter
+                                                                            .target
+                                                                            .fieldId,
+                                                                );
+
                                                             track({
                                                                 name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                                                                properties: {
+                                                                    fieldType:
+                                                                        field?.type,
+                                                                    projectId:
+                                                                        projectUuid,
+                                                                    dashboardId:
+                                                                        dashboardUuid,
+                                                                },
                                                             });
+
                                                             addDimensionDashboardFilter(
                                                                 filter,
                                                                 !isEditMode,
