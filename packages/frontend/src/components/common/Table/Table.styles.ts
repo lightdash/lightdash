@@ -139,3 +139,13 @@ export const TableHeaderRegularLabel = styled.span`
 export const TableHeaderBoldLabel = styled.span`
     font-weight: 600;
 `;
+
+export const TableHeaderActionsContainer = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    > *:not(:last-child) {
+        margin-right: 10px;
+    }
+`;

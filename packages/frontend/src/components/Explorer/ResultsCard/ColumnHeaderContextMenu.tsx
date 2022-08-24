@@ -19,58 +19,46 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
     const {
         actions: { removeActiveField },
     } = useExplorer();
+
     if (item && isField(item) && isFilterableField(item)) {
         return (
-            <ContextMenu2
-                content={
-                    <Menu>
-                        <MenuItem2
-                            text={`Filter by ${item.label}`}
-                            icon={'filter'}
-                            onClick={(e) => {
-                                track({
-                                    name: EventName.ADD_FILTER_CLICKED,
-                                });
-                                e.stopPropagation();
-                                addFilter(item, undefined, false);
-                            }}
-                        />
+            <Menu>
+                <MenuItem2
+                    text={`Filter by ${item.label}`}
+                    icon="filter"
+                    onClick={(e) => {
+                        track({ name: EventName.ADD_FILTER_CLICKED });
+                        e.stopPropagation();
+                        addFilter(item, undefined, false);
+                    }}
+                />
 
-                        <MenuItem2
-                            text={`Remove`}
-                            icon={'cross'}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                removeActiveField(fieldId(item));
-                            }}
-                        />
-                    </Menu>
-                }
-            >
-                {children}
-            </ContextMenu2>
+                <MenuItem22
+                    text="Remove"
+                    icon="cross"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        removeActiveField(fieldId(item));
+                    }}
+                />
+            </Menu>
         );
     } else if (meta?.isInvalidItem) {
         return (
-            <ContextMenu2
-                content={
-                    <Menu>
-                        <MenuItem2
-                            text={`Remove`}
-                            icon={'cross'}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                removeActiveField(header.column.id);
-                            }}
-                        />
-                    </Menu>
-                }
-            >
-                {children}
-            </ContextMenu2>
+            <Menu>
+                <MenuItem2
+                    text="Remove"
+                    icon="cross"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        removeActiveField(header.column.id);
+                    }}
+                />
+            </Menu>
         );
+    } else {
+        return <>{children}</>;
     }
-    return <>{children}</>;
 };
 
 export default ColumnHeaderContextMenu;
