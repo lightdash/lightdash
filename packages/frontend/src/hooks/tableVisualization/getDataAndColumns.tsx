@@ -3,7 +3,6 @@ import {
     Field,
     formatItemValue,
     friendlyName,
-    getItemId,
     isField,
     ResultRow,
     TableCalculation,
@@ -18,6 +17,7 @@ import { getResultColumnTotalsFromItemsMap } from '../useColumnTotals';
 
 type Args = {
     itemsMap: Record<string, Field | TableCalculation>;
+    selectedItemIds: string[];
     resultsData: ApiQueryResults;
     isColumnVisible: (key: string) => boolean;
     showTableNames: boolean;
@@ -26,6 +26,7 @@ type Args = {
 
 const getDataAndColumns = ({
     itemsMap,
+    selectedItemIds,
     resultsData,
     isColumnVisible,
     showTableNames,
@@ -39,53 +40,61 @@ const getDataAndColumns = ({
         resultsData.rows,
         itemsMap,
     );
-    const columns = Object.values(itemsMap).reduce<
-        Array<TableHeader | TableColumn>
-    >((acc, item) => {
-        const itemId = getItemId(item);
-        if (!isColumnVisible(itemId)) {
-            return acc;
-        }
+    const columns = selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
+        (acc, itemId) => {
+            const item = itemsMap[itemId] as
+                | typeof itemsMap[number]
+                | undefined;
+            if (!isColumnVisible(itemId)) {
+                return acc;
+            }
 
-        const headerOverride = getHeader(itemId);
+            const headerOverride = getHeader(itemId);
 
-        const column: TableHeader | TableColumn = {
-            id: itemId,
-            header: () => (
-                <TableHeaderLabelContainer>
-                    {!!headerOverride ? (
-                        <TableHeaderBoldLabel>
-                            {headerOverride}
-                        </TableHeaderBoldLabel>
-                    ) : isField(item) ? (
-                        <>
-                            {showTableNames && (
-                                <TableHeaderRegularLabel>
-                                    {item.tableLabel} -{' '}
-                                </TableHeaderRegularLabel>
-                            )}
-
+            const column: TableHeader | TableColumn = {
+                id: itemId,
+                header: () => (
+                    <TableHeaderLabelContainer>
+                        {!!headerOverride ? (
                             <TableHeaderBoldLabel>
-                                {item.label}
+                                {headerOverride}
                             </TableHeaderBoldLabel>
-                        </>
-                    ) : (
-                        <TableHeaderBoldLabel>
-                            {item.displayName || friendlyName(item.name)}
-                        </TableHeaderBoldLabel>
-                    )}
-                </TableHeaderLabelContainer>
-            ),
-            accessorKey: itemId,
-            cell: (info: any) => info.getValue()?.value.formatted || '-',
-            footer: () =>
-                totals[itemId] ? formatItemValue(item, totals[itemId]) : null,
-            meta: {
-                item,
-            },
-        };
-        return [...acc, column];
-    }, []);
+                        ) : isField(item) ? (
+                            <>
+                                {showTableNames && (
+                                    <TableHeaderRegularLabel>
+                                        {item.tableLabel} -{' '}
+                                    </TableHeaderRegularLabel>
+                                )}
+
+                                <TableHeaderBoldLabel>
+                                    {item.label}
+                                </TableHeaderBoldLabel>
+                            </>
+                        ) : (
+                            <TableHeaderBoldLabel>
+                                {item === undefined
+                                    ? 'Undefined'
+                                    : item.displayName ||
+                                      friendlyName(item.name)}
+                            </TableHeaderBoldLabel>
+                        )}
+                    </TableHeaderLabelContainer>
+                ),
+                accessorKey: itemId,
+                cell: (info: any) => info.getValue()?.value.formatted || '-',
+                footer: () =>
+                    totals[itemId]
+                        ? formatItemValue(item, totals[itemId])
+                        : null,
+                meta: {
+                    item,
+                },
+            };
+            return [...acc, column];
+        },
+        [],
+    );
     return {
         rows: resultsData.rows,
         columns,

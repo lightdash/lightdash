@@ -10,7 +10,7 @@ export const ColumnConfiguration: React.FC = () => {
     const {
         pivotDimensions,
         tableConfig: {
-            columnOrder,
+            selectedItemIds,
             updateColumnProperty,
             getHeader,
             getDefaultColumnLabel,
@@ -20,7 +20,7 @@ export const ColumnConfiguration: React.FC = () => {
     const pivotDimension = pivotDimensions?.[0];
     return (
         <ColumnConfigurationWrapper>
-            {columnOrder.map((fieldId) => {
+            {selectedItemIds.map((fieldId) => {
                 return (
                     <ColumnWrapper>
                         <InputGroup

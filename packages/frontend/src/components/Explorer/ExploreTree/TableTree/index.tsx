@@ -14,13 +14,14 @@ type Props = {
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
 };
 
+const EmptyWrapper: FC<Partial<Props>> = ({ children }) => <>{children}</>;
 const TableTree: FC<Props> = ({
     showTableLabel,
     table,
     additionalMetrics,
     ...rest
 }) => {
-    const Wrapper = showTableLabel ? CollapsibleTableTree : React.Fragment;
+    const Wrapper = showTableLabel ? CollapsibleTableTree : EmptyWrapper;
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <Wrapper table={table} additionalMetrics={additionalMetrics}>

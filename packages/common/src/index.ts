@@ -1107,6 +1107,19 @@ export function getItemMap(
     );
 }
 
+export function itemsInMetricQuery(
+    metricQuery: MetricQuery | undefined,
+): string[] {
+    return metricQuery === undefined
+        ? []
+        : [
+              ...metricQuery.metrics,
+              ...metricQuery.dimensions,
+              ...(metricQuery.additionalMetrics || []).map(fieldId),
+              ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
+          ];
+}
+
 export function formatRows(
     rows: { [col: string]: any }[],
     explore: Explore,
