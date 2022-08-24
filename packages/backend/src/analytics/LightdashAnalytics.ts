@@ -5,6 +5,7 @@ import {
     DbtProjectType,
     LightdashInstallType,
     LightdashUser,
+    OrganizationMemberRole,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -324,6 +325,21 @@ type SavedChartUpdateMultiple = BaseTrack & {
         projectId: string;
     };
 };
+
+type PermissionsUpdated = BaseTrack & {
+    event: 'permission.updated';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        userId: string;
+        userIdUpdated: string;
+        organizationPermissions: OrganizationMemberRole;
+        projectPermissions: any;
+        newUser: boolean;
+        generatedInvite: boolean;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -351,7 +367,8 @@ type Track =
     | SpaceUpdated
     | SpaceDeleted
     | DashboardUpdateMultiple
-    | SavedChartUpdateMultiple;
+    | SavedChartUpdateMultiple
+    | PermissionsUpdated;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

@@ -213,6 +213,9 @@ export class UserService {
         }
 
         let userUuid: string;
+        const userRole = user.ability.can('manage', 'OrganizationMemberProfile')
+            ? role || OrganizationMemberRole.MEMBER
+            : OrganizationMemberRole.MEMBER;
         if (!existingUserWithEmail) {
             const pendingUser = await this.userModel.createPendingUser(
                 organizationUuid,
@@ -220,12 +223,7 @@ export class UserService {
                     email,
                     firstName: '',
                     lastName: '',
-                    role: user.ability.can(
-                        'manage',
-                        'OrganizationMemberProfile',
-                    )
-                        ? role || OrganizationMemberRole.MEMBER
-                        : OrganizationMemberRole.MEMBER,
+                    role: userRole,
                 },
             );
             userUuid = pendingUser.userUuid;
@@ -244,6 +242,24 @@ export class UserService {
             userId: user.userUuid,
             event: 'invite_link.created',
         });
+
+        const organization = await this.organizationModel.get(organizationUuid);
+        analytics.track({
+            userId: user.userUuid,
+            event: 'permission.updated',
+            properties: {
+                userId: user.userUuid,
+                userIdUpdated: userUuid,
+                organizationPermissions: userRole,
+                projectPermissions: {
+                    name: organization.name,
+                    userRole,
+                },
+                newUser: existingUserWithEmail === undefined,
+                generatedInvite: true,
+            },
+        });
+
         return inviteLink;
     }
 

@@ -180,6 +180,27 @@ export class OrganizationService {
                 'Organization must have at least one admin',
             );
         }
+        if (data.role !== undefined) {
+            const organization = await this.organizationModel.get(
+                organizationUuid,
+            );
+            analytics.track({
+                userId: authenticatedUser.userUuid,
+                event: 'permission.updated',
+                properties: {
+                    userId: authenticatedUser.userUuid,
+                    userIdUpdated: memberUserUuid,
+                    organizationPermissions: data.role,
+                    projectPermissions: {
+                        name: organization.name,
+                        role: data.role,
+                    },
+                    newUser: false,
+                    generatedInvite: false,
+                },
+            });
+        }
+
         return this.organizationMemberProfileModel.updateOrganizationMember(
             organizationUuid,
             memberUserUuid,
