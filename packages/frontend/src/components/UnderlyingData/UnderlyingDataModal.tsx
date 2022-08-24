@@ -17,6 +17,7 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
         exploreFromHereUrl,
         hasJoins,
         isModalOpen,
+        isLoading,
     } = useUnderlyingDataContext();
 
     return (
@@ -47,6 +48,7 @@ const UnderlyingDataModal: FC<Props> = ({}) => {
                 </AnchorButton>
             </HeaderRightContent>
             <UnderlyingDataResultsTable
+                isLoading={isLoading}
                 resultsData={resultsData}
                 fieldsMap={fieldsMap}
                 hasJoins={hasJoins}

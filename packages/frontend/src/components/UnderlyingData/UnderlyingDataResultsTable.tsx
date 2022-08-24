@@ -11,8 +11,9 @@ import { LoadingPanel } from './UnderlyingDataModal.styles';
 const UnderlyingDataResultsTable: FC<{
     fieldsMap: Record<string, Field>;
     resultsData: ApiQueryResults | undefined;
+    isLoading: boolean;
     hasJoins?: boolean;
-}> = ({ fieldsMap, resultsData, hasJoins }) => {
+}> = ({ fieldsMap, resultsData, isLoading, hasJoins }) => {
     const columnHeader = (dimension: Field) => {
         return hasJoins === true ? (
             <span>
@@ -30,7 +31,7 @@ const UnderlyingDataResultsTable: FC<{
         columnHeader,
     });
 
-    if (resultsData === undefined) {
+    if (isLoading) {
         return (
             <LoadingPanel>
                 <NonIdealState

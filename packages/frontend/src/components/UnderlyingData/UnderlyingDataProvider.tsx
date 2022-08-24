@@ -39,6 +39,7 @@ type UnderlyingDataContext = {
     exploreFromHereUrl: string;
     hasJoins: boolean;
     isModalOpen: boolean;
+    isLoading: boolean;
     viewData: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
@@ -141,6 +142,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
         mutate,
         data: resultsData,
         reset: resetQueryResults,
+        isLoading,
     } = useQueryResults(state);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
@@ -320,6 +322,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 closeModal,
                 exploreFromHereUrl,
                 hasJoins,
+                isLoading,
             }}
         >
             {children}
