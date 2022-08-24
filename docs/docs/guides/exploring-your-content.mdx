@@ -2,6 +2,7 @@ import HomeButton from './assets/home-button.png';
 import HomePage from './assets/home-page.png';
 import BrowseButton from './assets/browse-button.png';
 import SearchBar from './assets/search-bar.png';
+import ExploreFromHere from './assets/explore-from-here.jpg';
 
 # Exploring your content
 
@@ -19,6 +20,14 @@ You can also browse the lists of all of the saved charts, dashboards, and Spaces
 
 <img src={BrowseButton} width="412" height="241" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+## Using "Explore from here" to explore your data
+
+One of the best ways of exploring data is using saved charts and charts in dashboards as the starting point to your data exploration. You can do this in Lightdash using the `Explore from here` button. 
+
+`Explore from here` gives you a copy of the same chart you can play around with. Any changes you make here **will not affect** the original chart - so you can Explore away without any worry of breaking things! 
+
+<img src={ExploreFromHere} width="1302" height="768" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 ## Using the search bar
 
 If you already know what you're looking for, then you can use the search bar to search through all of the content in your Lightdash project. Just click on `search` in the navbar, or click `cmd + K` to open the search bar.
@@ -26,6 +35,18 @@ If you already know what you're looking for, then you can use the search bar to 
 <img src={SearchBar} width="980" height="260" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 This global search matches content from everywhere in the project: dashboard names, field descriptions, table names, saved chart descriptions, etc.
+
+## Interacting with data in a chart
+
+You can click on any point on a chart or any cell in a results table and view the records which make up that data point.
+
+For example, I can click on the page views bar in my chart and I'd see all of the rows in the underlying table that make up the 19,120 page views count.
+
+<img src={UnderlyingChart} width="646" height="353" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+<img src={UnderlyingResults} width="681" height="526" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+I can then export this as a CSV or explore from this underlying data.
 
 ## Exploring data in a dashboard
 
