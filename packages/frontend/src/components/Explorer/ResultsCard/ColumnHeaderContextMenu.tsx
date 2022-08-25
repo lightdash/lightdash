@@ -38,7 +38,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                 <MenuItem2
                     text={`Filter by ${item.label}`}
                     icon="filter"
-                    onClick={(e) => {
+                    onClick={() => {
                         track({ name: EventName.ADD_FILTER_CLICKED });
                         addFilter(item, undefined, false);
                     }}
@@ -47,7 +47,8 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                 <MenuItem22
                     text="Remove"
                     icon="cross"
-                    onClick={(e) => {
+                    intent="danger"
+                    onClick={() => {
                         removeActiveField(fieldId(item));
                     }}
                 />
@@ -59,7 +60,8 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                 <MenuItem2
                     text="Remove"
                     icon="cross"
-                    onClick={(e) => {
+                    intent="danger"
+                    onClick={() => {
                         removeActiveField(header.column.id);
                     }}
                 />
@@ -72,7 +74,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                     <MenuItem2
                         text="Edit calculation"
                         icon="edit"
-                        onClick={(e) => {
+                        onClick={() => {
                             setShowUpdate(true);
 
                             track({
@@ -83,7 +85,8 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                     <MenuItem2
                         text="Remove"
                         icon="cross"
-                        onClick={(e) => {
+                        intent="danger"
+                        onClick={() => {
                             setShowDelete(true);
 
                             track({
