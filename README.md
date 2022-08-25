@@ -11,7 +11,8 @@
 <p align="center">
     <a href="http://www.lightdash.com"><b>Website</b></a> •
     <a href="https://www.loom.com/share/c0805a236a994de397ac5142fdfe4b7f"><b>Watch demo</b></a> •
-    <a href="http://docs.lightdash.com/"><b>Docs</b></a>
+    <a href="http://docs.lightdash.com/"><b>Docs</b></a> •
+    <a href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"><b>Join Slack Community</b></a>
 </p>
 <div align="center">
 <img src="https://img.shields.io/github/license/lightdash/lightdash" />
