@@ -1,3 +1,10 @@
+# [0.233.0](https://github.com/lightdash/lightdash/compare/0.232.0...0.233.0) (2022-08-25)
+
+
+### Features
+
+* analytics project preview ([#3063](https://github.com/lightdash/lightdash/issues/3063)) ([81c96d8](https://github.com/lightdash/lightdash/commit/81c96d8f76bb18d9c8b16a3ab7edd1a9c832bb4d))
+
 # [0.232.0](https://github.com/lightdash/lightdash/compare/0.231.2...0.232.0) (2022-08-25)
 
 
