@@ -1,3 +1,10 @@
+## [0.233.1](https://github.com/lightdash/lightdash/compare/0.233.0...0.233.1) (2022-08-25)
+
+
+### Bug Fixes
+
+* show different error reset password for social login ([#3072](https://github.com/lightdash/lightdash/issues/3072)) ([1768f44](https://github.com/lightdash/lightdash/commit/1768f44c82d61d70d87bc8315d8370e377880ab0))
+
 # [0.233.0](https://github.com/lightdash/lightdash/compare/0.232.0...0.233.0) (2022-08-25)
 
 
