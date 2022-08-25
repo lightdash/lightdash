@@ -1,12 +1,13 @@
-import { Menu } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { Button, Menu, Position } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
     isField,
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
-import React, { useState } from 'react';
+import { FC, useState } from 'react';
+import styled from 'styled-components';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -17,20 +18,28 @@ import {
     UpdateTableCalculationModal,
 } from '../../TableCalculationModels';
 
-const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
-    children,
+const FlatButton = styled(Button)`
+    min-height: 16px !important;
+`;
+
+interface ContextMenuProps extends HeaderProps {
+    onToggleCalculationEditModal: (value: boolean) => void;
+    onToggleCalculationDeleteModal: (value: boolean) => void;
+}
+
+const ContextMenu: FC<ContextMenuProps> = ({
     header,
+    onToggleCalculationEditModal,
+    onToggleCalculationDeleteModal,
 }) => {
+    const {
+        actions: { removeActiveField },
+    } = useExplorer();
     const { addFilter } = useFilters();
-    const [showUpdate, setShowUpdate] = useState(false);
-    const [showDelete, setShowDelete] = useState(false);
     const { track } = useTracking();
 
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
-    const {
-        actions: { removeActiveField },
-    } = useExplorer();
 
     if (item && isField(item) && isFilterableField(item)) {
         return (
@@ -69,53 +78,84 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
         );
     } else if (meta?.item && !isField(meta.item)) {
         return (
-            <>
-                <Menu>
-                    <MenuItem2
-                        text="Edit calculation"
-                        icon="edit"
-                        onClick={() => {
-                            setShowUpdate(true);
+            <Menu>
+                <MenuItem2
+                    text="Edit calculation"
+                    icon="edit"
+                    onClick={() => {
+                        track({
+                            name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
+                        });
 
-                            track({
-                                name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
-                            });
-                        }}
-                    />
-                    <MenuItem2
-                        text="Remove"
-                        icon="cross"
-                        intent="danger"
-                        onClick={() => {
-                            setShowDelete(true);
+                        onToggleCalculationEditModal(true);
+                    }}
+                />
+                <MenuItem2
+                    text="Remove"
+                    icon="cross"
+                    intent="danger"
+                    onClick={() => {
+                        track({
+                            name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
+                        });
 
-                            track({
-                                name: EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
-                            });
-                        }}
-                    />
-                </Menu>
-
-                {showUpdate && (
-                    <UpdateTableCalculationModal
-                        isOpen
-                        tableCalculation={item as TableCalculation}
-                        onClose={() => setShowUpdate(false)}
-                    />
-                )}
-
-                {showDelete && (
-                    <DeleteTableCalculationModal
-                        isOpen
-                        tableCalculation={item as TableCalculation}
-                        onClose={() => setShowDelete(false)}
-                    />
-                )}
-            </>
+                        onToggleCalculationDeleteModal(true);
+                    }}
+                />
+            </Menu>
         );
     } else {
-        return <>{children}</>;
+        return null;
     }
+};
+
+const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
+    const [showUpdate, setShowUpdate] = useState(false);
+    const [showDelete, setShowDelete] = useState(false);
+
+    const meta = header.column.columnDef.meta as TableColumn['meta'];
+    const item = meta?.item;
+
+    return (
+        <>
+            <div
+                onClick={(e) => {
+                    e.stopPropagation();
+                }}
+            >
+                <Popover2
+                    lazy
+                    minimal
+                    position={Position.BOTTOM_RIGHT}
+                    content={
+                        <ContextMenu
+                            header={header}
+                            onToggleCalculationEditModal={setShowUpdate}
+                            onToggleCalculationDeleteModal={setShowDelete}
+                        />
+                    }
+                >
+                    <FlatButton minimal small icon="more" />
+                </Popover2>
+            </div>
+
+            {showUpdate && (
+                <UpdateTableCalculationModal
+                    isOpen
+                    tableCalculation={item as TableCalculation}
+                    onClose={() => setShowUpdate(false)}
+                />
+            )}
+
+            {showDelete && (
+                <DeleteTableCalculationModal
+                    isOpen
+                    tableCalculation={item as TableCalculation}
+                    onClose={() => setShowDelete(false)}
+                />
+            )}
+        </>
+    );
 };
 
 export default ColumnHeaderContextMenu;
