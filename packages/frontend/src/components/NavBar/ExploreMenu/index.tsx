@@ -1,11 +1,10 @@
 import {
     Button,
-    MenuItem,
     PopoverInteractionKind,
     Position,
     Spinner,
 } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import React, { FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
@@ -23,6 +22,7 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <>
             <Popover2
+                minimal
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     !projectUuid ? (
@@ -49,7 +49,7 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
                                 <NavLink
                                     to={`/projects/${projectUuid}/sqlRunner`}
                                 >
-                                    <MenuItem
+                                    <MenuItem2
                                         role="button"
                                         icon="console"
                                         text="SQL Runner"
