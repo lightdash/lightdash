@@ -4,16 +4,26 @@ import {
     Dialog,
     FormGroup,
     InputGroup,
+    NonIdealState,
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { AdditionalMetric, Explore, Source } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    CompiledTable,
+    Dimension,
+    Explore,
+    getItemId,
+    Metric,
+    Source,
+} from '@lightdash/common';
 import { FC, useState } from 'react';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FormField } from '../ExploreSideBar/ExploreSideBar.styles';
 import NewTableTree from './TableTree';
+import { getSearchResults } from './TableTree/Tree/TreeProvider';
 
 type ExploreTreeProps = {
     explore: Explore;
@@ -101,6 +111,36 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     const [search, setSearch] = useState<string>('');
     const [source, setSource] = useState<Source>();
 
+    const isSearching = !!search && search !== '';
+    const searchHasResults = (table: CompiledTable) => {
+        const allValues = Object.values({
+            ...table.dimensions,
+            ...table.metrics,
+        });
+        const allFields = [...allValues, ...additionalMetrics].reduce<
+            Record<string, AdditionalMetric | Dimension | Metric>
+        >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {});
+
+        return getSearchResults(allFields, search).size > 0;
+    };
+
+    const tableTrees = Object.values(explore.tables)
+        .sort((tableA) => (tableA.name === explore.baseTable ? -1 : 1))
+        .filter((table) => !(isSearching && !searchHasResults(table)))
+        .map((table) => (
+            <NewTableTree
+                key={table.name}
+                searchQuery={search}
+                showTableLabel={Object.keys(explore.tables).length > 1}
+                table={table}
+                additionalMetrics={additionalMetrics?.filter(
+                    (metric) => metric.table === table.name,
+                )}
+                selectedItems={selectedNodes}
+                onSelectedNodeChange={onSelectedFieldChange}
+            />
+        ));
+
     return (
         <div
             style={{
@@ -127,25 +167,11 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             </FormField>
 
             <div style={{ overflowY: 'auto' }}>
-                {Object.values(explore.tables)
-                    .sort((tableA) =>
-                        tableA.name === explore.baseTable ? -1 : 1,
-                    )
-                    .map((table) => (
-                        <NewTableTree
-                            key={table.name}
-                            searchQuery={search}
-                            showTableLabel={
-                                Object.keys(explore.tables).length > 1
-                            }
-                            table={table}
-                            additionalMetrics={additionalMetrics?.filter(
-                                (metric) => metric.table === table.name,
-                            )}
-                            selectedItems={selectedNodes}
-                            onSelectedNodeChange={onSelectedFieldChange}
-                        />
-                    ))}
+                {tableTrees.length > 0 ? (
+                    tableTrees
+                ) : (
+                    <NonIdealState>No fields found</NonIdealState>
+                )}
             </div>
             {source && (
                 <SourceDialog

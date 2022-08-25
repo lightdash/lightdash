@@ -33,6 +33,8 @@ const TableTreeSections: FC<Props> = ({
     const treeRootDepth = depth + 1;
     const hasNoMetrics = Object.keys(table.metrics).length <= 0;
 
+    const isSearching = !!searchQuery && searchQuery !== '';
+
     const dimensions = Object.values(table.dimensions).reduce(
         (acc, item) => ({ ...acc, [getItemId(item)]: item }),
         {},
@@ -41,7 +43,6 @@ const TableTreeSections: FC<Props> = ({
         (acc, item) => ({ ...acc, [getItemId(item)]: item }),
         {},
     );
-    const isSearching = !!searchQuery && searchQuery !== '';
     const customMetrics = additionalMetrics.reduce<
         Record<string, AdditionalMetric>
     >(
