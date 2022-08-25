@@ -1,6 +1,6 @@
-import { Button, Divider, Menu, MenuItem } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
-import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { Button, Divider, Menu } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
@@ -53,7 +53,7 @@ const ModalActionButtons = ({
             }}
             content={
                 <Menu>
-                    <MenuItem
+                    <MenuItem2
                         role="button"
                         icon="edit"
                         text="Rename"
@@ -67,7 +67,7 @@ const ModalActionButtons = ({
                             });
                         }}
                     />
-                    <MenuItem
+                    <MenuItem2
                         role="button"
                         icon="duplicate"
                         text="Duplicate"
@@ -84,7 +84,7 @@ const ModalActionButtons = ({
                         }}
                     />
                     {!isDashboardPage && (
-                        <MenuItem
+                        <MenuItem2
                             icon="insert"
                             text="Add to Dashboard"
                             onClick={(e) => {
@@ -100,7 +100,7 @@ const ModalActionButtons = ({
                         />
                     )}
 
-                    <MenuItem
+                    <MenuItem2
                         icon="folder-close"
                         text="Move to Space"
                         onClick={(e) => {
@@ -111,7 +111,8 @@ const ModalActionButtons = ({
                         {spaces?.map((space) => {
                             const isDisabled = data.spaceUuid === space.uuid;
                             return (
-                                <MenuItem
+                                <MenuItem2
+                                    key={space.uuid}
                                     text={space.name}
                                     icon={isDisabled ? 'small-tick' : undefined}
                                     className={isDisabled ? 'bp4-disabled' : ''}
@@ -134,7 +135,7 @@ const ModalActionButtons = ({
                         })}
 
                         <Divider />
-                        <MenuItem
+                        <MenuItem2
                             text="+ Create new"
                             onClick={(e) => {
                                 e.preventDefault();
@@ -145,9 +146,11 @@ const ModalActionButtons = ({
                                 });
                             }}
                         />
-                    </MenuItem>
+                    </MenuItem2>
+
                     <Divider />
-                    <MenuItem
+
+                    <MenuItem2
                         role="button"
                         icon="trash"
                         text="Delete"
