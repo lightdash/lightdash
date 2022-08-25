@@ -143,6 +143,9 @@ const convertDimension = (
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
         groupLabel: column.meta.dimension?.group_label,
+        ...(column.meta.dimension?.urls
+            ? { urls: column.meta.dimension.urls }
+            : {}),
     };
 };
 
@@ -230,6 +233,7 @@ const convertDbtMetricToLightdashMetric = (
         round: metric.meta?.round,
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
+        ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
     };
 };
 

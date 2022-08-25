@@ -35,7 +35,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
-    const meta = header.column.columnDef.meta as TableColumn['meta'];
+    const meta = header.column.columnDef.meta;
     const item = meta?.item;
 
     const removeActiveField = useExplorerContext(

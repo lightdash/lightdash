@@ -1,4 +1,4 @@
-import { ResultRow } from '@lightdash/common';
+import { isField, ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import { FC } from 'react';
 import styled from 'styled-components';
@@ -7,24 +7,16 @@ interface RichBodyCellProps {
     cell: Cell<ResultRow, ResultRow[0]>;
 }
 
-const Link = styled.a`
-    :hover {
-        text-decoration: none;
-    }
+const Link = styled.span`
+    text-decoration: underline;
+    text-decoration-style: dotted;
 `;
 
-export const isUrl = (value: string) => {
-    return (
-        value &&
-        typeof value === 'string' &&
-        (value.startsWith('http://') || value.startsWith('https://'))
-    );
-};
-
 const RichBodyCell: FC<RichBodyCellProps> = ({ children, cell }) => {
-    const rawValue = cell.getValue()?.value?.raw;
+    const item = cell.column.columnDef.meta?.item;
+    const hasUrls = isField(item) && (item.urls || []).length > 0;
 
-    if (isUrl(rawValue)) {
+    if (hasUrls) {
         return <Link>{children}</Link>;
     } else {
         return <>{children}</>;

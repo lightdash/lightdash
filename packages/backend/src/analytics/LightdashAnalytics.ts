@@ -206,6 +206,7 @@ type ProjectCompiledEvent = BaseTrack & {
         packagesCount?: number;
         roundCount?: number;
         formattedFieldsCount?: number;
+        urlsCount?: number;
     };
 };
 

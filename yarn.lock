@@ -13296,6 +13296,11 @@ lint-staged@^12.1.2:
     supports-color "^9.0.2"
     yaml "^1.10.2"
 
+liquidjs@^9.41.0:
+  version "9.41.0"
+  resolved "https://registry.yarnpkg.com/liquidjs/-/liquidjs-9.41.0.tgz#b6cf6bc3ee3457d14ff5e3cbf134d15f523c6989"
+  integrity sha512-Q1EfRoVYSFmbaTzEHoz39/dMNjPec8uJGHvQiHyzeMp14M9E40a6pOpmDHW009a6qHcjisZyOH96O6No2+1bBQ==
+
 listify@^1.0.0:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/listify/-/listify-1.0.3.tgz#a9335ac351c3d1aea515494ed746976eeb92248b"

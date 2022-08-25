@@ -3,7 +3,6 @@ import { flexRender } from '@tanstack/react-table';
 import React from 'react';
 import { FooterCell } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
-import { TableColumn } from '../types';
 
 const TableFooter = () => {
     const { table, data, footer } = useTableContext();
@@ -20,8 +19,7 @@ const TableFooter = () => {
                 return (
                     <tr key={footerGroup.id}>
                         {footerGroup.headers.map((header) => {
-                            const meta = header.column.columnDef
-                                .meta as TableColumn['meta'];
+                            const meta = header.column.columnDef.meta;
                             return (
                                 <FooterCell
                                     key={header.id}
