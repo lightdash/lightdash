@@ -1,4 +1,4 @@
-import { MenuItem } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import React, { FC } from 'react';
 import { Route, useHistory } from 'react-router-dom';
 
@@ -7,7 +7,7 @@ interface Props {
     exact?: boolean;
 }
 
-const RouterMenuItem: FC<Props & React.ComponentProps<typeof MenuItem>> = ({
+const RouterMenuItem: FC<Props & React.ComponentProps<typeof MenuItem2>> = ({
     to,
     exact,
     ...rest
@@ -19,7 +19,7 @@ const RouterMenuItem: FC<Props & React.ComponentProps<typeof MenuItem>> = ({
             exact={exact}
             /* eslint-disable-next-line react/no-children-prop */
             children={({ match }) => (
-                <MenuItem
+                <MenuItem2
                     active={!!match}
                     {...rest}
                     onClick={() => history.push(to)}

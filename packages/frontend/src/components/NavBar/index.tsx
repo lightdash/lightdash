@@ -3,14 +3,12 @@ import {
     Button,
     Classes,
     Menu,
-    MenuItem,
     NavbarGroup,
     PopoverInteractionKind,
     Position,
 } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { ProjectType } from '@lightdash/common';
-import React from 'react';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
@@ -139,13 +137,13 @@ const NavBar = () => {
                                     'create',
                                     'InviteLink',
                                 ) ? (
-                                    <MenuItem
+                                    <MenuItem2
                                         href={`/generalSettings/userManagement?to=invite`}
                                         icon="new-person"
                                         text="Invite user"
                                     />
                                 ) : null}
-                                <MenuItem
+                                <MenuItem2
                                     icon="log-out"
                                     text="Logout"
                                     onClick={() => mutate()}

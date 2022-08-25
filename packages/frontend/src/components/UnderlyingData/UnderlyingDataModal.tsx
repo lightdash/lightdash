@@ -8,7 +8,7 @@ import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}
 
-const UnderlyingDataModal: FC<Props> = ({}) => {
+const UnderlyingDataModal: FC<Props> = () => {
     const {
         resultsData,
         fieldsMap,

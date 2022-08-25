@@ -3,10 +3,9 @@ import {
     InputGroup,
     Menu,
     MenuDivider,
-    MenuItem,
     NonIdealState,
 } from '@blueprintjs/core';
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { Breadcrumbs2, MenuItem2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -31,7 +30,7 @@ const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
         {[0, 1, 2, 3, 4].map((idx) => (
             <React.Fragment key={idx}>
-                <MenuItem className="bp4-skeleton" />
+                <MenuItem2 className="bp4-skeleton" />
                 <MenuDivider />
             </React.Fragment>
         ))}

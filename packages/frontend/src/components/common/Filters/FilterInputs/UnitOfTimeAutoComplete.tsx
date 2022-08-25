@@ -1,7 +1,8 @@
-import { Button, MenuItem } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Select } from '@blueprintjs/select';
 import { UnitOfTime } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
 type UnitOfTimeOption = {
@@ -46,7 +47,7 @@ const renderItem: ItemRenderer<UnitOfTimeOption> = (
         return null;
     }
     return (
-        <MenuItem
+        <MenuItem2
             active={modifiers.active}
             key={`${field.completed}_${field.unitOfTime}`}
             text={field.label}
@@ -89,7 +90,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 unitOfTime,
                 completed,
             }}
-            noResults={<MenuItem disabled text="No results." />}
+            noResults={<MenuItem2 disabled text="No results." />}
             onItemSelect={onChange}
             itemPredicate={(
                 query: string,

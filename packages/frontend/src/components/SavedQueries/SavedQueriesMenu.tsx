@@ -1,12 +1,5 @@
-import {
-    Card,
-    Divider,
-    H3,
-    Menu,
-    MenuDivider,
-    MenuItem,
-    Text,
-} from '@blueprintjs/core';
+import { Card, Divider, H3, Menu, MenuDivider, Text } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { Space } from '@lightdash/common';
 import React, { Dispatch, SetStateAction } from 'react';
 
@@ -53,11 +46,12 @@ const SavedQueriesMenu = (props: SavedQueriesMenuProps) => {
             >
                 {(data || []).map((saved) => (
                     <React.Fragment key={saved.uuid}>
-                        <MenuItem
+                        <MenuItem2
                             active={saved.uuid === selectedMenu}
                             text={saved.name}
                             onClick={() => setSelectedMenu(saved.uuid)}
                         />
+
                         <MenuDivider />
                     </React.Fragment>
                 ))}

@@ -1,11 +1,5 @@
-import {
-    Button,
-    Classes,
-    KeyCombo,
-    MenuItem,
-    Spinner,
-    Tag,
-} from '@blueprintjs/core';
+import { Button, Classes, KeyCombo, Spinner, Tag } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
 import { getSearchResultId } from '@lightdash/common';
 import React, { FC, useState } from 'react';
@@ -37,7 +31,7 @@ const renderItem: ItemRenderer<SearchItem> = (
         return null;
     }
     return (
-        <MenuItem
+        <MenuItem2
             key={getSearchResultId(field.meta)}
             selected={modifiers.active}
             disabled={modifiers.disabled}
@@ -132,7 +126,7 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     getSearchResultId(a.meta) === getSearchResultId(b.meta)
                 }
                 initialContent={
-                    <MenuItem
+                    <MenuItem2
                         disabled={true}
                         text={`${
                             !query ? 'Start' : 'Keep'
@@ -140,7 +134,7 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     />
                 }
                 noResults={
-                    <MenuItem
+                    <MenuItem2
                         disabled={true}
                         text={
                             !query || query.length < 3

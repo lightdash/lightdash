@@ -1,13 +1,7 @@
-import {
-    Button,
-    Icon,
-    Menu,
-    MenuItem,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Button, Icon, Menu, PopoverPosition } from '@blueprintjs/core';
+import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { TableCalculation } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import {
@@ -30,7 +24,7 @@ const TableCalculationHeaderButton: FC<{
                 onInteraction={setIsOpen}
                 content={
                     <Menu>
-                        <MenuItem
+                        <MenuItem2
                             icon={<Icon icon="edit" />}
                             text="Edit"
                             onClick={(e) => {
@@ -42,7 +36,7 @@ const TableCalculationHeaderButton: FC<{
                                 });
                             }}
                         />
-                        <MenuItem
+                        <MenuItem2
                             icon={<Icon icon="delete" />}
                             text="Delete"
                             onClick={(e) => {

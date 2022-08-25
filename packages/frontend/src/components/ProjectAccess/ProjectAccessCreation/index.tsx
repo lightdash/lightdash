@@ -1,4 +1,5 @@
-import { Button, Card, InputGroup, Intent, MenuItem } from '@blueprintjs/core';
+import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     CreateProjectMember,
@@ -34,7 +35,7 @@ const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
         return null;
     }
     return (
-        <MenuItem
+        <MenuItem2
             active={modifiers.active}
             key={item}
             text={item}
@@ -190,7 +191,7 @@ const ProjectAccessCreation: FC<{
                             createNewItemRenderer={(email: string) => {
                                 if (validateEmail(email)) {
                                     return (
-                                        <MenuItem
+                                        <MenuItem2
                                             icon="add"
                                             key={email}
                                             text={`Invite ${email} as new member of this organisation`}

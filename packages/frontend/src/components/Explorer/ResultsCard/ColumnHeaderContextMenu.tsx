@@ -1,5 +1,5 @@
-import { Menu, MenuItem } from '@blueprintjs/core';
-import { ContextMenu2 } from '@blueprintjs/popover2';
+import { Menu } from '@blueprintjs/core';
+import { ContextMenu2, MenuItem2 } from '@blueprintjs/popover2';
 import { fieldId, isField, isFilterableField } from '@lightdash/common';
 import React from 'react';
 import { useFilters } from '../../../hooks/useFilters';
@@ -24,7 +24,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
             <ContextMenu2
                 content={
                     <Menu>
-                        <MenuItem
+                        <MenuItem2
                             text={`Filter by ${item.label}`}
                             icon={'filter'}
                             onClick={(e) => {
@@ -36,7 +36,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
                             }}
                         />
 
-                        <MenuItem
+                        <MenuItem2
                             text={`Remove`}
                             icon={'cross'}
                             onClick={(e) => {
@@ -55,7 +55,7 @@ const ColumnHeaderContextMenu: React.FC<HeaderProps> = ({
             <ContextMenu2
                 content={
                     <Menu>
-                        <MenuItem
+                        <MenuItem2
                             text={`Remove`}
                             icon={'cross'}
                             onClick={(e) => {
