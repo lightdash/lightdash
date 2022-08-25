@@ -1,3 +1,10 @@
+# [0.232.0](https://github.com/lightdash/lightdash/compare/0.231.2...0.232.0) (2022-08-25)
+
+
+### Features
+
+* show loading spinner while underlying data is loading ([#3060](https://github.com/lightdash/lightdash/issues/3060)) ([b4b773d](https://github.com/lightdash/lightdash/commit/b4b773d3e927d6bb7c8c160e93d3b1e548c4214a))
+
 ## [0.231.2](https://github.com/lightdash/lightdash/compare/0.231.1...0.231.2) (2022-08-24)
 
 
