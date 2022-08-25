@@ -44,6 +44,7 @@ const TableHeader = () => {
 
                             return (
                                 <Th
+                                    key={header.id}
                                     colSpan={header.colSpan}
                                     style={{
                                         width: meta?.width,
@@ -56,7 +57,6 @@ const TableHeader = () => {
                                     onClick={meta?.onHeaderClick}
                                 >
                                     <Draggable
-                                        key={header.id}
                                         draggableId={header.id}
                                         index={header.index}
                                         isDragDisabled={!meta?.draggable}
