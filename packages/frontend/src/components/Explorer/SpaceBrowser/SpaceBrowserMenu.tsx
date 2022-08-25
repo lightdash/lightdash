@@ -15,6 +15,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
     return (
         <>
             <Popover2
+                minimal
                 captureDismiss
                 content={
                     <Menu>
