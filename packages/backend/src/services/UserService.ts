@@ -499,7 +499,13 @@ export class UserService {
             );
         } catch (e) {
             if (e instanceof NotFoundError) {
-                throw new AuthorizationError('Password not recognized.');
+                const hasPassword = await this.userModel.hasPassword(userUuid);
+                if (hasPassword)
+                    throw new AuthorizationError('Password not recognized.');
+                else
+                    throw new AuthorizationError(
+                        `There is no password set on this social login account`,
+                    );
             }
             throw e;
         }
