@@ -16,6 +16,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as OpenIDConnectStrategy } from 'passport-openidconnect';
+import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
@@ -64,18 +65,17 @@ export const getOpenIdUserFromRequest = ({
     return undefined;
 };
 
-export const generateOktaUrl = (path: string): string => {
-    let baseUrl = '/oauth2';
+export const generateOktaUrl = (apiUrlPath: string): string => {
+    const fullPath = path.posix.join(
+        path.posix.sep,
+        'oauth2',
+        lightdashConfig.auth.okta.authorizationServerId || '', // empty string will be skipped
+        'v1',
+        apiUrlPath,
+    );
 
-    if (lightdashConfig.auth.okta.authorizationServerId) {
-        baseUrl += `/${lightdashConfig.auth.okta.authorizationServerId}`;
-    }
-    baseUrl += '/v1';
-
-    return new URL(
-        `${baseUrl}${path}`,
-        `https://${lightdashConfig.auth.okta.oktaDomain}`,
-    ).href;
+    return new URL(fullPath, `https://${lightdashConfig.auth.okta.oktaDomain}`)
+        .href;
 };
 
 export const localPassportStrategy = new LocalStrategy(
