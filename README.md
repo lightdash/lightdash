@@ -273,6 +273,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://www.linkedin.com/in/mcarlsson/"><img src="https://avatars.githubusercontent.com/u/7769335?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Martin Carlsson</b></sub></a><br /><a href="#ideas-Martin-Carlsson" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/lightdash/lightdash/issues?q=author%3AMartin-Carlsson" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/toinbis"><img src="https://avatars.githubusercontent.com/u/68685?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tomas Čerkasas</b></sub></a><br /><a href="#ideas-toinbis" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/TiFaBl"><img src="https://avatars.githubusercontent.com/u/38563080?v=4?s=100" width="100px;" alt=""/><br /><sub><b>TiFaBl</b></sub></a><br /><a href="#ideas-TiFaBl" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="http://ericcecchi.com"><img src="https://avatars.githubusercontent.com/u/1455025?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Eric Cecchi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ericcecchi" title="Code">💻</a></td>
   </tr>
 </table>
 
