@@ -222,6 +222,13 @@ export class UserModel {
         return mapDbUserDetailsToLightdashUser(user);
     }
 
+    async hasPassword(userUuid: string): Promise<boolean> {
+        const [user] = await this.database('password_logins')
+            .leftJoin('users', 'users.user_id', 'password_logins.user_id')
+            .where('users.user_uuid', userUuid);
+        return user !== undefined;
+    }
+
     async getUserByUuidAndPassword(
         userUuid: string,
         password: string,
