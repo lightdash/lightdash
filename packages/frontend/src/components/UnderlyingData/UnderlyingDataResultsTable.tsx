@@ -1,3 +1,4 @@
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiQueryResults, Field } from '@lightdash/common';
 import React, { FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
@@ -10,12 +11,14 @@ import {
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
 import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
+import { LoadingPanel } from './UnderlyingDataModal.styles';
 
 const UnderlyingDataResultsTable: FC<{
     fieldsMap: Record<string, Field>;
     resultsData: ApiQueryResults | undefined;
+    isLoading: boolean;
     hasJoins?: boolean;
-}> = ({ fieldsMap, resultsData, hasJoins }) => {
+}> = ({ fieldsMap, resultsData, isLoading, hasJoins }) => {
     const columnHeader = (dimension: Field) => (
         <TableHeaderLabelContainer>
             {hasJoins === true && (
@@ -33,6 +36,17 @@ const UnderlyingDataResultsTable: FC<{
         fieldsMap,
         columnHeader,
     });
+
+    if (isLoading) {
+        return (
+            <LoadingPanel>
+                <NonIdealState
+                    title="Loading underlying data"
+                    icon={<Spinner />}
+                />
+            </LoadingPanel>
+        );
+    }
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>

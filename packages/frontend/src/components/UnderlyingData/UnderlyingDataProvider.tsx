@@ -38,7 +38,8 @@ type UnderlyingDataContext = {
     fieldsMap: Record<string, Field>;
     exploreFromHereUrl: string;
     hasJoins: boolean;
-
+    isModalOpen: boolean;
+    isLoading: boolean;
     viewData: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
@@ -135,11 +136,13 @@ export const UnderlyingDataProvider: FC<Props> = ({
     };
     const [state, setState] = useState<ExplorerState>(defaultState);
     const { data: explore } = useExplore(tableName);
+    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
     const {
         mutate,
         data: resultsData,
         reset: resetQueryResults,
+        isLoading,
     } = useQueryResults(state);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
@@ -157,6 +160,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
         }, {});
     }, [explore, state.unsavedChartVersion.metricQuery.dimensions]);
     const closeModal = useCallback(() => {
+        setIsModalOpen(false);
         resetQueryResults();
     }, [resetQueryResults]);
 
@@ -187,6 +191,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
             dimensions?: string[],
             pivot?: { fieldId: string; value: any },
         ) => {
+            setIsModalOpen(true);
             if (meta?.item === undefined) return;
 
             // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
@@ -313,9 +318,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 resultsData,
                 fieldsMap,
                 viewData,
+                isModalOpen,
                 closeModal,
                 exploreFromHereUrl,
                 hasJoins,
+                isLoading,
             }}
         >
             {children}
