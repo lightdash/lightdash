@@ -1,4 +1,4 @@
-import { Button, Collapse, MenuDivider } from '@blueprintjs/core';
+import { MenuDivider } from '@blueprintjs/core';
 import { Breadcrumbs2, MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
@@ -6,15 +6,13 @@ import {
     extractEntityNameFromIdColumn,
     MetricType,
 } from '@lightdash/common';
-import React, { useEffect, useState } from 'react';
+import React, { FC, useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
 import { LineageButton } from '../../LineageButton';
 import ExploreTree from '../ExploreTree';
 import {
     ContentWrapper,
-    ExpandableHeader,
-    ExpandableWrapper,
     LoadingStateWrapper,
     TableDescription,
     TableDivider,
@@ -51,11 +49,11 @@ const SideBarLoadingState = () => (
     </LoadingStateWrapper>
 );
 
-type ExplorePanelProps = {
+interface ExplorePanelProps {
     onBack?: () => void;
-};
-export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
-    const [headerIsOpen, setHeaderIsOpen] = useState<boolean>(false);
+}
+
+export const ExplorePanel: FC<ExplorePanelProps> = ({ onBack }) => {
     const {
         state: {
             activeFields,
@@ -100,63 +98,52 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
             .replace(/["'`]/g, '')
             .split('.');
 
+        const tableBreadcrumbItem = {
+            children: (
+                <Tooltip2
+                    content={
+                        activeExplore.tables[activeExplore.baseTable]
+                            .description
+                    }
+                >
+                    {data.label}
+                </Tooltip2>
+            ),
+        };
+
         return (
             <>
-                <ExpandableWrapper>
-                    <ExpandableHeader>
-                        <Breadcrumbs2
-                            items={
-                                onBack
-                                    ? [
-                                          {
-                                              text: 'Tables',
-                                              className: 'home-breadcrumb',
-                                              onClick: onBack,
-                                          },
-                                          { text: data.label },
-                                      ]
-                                    : [{ text: data.label }]
-                            }
-                        />
+                <Breadcrumbs2
+                    items={
+                        onBack
+                            ? [
+                                  {
+                                      text: 'Tables',
+                                      className: 'home-breadcrumb',
+                                      onClick: onBack,
+                                  },
+                                  tableBreadcrumbItem,
+                              ]
+                            : [tableBreadcrumbItem]
+                    }
+                />
 
-                        <Tooltip2
-                            content={`${
-                                headerIsOpen ? 'Hide' : 'View'
-                            } table information`}
-                            position="right"
-                        >
-                            <Button
-                                icon={
-                                    headerIsOpen ? 'chevron-up' : 'chevron-down'
-                                }
-                                minimal
-                                onClick={() => setHeaderIsOpen((prev) => !prev)}
-                            />
-                        </Tooltip2>
-                    </ExpandableHeader>
-
-                    <Collapse isOpen={headerIsOpen}>
-                        <ContentWrapper>
-                            <TableTitle>
-                                <b>Table</b>: {tableName}
-                            </TableTitle>
-                            <LineageButton />
-                        </ContentWrapper>
-                        <p>
-                            <b>Schema</b>: {schemaName}
-                        </p>
-                        <p>
-                            <b>Database</b>: {databaseName}
-                        </p>
-                        <TableDescription>
-                            <b>Description</b>:{' '}
-                            {
-                                activeExplore.tables[activeExplore.baseTable]
-                                    .description
-                            }
-                        </TableDescription>
-                    </Collapse>
-                </ExpandableWrapper>
+                <ContentWrapper>
+                    <TableTitle>
+                        <b>Table</b>: {tableName}
+                    </TableTitle>
+                    <LineageButton />
+                </ContentWrapper>
+                <p>
+                    <b>Schema</b>: {schemaName}
+                </p>
+                <p>
+                    <b>Database</b>: {databaseName}
+                </p>
+                <TableDescription>
+                    <b>Description</b>:{' '}
+                    {activeExplore.tables[activeExplore.baseTable].description}
+                </TableDescription>
 
                 <TableDivider />
 
@@ -169,11 +156,13 @@ export const ExplorerPanel = ({ onBack }: ExplorePanelProps) => {
             </>
         );
     }
+
     if (status === 'error') {
         if (onBack) onBack();
         return null;
     }
+
     return <span>Cannot load explore</span>;
 };
 
-export default ExplorerPanel;
+export default ExplorePanel;

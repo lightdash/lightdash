@@ -17,8 +17,8 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
+import ExplorePanel from '../ExplorePanel';
 import { TableDivider } from '../ExplorePanel/ExplorePanel.styles';
-import ExplorePanel from '../ExplorePanel/index';
 import {
     FooterWrapper,
     FormField,

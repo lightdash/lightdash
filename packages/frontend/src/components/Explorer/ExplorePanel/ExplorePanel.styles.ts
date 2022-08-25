@@ -20,21 +20,6 @@ export const BackButton = styled(SimpleButton)`
     align-self: flex-start;
     padding-left: 0;
 `;
-export const ExpandableHeader = styled.div`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-
-    h4 {
-        margin: 0 10px 0 0;
-        padding: 0;
-    }
-`;
-
-export const ExpandableWrapper = styled.div`
-    box-shadow: none;
-    padding: 0 5px 0 2px;
-`;
 
 export const TableDivider = styled(Divider)`
     margin: 12px 0 18px 0;
