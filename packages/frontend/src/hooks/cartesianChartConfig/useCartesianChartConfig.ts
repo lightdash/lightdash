@@ -459,7 +459,7 @@ const useCartesianChartConfig = ({
                     newYFields = [availableDimensions[1]];
                 }
 
-                setPivotDimensions(newPivotFields);
+                if (explore !== undefined) setPivotDimensions(newPivotFields);
                 return {
                     ...prev,
                     xField: newXField,
@@ -475,6 +475,7 @@ const useCartesianChartConfig = ({
         availableMetrics,
         availableTableCalculations,
         hasInitialValue,
+        explore,
         setPivotDimensions,
         setType,
     ]);
