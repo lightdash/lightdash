@@ -9,7 +9,7 @@ import {
 import Fuse from 'fuse.js';
 import React, { createContext, FC, useContext } from 'react';
 
-const getSearchResults = (
+export const getSearchResults = (
     itemsMap: Record<string, Item>,
     searchQuery?: string,
 ): Set<string> => {
