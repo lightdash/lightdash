@@ -267,6 +267,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
 ): T => {
     const filterType = getFilterTypeFromField(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
+
     if (
         ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
             filterRule.operator,
@@ -275,8 +276,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         switch (filterType) {
             case FilterType.DATE: {
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
-                    filterRuleDefaults.values =
-                        value !== undefined ? [value] : [1];
+                    const numberValue =
+                        value === undefined || typeof value !== 'number'
+                            ? 1
+                            : value;
+
+                    filterRuleDefaults.values = [numberValue];
                     filterRuleDefaults.settings = {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
@@ -303,9 +308,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         defaultTimeIntervalValues[field.timeInterval]
                             ? defaultTimeIntervalValues[field.timeInterval]
                             : new Date();
-                    filterRuleDefaults.values = [
-                        value !== undefined ? value : defaultDate,
-                    ];
+
+                    const dateValue =
+                        value === undefined || typeof value === 'number'
+                            ? defaultDate
+                            : value;
+                    filterRuleDefaults.values = [dateValue];
                 }
                 break;
             }
