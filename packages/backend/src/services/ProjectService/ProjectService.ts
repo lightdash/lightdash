@@ -31,6 +31,7 @@ import {
     ProjectCatalog,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectType,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -127,6 +128,20 @@ export class ProjectService {
             user.organizationUuid,
             data,
         );
+        analytics.track({
+            event: 'project.created',
+            userId: user.userUuid,
+            properties: {
+                projectName: data.name,
+                projectId: projectUuid,
+                projectType: data.dbtConnection.type,
+                warehouseConnectionType: data.warehouseConnection.type,
+                organizationId: user.organizationUuid,
+                dbtConnectionType: data.dbtConnection.type,
+                isPreview: true,
+            },
+        });
+
         return this.projectModel.get(projectUuid);
     }
 
@@ -210,6 +225,7 @@ export class ProjectService {
                         warehouseConnectionType: data.warehouseConnection.type,
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
+                        isPreview: data.type === ProjectType.PREVIEW,
                     },
                 });
                 this.projectAdapters[projectUuid] = adapter;
@@ -315,6 +331,7 @@ export class ProjectService {
                             updatedProject.warehouseConnection.type,
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
+                        isPreview: savedProject.type === ProjectType.PREVIEW,
                     },
                 });
                 if (this.projectAdapters[projectUuid] !== undefined)
@@ -359,7 +376,7 @@ export class ProjectService {
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, type } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (
@@ -372,11 +389,13 @@ export class ProjectService {
         }
 
         await this.projectModel.delete(projectUuid);
+
         analytics.track({
             event: 'project.deleted',
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
+                isPreview: type === ProjectType.PREVIEW,
             },
         });
 
