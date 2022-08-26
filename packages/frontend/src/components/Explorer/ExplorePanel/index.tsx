@@ -1,5 +1,5 @@
 import { MenuDivider } from '@blueprintjs/core';
-import { Breadcrumbs2, MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     CompiledTable,
@@ -9,6 +9,7 @@ import {
 import React, { FC, useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
+import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
 import ExploreTree from '../ExploreTree';
 import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
 
@@ -94,13 +95,12 @@ export const ExplorePanel: FC<ExplorePanelProps> = ({ onBack }) => {
 
         return (
             <>
-                <Breadcrumbs2
+                <StyledBreadcrumb
                     items={
                         onBack
                             ? [
                                   {
                                       text: 'Tables',
-                                      className: 'home-breadcrumb',
                                       onClick: onBack,
                                   },
                                   tableBreadcrumbItem,

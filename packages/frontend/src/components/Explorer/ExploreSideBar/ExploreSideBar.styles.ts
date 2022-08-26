@@ -1,4 +1,5 @@
 import { Menu, Switch } from '@blueprintjs/core';
+import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
 export const FormField = styled.div`
@@ -19,4 +20,8 @@ export const FooterWrapper = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
+`;
+
+export const StyledBreadcrumb = styled(Breadcrumbs2)`
+    flex-shrink: 0;
 `;
