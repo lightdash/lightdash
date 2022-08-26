@@ -29,7 +29,6 @@ const TableBody: FC = () => {
                                 rowIndex={rowIndex}
                                 cell={cell}
                                 isNumericItem={isNumericItem(meta?.item)}
-                                hasContextMenu={!!cellContextMenu}
                                 hasData={!!meta?.item}
                                 cellContextMenu={cellContextMenu}
                                 onSelect={handleCellSelect}

@@ -10,13 +10,13 @@ interface CommonBodyCellProps {
     rowIndex: number;
     isNumericItem: boolean;
     hasData: boolean;
-    hasContextMenu: boolean;
     cellContextMenu?: FC<CellContextMenuProps>;
+    onSelect?: (cellId: string | undefined) => void;
 }
 
 interface BodyCellProps extends CommonBodyCellProps {
     isSelected: boolean;
-    onClick?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
+    hasContextMenu: boolean;
 }
 
 const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
@@ -24,12 +24,12 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
         {
             rowIndex,
             cell,
-            hasContextMenu,
             hasData,
+            hasContextMenu,
             isNumericItem,
             isSelected,
             children,
-            onClick,
+            onSelect,
         },
         ref,
     ) => {
@@ -41,7 +41,7 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
                 $isInteractive={hasContextMenu}
                 $hasData={hasData}
                 $isNaN={!hasData || !isNumericItem}
-                onClick={isSelected ? undefined : onClick}
+                onClick={() => onSelect?.(isSelected ? undefined : cell.id)}
             >
                 <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
                     {children}
@@ -51,42 +51,43 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
     },
 );
 
-interface BodyCellWrapperProps extends CommonBodyCellProps {
-    onSelect: (cellId: string | undefined) => void;
-}
-
-const BodyCellWrapper: FC<BodyCellWrapperProps> = ({ onSelect, ...props }) => {
+const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     const CellContextMenu = props.cellContextMenu;
 
     const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
 
     const handleCellSelect = useCallback(
         (cellId: string | undefined) => {
-            onSelect(cellId);
+            onSelect?.(cellId);
             setIsCellSelected(cellId ? true : false);
         },
         [onSelect, setIsCellSelected],
     );
 
-    return CellContextMenu && isCellSelected ? (
+    const canHaveContextMenu = !!CellContextMenu && props.hasData;
+
+    return canHaveContextMenu && isCellSelected ? (
         <CellContextMenu
             key={props.cell.id}
             cell={props.cell as Cell<ResultRow, ResultRow[0]>}
             onOpen={() => handleCellSelect(props.cell.id)}
             onClose={() => handleCellSelect(undefined)}
             renderCell={({ ref }) => (
-                <BodyCell isSelected={true} ref={ref} {...props} />
+                <BodyCell
+                    {...props}
+                    hasContextMenu
+                    isSelected={true}
+                    onSelect={handleCellSelect}
+                    ref={ref}
+                />
             )}
         />
     ) : (
         <BodyCell
             {...props}
             isSelected={false}
-            onClick={
-                CellContextMenu
-                    ? () => handleCellSelect(props.cell.id)
-                    : undefined
-            }
+            hasContextMenu={canHaveContextMenu}
+            onSelect={CellContextMenu ? handleCellSelect : undefined}
         />
     );
 };
