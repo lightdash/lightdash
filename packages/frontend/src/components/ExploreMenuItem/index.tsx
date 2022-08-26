@@ -1,9 +1,8 @@
-import { Colors, Icon, Intent } from '@blueprintjs/core';
+import { Colors, Icon, Intent, Position } from '@blueprintjs/core';
 import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import React from 'react';
 import styled from 'styled-components';
-import ExploreMenuItemPopover from './ExploreMenuItemPopover';
 
 const StyledMenuItem2 = styled(MenuItem2)`
     .menu-item-label-element {
@@ -78,9 +77,12 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             onClick={onClick}
             labelClassName="menu-item-label-element"
             labelElement={
-                <ExploreMenuItemPopover explore={explore}>
+                <Tooltip2
+                    position={Position.RIGHT}
+                    content={explore.description}
+                >
                     <Icon icon="info-sign" />
-                </ExploreMenuItemPopover>
+                </Tooltip2>
             }
         />
     );

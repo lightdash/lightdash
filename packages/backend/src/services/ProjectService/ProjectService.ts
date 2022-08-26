@@ -828,8 +828,6 @@ export class ProjectService {
             }
         }
 
-        console.log(allExploreSummaries);
-
         return allExploreSummaries;
     }
 
