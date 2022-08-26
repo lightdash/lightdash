@@ -56,7 +56,7 @@ We're going to try adding a new metric to our dbt project, then syncing it with 
 
 ### Add a metric to one of your dbt models
 
-Head to your dbt project and add a metric to one of your dbt models. 
+Head to your dbt project, checkout a new branch (or just work on `main` if that's your style 🤠) and add a metric to one of your dbt models. 
 
 We'd suggest starting out simple, like a `count` for a primary key in your table.
 
@@ -142,6 +142,8 @@ This will deploy the changes in your dbt project to the Lightdash project you se
 
 And voilà! Your new metric is available to explore in Lightdash.
 
+---
+
 ## Adding custom metrics in the Explore view
 
 The fields that you see in your `dimensions` and `metrics` are created by the people maintaining your Lightdash project.
@@ -179,4 +181,4 @@ Here are some things about custom metrics we thought would be worth mentioning:
 - **But, you can use custom metrics in a saved chart.** If you've added custom metrics to your saved chart, and someone else opens the saved chart, they'll see your custom metrics. But, if they open a new, fresh Table in the Explore view, your custom metrics won't appear there. 
 - **You can't use custom SQL in your custom metrics.** If you need to write some more complicated SQL to define your metric, then you'll need to [define it as a metric in your dbt project](#-adding-metrics-in-your-dbt-project).  
 
-## Now, go forth and aggregate (or check out our [metrics reference sheet](/references/metrics to further details)
+## Now, go forth and aggregate (or check out our [metrics reference sheet](/references/metrics) to further details)
