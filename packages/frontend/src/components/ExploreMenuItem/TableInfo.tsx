@@ -1,15 +1,14 @@
+import { SummaryExplore } from '@lightdash/common';
 import { FC } from 'react';
 import { LineageButton } from '../LineageButton';
 
-interface TableInfoProps {
-    tableName: string;
-    schemaName: string;
-    databaseName: string;
-    description?: string;
-}
+type TableInfoProps = Pick<
+    SummaryExplore,
+    'name' | 'databaseName' | 'schemaName' | 'description'
+>;
 
 const TableInfo: FC<TableInfoProps> = ({
-    tableName,
+    name,
     schemaName,
     databaseName,
     description,
@@ -17,16 +16,20 @@ const TableInfo: FC<TableInfoProps> = ({
     return (
         <>
             <p>
-                <b>Table</b>: {tableName}
+                <b>Table</b>: {name}
             </p>
 
-            <p>
-                <b>Schema</b>: {schemaName}
-            </p>
+            {schemaName && (
+                <p>
+                    <b>Schema</b>: {schemaName}
+                </p>
+            )}
 
-            <p>
-                <b>Database</b>: {databaseName}
-            </p>
+            {databaseName && (
+                <p>
+                    <b>Database</b>: {databaseName}
+                </p>
+            )}
 
             {description && (
                 <p>
