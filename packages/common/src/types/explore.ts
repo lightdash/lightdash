@@ -44,18 +44,27 @@ export type InlineError = {
     message: string;
 };
 
-export type ExploreError = Partial<Explore> & {
-    name: string;
-    label: string;
-    errors: InlineError[];
-};
+export type ExploreError = Partial<Explore> &
+    Pick<Explore, 'name' | 'label'> & {
+        errors: InlineError[];
+    };
+
 export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
+type SummaryExploreFields = 'name' | 'label' | 'tags';
+type SummaryExploreErrorFields = SummaryExploreFields | 'errors';
+type SummaryExtraFields = {
+    description?: string;
+    schemaName: string;
+    databaseName: string;
+};
+
 export type SummaryExplore =
-    | Pick<Explore, 'name' | 'label' | 'tags'>
-    | Pick<ExploreError, 'name' | 'label' | 'tags' | 'errors'>;
+    | (Pick<Explore, SummaryExploreFields> & SummaryExtraFields)
+    | (Pick<ExploreError, SummaryExploreErrorFields> &
+          Partial<SummaryExtraFields>);
 
 export type Table = TableBase & {
     dimensions: { [fieldName: string]: Dimension }; // Field names must be unique across dims and metrics

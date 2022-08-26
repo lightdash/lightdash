@@ -790,12 +790,25 @@ export class ProjectService {
                     label: explore.label,
                     tags: explore.tags,
                     errors: explore.errors,
+                    databaseName:
+                        explore.baseTable &&
+                        explore.tables?.[explore.baseTable]?.database,
+                    schemaName:
+                        explore.baseTable &&
+                        explore.tables?.[explore.baseTable]?.schema,
+                    description:
+                        explore.baseTable &&
+                        explore.tables?.[explore.baseTable]?.description,
                 };
             }
+
             return {
                 name: explore.name,
                 label: explore.label,
                 tags: explore.tags,
+                databaseName: explore.tables[explore.baseTable].database,
+                schemaName: explore.tables[explore.baseTable].schema,
+                description: explore.tables[explore.baseTable].description,
             };
         });
 
@@ -814,6 +827,9 @@ export class ProjectService {
                 );
             }
         }
+
+        console.log(allExploreSummaries);
+
         return allExploreSummaries;
     }
 
@@ -842,6 +858,7 @@ export class ProjectService {
                 `Explore "${exploreName}" does not exist.`,
             );
         }
+
         return explore;
     }
 
