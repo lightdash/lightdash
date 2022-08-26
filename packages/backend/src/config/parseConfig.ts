@@ -80,6 +80,7 @@ type AuthOktaConfig = {
     oauth2Issuer: string | undefined;
     oauth2ClientId: string | undefined;
     oauth2ClientSecret: string | undefined;
+    authorizationServerId: string | undefined;
     oktaDomain: string | undefined;
     callbackPath: string;
     loginPath: string;
@@ -195,6 +196,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,
                 oauth2ClientId: process.env.AUTH_OKTA_OAUTH_CLIENT_ID,
                 oauth2ClientSecret: process.env.AUTH_OKTA_OAUTH_CLIENT_SECRET,
+                authorizationServerId:
+                    process.env.AUTH_OKTA_AUTHORIZATION_SERVER_ID,
                 oktaDomain: process.env.AUTH_OKTA_DOMAIN,
                 callbackPath: '/oauth/redirect/okta',
                 loginPath: '/login/okta',

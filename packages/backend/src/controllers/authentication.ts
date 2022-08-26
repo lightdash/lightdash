@@ -16,6 +16,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as OpenIDConnectStrategy } from 'passport-openidconnect';
+import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
@@ -62,6 +63,19 @@ export const getOpenIdUserFromRequest = ({
         return user;
     }
     return undefined;
+};
+
+export const generateOktaUrl = (apiUrlPath: string): string => {
+    const fullPath = path.posix.join(
+        path.posix.sep,
+        'oauth2',
+        lightdashConfig.auth.okta.authorizationServerId || '', // empty string will be skipped
+        'v1',
+        apiUrlPath,
+    );
+
+    return new URL(fullPath, `https://${lightdashConfig.auth.okta.oktaDomain}`)
+        .href;
 };
 
 export const localPassportStrategy = new LocalStrategy(
@@ -202,18 +216,9 @@ export const oktaPassportStrategy = !(
                   `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
                   lightdashConfig.siteUrl,
               ).href,
-              authorizationURL: new URL(
-                  '/oauth2/default/v1/authorize',
-                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
-              ).href,
-              tokenURL: new URL(
-                  '/oauth2/default/v1/token',
-                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
-              ).href,
-              userInfoURL: new URL(
-                  '/oauth2/default/v1/userinfo',
-                  `https://${lightdashConfig.auth.okta.oktaDomain}`,
-              ).href,
+              authorizationURL: generateOktaUrl('/authorize'),
+              tokenURL: generateOktaUrl('/token'),
+              userInfoURL: generateOktaUrl('/userinfo'),
               passReqToCallback: true,
           },
           async (req, issuer, profile, done) => {
