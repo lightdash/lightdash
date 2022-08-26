@@ -1,3 +1,10 @@
+# [0.235.0](https://github.com/lightdash/lightdash/compare/0.234.0...0.235.0) (2022-08-26)
+
+
+### Features
+
+* enable Okta org auth server ([#3061](https://github.com/lightdash/lightdash/issues/3061)) ([8da472e](https://github.com/lightdash/lightdash/commit/8da472e600291d159de6bb5bca411254e003968c))
+
 # [0.234.0](https://github.com/lightdash/lightdash/compare/0.233.1...0.234.0) (2022-08-26)
 
 
