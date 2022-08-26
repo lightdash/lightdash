@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import * as dagre from 'dagre';
 import EChartsReact from 'echarts-for-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useExplore } from '../hooks/useExplore';
 import { useExplorer } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
