@@ -1,3 +1,10 @@
+# [0.234.0](https://github.com/lightdash/lightdash/compare/0.233.1...0.234.0) (2022-08-26)
+
+
+### Features
+
+* hide empty groups when searching on explore ([#3073](https://github.com/lightdash/lightdash/issues/3073)) ([edd0e39](https://github.com/lightdash/lightdash/commit/edd0e397cb256f3f24209c26bb94b2248ede36a2))
+
 ## [0.233.1](https://github.com/lightdash/lightdash/compare/0.233.0...0.233.1) (2022-08-25)
 
 
