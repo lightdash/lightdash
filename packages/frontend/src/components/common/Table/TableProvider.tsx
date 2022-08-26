@@ -11,7 +11,6 @@ import React, {
     FC,
     useContext,
     useEffect,
-    useRef,
     useState,
 } from 'react';
 import {
@@ -42,8 +41,6 @@ type Props = {
 };
 
 type TableContext = Props & {
-    tableWrapperRef: React.MutableRefObject<HTMLDivElement | null>;
-    setTableWrapperRef: (instance: HTMLDivElement | null) => void;
     isScrollable: boolean;
     setIsScrollable: React.Dispatch<React.SetStateAction<boolean>>;
     table: Table<ResultRow>;
@@ -65,7 +62,6 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
     const [isScrollable, setIsScrollable] = useState(true);
-    const tableWrapperRef = useRef<HTMLDivElement | null>(null);
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
         ROW_NUMBER_COLUMN_ID,
         ...(columnOrder || []),
@@ -99,16 +95,10 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         }
     }, [pagination, setPageSize]);
 
-    const setTableWrapperRef = (instance: HTMLDivElement | null) => {
-        tableWrapperRef.current = instance;
-    };
-
     return (
         <Context.Provider
             value={{
                 table,
-                tableWrapperRef,
-                setTableWrapperRef,
                 isScrollable,
                 setIsScrollable,
                 ...rest,

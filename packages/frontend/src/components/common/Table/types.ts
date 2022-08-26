@@ -1,3 +1,4 @@
+import { Popover2Props } from '@blueprintjs/popover2';
 import {
     Field,
     PivotReference,
@@ -16,9 +17,9 @@ import { MouseEventHandler } from 'react';
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
     cell: Cell<ResultRow, ResultRow[0]>;
+    renderCell: Popover2Props['renderTarget'];
     onOpen: () => void;
     onClose: () => void;
-    boundaryElement: HTMLDivElement | null;
 };
 
 export type Sort = {

@@ -85,7 +85,7 @@ const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
 `;
 
-export const BodyCell = styled.td<{
+export const Td = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;
     $isSelected: boolean;

@@ -1,15 +1,12 @@
-import { isNumericItem, ResultRow } from '@lightdash/common';
-import { Cell, flexRender } from '@tanstack/react-table';
-import React, { FC, Fragment, useState } from 'react';
-import { BodyCell } from '../Table.styles';
+import { isNumericItem } from '@lightdash/common';
+import { flexRender } from '@tanstack/react-table';
+import { FC, useState } from 'react';
+import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
-import RichBodyCell from './RichBodyCell';
 
 const TableBody: FC = () => {
-    const { table, cellContextMenu, tableWrapperRef, setIsScrollable } =
-        useTableContext();
-    const CellContextMenu = cellContextMenu || Fragment;
+    const { table, cellContextMenu, setIsScrollable } = useTableContext();
     const [selectedCell, setSelectedCell] = useState<string>();
 
     const handleCellSelect = (cellId: string | undefined) => {
@@ -26,37 +23,22 @@ const TableBody: FC = () => {
                             .meta as TableColumn['meta'];
 
                         return (
-                            <CellContextMenu
+                            <BodyCell
                                 key={cell.id}
-                                cell={cell as Cell<ResultRow, ResultRow[0]>}
-                                boundaryElement={tableWrapperRef.current}
-                                onOpen={() => handleCellSelect(cell.id)}
-                                onClose={() => handleCellSelect(undefined)}
+                                rowIndex={rowIndex}
+                                cell={cell}
+                                isSelected={cell.id === selectedCell}
+                                isNumericItem={isNumericItem(meta?.item)}
+                                hasContextMenu={!!cellContextMenu}
+                                hasData={!!meta?.item}
+                                cellContextMenu={cellContextMenu}
+                                onSelect={handleCellSelect}
                             >
-                                <BodyCell
-                                    $rowIndex={rowIndex}
-                                    $isSelected={cell.id === selectedCell}
-                                    $isInteractive={!!cellContextMenu}
-                                    $hasData={!!meta?.item}
-                                    $isNaN={
-                                        !meta?.item || !isNumericItem(meta.item)
-                                    }
-                                >
-                                    <RichBodyCell
-                                        cell={
-                                            cell as Cell<
-                                                ResultRow,
-                                                ResultRow[0]
-                                            >
-                                        }
-                                    >
-                                        {flexRender(
-                                            cell.column.columnDef.cell,
-                                            cell.getContext(),
-                                        )}
-                                    </RichBodyCell>
-                                </BodyCell>
-                            </CellContextMenu>
+                                {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                )}
+                            </BodyCell>
                         );
                     })}
                 </tr>

@@ -1,14 +1,7 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import {
-    Field,
-    isField,
-    isFilterableField,
-    ResultRow,
-    TableCalculation,
-} from '@lightdash/common';
-import { Cell } from '@tanstack/react-table';
-import { cloneElement, FC, isValidElement } from 'react';
+import { isField, isFilterableField, ResultRow } from '@lightdash/common';
+import { FC } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -16,22 +9,20 @@ import { isUrl } from '../../common/Table/ScrollableTable/RichBodyCell';
 import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
-interface ContextMenuProps {
-    cell: Cell<ResultRow, ResultRow[0]>;
-    item?: Field | TableCalculation;
-    meta: TableColumn['meta'];
+interface CommonProps extends CellContextMenuProps {
     isEditMode: boolean;
 }
 
-const ContextMenu: FC<ContextMenuProps> = ({
-    meta,
-    item,
+const ContextMenu: FC<Pick<CommonProps, 'cell' | 'isEditMode'>> = ({
     cell,
     isEditMode,
 }) => {
     const { addFilter } = useFilters();
     const { viewData } = useUnderlyingDataContext();
     const { track } = useTracking();
+
+    const meta = cell.column.columnDef.meta as TableColumn['meta'];
+    const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
 
@@ -78,44 +69,21 @@ const ContextMenu: FC<ContextMenuProps> = ({
     );
 };
 
-const CellContextMenu: FC<
-    CellContextMenuProps & {
-        isEditMode: boolean;
-    }
-> = ({ isEditMode, boundaryElement, children, cell, onOpen, onClose }) => {
-    const meta = cell.column.columnDef.meta as TableColumn['meta'];
-    const item = meta?.item;
-
-    if (!item || !boundaryElement) {
-        return <>{children}</>;
-    }
-
+const CellContextMenu: FC<CommonProps> = ({
+    isEditMode,
+    cell,
+    renderCell,
+    onOpen,
+    onClose,
+}) => {
     return (
         <Popover2
             minimal
             lazy
             position={Position.BOTTOM_RIGHT}
-            boundary={boundaryElement}
-            content={
-                <ContextMenu
-                    cell={cell}
-                    item={item}
-                    meta={meta}
-                    isEditMode={isEditMode}
-                />
-            }
-            renderTarget={({ ref, ...targetProps }) => {
-                if (isValidElement(children)) {
-                    return cloneElement(children, {
-                        ref,
-                        ...targetProps,
-                    });
-                } else {
-                    throw new Error(
-                        'CellContextMenu children must be a valid React element',
-                    );
-                }
-            }}
+            defaultIsOpen
+            content={<ContextMenu cell={cell} isEditMode={isEditMode} />}
+            renderTarget={renderCell}
             onOpening={onOpen}
             onClosing={onClose}
         />
