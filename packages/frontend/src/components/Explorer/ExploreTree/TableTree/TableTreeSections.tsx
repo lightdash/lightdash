@@ -10,7 +10,7 @@ import {
     SpanFlex,
     TooltipContent,
 } from './TableTree.styles';
-import { TreeProvider } from './Tree/TreeProvider';
+import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
 
 type Props = {
@@ -32,11 +32,37 @@ const TableTreeSections: FC<Props> = ({
     const sectionDepth = depth;
     const treeRootDepth = depth + 1;
     const hasNoMetrics = Object.keys(table.metrics).length <= 0;
+
+    const isSearching = !!searchQuery && searchQuery !== '';
+
+    const dimensions = Object.values(table.dimensions).reduce(
+        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+        {},
+    );
+    const metrics = Object.values(table.metrics).reduce(
+        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+        {},
+    );
+    const customMetrics = additionalMetrics.reduce<
+        Record<string, AdditionalMetric>
+    >(
+        (acc, item) => ({
+            ...acc,
+            [getItemId(item)]: item,
+        }),
+        {},
+    );
+
     return (
         <>
-            <DimensionsSectionRow depth={sectionDepth}>
-                Dimensions
-            </DimensionsSectionRow>
+            {isSearching &&
+            getSearchResults(dimensions, searchQuery).size === 0 ? (
+                <></>
+            ) : (
+                <DimensionsSectionRow depth={sectionDepth}>
+                    Dimensions
+                </DimensionsSectionRow>
+            )}
             {Object.keys(table.dimensions).length <= 0 ? (
                 <EmptyState>
                     No dimensions defined in your dbt project
@@ -44,29 +70,72 @@ const TableTreeSections: FC<Props> = ({
             ) : (
                 <TreeProvider
                     searchQuery={searchQuery}
-                    itemsMap={Object.values(table.dimensions).reduce(
-                        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-                        {},
-                    )}
+                    itemsMap={dimensions}
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, true)}
                 >
                     <TreeRoot depth={treeRootDepth} />
                 </TreeProvider>
             )}
-            <MetricsSectionRow depth={sectionDepth}>
-                Metrics
-                <SpanFlex />
-                {hasNoMetrics && (
+            {isSearching &&
+            getSearchResults(metrics, searchQuery).size === 0 ? (
+                <></>
+            ) : (
+                <MetricsSectionRow depth={sectionDepth}>
+                    Metrics
+                    <SpanFlex />
+                    {hasNoMetrics && (
+                        <DocumentationHelpButton
+                            url={
+                                'https://docs.lightdash.com/guides/how-to-create-metrics'
+                            }
+                            tooltipProps={{
+                                content: (
+                                    <TooltipContent>
+                                        <b>View docs</b> - Add a metric to your
+                                        project
+                                    </TooltipContent>
+                                ),
+                            }}
+                            iconProps={{
+                                style: {
+                                    color: Colors.GRAY3,
+                                },
+                            }}
+                        />
+                    )}
+                </MetricsSectionRow>
+            )}
+            {hasNoMetrics ? (
+                <EmptyState>No metrics defined in your dbt project</EmptyState>
+            ) : (
+                <TreeProvider
+                    searchQuery={searchQuery}
+                    itemsMap={metrics}
+                    selectedItems={selectedItems}
+                    onItemClick={(key) => onSelectedNodeChange(key, false)}
+                >
+                    <TreeRoot depth={treeRootDepth} />
+                </TreeProvider>
+            )}
+            {isSearching &&
+            getSearchResults(customMetrics, searchQuery).size === 0 ? (
+                <></>
+            ) : (
+                <CustomMetricsSectionRow depth={sectionDepth}>
+                    Custom metrics
+                    <SpanFlex />
                     <DocumentationHelpButton
                         url={
-                            'https://docs.lightdash.com/guides/how-to-create-metrics'
+                            'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
                         }
                         tooltipProps={{
                             content: (
                                 <TooltipContent>
-                                    <b>View docs</b> - Add a metric to your
-                                    project
+                                    Add custom metrics by hovering over the
+                                    dimension of your choice & selecting the
+                                    three-dot Action Menu.{' '}
+                                    <b>Click to view docs.</b>
                                 </TooltipContent>
                             ),
                         }}
@@ -76,47 +145,8 @@ const TableTreeSections: FC<Props> = ({
                             },
                         }}
                     />
-                )}
-            </MetricsSectionRow>
-            {hasNoMetrics ? (
-                <EmptyState>No metrics defined in your dbt project</EmptyState>
-            ) : (
-                <TreeProvider
-                    searchQuery={searchQuery}
-                    itemsMap={Object.values(table.metrics).reduce(
-                        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-                        {},
-                    )}
-                    selectedItems={selectedItems}
-                    onItemClick={(key) => onSelectedNodeChange(key, false)}
-                >
-                    <TreeRoot depth={treeRootDepth} />
-                </TreeProvider>
+                </CustomMetricsSectionRow>
             )}
-            <CustomMetricsSectionRow depth={sectionDepth}>
-                Custom metrics
-                <SpanFlex />
-                <DocumentationHelpButton
-                    url={
-                        'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
-                    }
-                    tooltipProps={{
-                        content: (
-                            <TooltipContent>
-                                Add custom metrics by hovering over the
-                                dimension of your choice & selecting the
-                                three-dot Action Menu.{' '}
-                                <b>Click to view docs.</b>
-                            </TooltipContent>
-                        ),
-                    }}
-                    iconProps={{
-                        style: {
-                            color: Colors.GRAY3,
-                        },
-                    }}
-                />
-            </CustomMetricsSectionRow>
             {hasNoMetrics && additionalMetrics.length <= 0 ? (
                 <EmptyState>
                     Add custom metrics by hovering over the dimension of your
@@ -125,15 +155,7 @@ const TableTreeSections: FC<Props> = ({
             ) : (
                 <TreeProvider
                     searchQuery={searchQuery}
-                    itemsMap={additionalMetrics.reduce<
-                        Record<string, AdditionalMetric>
-                    >(
-                        (acc, item) => ({
-                            ...acc,
-                            [getItemId(item)]: item,
-                        }),
-                        {},
-                    )}
+                    itemsMap={customMetrics}
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
