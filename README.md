@@ -277,6 +277,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/KristyMayer"><img src="https://avatars.githubusercontent.com/u/107724505?v=4?s=100" width="100px;" alt=""/><br /><sub><b>KristyMayer</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AKristyMayer" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/rahulstomar08"><img src="https://avatars.githubusercontent.com/u/110521220?v=4?s=100" width="100px;" alt=""/><br /><sub><b>rahulstomar08</b></sub></a><br /><a href="#ideas-rahulstomar08" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
