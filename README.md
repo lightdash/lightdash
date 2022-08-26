@@ -275,6 +275,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/TiFaBl"><img src="https://avatars.githubusercontent.com/u/38563080?v=4?s=100" width="100px;" alt=""/><br /><sub><b>TiFaBl</b></sub></a><br /><a href="#ideas-TiFaBl" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="http://ericcecchi.com"><img src="https://avatars.githubusercontent.com/u/1455025?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Eric Cecchi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ericcecchi" title="Code">💻</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/KristyMayer"><img src="https://avatars.githubusercontent.com/u/107724505?v=4?s=100" width="100px;" alt=""/><br /><sub><b>KristyMayer</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AKristyMayer" title="Bug reports">🐛</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
