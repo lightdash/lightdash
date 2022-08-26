@@ -9,15 +9,8 @@ import {
 import React, { FC, useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorer } from '../../../providers/ExplorerProvider';
-import { LineageButton } from '../../LineageButton';
 import ExploreTree from '../ExploreTree';
-import {
-    ContentWrapper,
-    LoadingStateWrapper,
-    TableDescription,
-    TableDivider,
-    TableTitle,
-} from './ExplorePanel.styles';
+import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
 
 const getTableMagicMetrics = (
     table: CompiledTable,
@@ -91,21 +84,9 @@ export const ExplorePanel: FC<ExplorePanelProps> = ({ onBack }) => {
     }
 
     if (data) {
-        const activeExplore = data;
-        const [databaseName, schemaName, tableName] = activeExplore.tables[
-            activeExplore.baseTable
-        ].sqlTable
-            .replace(/["'`]/g, '')
-            .split('.');
-
         const tableBreadcrumbItem = {
             children: (
-                <Tooltip2
-                    content={
-                        activeExplore.tables[activeExplore.baseTable]
-                            .description
-                    }
-                >
+                <Tooltip2 content={data.tables[data.baseTable].description}>
                     {data.label}
                 </Tooltip2>
             ),
@@ -128,27 +109,10 @@ export const ExplorePanel: FC<ExplorePanelProps> = ({ onBack }) => {
                     }
                 />
 
-                <ContentWrapper>
-                    <TableTitle>
-                        <b>Table</b>: {tableName}
-                    </TableTitle>
-                    <LineageButton />
-                </ContentWrapper>
-                <p>
-                    <b>Schema</b>: {schemaName}
-                </p>
-                <p>
-                    <b>Database</b>: {databaseName}
-                </p>
-                <TableDescription>
-                    <b>Description</b>:{' '}
-                    {activeExplore.tables[activeExplore.baseTable].description}
-                </TableDescription>
-
                 <TableDivider />
 
                 <ExploreTree
-                    explore={activeExplore}
+                    explore={data}
                     additionalMetrics={additionalMetrics || []}
                     selectedNodes={activeFields}
                     onSelectedFieldChange={toggleActiveField}
