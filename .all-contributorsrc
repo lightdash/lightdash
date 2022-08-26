@@ -682,6 +682,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "KristyMayer",
+      "name": "KristyMayer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/107724505?v=4",
+      "profile": "https://github.com/KristyMayer",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
