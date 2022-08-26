@@ -1,18 +1,19 @@
 import { isNumericItem } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
-import { FC, useState } from 'react';
+import { FC, useCallback } from 'react';
 import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 import { TableColumn } from '../types';
 
 const TableBody: FC = () => {
     const { table, cellContextMenu, setIsScrollable } = useTableContext();
-    const [selectedCell, setSelectedCell] = useState<string>();
 
-    const handleCellSelect = (cellId: string | undefined) => {
-        setIsScrollable(!cellId);
-        setSelectedCell(cellId);
-    };
+    const handleCellSelect = useCallback(
+        (cellId: string | undefined) => {
+            setIsScrollable(!cellId);
+        },
+        [setIsScrollable],
+    );
 
     return (
         <tbody>
@@ -27,7 +28,6 @@ const TableBody: FC = () => {
                                 key={cell.id}
                                 rowIndex={rowIndex}
                                 cell={cell}
-                                isSelected={cell.id === selectedCell}
                                 isNumericItem={isNumericItem(meta?.item)}
                                 hasContextMenu={!!cellContextMenu}
                                 hasData={!!meta?.item}
