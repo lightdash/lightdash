@@ -1,6 +1,6 @@
 import { SummaryExplore } from '@lightdash/common';
 import { FC } from 'react';
-import { LineageButton } from '../LineageButton';
+import Lineage from './Lineage';
 
 type TableInfoProps = Pick<
     SummaryExplore,
@@ -37,7 +37,7 @@ const TableInfo: FC<TableInfoProps> = ({
                 </p>
             )}
 
-            <LineageButton />
+            <Lineage tableName={name} />
         </>
     );
 };

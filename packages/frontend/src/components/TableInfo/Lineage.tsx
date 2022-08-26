@@ -1,5 +1,4 @@
 import { Button, Colors } from '@blueprintjs/core';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     friendlyName,
     isExploreError,
@@ -7,23 +6,20 @@ import {
 } from '@lightdash/common';
 import * as dagre from 'dagre';
 import EChartsReact from 'echarts-for-react';
-import { useState } from 'react';
-import { useExplore } from '../hooks/useExplore';
-import { useExplorer } from '../providers/ExplorerProvider';
-import { useTracking } from '../providers/TrackingProvider';
-import { EventName } from '../types/Events';
+import { FC, useState } from 'react';
+import { useExplore } from '../../hooks/useExplore';
 
-const Content = () => {
+interface LineageProps {
+    tableName: string;
+}
+
+const Lineage: FC<LineageProps> = ({ tableName }) => {
     const [showAll, setShowAll] = useState(false);
-    const {
-        state: {
-            unsavedChartVersion: { tableName },
-        },
-    } = useExplorer();
-    const currentExplore = useExplore(tableName);
-    if (currentExplore.status !== 'success') return null;
-    if (isExploreError(currentExplore.data)) return null;
-    const table = currentExplore.data.tables[currentExplore.data.baseTable];
+    const { data, isSuccess, isError } = useExplore(tableName);
+    if (!isSuccess || !data) return null;
+    if (isError || isExploreError(data)) return null;
+
+    const table = data.tables[data.baseTable];
 
     const dag = new dagre.graphlib.Graph();
     dag.setGraph({
@@ -117,7 +113,7 @@ const Content = () => {
                 option={options}
                 notMerge
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div>
                 <Button
                     icon={showAll ? 'zoom-out' : 'zoom-in'}
                     text={showAll ? 'Show direct dependencies' : 'Show all'}
@@ -129,31 +125,4 @@ const Content = () => {
     );
 };
 
-export const LineageButton = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const { track } = useTracking();
-    return (
-        <Popover2
-            content={<Content />}
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="right"
-            lazy
-            fill
-        >
-            <Tooltip2 content="View this table's upstream and downstream dependencies.">
-                <Button
-                    minimal
-                    icon="data-lineage"
-                    text="Show lineage"
-                    onClick={() => {
-                        track({
-                            name: EventName.SHOW_LINEAGE_BUTTON_CLICKED,
-                        });
-                    }}
-                />
-            </Tooltip2>
-        </Popover2>
-    );
-};
+export default Lineage;
