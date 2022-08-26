@@ -1,13 +1,7 @@
-import {
-    Button,
-    Menu,
-    MenuDivider,
-    MenuItem,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Button, Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import React, { FC, useCallback, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { AddTileModal } from './TileForms/TileModal';
 
@@ -31,21 +25,25 @@ const AddTileButton: FC<Props> = ({ onAddTiles }) => {
                 className="non-draggable"
                 content={
                     <Menu>
-                        <MenuItem
+                        <MenuItem2
                             icon="chart"
                             text="Saved chart"
                             onClick={() => setIsAddChartTilesModalOpen(true)}
                         />
+
                         <MenuDivider />
-                        <MenuItem
+
+                        <MenuItem2
                             icon="new-text-box"
                             text="Markdown"
                             onClick={() =>
                                 setAddTileType(DashboardTileTypes.MARKDOWN)
                             }
                         />
+
                         <MenuDivider />
-                        <MenuItem
+
+                        <MenuItem2
                             icon="mobile-video"
                             text="Loom video"
                             onClick={() =>

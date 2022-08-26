@@ -5,9 +5,8 @@ import {
     Divider,
     Intent,
     Menu,
-    MenuItem,
 } from '@blueprintjs/core';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
@@ -230,7 +229,7 @@ const SavedChartsHeader: FC = () => {
                             disabled={!unsavedChartVersion.tableName}
                             content={
                                 <Menu>
-                                    <MenuItem
+                                    <MenuItem2
                                         icon={
                                             hasUnsavedChanges
                                                 ? 'add'
@@ -252,14 +251,14 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         }}
                                     />
-                                    <MenuItem
+                                    <MenuItem2
                                         icon="control"
                                         text="Add to dashboard"
                                         onClick={() =>
                                             setIsAddToDashboardModalOpen(true)
                                         }
                                     />
-                                    <MenuItem
+                                    <MenuItem2
                                         icon="folder-close"
                                         text="Move to space"
                                         onClick={(e) => {
@@ -272,7 +271,8 @@ const SavedChartsHeader: FC = () => {
                                                 savedChart?.spaceUuid ===
                                                 spaceToMove.uuid;
                                             return (
-                                                <MenuItem
+                                                <MenuItem2
+                                                    key={spaceToMove.uuid}
                                                     text={spaceToMove.name}
                                                     icon={
                                                         isDisabled
@@ -302,11 +302,11 @@ const SavedChartsHeader: FC = () => {
                                                 />
                                             );
                                         })}
-                                    </MenuItem>
+                                    </MenuItem2>
 
                                     <Divider />
 
-                                    <MenuItem
+                                    <MenuItem2
                                         icon="trash"
                                         text="Delete"
                                         intent="danger"

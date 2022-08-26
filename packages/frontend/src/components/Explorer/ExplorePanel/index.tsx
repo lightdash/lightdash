@@ -1,5 +1,5 @@
-import { Button, Collapse, MenuDivider, MenuItem } from '@blueprintjs/core';
-import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
+import { Button, Collapse, MenuDivider } from '@blueprintjs/core';
+import { Breadcrumbs2, MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     AdditionalMetric,
     CompiledTable,
@@ -44,7 +44,7 @@ const SideBarLoadingState = () => (
     <LoadingStateWrapper large>
         {[0, 1, 2, 3, 4].map((idx) => (
             <React.Fragment key={idx}>
-                <MenuItem className="bp4-skeleton" />
+                <MenuItem2 className="bp4-skeleton" />
                 <MenuDivider />
             </React.Fragment>
         ))}

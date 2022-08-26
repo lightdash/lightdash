@@ -1,4 +1,5 @@
-import { Colors, MenuItem } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
 export const FilterModalContainer = styled.div``;
@@ -18,7 +19,7 @@ export const FilterFooter = styled.p`
     margin: 2.5em 0 0;
 `;
 
-export const DimensionLabel = styled(MenuItem)`
+export const DimensionLabel = styled(MenuItem2)`
     margin: 0;
     width: 100%;
     border-radius: 0;

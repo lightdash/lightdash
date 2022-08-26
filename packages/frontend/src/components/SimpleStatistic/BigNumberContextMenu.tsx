@@ -1,5 +1,9 @@
-import { Menu, MenuItem, Portal } from '@blueprintjs/core';
-import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
+import { Menu, Portal } from '@blueprintjs/core';
+import {
+    MenuItem2,
+    Popover2,
+    Popover2TargetProps,
+} from '@blueprintjs/popover2';
 import { fieldId, getFields, ResultRow } from '@lightdash/common';
 import { FC, useCallback } from 'react';
 import { useExplore } from '../../hooks/useExplore';
@@ -55,7 +59,7 @@ export const BigNumberContextMenu: FC<{
             content={
                 <div onContextMenu={cancelContextMenu}>
                     <Menu>
-                        <MenuItem
+                        <MenuItem2
                             text={`View underlying data`}
                             icon={'layers'}
                             onClick={() => {

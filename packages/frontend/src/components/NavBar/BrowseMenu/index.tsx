@@ -1,13 +1,12 @@
 import {
     Button,
     MenuDivider,
-    MenuItem,
     PopoverInteractionKind,
     Position,
     Spinner,
 } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC } from 'react';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { FC } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import NavLink from '../../NavLink';
 import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';
@@ -21,6 +20,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <>
             <Popover2
+                minimal
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     !projectUuid || isLoading ? (
@@ -37,17 +37,20 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 />
                             </NavLink>
                             <NavLink to={`/projects/${projectUuid}/saved`}>
-                                <MenuItem
+                                <MenuItem2
                                     icon="chart"
                                     text="All saved charts"
                                 />
                             </NavLink>
+
                             <MenuDivider />
+
                             {spaces?.map((space) => (
                                 <NavLink
+                                    key={space.uuid}
                                     to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                                 >
-                                    <MenuItem
+                                    <MenuItem2
                                         icon="folder-close"
                                         text={space.name}
                                     />

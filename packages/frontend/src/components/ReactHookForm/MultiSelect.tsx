@@ -1,4 +1,4 @@
-import { MenuItem } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     ItemRenderer,
     MultiSelect as BlueprintMultiSelect,
@@ -95,7 +95,7 @@ const ControlledMultiSelect: FC<{
                 label
             );
         return (
-            <MenuItem
+            <MenuItem2
                 active={modifiers.active}
                 icon={isSelected ? 'tick' : 'blank'}
                 key={valueId}
@@ -124,7 +124,7 @@ const ControlledMultiSelect: FC<{
             items={items}
             {...props}
             {...field}
-            noResults={<MenuItem disabled text="No results." />}
+            noResults={<MenuItem2 disabled text="No results." />}
             itemsEqual={isItemMatch}
             selectedItems={field.value}
             itemRenderer={renderItem}

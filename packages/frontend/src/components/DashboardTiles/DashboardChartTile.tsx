@@ -1,5 +1,10 @@
-import { Icon, Menu, MenuItem, NonIdealState, Portal } from '@blueprintjs/core';
-import { Popover2, Popover2TargetProps, Tooltip2 } from '@blueprintjs/popover2';
+import { Icon, Menu, NonIdealState, Portal } from '@blueprintjs/core';
+import {
+    MenuItem2,
+    Popover2,
+    Popover2TargetProps,
+    Tooltip2,
+} from '@blueprintjs/popover2';
 import {
     ChartType,
     DashboardChartTile as IDashboardChartTile,
@@ -100,7 +105,7 @@ const DownloadCSV: FC<{
 
     const rows = resultData?.rows;
     if (!rows || rows.length <= 0) {
-        return <MenuItem icon="download" text=".csv" disabled />;
+        return <MenuItem2 icon="download" text=".csv" disabled />;
     }
 
     return (
@@ -371,13 +376,13 @@ const DashboardChartTile: FC<Props> = (props) => {
                 savedChartUuid !== null && (
                     <>
                         {user.data?.ability?.can('manage', 'SavedChart') && (
-                            <MenuItem
+                            <MenuItem2
                                 icon="document-open"
                                 text="Edit chart"
                                 href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit`}
                             />
                         )}
-                        <MenuItem
+                        <MenuItem2
                             icon="series-search"
                             text="Explore from here"
                             href={exploreFromHereUrl}
@@ -402,7 +407,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                             content={
                                 <div onContextMenu={cancelContextMenu}>
                                     <Menu>
-                                        <MenuItem
+                                        <MenuItem2
                                             text={`View underlying data`}
                                             icon={'layers'}
                                             onClick={(e) => {
@@ -428,13 +433,13 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             }}
                                         />
 
-                                        <MenuItem
+                                        <MenuItem2
                                             icon="filter"
                                             text="Filter dashboard to..."
                                         >
                                             {dashboardTileFilterOptions.map(
                                                 (filter) => (
-                                                    <MenuItem
+                                                    <MenuItem2
                                                         key={filter.id}
                                                         text={`${friendlyName(
                                                             filter.target
@@ -490,7 +495,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                     />
                                                 ),
                                             )}
-                                        </MenuItem>
+                                        </MenuItem2>
                                     </Menu>
                                 </div>
                             }

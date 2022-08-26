@@ -45,53 +45,51 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             >
                 <SpaceListWrapper>
                     {spaces?.map(({ uuid, name, dashboards, queries }) => (
-                        <>
-                            <SpaceLinkButton
-                                key={uuid}
-                                minimal
-                                outlined
-                                href={`/projects/${projectUuid}/spaces/${uuid}`}
-                            >
-                                <SpaceHeader>
-                                    <Icon
-                                        icon="folder-close"
-                                        size={20}
-                                        color={Colors.BLUE5}
-                                    ></Icon>
-                                    <div
-                                        onClick={(e) => {
-                                            // prevent clicks in menu to trigger redirect
-                                            e.stopPropagation();
-                                            e.preventDefault();
-                                        }}
+                        <SpaceLinkButton
+                            key={uuid}
+                            minimal
+                            outlined
+                            href={`/projects/${projectUuid}/spaces/${uuid}`}
+                        >
+                            <SpaceHeader>
+                                <Icon
+                                    icon="folder-close"
+                                    size={20}
+                                    color={Colors.BLUE5}
+                                ></Icon>
+                                <div
+                                    onClick={(e) => {
+                                        // prevent clicks in menu to trigger redirect
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                    }}
+                                >
+                                    <SpaceBrowserMenu
+                                        onRename={() =>
+                                            setUpdateSpaceUuid(uuid)
+                                        }
+                                        onDelete={() =>
+                                            setDeleteSpaceUuid(uuid)
+                                        }
                                     >
-                                        <SpaceBrowserMenu
-                                            onRename={() =>
-                                                setUpdateSpaceUuid(uuid)
-                                            }
-                                            onDelete={() =>
-                                                setDeleteSpaceUuid(uuid)
-                                            }
-                                        >
-                                            <Tooltip2 content="View options">
-                                                <Button minimal icon="more" />
-                                            </Tooltip2>
-                                        </SpaceBrowserMenu>
-                                    </div>
-                                </SpaceHeader>
-                                <SpaceTitle ellipsize>{name}</SpaceTitle>
-                                <SpaceFooter>
-                                    <SpaceItemCount
-                                        icon="control"
-                                        value={dashboards.length}
-                                    />
-                                    <SpaceItemCount
-                                        icon="timeline-bar-chart"
-                                        value={queries.length}
-                                    />
-                                </SpaceFooter>
-                            </SpaceLinkButton>
-                        </>
+                                        <Tooltip2 content="View options">
+                                            <Button minimal icon="more" />
+                                        </Tooltip2>
+                                    </SpaceBrowserMenu>
+                                </div>
+                            </SpaceHeader>
+                            <SpaceTitle ellipsize>{name}</SpaceTitle>
+                            <SpaceFooter>
+                                <SpaceItemCount
+                                    icon="control"
+                                    value={dashboards.length}
+                                />
+                                <SpaceItemCount
+                                    icon="timeline-bar-chart"
+                                    value={queries.length}
+                                />
+                            </SpaceFooter>
+                        </SpaceLinkButton>
                     ))}
                 </SpaceListWrapper>
             </LatestCard>

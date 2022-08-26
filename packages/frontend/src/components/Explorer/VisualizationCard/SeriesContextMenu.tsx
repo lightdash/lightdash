@@ -1,5 +1,9 @@
-import { Menu, MenuItem, Portal } from '@blueprintjs/core';
-import { Popover2, Popover2TargetProps } from '@blueprintjs/popover2';
+import { Menu, Portal } from '@blueprintjs/core';
+import {
+    MenuItem2,
+    Popover2,
+    Popover2TargetProps,
+} from '@blueprintjs/popover2';
 import { FC, useCallback, useEffect, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
@@ -81,7 +85,7 @@ export const SeriesContextMenu: FC<{
             content={
                 <div onContextMenu={cancelContextMenu}>
                     <Menu>
-                        <MenuItem
+                        <MenuItem2
                             text={`View underlying data`}
                             icon={'layers'}
                             onClick={(e) => {

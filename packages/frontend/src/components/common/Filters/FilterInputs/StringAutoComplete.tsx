@@ -1,4 +1,4 @@
-import { MenuItem } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect } from '@blueprintjs/select';
 import React, { FC, useCallback } from 'react';
 
@@ -39,7 +39,7 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
                 return null;
             }
             return (
-                <MenuItem
+                <MenuItem2
                     active={modifiers.active}
                     icon={values.includes(name) ? 'tick' : 'blank'}
                     key={name}
@@ -57,7 +57,7 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
             active: boolean,
             handleClick: React.MouseEventHandler<HTMLElement>,
         ) => (
-            <MenuItem
+            <MenuItem2
                 icon="add"
                 text={`Add "${query}"`}
                 active={active}
@@ -83,7 +83,7 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
         <MultiSelect
             fill
             items={Array.from(new Set([...suggestions, ...values]))}
-            noResults={<MenuItem disabled text="No suggestions." />}
+            noResults={<MenuItem2 disabled text="No suggestions." />}
             itemsEqual={(value, other) =>
                 value.toLowerCase() === other.toLowerCase()
             }

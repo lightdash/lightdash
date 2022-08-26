@@ -1,5 +1,5 @@
-import { Colors, Icon, Intent, MenuItem } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Colors, Icon, Intent } from '@blueprintjs/core';
+import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import React from 'react';
 
@@ -33,7 +33,7 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             .join('\n');
         return (
             <Tooltip2 content={errorMessage} targetTagName="div">
-                <MenuItem
+                <MenuItem2
                     icon="th"
                     text={explore.label}
                     disabled
@@ -48,5 +48,5 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             </Tooltip2>
         );
     }
-    return <MenuItem icon="th" text={explore.label} onClick={onClick} />;
+    return <MenuItem2 icon="th" text={explore.label} onClick={onClick} />;
 };

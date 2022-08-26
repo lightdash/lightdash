@@ -2,10 +2,10 @@ import {
     Colors,
     HTMLSelect,
     Menu,
-    MenuItem,
     Navbar,
     NavbarDivider,
 } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 
@@ -45,7 +45,7 @@ export const MenuWrapper = styled(Menu)`
     }
 `;
 
-export const FirstItem = styled(MenuItem)`
+export const FirstItem = styled(MenuItem2)`
     margin-bottom: 0.357em;
 `;
 

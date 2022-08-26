@@ -3,10 +3,9 @@ import {
     Classes,
     Menu,
     MenuDivider,
-    MenuItem,
     PopoverPosition,
 } from '@blueprintjs/core';
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
 import { TileModal } from '../TileForms/TileModal';
@@ -80,14 +79,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 )}
                                 {isEditMode && (
                                     <>
-                                        <MenuItem
+                                        <MenuItem2
                                             icon="edit"
                                             text="Edit tile"
                                             onClick={() => setIsEditing(true)}
                                         />
                                         {tile.type !==
                                             DashboardTileTypes.MARKDOWN && (
-                                            <MenuItem
+                                            <MenuItem2
                                                 icon={
                                                     hideTitle
                                                         ? 'eye-open'
@@ -108,8 +107,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                 }
                                             />
                                         )}
+
                                         <MenuDivider />
-                                        <MenuItem
+
+                                        <MenuItem2
                                             icon="delete"
                                             intent="danger"
                                             text="Remove tile"
