@@ -160,6 +160,9 @@ export const expectedAllExploreSummary: SummaryExplore[] = [
         name: validExplore.name,
         label: validExplore.label,
         tags: validExplore.tags,
+        databaseName: validExplore.tables[validExplore.baseTable].database,
+        schemaName: validExplore.tables[validExplore.baseTable].schema,
+        description: validExplore.tables[validExplore.baseTable].description,
     },
     {
         name: exploreWithError.name,
