@@ -159,6 +159,9 @@ describe('Explore', () => {
                     // open chart
                     cy.findByText('Charts').prev('button').click();
 
+                    // wait for the chart to finish loading
+                    cy.findByText('Loading chart').should('not.exist');
+
                     // open chart menu and change chart type to Table
                     cy.get('button').contains('Bar chart').click();
                     cy.get('[role="menuitem"]').contains('Table').click();
@@ -197,6 +200,9 @@ describe('Explore', () => {
 
                     // open chart
                     cy.findByText('Charts').prev('button').click();
+
+                    // wait for the chart to finish loading
+                    cy.findByText('Loading chart').should('not.exist');
 
                     // open chart menu and change chart type to Table
                     cy.get('button').contains('Bar chart').click();
