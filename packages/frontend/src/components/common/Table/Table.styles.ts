@@ -91,8 +91,6 @@ export const Td = styled.td<{
     $hasData: boolean;
 }>`
     ${CellStyles}
-    position: relative;
-    z-index: 2;
 
     ${({ $isInteractive, $hasData }) =>
         $isInteractive && $hasData
