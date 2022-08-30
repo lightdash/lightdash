@@ -44,7 +44,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.host"
                 label="Host"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#host"
+                labelHelp="This is the host where the database is running."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -56,7 +56,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.user"
                 label="User"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user"
+                labelHelp="This is the database user name."
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                     validate: {
@@ -71,7 +71,7 @@ const PostgresForm: FC<{
             <PasswordInput
                 name="warehouse.password"
                 label="Password"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#password"
+                labelHelp="This is the database user password."
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -83,7 +83,7 @@ const PostgresForm: FC<{
             <Input
                 name="warehouse.dbname"
                 label="DB name"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#db-name"
+                labelHelp="This is the database name."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -97,7 +97,7 @@ const PostgresForm: FC<{
                 <NumericInput
                     name="warehouse.port"
                     label="Port"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port"
+                    labelHelp="This is the database name."
                     rules={{
                         required: 'Required field',
                     }}
@@ -107,7 +107,21 @@ const PostgresForm: FC<{
                 <NumericInput
                     name="warehouse.keepalivesIdle"
                     label="Keep alive idle (seconds)"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-alive-idle-seconds"
+                    labelHelp={
+                        <p>
+                            This specifies the amount of seconds with no network
+                            activity after which the operating system should
+                            send a TCP keepalive message to the client. You can
+                            see more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/" rel="noreferrer"
+                            >
+                                postgresqlco documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     rules={{
                         required: 'Required field',
                     }}
@@ -117,13 +131,37 @@ const PostgresForm: FC<{
                 <Input
                     name="warehouse.searchPath"
                     label="Search path"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#search-path"
+                    labelHelp={
+                        <p>
+                            This controls the Postgres "search path". You can
+                            see more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path" rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     disabled={disabled}
                 />
                 <Select
                     name="warehouse.sslmode"
                     label="SSL mode"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode"
+                    labelHelp={
+                        <p>
+                            This controls how dbt connects to Postgres databases
+                            using SSL. You can see more details in
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode" rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     options={[
                         'disable',
                         'no-verify',
