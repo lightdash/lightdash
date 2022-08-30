@@ -14,6 +14,10 @@ import * as styles from './styles';
 
 const { version: VERSION } = require('../package.json');
 
+const defaultProjectDir = process.env.DBT_PROJECT_DIR || '.';
+const defaultProfilesDir =
+    process.env.DBT_PROFILES_DIR || path.join(os.homedir(), '.dbt');
+
 program
     .version(VERSION)
     .name(styles.title('⚡️lightdash'))
@@ -162,11 +166,15 @@ ${styles.bold('Examples:')}
         )}
 `,
     )
-    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
     .option(
         '--profiles-dir <path>',
         'The directory of the dbt profiles',
-        path.join(os.homedir(), '.dbt'),
+        defaultProfilesDir,
     )
     .option('--profile <name>')
     .option('-t, --target <target>')
@@ -188,11 +196,15 @@ ${styles.bold('Examples:')}
 program
     .command('compile')
     .description('Compile Lightdash resources')
-    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
     .option(
         '--profiles-dir <path>',
         'The directory of the dbt profiles',
-        path.join(os.homedir(), '.dbt'),
+        defaultProfilesDir,
     )
     .option(
         '--profile <name>',
@@ -220,11 +232,15 @@ program
 program
     .command('preview')
     .description('Compile Lightdash resources')
-    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
     .option(
         '--profiles-dir <path>',
         'The directory of the dbt profiles',
-        path.join(os.homedir(), '.dbt'),
+        defaultProfilesDir,
     )
     .option(
         '--profile <name>',
@@ -252,11 +268,15 @@ program
 program
     .command('deploy')
     .description('Compile and deploy Lightdash project')
-    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
     .option(
         '--profiles-dir <path>',
         'The directory of the dbt profiles',
-        path.join(os.homedir(), '.dbt'),
+        defaultProfilesDir,
     )
     .option(
         '--profile <name>',
@@ -322,11 +342,15 @@ ${styles.bold('Examples:')}
         '-m, --models <models...>',
         'specify models (accepts dbt selection syntax)',
     )
-    .option('--project-dir <path>', 'The directory of the dbt project', '.')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
     .option(
         '--profiles-dir <path>',
         'The directory of the dbt profiles',
-        path.join(os.homedir(), '.dbt'),
+        defaultProfilesDir,
     )
     .option(
         '--profile <name>',
