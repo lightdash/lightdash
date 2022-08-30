@@ -1,3 +1,10 @@
+## [0.235.2](https://github.com/lightdash/lightdash/compare/0.235.1...0.235.2) (2022-08-30)
+
+
+### Bug Fixes
+
+* fix markdown color black ([#3100](https://github.com/lightdash/lightdash/issues/3100)) ([9e3192e](https://github.com/lightdash/lightdash/commit/9e3192e5787db2496318249b3a4e732edc7dbfb3))
+
 ## [0.235.1](https://github.com/lightdash/lightdash/compare/0.235.0...0.235.1) (2022-08-30)
 
 
