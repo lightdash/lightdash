@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const MarkdownWrapper = styled.div`
@@ -7,8 +6,5 @@ export const MarkdownWrapper = styled.div`
 
     .wmde-markdown {
         font-size: 14px;
-        p {
-            color: ${Colors.GRAY1};
-        }
     }
 `;
