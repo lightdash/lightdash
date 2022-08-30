@@ -32,7 +32,7 @@ Follow these instructions if you used the "deploy to heroku" button to deploy Li
 
 ### 1. Fork the Lightdash repository on Github
 
-Create a github account if needed, login, and hit "fork" on the [Lightdash GitHub repo for heroku](https://github.com/lightdash/lightdash)
+Create a github account if needed, login, and hit "fork" on the [Lightdash GitHub repo for heroku](https://github.com/lightdash/lightdash-deploy-heroku)
 
 ![screenshot-fork-github](./assets/screenshot-fork-github.png)
 
