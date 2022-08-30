@@ -42,11 +42,8 @@ type Props = {
 };
 
 type TableContext = Props & {
-    tableWrapperRef: React.MutableRefObject<HTMLDivElement | null>;
-    setTableWrapperRef: (instance: HTMLDivElement | null) => void;
-    isScrollable: boolean;
-    setIsScrollable: React.Dispatch<React.SetStateAction<boolean>>;
     table: Table<ResultRow>;
+    scrollableWrapperRef: React.MutableRefObject<HTMLDivElement | undefined>;
 };
 
 const Context = createContext<TableContext | undefined>(undefined);
@@ -64,8 +61,7 @@ const rowColumn: TableColumn = {
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
-    const [isScrollable, setIsScrollable] = useState(true);
-    const tableWrapperRef = useRef<HTMLDivElement | null>(null);
+    const scrollableWrapperRef = useRef<HTMLDivElement>();
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
         ROW_NUMBER_COLUMN_ID,
         ...(columnOrder || []),
@@ -99,18 +95,11 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         }
     }, [pagination, setPageSize]);
 
-    const setTableWrapperRef = (instance: HTMLDivElement | null) => {
-        tableWrapperRef.current = instance;
-    };
-
     return (
         <Context.Provider
             value={{
                 table,
-                tableWrapperRef,
-                setTableWrapperRef,
-                isScrollable,
-                setIsScrollable,
+                scrollableWrapperRef,
                 ...rest,
             }}
         >

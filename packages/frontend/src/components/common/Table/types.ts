@@ -16,9 +16,7 @@ import { MouseEventHandler } from 'react';
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
     cell: Cell<ResultRow, ResultRow[0]>;
-    onOpen: () => void;
-    onClose: () => void;
-    boundaryElement: HTMLDivElement | null;
+    isEditMode?: boolean;
 };
 
 export type Sort = {

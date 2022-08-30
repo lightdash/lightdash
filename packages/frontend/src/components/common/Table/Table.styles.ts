@@ -9,12 +9,9 @@ export const TableContainer = styled.div`
     flex-direction: column;
 `;
 
-interface TableScrollableProps {
-    $isScrollable: boolean;
-}
-
-export const TableScrollableWrapper = styled.div<TableScrollableProps>`
-    overflow: ${({ $isScrollable }) => ($isScrollable ? 'auto' : 'hidden')};
+export const TableScrollableWrapper = styled.div`
+    position: relative;
+    overflow: auto;
     min-height: 90px;
 `;
 
@@ -29,6 +26,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
     thead {
         position: sticky;
         top: 0;
+        z-index: 21; // blueprint's popover menu + 1
         inset-block-start: 0; /* "top" */
         background: ${Colors.GRAY5};
 
@@ -85,7 +83,7 @@ const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
 `;
 
-export const BodyCell = styled.td<{
+export const Td = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;
     $isSelected: boolean;
