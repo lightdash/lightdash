@@ -53,7 +53,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     }}
                 />
 
-                <MenuItem22
+                <MenuItem2
                     text="Remove"
                     icon="cross"
                     intent="danger"
@@ -117,27 +117,25 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
     const item = meta?.item;
 
     return (
-        <>
-            <div
-                onClick={(e) => {
-                    e.stopPropagation();
-                }}
+        <div
+            onClick={(e) => {
+                e.stopPropagation();
+            }}
+        >
+            <Popover2
+                lazy
+                minimal
+                position={Position.BOTTOM_RIGHT}
+                content={
+                    <ContextMenu
+                        header={header}
+                        onToggleCalculationEditModal={setShowUpdate}
+                        onToggleCalculationDeleteModal={setShowDelete}
+                    />
+                }
             >
-                <Popover2
-                    lazy
-                    minimal
-                    position={Position.BOTTOM_RIGHT}
-                    content={
-                        <ContextMenu
-                            header={header}
-                            onToggleCalculationEditModal={setShowUpdate}
-                            onToggleCalculationDeleteModal={setShowDelete}
-                        />
-                    }
-                >
-                    <FlatButton minimal small icon="more" />
-                </Popover2>
-            </div>
+                <FlatButton minimal small icon="more" />
+            </Popover2>
 
             {showUpdate && (
                 <UpdateTableCalculationModal
@@ -154,7 +152,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     onClose={() => setShowDelete(false)}
                 />
             )}
-        </>
+        </div>
     );
 };
 
