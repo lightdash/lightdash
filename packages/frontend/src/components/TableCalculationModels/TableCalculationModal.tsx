@@ -7,10 +7,11 @@ import {
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
+import { useContextSelector } from 'use-context-selector';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useApp } from '../../providers/AppProvider';
-import { useExplorer } from '../../providers/ExplorerProvider';
+import { Context } from '../../providers/ExplorerProvider';
 import Input from '../ReactHookForm/Input';
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
@@ -48,14 +49,23 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useApp();
-    const {
-        state: {
-            unsavedChartVersion: {
-                tableName,
-                metricQuery: { dimensions, metrics, tableCalculations },
-            },
-        },
-    } = useExplorer();
+    const tableName = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.tableName,
+    );
+    const dimensions = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery.dimensions,
+    );
+    const metrics = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery.metrics,
+    );
+    const tableCalculations = useContextSelector(
+        Context,
+        (context) =>
+            context!.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
     const { setAceEditor } = useExplorerAceEditorCompleter();
     const { data: { targetDatabase } = {} } = useExplore(tableName);
     const methods = useForm<TableCalculationFormInputs>({

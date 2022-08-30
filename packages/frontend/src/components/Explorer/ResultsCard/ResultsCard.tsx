@@ -1,10 +1,8 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
-import { FC } from 'react';
-import {
-    ExplorerSection,
-    useExplorer,
-} from '../../../providers/ExplorerProvider';
+import { FC, memo } from 'react';
+import { useContextSelector } from 'use-context-selector';
+import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
@@ -17,13 +15,39 @@ import {
     CardHeaderRightContent,
 } from './ResultsCard.styles';
 
-const ResultsCard: FC = () => {
-    const {
-        state,
-        queryResults,
-        actions: { setRowLimit, toggleExpandedSection },
-    } = useExplorer();
-    const { isEditMode, unsavedChartVersion, expandedSections } = state;
+const ResultsCard: FC = memo(() => {
+    const isEditMode = useContextSelector(
+        Context,
+        (context) => context!.state.isEditMode,
+    );
+    const expandedSections = useContextSelector(
+        Context,
+        (context) => context!.state.expandedSections,
+    );
+    const tableName = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.tableName,
+    );
+    const filters = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery.filters,
+    );
+    const limit = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery.limit,
+    );
+    const queryResults = useContextSelector(
+        Context,
+        (context) => context!.queryResults,
+    );
+    const setRowLimit = useContextSelector(
+        Context,
+        (context) => context!.actions.setRowLimit,
+    );
+    const toggleExpandedSection = useContextSelector(
+        Context,
+        (context) => context!.actions.toggleExpandedSection,
+    );
     const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
     return (
         <Card style={{ padding: 5 }} elevation={1}>
@@ -35,23 +59,21 @@ const ResultsCard: FC = () => {
                         onClick={() =>
                             toggleExpandedSection(ExplorerSection.RESULTS)
                         }
-                        disabled={!unsavedChartVersion.tableName}
+                        disabled={!tableName}
                     />
                     <H5>Results</H5>
-                    {isEditMode &&
-                        resultsIsOpen &&
-                        unsavedChartVersion.tableName && (
-                            <LimitButton
-                                limit={unsavedChartVersion.metricQuery.limit}
-                                onLimitChange={setRowLimit}
-                            />
-                        )}
+                    {isEditMode && resultsIsOpen && tableName && (
+                        <LimitButton
+                            limit={limit}
+                            onLimitChange={setRowLimit}
+                        />
+                    )}
                 </CardHeaderLeftContent>
-                {resultsIsOpen && unsavedChartVersion.tableName && (
+                {resultsIsOpen && tableName && (
                     <CardHeaderRightContent>
                         {isEditMode && <AddColumnButton />}
                         <DownloadCsvButton
-                            fileName={unsavedChartVersion.tableName}
+                            fileName={tableName}
                             rows={
                                 queryResults.data &&
                                 getResultValues(queryResults.data.rows)
@@ -61,16 +83,13 @@ const ResultsCard: FC = () => {
                 )}
             </CardHeader>
             <Collapse isOpen={resultsIsOpen}>
-                <UnderlyingDataProvider
-                    tableName={state.unsavedChartVersion.tableName}
-                    filters={state.unsavedChartVersion.metricQuery.filters}
-                >
+                <UnderlyingDataProvider tableName={tableName} filters={filters}>
                     <ExplorerResults />
                     <UnderlyingDataModal />
                 </UnderlyingDataProvider>
             </Collapse>
         </Card>
     );
-};
+});
 
 export default ResultsCard;

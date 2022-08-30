@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -17,12 +17,12 @@ import {
     SideBarCard,
 } from './Explorer.styles';
 
-const ExplorerWithUrlParams = () => {
+const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();
     return <Explorer />;
-};
+});
 
-const ExplorerPage = () => {
+const ExplorerPage = memo(() => {
     const explorerUrlState = useExplorerUrlState();
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
@@ -57,6 +57,6 @@ const ExplorerPage = () => {
             </PageContainer>
         </ExplorerProvider>
     );
-};
+});
 
 export default ExplorerPage;

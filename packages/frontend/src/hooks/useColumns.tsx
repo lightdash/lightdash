@@ -13,13 +13,14 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useContextSelector } from 'use-context-selector';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
 import { TableColumn } from '../components/common/Table/types';
-import { useExplorer } from '../providers/ExplorerProvider';
+import { Context } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
@@ -37,17 +38,40 @@ export const getItemBgColor = (
 };
 
 export const useColumns = (): TableColumn[] => {
-    const {
-        state: {
-            activeFields,
-            unsavedChartVersion: {
-                tableName,
-                metricQuery: { tableCalculations, additionalMetrics, sorts },
-            },
-        },
-        queryResults: { data: resultsData },
-        actions: { toggleSortField, setSortFields },
-    } = useExplorer();
+    const activeFields = useContextSelector(
+        Context,
+        (context) => context!.state.activeFields,
+    );
+    const tableName = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.tableName,
+    );
+    const tableCalculations = useContextSelector(
+        Context,
+        (context) =>
+            context!.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+    const additionalMetrics = useContextSelector(
+        Context,
+        (context) =>
+            context!.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const sorts = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery.sorts,
+    );
+    const resultsData = useContextSelector(
+        Context,
+        (context) => context!.queryResults.data,
+    );
+    const toggleSortField = useContextSelector(
+        Context,
+        (context) => context!.actions.toggleSortField,
+    );
+    const setSortFields = useContextSelector(
+        Context,
+        (context) => context!.actions.setSortFields,
+    );
     const { data: exploreData } = useExplore(tableName);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{

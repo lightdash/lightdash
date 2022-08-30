@@ -1,13 +1,23 @@
 import React, { FC, useState } from 'react';
+import { useContextSelector } from 'use-context-selector';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { Context } from '../../../providers/ExplorerProvider';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import { SaveButton } from './SaveChartButton.styles';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
-    const {
-        state: { unsavedChartVersion, hasUnsavedChanges, savedChart },
-    } = useExplorer();
+    const unsavedChartVersion = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion,
+    );
+    const hasUnsavedChanges = useContextSelector(
+        Context,
+        (context) => context!.state.hasUnsavedChanges,
+    );
+    const savedChart = useContextSelector(
+        Context,
+        (context) => context!.state.savedChart,
+    );
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
 

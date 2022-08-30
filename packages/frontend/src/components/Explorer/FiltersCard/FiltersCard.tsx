@@ -13,12 +13,10 @@ import {
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import React, { FC, memo, useCallback, useEffect, useState } from 'react';
+import { useContextSelector } from 'use-context-selector';
 import { useExplore } from '../../../hooks/useExplore';
-import {
-    ExplorerSection,
-    useExplorer,
-} from '../../../providers/ExplorerProvider';
+import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
 import FiltersForm from '../../common/Filters';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import {
@@ -27,19 +25,40 @@ import {
 } from '../../common/Filters/FiltersProvider';
 import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
 
-const FiltersCard: FC = () => {
-    const {
-        state: {
-            isEditMode,
-            expandedSections,
-            unsavedChartVersion: {
-                tableName,
-                metricQuery: { filters, additionalMetrics },
-            },
-        },
-        queryResults,
-        actions: { setFilters, toggleExpandedSection },
-    } = useExplorer();
+const FiltersCard: FC = memo(() => {
+    const expandedSections = useContextSelector(
+        Context,
+        (context) => context!.state.expandedSections,
+    );
+    const isEditMode = useContextSelector(
+        Context,
+        (context) => context!.state.isEditMode,
+    );
+    const tableName = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.tableName,
+    );
+    const filters = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery.filters,
+    );
+    const additionalMetrics = useContextSelector(
+        Context,
+        (context) =>
+            context!.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const queryResults = useContextSelector(
+        Context,
+        (context) => context!.queryResults,
+    );
+    const setFilters = useContextSelector(
+        Context,
+        (context) => context!.actions.setFilters,
+    );
+    const toggleExpandedSection = useContextSelector(
+        Context,
+        (context) => context!.actions.toggleExpandedSection,
+    );
     const explore = useExplore(tableName);
     const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
     const totalActiveFilters: number = countTotalFilterRules(filters);
@@ -162,6 +181,6 @@ const FiltersCard: FC = () => {
             </Collapse>
         </Card>
     );
-};
+});
 
 export default FiltersCard;

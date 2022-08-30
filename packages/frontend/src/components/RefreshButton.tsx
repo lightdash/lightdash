@@ -1,17 +1,25 @@
 import { KeyCombo, useHotkeys } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { useCallback, useMemo } from 'react';
-import { useExplorer } from '../providers/ExplorerProvider';
+import React, { memo, useCallback, useMemo } from 'react';
+import { useContextSelector } from 'use-context-selector';
+import { Context } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import { BigButton } from './common/BigButton';
 
-export const RefreshButton = () => {
-    const {
-        state: { isValidQuery },
-        queryResults: { isLoading: isLoadingResults },
-        actions: { fetchResults },
-    } = useExplorer();
+export const RefreshButton = memo(() => {
+    const isValidQuery = useContextSelector(
+        Context,
+        (context) => context!.state.isValidQuery,
+    );
+    const isLoadingResults = useContextSelector(
+        Context,
+        (context) => context!.queryResults.isLoading,
+    );
+    const fetchResults = useContextSelector(
+        Context,
+        (context) => context!.actions.fetchResults,
+    );
     const { track } = useTracking();
     const isDisabled = !isValidQuery;
     const onClick = useCallback(async () => {
@@ -58,4 +66,4 @@ export const RefreshButton = () => {
             </BigButton>
         </Tooltip2>
     );
-};
+});

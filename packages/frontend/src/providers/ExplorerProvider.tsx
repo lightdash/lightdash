@@ -16,15 +16,8 @@ import {
     TableCalculation,
     toggleArrayValue,
 } from '@lightdash/common';
-import React, {
-    createContext,
-    FC,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useReducer,
-} from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
+import { createContext } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
 
@@ -175,7 +168,7 @@ interface ExplorerContext {
     };
 }
 
-const Context = createContext<ExplorerContext | undefined>(undefined);
+export const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
@@ -1057,11 +1050,3 @@ export const ExplorerProvider: FC<{
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
-
-export function useExplorer(): ExplorerContext {
-    const context = useContext(Context);
-    if (context === undefined) {
-        throw new Error('useExplorer must be used within a ExplorerProvider');
-    }
-    return context;
-}

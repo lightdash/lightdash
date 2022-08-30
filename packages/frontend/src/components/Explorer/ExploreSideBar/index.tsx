@@ -7,12 +7,13 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
-import React, { useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+import { useContextSelector } from 'use-context-selector';
 import { useExplores } from '../../../hooks/useExplores';
 import { useApp } from '../../../providers/AppProvider';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { Context } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
@@ -139,20 +140,22 @@ const BasePanel = () => {
     );
 };
 
-const ExploreSideBar = () => {
+const ExploreSideBar = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const {
-        state: {
-            unsavedChartVersion: { tableName },
-        },
-        actions: { clear },
-    } = useExplorer();
+    const tableName = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.tableName,
+    );
+    const clear = useContextSelector(
+        Context,
+        (context) => context!.actions.clear,
+    );
     const history = useHistory();
 
-    const onBack = () => {
+    const onBack = useCallback(() => {
         clear();
         history.push(`/projects/${projectUuid}/tables`);
-    };
+    }, [clear, history, projectUuid]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
@@ -161,6 +164,6 @@ const ExploreSideBar = () => {
             </FooterWrapper>
         </TrackSection>
     );
-};
+});
 
 export default ExploreSideBar;

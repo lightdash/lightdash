@@ -5,8 +5,9 @@ import {
 } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
+import { useContextSelector } from 'use-context-selector';
 import { lightdashApi } from '../api';
-import { useExplorer } from '../providers/ExplorerProvider';
+import { Context } from '../providers/ExplorerProvider';
 import useQueryError from './useQueryError';
 
 const getCompiledQuery = async (
@@ -22,22 +23,23 @@ const getCompiledQuery = async (
 
 export const useCompliedSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const tableId = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.tableName,
+    );
     const {
-        state: {
-            unsavedChartVersion: {
-                tableName: tableId,
-                metricQuery: {
-                    dimensions,
-                    metrics,
-                    sorts,
-                    filters,
-                    limit,
-                    tableCalculations,
-                    additionalMetrics,
-                },
-            },
-        },
-    } = useExplorer();
+        dimensions,
+        metrics,
+        sorts,
+        filters,
+        limit,
+        tableCalculations,
+        additionalMetrics,
+    } = useContextSelector(
+        Context,
+        (context) => context!.state.unsavedChartVersion.metricQuery,
+    );
+
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
         dimensions: Array.from(dimensions),
