@@ -28,7 +28,6 @@ type Props = {
     data: ResultRow[];
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<HeaderProps>;
-    headerButton?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
     pagination?: {
         show?: boolean;

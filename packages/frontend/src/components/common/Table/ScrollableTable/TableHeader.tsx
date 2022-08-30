@@ -16,10 +16,8 @@ import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
 
 const TableHeader = () => {
-    const { table, headerButton, headerContextMenu, columns } =
-        useTableContext();
+    const { table, headerContextMenu, columns } = useTableContext();
     const HeaderContextMenu = headerContextMenu;
-    const HeaderButton = headerButton;
     const currentColOrder = React.useRef<Array<string>>([]);
     if (columns.length <= 0) {
         return null;
@@ -107,12 +105,6 @@ const TableHeader = () => {
                                                     {meta?.sort && (
                                                         <SortIndicator
                                                             {...meta?.sort}
-                                                        />
-                                                    )}
-
-                                                    {HeaderButton && (
-                                                        <HeaderButton
-                                                            header={header}
                                                         />
                                                     )}
 
