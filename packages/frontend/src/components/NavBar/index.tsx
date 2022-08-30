@@ -9,6 +9,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { ProjectType } from '@lightdash/common';
+import { memo } from 'react';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
@@ -41,7 +42,7 @@ const logoutQuery = async () =>
         body: undefined,
     });
 
-const NavBar = () => {
+const NavBar = memo(() => {
     const {
         user,
         errorLogs: { errorLogs, setErrorLogsVisible },
@@ -159,6 +160,6 @@ const NavBar = () => {
             <ErrorLogsDrawer />
         </>
     );
-};
+});
 
 export default NavBar;

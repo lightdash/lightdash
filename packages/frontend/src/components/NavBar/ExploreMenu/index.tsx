@@ -7,7 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { FC } from 'react';
+import { FC, memo } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import NavLink from '../../NavLink';
@@ -17,7 +17,7 @@ interface Props {
     projectUuid: string;
 }
 
-const ExploreMenu: FC<Props> = ({ projectUuid }) => {
+const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const { user } = useApp();
 
     return (
@@ -65,5 +65,5 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
             </Popover2>
         </>
     );
-};
+});
 export default ExploreMenu;

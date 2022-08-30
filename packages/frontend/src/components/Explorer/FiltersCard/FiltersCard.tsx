@@ -159,23 +159,6 @@ const FiltersCard: FC = memo(() => {
         },
         [data],
     );
-    useEffect(
-        () => console.log('expandedSections', expandedSections),
-        [expandedSections],
-    );
-    useEffect(() => console.log('isEditMode', isEditMode), [isEditMode]);
-    useEffect(() => console.log('tableName', tableName), [tableName]);
-    useEffect(() => console.log('filters', filters), [filters]);
-    useEffect(
-        () => console.log('additionalMetrics', additionalMetrics),
-        [additionalMetrics],
-    );
-    useEffect(() => console.log('queryResults', queryResults), [queryResults]);
-    useEffect(() => console.log('setFilters', setFilters), [setFilters]);
-    useEffect(
-        () => console.log('toggleExpandedSection', toggleExpandedSection),
-        [toggleExpandedSection],
-    );
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
