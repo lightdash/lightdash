@@ -79,7 +79,6 @@ const CellContextMenu: FC<CommonProps> = ({
     return (
         <Popover2
             minimal
-            lazy
             position={Position.BOTTOM_RIGHT}
             defaultIsOpen
             content={<ContextMenu cell={cell} isEditMode={isEditMode} />}

@@ -46,7 +46,6 @@ const CellContextMenu: FC<CellContextMenuProps> = ({
     return (
         <Popover2
             minimal
-            lazy
             defaultIsOpen
             position={Position.BOTTOM_RIGHT}
             content={<ContextMenu cell={cell} />}
