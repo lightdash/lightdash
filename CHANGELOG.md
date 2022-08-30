@@ -1,3 +1,10 @@
+## [0.235.1](https://github.com/lightdash/lightdash/compare/0.235.0...0.235.1) (2022-08-30)
+
+
+### Bug Fixes
+
+* do not pivot on sql runner ([#3086](https://github.com/lightdash/lightdash/issues/3086)) ([6219292](https://github.com/lightdash/lightdash/commit/62192926632646f18df04d580f7031c89dbcef9c))
+
 # [0.235.0](https://github.com/lightdash/lightdash/compare/0.234.0...0.235.0) (2022-08-26)
 
 
