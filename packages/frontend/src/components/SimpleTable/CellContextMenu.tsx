@@ -1,11 +1,11 @@
-import { Menu, Position } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Menu } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { FC } from 'react';
 import { CellContextMenuProps, TableColumn } from '../common/Table/types';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
-const ContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
+const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { viewData } = useUnderlyingDataContext();
 
     const meta = cell.column.columnDef.meta as TableColumn['meta'];
@@ -34,25 +34,6 @@ const ContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 }}
             />
         </Menu>
-    );
-};
-
-const CellContextMenu: FC<CellContextMenuProps> = ({
-    cell,
-    renderCell,
-    onOpen,
-    onClose,
-}) => {
-    return (
-        <Popover2
-            minimal
-            defaultIsOpen
-            position={Position.BOTTOM_RIGHT}
-            content={<ContextMenu cell={cell} />}
-            renderTarget={renderCell}
-            onOpening={onOpen}
-            onClosing={onClose}
-        />
     );
 };
 

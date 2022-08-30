@@ -11,6 +11,7 @@ import React, {
     FC,
     useContext,
     useEffect,
+    useRef,
     useState,
 } from 'react';
 import {
@@ -41,9 +42,8 @@ type Props = {
 };
 
 type TableContext = Props & {
-    isScrollable: boolean;
-    setIsScrollable: React.Dispatch<React.SetStateAction<boolean>>;
     table: Table<ResultRow>;
+    scrollableWrapperRef: React.MutableRefObject<HTMLDivElement | undefined>;
 };
 
 const Context = createContext<TableContext | undefined>(undefined);
@@ -61,7 +61,7 @@ const rowColumn: TableColumn = {
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
-    const [isScrollable, setIsScrollable] = useState(true);
+    const scrollableWrapperRef = useRef<HTMLDivElement>();
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
         ROW_NUMBER_COLUMN_ID,
         ...(columnOrder || []),
@@ -99,8 +99,7 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         <Context.Provider
             value={{
                 table,
-                isScrollable,
-                setIsScrollable,
+                scrollableWrapperRef,
                 ...rest,
             }}
         >

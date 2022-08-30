@@ -1,8 +1,11 @@
+import { Position } from '@blueprintjs/core';
+import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import React, { FC, useCallback, useState } from 'react';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
+import { useTableContext } from './TableProvider';
 import { CellContextMenuProps } from './types';
 
 interface CommonBodyCellProps {
@@ -52,6 +55,8 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
 );
 
 const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
+    const { scrollableWrapperRef } = useTableContext();
+
     const CellContextMenu = props.cellContextMenu;
 
     const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
@@ -67,12 +72,17 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     const canHaveContextMenu = !!CellContextMenu && props.hasData;
 
     return canHaveContextMenu && isCellSelected ? (
-        <CellContextMenu
-            key={props.cell.id}
-            cell={props.cell as Cell<ResultRow, ResultRow[0]>}
-            onOpen={() => handleCellSelect(props.cell.id)}
-            onClose={() => handleCellSelect(undefined)}
-            renderCell={({ ref }) => (
+        <Popover2
+            minimal
+            position={Position.BOTTOM_RIGHT}
+            defaultIsOpen
+            portalContainer={scrollableWrapperRef.current}
+            content={
+                <CellContextMenu
+                    cell={props.cell as Cell<ResultRow, ResultRow[0]>}
+                />
+            }
+            renderTarget={({ ref }) => (
                 <BodyCell
                     {...props}
                     hasContextMenu
@@ -81,6 +91,8 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
                     ref={ref}
                 />
             )}
+            onOpening={() => handleCellSelect(props.cell.id)}
+            onClosing={() => handleCellSelect(undefined)}
         />
     ) : (
         <BodyCell

@@ -1,5 +1,5 @@
-import { Menu, Position } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Menu } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import { isField, isFilterableField, ResultRow } from '@lightdash/common';
 import { FC } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
@@ -9,14 +9,9 @@ import { isUrl } from '../../common/Table/ScrollableTable/RichBodyCell';
 import { CellContextMenuProps, TableColumn } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 
-interface CommonProps extends CellContextMenuProps {
-    isEditMode: boolean;
-}
-
-const ContextMenu: FC<Pick<CommonProps, 'cell' | 'isEditMode'>> = ({
-    cell,
-    isEditMode,
-}) => {
+const CellContextMenu: FC<
+    Pick<CellContextMenuProps, 'cell' | 'isEditMode'>
+> = ({ cell, isEditMode }) => {
     const { addFilter } = useFilters();
     const { viewData } = useUnderlyingDataContext();
     const { track } = useTracking();
@@ -66,26 +61,6 @@ const ContextMenu: FC<Pick<CommonProps, 'cell' | 'isEditMode'>> = ({
                 />
             )}
         </Menu>
-    );
-};
-
-const CellContextMenu: FC<CommonProps> = ({
-    isEditMode,
-    cell,
-    renderCell,
-    onOpen,
-    onClose,
-}) => {
-    return (
-        <Popover2
-            minimal
-            position={Position.BOTTOM_RIGHT}
-            defaultIsOpen
-            content={<ContextMenu cell={cell} isEditMode={isEditMode} />}
-            renderTarget={renderCell}
-            onOpening={onOpen}
-            onClosing={onClose}
-        />
     );
 };
 
