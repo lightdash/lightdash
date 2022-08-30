@@ -46,9 +46,13 @@ const VisualizationCard: FC = memo(() => {
         Context,
         (context) => context!.state.isEditMode,
     );
+    const isLoadingQueryResults = useContextSelector(
+        Context,
+        (context) => context!.queryResults.isLoading,
+    );
     const queryResults = useContextSelector(
         Context,
-        (context) => context!.queryResults,
+        (context) => context!.queryResults.data,
     );
     const setPivotFields = useContextSelector(
         Context,
@@ -113,8 +117,8 @@ const VisualizationCard: FC = memo(() => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 explore={explore}
-                resultsData={queryResults.data}
-                isLoading={queryResults.isLoading}
+                resultsData={queryResults}
+                isLoading={isLoadingQueryResults}
                 onChartConfigChange={setChartConfig}
                 onChartTypeChange={setChartType}
                 onPivotDimensionsChange={setPivotFields}

@@ -38,7 +38,7 @@ const ResultsCard: FC = memo(() => {
     );
     const queryResults = useContextSelector(
         Context,
-        (context) => context!.queryResults,
+        (context) => context!.queryResults.data,
     );
     const setRowLimit = useContextSelector(
         Context,
@@ -75,8 +75,8 @@ const ResultsCard: FC = memo(() => {
                         <DownloadCsvButton
                             fileName={tableName}
                             rows={
-                                queryResults.data &&
-                                getResultValues(queryResults.data.rows)
+                                queryResults &&
+                                getResultValues(queryResults.rows)
                             }
                         />
                     </CardHeaderRightContent>

@@ -13,7 +13,14 @@ import {
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import React, { FC, memo, useCallback, useEffect, useState } from 'react';
+import React, {
+    FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { useContextSelector } from 'use-context-selector';
 import { useExplore } from '../../../hooks/useExplore';
 import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
@@ -49,7 +56,7 @@ const FiltersCard: FC = memo(() => {
     );
     const queryResults = useContextSelector(
         Context,
-        (context) => context!.queryResults,
+        (context) => context!.queryResults.data,
     );
     const setFilters = useContextSelector(
         Context,
@@ -59,19 +66,25 @@ const FiltersCard: FC = memo(() => {
         Context,
         (context) => context!.actions.toggleExpandedSection,
     );
-    const explore = useExplore(tableName);
-    const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
-    const totalActiveFilters: number = countTotalFilterRules(filters);
+    const { data } = useExplore(tableName);
+    const filterIsOpen = useMemo(
+        () => expandedSections.includes(ExplorerSection.FILTERS),
+        [expandedSections],
+    );
+    const totalActiveFilters: number = useMemo(
+        () => countTotalFilterRules(filters),
+        [filters],
+    );
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
     useEffect(() => {
-        if (explore.data) {
+        if (data) {
             setFieldsWithSuggestions((prev) => {
-                const visibleFields = getVisibleFields(explore.data);
+                const visibleFields = getVisibleFields(data);
                 const customMetrics = (additionalMetrics || []).reduce<
                     Metric[]
                 >((acc, additionalMetric) => {
-                    const table = explore.data.tables[additionalMetric.table];
+                    const table = data.tables[additionalMetric.table];
                     if (table) {
                         const metric = convertAdditionalMetric({
                             additionalMetric,
@@ -89,9 +102,9 @@ const FiltersCard: FC = memo(() => {
                                 const currentSuggestions =
                                     prev[fieldId(field)]?.suggestions || [];
                                 const newSuggestions: string[] =
-                                    (queryResults.data &&
+                                    (queryResults &&
                                         getResultValues(
-                                            queryResults.data.rows,
+                                            queryResults.rows,
                                             true,
                                         ).reduce<string[]>((acc, row) => {
                                             const value = row[fieldId(field)];
@@ -122,13 +135,14 @@ const FiltersCard: FC = memo(() => {
                 );
             });
         }
-    }, [explore.data, queryResults.data, additionalMetrics]);
-    const allFilterRules = getTotalFilterRules(filters);
+    }, [data, queryResults, additionalMetrics]);
+    const allFilterRules = useMemo(
+        () => getTotalFilterRules(filters),
+        [filters],
+    );
     const renderFilterRule = useCallback(
         (filterRule: FilterRule) => {
-            const fields: Field[] = explore.data
-                ? getVisibleFields(explore.data)
-                : [];
+            const fields: Field[] = data ? getVisibleFields(data) : [];
             const field = fields.find(
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
@@ -143,7 +157,24 @@ const FiltersCard: FC = memo(() => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         },
-        [explore],
+        [data],
+    );
+    useEffect(
+        () => console.log('expandedSections', expandedSections),
+        [expandedSections],
+    );
+    useEffect(() => console.log('isEditMode', isEditMode), [isEditMode]);
+    useEffect(() => console.log('tableName', tableName), [tableName]);
+    useEffect(() => console.log('filters', filters), [filters]);
+    useEffect(
+        () => console.log('additionalMetrics', additionalMetrics),
+        [additionalMetrics],
+    );
+    useEffect(() => console.log('queryResults', queryResults), [queryResults]);
+    useEffect(() => console.log('setFilters', setFilters), [setFilters]);
+    useEffect(
+        () => console.log('toggleExpandedSection', toggleExpandedSection),
+        [toggleExpandedSection],
     );
     return (
         <Card style={{ padding: 5 }} elevation={1}>
