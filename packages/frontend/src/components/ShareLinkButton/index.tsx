@@ -1,10 +1,10 @@
 import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
-import { useApp } from '../../providers/AppProvider';
+import useToaster from '../../hooks/toaster/useToaster';
 import { ShareLink } from './ShareLinkButton.styles';
 
 const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess } = useToaster();
     return (
         <CopyToClipboard
             text={url}

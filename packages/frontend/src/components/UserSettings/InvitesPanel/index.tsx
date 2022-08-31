@@ -7,6 +7,7 @@ import {
 import React, { FC, useEffect } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -28,7 +29,8 @@ const InvitePanel: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
-    const { showToastSuccess, health, user } = useApp();
+    const { health, user } = useApp();
+    const { showToastSuccess } = useToaster();
     const { data, mutate, isError, isLoading, isSuccess } =
         useCreateInviteLinkMutation();
     const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({

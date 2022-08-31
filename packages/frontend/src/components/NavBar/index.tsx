@@ -13,6 +13,7 @@ import { memo } from 'react';
 import { useMutation } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     getLastProject,
     setLastProject,
@@ -20,6 +21,7 @@ import {
     useProjects,
 } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
+import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
 import NavLink from '../NavLink';
@@ -43,11 +45,9 @@ const logoutQuery = async () =>
     });
 
 const NavBar = memo(() => {
-    const {
-        user,
-        errorLogs: { errorLogs, setErrorLogsVisible },
-        showToastSuccess,
-    } = useApp();
+    const { user } = useApp();
+    const { errorLogs, setErrorLogsVisible } = useErrorLogs();
+    const { showToastSuccess } = useToaster();
     const defaultProject = useDefaultProject();
     const { isLoading, data } = useProjects();
     const params = useParams<{ projectUuid: string | undefined }>();

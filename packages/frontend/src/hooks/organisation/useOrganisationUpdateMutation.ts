@@ -1,7 +1,7 @@
 import { ApiError, Organisation } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
-import { useApp } from '../../providers/AppProvider';
+import useToaster from '../toaster/useToaster';
 
 const updateOrgQuery = async (data: Organisation) =>
     lightdashApi<undefined>({
@@ -12,7 +12,7 @@ const updateOrgQuery = async (data: Organisation) =>
 
 export const useOrganisationUpdateMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useApp();
+    const { showToastError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, Organisation>(updateOrgQuery, {
         mutationKey: ['organisation_update'],
         onSuccess: async () => {

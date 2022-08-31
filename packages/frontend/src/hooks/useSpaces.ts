@@ -2,7 +2,7 @@ import { ApiError, CreateSpace, Space, UpdateSpace } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 
 const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
@@ -46,7 +46,7 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
 
 export const useDeleteMutation = (projectUuid: string) => {
     const history = useHistory();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<undefined, ApiError, string>(
@@ -84,7 +84,7 @@ const updateSpace = async (
     });
 
 export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, UpdateSpace>(
@@ -125,7 +125,7 @@ export const useCreateMutation = (
         onSuccess?: (space: Space) => void;
     },
 ) => {
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, CreateSpace>(

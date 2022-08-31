@@ -1,7 +1,7 @@
 import { ApiError, TablesConfiguration } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 const getProjectTablesConfigurationQuery = async (projectUuid: string) =>
@@ -31,7 +31,7 @@ export const useProjectTablesConfiguration = (projectUuid: string) => {
 };
 
 export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<TablesConfiguration, ApiError, TablesConfiguration>(
         (data) => updateProjectTablesConfigurationQuery(projectUuid, data),

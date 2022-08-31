@@ -8,7 +8,9 @@ import {
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useApp } from '../../../providers/AppProvider';
+import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 
 const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
     lightdashApi<LightdashUser>({
@@ -19,12 +21,9 @@ const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
 
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const {
-        showToastError,
-        errorLogs: { showError },
-        showToastSuccess,
-        user,
-    } = useApp();
+    const { user } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
+    const { showError } = useErrorLogs();
     const [firstName, setFirstName] = useState<string | undefined>(
         user.data?.firstName,
     );

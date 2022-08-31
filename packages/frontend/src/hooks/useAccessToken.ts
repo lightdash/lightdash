@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 // gets users access tokens
@@ -42,7 +42,7 @@ export const useAccessToken = () => {
 
 export const useCreateAccessToken = () => {
     const queryClient = useQueryClient();
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
     return useMutation<
         ApiCreateUserTokenResults,
         ApiError,
@@ -64,7 +64,7 @@ export const useCreateAccessToken = () => {
 
 export const useDeleteAccessToken = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteAccessToken, {
         mutationKey: ['personal_access_tokens'],
         onSuccess: async () => {

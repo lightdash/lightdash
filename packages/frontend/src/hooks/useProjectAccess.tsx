@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 const getProjectAccessQuery = async (projectUuid: string) =>
@@ -37,7 +37,7 @@ const removeProjectAccessQuery = async (
 
 export const useRevokeProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(
         (data) => removeProjectAccessQuery(projectUuid, data),
         {
@@ -70,7 +70,7 @@ const createProjectAccessQuery = async (
 
 export const useCreateProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useApp();
+    const { showToastError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, CreateProjectMember>(
         (data) => createProjectAccessQuery(projectUuid, data),
         {
@@ -105,7 +105,7 @@ const updateProjectAccessQuery = async (
 
 export const useUpdateProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useApp();
+    const { showToastError, showToastSuccess } = useToaster();
     return useMutation<
         undefined,
         ApiError,

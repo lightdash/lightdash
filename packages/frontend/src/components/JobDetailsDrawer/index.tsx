@@ -12,7 +12,7 @@ import {
     jobStepStatusLabel,
     runningStepsInfo,
 } from '../../hooks/useRefreshServer';
-import { useApp } from '../../providers/AppProvider';
+import { useActiveJob } from '../../providers/ActiveJobProvider';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -94,7 +94,7 @@ const StepIcon: FC<StepIconProps> = ({ step }: StepIconProps) => {
 };
 
 const JobDetailsDrawer: FC = () => {
-    const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useApp();
+    const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useActiveJob();
 
     if (!activeJob) {
         return null;

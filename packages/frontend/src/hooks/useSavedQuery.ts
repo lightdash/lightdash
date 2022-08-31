@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 
 const createSavedQuery = async (
     projectUuid: string,
@@ -87,7 +87,7 @@ export const useSavedQuery = ({ id }: Args = {}) =>
 
 export const useDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
         mutationKey: ['saved_query_create'],
         onSuccess: async () => {
@@ -120,7 +120,7 @@ const updateMultipleSavedQuery = async (
 
 export const useUpdateMultipleMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
 
     return useMutation<SavedChart[], ApiError, UpdateMultipleSavedChart[]>(
         (data) => {
@@ -153,7 +153,7 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
 
 export const useUpdateMutation = (savedQueryUuid?: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return useMutation<SavedChart, ApiError, UpdateSavedChart>(
@@ -188,7 +188,7 @@ export const useMoveMutation = (savedQueryUuid?: string) => {
     const history = useHistory();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
 
     return useMutation<
         SavedChart,
@@ -234,7 +234,7 @@ export const useCreateMutation = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
         (data) => createSavedQuery(projectUuid, data),
         {
@@ -265,7 +265,7 @@ export const useDuplicateMutation = (
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<SavedChart, ApiError, string>(
         () => duplicateSavedQuery(projectUuid, chartUuid),
         {
@@ -307,7 +307,7 @@ export const useDuplicateMutation = (
 export const useAddVersionMutation = () => {
     const history = useHistory();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         SavedChart,
         ApiError,

@@ -3,8 +3,8 @@ import { CreatePersonalAccessToken, formatTimestamp } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
-import { useApp } from '../../../providers/AppProvider';
 import {
     AccessTokenForm,
     BackButton,
@@ -20,7 +20,7 @@ import {
 const CreateTokenPanel: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess } = useToaster();
     const { data, mutate, isError, isLoading, isSuccess } =
         useCreateAccessToken();
 

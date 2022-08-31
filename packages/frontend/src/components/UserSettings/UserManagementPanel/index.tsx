@@ -16,6 +16,7 @@ import {
 import React, { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useLocation } from 'react-router-dom';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteUserMutation,
@@ -70,7 +71,8 @@ const UserListItem: FC<{
     const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
-    const { user, showToastSuccess, health } = useApp();
+    const { user, health } = useApp();
+    const { showToastSuccess } = useToaster();
     const updateUser = useUpdateUserMutation(userUuid);
     const handleDelete = () => mutate(userUuid);
 

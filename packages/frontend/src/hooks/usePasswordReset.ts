@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 
 const getPasswordResetLinkQuery = async (code: string): Promise<undefined> =>
     lightdashApi<undefined>({
@@ -37,7 +37,7 @@ export const usePasswordResetLink = (code: string) =>
     });
 
 export const usePasswordResetLinkMutation = () => {
-    const { showToastError, showToastSuccess } = useApp();
+    const { showToastError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, CreatePasswordResetLink>(
         sendPasswordResetLinkQuery,
         {
@@ -58,7 +58,7 @@ export const usePasswordResetLinkMutation = () => {
 };
 
 export const usePasswordResetMutation = () => {
-    const { showToastError, showToastSuccess } = useApp();
+    const { showToastError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, PasswordReset>(resetPasswordQuery, {
         mutationKey: ['reset_password'],
         onSuccess: async () => {

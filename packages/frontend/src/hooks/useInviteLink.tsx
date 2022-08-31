@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 
 const createInviteQuery = async (
     data: CreateInviteLink,
@@ -55,7 +55,7 @@ export const useInviteLink = (inviteCode: string) =>
 
 export const useCreateInviteLinkMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useApp();
+    const { showToastError, showToastSuccess } = useToaster();
     return useMutation<
         InviteLink,
         ApiError,
@@ -81,7 +81,7 @@ export const useCreateInviteLinkMutation = () => {
 };
 
 export const useRevokeInvitesMutation = () => {
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError>(revokeInvitesQuery, {
         mutationKey: ['invite_link_revoke'],
         onSuccess: async () => {

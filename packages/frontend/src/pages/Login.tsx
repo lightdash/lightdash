@@ -19,6 +19,7 @@ import {
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
+import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
@@ -47,7 +48,8 @@ const loginQuery = async (data: LoginParams) =>
 
 const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
-    const { health, showToastError } = useApp();
+    const { health } = useApp();
+    const { showToastError } = useToaster();
     const methods = useForm<LoginParams>({
         mode: 'onSubmit',
     });

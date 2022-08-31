@@ -2,7 +2,7 @@ import { ApiError, ApiSqlQueryResults } from '@lightdash/common';
 import { useMutation } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 
 const runSqlQuery = async (projectUuid: string, sql: string) =>
     lightdashApi<ApiSqlQueryResults>({
@@ -13,7 +13,7 @@ const runSqlQuery = async (projectUuid: string, sql: string) =>
 
 export const useSqlQueryMutation = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
     return useMutation<ApiSqlQueryResults, ApiError, string>(
         (sql) => runSqlQuery(projectUuid, sql),
         {

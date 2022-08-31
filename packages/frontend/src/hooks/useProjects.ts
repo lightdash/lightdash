@@ -1,7 +1,7 @@
 import { ApiError, OrganizationProject } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 
 const getProjectsQuery = async () =>
     lightdashApi<OrganizationProject[]>({
@@ -50,7 +50,7 @@ const deleteProjectQuery = async (id: string) =>
 
 export const useDeleteProjectMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteProjectQuery, {
         mutationKey: ['organization_project_delete'],
         onSuccess: async () => {

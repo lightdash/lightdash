@@ -1,4 +1,10 @@
-import { useCallback, useState } from 'react';
+import React, {
+    createContext,
+    FC,
+    useCallback,
+    useContext,
+    useState,
+} from 'react';
 
 const MAX_LOG_ENTRIES = 50;
 
@@ -18,7 +24,9 @@ export interface ErrorLogs {
     deleteErrorLogEntry: (idx: number) => void;
 }
 
-export const useErrorLogs = (): ErrorLogs => {
+const Context = createContext<ErrorLogs>(undefined as any);
+
+export const ErrorLogsProvider: FC = ({ children }) => {
     const [errorLogs, setErrorLogs] = useState<ErrorLogEntry[]>([]);
     const [errorLogsVisible, setErrorLogsVisible] = useState<boolean>(false);
 
@@ -67,7 +75,7 @@ export const useErrorLogs = (): ErrorLogs => {
         },
         [setErrorLogsVisible, appendErrorLogEntry],
     );
-    return {
+    const value = {
         errorLogs,
         errorLogsVisible,
         setErrorLogsVisible,
@@ -75,4 +83,16 @@ export const useErrorLogs = (): ErrorLogs => {
         setAllLogsRead,
         deleteErrorLogEntry,
     };
+
+    return <Context.Provider value={value}>{children}</Context.Provider>;
 };
+
+export function useErrorLogs(): ErrorLogs {
+    const context = useContext(Context);
+    if (context === undefined) {
+        throw new Error(
+            'useErrorLogsContext must be used within a ErrorLogsProvider',
+        );
+    }
+    return context;
+}

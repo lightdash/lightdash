@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 const getOrganizationUsersQuery = async () =>
@@ -43,7 +44,7 @@ export const useOrganizationUsers = () => {
 
 export const useDeleteUserMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteUserQuery, {
         mutationKey: ['saved_query_create'],
         onSuccess: async () => {
@@ -63,7 +64,8 @@ export const useDeleteUserMutation = () => {
 
 export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError, user } = useApp();
+    const { user } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, OrganizationMemberProfileUpdate>(
         (data) => {
             if (userUuid) {

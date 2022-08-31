@@ -11,7 +11,7 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useExplores } from '../../../hooks/useExplores';
-import { useApp } from '../../../providers/AppProvider';
+import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -40,7 +40,7 @@ const SideBarLoadingState = () => (
 const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { errorLogs } = useApp();
+    const errorLogs = useErrorLogs();
     const [search, setSearch] = useState<string>('');
     const [filterExplores, toggleFilterExplores] = useToggle(true);
     const exploresResult = useExplores(filterExplores);
