@@ -1,7 +1,26 @@
-import { Colors, Icon, Intent } from '@blueprintjs/core';
+import { Colors, Icon, Intent, Position } from '@blueprintjs/core';
 import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import React from 'react';
+import styled from 'styled-components';
+
+const StyledMenuItem2 = styled(MenuItem2)`
+    .menu-item-label-element {
+        display: none;
+    }
+
+    :hover {
+        .menu-item-label-element {
+            display: block;
+        }
+    }
+
+    :active {
+        .menu-item-label-element {
+            display: none;
+        }
+    }
+`;
 
 type ExploreMenuItemProps = {
     explore: SummaryExplore;
@@ -31,9 +50,11 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
         const errorMessage = explore.errors
             .map((error) => error.message)
             .join('\n');
+
         return (
             <Tooltip2 content={errorMessage} targetTagName="div">
                 <MenuItem2
+                    roleStructure="listoption"
                     icon="th"
                     text={explore.label}
                     disabled
@@ -48,5 +69,21 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             </Tooltip2>
         );
     }
-    return <MenuItem2 icon="th" text={explore.label} onClick={onClick} />;
+    return (
+        <StyledMenuItem2
+            roleStructure="listoption"
+            icon="th"
+            text={explore.label}
+            onClick={onClick}
+            labelClassName="menu-item-label-element"
+            labelElement={
+                <Tooltip2
+                    position={Position.RIGHT}
+                    content={explore.description}
+                >
+                    <Icon icon="info-sign" />
+                </Tooltip2>
+            }
+        />
+    );
 };

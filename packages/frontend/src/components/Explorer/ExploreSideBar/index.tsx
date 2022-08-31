@@ -5,7 +5,7 @@ import {
     MenuDivider,
     NonIdealState,
 } from '@blueprintjs/core';
-import { Breadcrumbs2, MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -17,12 +17,13 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
+import ExplorePanel from '../ExplorePanel';
 import { TableDivider } from '../ExplorePanel/ExplorePanel.styles';
-import ExplorePanel from '../ExplorePanel/index';
 import {
     FooterWrapper,
     FormField,
     MenuWrapper,
+    StyledBreadcrumb,
     SwitchFilter,
 } from './ExploreSideBar.styles';
 
@@ -64,35 +65,33 @@ const BasePanel = () => {
     if (exploresResult.data) {
         return (
             <>
-                <div>
-                    <Breadcrumbs2 items={[{ text: 'Tables' }]} />
+                <StyledBreadcrumb items={[{ text: 'Tables' }]} />
 
-                    <TableDivider />
+                <TableDivider />
 
-                    <FormField>
-                        <InputGroup
-                            leftIcon="search"
-                            rightElement={
-                                <Button
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => setSearch('')}
-                                />
-                            }
-                            placeholder="Search tables"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </FormField>
+                <FormField>
+                    <InputGroup
+                        leftIcon="search"
+                        rightElement={
+                            <Button
+                                minimal
+                                icon="cross"
+                                onClick={() => setSearch('')}
+                            />
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </FormField>
 
-                    <FormField>
-                        <SwitchFilter
-                            checked={!filterExplores}
-                            label="Show hidden tables"
-                            onChange={toggleFilterExplores}
-                        />
-                    </FormField>
-                </div>
+                <FormField>
+                    <SwitchFilter
+                        checked={!filterExplores}
+                        label="Show hidden tables"
+                        onChange={toggleFilterExplores}
+                    />
+                </FormField>
 
                 <MenuWrapper>
                     <MenuDivider />

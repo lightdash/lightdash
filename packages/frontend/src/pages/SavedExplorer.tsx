@@ -1,9 +1,9 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
 import Explorer from '../components/Explorer';
-import ExplorePanel from '../components/Explorer/ExplorePanel/index';
+import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useSidebarResize from '../hooks/useSidebarResize';

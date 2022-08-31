@@ -70,6 +70,7 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                 size={16}
             />
             <Tooltip2
+                lazy
                 content={item.description}
                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >

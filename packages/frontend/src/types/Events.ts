@@ -55,7 +55,6 @@ export enum EventName {
     REVOKE_INVITES_BUTTON_CLICKED = 'revoke_invites_button.clicked',
     INVITE_BUTTON_CLICKED = 'invite_users_to_organisation_button.clicked',
     RUN_QUERY_BUTTON_CLICKED = 'run_query_button.clicked',
-    SHOW_LINEAGE_BUTTON_CLICKED = 'show_lineage_button.clicked',
     ADD_COLUMN_BUTTON_CLICKED = 'add_column_button.click',
     CREATE_TABLE_CALCULATION_BUTTON_CLICKED = 'create_table_calculation_button.click',
     EDIT_TABLE_CALCULATION_BUTTON_CLICKED = 'edit_table_calculation_button.click',
