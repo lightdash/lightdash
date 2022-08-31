@@ -88,7 +88,6 @@ const useCartesianChartConfig = ({
         !!initialChartConfig &&
         isCompleteLayout(initialChartConfig.layout) &&
         isCompleteEchartsConfig(initialChartConfig.eChartsConfig);
-
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
@@ -421,13 +420,14 @@ const useCartesianChartConfig = ({
                     newPivotFields = [availableDimensions[1]];
                 }
 
-                // two metrics, one dimension
+                // 1+ metrics, one dimension
                 else if (
-                    availableMetrics.length === 2 &&
+                    availableMetrics.length > 1 &&
                     availableDimensions.length === 1
                 ) {
+                    //Max 4 metrics in Y-axis
                     newXField = availableDimensions[0];
-                    newYFields = availableMetrics;
+                    newYFields = availableMetrics.slice(0, 4);
                 }
 
                 // 2+ dimensions and 1+ metrics
