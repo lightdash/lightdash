@@ -1,15 +1,16 @@
 import {
     Button,
+    Menu,
     MenuDivider,
     PopoverInteractionKind,
     Position,
     Spinner,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Popover2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import NavLink from '../../NavLink';
-import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';
+import { FirstItem, NavbarMenuItem, SpinnerWrapper } from '../NavBar.styles';
 
 interface Props {
     projectUuid: string;
@@ -20,7 +21,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <>
             <Popover2
-                minimal
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     !projectUuid || isLoading ? (
@@ -28,7 +28,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             <Spinner size={20} />
                         </SpinnerWrapper>
                     ) : (
-                        <MenuWrapper>
+                        <Menu>
                             <NavLink to={`/projects/${projectUuid}/dashboards`}>
                                 <FirstItem
                                     role="button"
@@ -37,7 +37,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 />
                             </NavLink>
                             <NavLink to={`/projects/${projectUuid}/saved`}>
-                                <MenuItem2
+                                <NavbarMenuItem
                                     icon="chart"
                                     text="All saved charts"
                                 />
@@ -50,13 +50,13 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                     key={space.uuid}
                                     to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                                 >
-                                    <MenuItem2
+                                    <NavbarMenuItem
                                         icon="folder-close"
                                         text={space.name}
                                     />
                                 </NavLink>
                             ))}
-                        </MenuWrapper>
+                        </Menu>
                     )
                 }
                 position={Position.BOTTOM_LEFT}
