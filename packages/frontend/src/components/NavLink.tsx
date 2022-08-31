@@ -13,7 +13,8 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
         exact={exact}
         /* eslint-disable-next-line react/no-children-prop */
         children={({ match }) => {
-            const isActive = !!match;
+            const isActive = match?.isExact;
+
             return (
                 <Link to={to} style={{ color: 'inherit', ...style }}>
                     {typeof children === 'function'
