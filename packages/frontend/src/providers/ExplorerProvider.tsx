@@ -476,9 +476,18 @@ function reducer(
         }
         case ActionType.ADD_SORT_FIELD: {
             return produce(state, (newState) => {
-                newState.unsavedChartVersion.metricQuery.sorts.push(
-                    action.payload,
-                );
+                const sort =
+                    newState.unsavedChartVersion.metricQuery.sorts.find(
+                        (sf) => sf.fieldId === action.payload.fieldId,
+                    );
+
+                if (sort) {
+                    sort.descending = action.payload.descending;
+                } else {
+                    newState.unsavedChartVersion.metricQuery.sorts.push(
+                        action.payload,
+                    );
+                }
             });
         }
         case ActionType.REMOVE_SORT_FIELD: {
@@ -850,8 +859,6 @@ export const ExplorerProvider: FC<{
             fieldId: FieldId,
             options: { descending: boolean } = { descending: false },
         ) => {
-            removeSortField(fieldId);
-
             dispatch({
                 type: ActionType.ADD_SORT_FIELD,
                 payload: { fieldId, ...options },
@@ -860,7 +867,7 @@ export const ExplorerProvider: FC<{
                 },
             });
         },
-        [removeSortField],
+        [],
     );
 
     const setRowLimit = useCallback((limit: number) => {

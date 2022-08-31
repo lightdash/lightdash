@@ -117,6 +117,9 @@ export const useColumns = (): TableColumn[] => {
             const isFieldSorted = sortIndex !== -1;
             const column: TableColumn = {
                 id: fieldId,
+                columnLabel: isField(item)
+                    ? item.label
+                    : friendlyName(item.name),
                 header: () => (
                     <TableHeaderLabelContainer>
                         {isField(item) ? (
@@ -171,6 +174,7 @@ export const useColumns = (): TableColumn[] => {
             (acc, fieldId) => {
                 const column: TableColumn = {
                     id: fieldId,
+                    columnLabel: fieldId,
                     header: () => (
                         <span>
                             <Tooltip2

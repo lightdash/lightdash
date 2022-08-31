@@ -19,8 +19,8 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
     return (
         <>
             <LabelWrapper>
-                {isFirstItem ? 'Sort by' : 'then by'}{' '}
-                {column ? column.header() : sort.fieldId}
+                {isFirstItem ? 'Sort by ' : 'then by '}
+                {column?.columnLabel || sort.fieldId}
             </LabelWrapper>
 
             <StretchDivider />
@@ -31,7 +31,7 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
                     intent={isAscending ? 'primary' : 'none'}
                     onClick={() =>
                         isAscending
-                            ? column?.meta?.onAddSort?.({ descending: false })
+                            ? undefined
                             : column?.meta?.onAddSort?.({ descending: false })
                     }
                 >
@@ -43,7 +43,7 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
                     intent={isDescending ? 'primary' : 'none'}
                     onClick={() =>
                         isDescending
-                            ? column?.meta?.onAddSort?.({ descending: true })
+                            ? undefined
                             : column?.meta?.onAddSort?.({ descending: true })
                     }
                 >
