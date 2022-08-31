@@ -20,6 +20,23 @@ export const BigQuerySchemaInput: FC<{
         <Input
             name="warehouse.dataset"
             label="Data set"
+            labelHelp={
+                <p>
+                    This is the name of your dbt dataset: the dataset in your
+                    warehouse where the output of your dbt models is written to.
+                    If you're not sure what this is, check out the
+                    <b>dataset</b>
+                    value{' '}
+                    <a
+                        target="_blank"
+                        href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
+                        rel="noreferrer"
+                    >
+                        you've set in your dbt <b>profiles.yml</b> file
+                    </a>
+                    .
+                </p>
+            }
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
             rules={{
                 required: 'Required field',
@@ -43,7 +60,7 @@ const BigQueryForm: FC<{
             <Input
                 name="warehouse.project"
                 label="Project"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#project"
+                labelHelp="This is the GCP project ID."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -56,7 +73,20 @@ const BigQueryForm: FC<{
             <Input
                 name="warehouse.location"
                 label="Location"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#location"
+                labelHelp={
+                    <p>
+                        The location of BigQuery datasets. You can see more
+                        details in{' '}
+                        <a
+                            target="_blank"
+                            href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
+                            rel="noreferrer"
+                        >
+                            dbt documentation
+                        </a>
+                        .
+                    </p>
+                }
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -68,7 +98,19 @@ const BigQueryForm: FC<{
             <FileInput
                 name="warehouse.keyfileContents"
                 label="Key File"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
+                labelHelp={
+                    <p>
+                        This is the JSON key file. You can see{' '}
+                        <a
+                            target="_blank"
+                            href="https://cloud.google.com/docs/authentication/getting-started#cloud-console"
+                            rel="noreferrer"
+                        >
+                            how to create a key here
+                        </a>
+                        .
+                    </p>
+                }
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -82,7 +124,21 @@ const BigQueryForm: FC<{
                 <NumericInput
                     name="warehouse.timeoutSeconds"
                     label="Timeout in seconds"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#timeout-in-seconds"
+                    labelHelp={
+                        <p>
+                            If a dbt model takes longer than this timeout to
+                            complete, then BigQuery may cancel the query. You
+                            can see more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
+                                rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     rules={{
                         required: 'Required field',
                     }}
@@ -92,7 +148,20 @@ const BigQueryForm: FC<{
                 <SelectField
                     name="warehouse.priority"
                     label="Priority"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#priority"
+                    labelHelp={
+                        <p>
+                            The priority for the BigQuery jobs that dbt
+                            executes. You can see more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
+                                rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     options={[
                         {
                             value: 'interactive',
@@ -112,7 +181,21 @@ const BigQueryForm: FC<{
                 <NumericInput
                     name="warehouse.retries"
                     label="Retries"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#retries"
+                    labelHelp={
+                        <p>
+                            The number of times dbt should retry queries that
+                            result in unhandled server errors You can see more
+                            details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
+                                rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     rules={{
                         required: 'Required field',
                     }}
@@ -121,7 +204,21 @@ const BigQueryForm: FC<{
                 <NumericInput
                     name="warehouse.maximumBytesBilled"
                     label="Maximum bytes billed"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#maximum-bytes-billed"
+                    labelHelp={
+                        <p>
+                            When a value is configured, queries executed by dbt
+                            will fail if they exceed the configured maximum
+                            bytes threshold. You can see more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
+                                rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     rules={{
                         required: 'Required field',
                     }}

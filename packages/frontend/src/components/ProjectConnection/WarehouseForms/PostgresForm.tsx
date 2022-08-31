@@ -20,7 +20,7 @@ export const PostgresSchemaInput: FC<{
         <Input
             name="warehouse.schema"
             label="Schema"
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema"
+            labelHelp="This is the schema name."
             rules={{
                 required: 'Required field',
                 validate: {
@@ -115,7 +115,8 @@ const PostgresForm: FC<{
                             see more details in{' '}
                             <a
                                 target="_blank"
-                                href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/" rel="noreferrer"
+                                href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
+                                rel="noreferrer"
                             >
                                 postgresqlco documentation
                             </a>
@@ -137,7 +138,8 @@ const PostgresForm: FC<{
                             see more details in{' '}
                             <a
                                 target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path" rel="noreferrer"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
+                                rel="noreferrer"
                             >
                                 dbt documentation
                             </a>
@@ -155,7 +157,8 @@ const PostgresForm: FC<{
                             using SSL. You can see more details in
                             <a
                                 target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode" rel="noreferrer"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
+                                rel="noreferrer"
                             >
                                 dbt documentation
                             </a>

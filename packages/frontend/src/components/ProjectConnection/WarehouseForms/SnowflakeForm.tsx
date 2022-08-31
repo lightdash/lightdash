@@ -19,7 +19,7 @@ export const SnowflakeSchemaInput: FC<{
         <Input
             name="warehouse.schema"
             label="Schema"
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema-2"
+            labelHelp="This is the schema name."
             rules={{
                 required: 'Required field',
                 validate: {
@@ -43,7 +43,7 @@ const SnowflakeForm: FC<{
             <Input
                 name="warehouse.account"
                 label="Account"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#account"
+                labelHelp="This is the account to connect to."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -55,7 +55,7 @@ const SnowflakeForm: FC<{
             <Input
                 name="warehouse.user"
                 label="User"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user-2"
+                labelHelp="This is the database user name."
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -67,7 +67,7 @@ const SnowflakeForm: FC<{
             <PasswordInput
                 name="warehouse.password"
                 label="Password"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#password-2"
+                labelHelp="This is the database user password."
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -79,7 +79,7 @@ const SnowflakeForm: FC<{
             <Input
                 name="warehouse.role"
                 label="Role"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#role"
+                labelHelp="This is the role to assume when running queries as the specified user."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -91,7 +91,7 @@ const SnowflakeForm: FC<{
             <Input
                 name="warehouse.database"
                 label="Database"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#database"
+                labelHelp="This is the database name."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -104,7 +104,7 @@ const SnowflakeForm: FC<{
             <Input
                 name="warehouse.warehouse"
                 label="Warehouse"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse"
+                labelHelp="This is the warehouse name."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -119,14 +119,41 @@ const SnowflakeForm: FC<{
                 <BooleanSwitch
                     name="warehouse.clientSessionKeepAlive"
                     label="Keep client session alive"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-client-session-alive"
+                    labelHelp={
+                        <p>
+                            This is intended to keep Snowflake sessions alive
+                            beyond the typical 4 hour timeout limit You can see
+                            more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     disabled={disabled}
                     defaultValue={false}
                 />
                 <Input
                     name="warehouse.queryTag"
                     label="Query tag"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#query-tag"
+                    labelHelp={
+                        <p>
+                            This is Snowflake query tags parameter. You can see
+                            more details in{' '}
+                            <a
+                                target="_blank"
+                                href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
+                                rel="noreferrer"
+                            >
+                                dbt documentation
+                            </a>
+                            .
+                        </p>
+                    }
                     disabled={disabled}
                 />
             </FormSection>

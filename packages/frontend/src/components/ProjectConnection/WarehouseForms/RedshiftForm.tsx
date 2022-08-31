@@ -21,7 +21,7 @@ export const RedshiftSchemaInput: FC<{
         <Input
             name="warehouse.schema"
             label="Schema"
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#schema-1"
+            labelHelp="This is the schema name."
             rules={{
                 required: 'Required field',
                 validate: {
@@ -45,7 +45,7 @@ const RedshiftForm: FC<{
             <Input
                 name="warehouse.host"
                 label="Host"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#host-1"
+                labelHelp="This is the host where the database is running."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -57,7 +57,7 @@ const RedshiftForm: FC<{
             <Input
                 name="warehouse.user"
                 label="User"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#user-1"
+                labelHelp="This is the database user name."
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                     validate: {
@@ -72,7 +72,7 @@ const RedshiftForm: FC<{
             <PasswordInput
                 name="warehouse.password"
                 label="Password"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#password-1"
+                labelHelp="This is the database user password."
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
                 }}
@@ -84,7 +84,7 @@ const RedshiftForm: FC<{
             <Input
                 name="warehouse.dbname"
                 label="DB name"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#db-name-1"
+                labelHelp="This is the database name."
                 rules={{
                     required: 'Required field',
                     validate: {
@@ -98,7 +98,7 @@ const RedshiftForm: FC<{
                 <NumericInput
                     name="warehouse.port"
                     label="Port"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port-1"
+                    labelHelp="This is the port where the database is running."
                     rules={{
                         required: 'Required field',
                     }}
@@ -108,7 +108,7 @@ const RedshiftForm: FC<{
                 <NumericInput
                     name="warehouse.keepalivesIdle"
                     label="Keep alive idle (seconds)"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#keep-alive-idle-seconds-1"
+                    labelHelp="This specifies the amount of seconds with no network activity after which the operating system should send a TCP keepalive message to the client."
                     rules={{
                         required: 'Required field',
                     }}
@@ -118,7 +118,7 @@ const RedshiftForm: FC<{
                 <Select
                     name="warehouse.sslmode"
                     label="SSL mode"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ssl-mode-1"
+                    labelHelp="This controls how dbt connects to Postgres databases using SSL."
                     options={[
                         'disable',
                         'no-verify',
