@@ -219,16 +219,16 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           },
                       ] = r;
 
-                      if (raw === null) {
-                          return acc;
-                      }
                       const dimensionFilter: FilterRule = {
                           id: uuidv4(),
                           target: {
                               fieldId: key,
                           },
-                          operator: FilterOperator.EQUALS,
-                          values: [raw],
+                          operator:
+                              raw === null
+                                  ? FilterOperator.NULL
+                                  : FilterOperator.EQUALS,
+                          values: raw === null ? undefined : [raw],
                       };
                       const isValidDimension = allDimensions.find(
                           (dimension) => getFieldId(dimension) === key,
