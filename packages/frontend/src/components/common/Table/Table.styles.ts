@@ -127,6 +127,29 @@ export const PageCount = styled.span`
     color: ${Colors.GRAY1};
 `;
 
+export const Th = styled.th``;
+
+export const ThContainer = styled.div`
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+`;
+
+export const ThLabelContainer = styled.div``;
+
+export const ThActionsContainer = styled.div`
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+
+    margin-left: 5px;
+    > *:not(:last-child) {
+        margin-right: 10px;
+    }
+`;
+
 export const TableHeaderLabelContainer = styled.div``;
 
 export const TableHeaderRegularLabel = styled.span`
