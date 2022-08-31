@@ -134,7 +134,7 @@ const RedshiftForm: FC<{
                 <BooleanSwitch
                     name="warehouse.ra3Node"
                     label="Use RA3 node"
-                    documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#ra3-node"
+                    labelHelp="Allow dbt to use cross-database-resources."
                     defaultValue
                     disabled={disabled}
                 />

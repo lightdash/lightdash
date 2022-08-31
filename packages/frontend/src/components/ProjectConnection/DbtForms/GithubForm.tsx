@@ -26,6 +26,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
                             rel="noreferrer"
                         >
+                            {' '}
                             Click to open documentation
                         </a>
                         .
@@ -124,7 +125,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.host_domain"
                 label="Host domain (for Github Enterprise)"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#host-domain"
+                labelHelp="If you've customized the domain for your Bitbucket server, you can add the custom domain for your project in here."
                 disabled={disabled}
                 defaultValue="github.com"
             />

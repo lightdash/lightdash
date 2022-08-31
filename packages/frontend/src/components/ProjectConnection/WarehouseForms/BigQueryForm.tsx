@@ -25,7 +25,7 @@ export const BigQuerySchemaInput: FC<{
                     This is the name of your dbt dataset: the dataset in your
                     warehouse where the output of your dbt models is written to.
                     If you're not sure what this is, check out the
-                    <b>dataset</b>
+                    <b> dataset </b>
                     value{' '}
                     <a
                         target="_blank"

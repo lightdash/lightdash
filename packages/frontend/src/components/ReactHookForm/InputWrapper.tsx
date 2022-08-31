@@ -1,16 +1,11 @@
-import { Colors, FormGroup, Icon } from '@blueprintjs/core';
+import { FormGroup, Icon } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
 import { ArgumentsOf } from '@lightdash/common';
 import React, { FC, ReactElement, useState } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
-import styled from 'styled-components';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import { LabelInfoToggleButton } from './FromGroup.styles';
 import './InputWrapper.css';
-
-export const LabelInfoToggleButton = styled.div`
-    cursor: pointer;
-    color: ${Colors.GRAY5};
-`;
 
 interface InputProps {
     id: string;
@@ -70,7 +65,10 @@ const InputWrapper: FC<InputWrapperProps> = ({
                     )}
                     {labelHelp && (
                         <LabelInfoToggleButton
-                            onClick={() => setIsLabelInfoOpen(!isLabelInfoOpen)}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setIsLabelInfoOpen(!isLabelInfoOpen);
+                            }}
                         >
                             <Icon icon="help" intent="none" iconSize={15} />
                         </LabelInfoToggleButton>

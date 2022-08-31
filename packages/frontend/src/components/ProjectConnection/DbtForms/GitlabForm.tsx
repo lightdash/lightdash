@@ -137,7 +137,18 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <Input
                 name="dbt.host_domain"
                 label="Host domain (for self-hosted instances)"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#host-domain-1"
+                labelHelp={
+                    <p>
+                        If you’ve customized the domain for your GitLab pages,
+                        you can add the custom domain for your project in here.
+                        By default, this is
+                        <a href="http://gitlab.io/" target="_blank" rel="noreferrer">
+                            {' '}
+                            gitlab.io
+                        </a>
+                        .
+                    </p>
+                }
                 disabled={disabled}
                 defaultValue="gitlab.com"
                 rules={{
