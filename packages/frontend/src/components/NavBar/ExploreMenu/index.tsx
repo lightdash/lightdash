@@ -33,7 +33,7 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
                         <Menu>
                             <NavLink to={`/projects/${projectUuid}/tables`}>
                                 <FirstItem
-                                    role="button"
+                                    roleStructure="menuitem"
                                     icon="th"
                                     text="Tables"
                                 />
@@ -50,7 +50,7 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
                                     to={`/projects/${projectUuid}/sqlRunner`}
                                 >
                                     <NavbarMenuItem
-                                        role="button"
+                                        roleStructure="menuitem"
                                         icon="console"
                                         text="SQL Runner"
                                     />

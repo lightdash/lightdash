@@ -31,13 +31,14 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         <Menu>
                             <NavLink to={`/projects/${projectUuid}/dashboards`}>
                                 <FirstItem
-                                    role="button"
+                                    role="menuitem"
                                     text="All dashboards"
                                     icon="control"
                                 />
                             </NavLink>
                             <NavLink to={`/projects/${projectUuid}/saved`}>
                                 <NavbarMenuItem
+                                    roleStructure="menuitem"
                                     icon="chart"
                                     text="All saved charts"
                                 />
@@ -51,6 +52,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                     to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                                 >
                                     <NavbarMenuItem
+                                        roleStructure="menuitem"
                                         icon="folder-close"
                                         text={space.name}
                                     />
