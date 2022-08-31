@@ -219,6 +219,9 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           },
                       ] = r;
 
+                      if (raw === null) {
+                          return acc;
+                      }
                       const dimensionFilter: FilterRule = {
                           id: uuidv4(),
                           target: {
