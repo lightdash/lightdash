@@ -776,12 +776,14 @@ export const ExplorerProvider: FC<{
         },
         [],
     );
+
     const removeActiveField = useCallback((fieldId: FieldId) => {
         dispatch({
             type: ActionType.REMOVE_FIELD,
             payload: fieldId,
         });
     }, []);
+
     const toggleSortField = useCallback((fieldId: FieldId) => {
         dispatch({
             type: ActionType.TOGGLE_SORT_FIELD,

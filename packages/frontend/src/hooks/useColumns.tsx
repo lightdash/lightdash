@@ -156,24 +156,22 @@ export const useColumns = (): TableColumn[] => {
                               isNumeric: isNumericItem(item),
                           }
                         : undefined,
-                    onHeaderClick: (e) => {
-                        if (e.metaKey || e.ctrlKey || isFieldSorted) {
-                            toggleSortField(fieldId);
-                        } else {
-                            setSortFields([
-                                {
-                                    fieldId,
-                                    descending: isFieldSorted
-                                        ? !sorts[sortIndex].descending
-                                        : false,
-                                },
-                            ]);
-                        }
+                    onSort: (descending: boolean) => {
+                        setSortFields([
+                            {
+                                fieldId,
+                                descending: descending,
+                            },
+                        ]);
+                    },
+                    onRemoveSort: () => {
+                        toggleSortField(fieldId);
                     },
                 },
             };
             return [...acc, column];
         }, []);
+
         const invalidColumns = invalidActiveItems.reduce<TableColumn[]>(
             (acc, fieldId) => {
                 const column: TableColumn = {
