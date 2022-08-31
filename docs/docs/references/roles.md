@@ -13,8 +13,7 @@ accessible by users with organization roles.
 | View charts and dashboards              |       ✅       |       ✅        |       ✅        |
 | Run metric queries                      |       ✅       |       ✅        |       ✅        |
 | Create/edit charts and dashboards       |       ✅       |       ✅        |       ❌        |    
-| Create/edit metrics                     |       ✅       |       ✅        |       ❌        |
-| Run SQL queries                         |       ✅       |       ✅        |       ❌        |
+| Use the SQL runner                      |       ✅       |       ✅        |       ❌        |
 | Invite users to project                 |       ✅       |       ❌        |       ❌        |
 | Manage project access and permissions   |       ✅       |       ❌        |       ❌        |
 | Delete project                          |       ✅       |       ❌        |       ❌        |
