@@ -267,6 +267,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
 ): T => {
     const filterType = getFilterTypeFromField(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
+
     if (
         ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
             filterRule.operator,
@@ -275,16 +276,24 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         switch (filterType) {
             case FilterType.DATE: {
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
-                    filterRuleDefaults.values =
-                        value !== undefined ? [value] : [1];
+                    const numberValue =
+                        value === undefined || typeof value !== 'number'
+                            ? 1
+                            : value;
+
+                    filterRuleDefaults.values = [numberValue];
                     filterRuleDefaults.settings = {
                         unitOfTime: UnitOfTime.days,
                         completed: false,
                     } as DateFilterRule['settings'];
                 } else {
+                    const valueIsDate =
+                        value !== undefined && typeof value !== 'number';
                     const defaultTimeIntervalValues: Record<string, Date> = {
                         [TimeInterval.DAY]: new Date(),
-                        [TimeInterval.WEEK]: moment(value)
+                        [TimeInterval.WEEK]: moment(
+                            valueIsDate ? value : undefined,
+                        )
                             .utc(true)
                             .startOf('week')
                             .toDate(),
@@ -292,7 +301,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             .utc(true)
                             .startOf('month')
                             .toDate(),
-                        [TimeInterval.YEAR]: moment(value)
+                        [TimeInterval.YEAR]: moment(
+                            valueIsDate ? value : undefined,
+                        )
                             .utc(true)
                             .startOf('year')
                             .toDate(),
@@ -303,9 +314,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         defaultTimeIntervalValues[field.timeInterval]
                             ? defaultTimeIntervalValues[field.timeInterval]
                             : new Date();
-                    filterRuleDefaults.values = [
-                        value !== undefined ? value : defaultDate,
-                    ];
+
+                    const dateValue = valueIsDate ? value : defaultDate;
+                    filterRuleDefaults.values = [dateValue];
                 }
                 break;
             }

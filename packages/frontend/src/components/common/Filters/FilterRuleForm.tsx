@@ -82,15 +82,21 @@ const FilterRuleForm: FC<Props> = ({
                     <HTMLSelect
                         fill={false}
                         style={{ width: 150 }}
-                        onChange={(e) =>
+                        onChange={(e) => {
                             onChange(
-                                getFilterRuleWithDefaultValue(activeField, {
-                                    ...filterRule,
-                                    operator: e.currentTarget
-                                        .value as FilterRule['operator'],
-                                }),
-                            )
-                        }
+                                getFilterRuleWithDefaultValue(
+                                    activeField,
+                                    {
+                                        ...filterRule,
+                                        operator: e.currentTarget
+                                            .value as FilterRule['operator'],
+                                    },
+                                    filterRule.values
+                                        ? filterRule.values[0]
+                                        : 1,
+                                ),
+                            );
+                        }}
                         options={filterConfig.operatorOptions}
                         value={filterRule.operator}
                     />
