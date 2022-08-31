@@ -1,3 +1,16 @@
+# [0.236.0](https://github.com/lightdash/lightdash/compare/0.235.3...0.236.0) (2022-08-31)
+
+
+### Bug Fixes
+
+* fix empty chart sqlrunner 1+ metrics 1 dimension ([#3103](https://github.com/lightdash/lightdash/issues/3103)) ([16c6fa0](https://github.com/lightdash/lightdash/commit/16c6fa011cc757d33ba90f3f142ca4c9a0f4f9f1))
+
+
+### Features
+
+* column header interactivity ([#3047](https://github.com/lightdash/lightdash/issues/3047)) ([70d5b8a](https://github.com/lightdash/lightdash/commit/70d5b8a7c18b731db3f988b170076e1dcc6ab2a8))
+* support DBT_PROJECT_DIR and DBT_PROFILES_DIR env variable on CLI ([#3105](https://github.com/lightdash/lightdash/issues/3105)) ([34b3ddc](https://github.com/lightdash/lightdash/commit/34b3ddc17c857cc762577b6d9bb139dac722fa03))
+
 ## [0.235.3](https://github.com/lightdash/lightdash/compare/0.235.2...0.235.3) (2022-08-31)
 
 
