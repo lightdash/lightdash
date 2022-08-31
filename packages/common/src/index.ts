@@ -287,9 +287,13 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         completed: false,
                     } as DateFilterRule['settings'];
                 } else {
+                    const valueIsDate =
+                        value !== undefined && typeof value !== 'number';
                     const defaultTimeIntervalValues: Record<string, Date> = {
                         [TimeInterval.DAY]: new Date(),
-                        [TimeInterval.WEEK]: moment(value)
+                        [TimeInterval.WEEK]: moment(
+                            valueIsDate ? value : undefined,
+                        )
                             .utc(true)
                             .startOf('week')
                             .toDate(),
@@ -297,7 +301,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             .utc(true)
                             .startOf('month')
                             .toDate(),
-                        [TimeInterval.YEAR]: moment(value)
+                        [TimeInterval.YEAR]: moment(
+                            valueIsDate ? value : undefined,
+                        )
                             .utc(true)
                             .startOf('year')
                             .toDate(),
@@ -309,10 +315,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             ? defaultTimeIntervalValues[field.timeInterval]
                             : new Date();
 
-                    const dateValue =
-                        value === undefined || typeof value === 'number'
-                            ? defaultDate
-                            : value;
+                    const dateValue = valueIsDate ? value : defaultDate;
                     filterRuleDefaults.values = [dateValue];
                 }
                 break;
