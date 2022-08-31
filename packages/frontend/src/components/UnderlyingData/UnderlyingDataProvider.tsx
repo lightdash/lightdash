@@ -245,8 +245,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           target: {
                               fieldId: getFieldId(meta?.item),
                           },
-                          operator: FilterOperator.EQUALS,
-                          values: [value.raw],
+                          operator:
+                              value.raw === null
+                                  ? FilterOperator.NULL
+                                  : FilterOperator.EQUALS,
+                          values: value.raw === null ? undefined : [value.raw],
                       },
                   ];
 
