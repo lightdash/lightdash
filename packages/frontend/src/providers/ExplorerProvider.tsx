@@ -16,7 +16,8 @@ import {
     TableCalculation,
     toggleArrayValue,
 } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
+import produce from 'immer';
+import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
 import {
     createContext,
     useContext,
@@ -40,6 +41,8 @@ export enum ActionType {
     TOGGLE_METRIC,
     TOGGLE_SORT_FIELD,
     SET_SORT_FIELDS,
+    ADD_SORT_FIELD,
+    REMOVE_SORT_FIELD,
     SET_ROW_LIMIT,
     SET_FILTERS,
     SET_COLUMN_ORDER,
@@ -72,6 +75,14 @@ type Action =
     | {
           type: ActionType.SET_SORT_FIELDS;
           payload: SortField[];
+      }
+    | {
+          type: ActionType.ADD_SORT_FIELD;
+          payload: SortField;
+      }
+    | {
+          type: ActionType.REMOVE_SORT_FIELD;
+          payload: FieldId;
       }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -147,6 +158,11 @@ interface ExplorerContext {
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
         toggleSortField: (fieldId: FieldId) => void;
         setSortFields: (sortFields: SortField[]) => void;
+        addSortField: (
+            fieldId: FieldId,
+            options?: { descending: boolean },
+        ) => void;
+        removeSortField: (fieldId: FieldId) => void;
         setRowLimit: (limit: number) => void;
         setFilters: (
             filters: MetricQuery['filters'],
@@ -457,6 +473,21 @@ function reducer(
                     },
                 },
             };
+        }
+        case ActionType.ADD_SORT_FIELD: {
+            return produce(state, (newState) => {
+                newState.unsavedChartVersion.metricQuery.sorts.push(
+                    action.payload,
+                );
+            });
+        }
+        case ActionType.REMOVE_SORT_FIELD: {
+            return produce(state, (newState) => {
+                newState.unsavedChartVersion.metricQuery.sorts =
+                    newState.unsavedChartVersion.metricQuery.sorts.filter(
+                        (sf) => sf.fieldId !== action.payload,
+                    );
+            });
         }
         case ActionType.SET_ROW_LIMIT: {
             return {
@@ -804,6 +835,34 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const removeSortField = useCallback((fieldId: FieldId) => {
+        dispatch({
+            type: ActionType.REMOVE_SORT_FIELD,
+            payload: fieldId,
+            options: {
+                shouldFetchResults: true,
+            },
+        });
+    }, []);
+
+    const addSortField = useCallback(
+        (
+            fieldId: FieldId,
+            options: { descending: boolean } = { descending: false },
+        ) => {
+            removeSortField(fieldId);
+
+            dispatch({
+                type: ActionType.ADD_SORT_FIELD,
+                payload: { fieldId, ...options },
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+        },
+        [removeSortField],
+    );
+
     const setRowLimit = useCallback((limit: number) => {
         dispatch({
             type: ActionType.SET_ROW_LIMIT,
@@ -1007,6 +1066,8 @@ export const ExplorerProvider: FC<{
             toggleActiveField,
             toggleSortField,
             setSortFields,
+            addSortField,
+            removeSortField,
             setFilters,
             setRowLimit,
             setColumnOrder,
@@ -1030,6 +1091,8 @@ export const ExplorerProvider: FC<{
             toggleActiveField,
             toggleSortField,
             setSortFields,
+            addSortField,
+            removeSortField,
             setFilters,
             setRowLimit,
             setColumnOrder,

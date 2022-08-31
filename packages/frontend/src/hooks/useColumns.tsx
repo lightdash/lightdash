@@ -57,11 +57,11 @@ export const useColumns = (): TableColumn[] => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const toggleSortField = useExplorerContext(
-        (context) => context.actions.toggleSortField,
+    const addSortField = useExplorerContext(
+        (context) => context.actions.addSortField,
     );
-    const setSortFields = useExplorerContext(
-        (context) => context.actions.setSortFields,
+    const removeSortField = useExplorerContext(
+        (context) => context.actions.removeSortField,
     );
     const { data: exploreData } = useExplore(tableName);
 
@@ -156,16 +156,11 @@ export const useColumns = (): TableColumn[] => {
                               isNumeric: isNumericItem(item),
                           }
                         : undefined,
-                    onSort: (descending: boolean) => {
-                        setSortFields([
-                            {
-                                fieldId,
-                                descending: descending,
-                            },
-                        ]);
+                    onAddSort: ({ descending }) => {
+                        addSortField(fieldId, { descending });
                     },
                     onRemoveSort: () => {
-                        toggleSortField(fieldId);
+                        removeSortField(fieldId);
                     },
                 },
             };
@@ -208,7 +203,7 @@ export const useColumns = (): TableColumn[] => {
         sorts,
         totals,
         exploreData,
-        toggleSortField,
-        setSortFields,
+        addSortField,
+        removeSortField,
     ]);
 };

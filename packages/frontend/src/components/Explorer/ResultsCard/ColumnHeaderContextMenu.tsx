@@ -66,7 +66,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     selected={hasSort && isAscending}
                     text="Sort A-Z"
                     onClick={() =>
-                        hasSort ? meta.onRemoveSort?.() : meta.onSort?.(false)
+                        hasSort && isAscending
+                            ? meta.onRemoveSort?.()
+                            : meta.onAddSort?.({ descending: false })
                     }
                 />
 
@@ -75,7 +77,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     selected={hasSort && isDescending}
                     text="Sort Z-A"
                     onClick={() =>
-                        hasSort ? meta.onRemoveSort?.() : meta.onSort?.(true)
+                        hasSort && isDescending
+                            ? meta.onRemoveSort?.()
+                            : meta.onAddSort?.({ descending: true })
                     }
                 />
 

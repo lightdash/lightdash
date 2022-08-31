@@ -35,7 +35,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
-        onSort?: (descending: boolean) => void;
+        onAddSort?: (sortOptions: { descending: boolean }) => void;
         onRemoveSort?: () => void;
     };
 };
