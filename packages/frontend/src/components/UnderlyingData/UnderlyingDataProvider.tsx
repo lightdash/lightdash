@@ -224,8 +224,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           target: {
                               fieldId: key,
                           },
-                          operator: FilterOperator.EQUALS,
-                          values: [raw],
+                          operator:
+                              raw === null
+                                  ? FilterOperator.NULL
+                                  : FilterOperator.EQUALS,
+                          values: raw === null ? undefined : [raw],
                       };
                       const isValidDimension = allDimensions.find(
                           (dimension) => getFieldId(dimension) === key,
@@ -242,8 +245,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
                           target: {
                               fieldId: getFieldId(meta?.item),
                           },
-                          operator: FilterOperator.EQUALS,
-                          values: [value.raw],
+                          operator:
+                              value.raw === null
+                                  ? FilterOperator.NULL
+                                  : FilterOperator.EQUALS,
+                          values: value.raw === null ? undefined : [value.raw],
                       },
                   ];
 
