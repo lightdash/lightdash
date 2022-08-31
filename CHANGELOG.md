@@ -1,3 +1,10 @@
+## [0.235.3](https://github.com/lightdash/lightdash/compare/0.235.2...0.235.3) (2022-08-31)
+
+
+### Bug Fixes
+
+* navigation menu styles ([#3112](https://github.com/lightdash/lightdash/issues/3112)) ([4824bd4](https://github.com/lightdash/lightdash/commit/4824bd4b47c652391c9f066418572658a69e6939))
+
 ## [0.235.2](https://github.com/lightdash/lightdash/compare/0.235.1...0.235.2) (2022-08-30)
 
 
