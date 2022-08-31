@@ -20,9 +20,12 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
                         ? children(isActive)
                         : React.Children.map(children, (child) => {
                               if (React.isValidElement(child)) {
-                                  return React.cloneElement(child, {
-                                      selected: isActive,
-                                  });
+                                  return React.cloneElement(
+                                      child as React.ReactElement,
+                                      {
+                                          active: isActive,
+                                      },
+                                  );
                               }
                               return child;
                           })}

@@ -28,8 +28,8 @@ export const SpinnerWrapper = styled.div`
 `;
 
 export const NavbarMenuItem = styled(MenuItem2)`
-    ${({ selected }) =>
-        selected
+    ${({ active }) =>
+        active
             ? `
                 background: ${Colors.BLUE3} !important;
                 color: ${Colors.WHITE} !important;
