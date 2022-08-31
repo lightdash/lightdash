@@ -10,9 +10,8 @@ import {
     Source,
 } from '@lightdash/common';
 import React, { FC, ReactNode, useCallback, useMemo } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import { useFilters } from '../../../../../hooks/useFilters';
-import { Context } from '../../../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
 import { ItemOptions, Placeholder, WarningIcon } from '../TableTree.styles';
@@ -54,9 +53,8 @@ const FieldButtons: FC<{
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
-    const addAdditionalMetric = useContextSelector(
-        Context,
-        (context) => context!.actions.addAdditionalMetric,
+    const addAdditionalMetric = useExplorerContext(
+        (context) => context.actions.addAdditionalMetric,
     );
 
     const createCustomMetric = useCallback(

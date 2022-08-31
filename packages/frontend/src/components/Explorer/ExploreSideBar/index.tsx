@@ -10,10 +10,9 @@ import Fuse from 'fuse.js';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-import { useContextSelector } from 'use-context-selector';
 import { useExplores } from '../../../hooks/useExplores';
 import { useApp } from '../../../providers/AppProvider';
-import { Context } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
@@ -142,14 +141,10 @@ const BasePanel = () => {
 
 const ExploreSideBar = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const clear = useContextSelector(
-        Context,
-        (context) => context!.actions.clear,
-    );
+    const clear = useExplorerContext((context) => context.actions.clear);
     const history = useHistory();
 
     const onBack = useCallback(() => {

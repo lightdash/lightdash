@@ -9,7 +9,6 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useContextSelector } from 'use-context-selector';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import {
     useDuplicateMutation,
@@ -17,7 +16,7 @@ import {
 } from '../../../hooks/useSavedQuery';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import { Context } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { UpdatedInfo } from '../../common/ActionCard';
@@ -42,26 +41,19 @@ import SaveChartButton from '../SaveChartButton';
 const SavedChartsHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const history = useHistory();
-    const isEditMode = useContextSelector(
-        Context,
-        (context) => context!.state.isEditMode,
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
     );
-    const unsavedChartVersion = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion,
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
     );
-    const hasUnsavedChanges = useContextSelector(
-        Context,
-        (context) => context!.state.hasUnsavedChanges,
+    const hasUnsavedChanges = useExplorerContext(
+        (context) => context.state.hasUnsavedChanges,
     );
-    const savedChart = useContextSelector(
-        Context,
-        (context) => context!.state.savedChart,
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
     );
-    const reset = useContextSelector(
-        Context,
-        (context) => context!.actions.reset,
-    );
+    const reset = useExplorerContext((context) => context.actions.reset);
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =

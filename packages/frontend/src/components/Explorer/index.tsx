@@ -1,6 +1,5 @@
 import { FC, memo } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import UnderlyingDataModal from '../UnderlyingData/UnderlyingDataModal';
 import UnderlyingDataProvider from '../UnderlyingData/UnderlyingDataProvider';
 import { ExplorerWrapper } from './Explorer.styles';
@@ -11,13 +10,11 @@ import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 
 const Explorer: FC = memo(() => {
-    const unsavedChartVersionTableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const unsavedChartVersionTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const unsavedChartVersionFilters = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.filters,
+    const unsavedChartVersionFilters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.filters,
     );
     return (
         <ExplorerWrapper>

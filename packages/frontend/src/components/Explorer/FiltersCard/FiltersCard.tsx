@@ -21,9 +21,11 @@ import React, {
     useMemo,
     useState,
 } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import { useExplore } from '../../../hooks/useExplore';
-import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import FiltersForm from '../../common/Filters';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import {
@@ -33,38 +35,30 @@ import {
 import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
-    const expandedSections = useContextSelector(
-        Context,
-        (context) => context!.state.expandedSections,
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
     );
-    const isEditMode = useContextSelector(
-        Context,
-        (context) => context!.state.isEditMode,
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
     );
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const filters = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.filters,
+    const filters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.filters,
     );
-    const additionalMetrics = useContextSelector(
-        Context,
+    const additionalMetrics = useExplorerContext(
         (context) =>
-            context!.state.unsavedChartVersion.metricQuery.additionalMetrics,
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
-    const queryResults = useContextSelector(
-        Context,
-        (context) => context!.queryResults.data,
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
     );
-    const setFilters = useContextSelector(
-        Context,
-        (context) => context!.actions.setFilters,
+    const setFilters = useExplorerContext(
+        (context) => context.actions.setFilters,
     );
-    const toggleExpandedSection = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleExpandedSection,
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
     );
     const { data } = useExplore(tableName);
     const filterIsOpen = useMemo(

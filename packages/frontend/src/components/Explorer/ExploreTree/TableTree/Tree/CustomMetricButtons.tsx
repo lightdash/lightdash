@@ -2,8 +2,7 @@ import { Button, Menu, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { AdditionalMetric, fieldId } from '@lightdash/common';
 import React, { FC, ReactNode, useMemo } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context } from '../../../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
 import { ItemOptions } from '../TableTree.styles';
@@ -14,9 +13,8 @@ const CustomMetricButtons: FC<{
     isSelected: boolean;
 }> = ({ node, isHovered, isSelected }) => {
     const { track } = useTracking();
-    const removeAdditionalMetric = useContextSelector(
-        Context,
-        (context) => context!.actions.removeAdditionalMetric,
+    const removeAdditionalMetric = useExplorerContext(
+        (context) => context.actions.removeAdditionalMetric,
     );
 
     const menuItems = useMemo<ReactNode[]>(() => {

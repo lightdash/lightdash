@@ -9,8 +9,7 @@ import {
 import React, { FC, memo, useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
-import { useContextSelector } from 'use-context-selector';
-import { Context } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import ExploreTree from '../ExploreTree';
 import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
 
@@ -49,26 +48,21 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
-    const activeTableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const activeTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const additionalMetrics = useContextSelector(
-        Context,
+    const additionalMetrics = useExplorerContext(
         (context) =>
-            context!.state.unsavedChartVersion.metricQuery.additionalMetrics,
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
-    const activeFields = useContextSelector(
-        Context,
-        (context) => context!.state.activeFields,
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
     );
-    const toggleActiveField = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleActiveField,
+    const toggleActiveField = useExplorerContext(
+        (context) => context.actions.toggleActiveField,
     );
-    const setMagicMetrics = useContextSelector(
-        Context,
-        (context) => context!.actions.setMagicMetrics,
+    const setMagicMetrics = useExplorerContext(
+        (context) => context.actions.setMagicMetrics,
     );
 
     const { data, status } = useExplore(activeTableName);

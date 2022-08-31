@@ -1,8 +1,10 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
 import { FC, memo } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
@@ -16,37 +18,29 @@ import {
 } from './ResultsCard.styles';
 
 const ResultsCard: FC = memo(() => {
-    const isEditMode = useContextSelector(
-        Context,
-        (context) => context!.state.isEditMode,
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
     );
-    const expandedSections = useContextSelector(
-        Context,
-        (context) => context!.state.expandedSections,
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
     );
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const filters = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.filters,
+    const filters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.filters,
     );
-    const limit = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.limit,
+    const limit = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.limit,
     );
-    const queryResults = useContextSelector(
-        Context,
-        (context) => context!.queryResults.data,
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
     );
-    const setRowLimit = useContextSelector(
-        Context,
-        (context) => context!.actions.setRowLimit,
+    const setRowLimit = useExplorerContext(
+        (context) => context.actions.setRowLimit,
     );
-    const toggleExpandedSection = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleExpandedSection,
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
     );
     const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
     return (

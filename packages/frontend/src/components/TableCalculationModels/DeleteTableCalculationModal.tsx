@@ -1,8 +1,7 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { TableCalculation } from '@lightdash/common';
 import React, { FC } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 
@@ -17,9 +16,8 @@ const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> = ({
     tableCalculation,
     onClose,
 }) => {
-    const deleteTableCalculation = useContextSelector(
-        Context,
-        (context) => context!.actions.deleteTableCalculation,
+    const deleteTableCalculation = useExplorerContext(
+        (context) => context.actions.deleteTableCalculation,
     );
     const { track } = useTracking();
 

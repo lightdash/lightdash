@@ -1,22 +1,21 @@
 import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { FC, memo } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import { RenderedSql } from '../../RenderedSql';
 import { CardHeader, StyledCard } from './SqlCard.styles';
 
 const SqlCard: FC = memo(() => {
-    const expandedSections = useContextSelector(
-        Context,
-        (context) => context!.state.expandedSections,
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
     );
-    const unsavedChartVersionTableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const unsavedChartVersionTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const toggleExpandedSection = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleExpandedSection,
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
     );
     const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
     return (

@@ -6,25 +6,23 @@ import {
     getTotalFilterRules,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context, ExplorerSection } from '../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../providers/ExplorerProvider';
 
 export const useFilters = () => {
-    const expandedSections = useContextSelector(
-        Context,
-        (context) => context!.state.expandedSections,
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
     );
-    const filters = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.filters,
+    const filters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.filters,
     );
-    const setFilters = useContextSelector(
-        Context,
-        (context) => context!.actions.setFilters,
+    const setFilters = useExplorerContext(
+        (context) => context.actions.setFilters,
     );
-    const toggleExpandedSection = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleExpandedSection,
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
     );
     const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
 

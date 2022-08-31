@@ -10,9 +10,8 @@ import {
     Metric,
 } from '@lightdash/common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { Context } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useExplore } from './useExplore';
-import { useContextSelector } from 'use-context-selector';
 
 const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     fields,
@@ -47,18 +46,15 @@ const mapActiveFieldsToCompletions = (
 export const useExplorerAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
-    const activeFields = useContextSelector(
-        Context,
-        (context) => context!.state.activeFields,
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
     );
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const additionalMetrics = useContextSelector(
-        Context,
+    const additionalMetrics = useExplorerContext(
         (context) =>
-            context!.state.unsavedChartVersion.metricQuery.additionalMetrics,
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
     const explore = useExplore(tableName);
     const [aceEditor, setAceEditor] = useState<Ace.Editor>();

@@ -9,7 +9,7 @@ import {
 import { FC, useState } from 'react';
 import styled from 'styled-components';
 import { useFilters } from '../../../hooks/useFilters';
-import { Context } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
@@ -17,7 +17,6 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../TableCalculationModels';
-import { useContextSelector } from 'use-context-selector';
 
 const FlatButton = styled(Button)`
     min-height: 16px !important;
@@ -39,9 +38,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
 
-    const removeActiveField = useContextSelector(
-        Context,
-        (context) => context!.actions.removeActiveField,
+    const removeActiveField = useExplorerContext(
+        (context) => context.actions.removeActiveField,
     );
 
     if (item && isField(item) && isFilterableField(item)) {

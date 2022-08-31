@@ -1,7 +1,6 @@
 import { TableCalculation } from '@lightdash/common';
 import React, { FC } from 'react';
-import { useContextSelector } from 'use-context-selector';
-import { Context } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import TableCalculationModal from './TableCalculationModal';
@@ -15,9 +14,8 @@ const CreateTableCalculationModal: FC<CreateTableCalculationModalProps> = ({
     isOpen,
     onClose,
 }) => {
-    const addTableCalculation = useContextSelector(
-        Context,
-        (context) => context!.actions.addTableCalculation,
+    const addTableCalculation = useExplorerContext(
+        (context) => context.actions.addTableCalculation,
     );
     const { track } = useTracking();
     const onCreate = (value: TableCalculation) => {

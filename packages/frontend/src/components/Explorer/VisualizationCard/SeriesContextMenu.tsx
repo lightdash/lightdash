@@ -5,10 +5,9 @@ import {
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
 import { FC, useCallback, useEffect, useState } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
-import { Context } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import {
     getDataFromChartClick,
@@ -21,9 +20,8 @@ export const SeriesContextMenu: FC<{
     pivot: string | undefined;
     series: EChartSeries[];
 }> = ({ echartSeriesClickEvent, dimensions, pivot, series }) => {
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
     const { data: explore } = useExplore(tableName);
 

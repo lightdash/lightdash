@@ -13,14 +13,13 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import {
     TableHeaderBoldLabel,
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
 import { TableColumn } from '../components/common/Table/types';
-import { Context } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
@@ -38,39 +37,31 @@ export const getItemBgColor = (
 };
 
 export const useColumns = (): TableColumn[] => {
-    const activeFields = useContextSelector(
-        Context,
-        (context) => context!.state.activeFields,
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
     );
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const tableCalculations = useContextSelector(
-        Context,
+    const tableCalculations = useExplorerContext(
         (context) =>
-            context!.state.unsavedChartVersion.metricQuery.tableCalculations,
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
-    const additionalMetrics = useContextSelector(
-        Context,
+    const additionalMetrics = useExplorerContext(
         (context) =>
-            context!.state.unsavedChartVersion.metricQuery.additionalMetrics,
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
-    const sorts = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.sorts,
+    const sorts = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
-    const resultsData = useContextSelector(
-        Context,
-        (context) => context!.queryResults.data,
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
     );
-    const toggleSortField = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleSortField,
+    const toggleSortField = useExplorerContext(
+        (context) => context.actions.toggleSortField,
     );
-    const setSortFields = useContextSelector(
-        Context,
-        (context) => context!.actions.setSortFields,
+    const setSortFields = useExplorerContext(
+        (context) => context.actions.setSortFields,
     );
     const { data: exploreData } = useExplore(tableName);
 

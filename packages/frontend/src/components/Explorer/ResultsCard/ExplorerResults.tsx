@@ -1,9 +1,8 @@
 import { Colors } from '@blueprintjs/core';
 import React, { FC, ReactNode } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
-import { Context } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
@@ -19,37 +18,27 @@ import { TableContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = () => {
     const columns = useColumns();
-    const isEditMode = useContextSelector(
-        Context,
-        (context) => context!.state.isEditMode,
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
     );
-    const activeTableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const activeTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const dimensions = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.dimensions,
+    const dimensions = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
     );
-    const metrics = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.metrics,
+    const metrics = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
     );
-    const explorerColumnOrder = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableConfig.columnOrder,
+    const explorerColumnOrder = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
-    const resultsData = useContextSelector(
-        Context,
-        (context) => context!.queryResults.data,
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
     );
-    const status = useContextSelector(
-        Context,
-        (context) => context!.queryResults.status,
-    );
-    const setColumnOrder = useContextSelector(
-        Context,
-        (context) => context!.actions.setColumnOrder,
+    const status = useExplorerContext((context) => context.queryResults.status);
+    const setColumnOrder = useExplorerContext(
+        (context) => context.actions.setColumnOrder,
     );
     const activeExplore = useExplore(activeTableName);
 

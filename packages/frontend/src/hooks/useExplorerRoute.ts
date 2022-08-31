@@ -1,12 +1,11 @@
 import { ChartType, CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useContextSelector } from 'use-context-selector';
 import { useApp } from '../providers/AppProvider';
 import {
-    Context,
     ExplorerReduceState,
     ExplorerSection,
+    useExplorerContext,
 } from '../providers/ExplorerProvider';
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
@@ -42,21 +41,15 @@ export const useExplorerRoute = () => {
         projectUuid: string;
         tableId: string | undefined;
     }>();
-    const unsavedChartVersion = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion,
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
     );
-    const queryResultsData = useContextSelector(
-        Context,
-        (context) => context!.queryResults.data,
+    const queryResultsData = useExplorerContext(
+        (context) => context.queryResults.data,
     );
-    const clear = useContextSelector(
-        Context,
-        (context) => context!.actions.clear,
-    );
-    const setTableName = useContextSelector(
-        Context,
-        (context) => context!.actions.setTableName,
+    const clear = useExplorerContext((context) => context.actions.clear);
+    const setTableName = useExplorerContext(
+        (context) => context.actions.setTableName,
     );
 
     // Update url params based on pristine state

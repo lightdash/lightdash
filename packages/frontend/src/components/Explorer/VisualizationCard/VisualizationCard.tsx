@@ -1,10 +1,12 @@
 import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { ChartType } from '@lightdash/common';
 import { FC, memo, useCallback, useState } from 'react';
-import { useContextSelector } from 'use-context-selector';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
-import { Context, ExplorerSection } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
@@ -34,41 +36,32 @@ const ConfigPanel: FC<{ chartType: ChartType }> = ({ chartType }) => {
     }
 };
 const VisualizationCard: FC = memo(() => {
-    const expandedSections = useContextSelector(
-        Context,
-        (context) => context!.state.expandedSections,
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
     );
-    const unsavedChartVersion = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion,
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
     );
-    const isEditMode = useContextSelector(
-        Context,
-        (context) => context!.state.isEditMode,
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
     );
-    const isLoadingQueryResults = useContextSelector(
-        Context,
-        (context) => context!.queryResults.isLoading,
+    const isLoadingQueryResults = useExplorerContext(
+        (context) => context.queryResults.isLoading,
     );
-    const queryResults = useContextSelector(
-        Context,
-        (context) => context!.queryResults.data,
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
     );
-    const setPivotFields = useContextSelector(
-        Context,
-        (context) => context!.actions.setPivotFields,
+    const setPivotFields = useExplorerContext(
+        (context) => context.actions.setPivotFields,
     );
-    const setChartType = useContextSelector(
-        Context,
-        (context) => context!.actions.setChartType,
+    const setChartType = useExplorerContext(
+        (context) => context.actions.setChartType,
     );
-    const setChartConfig = useContextSelector(
-        Context,
-        (context) => context!.actions.setChartConfig,
+    const setChartConfig = useExplorerContext(
+        (context) => context.actions.setChartConfig,
     );
-    const toggleExpandedSection = useContextSelector(
-        Context,
-        (context) => context!.actions.toggleExpandedSection,
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
     );
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);

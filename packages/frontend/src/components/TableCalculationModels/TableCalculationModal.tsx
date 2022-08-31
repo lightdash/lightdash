@@ -7,11 +7,10 @@ import {
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
-import { useContextSelector } from 'use-context-selector';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useApp } from '../../providers/AppProvider';
-import { Context } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import Input from '../ReactHookForm/Input';
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
@@ -49,22 +48,18 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useApp();
-    const tableName = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.tableName,
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
     );
-    const dimensions = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.dimensions,
+    const dimensions = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
     );
-    const metrics = useContextSelector(
-        Context,
-        (context) => context!.state.unsavedChartVersion.metricQuery.metrics,
+    const metrics = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
     );
-    const tableCalculations = useContextSelector(
-        Context,
+    const tableCalculations = useExplorerContext(
         (context) =>
-            context!.state.unsavedChartVersion.metricQuery.tableCalculations,
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
     const { setAceEditor } = useExplorerAceEditorCompleter();
     const { data: { targetDatabase } = {} } = useExplore(tableName);
