@@ -13,16 +13,20 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
         exact={exact}
         /* eslint-disable-next-line react/no-children-prop */
         children={({ match }) => {
-            const isActive = !!match;
+            const isActive = match?.isExact;
+
             return (
                 <Link to={to} style={{ color: 'inherit', ...style }}>
                     {typeof children === 'function'
                         ? children(isActive)
                         : React.Children.map(children, (child) => {
                               if (React.isValidElement(child)) {
-                                  return React.cloneElement(child, {
-                                      selected: isActive,
-                                  });
+                                  return React.cloneElement(
+                                      child as React.ReactElement,
+                                      {
+                                          active: isActive,
+                                      },
+                                  );
                               }
                               return child;
                           })}

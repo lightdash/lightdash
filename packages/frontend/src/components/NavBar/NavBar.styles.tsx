@@ -1,10 +1,4 @@
-import {
-    Colors,
-    HTMLSelect,
-    Menu,
-    Navbar,
-    NavbarDivider,
-} from '@blueprintjs/core';
+import { Colors, HTMLSelect, Navbar, NavbarDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
@@ -33,19 +27,22 @@ export const SpinnerWrapper = styled.div`
     min-width: 6.429em;
 `;
 
-export const MenuWrapper = styled(Menu)`
-    a[class~='bp4-selected'] {
-        background: ${Colors.BLUE3} !important;
-        color: ${Colors.WHITE} !important;
+export const NavbarMenuItem = styled(MenuItem2)`
+    ${({ active }) =>
+        active
+            ? `
+                background: ${Colors.BLUE3} !important;
+                color: ${Colors.WHITE} !important;
 
-        svg,
-        path {
-            fill: ${Colors.WHITE} !important;
-        }
-    }
+                svg,
+                path {
+                    fill: ${Colors.WHITE} !important;
+                }
+            `
+            : ''}
 `;
 
-export const FirstItem = styled(MenuItem2)`
+export const FirstItem = styled(NavbarMenuItem)`
     margin-bottom: 0.357em;
 `;
 

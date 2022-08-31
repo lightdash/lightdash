@@ -1,16 +1,17 @@
 import {
     Button,
+    Menu,
     PopoverInteractionKind,
     Position,
     Spinner,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import NavLink from '../../NavLink';
-import { FirstItem, MenuWrapper, SpinnerWrapper } from '../NavBar.styles';
+import { FirstItem, NavbarMenuItem, SpinnerWrapper } from '../NavBar.styles';
 
 interface Props {
     projectUuid: string;
@@ -22,7 +23,6 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <>
             <Popover2
-                minimal
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
                     !projectUuid ? (
@@ -30,10 +30,10 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
                             <Spinner size={20} />
                         </SpinnerWrapper>
                     ) : (
-                        <MenuWrapper>
+                        <Menu>
                             <NavLink to={`/projects/${projectUuid}/tables`}>
                                 <FirstItem
-                                    role="button"
+                                    roleStructure="menuitem"
                                     icon="th"
                                     text="Tables"
                                 />
@@ -49,14 +49,14 @@ const ExploreMenu: FC<Props> = ({ projectUuid }) => {
                                 <NavLink
                                     to={`/projects/${projectUuid}/sqlRunner`}
                                 >
-                                    <MenuItem2
-                                        role="button"
+                                    <NavbarMenuItem
+                                        roleStructure="menuitem"
                                         icon="console"
                                         text="SQL Runner"
                                     />
                                 </NavLink>
                             </Can>
-                        </MenuWrapper>
+                        </Menu>
                     )
                 }
                 position={Position.BOTTOM_LEFT}
