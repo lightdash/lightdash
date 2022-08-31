@@ -8,6 +8,7 @@ import {
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
 import LimitButton from '../../LimitButton';
+import SortButton from '../../SortButton';
 import UnderlyingDataModal from '../../UnderlyingData/UnderlyingDataModal';
 import UnderlyingDataProvider from '../../UnderlyingData/UnderlyingDataProvider';
 import { ExplorerResults } from './ExplorerResults';
@@ -33,6 +34,9 @@ const ResultsCard: FC = memo(() => {
     );
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
+    );
+    const sorts = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
@@ -63,7 +67,14 @@ const ResultsCard: FC = memo(() => {
                         onClick={toggleCard}
                         disabled={!tableName}
                     />
+
                     <H5>Results</H5>
+
+                    {isEditMode &&
+                        resultsIsOpen &&
+                        tableName &&
+                        sorts.length > 0 && <SortButton sorts={sorts} />}
+
                     {isEditMode && resultsIsOpen && tableName && (
                         <LimitButton
                             limit={limit}
@@ -71,6 +82,7 @@ const ResultsCard: FC = memo(() => {
                         />
                     )}
                 </CardHeaderLeftContent>
+
                 {resultsIsOpen && tableName && (
                     <CardHeaderRightContent>
                         {isEditMode && <AddColumnButton />}
