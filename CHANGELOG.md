@@ -1,3 +1,10 @@
+# [0.238.0](https://github.com/lightdash/lightdash/compare/0.237.0...0.238.0) (2022-08-31)
+
+
+### Features
+
+* remove table information dropdown ([#3091](https://github.com/lightdash/lightdash/issues/3091)) ([258c9dc](https://github.com/lightdash/lightdash/commit/258c9dc87d323342edbab1bedeb402e59b88c48c))
+
 # [0.237.0](https://github.com/lightdash/lightdash/compare/0.236.1...0.237.0) (2022-08-31)
 
 
