@@ -1,3 +1,10 @@
+# [0.237.0](https://github.com/lightdash/lightdash/compare/0.236.1...0.237.0) (2022-08-31)
+
+
+### Features
+
+* add onboarding instructions on helptext ([#3107](https://github.com/lightdash/lightdash/issues/3107)) ([6595cfa](https://github.com/lightdash/lightdash/commit/6595cfa255eea1c46ec6c3b40b4c08cf8defb729))
+
 ## [0.236.1](https://github.com/lightdash/lightdash/compare/0.236.0...0.236.1) (2022-08-31)
 
 
