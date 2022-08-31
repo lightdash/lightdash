@@ -142,7 +142,11 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         If you’ve customized the domain for your GitLab pages,
                         you can add the custom domain for your project in here.
                         By default, this is
-                        <a href="http://gitlab.io/" target="_blank" rel="noreferrer">
+                        <a
+                            href="http://gitlab.io/"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
                             {' '}
                             gitlab.io
                         </a>

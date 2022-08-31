@@ -37,7 +37,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             Bitbucket Cloud users should
                             <a
                                 href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-app-password/"
-                                target="_blank" rel="noreferrer"
+                                target="_blank"
+                                rel="noreferrer"
                             >
                                 {' '}
                                 follow instructions for creating an App Password
@@ -47,7 +48,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             Bitbucket Server users should
                             <a
                                 href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
-                                target="_blank" rel="noreferrer"
+                                target="_blank"
+                                rel="noreferrer"
                             >
                                 {' '}
                                 follow instructions for creating a HTTP Access
@@ -164,7 +166,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         If you've
                         <a
                             href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
-                            target="_blank" rel="noreferrer"
+                            target="_blank"
+                            rel="noreferrer"
                         >
                             {' '}
                             customized the domain for your Bitbucket server{' '}

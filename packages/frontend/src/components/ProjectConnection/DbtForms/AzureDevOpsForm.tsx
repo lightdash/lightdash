@@ -24,7 +24,8 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             Devops. See the
                             <a
                                 href="https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows"
-                                target="_blank" rel="noreferrer"
+                                target="_blank"
+                                rel="noreferrer"
                             >
                                 {' '}
                                 instructions to create a personal access token{' '}
