@@ -19,7 +19,7 @@ import {
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
 import { TableColumn } from '../components/common/Table/types';
-import { useExplorer } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
 
@@ -37,17 +37,32 @@ export const getItemBgColor = (
 };
 
 export const useColumns = (): TableColumn[] => {
-    const {
-        state: {
-            activeFields,
-            unsavedChartVersion: {
-                tableName,
-                metricQuery: { tableCalculations, additionalMetrics, sorts },
-            },
-        },
-        queryResults: { data: resultsData },
-        actions: { toggleSortField, setSortFields },
-    } = useExplorer();
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
+    );
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const sorts = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.sorts,
+    );
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const toggleSortField = useExplorerContext(
+        (context) => context.actions.toggleSortField,
+    );
+    const setSortFields = useExplorerContext(
+        (context) => context.actions.setSortFields,
+    );
     const { data: exploreData } = useExplore(tableName);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{

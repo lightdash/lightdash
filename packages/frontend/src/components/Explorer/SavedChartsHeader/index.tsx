@@ -16,7 +16,7 @@ import {
 } from '../../../hooks/useSavedQuery';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { UpdatedInfo } from '../../common/ActionCard';
@@ -41,15 +41,19 @@ import SaveChartButton from '../SaveChartButton';
 const SavedChartsHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const history = useHistory();
-    const {
-        state: {
-            isEditMode,
-            unsavedChartVersion,
-            hasUnsavedChanges,
-            savedChart,
-        },
-        actions: { reset },
-    } = useExplorer();
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+    const hasUnsavedChanges = useExplorerContext(
+        (context) => context.state.hasUnsavedChanges,
+    );
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
+    );
+    const reset = useExplorerContext((context) => context.actions.reset);
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =

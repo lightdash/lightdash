@@ -6,10 +6,10 @@ import {
     extractEntityNameFromIdColumn,
     MetricType,
 } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import React, { FC, memo, useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorer } from '../../../providers/ExplorerProvider';
 import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import ExploreTree from '../ExploreTree';
 import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
 
@@ -47,17 +47,24 @@ interface ExplorePanelProps {
     onBack?: () => void;
 }
 
-export const ExplorePanel: FC<ExplorePanelProps> = ({ onBack }) => {
-    const {
-        state: {
-            activeFields,
-            unsavedChartVersion: {
-                tableName: activeTableName,
-                metricQuery: { additionalMetrics },
-            },
-        },
-        actions: { toggleActiveField, setMagicMetrics },
-    } = useExplorer();
+const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const activeTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const activeFields = useExplorerContext(
+        (context) => context.state.activeFields,
+    );
+    const toggleActiveField = useExplorerContext(
+        (context) => context.actions.toggleActiveField,
+    );
+    const setMagicMetrics = useExplorerContext(
+        (context) => context.actions.setMagicMetrics,
+    );
+
     const { data, status } = useExplore(activeTableName);
 
     useEffect(() => {
@@ -127,6 +134,6 @@ export const ExplorePanel: FC<ExplorePanelProps> = ({ onBack }) => {
     }
 
     return <span>Cannot load explore</span>;
-};
+});
 
 export default ExplorePanel;

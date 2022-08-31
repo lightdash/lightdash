@@ -1,11 +1,11 @@
 import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { ChartType } from '@lightdash/common';
-import { FC, useCallback, useState } from 'react';
+import { FC, memo, useCallback, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
-    useExplorer,
+    useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
@@ -35,17 +35,35 @@ const ConfigPanel: FC<{ chartType: ChartType }> = ({ chartType }) => {
             return <ChartConfigPanel />;
     }
 };
-const VisualizationCard: FC = () => {
-    const {
-        state: { isEditMode, unsavedChartVersion, expandedSections },
-        queryResults,
-        actions: {
-            setPivotFields,
-            setChartType,
-            setChartConfig,
-            toggleExpandedSection,
-        },
-    } = useExplorer();
+const VisualizationCard: FC = memo(() => {
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const isLoadingQueryResults = useExplorerContext(
+        (context) => context.queryResults.isLoading,
+    );
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const setPivotFields = useExplorerContext(
+        (context) => context.actions.setPivotFields,
+    );
+    const setChartType = useExplorerContext(
+        (context) => context.actions.setChartType,
+    );
+    const setChartConfig = useExplorerContext(
+        (context) => context.actions.setChartConfig,
+    );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
+
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const vizIsOpen = expandedSections.includes(ExplorerSection.VISUALIZATION);
 
@@ -92,8 +110,8 @@ const VisualizationCard: FC = () => {
                     unsavedChartVersion.pivotConfig?.columns
                 }
                 explore={explore}
-                resultsData={queryResults.data}
-                isLoading={queryResults.isLoading}
+                resultsData={queryResults}
+                isLoading={isLoadingQueryResults}
                 onChartConfigChange={setChartConfig}
                 onChartTypeChange={setChartType}
                 onPivotDimensionsChange={setPivotFields}
@@ -147,6 +165,6 @@ const VisualizationCard: FC = () => {
             </VisualizationProvider>
         </MainCard>
     );
-};
+});
 
 export default VisualizationCard;

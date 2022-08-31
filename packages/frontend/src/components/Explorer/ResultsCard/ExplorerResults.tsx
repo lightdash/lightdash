@@ -2,7 +2,7 @@ import { Colors } from '@blueprintjs/core';
 import React, { FC, ReactNode } from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import Table from '../../common/Table';
@@ -18,18 +18,28 @@ import { TableContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = () => {
     const columns = useColumns();
-    const {
-        state: {
-            isEditMode,
-            unsavedChartVersion: {
-                tableName: activeTableName,
-                metricQuery: { dimensions, metrics },
-                tableConfig: { columnOrder: explorerColumnOrder },
-            },
-        },
-        queryResults: { data: resultsData, status },
-        actions: { setColumnOrder },
-    } = useExplorer();
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const activeTableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const dimensions = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
+    );
+    const metrics = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
+    );
+    const explorerColumnOrder = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
+    );
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const status = useExplorerContext((context) => context.queryResults.status);
+    const setColumnOrder = useExplorerContext(
+        (context) => context.actions.setColumnOrder,
+    );
     const activeExplore = useExplore(activeTableName);
 
     if (!activeTableName) return <NoTableSelected />;

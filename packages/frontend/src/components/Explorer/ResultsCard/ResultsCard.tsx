@@ -1,9 +1,9 @@
 import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, memo } from 'react';
 import {
     ExplorerSection,
-    useExplorer,
+    useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
@@ -17,13 +17,31 @@ import {
     CardHeaderRightContent,
 } from './ResultsCard.styles';
 
-const ResultsCard: FC = () => {
-    const {
-        state,
-        queryResults,
-        actions: { setRowLimit, toggleExpandedSection },
-    } = useExplorer();
-    const { isEditMode, unsavedChartVersion, expandedSections } = state;
+const ResultsCard: FC = memo(() => {
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const filters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.filters,
+    );
+    const limit = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.limit,
+    );
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const setRowLimit = useExplorerContext(
+        (context) => context.actions.setRowLimit,
+    );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
     const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
     return (
         <Card style={{ padding: 5 }} elevation={1}>
@@ -35,42 +53,37 @@ const ResultsCard: FC = () => {
                         onClick={() =>
                             toggleExpandedSection(ExplorerSection.RESULTS)
                         }
-                        disabled={!unsavedChartVersion.tableName}
+                        disabled={!tableName}
                     />
                     <H5>Results</H5>
-                    {isEditMode &&
-                        resultsIsOpen &&
-                        unsavedChartVersion.tableName && (
-                            <LimitButton
-                                limit={unsavedChartVersion.metricQuery.limit}
-                                onLimitChange={setRowLimit}
-                            />
-                        )}
+                    {isEditMode && resultsIsOpen && tableName && (
+                        <LimitButton
+                            limit={limit}
+                            onLimitChange={setRowLimit}
+                        />
+                    )}
                 </CardHeaderLeftContent>
-                {resultsIsOpen && unsavedChartVersion.tableName && (
+                {resultsIsOpen && tableName && (
                     <CardHeaderRightContent>
                         {isEditMode && <AddColumnButton />}
                         <DownloadCsvButton
-                            fileName={unsavedChartVersion.tableName}
+                            fileName={tableName}
                             rows={
-                                queryResults.data &&
-                                getResultValues(queryResults.data.rows)
+                                queryResults &&
+                                getResultValues(queryResults.rows)
                             }
                         />
                     </CardHeaderRightContent>
                 )}
             </CardHeader>
             <Collapse isOpen={resultsIsOpen}>
-                <UnderlyingDataProvider
-                    tableName={state.unsavedChartVersion.tableName}
-                    filters={state.unsavedChartVersion.metricQuery.filters}
-                >
+                <UnderlyingDataProvider tableName={tableName} filters={filters}>
                     <ExplorerResults />
                     <UnderlyingDataModal />
                 </UnderlyingDataProvider>
             </Collapse>
         </Card>
     );
-};
+});
 
 export default ResultsCard;

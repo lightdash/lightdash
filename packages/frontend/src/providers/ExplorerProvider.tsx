@@ -16,15 +16,12 @@ import {
     TableCalculation,
     toggleArrayValue,
 } from '@lightdash/common';
-import React, {
+import React, { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
+import {
     createContext,
-    FC,
-    useCallback,
     useContext,
-    useEffect,
-    useMemo,
-    useReducer,
-} from 'react';
+    useContextSelector,
+} from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
 
@@ -1058,10 +1055,26 @@ export const ExplorerProvider: FC<{
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
+/**
+ * @deprecated The method should not be used. Should be replaced with useExplorerContext hook
+ */
 export function useExplorer(): ExplorerContext {
     const context = useContext(Context);
     if (context === undefined) {
         throw new Error('useExplorer must be used within a ExplorerProvider');
     }
     return context;
+}
+
+export function useExplorerContext<Selected>(
+    selector: (value: ExplorerContext) => Selected,
+) {
+    return useContextSelector(Context, (context) => {
+        if (context === undefined) {
+            throw new Error(
+                'useExplorer must be used within a ExplorerProvider',
+            );
+        }
+        return selector(context);
+    });
 }

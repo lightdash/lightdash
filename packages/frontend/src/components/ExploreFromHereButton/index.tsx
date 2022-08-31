@@ -1,14 +1,14 @@
 import React, { useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useExplorer } from '../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { ExploreFromHerePrimary } from './ExploreFromHere.styles';
 
 const ExploreFromHereButton = () => {
     const history = useHistory();
-    const {
-        state: { savedChart },
-    } = useExplorer();
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
+    );
     const exploreFromHereUrl = useMemo(() => {
         if (savedChart) {
             const { pathname, search } =

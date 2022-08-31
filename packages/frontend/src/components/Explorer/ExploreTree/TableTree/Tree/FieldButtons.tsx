@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import React, { FC, ReactNode, useCallback, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
-import { useExplorer } from '../../../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
 import { ItemOptions, Placeholder, WarningIcon } from '../TableTree.styles';
@@ -53,10 +53,9 @@ const FieldButtons: FC<{
     const { isFilteredField, addFilter } = useFilters();
     const isFiltered = isFilteredField(node);
     const { track } = useTracking();
-
-    const {
-        actions: { addAdditionalMetric },
-    } = useExplorer();
+    const addAdditionalMetric = useExplorerContext(
+        (context) => context.actions.addAdditionalMetric,
+    );
 
     const createCustomMetric = useCallback(
         (dimension: Dimension, type: MetricType) => {

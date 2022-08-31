@@ -1,13 +1,19 @@
 import React, { FC, useState } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import { SaveButton } from './SaveChartButton.styles';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
-    const {
-        state: { unsavedChartVersion, hasUnsavedChanges, savedChart },
-    } = useExplorer();
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+    const hasUnsavedChanges = useExplorerContext(
+        (context) => context.state.hasUnsavedChanges,
+    );
+    const savedChart = useExplorerContext(
+        (context) => context.state.savedChart,
+    );
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
 

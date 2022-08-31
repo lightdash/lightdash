@@ -9,7 +9,7 @@ import {
 import { FC, useState } from 'react';
 import styled from 'styled-components';
 import { useFilters } from '../../../hooks/useFilters';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
@@ -32,14 +32,15 @@ const ContextMenu: FC<ContextMenuProps> = ({
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
 }) => {
-    const {
-        actions: { removeActiveField },
-    } = useExplorer();
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
+
+    const removeActiveField = useExplorerContext(
+        (context) => context.actions.removeActiveField,
+    );
 
     if (item && isField(item) && isFilterableField(item)) {
         return (

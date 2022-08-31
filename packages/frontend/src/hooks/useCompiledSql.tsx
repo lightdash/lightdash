@@ -6,7 +6,7 @@ import {
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { useExplorer } from '../providers/ExplorerProvider';
+import { useExplorerContext } from '../providers/ExplorerProvider';
 import useQueryError from './useQueryError';
 
 const getCompiledQuery = async (
@@ -22,22 +22,21 @@ const getCompiledQuery = async (
 
 export const useCompliedSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const tableId = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
     const {
-        state: {
-            unsavedChartVersion: {
-                tableName: tableId,
-                metricQuery: {
-                    dimensions,
-                    metrics,
-                    sorts,
-                    filters,
-                    limit,
-                    tableCalculations,
-                    additionalMetrics,
-                },
-            },
-        },
-    } = useExplorer();
+        dimensions,
+        metrics,
+        sorts,
+        filters,
+        limit,
+        tableCalculations,
+        additionalMetrics,
+    } = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
+
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
         dimensions: Array.from(dimensions),

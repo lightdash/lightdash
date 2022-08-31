@@ -5,7 +5,7 @@ import { useApp } from '../providers/AppProvider';
 import {
     ExplorerReduceState,
     ExplorerSection,
-    useExplorer,
+    useExplorerContext,
 } from '../providers/ExplorerProvider';
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
@@ -41,11 +41,16 @@ export const useExplorerRoute = () => {
         projectUuid: string;
         tableId: string | undefined;
     }>();
-    const {
-        state: { unsavedChartVersion },
-        queryResults: { data: queryResultsData },
-        actions: { clear, setTableName },
-    } = useExplorer();
+    const unsavedChartVersion = useExplorerContext(
+        (context) => context.state.unsavedChartVersion,
+    );
+    const queryResultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const clear = useExplorerContext((context) => context.actions.clear);
+    const setTableName = useExplorerContext(
+        (context) => context.actions.setTableName,
+    );
 
     // Update url params based on pristine state
     useEffect(() => {

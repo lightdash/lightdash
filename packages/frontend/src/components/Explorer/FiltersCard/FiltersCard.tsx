@@ -13,11 +13,18 @@ import {
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import React, {
+    FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
-    useExplorer,
+    useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import FiltersForm from '../../common/Filters';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
@@ -27,32 +34,51 @@ import {
 } from '../../common/Filters/FiltersProvider';
 import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
 
-const FiltersCard: FC = () => {
-    const {
-        state: {
-            isEditMode,
-            expandedSections,
-            unsavedChartVersion: {
-                tableName,
-                metricQuery: { filters, additionalMetrics },
-            },
-        },
-        queryResults,
-        actions: { setFilters, toggleExpandedSection },
-    } = useExplorer();
-    const explore = useExplore(tableName);
-    const filterIsOpen = expandedSections.includes(ExplorerSection.FILTERS);
-    const totalActiveFilters: number = countTotalFilterRules(filters);
+const FiltersCard: FC = memo(() => {
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const filters = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery.filters,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+    const queryResults = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
+    const setFilters = useExplorerContext(
+        (context) => context.actions.setFilters,
+    );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
+    const { data } = useExplore(tableName);
+    const filterIsOpen = useMemo(
+        () => expandedSections.includes(ExplorerSection.FILTERS),
+        [expandedSections],
+    );
+    const totalActiveFilters: number = useMemo(
+        () => countTotalFilterRules(filters),
+        [filters],
+    );
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
     useEffect(() => {
-        if (explore.data) {
+        if (data) {
             setFieldsWithSuggestions((prev) => {
-                const visibleFields = getVisibleFields(explore.data);
+                const visibleFields = getVisibleFields(data);
                 const customMetrics = (additionalMetrics || []).reduce<
                     Metric[]
                 >((acc, additionalMetric) => {
-                    const table = explore.data.tables[additionalMetric.table];
+                    const table = data.tables[additionalMetric.table];
                     if (table) {
                         const metric = convertAdditionalMetric({
                             additionalMetric,
@@ -70,9 +96,9 @@ const FiltersCard: FC = () => {
                                 const currentSuggestions =
                                     prev[fieldId(field)]?.suggestions || [];
                                 const newSuggestions: string[] =
-                                    (queryResults.data &&
+                                    (queryResults &&
                                         getResultValues(
-                                            queryResults.data.rows,
+                                            queryResults.rows,
                                             true,
                                         ).reduce<string[]>((acc, row) => {
                                             const value = row[fieldId(field)];
@@ -103,13 +129,14 @@ const FiltersCard: FC = () => {
                 );
             });
         }
-    }, [explore.data, queryResults.data, additionalMetrics]);
-    const allFilterRules = getTotalFilterRules(filters);
+    }, [data, queryResults, additionalMetrics]);
+    const allFilterRules = useMemo(
+        () => getTotalFilterRules(filters),
+        [filters],
+    );
     const renderFilterRule = useCallback(
         (filterRule: FilterRule) => {
-            const fields: Field[] = explore.data
-                ? getVisibleFields(explore.data)
-                : [];
+            const fields: Field[] = data ? getVisibleFields(data) : [];
             const field = fields.find(
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
@@ -124,7 +151,7 @@ const FiltersCard: FC = () => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         },
-        [explore],
+        [data],
     );
     return (
         <Card style={{ padding: 5 }} elevation={1}>
@@ -162,6 +189,6 @@ const FiltersCard: FC = () => {
             </Collapse>
         </Card>
     );
-};
+});
 
 export default FiltersCard;

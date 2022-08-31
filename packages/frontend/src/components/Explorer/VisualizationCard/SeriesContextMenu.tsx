@@ -7,7 +7,7 @@ import {
 import { FC, useCallback, useEffect, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorer } from '../../../providers/ExplorerProvider';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import {
     getDataFromChartClick,
@@ -20,10 +20,10 @@ export const SeriesContextMenu: FC<{
     pivot: string | undefined;
     series: EChartSeries[];
 }> = ({ echartSeriesClickEvent, dimensions, pivot, series }) => {
-    const {
-        state: { unsavedChartVersion },
-    } = useExplorer();
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const { data: explore } = useExplore(tableName);
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { viewData } = useUnderlyingDataContext();
