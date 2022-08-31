@@ -1,3 +1,10 @@
+## [0.238.1](https://github.com/lightdash/lightdash/compare/0.238.0...0.238.1) (2022-08-31)
+
+
+### Bug Fixes
+
+* underlying data filter on metric or TC with nulls ([#3118](https://github.com/lightdash/lightdash/issues/3118)) ([b834d3c](https://github.com/lightdash/lightdash/commit/b834d3c794f01b02ad0a696eeb10f7c07fc2686c))
+
 # [0.238.0](https://github.com/lightdash/lightdash/compare/0.237.0...0.238.0) (2022-08-31)
 
 
