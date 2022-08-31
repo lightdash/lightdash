@@ -99,27 +99,21 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#';
     const typeDocUrls = {
         [DbtProjectType.GITHUB]: {
-            target: `target-name`,
             env: `environment-variables`,
         },
         [DbtProjectType.GITLAB]: {
-            target: `target-name-1`,
             env: `environment-variables-1`,
         },
         [DbtProjectType.AZURE_DEVOPS]: {
-            target: `target-name-2`,
             env: `environment-variables-2`,
         },
         [DbtProjectType.DBT]: {
-            target: `target-name-3`,
             env: `environment-variables-3`,
         },
         [DbtProjectType.BITBUCKET]: {
-            target: `target-name-3`,
             env: `environment-variables-3`,
         },
         [DbtProjectType.DBT_CLOUD_IDE]: {
-            target: `target-name`,
             env: `environment-variables`,
         },
     };
@@ -160,7 +154,15 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 <Input
                     name="dbt.target"
                     label="Target name"
-                    documentationUrl={`${baseDocUrl}${typeDocUrls[type].target}`}
+                    labelHelp={
+                        <p>
+                            <b>target</b> is the dataset/schema in your data
+                            warehouse that Lightdash will look for your dbt
+                            models. By default, we set this to be the same value
+                            as you have as the default in your profiles.yml
+                            file.
+                        </p>
+                    }
                     disabled={disabled}
                     placeholder="prod"
                 />

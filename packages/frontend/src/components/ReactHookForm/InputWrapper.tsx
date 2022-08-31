@@ -1,9 +1,10 @@
-import { FormGroup } from '@blueprintjs/core';
+import { FormGroup, Icon } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
 import { ArgumentsOf } from '@lightdash/common';
-import React, { FC, ReactElement } from 'react';
+import React, { FC, ReactElement, useState } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import { LabelInfoToggleButton } from './FromGroup.styles';
 import './InputWrapper.css';
 
 interface InputProps {
@@ -20,6 +21,7 @@ export interface InputWrapperProps {
     defaultValue?: any;
     documentationUrl?: string;
     className?: string;
+    labelHelp?: string | JSX.Element;
     rules?: React.ComponentProps<typeof Controller>['rules'];
     render: (
         inputProps: InputProps,
@@ -37,6 +39,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
     rules,
     render,
     className,
+    labelHelp,
     ...rest
 }) => {
     const {
@@ -46,16 +49,29 @@ const InputWrapper: FC<InputWrapperProps> = ({
     const id = `${name}-input`;
     const requiredLabel = rules?.required ? '*' : '';
 
+    const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
+
     return (
         <FormGroup
             className={`input-wrapper ${className}`}
             label={label}
             labelFor={id}
+            subLabel={isLabelInfoOpen && labelHelp}
             labelInfo={
                 <>
                     <span style={{ flex: 1 }}>{requiredLabel}</span>
-                    {documentationUrl && (
+                    {documentationUrl && !labelHelp && (
                         <DocumentationHelpButton url={documentationUrl} />
+                    )}
+                    {labelHelp && (
+                        <LabelInfoToggleButton
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setIsLabelInfoOpen(!isLabelInfoOpen);
+                            }}
+                        >
+                            <Icon icon="help" intent="none" iconSize={15} />
+                        </LabelInfoToggleButton>
                     )}
                 </>
             }
