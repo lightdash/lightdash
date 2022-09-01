@@ -75,14 +75,20 @@ const SortButton: FC<Props> = ({ sorts }) => {
                                                 >
                                                     <SortItem
                                                         ref={innerRef}
+                                                        isFirstItem={
+                                                            index === 0
+                                                        }
+                                                        isOnlyItem={
+                                                            sorts.length === 1
+                                                        }
+                                                        isDragging={
+                                                            snapshot.isDragging
+                                                        }
                                                         draggableProps={
                                                             draggableProps
                                                         }
                                                         dragHandleProps={
                                                             dragHandleProps
-                                                        }
-                                                        isFirstItem={
-                                                            index === 0
                                                         }
                                                         sort={sort}
                                                         column={columns.find(

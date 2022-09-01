@@ -1,3 +1,4 @@
+import { Colors } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
 
 export const PopoverGlobalStyles = createGlobalStyle`
@@ -13,16 +14,28 @@ export const DroppableContainer = styled.div`
     flex-direction: column;
     width: inherit;
     max-width: inherit;
-    padding: 10px 15px;
+    padding: 10px;
 `;
 
-export const SortItemContainer = styled.div`
+interface SortItemContainerProps {
+    $isDragging: boolean;
+}
+
+export const SortItemContainer = styled.div<SortItemContainerProps>`
     width: 100%;
     flex: 1 0 auto;
     display: flex;
     align-items: center;
     user-select: none;
-    margin: 6px 0;
+    padding: 6px;
+    background-color: ${Colors.WHITE};
+    border-radius: 3px;
+
+    transition: box-shadow 0.5s ease-in-out;
+    box-shadow: ${(props) =>
+        props.$isDragging
+            ? `0px 2px 6px ${Colors.GRAY1}52;`
+            : `0px 0px 0px ${Colors.WHITE}`};
 `;
 
 export const LabelWrapper = styled.div`

@@ -16,6 +16,8 @@ import {
 
 interface SortItemProps {
     isFirstItem: boolean;
+    isOnlyItem: boolean;
+    isDragging: boolean;
     sort: SortField;
     column?: TableColumn;
     draggableProps: DraggableProvidedDraggableProps;
@@ -23,16 +25,34 @@ interface SortItemProps {
 }
 
 const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
-    ({ isFirstItem, sort, column, draggableProps, dragHandleProps }, ref) => {
+    (
+        {
+            isFirstItem,
+            isOnlyItem,
+            isDragging,
+            sort,
+            column,
+            draggableProps,
+            dragHandleProps,
+        },
+        ref,
+    ) => {
         const isDescending = !!sort.descending;
         const isAscending = !isDescending;
 
         return (
-            <SortItemContainer ref={ref} {...draggableProps}>
-                <Icon
-                    tagName="div"
-                    icon="drag-handle-vertical"
-                    {...dragHandleProps}
+            <SortItemContainer
+                ref={ref}
+                {...draggableProps}
+                $isDragging={isDragging}
+            >
+                <Button
+                    minimal
+                    small
+                    icon="small-cross"
+                    onClick={() => {
+                        column?.meta?.onRemoveSort?.();
+                    }}
                 />
 
                 <Spacer />
@@ -79,14 +99,13 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
                 <Spacer />
 
-                <Button
-                    minimal
-                    small
-                    icon="small-cross"
-                    onClick={() => {
-                        column?.meta?.onRemoveSort?.();
-                    }}
-                />
+                {!isOnlyItem && (
+                    <Icon
+                        tagName="div"
+                        icon="drag-handle-vertical"
+                        {...dragHandleProps}
+                    />
+                )}
             </SortItemContainer>
         );
     },
