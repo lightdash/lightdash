@@ -1,3 +1,10 @@
+# [0.239.0](https://github.com/lightdash/lightdash/compare/0.238.1...0.239.0) (2022-09-01)
+
+
+### Features
+
+* add clickable links ([#3087](https://github.com/lightdash/lightdash/issues/3087)) ([b59f573](https://github.com/lightdash/lightdash/commit/b59f573445ac5f9f7e1ece099a4a2bd497bd71d1))
+
 ## [0.238.1](https://github.com/lightdash/lightdash/compare/0.238.0...0.238.1) (2022-08-31)
 
 
