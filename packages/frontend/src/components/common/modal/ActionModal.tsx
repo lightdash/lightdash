@@ -2,7 +2,7 @@ import { Button, IconName, Intent } from '@blueprintjs/core';
 import React, { Dispatch, SetStateAction, useCallback, useEffect } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import styled from 'styled-components';
-import { useApp } from '../../../providers/AppProvider';
+import useToaster from '../../../hooks/toaster/useToaster';
 import BaseModal from './BaseModal';
 
 export const ErrorMessage = styled.div`
@@ -58,7 +58,7 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
         ModalContent,
         errorMessage,
     } = props;
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
 
     const methods = useForm<any>({
         mode: 'onSubmit',

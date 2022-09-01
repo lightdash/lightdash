@@ -7,9 +7,9 @@ import {
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
-import { useApp } from '../../providers/AppProvider';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import Input from '../ReactHookForm/Input';
 import SqlInput from '../ReactHookForm/SqlInput';
@@ -47,7 +47,7 @@ const TableCalculationModal: FC<Props> = ({
     onClose,
 }) => {
     const [isFullscreen, toggleFullscreen] = useToggle(false);
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );

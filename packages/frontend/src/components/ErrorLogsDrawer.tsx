@@ -9,8 +9,7 @@ import {
 } from '@blueprintjs/core';
 import MDEditor from '@uiw/react-md-editor';
 import React from 'react';
-import { ErrorLogEntry } from '../hooks/useErrorLogs';
-import { useApp } from '../providers/AppProvider';
+import { ErrorLogEntry, useErrorLogs } from '../providers/ErrorLogsProvider';
 
 const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
     title,
@@ -59,7 +58,7 @@ const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
 );
 
 export const ErrorLogsDrawer = () => {
-    const { errorLogs } = useApp();
+    const errorLogs = useErrorLogs();
     return (
         <Drawer
             autoFocus

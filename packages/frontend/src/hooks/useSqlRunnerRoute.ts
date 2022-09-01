@@ -1,7 +1,7 @@
 import { CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useApp } from '../providers/AppProvider';
+import useToaster from './toaster/useToaster';
 import { parseExplorerSearchParams } from './useExplorerRoute';
 
 export type SqlRunnerState = {
@@ -48,7 +48,7 @@ export const useSqlRunnerRoute = (sqlRunnerState: SqlRunnerState) => {
 };
 
 export const useSqlRunnerUrlState = (): SqlRunnerState | undefined => {
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
     const { search } = useLocation();
 
     return useMemo(() => {

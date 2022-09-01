@@ -7,7 +7,8 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
-import { useApp } from '../providers/AppProvider';
+import { useActiveJob } from '../providers/ActiveJobProvider';
+import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
@@ -44,7 +45,8 @@ export const useProject = (id: string | undefined) => {
 
 export const useUpdateMutation = (id: string) => {
     const queryClient = useQueryClient();
-    const { setActiveJobId, showToastError } = useApp();
+    const { setActiveJobId } = useActiveJob();
+    const { showToastError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
         (data) => updateProject(id, data),
         {
@@ -69,7 +71,8 @@ export const useUpdateMutation = (id: string) => {
 };
 
 export const useCreateMutation = () => {
-    const { setActiveJobId, showToastError } = useApp();
+    const { setActiveJobId } = useActiveJob();
+    const { showToastError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
         {

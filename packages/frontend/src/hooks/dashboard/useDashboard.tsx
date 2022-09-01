@@ -13,7 +13,7 @@ import { UseQueryResult } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
-import { useApp } from '../../providers/AppProvider';
+import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
 const getDashboard = async (id: string) =>
@@ -131,7 +131,7 @@ export const useUpdateDashboard = (
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => updateDashboard(id, data),
         {
@@ -180,7 +180,7 @@ export const useMoveDashboard = (uuid: string | undefined) => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         Dashboard,
         ApiError,
@@ -240,7 +240,7 @@ export const useCreateMutation = (
     showRedirectButton: boolean = false,
 ) => {
     const history = useHistory();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(projectUuid, data),
@@ -282,7 +282,7 @@ export const useDuplicateDashboardMutation = (
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Dashboard, ApiError, string>(
         () => duplicateDashboard(projectUuid, dashboardUuid),
         {
@@ -319,7 +319,7 @@ export const useDuplicateDashboardMutation = (
 
 export const useDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await queryClient.invalidateQueries('dashboards');

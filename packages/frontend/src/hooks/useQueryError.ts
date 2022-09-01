@@ -1,14 +1,12 @@
 import { ApiError } from '@lightdash/common';
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
-import { useApp } from '../providers/AppProvider';
+import { useErrorLogs } from '../providers/ErrorLogsProvider';
 
 const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
-    const {
-        errorLogs: { showError },
-    } = useApp();
+    const { showError } = useErrorLogs();
     useEffect(() => {
         (async function doIfError() {
             const { error } = errorResponse || {};

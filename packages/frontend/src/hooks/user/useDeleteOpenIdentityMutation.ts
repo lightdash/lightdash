@@ -1,7 +1,7 @@
 import { ApiError, DeleteOpenIdentity } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
-import { useApp } from '../../providers/AppProvider';
+import useToaster from '../toaster/useToaster';
 
 const deleteOpenIdentity = async (data: DeleteOpenIdentity) =>
     lightdashApi<undefined>({
@@ -12,7 +12,7 @@ const deleteOpenIdentity = async (data: DeleteOpenIdentity) =>
 
 export const useDeleteOpenIdentityMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, DeleteOpenIdentity>(
         deleteOpenIdentity,
         {

@@ -13,10 +13,10 @@ import React, { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
-import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import {
@@ -51,7 +51,7 @@ const ProjectAccessCreation: FC<{
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { showToastSuccess } = useApp();
+    const { showToastSuccess } = useToaster();
     const {
         mutate: createMutation,
         isError,

@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import React from 'react';
 import styled from 'styled-components';
-import { ErrorLogs } from '../hooks/useErrorLogs';
+import { ErrorLogs } from '../providers/ErrorLogsProvider';
 
 const ErrorsButton = styled(Button)`
     margin-right: 20px;

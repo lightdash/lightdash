@@ -4,6 +4,7 @@ import React, { ComponentProps, FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useActiveJob } from '../../providers/ActiveJobProvider';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -17,7 +18,7 @@ import {
 const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data } = useProject(projectUuid);
-    const { activeJob } = useApp();
+    const { activeJob } = useActiveJob();
     const { mutate } = useRefreshServer();
     const isLoading = activeJob && activeJob?.jobStatus === 'RUNNING';
 

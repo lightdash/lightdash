@@ -1,4 +1,5 @@
 import React from 'react';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -10,7 +11,8 @@ import {
 export const GoogleLoginButton: React.FC<{ inviteCode?: string }> = ({
     inviteCode,
 }) => {
-    const { health, showToastError } = useApp();
+    const { health } = useApp();
+    const { showToastError } = useToaster();
     const flashMessages = useFlashMessages();
 
     if (!health.data?.auth.google.oauth2ClientId) {
@@ -48,7 +50,8 @@ export const GoogleLoginButton: React.FC<{ inviteCode?: string }> = ({
 export const OktaLoginButton: React.FC<{ inviteCode?: string }> = ({
     inviteCode,
 }) => {
-    const { health, showToastError } = useApp();
+    const { health } = useApp();
+    const { showToastError } = useToaster();
     const flashMessages = useFlashMessages();
 
     if (!health.data?.auth.okta.enabled) {

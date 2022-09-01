@@ -1,12 +1,12 @@
 import { ChartType, CreateSavedChartVersion } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useApp } from '../providers/AppProvider';
 import {
     ExplorerReduceState,
     ExplorerSection,
     useExplorerContext,
 } from '../providers/ExplorerProvider';
+import useToaster from './toaster/useToaster';
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
@@ -82,7 +82,7 @@ export const useExplorerRoute = () => {
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
     const { search } = useLocation();
     const pathParams = useParams<{
         projectUuid: string;

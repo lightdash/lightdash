@@ -12,12 +12,14 @@ import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
 import { SelectedWarehouse } from '../../pages/CreateProject';
+import { useActiveJob } from '../../providers/ActiveJobProvider';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -181,7 +183,7 @@ const ProjectForm: FC<Props> = ({
 };
 
 const useOnProjectError = (): SubmitErrorHandler<ProjectConnectionForm> => {
-    const { showToastError } = useApp();
+    const { showToastError } = useToaster();
     return async (errors: FieldErrors<ProjectConnectionForm>) => {
         if (!errors) {
             showToastError({
@@ -334,7 +336,8 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     selectedWarehouse,
 }) => {
     const history = useHistory();
-    const { user, health, activeJobIsRunning, activeJob } = useApp();
+    const { user, health } = useApp();
+    const { activeJobIsRunning, activeJob } = useActiveJob();
     const onError = useOnProjectError();
     const createMutation = useCreateMutation();
     const { isLoading: isSaving, mutateAsync } = createMutation;

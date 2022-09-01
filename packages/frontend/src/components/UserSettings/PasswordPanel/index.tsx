@@ -3,7 +3,8 @@ import { ApiError } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { lightdashApi } from '../../../api';
-import { useApp } from '../../../providers/AppProvider';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import PasswordInput from '../../PasswordInput';
 
 const updateUserPasswordQuery = async (data: {
@@ -17,10 +18,8 @@ const updateUserPasswordQuery = async (data: {
     });
 
 const PasswordPanel: FC = () => {
-    const {
-        errorLogs: { showError },
-        showToastError,
-    } = useApp();
+    const { showToastError } = useToaster();
+    const { showError } = useErrorLogs();
     const [password, setPassword] = useState<string>();
     const [newPassword, setNewPassword] = useState<string>();
 

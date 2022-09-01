@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
-import { useApp } from '../../providers/AppProvider';
+import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
 const getDashboards = async (projectUuid: string) =>
@@ -59,7 +59,7 @@ const updateMultipleDashboard = async (
 
 export const useUpdateMultipleDashboard = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useApp();
+    const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, UpdateMultipleDashboards[]>(
         (data) => updateMultipleDashboard(projectUuid, data),
         {

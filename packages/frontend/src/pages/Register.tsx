@@ -10,6 +10,7 @@ import {
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
+import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
@@ -34,7 +35,8 @@ const registerQuery = async (data: CreateUserArgs) =>
 
 const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
-    const { health, showToastError } = useApp();
+    const { health } = useApp();
+    const { showToastError } = useToaster();
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();

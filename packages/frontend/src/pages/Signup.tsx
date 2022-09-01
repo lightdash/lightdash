@@ -17,6 +17,7 @@ import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import useToaster from '../hooks/toaster/useToaster';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -93,7 +94,8 @@ const createUserQuery = async (data: CreateOrganizationUser) =>
 
 const Signup: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
-    const { health, showToastError } = useApp();
+    const { health } = useApp();
+    const { showToastError } = useToaster();
     const { search } = useLocation();
     const { identify } = useTracking();
     const [isLinkFromEmail, setIsLinkFromEmail] = useState<boolean>(false);
