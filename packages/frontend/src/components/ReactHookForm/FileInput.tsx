@@ -1,4 +1,4 @@
-import { Card, Elevation, FileInput as File } from '@blueprintjs/core';
+import { Callout, FileInput as File } from '@blueprintjs/core';
 import React, { ComponentProps, FC, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
@@ -54,20 +54,9 @@ const FileInput: FC<FileFieldProps> = ({
                 )}
             />
             {fileName && (
-                <Card
-                    style={{
-                        backgroundColor: '#B1ECB5', // light green
-                        textAlign: 'center',
-                        padding: 10,
-                    }}
-                    elevation={Elevation.ONE}
-                >
-                    <span>
-                        Your file{' '}
-                        <span style={{ fontWeight: 'bold' }}>{fileName}</span>{' '}
-                        was uploaded successfully!
-                    </span>
-                </Card>
+                <Callout intent="success">
+                    Your file <b>{fileName}</b> was uploaded successfully!
+                </Callout>
             )}
         </>
     );
