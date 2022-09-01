@@ -6,6 +6,7 @@ import {
     LabelWrapper,
     SortItemContainer,
     StretchDivider,
+    StyledXButton,
 } from './SortButton.styles';
 
 interface SortItemProps {
@@ -52,6 +53,15 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
                     Z-A
                 </Button>
             </ButtonGroup>
+
+            <StyledXButton
+                minimal
+                small
+                icon="small-cross"
+                onClick={() => {
+                    column?.meta?.onRemoveSort?.();
+                }}
+            />
         </SortItemContainer>
     );
 };

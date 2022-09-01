@@ -1,3 +1,4 @@
+import { Button } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
@@ -25,4 +26,8 @@ export const LabelWrapper = styled.div`
     margin-right: 15px;
     display: flex;
     align-items: center;
+`;
+
+export const StyledXButton = styled(Button)`
+    margin-left: 10px;
 `;
