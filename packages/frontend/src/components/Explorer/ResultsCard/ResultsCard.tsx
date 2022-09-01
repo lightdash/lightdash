@@ -1,6 +1,6 @@
-import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
+import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
-import { FC, memo } from 'react';
+import { FC, memo, useCallback, useMemo } from 'react';
 import {
     ExplorerSection,
     useExplorerContext,
@@ -15,6 +15,7 @@ import {
     CardHeader,
     CardHeaderLeftContent,
     CardHeaderRightContent,
+    CardWrapper,
 } from './ResultsCard.styles';
 
 const ResultsCard: FC = memo(() => {
@@ -33,8 +34,8 @@ const ResultsCard: FC = memo(() => {
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
     );
-    const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
+    const rows = useExplorerContext(
+        (context) => context.queryResults.data?.rows,
     );
     const setRowLimit = useExplorerContext(
         (context) => context.actions.setRowLimit,
@@ -42,17 +43,24 @@ const ResultsCard: FC = memo(() => {
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
-    const resultsIsOpen = expandedSections.includes(ExplorerSection.RESULTS);
+
+    const resultsIsOpen = useMemo(
+        () => expandedSections.includes(ExplorerSection.RESULTS),
+        [expandedSections],
+    );
+    const toggleCard = useCallback(
+        () => toggleExpandedSection(ExplorerSection.RESULTS),
+        [toggleExpandedSection],
+    );
+    const formattedRows = useMemo(() => rows && getResultValues(rows), [rows]);
     return (
-        <Card style={{ padding: 5 }} elevation={1}>
+        <CardWrapper elevation={1}>
             <CardHeader>
                 <CardHeaderLeftContent>
                     <Button
                         icon={resultsIsOpen ? 'chevron-down' : 'chevron-right'}
                         minimal
-                        onClick={() =>
-                            toggleExpandedSection(ExplorerSection.RESULTS)
-                        }
+                        onClick={toggleCard}
                         disabled={!tableName}
                     />
                     <H5>Results</H5>
@@ -68,10 +76,7 @@ const ResultsCard: FC = memo(() => {
                         {isEditMode && <AddColumnButton />}
                         <DownloadCsvButton
                             fileName={tableName}
-                            rows={
-                                queryResults &&
-                                getResultValues(queryResults.rows)
-                            }
+                            rows={formattedRows}
                         />
                     </CardHeaderRightContent>
                 )}
@@ -82,7 +87,7 @@ const ResultsCard: FC = memo(() => {
                     <UnderlyingDataModal />
                 </UnderlyingDataProvider>
             </Collapse>
-        </Card>
+        </CardWrapper>
     );
 });
 
