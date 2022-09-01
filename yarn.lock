@@ -17879,6 +17879,11 @@ serialize-javascript@^6.0.0:
   dependencies:
     randombytes "^2.1.0"
 
+serialize-query-params@^2.0.0:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/serialize-query-params/-/serialize-query-params-2.0.1.tgz#f28f45a3da77ad5b578832fc8c9dc8ee08df9348"
+  integrity sha512-MCw3M1sc0N0vTxsXfInqogI7Cygsnlv4Vdy1Sc+QAN50bpteYCIQRRS3FXT/mcCKOLxCR8ohLg29WmeOEXyjmw==
+
 serve-index@^1.9.1:
   version "1.9.1"
   resolved "https://registry.yarnpkg.com/serve-index/-/serve-index-1.9.1.tgz#d3768d69b1e7d82e5ce050fff5b453bea12a9239"
@@ -19812,6 +19817,13 @@ use-memo-one@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/use-memo-one/-/use-memo-one-1.1.2.tgz#0c8203a329f76e040047a35a1197defe342fab20"
   integrity sha512-u2qFKtxLsia/r8qG0ZKkbytbztzRb317XCkT7yP8wxL0tZ/CzK2G+WWie5vWvpyeP7+YoPIwbJoIHJ4Ba4k0oQ==
+
+use-query-params@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/use-query-params/-/use-query-params-2.1.0.tgz#ba1d759fa2727cf86cec4ebf885139bc9b23df83"
+  integrity sha512-CMxIQWoPeeQfvXy8FwO6IKBhgOQrtLTgR2oBDdExaayK9RIDEuMgMZmxUOmdi3AatBJb6GJz6NbDT4HJm5mSVw==
+  dependencies:
+    serialize-query-params "^2.0.0"
 
 use@^3.1.0:
   version "3.1.1"

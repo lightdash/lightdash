@@ -729,6 +729,7 @@ export const ExplorerProvider: FC<{
         reducer,
         initialState || defaultState,
     );
+    const { unsavedChartVersion } = reducerState;
 
     const [activeFields, isValidQuery] = useMemo<
         [Set<FieldId>, boolean]
@@ -886,7 +887,7 @@ export const ExplorerProvider: FC<{
     const addTableCalculation = useCallback(
         (tableCalculation: TableCalculation) => {
             if (
-                reducerState.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
+                unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     ({ name }) => name === tableCalculation.name,
                 ) > -1
             ) {
@@ -899,13 +900,13 @@ export const ExplorerProvider: FC<{
                 payload: tableCalculation,
             });
         },
-        [reducerState],
+        [unsavedChartVersion],
     );
     const updateTableCalculation = useCallback(
         (oldName: string, tableCalculation: TableCalculation) => {
             if (
                 oldName !== tableCalculation.name &&
-                reducerState.unsavedChartVersion.metricQuery.tableCalculations.findIndex(
+                unsavedChartVersion.metricQuery.tableCalculations.findIndex(
                     ({ name }) => name === tableCalculation.name,
                 ) > -1
             ) {
@@ -918,7 +919,7 @@ export const ExplorerProvider: FC<{
                 payload: { oldName, tableCalculation },
             });
         },
-        [reducerState],
+        [unsavedChartVersion],
     );
     const deleteTableCalculation = useCallback((name: string) => {
         dispatch({
@@ -961,7 +962,10 @@ export const ExplorerProvider: FC<{
             savedChart,
         ],
     );
-    const queryResults = useQueryResults(state);
+    const queryResults = useQueryResults(
+        state.isValidQuery,
+        state.unsavedChartVersion,
+    );
 
     // Fetch query results after state update
     const { mutate, reset: resetQueryResults } = queryResults;
@@ -985,73 +989,70 @@ export const ExplorerProvider: FC<{
     const defaultSort = useDefaultSortField(reducerState.unsavedChartVersion);
 
     const fetchResults = useCallback(() => {
-        if (
-            reducerState.unsavedChartVersion.metricQuery.sorts.length <= 0 &&
-            defaultSort
-        ) {
+        if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
             mutate();
         }
-    }, [
-        defaultSort,
-        mutate,
-        reducerState.unsavedChartVersion.metricQuery.sorts.length,
-        setSortFields,
-    ]);
+    }, [defaultSort, mutate, unsavedChartVersion, setSortFields]);
 
-    const value: ExplorerContext = {
-        state,
-        queryResults,
-        actions: useMemo(
-            () => ({
-                clear,
-                reset,
-                setTableName,
-                removeActiveField,
-                toggleActiveField,
-                toggleSortField,
-                setSortFields,
-                setFilters,
-                setRowLimit,
-                setColumnOrder,
-                addAdditionalMetric,
-                setMagicMetrics,
-                removeAdditionalMetric,
-                addTableCalculation,
-                deleteTableCalculation,
-                updateTableCalculation,
-                setPivotFields,
-                setChartType,
-                setChartConfig,
-                fetchResults,
-                toggleExpandedSection,
-            }),
-            [
-                clear,
-                reset,
-                setTableName,
-                removeActiveField,
-                toggleActiveField,
-                toggleSortField,
-                setSortFields,
-                setFilters,
-                setRowLimit,
-                setColumnOrder,
-                addAdditionalMetric,
-                setMagicMetrics,
-                removeAdditionalMetric,
-                addTableCalculation,
-                deleteTableCalculation,
-                updateTableCalculation,
-                setPivotFields,
-                setChartType,
-                setChartConfig,
-                fetchResults,
-                toggleExpandedSection,
-            ],
-        ),
-    };
+    const actions = useMemo(
+        () => ({
+            clear,
+            reset,
+            setTableName,
+            removeActiveField,
+            toggleActiveField,
+            toggleSortField,
+            setSortFields,
+            setFilters,
+            setRowLimit,
+            setColumnOrder,
+            addAdditionalMetric,
+            setMagicMetrics,
+            removeAdditionalMetric,
+            addTableCalculation,
+            deleteTableCalculation,
+            updateTableCalculation,
+            setPivotFields,
+            setChartType,
+            setChartConfig,
+            fetchResults,
+            toggleExpandedSection,
+        }),
+        [
+            clear,
+            reset,
+            setTableName,
+            removeActiveField,
+            toggleActiveField,
+            toggleSortField,
+            setSortFields,
+            setFilters,
+            setRowLimit,
+            setColumnOrder,
+            addAdditionalMetric,
+            setMagicMetrics,
+            removeAdditionalMetric,
+            addTableCalculation,
+            deleteTableCalculation,
+            updateTableCalculation,
+            setPivotFields,
+            setChartType,
+            setChartConfig,
+            fetchResults,
+            toggleExpandedSection,
+        ],
+    );
+
+    const value: ExplorerContext = useMemo(
+        () => ({
+            state,
+            queryResults,
+            actions,
+        }),
+        [actions, queryResults, state],
+    );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
