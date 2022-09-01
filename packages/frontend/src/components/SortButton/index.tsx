@@ -11,6 +11,7 @@ import {
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { useColumns } from '../../hooks/useColumns';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { StyledPopover } from './SortButton.styles';
 import SortItem from './SortItem';
 
@@ -32,16 +33,13 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
 
 const SortButton: FC<Props> = ({ sorts }) => {
     const columns = useColumns();
+    const swapSortFields = useExplorerContext(
+        (context) => context.actions.swapSortFields,
+    );
 
     const onDragEnd = (result: DropResult) => {
-        if (!result.destination) {
-            return;
-        }
-
-        // swap(
-        // result.source.index
-        // result.destination.index
-        // )
+        if (!result.destination) return;
+        swapSortFields(result.source.index, result.destination.index);
     };
 
     return (

@@ -33,6 +33,11 @@ export enum ExplorerSection {
     SQL = 'SQL',
 }
 
+interface SwapSortFieldsPayload {
+    sourceIndex: number;
+    destinationIndex: number;
+}
+
 export enum ActionType {
     RESET,
     SET_TABLE_NAME,
@@ -43,6 +48,7 @@ export enum ActionType {
     SET_SORT_FIELDS,
     ADD_SORT_FIELD,
     REMOVE_SORT_FIELD,
+    SWAP_SORT_FIELDS,
     SET_ROW_LIMIT,
     SET_FILTERS,
     SET_COLUMN_ORDER,
@@ -83,6 +89,10 @@ type Action =
     | {
           type: ActionType.REMOVE_SORT_FIELD;
           payload: FieldId;
+      }
+    | {
+          type: ActionType.SWAP_SORT_FIELDS;
+          payload: SwapSortFieldsPayload;
       }
     | {
           type: ActionType.SET_ROW_LIMIT;
@@ -163,6 +173,7 @@ interface ExplorerContext {
             options?: { descending: boolean },
         ) => void;
         removeSortField: (fieldId: FieldId) => void;
+        swapSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setRowLimit: (limit: number) => void;
         setFilters: (
             filters: MetricQuery['filters'],
@@ -496,6 +507,16 @@ function reducer(
                     newState.unsavedChartVersion.metricQuery.sorts.filter(
                         (sf) => sf.fieldId !== action.payload,
                     );
+            });
+        }
+        case ActionType.SWAP_SORT_FIELDS: {
+            return produce(state, (newState) => {
+                const sorts = newState.unsavedChartVersion.metricQuery.sorts;
+                const source = sorts[action.payload.sourceIndex];
+                const destination = sorts[action.payload.destinationIndex];
+
+                sorts[action.payload.sourceIndex] = destination;
+                sorts[action.payload.destinationIndex] = source;
             });
         }
         case ActionType.SET_ROW_LIMIT: {
@@ -854,6 +875,19 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const swapSortFields = useCallback(
+        (sourceIndex: number, destinationIndex: number) => {
+            dispatch({
+                type: ActionType.SWAP_SORT_FIELDS,
+                payload: { sourceIndex, destinationIndex },
+                options: {
+                    shouldFetchResults: true,
+                },
+            });
+        },
+        [],
+    );
+
     const addSortField = useCallback(
         (
             fieldId: FieldId,
@@ -1075,6 +1109,7 @@ export const ExplorerProvider: FC<{
             setSortFields,
             addSortField,
             removeSortField,
+            swapSortFields,
             setFilters,
             setRowLimit,
             setColumnOrder,
@@ -1100,6 +1135,7 @@ export const ExplorerProvider: FC<{
             setSortFields,
             addSortField,
             removeSortField,
+            swapSortFields,
             setFilters,
             setRowLimit,
             setColumnOrder,
