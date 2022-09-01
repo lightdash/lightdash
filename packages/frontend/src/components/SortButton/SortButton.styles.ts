@@ -2,16 +2,12 @@ import { Button, Icon } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
-interface SortItemContainerProps {
-    $marginTop: number;
-}
-
-export const SortItemContainer = styled.div<SortItemContainerProps>`
+export const SortItemContainer = styled.div`
     flex: 1;
     display: flex;
     flex-direction: row;
     align-items: center;
-    margin-top: ${(props) => props.$marginTop}px;
+    user-select: none;
 `;
 
 export const StyledPopover = styled(Popover2)``;
