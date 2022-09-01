@@ -1,14 +1,19 @@
 import { Popover2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
-export const StyledPopover = styled(Popover2)``;
+interface SortItemContainerProps {
+    $marginTop: number;
+}
 
-export const SortItemContainer = styled.div`
+export const SortItemContainer = styled.div<SortItemContainerProps>`
     flex: 1;
     display: flex;
     flex-direction: row;
     align-items: center;
+    margin-top: ${(props) => props.$marginTop}px;
 `;
+
+export const StyledPopover = styled(Popover2)``;
 
 export const StretchDivider = styled.div`
     flex: 1;

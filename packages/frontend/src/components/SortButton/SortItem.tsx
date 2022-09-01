@@ -2,7 +2,11 @@ import { Button, ButtonGroup } from '@blueprintjs/core';
 import { SortField } from '@lightdash/common';
 import { FC } from 'react';
 import { TableColumn } from '../common/Table/types';
-import { LabelWrapper, StretchDivider } from './SortButton.styles';
+import {
+    LabelWrapper,
+    SortItemContainer,
+    StretchDivider,
+} from './SortButton.styles';
 
 interface SortItemProps {
     isFirstItem: boolean;
@@ -14,10 +18,8 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
     const isDescending = !!sort.descending;
     const isAscending = !isDescending;
 
-    console.log({ this_is_a_col: column });
-
     return (
-        <>
+        <SortItemContainer $marginTop={isFirstItem ? 0 : 10}>
             <LabelWrapper>
                 {isFirstItem ? 'Sort by ' : 'then by '}
                 {column?.columnLabel || sort.fieldId}
@@ -50,7 +52,7 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
                     Z-A
                 </Button>
             </ButtonGroup>
-        </>
+        </SortItemContainer>
     );
 };
 
