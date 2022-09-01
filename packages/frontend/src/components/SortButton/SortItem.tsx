@@ -1,4 +1,4 @@
-import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Button, ButtonGroup, Icon } from '@blueprintjs/core';
 import { SortField } from '@lightdash/common';
 import { forwardRef } from 'react';
 import {
@@ -7,11 +7,11 @@ import {
 } from 'react-beautiful-dnd';
 import { TableColumn } from '../common/Table/types';
 import {
+    ColumnNameWrapper,
     LabelWrapper,
     SortItemContainer,
-    StretchDivider,
-    StyledIcon,
-    StyledXButton,
+    Spacer,
+    StretchSpacer,
 } from './SortButton.styles';
 
 interface SortItemProps {
@@ -29,14 +29,23 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
         return (
             <SortItemContainer ref={ref} {...draggableProps}>
-                <StyledIcon icon="drag-handle-vertical" {...dragHandleProps} />
+                <Icon
+                    tagName="div"
+                    icon="drag-handle-vertical"
+                    {...dragHandleProps}
+                />
+
+                <Spacer />
 
                 <LabelWrapper>
-                    {isFirstItem ? 'Sort by' : 'then by'}{' '}
-                    <b>{column?.columnLabel || sort.fieldId}</b>
+                    {isFirstItem ? 'Sort by' : 'then by'}
                 </LabelWrapper>
 
-                <StretchDivider />
+                <ColumnNameWrapper>
+                    <b>{column?.columnLabel || sort.fieldId}</b>
+                </ColumnNameWrapper>
+
+                <StretchSpacer />
 
                 <ButtonGroup>
                     <Button
@@ -68,7 +77,9 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     </Button>
                 </ButtonGroup>
 
-                <StyledXButton
+                <Spacer />
+
+                <Button
                     minimal
                     small
                     icon="small-cross"
