@@ -15,6 +15,28 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for query to finish
+        cy.findByText('Loading chart').should('not.exist');
+        cy.findByText('Loading results').should('not.exist');
+
+        // open column menu
+        cy.get('table').find('button').eq(0).click();
+
+        // sort `first name` by ascending
+        cy.findByRole('option', { name: 'Sort A-Z' }).click();
+
+        // wait for query to finish
+        cy.findByText('Loading results').should('not.exist');
+
+        // check that first row in first column is 'Adam'
+        cy.get('table')
+            .find('td', { timeout: 10000 })
+            .eq(1)
+            .should('contain.text', 'Adam');
     });
 
     it('Should save chart', () => {
