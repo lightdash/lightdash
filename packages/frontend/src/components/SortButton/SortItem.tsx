@@ -6,6 +6,7 @@ import {
     LabelWrapper,
     SortItemContainer,
     StretchDivider,
+    StyledIcon,
     StyledXButton,
 } from './SortButton.styles';
 
@@ -21,9 +22,11 @@ const SortItem: FC<SortItemProps> = ({ isFirstItem, sort, column }) => {
 
     return (
         <SortItemContainer $marginTop={isFirstItem ? 0 : 10}>
+            <StyledIcon icon="drag-handle-vertical" />
+
             <LabelWrapper>
-                {isFirstItem ? 'Sort by ' : 'then by '}
-                {column?.columnLabel || sort.fieldId}
+                {isFirstItem ? 'Sort by' : 'then by'}{' '}
+                <b>{column?.columnLabel || sort.fieldId}</b>
             </LabelWrapper>
 
             <StretchDivider />

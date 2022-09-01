@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Icon } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
@@ -22,12 +22,15 @@ export const StretchDivider = styled.div`
 
 export const LabelWrapper = styled.div`
     flex-shrink: 0;
-    text-wrap: nowrap;
     margin-right: 15px;
     display: flex;
     align-items: center;
 `;
 
 export const StyledXButton = styled(Button)`
-    margin-left: 10px;
+    margin-left: 6px;
+`;
+
+export const StyledIcon = styled(Icon)`
+    margin-right: 6px;
 `;
