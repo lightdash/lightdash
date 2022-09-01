@@ -47,26 +47,7 @@ export const ExplorerResults = memo(() => {
         [isEditMode],
     );
 
-    const pagination = useMemo(
-        () => ({
-            show: true,
-        }),
-        [],
-    );
-    const footer = useMemo(
-        () => ({
-            show: true,
-        }),
-        [],
-    );
-
-    if (!activeTableName) return <NoTableSelected />;
-
-    if (activeExplore.isLoading) return <EmptyStateExploreLoading />;
-
-    if (columns.length === 0) return <EmptyStateNoColumns />;
-
-    const IdleState: FC = memo(() => {
+    const IdleState: FC = useCallback(() => {
         let description: ReactNode =
             'Run query to view your results and visualize them as a chart.';
         if (dimensions.length <= 0) {
@@ -87,7 +68,26 @@ export const ExplorerResults = memo(() => {
         }
 
         return <EmptyStateNoTableData description={description} />;
-    });
+    }, [dimensions.length, metrics.length]);
+
+    const pagination = useMemo(
+        () => ({
+            show: true,
+        }),
+        [],
+    );
+    const footer = useMemo(
+        () => ({
+            show: true,
+        }),
+        [],
+    );
+
+    if (!activeTableName) return <NoTableSelected />;
+
+    if (activeExplore.isLoading) return <EmptyStateExploreLoading />;
+
+    if (columns.length === 0) return <EmptyStateNoColumns />;
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
