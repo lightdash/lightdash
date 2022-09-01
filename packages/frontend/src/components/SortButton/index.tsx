@@ -5,6 +5,7 @@ import { FC } from 'react';
 import {
     DragDropContext,
     Draggable,
+    DraggableStateSnapshot,
     Droppable,
     DropResult,
 } from 'react-beautiful-dnd';
@@ -17,9 +18,16 @@ type Props = {
     sorts: SortField[];
 };
 
-const DraggablePortalHandler = ({ children, snapshot }: any) => {
+type DraggablePortalHandlerProps = {
+    snapshot: DraggableStateSnapshot;
+};
+
+const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
+    children,
+    snapshot,
+}) => {
     if (snapshot.isDragging) return createPortal(children, document.body);
-    return children;
+    return <>{children}</>;
 };
 
 const SortButton: FC<Props> = ({ sorts }) => {
