@@ -1,16 +1,16 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { ResultRow, isField, renderTemplatedUrl } from '@lightdash/common';
+import { isField, renderTemplatedUrl, ResultRow } from '@lightdash/common';
 import { FC } from 'react';
-import { CellContextMenuProps } from '../common/Table/types';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { CellContextMenuProps } from '../common/Table/types';
+import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { track } = useTracking();
     const { viewData } = useUnderlyingDataContext();
-    
+
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 

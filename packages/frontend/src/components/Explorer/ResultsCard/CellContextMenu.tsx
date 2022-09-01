@@ -1,6 +1,11 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { isField, isFilterableField, ResultRow, renderTemplatedUrl } from '@lightdash/common';
+import {
+    isField,
+    isFilterableField,
+    renderTemplatedUrl,
+    ResultRow,
+} from '@lightdash/common';
 import { FC } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
