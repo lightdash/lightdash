@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
-import { StringParam, useQueryParam } from 'use-query-params';
+import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 
@@ -30,7 +30,7 @@ export const useQueryResults = (
     isValidQuery: boolean,
     unsavedChartVersion: CreateSavedChartVersion,
 ) => {
-    const [projectUuid] = useQueryParam('projectUuid', StringParam);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
     const mutation = useMutation<
         ApiQueryResults,
@@ -50,7 +50,7 @@ export const useQueryResults = (
     const { mutate } = mutation;
 
     const mutateOverride = useCallback(() => {
-        if (!!unsavedChartVersion.tableName && isValidQuery && projectUuid) {
+        if (!!unsavedChartVersion.tableName && isValidQuery) {
             mutate({
                 projectUuid,
                 tableId: unsavedChartVersion.tableName,
