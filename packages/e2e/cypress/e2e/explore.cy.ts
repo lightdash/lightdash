@@ -24,9 +24,13 @@ describe('Explore', () => {
         cy.findByText('Loading results').should('not.exist');
 
         // open column menu
-        cy.get('table').find('button').eq(0).click();
+        cy.get('th')
+            .contains('Customers - First name')
+            .closest('th')
+            .find('button')
+            .click();
 
-        // sort `first name` by ascending
+        // sort `Unique order count` by ascending
         cy.findByRole('option', { name: 'Sort A-Z' }).click();
 
         // wait for query to finish
@@ -157,7 +161,45 @@ describe('Explore', () => {
             );
     });
 
-    describe('Sort', () => {});
+    describe('Sort', () => {
+        it('should sort multisort results', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+            cy.findByText('Orders').click();
+            cy.findByText('First name').click();
+            cy.findByText('Unique order count').click();
+
+            // run query
+            cy.get('button').contains('Run query').click();
+
+            // wait for query to finish
+            cy.findByText('Loading results').should('not.exist');
+
+            // open column menu
+            cy.get('th')
+                .contains('Orders - Unique order count')
+                .closest('th')
+                .find('button')
+                .click();
+            // sort `Unique order count` by ascending
+            cy.findByRole('option', { name: 'Sort A-Z' }).click();
+
+            cy.get('span').contains('Sorted by 1 field').should('exist');
+
+            cy.get('th')
+                .contains('Customers - First name')
+                .closest('th')
+                .find('button')
+                .click();
+            // sort `Unique order count` by ascending
+            cy.findByRole('option', { name: 'Sort Z-A' }).click();
+
+            cy.get('span').contains('Sorted by 2 fields').should('exist');
+
+            // wait for query to finish
+            cy.findByText('Loading results').should('not.exist');
+        });
+    });
 
     describe('Chart type', () => {
         describe('Table', () => {
