@@ -15,8 +15,6 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th').eq(1).findByText('First name').click();
-        cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
     });
 
     it('Should save chart', () => {
@@ -25,8 +23,6 @@ describe('Explore', () => {
         cy.findByText('Orders').click();
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
-        cy.get('th').contains('First name').click();
-        cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
 
         cy.findByText('Charts').prev().click(); // open chart
 
@@ -38,7 +34,9 @@ describe('Explore', () => {
         // FIXME disabling save changes button is currently broken...
         // cy.findByText('Save changes').parent().should('be.disabled');
 
-        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading Wait until finish loading
+        // wait for the chart to finish loading
+        cy.findByText('Loading chart').should('not.exist');
+
         cy.findByText('Edit chart').parent().click();
         cy.findByText('Bar chart').click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();
@@ -64,14 +62,11 @@ describe('Explore', () => {
         // run query
         cy.get('button').contains('Run query').click();
 
-        // sort by first name
-        cy.get('th').contains('First name').click();
-
-        // check sorted result
-        cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
-
         // open chart
         cy.findByText('Charts').prev('button').click();
+
+        // wait for the chart to finish loading
+        cy.findByText('Loading chart').should('not.exist');
 
         // open chart menu and change chart types
         cy.get('button').contains('Bar chart').click();
@@ -105,10 +100,8 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
-        // sorts by first name
-        cy.get('th').contains('Customers - First name').should('exist').click();
-
-        cy.get('td', { timeout: 10000 }).eq(1).should('have.text', 'Aaron');
+        // run query
+        cy.get('button').contains('Run query').click();
 
         cy.findByText('Charts').prev().click(); // open chart
 
@@ -141,6 +134,8 @@ describe('Explore', () => {
                 '("customers".created) < (\'2022-07-11 14:23:11\')',
             );
     });
+
+    describe('Sort', () => {});
 
     describe('Chart type', () => {
         describe('Table', () => {
