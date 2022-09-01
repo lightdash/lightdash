@@ -55,8 +55,11 @@ export const useFilters = () => {
         [filters, setFilters, filterIsOpen, toggleExpandedSection],
     );
 
-    return {
-        isFilteredField,
-        addFilter,
-    };
+    return useMemo(
+        () => ({
+            isFilteredField,
+            addFilter,
+        }),
+        [isFilteredField, addFilter],
+    );
 };
