@@ -1,12 +1,7 @@
-import { NumericInput } from '@blueprintjs/core';
+import { Button, NumericInput } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import React, { FC, memo, useState } from 'react';
-import {
-    ApplyButton,
-    GreyButton,
-    Label,
-    PopupWrapper,
-} from './LimitButton.styles';
+import { FC, memo, useState } from 'react';
+import { ApplyButton, Label, PopupWrapper } from './LimitButton.styles';
 
 type Props = {
     disabled?: boolean;
@@ -47,7 +42,7 @@ const LimitButton: FC<Props> = memo(({ disabled, limit, onLimitChange }) => {
             position="bottom"
             disabled={disabled}
         >
-            <GreyButton
+            <Button
                 minimal
                 rightIcon="caret-down"
                 text={`Limit: ${limit}`}
