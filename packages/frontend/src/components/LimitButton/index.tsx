@@ -10,8 +10,8 @@ type Props = {
 };
 
 const LimitButton: FC<Props> = memo(({ disabled, limit, onLimitChange }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
     const [innerLimit, setInnerLimit] = useState<number>(limit);
+
     return (
         <Popover2
             content={
@@ -26,19 +26,16 @@ const LimitButton: FC<Props> = memo(({ disabled, limit, onLimitChange }) => {
                         />
                     </Label>
                     <ApplyButton
+                        className={Classes.POPOVER2_DISMISS}
                         text="Apply"
                         intent="primary"
                         onClick={() => {
                             onLimitChange(innerLimit);
-                            setIsOpen(false);
                         }}
                     />
                 </PopupWrapper>
             }
-            interactionKind="click"
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
             position="bottom"
             disabled={disabled}
         >
@@ -46,10 +43,9 @@ const LimitButton: FC<Props> = memo(({ disabled, limit, onLimitChange }) => {
                 large
                 round
                 minimal
-                interactive
+                interactive={!disabled}
                 intent="none"
                 rightIcon="caret-down"
-                // disabled={disabled}
             >
                 Limit: {limit}
             </Tag>
