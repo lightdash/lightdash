@@ -3,6 +3,11 @@ export enum FieldType {
     DIMENSION = 'dimension',
 }
 
+export type FieldUrl = {
+    url: string;
+    label: string;
+};
+
 // Every dimension and metric is a field
 export interface Field {
     fieldType: FieldType;
@@ -18,6 +23,7 @@ export interface Field {
     round?: number;
     format?: string;
     groupLabel?: string;
+    urls?: FieldUrl[];
 }
 
 export const isField = (field: any): field is Field => field?.fieldType;

@@ -11,7 +11,6 @@ import {
     ThLabelContainer,
 } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
-import { TableColumn } from '../types';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
 import SortIndicator from './SortIndicator';
 
@@ -32,8 +31,7 @@ const TableHeader = () => {
                 >
                     <HeaderDroppable headerGroup={headerGroup}>
                         {headerGroup.headers.map((header) => {
-                            const meta = header.column.columnDef
-                                .meta as TableColumn['meta'];
+                            const meta = header.column.columnDef.meta;
 
                             return (
                                 <Th

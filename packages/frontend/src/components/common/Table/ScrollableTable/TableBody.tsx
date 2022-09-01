@@ -3,7 +3,6 @@ import { flexRender } from '@tanstack/react-table';
 import { FC } from 'react';
 import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
-import { TableColumn } from '../types';
 
 const TableBody: FC = () => {
     const { table, cellContextMenu } = useTableContext();
@@ -13,8 +12,7 @@ const TableBody: FC = () => {
             {table.getRowModel().rows.map((row, rowIndex) => (
                 <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => {
-                        const meta = cell.column.columnDef
-                            .meta as TableColumn['meta'];
+                        const meta = cell.column.columnDef.meta;
 
                         return (
                             <BodyCell

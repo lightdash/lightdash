@@ -3,6 +3,7 @@ import { DbtError, ParseError } from './errors';
 import {
     DimensionType,
     FieldType,
+    FieldUrl,
     friendlyName,
     Metric,
     MetricType,
@@ -83,6 +84,7 @@ type DbtColumnLightdashDimension = {
     round?: number;
     format?: string;
     group_label?: string;
+    urls?: FieldUrl[];
 };
 
 export type DbtColumnLightdashMetric = {
@@ -94,6 +96,7 @@ export type DbtColumnLightdashMetric = {
     round?: number;
     format?: string;
     group_label?: string;
+    urls?: FieldUrl[];
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
@@ -392,6 +395,7 @@ export const convertMetric = ({
     round: metric.round,
     format: metric.format,
     groupLabel: metric.group_label,
+    ...(metric.urls ? { urls: metric.urls } : {}),
 });
 type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;

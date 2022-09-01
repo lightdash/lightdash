@@ -8,8 +8,8 @@ import {
 } from '@lightdash/common';
 import React, { FC, memo, useEffect } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
-import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
 import ExploreTree from '../ExploreTree';
 import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
 

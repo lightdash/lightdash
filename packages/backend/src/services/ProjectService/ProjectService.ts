@@ -621,6 +621,17 @@ export class ProjectService {
                         }
                         return acc;
                     }, 0),
+                    urlsCount: explores.reduce<number>((acc, explore) => {
+                        if (!isExploreError(explore)) {
+                            return (
+                                acc +
+                                getFields(explore)
+                                    .map((field) => (field.urls || []).length)
+                                    .reduce((a, b) => a + b, 0)
+                            );
+                        }
+                        return acc;
+                    }, 0),
                     formattedFieldsCount: explores.reduce<number>(
                         (acc, explore) => {
                             try {
