@@ -735,14 +735,14 @@ export const ExplorerProvider: FC<{
         [Set<FieldId>, boolean]
     >(() => {
         const fields = new Set([
-            ...reducerState.unsavedChartVersion.metricQuery.dimensions,
-            ...reducerState.unsavedChartVersion.metricQuery.metrics,
-            ...reducerState.unsavedChartVersion.metricQuery.tableCalculations.map(
+            ...unsavedChartVersion.metricQuery.dimensions,
+            ...unsavedChartVersion.metricQuery.metrics,
+            ...unsavedChartVersion.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ),
         ]);
         return [fields, fields.size > 0];
-    }, [reducerState]);
+    }, [unsavedChartVersion]);
 
     const reset = useCallback(() => {
         dispatch({
@@ -938,11 +938,11 @@ export const ExplorerProvider: FC<{
                     tableConfig: savedChart.tableConfig,
                     pivotConfig: savedChart.pivotConfig,
                 }),
-                removeEmptyProperties(reducerState.unsavedChartVersion),
+                removeEmptyProperties(unsavedChartVersion),
             );
         }
         return isValidQuery;
-    }, [reducerState, isValidQuery, savedChart]);
+    }, [unsavedChartVersion, isValidQuery, savedChart]);
 
     const state = useMemo(
         () => ({
@@ -986,7 +986,7 @@ export const ExplorerProvider: FC<{
         resetQueryResults();
     }, [resetQueryResults]);
 
-    const defaultSort = useDefaultSortField(reducerState.unsavedChartVersion);
+    const defaultSort = useDefaultSortField(unsavedChartVersion);
 
     const fetchResults = useCallback(() => {
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
