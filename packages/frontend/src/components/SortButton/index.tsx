@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Tag } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { SortField } from '@lightdash/common';
 import { FC } from 'react';
@@ -12,7 +12,11 @@ import {
 import { createPortal } from 'react-dom';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { DroppableContainer, PopoverGlobalStyles } from './SortButton.styles';
+import {
+    DroppableContainer,
+    PopoverGlobalStyles,
+    Spacer,
+} from './SortButton.styles';
 import SortItem from './SortItem';
 
 type Props = {
@@ -45,6 +49,8 @@ const SortButton: FC<Props> = ({ sorts }) => {
     return (
         <>
             <PopoverGlobalStyles />
+
+            <Spacer $width={10} />
 
             <Popover2
                 portalClassName="bp4-popover-portal-results-table-sort-fields"
@@ -112,15 +118,17 @@ const SortButton: FC<Props> = ({ sorts }) => {
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 position="bottom"
             >
-                <Button
+                <Tag
+                    large
+                    round
                     minimal
+                    interactive
+                    intent="primary"
                     rightIcon="caret-down"
-                    text={`Sorted by ${
-                        sorts.length === 1
-                            ? '1 field'
-                            : `${sorts.length} fields`
-                    }`}
-                />
+                >
+                    Sorted by{' '}
+                    {sorts.length === 1 ? '1 field' : `${sorts.length} fields`}
+                </Tag>
             </Popover2>
         </>
     );

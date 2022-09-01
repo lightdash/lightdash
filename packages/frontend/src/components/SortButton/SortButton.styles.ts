@@ -54,7 +54,6 @@ export const StretchSpacer = styled.div`
     flex: 2 1 10px;
 `;
 
-export const Spacer = styled.div`
-    flex: 0 0 auto;
-    width: 6px;
+export const Spacer = styled.div<{ $width: number }>`
+    flex: 0 0 ${(props) => props.$width}px;
 `;

@@ -55,7 +55,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     }}
                 />
 
-                <Spacer />
+                <Spacer $width={6} />
 
                 <LabelWrapper>
                     {isFirstItem ? 'Sort by' : 'then by'}
@@ -97,7 +97,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     </Button>
                 </ButtonGroup>
 
-                <Spacer />
+                <Spacer $width={6} />
 
                 {!isOnlyItem && (
                     <Icon
