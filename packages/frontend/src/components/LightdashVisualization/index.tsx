@@ -1,11 +1,11 @@
 import { ChartType } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, memo } from 'react';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
 
-const LightdashVisualization: FC = () => {
+const LightdashVisualization: FC = memo(() => {
     const { chartType } = useVisualizationContext();
 
     switch (chartType) {
@@ -18,6 +18,6 @@ const LightdashVisualization: FC = () => {
         default:
             return null;
     }
-};
+});
 
 export default LightdashVisualization;

@@ -27,7 +27,7 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
@@ -731,13 +731,14 @@ const getEchartAxis = ({
 };
 
 const useEcharts = () => {
+    const context = useVisualizationContext();
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
         originalData,
         pivotDimensions,
         resultsData,
-    } = useVisualizationContext();
+    } = context;
     const { data: organisationData } = useOrganisation();
 
     const plotData = usePlottedData(
@@ -750,6 +751,8 @@ const useEcharts = () => {
             ? [validCartesianConfig.layout.xField]
             : undefined,
     );
+
+    useEffect(() => console.log('context', context), [context]);
 
     const formats = useMemo(
         () =>

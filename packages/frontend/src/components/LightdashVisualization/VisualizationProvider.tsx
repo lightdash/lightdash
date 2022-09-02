@@ -188,29 +188,74 @@ export const VisualizationProvider: FC<Props> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
-    return (
-        <Context.Provider
-            value={{
-                pivotDimensions: validPivotDimensions,
-                cartesianConfig,
-                bigNumberConfig,
-                tableConfig,
-                chartRef,
-                chartType,
-                explore,
-                originalData: lastValidResultsData?.rows || [],
-                resultsData: lastValidResultsData,
-                isLoading,
-                columnOrder,
-                isSqlRunner,
-                onSeriesContextMenu,
-                setChartType,
-                setPivotDimensions,
-            }}
-        >
-            {children}
-        </Context.Provider>
+    useEffect(
+        () => console.log('bigNumberConfig', bigNumberConfig),
+        [bigNumberConfig],
     );
+    useEffect(
+        () => console.log('cartesianConfig', cartesianConfig),
+        [cartesianConfig],
+    );
+    useEffect(() => console.log('chartType', chartType), [chartType]);
+    useEffect(() => console.log('columnOrder', columnOrder), [columnOrder]);
+    useEffect(() => console.log('explore', explore), [explore]);
+    useEffect(() => console.log('isLoading', isLoading), [isLoading]);
+    useEffect(() => console.log('isSqlRunner', isSqlRunner), [isSqlRunner]);
+    useEffect(
+        () => console.log('lastValidResultsData', lastValidResultsData),
+        [lastValidResultsData],
+    );
+    useEffect(
+        () => console.log('onSeriesContextMenu', onSeriesContextMenu),
+        [onSeriesContextMenu],
+    );
+    useEffect(() => console.log('setChartType', setChartType), [setChartType]);
+    useEffect(
+        () => console.log('setPivotDimensions', setPivotDimensions),
+        [setPivotDimensions],
+    );
+    useEffect(() => console.log('tableConfig', tableConfig), [tableConfig]);
+    useEffect(
+        () => console.log('validPivotDimensions', validPivotDimensions),
+        [validPivotDimensions],
+    );
+
+    const value = useMemo(
+        () => ({
+            pivotDimensions: validPivotDimensions,
+            cartesianConfig,
+            bigNumberConfig,
+            tableConfig,
+            chartRef,
+            chartType,
+            explore,
+            originalData: lastValidResultsData?.rows || [],
+            resultsData: lastValidResultsData,
+            isLoading,
+            columnOrder,
+            isSqlRunner,
+            onSeriesContextMenu,
+            setChartType,
+            setPivotDimensions,
+        }),
+        [
+            bigNumberConfig,
+            cartesianConfig,
+            chartType,
+            columnOrder,
+            explore,
+            isLoading,
+            isSqlRunner,
+            lastValidResultsData,
+            onSeriesContextMenu,
+            setChartType,
+            setPivotDimensions,
+            tableConfig,
+            validPivotDimensions,
+        ],
+    );
+
+    return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
 export function useVisualizationContext(): VisualizationContext {

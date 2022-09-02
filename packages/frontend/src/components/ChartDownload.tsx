@@ -11,7 +11,7 @@ import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { ChartType, getResultValues, ResultRow } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { RefObject, useCallback, useState } from 'react';
+import React, { memo, RefObject, useCallback, useState } from 'react';
 import { CSVLink } from 'react-csv';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
@@ -209,7 +209,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     );
 };
 
-export const ChartDownloadMenu: React.FC = () => {
+export const ChartDownloadMenu: React.FC = memo(() => {
     const {
         chartRef,
         chartType,
@@ -245,4 +245,4 @@ export const ChartDownloadMenu: React.FC = () => {
             />
         </Popover2>
     );
-};
+});

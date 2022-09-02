@@ -5,11 +5,11 @@ import {
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { FC, useMemo, useState } from 'react';
+import { FC, memo, useMemo, useState } from 'react';
 import useEcharts from '../../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
-const VisualizationCardOptions: FC = () => {
+const VisualizationCardOptions: FC = memo(() => {
     const {
         chartType,
         setChartType,
@@ -243,6 +243,6 @@ const VisualizationCardOptions: FC = () => {
             />
         </Popover2>
     );
-};
+});
 
 export default VisualizationCardOptions;
