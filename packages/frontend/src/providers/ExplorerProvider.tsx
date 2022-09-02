@@ -157,7 +157,7 @@ export interface ExplorerState extends ExplorerReduceState {
     savedChart: SavedChart | undefined;
 }
 
-interface ExplorerContext {
+export interface ExplorerContext {
     state: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
     actions: {

@@ -57,12 +57,6 @@ export const useColumns = (): TableColumn[] => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const addSortField = useExplorerContext(
-        (context) => context.actions.addSortField,
-    );
-    const removeSortField = useExplorerContext(
-        (context) => context.actions.removeSortField,
-    );
     const { data: exploreData } = useExplore(tableName);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
@@ -159,12 +153,6 @@ export const useColumns = (): TableColumn[] => {
                               isNumeric: isNumericItem(item),
                           }
                         : undefined,
-                    onAddSort: ({ descending }) => {
-                        addSortField(fieldId, { descending });
-                    },
-                    onRemoveSort: () => {
-                        removeSortField(fieldId);
-                    },
                 },
             };
             return [...acc, column];
@@ -201,13 +189,5 @@ export const useColumns = (): TableColumn[] => {
             [],
         );
         return [...validColumns, ...invalidColumns];
-    }, [
-        activeItemsMap,
-        invalidActiveItems,
-        sorts,
-        totals,
-        exploreData,
-        addSortField,
-        removeSortField,
-    ]);
+    }, [activeItemsMap, invalidActiveItems, sorts, totals, exploreData]);
 };

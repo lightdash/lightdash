@@ -5,6 +5,7 @@ import {
     DraggableProvidedDraggableProps,
     DraggableProvidedDragHandleProps,
 } from 'react-beautiful-dnd';
+import { ExplorerContext } from '../../providers/ExplorerProvider';
 import { TableColumn } from '../common/Table/types';
 import {
     ColumnNameWrapper,
@@ -22,6 +23,10 @@ interface SortItemProps {
     column?: TableColumn;
     draggableProps: DraggableProvidedDraggableProps;
     dragHandleProps?: DraggableProvidedDragHandleProps;
+    onAddSortField: (
+        options: Parameters<ExplorerContext['actions']['addSortField']>[1],
+    ) => void;
+    onRemoveSortField: () => void;
 }
 
 const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
@@ -34,6 +39,8 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
             column,
             draggableProps,
             dragHandleProps,
+            onAddSortField,
+            onRemoveSortField,
         },
         ref,
     ) => {
@@ -75,9 +82,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         onClick={() =>
                             isAscending
                                 ? undefined
-                                : column?.meta?.onAddSort?.({
-                                      descending: false,
-                                  })
+                                : onAddSortField({ descending: false })
                         }
                     >
                         A-Z
@@ -89,9 +94,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         onClick={() =>
                             isDescending
                                 ? undefined
-                                : column?.meta?.onAddSort?.({
-                                      descending: true,
-                                  })
+                                : onAddSortField({ descending: true })
                         }
                     >
                         Z-A
@@ -105,7 +108,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     small
                     icon="small-cross"
                     onClick={() => {
-                        column?.meta?.onRemoveSort?.();
+                        onRemoveSortField();
                     }}
                 />
             </SortItemContainer>

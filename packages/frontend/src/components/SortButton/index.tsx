@@ -37,6 +37,13 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
 
 const SortButton: FC<Props> = ({ sorts }) => {
     const columns = useColumns();
+
+    const addSortField = useExplorerContext(
+        (context) => context.actions.addSortField,
+    );
+    const removeSortField = useExplorerContext(
+        (context) => context.actions.removeSortField,
+    );
     const swapSortFields = useExplorerContext(
         (context) => context.actions.swapSortFields,
     );
@@ -103,6 +110,19 @@ const SortButton: FC<Props> = ({ sorts }) => {
                                                                 c.id ===
                                                                 sort.fieldId,
                                                         )}
+                                                        onAddSortField={(
+                                                            options,
+                                                        ) => {
+                                                            addSortField(
+                                                                sort.fieldId,
+                                                                options,
+                                                            );
+                                                        }}
+                                                        onRemoveSortField={() => {
+                                                            removeSortField(
+                                                                sort.fieldId,
+                                                            );
+                                                        }}
                                                     />
                                                 </DraggablePortalHandler>
                                             )}

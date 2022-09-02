@@ -41,12 +41,19 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const removeActiveField = useExplorerContext(
         (context) => context.actions.removeActiveField,
     );
+    const addSortField = useExplorerContext(
+        (context) => context.actions.addSortField,
+    );
+    const removeSortField = useExplorerContext(
+        (context) => context.actions.removeSortField,
+    );
 
     if (item && isField(item) && isFilterableField(item)) {
         const sort = meta.sort?.sort;
         const hasSort = !!sort;
         const isAscending = hasSort && !sort.descending;
         const isDescending = hasSort && sort.descending;
+        const itemFieldId = fieldId(item);
 
         return (
             <Menu>
@@ -67,8 +74,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     text="Sort A-Z"
                     onClick={() =>
                         hasSort && isAscending
-                            ? meta.onRemoveSort?.()
-                            : meta.onAddSort?.({ descending: false })
+                            ? removeSortField(itemFieldId)
+                            : addSortField(itemFieldId, { descending: false })
                     }
                 />
 
@@ -78,8 +85,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     text="Sort Z-A"
                     onClick={() =>
                         hasSort && isDescending
-                            ? meta.onRemoveSort?.()
-                            : meta.onAddSort?.({ descending: true })
+                            ? removeSortField(itemFieldId)
+                            : addSortField(itemFieldId, { descending: true })
                     }
                 />
 
@@ -90,7 +97,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon="cross"
                     intent="danger"
                     onClick={() => {
-                        removeActiveField(fieldId(item));
+                        removeActiveField(itemFieldId);
                     }}
                 />
             </Menu>
