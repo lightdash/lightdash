@@ -1,3 +1,15 @@
+# [0.241.0](https://github.com/lightdash/lightdash/compare/0.240.0...0.241.0) (2022-09-02)
+
+
+### Bug Fixes
+
+* filter tab appears behind table header ([#3139](https://github.com/lightdash/lightdash/issues/3139)) ([b6bd798](https://github.com/lightdash/lightdash/commit/b6bd798a3bfc15fe4929faa66209d173e613cb82))
+
+
+### Features
+
+* table multisort ([#3125](https://github.com/lightdash/lightdash/issues/3125)) ([7c57988](https://github.com/lightdash/lightdash/commit/7c57988a63d42dd73e4ca34b45809b21c3fb7f56))
+
 # [0.240.0](https://github.com/lightdash/lightdash/compare/0.239.0...0.240.0) (2022-09-02)
 
 
