@@ -21,5 +21,6 @@ export const useExplore = (activeTableName: string | undefined) => {
         enabled: !!activeTableName,
         onError: (result) => setErrorResponse(result),
         retry: false,
+        refetchOnMount: false,
     });
 };

@@ -1,16 +1,9 @@
 import {
-    ApiQueryResults,
-    ChartType,
     Explore,
-    Field,
     fieldId as getFieldId,
-    FilterOperator,
-    FilterRule,
     Filters,
     getDimensions,
     getFields,
-    isDimension,
-    isField,
     ResultRow,
 } from '@lightdash/common';
 import React, {
@@ -18,28 +11,25 @@ import React, {
     FC,
     useCallback,
     useContext,
-    useEffect,
-    useMemo,
     useState,
 } from 'react';
-import { useParams } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
-import { useExplore } from '../../hooks/useExplore';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useQueryResults } from '../../hooks/useQueryResults';
-import { ExplorerState } from '../../providers/ExplorerProvider';
 import { TableColumn } from '../common/Table/types';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
+type UnderlyingDataConfig = {
+    value: ResultRow[0]['value'];
+    meta: TableColumn['meta'];
+    row: ResultRow;
+    dimensions?: string[];
+    pivot?: { fieldId: string; value: any };
+};
+
 type UnderlyingDataContext = {
     tableName: string;
-    resultsData: ApiQueryResults | undefined;
-    fieldsMap: Record<string, Field>;
-    exploreFromHereUrl: string;
-    hasJoins: boolean;
+    filters?: Filters;
+    config: UnderlyingDataConfig | undefined;
     isModalOpen: boolean;
-    isLoading: boolean;
     viewData: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
@@ -47,7 +37,6 @@ type UnderlyingDataContext = {
         dimensions?: string[],
         pivot?: { fieldId: string; value: any },
     ) => void;
-
     closeModal: () => void;
 };
 
@@ -101,87 +90,11 @@ export const UnderlyingDataProvider: FC<Props> = ({
     filters,
     children,
 }) => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const [config, setConfig] = useState<UnderlyingDataConfig>();
 
-    const defaultState: ExplorerState = {
-        activeFields: new Set([]),
-        isValidQuery: false,
-        hasUnsavedChanges: false,
-        isEditMode: false,
-        savedChart: undefined,
-        shouldFetchResults: false,
-        expandedSections: [],
-        unsavedChartVersion: {
-            tableName: tableName,
-            metricQuery: {
-                dimensions: [],
-                metrics: [],
-                filters: {},
-                sorts: [],
-                limit: 500,
-                tableCalculations: [],
-                additionalMetrics: [],
-            },
-            pivotConfig: undefined,
-            tableConfig: {
-                columnOrder: [],
-            },
-            chartConfig: {
-                type: ChartType.CARTESIAN,
-                config: { layout: {}, eChartsConfig: {} },
-            },
-        },
-    };
-    const [state, setState] = useState<ExplorerState>(defaultState);
-    const { data: explore } = useExplore(tableName);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-
-    const {
-        mutate,
-        data: resultsData,
-        reset: resetQueryResults,
-        isLoading,
-    } = useQueryResults(state.isValidQuery, state.unsavedChartVersion);
-
-    const fieldsMap: Record<string, Field> = useMemo(() => {
-        const selectedDimensions =
-            state.unsavedChartVersion.metricQuery.dimensions;
-        const dimensions = explore ? getDimensions(explore) : [];
-        return dimensions.reduce((acc, dimension) => {
-            const fieldId = isField(dimension) ? getFieldId(dimension) : '';
-            if (selectedDimensions.includes(fieldId))
-                return {
-                    ...acc,
-                    [fieldId]: dimension,
-                };
-            else return acc;
-        }, {});
-    }, [explore, state.unsavedChartVersion.metricQuery.dimensions]);
     const closeModal = useCallback(() => {
-        setIsModalOpen(false);
-        resetQueryResults();
-    }, [resetQueryResults]);
-
-    useEffect(() => {
-        if (
-            state.shouldFetchResults &&
-            state.unsavedChartVersion.metricQuery.dimensions.length > 0
-        ) {
-            mutate();
-            setState({ ...state, shouldFetchResults: false });
-        }
-    }, [mutate, state, setState]);
-
-    const allFields = useMemo(
-        () => (explore ? getFields(explore) : []),
-        [explore],
-    );
-    const allDimensions = useMemo(
-        () => (explore ? getDimensions(explore) : []),
-        [explore],
-    );
+        setConfig(undefined);
+    }, []);
 
     const viewData = useCallback(
         (
@@ -191,144 +104,26 @@ export const UnderlyingDataProvider: FC<Props> = ({
             dimensions?: string[],
             pivot?: { fieldId: string; value: any },
         ) => {
-            setIsModalOpen(true);
-            if (meta?.item === undefined) return;
-
-            // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-            const rowFieldIds = pivot
-                ? [pivot.fieldId, ...Object.keys(row)]
-                : Object.keys(row);
-
-            // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
-            const dimensionFieldIds = dimensions ? dimensions : rowFieldIds;
-            const fieldsInQuery = allFields.filter((field) =>
-                dimensionFieldIds.includes(getFieldId(field)),
-            );
-            const tablesInQuery = new Set([
-                ...fieldsInQuery.map((field) => field.table),
-                tableName,
-            ]);
-
-            // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
-            const dimensionFilters = !isDimension(meta?.item)
-                ? Object.entries(row).reduce((acc, r) => {
-                      const [
-                          key,
-                          {
-                              value: { raw },
-                          },
-                      ] = r;
-
-                      const dimensionFilter: FilterRule = {
-                          id: uuidv4(),
-                          target: {
-                              fieldId: key,
-                          },
-                          operator:
-                              raw === null
-                                  ? FilterOperator.NULL
-                                  : FilterOperator.EQUALS,
-                          values: raw === null ? undefined : [raw],
-                      };
-                      const isValidDimension = allDimensions.find(
-                          (dimension) => getFieldId(dimension) === key,
-                      );
-
-                      if (isValidDimension) {
-                          return [...acc, dimensionFilter];
-                      }
-                      return acc;
-                  }, [] as FilterRule[])
-                : [
-                      {
-                          id: uuidv4(),
-                          target: {
-                              fieldId: getFieldId(meta?.item),
-                          },
-                          operator:
-                              value.raw === null
-                                  ? FilterOperator.NULL
-                                  : FilterOperator.EQUALS,
-                          values: value.raw === null ? undefined : [value.raw],
-                      },
-                  ];
-
-            const pivotFilter: FilterRule[] = pivot
-                ? [
-                      {
-                          id: uuidv4(),
-                          target: {
-                              fieldId: pivot.fieldId,
-                          },
-                          operator: FilterOperator.EQUALS,
-                          values: [pivot.value],
-                      },
-                  ]
-                : [];
-
-            const exploreFilters =
-                filters?.dimensions !== undefined ? [filters?.dimensions] : [];
-            const combinedFilters = [
-                ...exploreFilters,
-                ...dimensionFilters,
-                ...pivotFilter,
-            ];
-
-            const metricFilters = {
-                dimensions: {
-                    id: uuidv4(),
-                    and: combinedFilters,
-                },
-            };
-
-            const availableDimensions = allDimensions.filter(
-                (dimension) =>
-                    tablesInQuery.has(dimension.table) &&
-                    !dimension.timeInterval &&
-                    !dimension.hidden,
-            );
-            const dimensionFields = availableDimensions.map(getFieldId);
-            setState({
-                ...state,
-                unsavedChartVersion: {
-                    ...state.unsavedChartVersion,
-                    metricQuery: {
-                        ...state.unsavedChartVersion.metricQuery,
-                        dimensions: dimensionFields,
-                        filters: metricFilters,
-                    },
-                    tableName: tableName,
-                },
-                shouldFetchResults: true,
-                isValidQuery: true,
+            setConfig({
+                value,
+                meta,
+                row,
+                dimensions,
+                pivot,
             });
         },
-        [state, setState, filters, tableName, allFields, allDimensions],
+        [setConfig],
     );
 
-    const exploreFromHereUrl = useMemo(() => {
-        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
-            projectUuid,
-            state.unsavedChartVersion,
-        );
-        return `${pathname}?${search}`;
-    }, [state.unsavedChartVersion, projectUuid]);
-
-    const hasJoins = useMemo(() => {
-        return (explore?.joinedTables || []).length > 0;
-    }, [explore?.joinedTables]);
     return (
         <Context.Provider
             value={{
-                tableName: state.unsavedChartVersion.tableName,
-                resultsData,
-                fieldsMap,
+                tableName,
+                filters,
+                config,
                 viewData,
-                isModalOpen,
+                isModalOpen: !!config,
                 closeModal,
-                exploreFromHereUrl,
-                hasJoins,
-                isLoading,
             }}
         >
             {children}

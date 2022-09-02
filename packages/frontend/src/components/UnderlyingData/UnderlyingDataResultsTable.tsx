@@ -1,6 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiQueryResults, Field } from '@lightdash/common';
-import React, { FC } from 'react';
+import React, { FC, useCallback } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
@@ -19,16 +19,19 @@ const UnderlyingDataResultsTable: FC<{
     isLoading: boolean;
     hasJoins?: boolean;
 }> = ({ fieldsMap, resultsData, isLoading, hasJoins }) => {
-    const columnHeader = (dimension: Field) => (
-        <TableHeaderLabelContainer>
-            {hasJoins === true && (
-                <TableHeaderRegularLabel>
-                    {dimension.tableLabel} -{' '}
-                </TableHeaderRegularLabel>
-            )}
+    const columnHeader = useCallback(
+        (dimension: Field) => (
+            <TableHeaderLabelContainer>
+                {hasJoins === true && (
+                    <TableHeaderRegularLabel>
+                        {dimension.tableLabel} -{' '}
+                    </TableHeaderRegularLabel>
+                )}
 
-            <TableHeaderBoldLabel>{dimension.label}</TableHeaderBoldLabel>
-        </TableHeaderLabelContainer>
+                <TableHeaderBoldLabel>{dimension.label}</TableHeaderBoldLabel>
+            </TableHeaderLabelContainer>
+        ),
+        [hasJoins],
     );
 
     const columns = useUnderlyingDataColumns({
