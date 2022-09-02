@@ -1,3 +1,10 @@
+# [0.240.0](https://github.com/lightdash/lightdash/compare/0.239.0...0.240.0) (2022-09-02)
+
+
+### Features
+
+* add feedback card on upload success ([#3121](https://github.com/lightdash/lightdash/issues/3121)) ([3fe4ae0](https://github.com/lightdash/lightdash/commit/3fe4ae0c3ec6312cc09a362f5084ca05831fe9ac))
+
 # [0.239.0](https://github.com/lightdash/lightdash/compare/0.238.1...0.239.0) (2022-09-01)
 
 
