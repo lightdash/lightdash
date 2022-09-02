@@ -1,4 +1,4 @@
-import { Button, Menu, Position } from '@blueprintjs/core';
+import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
@@ -41,8 +41,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const removeActiveField = useExplorerContext(
         (context) => context.actions.removeActiveField,
     );
+    const addSortField = useExplorerContext(
+        (context) => context.actions.addSortField,
+    );
+    const removeSortField = useExplorerContext(
+        (context) => context.actions.removeSortField,
+    );
 
     if (item && isField(item) && isFilterableField(item)) {
+        const sort = meta.sort?.sort;
+        const hasSort = !!sort;
+        const isAscending = hasSort && !sort.descending;
+        const isDescending = hasSort && sort.descending;
+        const itemFieldId = fieldId(item);
+
         return (
             <Menu>
                 <MenuItem2
@@ -54,12 +66,38 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     }}
                 />
 
+                <Divider />
+
+                <MenuItem2
+                    roleStructure="listoption"
+                    selected={hasSort && isAscending}
+                    text="Sort A-Z"
+                    onClick={() =>
+                        hasSort && isAscending
+                            ? removeSortField(itemFieldId)
+                            : addSortField(itemFieldId, { descending: false })
+                    }
+                />
+
+                <MenuItem2
+                    roleStructure="listoption"
+                    selected={hasSort && isDescending}
+                    text="Sort Z-A"
+                    onClick={() =>
+                        hasSort && isDescending
+                            ? removeSortField(itemFieldId)
+                            : addSortField(itemFieldId, { descending: true })
+                    }
+                />
+
+                <Divider />
+
                 <MenuItem2
                     text="Remove"
                     icon="cross"
                     intent="danger"
                     onClick={() => {
-                        removeActiveField(fieldId(item));
+                        removeActiveField(itemFieldId);
                     }}
                 />
             </Menu>
@@ -91,6 +129,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         onToggleCalculationEditModal(true);
                     }}
                 />
+
+                <Divider />
+
                 <MenuItem2
                     text="Remove"
                     icon="cross"

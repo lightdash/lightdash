@@ -12,7 +12,6 @@ import {
 } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
-import SortIndicator from './SortIndicator';
 
 const TableHeader = () => {
     const { table, headerContextMenu, columns } = useTableContext();
@@ -41,11 +40,7 @@ const TableHeader = () => {
                                         width: meta?.width,
                                         backgroundColor:
                                             meta?.bgColor ?? Colors.GRAY5,
-                                        cursor: meta?.onHeaderClick
-                                            ? 'pointer'
-                                            : undefined,
                                     }}
-                                    onClick={meta?.onHeaderClick}
                                 >
                                     <Draggable
                                         draggableId={header.id}
@@ -100,12 +95,6 @@ const TableHeader = () => {
                                                 </ThLabelContainer>
 
                                                 <ThActionsContainer>
-                                                    {meta?.sort && (
-                                                        <SortIndicator
-                                                            {...meta?.sort}
-                                                        />
-                                                    )}
-
                                                     {meta?.item &&
                                                         HeaderContextMenu && (
                                                             <HeaderContextMenu

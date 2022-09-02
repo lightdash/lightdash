@@ -1,4 +1,4 @@
-import { Button, Colors, FormGroup } from '@blueprintjs/core';
+import { Button, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const PopupWrapper = styled(`div`)`
@@ -13,8 +13,4 @@ export const Label = styled(FormGroup)`
 
 export const ApplyButton = styled(Button)`
     align-self: flex-end;
-`;
-
-export const GreyButton = styled(Button)`
-    color: ${Colors.GRAY1};
 `;

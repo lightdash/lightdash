@@ -11,7 +11,6 @@ import {
     createColumnHelper,
     Header,
 } from '@tanstack/react-table';
-import { MouseEventHandler } from 'react';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
@@ -28,6 +27,7 @@ export type Sort = {
 
 export type TableHeader = ColumnDef<ResultRow, unknown>;
 export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
+    columnLabel?: string;
     meta?: {
         isInvalidItem?: boolean;
         width?: number;
@@ -36,7 +36,6 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
-        onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
     };
 };
 

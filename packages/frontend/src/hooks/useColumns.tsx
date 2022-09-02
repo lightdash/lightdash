@@ -57,12 +57,6 @@ export const useColumns = (): TableColumn[] => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const toggleSortField = useExplorerContext(
-        (context) => context.actions.toggleSortField,
-    );
-    const setSortFields = useExplorerContext(
-        (context) => context.actions.setSortFields,
-    );
     const { data: exploreData } = useExplore(tableName);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
@@ -117,6 +111,9 @@ export const useColumns = (): TableColumn[] => {
             const isFieldSorted = sortIndex !== -1;
             const column: TableColumn = {
                 id: fieldId,
+                columnLabel: isField(item)
+                    ? item.label
+                    : friendlyName(item.name),
                 header: () => (
                     <TableHeaderLabelContainer>
                         {isField(item) ? (
@@ -156,28 +153,16 @@ export const useColumns = (): TableColumn[] => {
                               isNumeric: isNumericItem(item),
                           }
                         : undefined,
-                    onHeaderClick: (e) => {
-                        if (e.metaKey || e.ctrlKey || isFieldSorted) {
-                            toggleSortField(fieldId);
-                        } else {
-                            setSortFields([
-                                {
-                                    fieldId,
-                                    descending: isFieldSorted
-                                        ? !sorts[sortIndex].descending
-                                        : false,
-                                },
-                            ]);
-                        }
-                    },
                 },
             };
             return [...acc, column];
         }, []);
+
         const invalidColumns = invalidActiveItems.reduce<TableColumn[]>(
             (acc, fieldId) => {
                 const column: TableColumn = {
                     id: fieldId,
+                    columnLabel: fieldId,
                     header: () => (
                         <span>
                             <Tooltip2
@@ -204,13 +189,5 @@ export const useColumns = (): TableColumn[] => {
             [],
         );
         return [...validColumns, ...invalidColumns];
-    }, [
-        activeItemsMap,
-        invalidActiveItems,
-        sorts,
-        totals,
-        exploreData,
-        toggleSortField,
-        setSortFields,
-    ]);
+    }, [activeItemsMap, invalidActiveItems, sorts, totals, exploreData]);
 };
