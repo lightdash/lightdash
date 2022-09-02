@@ -46,16 +46,17 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 {...draggableProps}
                 $isDragging={isDragging}
             >
-                <Button
-                    minimal
-                    small
-                    icon="small-cross"
-                    onClick={() => {
-                        column?.meta?.onRemoveSort?.();
-                    }}
-                />
+                {!isOnlyItem && (
+                    <>
+                        <Icon
+                            tagName="div"
+                            icon="drag-handle-vertical"
+                            {...dragHandleProps}
+                        />
 
-                <Spacer $width={6} />
+                        <Spacer $width={6} />
+                    </>
+                )}
 
                 <LabelWrapper>
                     {isFirstItem ? 'Sort by' : 'then by'}
@@ -99,13 +100,14 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
                 <Spacer $width={6} />
 
-                {!isOnlyItem && (
-                    <Icon
-                        tagName="div"
-                        icon="drag-handle-vertical"
-                        {...dragHandleProps}
-                    />
-                )}
+                <Button
+                    minimal
+                    small
+                    icon="small-cross"
+                    onClick={() => {
+                        column?.meta?.onRemoveSort?.();
+                    }}
+                />
             </SortItemContainer>
         );
     },
