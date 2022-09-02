@@ -143,7 +143,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
         data: resultsData,
         reset: resetQueryResults,
         isLoading,
-    } = useQueryResults(state);
+    } = useQueryResults(state.isValidQuery, state.unsavedChartVersion);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
         const selectedDimensions =

@@ -1,10 +1,10 @@
-import React, { FC, useState } from 'react';
+import React, { FC, memo, useState } from 'react';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import SimpleButton from './common/SimpleButton';
 import { CreateTableCalculationModal } from './TableCalculationModels';
 
-const AddColumnButton: FC = () => {
+const AddColumnButton: FC = memo(() => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const { track } = useTracking();
     return (
@@ -28,6 +28,6 @@ const AddColumnButton: FC = () => {
             )}
         </div>
     );
-};
+});
 
 export default AddColumnButton;

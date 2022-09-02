@@ -1,14 +1,14 @@
 import {
     ApiError,
     ApiQueryResults,
+    CreateSavedChartVersion,
     MetricQuery,
     SavedChart,
 } from '@lightdash/common';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import { ExplorerState } from '../providers/ExplorerProvider';
 import useQueryError from './useQueryError';
 
 export const getQueryResults = async ({
@@ -26,7 +26,10 @@ export const getQueryResults = async ({
         body: JSON.stringify(query),
     });
 
-export const useQueryResults = (state: ExplorerState) => {
+export const useQueryResults = (
+    isValidQuery: boolean,
+    unsavedChartVersion: CreateSavedChartVersion,
+) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
     const mutation = useMutation<
@@ -39,26 +42,33 @@ export const useQueryResults = (state: ExplorerState) => {
         }
     >(getQueryResults, {
         mutationKey: ['queryResults'],
-        onError: (result) => setErrorResponse(result),
+        onError: useCallback(
+            (result) => setErrorResponse(result),
+            [setErrorResponse],
+        ),
     });
+    const { mutate } = mutation;
 
-    const mutate = useCallback(() => {
-        if (!!state.unsavedChartVersion.tableName && state.isValidQuery) {
-            mutation.mutate({
+    const mutateOverride = useCallback(() => {
+        if (!!unsavedChartVersion.tableName && isValidQuery) {
+            mutate({
                 projectUuid,
-                tableId: state.unsavedChartVersion.tableName,
-                query: state.unsavedChartVersion.metricQuery,
+                tableId: unsavedChartVersion.tableName,
+                query: unsavedChartVersion.metricQuery,
             });
         } else {
             console.warn(
                 `Can't make SQL request, invalid state`,
-                state.unsavedChartVersion.tableName,
-                state.isValidQuery,
+                unsavedChartVersion.tableName,
+                isValidQuery,
             );
         }
-    }, [mutation, projectUuid, state]);
+    }, [mutate, projectUuid, isValidQuery, unsavedChartVersion]);
 
-    return { ...mutation, mutate };
+    return useMemo(
+        () => ({ ...mutation, mutate: mutateOverride }),
+        [mutateOverride, mutation],
+    );
 };
 
 export const useSavedChartResults = (

@@ -1,5 +1,5 @@
 import { Button, Icon } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import React, { FC, memo } from 'react';
 import { CSVLink } from 'react-csv';
 
 type Props = {
@@ -7,7 +7,7 @@ type Props = {
     rows: object[] | undefined;
 };
 
-const DownloadCsvButton: FC<Props> = ({ fileName, rows }) => {
+const DownloadCsvButton: FC<Props> = memo(({ fileName, rows }) => {
     if (!rows || rows.length <= 0) {
         return <Button icon="download" text=".csv" disabled />;
     }
@@ -26,6 +26,6 @@ const DownloadCsvButton: FC<Props> = ({ fileName, rows }) => {
             <span>.csv</span>
         </CSVLink>
     );
-};
+});
 
 export default DownloadCsvButton;

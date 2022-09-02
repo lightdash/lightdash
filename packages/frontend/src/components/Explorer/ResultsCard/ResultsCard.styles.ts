@@ -1,4 +1,9 @@
+import { Card } from '@blueprintjs/core';
 import styled from 'styled-components';
+
+export const CardWrapper = styled(Card)`
+    padding: 5px;
+`;
 
 export const CardHeader = styled.div`
     display: flex;

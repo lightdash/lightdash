@@ -1,6 +1,6 @@
 import { NumericInput } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import React, { FC, useState } from 'react';
+import React, { FC, memo, useState } from 'react';
 import {
     ApplyButton,
     GreyButton,
@@ -14,7 +14,7 @@ type Props = {
     onLimitChange: (value: number) => void;
 };
 
-const LimitButton: FC<Props> = ({ disabled, limit, onLimitChange }) => {
+const LimitButton: FC<Props> = memo(({ disabled, limit, onLimitChange }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [innerLimit, setInnerLimit] = useState<number>(limit);
     return (
@@ -55,6 +55,6 @@ const LimitButton: FC<Props> = ({ disabled, limit, onLimitChange }) => {
             />
         </Popover2>
     );
-};
+});
 
 export default LimitButton;
