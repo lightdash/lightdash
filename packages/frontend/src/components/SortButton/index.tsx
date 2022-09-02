@@ -43,6 +43,7 @@ const SortButton: FC<Props> = ({ sorts }) => {
 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
+        if (result.destination.index === result.source.index) return;
         swapSortFields(result.source.index, result.destination.index);
     };
 
