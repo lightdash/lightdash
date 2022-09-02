@@ -3,6 +3,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import React, { FC, useCallback, useState } from 'react';
+import { createGlobalStyle } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
 import { useTableContext } from './TableProvider';
@@ -54,6 +55,14 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
     },
 );
 
+const PopoverStyles = createGlobalStyle`
+    .bp4-portal.bp4-popover-portal-results-table-cell-context-menu {
+        .bp4-overlay-content {
+            z-index: 18 !important; /* blueprint default is 20 */
+        }
+    }
+`;
+
 const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     const { scrollableWrapperRef } = useTableContext();
 
@@ -72,28 +81,33 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     const canHaveContextMenu = !!CellContextMenu && props.hasData;
 
     return canHaveContextMenu && isCellSelected ? (
-        <Popover2
-            minimal
-            position={Position.BOTTOM_RIGHT}
-            defaultIsOpen
-            portalContainer={scrollableWrapperRef.current}
-            content={
-                <CellContextMenu
-                    cell={props.cell as Cell<ResultRow, ResultRow[0]>}
-                />
-            }
-            renderTarget={({ ref }) => (
-                <BodyCell
-                    {...props}
-                    hasContextMenu
-                    isSelected={true}
-                    onSelect={handleCellSelect}
-                    ref={ref}
-                />
-            )}
-            onOpening={() => handleCellSelect(props.cell.id)}
-            onClosing={() => handleCellSelect(undefined)}
-        />
+        <>
+            <PopoverStyles />
+
+            <Popover2
+                minimal
+                position={Position.BOTTOM_RIGHT}
+                defaultIsOpen
+                portalClassName="bp4-popover-portal-results-table-cell-context-menu"
+                portalContainer={scrollableWrapperRef.current}
+                content={
+                    <CellContextMenu
+                        cell={props.cell as Cell<ResultRow, ResultRow[0]>}
+                    />
+                }
+                renderTarget={({ ref }) => (
+                    <BodyCell
+                        {...props}
+                        hasContextMenu
+                        isSelected={true}
+                        onSelect={handleCellSelect}
+                        ref={ref}
+                    />
+                )}
+                onOpening={() => handleCellSelect(props.cell.id)}
+                onClosing={() => handleCellSelect(undefined)}
+            />
+        </>
     ) : (
         <BodyCell
             {...props}
