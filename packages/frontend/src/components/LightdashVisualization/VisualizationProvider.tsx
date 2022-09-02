@@ -188,38 +188,6 @@ export const VisualizationProvider: FC<Props> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
-    useEffect(
-        () => console.log('bigNumberConfig', bigNumberConfig),
-        [bigNumberConfig],
-    );
-    useEffect(
-        () => console.log('cartesianConfig', cartesianConfig),
-        [cartesianConfig],
-    );
-    useEffect(() => console.log('chartType', chartType), [chartType]);
-    useEffect(() => console.log('columnOrder', columnOrder), [columnOrder]);
-    useEffect(() => console.log('explore', explore), [explore]);
-    useEffect(() => console.log('isLoading', isLoading), [isLoading]);
-    useEffect(() => console.log('isSqlRunner', isSqlRunner), [isSqlRunner]);
-    useEffect(
-        () => console.log('lastValidResultsData', lastValidResultsData),
-        [lastValidResultsData],
-    );
-    useEffect(
-        () => console.log('onSeriesContextMenu', onSeriesContextMenu),
-        [onSeriesContextMenu],
-    );
-    useEffect(() => console.log('setChartType', setChartType), [setChartType]);
-    useEffect(
-        () => console.log('setPivotDimensions', setPivotDimensions),
-        [setPivotDimensions],
-    );
-    useEffect(() => console.log('tableConfig', tableConfig), [tableConfig]);
-    useEffect(
-        () => console.log('validPivotDimensions', validPivotDimensions),
-        [validPivotDimensions],
-    );
-
     const value = useMemo(
         () => ({
             pivotDimensions: validPivotDimensions,

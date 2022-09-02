@@ -27,7 +27,7 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
@@ -751,8 +751,6 @@ const useEcharts = () => {
             ? [validCartesianConfig.layout.xField]
             : undefined,
     );
-
-    useEffect(() => console.log('context', context), [context]);
 
     const formats = useMemo(
         () =>
