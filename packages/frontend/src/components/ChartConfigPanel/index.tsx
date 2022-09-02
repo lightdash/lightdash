@@ -9,7 +9,9 @@ import ChartConfigTabs from './ChartConfigTabs';
 export const ChartConfigPanel: React.FC = () => {
     const { chartType } = useVisualizationContext();
     const eChartsOptions = useEcharts();
-    const disabled = chartType === ChartType.TABLE || !eChartsOptions;
+    const disabled =
+        chartType === ChartType.TABLE ||
+        (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
     return (
         <Popover2

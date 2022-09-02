@@ -220,7 +220,7 @@ export const ChartDownloadMenu: React.FC = memo(() => {
     const disabled =
         (chartType === ChartType.TABLE && !rows) ||
         chartType === ChartType.BIG_NUMBER ||
-        !eChartsOptions;
+        (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
     return (
         <Popover2

@@ -5,8 +5,7 @@ import {
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { FC, memo, useMemo, useState } from 'react';
-import useEcharts from '../../../hooks/echarts/useEcharts';
+import { FC, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {
@@ -19,11 +18,7 @@ const VisualizationCardOptions: FC = memo(() => {
         setPivotDimensions,
         cartesianConfig: { setStacking },
     } = useVisualizationContext();
-    const eChartsOptions = useEcharts();
-    const disabled =
-        isLoading ||
-        (resultsData && resultsData.rows.length <= 0) ||
-        !eChartsOptions;
+    const disabled = isLoading || (resultsData && resultsData.rows.length <= 0);
     const cartesianType = cartesianConfig.dirtyChartType;
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);
