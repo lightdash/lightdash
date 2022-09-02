@@ -58,7 +58,7 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
 const PopoverStyles = createGlobalStyle`
     .bp4-portal.bp4-popover-portal-results-table-cell-context-menu {
         .bp4-overlay-content {
-            z-index: 18 !important; /* blueprint default is 20 */
+            z-index: 1 !important; /* blueprint default is 20 */
         }
     }
 `;

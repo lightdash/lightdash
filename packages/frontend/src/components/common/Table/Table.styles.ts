@@ -27,8 +27,8 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         position: sticky;
         top: 0;
         /* z-index is 20 in blueprint */
-        /* cell context menu popover is 18 (see .bp4-popover-portal-results-table-cell-context-menu) */
-        z-index: 19;
+        /* cell context menu popover is 1 (see .bp4-popover-portal-results-table-cell-context-menu) */
+        z-index: 2;
         inset-block-start: 0; /* "top" */
         background: ${Colors.GRAY5};
 
