@@ -148,7 +148,7 @@ track_error() {
 }
 
 track_support() {
-  echo -e "\n📨 🙏 Sorry that you had an issue with the installation. Please head to our Slack community and post your issue in #help! 🙋 \n https://join.slack.com/t/lightdash-community/shared_invite/zt-1bfmfnyfq-nSeTVj0cT7i2ekAHYbBVdQ \n Someone from Lightdash will help you out (usually the same day!)"
+  echo -e "\n📨 🙏 Sorry that you had an issue with the installation. Please head to our Slack community and post your issue in #help 🙋 \n https://join.slack.com/t/lightdash-community/shared_invite/zt-1bfmfnyfq-nSeTVj0cT7i2ekAHYbBVdQ \n Someone from Lightdash will help you out (usually the same day)"
 }
 
 # This function checks if the relevant ports required by Lightdash are available or not
