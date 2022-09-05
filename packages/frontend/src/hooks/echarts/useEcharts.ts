@@ -731,13 +731,14 @@ const getEchartAxis = ({
 };
 
 const useEcharts = () => {
+    const context = useVisualizationContext();
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
         originalData,
         pivotDimensions,
         resultsData,
-    } = useVisualizationContext();
+    } = context;
     const { data: organisationData } = useOrganisation();
 
     const plotData = usePlottedData(

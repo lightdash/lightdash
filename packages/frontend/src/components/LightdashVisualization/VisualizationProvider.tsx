@@ -188,29 +188,42 @@ export const VisualizationProvider: FC<Props> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
-    return (
-        <Context.Provider
-            value={{
-                pivotDimensions: validPivotDimensions,
-                cartesianConfig,
-                bigNumberConfig,
-                tableConfig,
-                chartRef,
-                chartType,
-                explore,
-                originalData: lastValidResultsData?.rows || [],
-                resultsData: lastValidResultsData,
-                isLoading,
-                columnOrder,
-                isSqlRunner,
-                onSeriesContextMenu,
-                setChartType,
-                setPivotDimensions,
-            }}
-        >
-            {children}
-        </Context.Provider>
+    const value = useMemo(
+        () => ({
+            pivotDimensions: validPivotDimensions,
+            cartesianConfig,
+            bigNumberConfig,
+            tableConfig,
+            chartRef,
+            chartType,
+            explore,
+            originalData: lastValidResultsData?.rows || [],
+            resultsData: lastValidResultsData,
+            isLoading,
+            columnOrder,
+            isSqlRunner,
+            onSeriesContextMenu,
+            setChartType,
+            setPivotDimensions,
+        }),
+        [
+            bigNumberConfig,
+            cartesianConfig,
+            chartType,
+            columnOrder,
+            explore,
+            isLoading,
+            isSqlRunner,
+            lastValidResultsData,
+            onSeriesContextMenu,
+            setChartType,
+            setPivotDimensions,
+            tableConfig,
+            validPivotDimensions,
+        ],
     );
+
+    return <Context.Provider value={value}>{children}</Context.Provider>;
 };
 
 export function useVisualizationContext(): VisualizationContext {

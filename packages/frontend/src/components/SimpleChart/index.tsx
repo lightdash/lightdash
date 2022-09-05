@@ -1,8 +1,9 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import EChartsReact from 'echarts-for-react';
-import React, { FC, useCallback, useEffect } from 'react';
+import { Opts } from 'echarts-for-react/lib/types';
+import React, { FC, memo, useCallback, useEffect, useMemo } from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { Chart, ChartWrapper } from './SimpleChart.styles';
 
 type EchartBaseClickEvent = {
     // The component name clicked,
@@ -60,7 +61,7 @@ export const LoadingChart = () => (
 const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
 
-const SimpleChart: FC = () => {
+const SimpleChart: FC = memo(() => {
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
@@ -91,27 +92,29 @@ const SimpleChart: FC = () => {
         [onSeriesContextMenu, eChartsOptions],
     );
 
+    const onEvents = useMemo(
+        () => ({
+            contextmenu: onChartContextMenu,
+            click: onChartContextMenu,
+        }),
+        [onChartContextMenu],
+    );
+    const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
+
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
     return (
-        <div style={{ height: '100%' }}>
-            <EChartsReact
-                style={{
-                    height: '100%',
-                    width: '100%',
-                }}
+        <ChartWrapper>
+            <Chart
                 ref={chartRef}
                 option={eChartsOptions}
                 notMerge
-                opts={{ renderer: 'svg' }}
-                onEvents={{
-                    contextmenu: onChartContextMenu,
-                    click: onChartContextMenu,
-                }}
+                opts={opts}
+                onEvents={onEvents}
             />
-        </div>
+        </ChartWrapper>
     );
-};
+});
 
 export default SimpleChart;

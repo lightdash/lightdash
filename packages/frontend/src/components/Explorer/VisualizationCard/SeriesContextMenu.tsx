@@ -4,7 +4,7 @@ import {
     Popover2,
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, memo, useCallback, useEffect, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -16,10 +16,10 @@ import {
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
-    dimensions: string[];
+    dimensions: string[] | undefined;
     pivot: string | undefined;
-    series: EChartSeries[];
-}> = ({ echartSeriesClickEvent, dimensions, pivot, series }) => {
+    series: EChartSeries[] | undefined;
+}> = memo(({ echartSeriesClickEvent, dimensions, pivot, series }) => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -51,7 +51,7 @@ export const SeriesContextMenu: FC<{
                 echartSeriesClickEvent,
                 pivot,
                 explore,
-                series,
+                series || [],
             );
 
             viewData(
@@ -80,6 +80,15 @@ export const SeriesContextMenu: FC<{
         [],
     );
 
+    const onViewUnderlyingData = useCallback(
+        (e) => {
+            viewUnderlyingData();
+        },
+        [viewUnderlyingData],
+    );
+
+    const onClose = useCallback(() => setContextMenuIsOpen(false), []);
+
     return (
         <Popover2
             content={
@@ -88,9 +97,7 @@ export const SeriesContextMenu: FC<{
                         <MenuItem2
                             text={`View underlying data`}
                             icon={'layers'}
-                            onClick={(e) => {
-                                viewUnderlyingData();
-                            }}
+                            onClick={onViewUnderlyingData}
                         />
                     </Menu>
                 </div>
@@ -99,7 +106,7 @@ export const SeriesContextMenu: FC<{
             hasBackdrop={true}
             isOpen={contextMenuIsOpen}
             minimal={true}
-            onClose={() => setContextMenuIsOpen(false)}
+            onClose={onClose}
             placement="right-start"
             positioningStrategy="fixed"
             rootBoundary={'viewport'}
@@ -107,4 +114,4 @@ export const SeriesContextMenu: FC<{
             transitionDuration={100}
         />
     );
-};
+});
