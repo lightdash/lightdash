@@ -8,7 +8,8 @@ on:
         default: 'https://demo.lightdash.com'
 jobs:
   cypress-run:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container: cypress/browsers:node14.19.0-chrome100-ff99-edge
     steps:
       - name: Get deployment url
         run: echo "Deployment url - ${{ github.event.inputs.url }}"
@@ -19,22 +20,40 @@ jobs:
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build && yarn warehouses-build
+      # Setup gcp credentials for e2e tests
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: Cypress run
-        uses: cypress-io/github-action@v2
+        uses: cypress-io/github-action@v4
         with:
+          browser: chrome
           project: ./packages/e2e
           # Set the PR deployment url
           config: 'baseUrl=${{github.event.inputs.url}}'
+        env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
+          CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+          CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
       # After the test run completes
       # store videos and any screenshots
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         if: always()
         with:
           name: cypress-screenshots
           path: packages/e2e/cypress/screenshots
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         if: always()
         with:
           name: cypress-videos
