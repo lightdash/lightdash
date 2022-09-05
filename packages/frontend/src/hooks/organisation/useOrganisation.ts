@@ -9,8 +9,9 @@ const getOrganisation = async () =>
         body: undefined,
     });
 
-export const useOrganisation = () =>
+export const useOrganisation = (refetchOnMount?: boolean) =>
     useQuery<Organisation, ApiError>({
         queryKey: ['organisation'],
         queryFn: getOrganisation,
+        refetchOnMount,
     });
