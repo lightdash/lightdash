@@ -218,9 +218,9 @@ export const ChartDownloadMenu: React.FC = memo(() => {
     const eChartsOptions = useEcharts();
     const [isOpen, setIsOpen] = useState(false);
     const disabled =
-        (chartType === ChartType.TABLE && !rows) ||
+        (chartType === ChartType.TABLE && rows.length <= 0) ||
         chartType === ChartType.BIG_NUMBER ||
-        !eChartsOptions;
+        (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
     return (
         <Popover2
