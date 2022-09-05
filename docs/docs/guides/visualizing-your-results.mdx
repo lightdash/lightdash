@@ -19,6 +19,7 @@ import MixedChartConvertToOne from './assets/mixed-chart-convert-to-one.png';
 import ConfigureLayout from './assets/configure-layout.png';
 import ConfigureSeries from './assets/series-configure.png';
 import ConfigureMultipleSeries from './assets/multiple-series-configure.png';
+import PivotTable from './assets/pivot-table-config.png';
 
 # Visualizing your results
 
@@ -72,9 +73,17 @@ The options for Tables include:
 
 - Renaming the columns in your table.
 - Showing/hiding the columns in your table.
-- Showing/hiding the table name from the column labels. 
+- Showing/hiding the table name from the column labels.
+- Showing/hiding the totals for your columns. 
+- Pivoting by a column. 
 
 By default, we attach the table name to your field name (just in case you've got any duplicate fields from joined tables). But, you can easily turn this off in your table viz with a toggle.
+
+**To pivot by a column, just add a `group` in your configurations**
+
+To pivot by a column in your table, just add the column you want to pivot by to the `group` option in the config panel. This will pivot your results by this column. 
+
+<img src={PivotTable} width="648" height="844" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Bar chart
 
