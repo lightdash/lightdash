@@ -70,6 +70,11 @@ models:
           dimension:
             type: date
             time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER'] # not required: the default time intervals for dates are `['DAY', 'WEEK', 'MONTH', 'YEAR']`
+            urls:
+              - label: "Open in forecasting tool"
+                url: "https://finance.com/forceasts/weeks/${ value.raw }"
+              - label: Open in Google Calendar
+                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
 ```
 
 All the properties you can customize:
@@ -84,7 +89,8 @@ All the properties you can customize:
 | hidden                            | No       | boolean                          | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                                       |
 | round                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                                                                        |
 | format                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                                          |
-| group_label                        | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                                                |
+| group_label                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                                                |
+| [urls](#urls)                              | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                        |
 
 ## Time intervals
 
@@ -144,3 +150,49 @@ In this example, `created` would now appear as a single, timestamp dimension wit
 ```
 
 ![screenshot-intervals-off](assets/screenshot-intervals-off.png)
+
+## URLs
+
+Lightdash users can interact with dimension values by clicking on them. By adding custom `urls` you can configure 
+the actions available to your users. Like linking to external tools, or taking actions in other tools.
+
+In the example below, users can click on a company name and open a corresponding record in their CRM or search for 
+the company in google or open that company's Slack channel.
+
+```yaml
+columns:
+  - name: company_name
+    label: Registered trading name of the company
+    meta:
+      dimension: 
+        urls:
+          - label: Search for company in Google
+            url: "https://google.com/search?${ value.formatted | url_encode }"
+          - label: Open in CRM
+            url: "https://mycrm.com/companies/${ value.formatted | url_encode }"
+```
+
+The `${ value.formatted }` will be replaced with the value of the company name in the Lightdash UI at query run time.
+
+### Liquid Templating
+
+Use templates to configure the url values depending on the query, this allows your urls to depend on the results of queries.
+
+**Available liquid tags**
+
+| Tag                    | Description                                                                                  |
+|------------------------|----------------------------------------------------------------------------------------------|
+| `${ value.formatted }` | The exact value of the dimension as seen in the Lightdash UI. For example "$1,427.20"        |
+| `${ value.raw }`       | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
+
+**Available liquid filters**
+
+Filters can be used to make small transformations of your values:
+
+| Filter     | Description                                                            | Example usage        |
+|------------|------------------------------------------------------------------------|----------------------|
+| url_encode | Encode a string as url safe, for example it replaces spaces with `%20` | `${value.formatted \ | url_encode }`|
+| downcase   | Convert string to all lowercase                                        | `${value.formatted \ | downcase }`|
+| append     | Append a string to another                                             | `${value.formatted \ | append: ".html"}`|
+
+There are [many more filters available in the Liquid documentation](https://liquidjs.com/filters/overview.html).
