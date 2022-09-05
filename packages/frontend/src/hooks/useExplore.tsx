@@ -1,5 +1,6 @@
 import { ApiError, ApiExploreResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
+import { UseQueryOptions } from 'react-query/types/react/types';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
@@ -13,7 +14,7 @@ const getExplore = async (projectUuid: string, exploreId: string) =>
 
 export const useExplore = (
     activeTableName: string | undefined,
-    refetchOnMount?: boolean,
+    useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>,
 ) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
@@ -24,6 +25,6 @@ export const useExplore = (
         enabled: !!activeTableName,
         onError: (result) => setErrorResponse(result),
         retry: false,
-        refetchOnMount,
+        ...useQueryOptions,
     });
 };
