@@ -50,7 +50,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             <InputField
                 label="Email address"
                 name="email"
-                placeholder="Email"
+                placeholder="Your email address"
                 disabled={isLoading || !!readOnlyEmail}
                 rules={{
                     required: 'Required field',
