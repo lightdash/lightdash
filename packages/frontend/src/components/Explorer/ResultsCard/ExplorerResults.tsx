@@ -40,7 +40,7 @@ export const ExplorerResults = memo(() => {
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
-    const activeExplore = useExplore(activeTableName);
+    const activeExplore = useExplore(activeTableName, false);
 
     const cellContextMenu = useCallback(
         (props) => <CellContextMenu isEditMode={isEditMode} {...props} />,

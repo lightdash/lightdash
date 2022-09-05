@@ -1,24 +1,12 @@
-import { AnchorButton, Dialog } from '@blueprintjs/core';
-import { getResultValues } from '@lightdash/common';
+import { Dialog } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import DownloadCsvButton from '../DownloadCsvButton';
-import { HeaderRightContent } from './UnderlyingDataModal.styles';
+import UnderlyingDataModalContent from './UnderlyingDataModalContent';
 import { useUnderlyingDataContext } from './UnderlyingDataProvider';
-import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}
 
 const UnderlyingDataModal: FC<Props> = () => {
-    const {
-        resultsData,
-        fieldsMap,
-        closeModal,
-        tableName,
-        exploreFromHereUrl,
-        hasJoins,
-        isModalOpen,
-        isLoading,
-    } = useUnderlyingDataContext();
+    const { isModalOpen, closeModal } = useUnderlyingDataContext();
 
     return (
         <Dialog
@@ -33,26 +21,7 @@ const UnderlyingDataModal: FC<Props> = () => {
                 minWidth: '500px',
             }}
         >
-            <HeaderRightContent>
-                <DownloadCsvButton
-                    fileName={tableName}
-                    rows={resultsData && getResultValues(resultsData.rows)}
-                />
-                <AnchorButton
-                    intent="primary"
-                    href={exploreFromHereUrl}
-                    icon="series-search"
-                    target="_blank"
-                >
-                    Explore from here
-                </AnchorButton>
-            </HeaderRightContent>
-            <UnderlyingDataResultsTable
-                isLoading={isLoading}
-                resultsData={resultsData}
-                fieldsMap={fieldsMap}
-                hasJoins={hasJoins}
-            />
+            <UnderlyingDataModalContent />
         </Dialog>
     );
 };

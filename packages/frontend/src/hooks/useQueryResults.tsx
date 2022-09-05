@@ -71,6 +71,28 @@ export const useQueryResults = (
     );
 };
 
+export const useUnderlyingDataResults = (
+    tableId: string,
+    query: MetricQuery,
+) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryKey = [
+        'underlyingDataResults',
+        projectUuid,
+        JSON.stringify(query),
+    ];
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey,
+        queryFn: () =>
+            getQueryResults({
+                projectUuid,
+                tableId,
+                query,
+            }),
+        retry: false,
+    });
+};
+
 export const useSavedChartResults = (
     projectUuid: string,
     savedChart: SavedChart,
