@@ -12,6 +12,7 @@ import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { getSortLabel, SortDirection } from '../../../utils/sortUtils';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
@@ -71,7 +72,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <MenuItem2
                     roleStructure="listoption"
                     selected={hasSort && isAscending}
-                    text="Sort A-Z"
+                    text={`Sort ${getSortLabel(item, SortDirection.ASC)}`}
                     onClick={() =>
                         hasSort && isAscending
                             ? removeSortField(itemFieldId)
@@ -82,7 +83,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <MenuItem2
                     roleStructure="listoption"
                     selected={hasSort && isDescending}
-                    text="Sort Z-A"
+                    text={`Sort ${getSortLabel(item, SortDirection.DESC)}`}
                     onClick={() =>
                         hasSort && isDescending
                             ? removeSortField(itemFieldId)
