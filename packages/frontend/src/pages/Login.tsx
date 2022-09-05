@@ -124,7 +124,7 @@ const Login: FC = () => {
             <InputField
                 label="Email address"
                 name="email"
-                placeholder="d.attenborough@greenplanet.com"
+                placeholder="Your email address"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
@@ -133,7 +133,7 @@ const Login: FC = () => {
             <PasswordInputField
                 label="Password"
                 name="password"
-                placeholder="Enter a password"
+                placeholder="Your password"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
