@@ -98,11 +98,20 @@ export class SpaceModel {
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
+                `${DashboardVersionsTableName}.created_at`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
             ])
-            .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
-
+            .orderBy([
+                {
+                    column: `${DashboardVersionsTableName}.dashboard_id`,
+                },
+                {
+                    column: `${DashboardVersionsTableName}.created_at`,
+                    order: 'desc',
+                },
+            ])
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return dashboards.map(
@@ -121,8 +130,8 @@ export class SpaceModel {
                 name,
                 description,
                 uuid: dashboard_uuid,
-                updatedAt: created_at,
                 projectUuid: project_uuid,
+                updatedAt: created_at,
                 updatedByUser: {
                     userUuid: user_uuid,
                     firstName: first_name,
@@ -178,6 +187,7 @@ export class SpaceModel {
             ])
             .distinctOn(`saved_queries_versions.saved_query_id`)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
+
         return savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
