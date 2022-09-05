@@ -165,7 +165,7 @@ const ChartConfigTabs: FC = () => {
         (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
-    const { data: orgData } = useOrganisation(false);
+    const { data: orgData } = useOrganisation({ refetchOnMount: false });
     const fallbackSeriesColours = useMemo(() => {
         return (dirtyEchartsConfig?.series || [])
             .filter(({ color }) => !color)

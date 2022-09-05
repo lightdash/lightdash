@@ -1,5 +1,6 @@
 import { ApiError, Organisation } from '@lightdash/common';
 import { useQuery } from 'react-query';
+import { UseQueryOptions } from 'react-query/types/react/types';
 import { lightdashApi } from '../../api';
 
 const getOrganisation = async () =>
@@ -9,9 +10,11 @@ const getOrganisation = async () =>
         body: undefined,
     });
 
-export const useOrganisation = (refetchOnMount?: boolean) =>
+export const useOrganisation = (
+    useQueryOptions?: UseQueryOptions<Organisation, ApiError>,
+) =>
     useQuery<Organisation, ApiError>({
         queryKey: ['organisation'],
         queryFn: getOrganisation,
-        refetchOnMount,
+        ...useQueryOptions,
     });
