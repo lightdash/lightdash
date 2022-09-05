@@ -5,7 +5,7 @@ import {
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { FC, useMemo, useState } from 'react';
+import { FC, memo, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const VisualizationCardOptions: FC = memo(() => {
