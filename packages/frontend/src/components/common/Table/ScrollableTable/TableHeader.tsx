@@ -95,7 +95,8 @@ const TableHeader = () => {
                                                 </ThLabelContainer>
 
                                                 <ThActionsContainer>
-                                                    {meta?.item &&
+                                                    {(meta?.item ||
+                                                        meta?.isInvalidItem) &&
                                                         HeaderContextMenu && (
                                                             <HeaderContextMenu
                                                                 header={header}
