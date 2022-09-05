@@ -72,7 +72,9 @@ models:
             time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER'] # not required: the default time intervals for dates are `['DAY', 'WEEK', 'MONTH', 'YEAR']`
             urls:
               - label: "Open in forecasting tool"
-                url: "https://finance.com/forceasts/weeks/${ value.formatted }"
+                url: "https://finance.com/forceasts/weeks/${ value.raw }"
+              - label: Open in Google Calendar
+                url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
 ```
 
 All the properties you can customize:
@@ -88,8 +90,7 @@ All the properties you can customize:
 | round                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                                                                        |
 | format                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                                          |
 | group_label                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                                                |
-| urls                              | No       | Array of { url, label }          | Adding urls to a dimension <br/>allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                        |
-
+| [urls](#urls)                              | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                        |
 
 ## Time intervals
 
@@ -156,7 +157,7 @@ Lightdash users can interact with dimension values by clicking on them. By addin
 the actions available to your users. Like linking to external tools, or taking actions in other tools.
 
 In the example below, users can click on a company name and open a corresponding record in their CRM or search for 
-the company in google.
+the company in google or open that company's Slack channel.
 
 ```yaml
 columns:
@@ -175,8 +176,7 @@ The `${ value.formatted }` will be replaced with the value of the company name i
 
 ### Liquid Templating
 
-Use templates to configure the url values depending on the query, this allows your urls to depend on the results of 
-queries. 
+Use templates to configure the url values depending on the query, this allows your urls to depend on the results of queries.
 
 **Available liquid tags**
 
