@@ -42,7 +42,7 @@ const VisualizationCard: FC = memo(() => {
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
-    const isEditMode = useExplorerContext(packages/frontend/src/hooks/useColumns.tsx
+    const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
     const isLoadingQueryResults = useExplorerContext(
