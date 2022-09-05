@@ -1,3 +1,11 @@
+## [0.241.3](https://github.com/lightdash/lightdash/compare/0.241.2...0.241.3) (2022-09-05)
+
+
+### Bug Fixes
+
+* missing updatedAt date on space/dashboards ([#3161](https://github.com/lightdash/lightdash/issues/3161)) ([bcddd97](https://github.com/lightdash/lightdash/commit/bcddd97b4f988b83d687c2320b471a60050d63c6))
+* remove invalid field item ([#3156](https://github.com/lightdash/lightdash/issues/3156)) ([951be57](https://github.com/lightdash/lightdash/commit/951be57534ae8c1f29cb8b2cf41900fa7ca61711))
+
 ## [0.241.2](https://github.com/lightdash/lightdash/compare/0.241.1...0.241.2) (2022-09-05)
 
 
