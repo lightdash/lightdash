@@ -67,7 +67,7 @@ const PasswordRecovery: FC = () => {
                                 <InputField
                                     label="E-mail address"
                                     name="email"
-                                    placeholder="d.attenborough@greenplanet.com"
+                                    placeholder="Your email address"
                                     disabled={isLoading}
                                     rules={{
                                         required: 'Required field',

@@ -62,7 +62,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             <PasswordInputField
                 label="Password"
                 name="password"
-                placeholder="Enter a password"
+                placeholder="Your password"
                 disabled={isLoading}
                 rules={{
                     required: 'Required field',
