@@ -1,3 +1,10 @@
+## [0.241.1](https://github.com/lightdash/lightdash/compare/0.241.0...0.241.1) (2022-09-05)
+
+
+### Bug Fixes
+
+* manual e2e github action ([#3159](https://github.com/lightdash/lightdash/issues/3159)) ([21b5b60](https://github.com/lightdash/lightdash/commit/21b5b60f1c53d539f47bd9749e15850d73bf4944))
+
 # [0.241.0](https://github.com/lightdash/lightdash/compare/0.240.0...0.241.0) (2022-09-02)
 
 
