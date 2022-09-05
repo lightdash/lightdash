@@ -22,6 +22,7 @@ export const BigNumberConfigPanel: React.FC = () => {
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
+    const disabled = !selectedField;
 
     const styleOptions = [
         { value: '', label: 'none' },
@@ -31,6 +32,7 @@ export const BigNumberConfigPanel: React.FC = () => {
     ];
     return (
         <Popover2
+            disabled={disabled}
             content={
                 <>
                     <InputWrapper label="Select field">
@@ -81,7 +83,12 @@ export const BigNumberConfigPanel: React.FC = () => {
             onInteraction={setIsOpen}
             position="bottom"
         >
-            <Button minimal rightIcon="caret-down" text="Configure" />
+            <Button
+                minimal
+                rightIcon="caret-down"
+                text="Configure"
+                disabled={disabled}
+            />
         </Popover2>
     );
 };

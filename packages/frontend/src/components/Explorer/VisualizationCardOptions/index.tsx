@@ -18,7 +18,7 @@ const VisualizationCardOptions: FC = memo(() => {
         setPivotDimensions,
         cartesianConfig: { setStacking },
     } = useVisualizationContext();
-    const disabled = isLoading || (resultsData && resultsData.rows.length <= 0);
+    const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
     const cartesianType = cartesianConfig.dirtyChartType;
     const cartesianFlipAxis = cartesianConfig.dirtyLayout?.flipAxes;
     const [isOpen, setIsOpen] = useState<boolean>(false);

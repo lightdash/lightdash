@@ -21,11 +21,13 @@ export const TableConfigPanel: React.FC = () => {
             showTableNames,
             setShowTableName,
             setShowColumnCalculation,
+            rows,
         },
         setPivotDimensions,
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
     const pivotDimension = pivotDimensions?.[0];
+    const disabled = rows.length <= 0;
 
     const availableDimensions = explore
         ? getDimensions(explore).filter((field) =>
@@ -40,6 +42,7 @@ export const TableConfigPanel: React.FC = () => {
 
     return (
         <Popover2
+            disabled={disabled}
             content={
                 <ConfigWrapper>
                     <SectionTitle>Group</SectionTitle>
@@ -92,7 +95,12 @@ export const TableConfigPanel: React.FC = () => {
             onInteraction={setIsOpen}
             position="bottom"
         >
-            <Button minimal rightIcon="caret-down" text="Configure" />
+            <Button
+                minimal
+                rightIcon="caret-down"
+                text="Configure"
+                disabled={disabled}
+            />
         </Popover2>
     );
 };
