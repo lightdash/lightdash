@@ -1,3 +1,10 @@
+## [0.241.4](https://github.com/lightdash/lightdash/compare/0.241.3...0.241.4) (2022-09-05)
+
+
+### Bug Fixes
+
+* disable visualization buttons ([#3146](https://github.com/lightdash/lightdash/issues/3146)) ([dc50749](https://github.com/lightdash/lightdash/commit/dc50749aaea47c4270927c7595f67715137c1440))
+
 ## [0.241.3](https://github.com/lightdash/lightdash/compare/0.241.2...0.241.3) (2022-09-05)
 
 
