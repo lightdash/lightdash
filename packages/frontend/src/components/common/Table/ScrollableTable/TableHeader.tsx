@@ -94,14 +94,13 @@ const TableHeader = () => {
                                                     </Tooltip2>
                                                 </ThLabelContainer>
 
-                                                <ThActionsContainer>
-                                                    {meta?.item &&
-                                                        HeaderContextMenu && (
-                                                            <HeaderContextMenu
-                                                                header={header}
-                                                            />
-                                                        )}
-                                                </ThActionsContainer>
+                                                {HeaderContextMenu && (
+                                                    <ThActionsContainer>
+                                                        <HeaderContextMenu
+                                                            header={header}
+                                                        />
+                                                    </ThActionsContainer>
+                                                )}
                                             </ThContainer>
                                         )}
                                     </Draggable>

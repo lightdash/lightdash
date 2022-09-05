@@ -164,19 +164,18 @@ export const useColumns = (): TableColumn[] => {
                     id: fieldId,
                     columnLabel: fieldId,
                     header: () => (
-                        <span>
+                        <TableHeaderLabelContainer>
                             <Tooltip2
                                 content="This field was not found in the dbt project."
-                                position={'top'}
+                                position="top"
                             >
-                                <Icon
-                                    icon={'warning-sign'}
-                                    intent="warning"
-                                    style={{ marginRight: 10 }}
-                                />
+                                <Icon icon="warning-sign" intent="warning" />
                             </Tooltip2>
-                            <b>{fieldId}</b>
-                        </span>
+
+                            <TableHeaderBoldLabel style={{ marginLeft: 10 }}>
+                                {fieldId}
+                            </TableHeaderBoldLabel>
+                        </TableHeaderLabelContainer>
                     ),
                     accessorKey: fieldId,
                     cell: (info) => info.getValue()?.value.formatted || '-',

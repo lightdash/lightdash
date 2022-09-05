@@ -158,44 +158,48 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
 
-    return (
-        <div
-            onClick={(e) => {
-                e.stopPropagation();
-            }}
-        >
-            <Popover2
-                lazy
-                minimal
-                position={Position.BOTTOM_RIGHT}
-                content={
-                    <ContextMenu
-                        header={header}
-                        onToggleCalculationEditModal={setShowUpdate}
-                        onToggleCalculationDeleteModal={setShowDelete}
-                    />
-                }
+    if (meta && (meta.item || meta.isInvalidItem === true)) {
+        return (
+            <div
+                onClick={(e) => {
+                    e.stopPropagation();
+                }}
             >
-                <FlatButton minimal small icon="more" />
-            </Popover2>
+                <Popover2
+                    lazy
+                    minimal
+                    position={Position.BOTTOM_RIGHT}
+                    content={
+                        <ContextMenu
+                            header={header}
+                            onToggleCalculationEditModal={setShowUpdate}
+                            onToggleCalculationDeleteModal={setShowDelete}
+                        />
+                    }
+                >
+                    <FlatButton minimal small icon="more" />
+                </Popover2>
 
-            {showUpdate && (
-                <UpdateTableCalculationModal
-                    isOpen
-                    tableCalculation={item as TableCalculation}
-                    onClose={() => setShowUpdate(false)}
-                />
-            )}
+                {showUpdate && (
+                    <UpdateTableCalculationModal
+                        isOpen
+                        tableCalculation={item as TableCalculation}
+                        onClose={() => setShowUpdate(false)}
+                    />
+                )}
 
-            {showDelete && (
-                <DeleteTableCalculationModal
-                    isOpen
-                    tableCalculation={item as TableCalculation}
-                    onClose={() => setShowDelete(false)}
-                />
-            )}
-        </div>
-    );
+                {showDelete && (
+                    <DeleteTableCalculationModal
+                        isOpen
+                        tableCalculation={item as TableCalculation}
+                        onClose={() => setShowDelete(false)}
+                    />
+                )}
+            </div>
+        );
+    } else {
+        return null;
+    }
 };
 
 export default ColumnHeaderContextMenu;
