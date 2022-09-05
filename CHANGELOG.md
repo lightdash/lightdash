@@ -1,3 +1,10 @@
+## [0.241.2](https://github.com/lightdash/lightdash/compare/0.241.1...0.241.2) (2022-09-05)
+
+
+### Bug Fixes
+
+* login form copy ([#3158](https://github.com/lightdash/lightdash/issues/3158)) ([da4e3b7](https://github.com/lightdash/lightdash/commit/da4e3b7ab8d7e04f49dda07c2b29fcb7de4b5406))
+
 ## [0.241.1](https://github.com/lightdash/lightdash/compare/0.241.0...0.241.1) (2022-09-05)
 
 
