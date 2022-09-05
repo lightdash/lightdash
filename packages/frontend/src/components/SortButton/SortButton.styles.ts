@@ -1,11 +1,18 @@
-import { Colors } from '@blueprintjs/core';
+import { ButtonGroup, Colors } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
 
 export const PopoverGlobalStyles = createGlobalStyle`
     .bp4-popover-portal-results-table-sort-fields .bp4-popover2-content {
-        width: 400px;
-        max-width: 400px !important;
+        width: 430px;
+        max-width: 430px !important;
         padding: 0 !important;
+    }
+`;
+
+export const StyledButtonGroup = styled(ButtonGroup)`
+    button {
+        min-width: 70px !important;
+        font-size: 12px;
     }
 `;
 
@@ -39,7 +46,7 @@ export const SortItemContainer = styled.div<SortItemContainerProps>`
 `;
 
 export const LabelWrapper = styled.div`
-    flex: 0 0 60px;
+    flex: 0 0 55px;
 `;
 
 export const ColumnNameWrapper = styled.div`

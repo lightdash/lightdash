@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, Icon } from '@blueprintjs/core';
+import { Button, Icon } from '@blueprintjs/core';
 import { isField, SortField } from '@lightdash/common';
 import { forwardRef } from 'react';
 import {
@@ -14,6 +14,7 @@ import {
     SortItemContainer,
     Spacer,
     StretchSpacer,
+    StyledButtonGroup,
 } from './SortButton.styles';
 
 interface SortItemProps {
@@ -78,7 +79,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
                 <StretchSpacer />
 
-                <ButtonGroup>
+                <StyledButtonGroup>
                     <Button
                         small
                         intent={isAscending ? 'primary' : 'none'}
@@ -102,7 +103,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     >
                         {getSortLabel(item, SortDirection.DESC)}
                     </Button>
-                </ButtonGroup>
+                </StyledButtonGroup>
 
                 <Spacer $width={6} />
 
