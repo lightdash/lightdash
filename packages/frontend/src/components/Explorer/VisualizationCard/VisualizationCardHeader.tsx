@@ -17,16 +17,18 @@ import {
     CardHeaderTitle,
 } from './VisualizationCard.styles';
 
-const ConfigPanel: FC<{ chartType: ChartType }> = memo(({ chartType }) => {
-    switch (chartType) {
-        case ChartType.BIG_NUMBER:
-            return <BigNumberConfigPanel />;
-        case ChartType.TABLE:
-            return <TableConfigPanel />;
-        default:
-            return <ChartConfigPanel />;
-    }
-});
+export const ConfigPanel: FC<{ chartType: ChartType }> = memo(
+    ({ chartType }) => {
+        switch (chartType) {
+            case ChartType.BIG_NUMBER:
+                return <BigNumberConfigPanel />;
+            case ChartType.TABLE:
+                return <TableConfigPanel />;
+            default:
+                return <ChartConfigPanel />;
+        }
+    },
+);
 
 const VisualizationCardHeader = memo(() => {
     const isEditMode = useExplorerContext(

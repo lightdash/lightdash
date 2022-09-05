@@ -1,17 +1,16 @@
 import { Button, Collapse, H5, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { ChartType, TableBase } from '@lightdash/common';
+import { TableBase } from '@lightdash/common';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useMount } from 'react-use';
 import styled from 'styled-components';
-import BigNumberConfigPanel from '../components/BigNumberConfig';
-import ChartConfigPanel from '../components/ChartConfigPanel';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
+import { ConfigPanel } from '../components/Explorer/VisualizationCard/VisualizationCardHeader';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -204,11 +203,7 @@ const SqlRunnerPage = () => {
                             {vizIsOpen && (
                                 <VisualizationCardButtons>
                                     <VisualizationCardOptions />
-                                    {chartType === ChartType.BIG_NUMBER ? (
-                                        <BigNumberConfigPanel />
-                                    ) : (
-                                        <ChartConfigPanel />
-                                    )}
+                                    <ConfigPanel chartType={chartType} />
                                     <ChartDownloadMenu />
                                 </VisualizationCardButtons>
                             )}
