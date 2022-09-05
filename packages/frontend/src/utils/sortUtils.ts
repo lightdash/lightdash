@@ -1,4 +1,4 @@
-import { FilterableField } from '@lightdash/common';
+import { Field, isField, TableCalculation } from '@lightdash/common';
 
 export enum SortDirection {
     ASC = 'ASC',
@@ -6,17 +6,21 @@ export enum SortDirection {
 }
 
 export const getSortLabel = (
-    item: FilterableField,
+    item: Field | TableCalculation | undefined,
     direction: SortDirection,
 ) => {
-    switch (item.type) {
-        case 'number':
-            return direction === SortDirection.ASC ? '1-9' : '9-1';
-        case 'string':
-            return direction === SortDirection.ASC ? 'A-Z' : 'Z-A';
-        default:
-            return direction === SortDirection.ASC
-                ? 'First-Last'
-                : 'Last-First';
+    if (isField(item)) {
+        switch (item.type) {
+            case 'number':
+                return direction === SortDirection.ASC ? '1-9' : '9-1';
+            case 'string':
+                return direction === SortDirection.ASC ? 'A-Z' : 'Z-A';
+            default:
+                return direction === SortDirection.ASC
+                    ? 'First-Last'
+                    : 'Last-First';
+        }
+    } else {
+        return direction === SortDirection.ASC ? 'Low-High' : 'Last-First';
     }
 };

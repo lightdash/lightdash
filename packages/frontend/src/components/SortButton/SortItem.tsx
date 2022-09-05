@@ -1,11 +1,12 @@
 import { Button, ButtonGroup, Icon } from '@blueprintjs/core';
-import { SortField } from '@lightdash/common';
+import { isField, SortField } from '@lightdash/common';
 import { forwardRef } from 'react';
 import {
     DraggableProvidedDraggableProps,
     DraggableProvidedDragHandleProps,
 } from 'react-beautiful-dnd';
 import { ExplorerContext } from '../../providers/ExplorerProvider';
+import { getSortLabel, SortDirection } from '../../utils/sortUtils';
 import { TableColumn } from '../common/Table/types';
 import {
     ColumnNameWrapper,
@@ -47,6 +48,8 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
         const isDescending = !!sort.descending;
         const isAscending = !isDescending;
 
+        const item = column?.meta?.item;
+
         return (
             <SortItemContainer
                 ref={ref}
@@ -70,7 +73,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 </LabelWrapper>
 
                 <ColumnNameWrapper>
-                    <b>{column?.columnLabel || sort.fieldId}</b>
+                    {isField(item) ? item.label : item?.name || sort.fieldId}
                 </ColumnNameWrapper>
 
                 <StretchSpacer />
@@ -85,7 +88,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                 : onAddSortField({ descending: false })
                         }
                     >
-                        A-Z
+                        {getSortLabel(item, SortDirection.ASC)}
                     </Button>
 
                     <Button
@@ -97,7 +100,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                 : onAddSortField({ descending: true })
                         }
                     >
-                        Z-A
+                        {getSortLabel(item, SortDirection.DESC)}
                     </Button>
                 </ButtonGroup>
 

@@ -48,6 +48,7 @@ export const ColumnNameWrapper = styled.div`
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 150px;
+    font-weight: bold;
 `;
 
 export const StretchSpacer = styled.div`
