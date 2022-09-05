@@ -90,7 +90,6 @@ export const useUnderlyingDataResults = (
                 query,
             }),
         retry: false,
-        refetchOnMount: false,
     });
 };
 

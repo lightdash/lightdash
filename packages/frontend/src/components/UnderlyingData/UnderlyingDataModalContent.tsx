@@ -40,7 +40,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { tableName, filters, config } = useUnderlyingDataContext();
 
-    const { data: explore } = useExplore(tableName);
+    const { data: explore } = useExplore(tableName, false);
 
     const allFields = useMemo(
         () => (explore ? getFields(explore) : []),

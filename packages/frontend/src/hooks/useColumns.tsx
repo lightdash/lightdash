@@ -57,7 +57,7 @@ export const useColumns = (): TableColumn[] => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
-    const { data: exploreData } = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName, false);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: Record<string, Field | TableCalculation>;
