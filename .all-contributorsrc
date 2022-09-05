@@ -700,6 +700,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "charlespicowski",
+      "name": "Charles Picowski",
+      "avatar_url": "https://avatars.githubusercontent.com/u/102390879?v=4",
+      "profile": "https://github.com/charlespicowski",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
