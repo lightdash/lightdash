@@ -15,7 +15,12 @@ export const BigNumberContainer = styled.div`
     transform: translate(-50%, -50%);
 `;
 
-export const BigNumber = styled.div`
+interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {
+    $interactive?: boolean;
+}
+
+export const BigNumber = styled.div<BigNumberProps>`
+    ${({ $interactive }) => ($interactive ? 'cursor: pointer;' : '')}
     font-size: 4em;
     line-height: 1.196em;
     font-weight: 500;

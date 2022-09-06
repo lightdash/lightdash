@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
@@ -17,11 +17,6 @@ const SimpleStatistic: FC = () => {
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
         isSqlRunner,
     } = useVisualizationContext();
-    const [isContextMenuOpen, setIsContextMenuOpen] = useState<boolean>(false);
-    const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
-        left: number;
-        top: number;
-    }>({ left: 0, top: 0 });
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -30,28 +25,31 @@ const SimpleStatistic: FC = () => {
     return (
         <>
             {validData ? (
-                <SimpleStatisticsWrapper
-                    onContextMenu={(e: any) => {
-                        setIsContextMenuOpen(true);
-                        setContextMenuTargetOffset({
-                            left: e.pageX,
-                            top: e.pageY,
-                        });
-                        e.preventDefault();
-                    }}
-                >
+                <SimpleStatisticsWrapper>
                     <BigNumberContainer>
-                        <BigNumber>{bigNumber}</BigNumber>
+                        {isSqlRunner ? (
+                            <BigNumber>{bigNumber}</BigNumber>
+                        ) : (
+                            <BigNumberContextMenu
+                                renderTarget={({
+                                    ref,
+                                    isOpen: _isOpen,
+                                    onClick,
+                                }) => (
+                                    <BigNumber
+                                        $interactive
+                                        ref={ref}
+                                        onClick={onClick}
+                                    >
+                                        {bigNumber}
+                                    </BigNumber>
+                                )}
+                            />
+                        )}
+
                         <BigNumberLabel>
                             {bigNumberLabel || defaultLabel}
                         </BigNumberLabel>
-                        {!isSqlRunner && (
-                            <BigNumberContextMenu
-                                position={contextMenuTargetOffset}
-                                isOpen={isContextMenuOpen}
-                                onClose={() => setIsContextMenuOpen(false)}
-                            />
-                        )}
                     </BigNumberContainer>
                 </SimpleStatisticsWrapper>
             ) : (
