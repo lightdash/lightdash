@@ -19,6 +19,10 @@ import {
     UpdateTableCalculationModal,
 } from '../../TableCalculationModels';
 
+const BolderLabel = styled.span`
+    font-weight: 600;
+`;
+
 const FlatButton = styled(Button)`
     min-height: 16px !important;
 `;
@@ -59,7 +63,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
         return (
             <Menu>
                 <MenuItem2
-                    text={`Filter by ${item.label}`}
+                    text={
+                        <>
+                            Filter by <BolderLabel>{item.label}</BolderLabel>
+                        </>
+                    }
                     icon="filter"
                     onClick={() => {
                         track({ name: EventName.ADD_FILTER_CLICKED });
@@ -72,7 +80,14 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <MenuItem2
                     roleStructure="listoption"
                     selected={hasSort && isAscending}
-                    text={`Sort ${getSortLabel(item, SortDirection.ASC)}`}
+                    text={
+                        <>
+                            Sort{' '}
+                            <BolderLabel>
+                                {getSortLabel(item, SortDirection.ASC)}
+                            </BolderLabel>
+                        </>
+                    }
                     onClick={() =>
                         hasSort && isAscending
                             ? removeSortField(itemFieldId)
@@ -83,7 +98,14 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <MenuItem2
                     roleStructure="listoption"
                     selected={hasSort && isDescending}
-                    text={`Sort ${getSortLabel(item, SortDirection.DESC)}`}
+                    text={
+                        <>
+                            Sort{' '}
+                            <BolderLabel>
+                                {getSortLabel(item, SortDirection.DESC)}
+                            </BolderLabel>
+                        </>
+                    }
                     onClick={() =>
                         hasSort && isDescending
                             ? removeSortField(itemFieldId)
