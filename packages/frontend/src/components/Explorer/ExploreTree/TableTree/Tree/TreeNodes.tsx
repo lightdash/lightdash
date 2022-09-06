@@ -5,7 +5,7 @@ import {
     Metric,
     TimeInterval,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC, useMemo } from 'react';
 import TreeGroupNode from './TreeGroupNode';
 import {
     isGroupNode,
@@ -30,12 +30,7 @@ const sortNodes =
         const itemA = itemsMap[a.key];
         const itemB = itemsMap[b.key];
 
-        let order;
-        if (a.children && !b.children) {
-            order = -1;
-        } else if (!a.children && b.children) {
-            order = 1;
-        } else if (
+        if (
             isDimension(itemA) &&
             isDimension(itemB) &&
             itemA.timeInterval &&
@@ -46,9 +41,8 @@ const sortNodes =
                 timeIntervalSort.indexOf(itemB.timeInterval)
             );
         } else {
-            order = a.label.localeCompare(b.label);
+            return a.label.localeCompare(b.label);
         }
-        return order;
     };
 
 const TreeNodes: FC<{ nodeMap: NodeMap; depth: number }> = ({
@@ -56,25 +50,19 @@ const TreeNodes: FC<{ nodeMap: NodeMap; depth: number }> = ({
     depth,
 }) => {
     const { itemsMap } = useTableTreeContext();
+    const sortedItems = useMemo(() => {
+        return Object.values(nodeMap).sort(sortNodes(itemsMap));
+    }, [nodeMap, itemsMap]);
+
     return (
         <div>
-            {Object.values(nodeMap)
-                .sort(sortNodes(itemsMap))
-                .map((node) =>
-                    isGroupNode(node) ? (
-                        <TreeGroupNode
-                            key={node.key}
-                            node={node}
-                            depth={depth}
-                        />
-                    ) : (
-                        <TreeSingleNode
-                            key={node.key}
-                            node={node}
-                            depth={depth}
-                        />
-                    ),
-                )}
+            {sortedItems.map((node) =>
+                isGroupNode(node) ? (
+                    <TreeGroupNode key={node.key} node={node} depth={depth} />
+                ) : (
+                    <TreeSingleNode key={node.key} node={node} depth={depth} />
+                ),
+            )}
         </div>
     );
 };
