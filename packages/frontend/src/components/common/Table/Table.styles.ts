@@ -152,7 +152,9 @@ export const ThActionsContainer = styled.div`
     }
 `;
 
-export const TableHeaderLabelContainer = styled.div``;
+export const TableHeaderLabelContainer = styled.div`
+    white-space: nowrap;
+`;
 
 export const TableHeaderRegularLabel = styled.span`
     font-weight: 400;
