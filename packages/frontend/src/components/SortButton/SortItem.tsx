@@ -6,7 +6,11 @@ import {
     DraggableProvidedDragHandleProps,
 } from 'react-beautiful-dnd';
 import { ExplorerContext } from '../../providers/ExplorerProvider';
-import { getSortLabel, SortDirection } from '../../utils/sortUtils';
+import {
+    getSortDirectionOrder,
+    getSortLabel,
+    SortDirection,
+} from '../../utils/sortUtils';
 import { TableColumn } from '../common/Table/types';
 import {
     ColumnNameWrapper,
@@ -46,8 +50,9 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
         },
         ref,
     ) => {
-        const isDescending = !!sort.descending;
-        const isAscending = !isDescending;
+        const selectedSortDirection = sort.descending
+            ? SortDirection.DESC
+            : SortDirection.ASC;
 
         const item = column?.meta?.item;
 
@@ -84,29 +89,27 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 <StretchSpacer />
 
                 <StyledButtonGroup>
-                    <Button
-                        small
-                        intent={isAscending ? 'primary' : 'none'}
-                        onClick={() =>
-                            isAscending
-                                ? undefined
-                                : onAddSortField({ descending: false })
-                        }
-                    >
-                        {getSortLabel(item, SortDirection.ASC)}
-                    </Button>
-
-                    <Button
-                        small
-                        intent={isDescending ? 'primary' : 'none'}
-                        onClick={() =>
-                            isDescending
-                                ? undefined
-                                : onAddSortField({ descending: true })
-                        }
-                    >
-                        {getSortLabel(item, SortDirection.DESC)}
-                    </Button>
+                    {getSortDirectionOrder(item).map((direction) => (
+                        <Button
+                            key={direction}
+                            small
+                            intent={
+                                selectedSortDirection === direction
+                                    ? 'primary'
+                                    : 'none'
+                            }
+                            onClick={() =>
+                                selectedSortDirection === direction
+                                    ? undefined
+                                    : onAddSortField({
+                                          descending:
+                                              direction === SortDirection.DESC,
+                                      })
+                            }
+                        >
+                            {getSortLabel(item, direction)}
+                        </Button>
+                    ))}
                 </StyledButtonGroup>
 
                 <Spacer $width={6} />

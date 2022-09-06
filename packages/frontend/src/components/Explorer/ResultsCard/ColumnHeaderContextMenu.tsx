@@ -12,7 +12,11 @@ import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { getSortLabel, SortDirection } from '../../../utils/sortUtils';
+import {
+    getSortDirectionOrder,
+    getSortLabel,
+    SortDirection,
+} from '../../../utils/sortUtils';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
@@ -56,8 +60,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
     if (item && isField(item) && isFilterableField(item)) {
         const sort = meta.sort?.sort;
         const hasSort = !!sort;
-        const isAscending = hasSort && !sort.descending;
-        const isDescending = hasSort && sort.descending;
+        const selectedSortDirection = sort
+            ? sort.descending
+                ? SortDirection.DESC
+                : SortDirection.ASC
+            : undefined;
         const itemFieldId = fieldId(item);
 
         return (
@@ -77,41 +84,30 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 <Divider />
 
-                <MenuItem2
-                    roleStructure="listoption"
-                    selected={hasSort && isAscending}
-                    text={
-                        <>
-                            Sort{' '}
-                            <BolderLabel>
-                                {getSortLabel(item, SortDirection.ASC)}
-                            </BolderLabel>
-                        </>
-                    }
-                    onClick={() =>
-                        hasSort && isAscending
-                            ? removeSortField(itemFieldId)
-                            : addSortField(itemFieldId, { descending: false })
-                    }
-                />
-
-                <MenuItem2
-                    roleStructure="listoption"
-                    selected={hasSort && isDescending}
-                    text={
-                        <>
-                            Sort{' '}
-                            <BolderLabel>
-                                {getSortLabel(item, SortDirection.DESC)}
-                            </BolderLabel>
-                        </>
-                    }
-                    onClick={() =>
-                        hasSort && isDescending
-                            ? removeSortField(itemFieldId)
-                            : addSortField(itemFieldId, { descending: true })
-                    }
-                />
+                {getSortDirectionOrder(item).map((sortDirection) => (
+                    <MenuItem2
+                        key={sortDirection}
+                        roleStructure="listoption"
+                        selected={
+                            hasSort && selectedSortDirection === sortDirection
+                        }
+                        text={
+                            <>
+                                Sort{' '}
+                                <BolderLabel>
+                                    {getSortLabel(item, sortDirection)}
+                                </BolderLabel>
+                            </>
+                        }
+                        onClick={() =>
+                            hasSort && selectedSortDirection === sortDirection
+                                ? removeSortField(itemFieldId)
+                                : addSortField(itemFieldId, {
+                                      descending: false,
+                                  })
+                        }
+                    />
+                ))}
 
                 <Divider />
 
