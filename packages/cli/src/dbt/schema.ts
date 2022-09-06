@@ -34,6 +34,11 @@ export type YamlSchema = {
 const loadYamlSchema = async (path: string): Promise<YamlSchema> => {
     const schemaFile = yaml.load(await fs.readFile(path, 'utf8'));
     const validate = ajv.compile<YamlSchema>(lightdashDbtYamlSchema);
+    if (schemaFile === undefined) {
+        return {
+            version: 2,
+        };
+    }
     if (!validate(schemaFile)) {
         const errors = betterAjvErrors(
             lightdashDbtYamlSchema,
