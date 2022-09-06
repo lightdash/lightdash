@@ -1,3 +1,10 @@
+## [0.241.5](https://github.com/lightdash/lightdash/compare/0.241.4...0.241.5) (2022-09-06)
+
+
+### Bug Fixes
+
+* generate yml when file is empty ([#3172](https://github.com/lightdash/lightdash/issues/3172)) ([f66855a](https://github.com/lightdash/lightdash/commit/f66855ae6aaa71c7e6b3e8d30c782570c7086292))
+
 ## [0.241.4](https://github.com/lightdash/lightdash/compare/0.241.3...0.241.4) (2022-09-05)
 
 
