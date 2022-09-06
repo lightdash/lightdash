@@ -182,7 +182,7 @@ describe('Explore', () => {
                 .find('button')
                 .click();
             // sort `Unique order count` by ascending
-            cy.findByRole('option', { name: 'Sort A-Z' }).click();
+            cy.findByRole('option', { name: 'Sort First-Last' }).click();
 
             cy.get('span').contains('Sorted by 1 field').should('exist');
 
