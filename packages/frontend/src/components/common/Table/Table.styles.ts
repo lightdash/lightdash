@@ -15,8 +15,14 @@ export const TableScrollableWrapper = styled.div`
     min-height: 90px;
 `;
 
-export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
-    width: 100%;
+interface TableProps {
+    showFooter: boolean;
+    isFullWidth?: boolean;
+}
+
+export const Table = styled(HTMLTable)<TableProps>`
+    ${({ isFullWidth }) => (isFullWidth ? `width: 100%;` : '')}
+
     border-left: 1px solid #dcdcdd;
     border-right: 1px solid #dcdcdd;
 

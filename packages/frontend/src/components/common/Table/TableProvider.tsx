@@ -33,6 +33,7 @@ type Props = {
         show?: boolean;
         defaultScroll?: boolean;
     };
+    isFullWidth?: boolean;
     footer?: {
         show?: boolean;
     };

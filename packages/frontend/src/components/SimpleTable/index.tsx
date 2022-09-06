@@ -29,6 +29,7 @@ const SimpleTable: FC = () => {
     return (
         <TableWrapper>
             <Table
+                isFullWidth
                 status={'success'}
                 data={rows}
                 columns={columns}

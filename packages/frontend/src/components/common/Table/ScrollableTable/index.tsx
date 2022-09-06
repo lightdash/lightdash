@@ -5,13 +5,18 @@ import TableFooter from './TableFooter';
 import TableHeader from './TableHeader';
 
 const ScrollableTable = () => {
-    const { footer, scrollableWrapperRef } = useTableContext();
+    const { footer, isFullWidth, scrollableWrapperRef } = useTableContext();
 
     return (
         <TableScrollableWrapper
             ref={(ref) => (scrollableWrapperRef.current = ref || undefined)}
         >
-            <Table bordered condensed showFooter={!!footer?.show}>
+            <Table
+                bordered
+                condensed
+                showFooter={!!footer?.show}
+                isFullWidth={isFullWidth}
+            >
                 <TableHeader />
                 <TableBody />
                 <TableFooter />
