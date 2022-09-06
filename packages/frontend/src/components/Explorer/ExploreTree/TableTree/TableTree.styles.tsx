@@ -37,7 +37,7 @@ export const Row = styled.div<{
         onClick &&
         `
         cursor: pointer;
-        
+
         :hover {
             background-color: ${
                 selected && bgColor
@@ -45,7 +45,7 @@ export const Row = styled.div<{
                     : Colors.LIGHT_GRAY5
             }
         }
-        
+
     `}
 
     background-color: ${({ selected, bgColor }) =>
@@ -91,8 +91,4 @@ export const SpanFlex = styled.span`
 export const EmptyState = styled.div`
     color: ${Colors.GRAY3};
     margin: 10px 24px;
-`;
-
-export const GroupNodeRow = styled(Row)`
-    font-weight: 600;
 `;

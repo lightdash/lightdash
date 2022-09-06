@@ -1,6 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import {
     CustomMetricsSectionRow,
@@ -35,23 +35,26 @@ const TableTreeSections: FC<Props> = ({
 
     const isSearching = !!searchQuery && searchQuery !== '';
 
-    const dimensions = Object.values(table.dimensions).reduce(
-        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-        {},
-    );
-    const metrics = Object.values(table.metrics).reduce(
-        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-        {},
-    );
-    const customMetrics = additionalMetrics.reduce<
-        Record<string, AdditionalMetric>
-    >(
-        (acc, item) => ({
-            ...acc,
-            [getItemId(item)]: item,
-        }),
-        {},
-    );
+    const dimensions = useMemo(() => {
+        return Object.values(table.dimensions).reduce(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+    }, [table.dimensions]);
+
+    const metrics = useMemo(() => {
+        return Object.values(table.metrics).reduce(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+    }, [table.metrics]);
+
+    const customMetrics = useMemo(() => {
+        return additionalMetrics.reduce<Record<string, AdditionalMetric>>(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+    }, [additionalMetrics]);
 
     return (
         <>
@@ -63,6 +66,7 @@ const TableTreeSections: FC<Props> = ({
                     Dimensions
                 </DimensionsSectionRow>
             )}
+
             {Object.keys(table.dimensions).length <= 0 ? (
                 <EmptyState>
                     No dimensions defined in your dbt project
@@ -77,6 +81,7 @@ const TableTreeSections: FC<Props> = ({
                     <TreeRoot depth={treeRootDepth} />
                 </TreeProvider>
             )}
+
             {isSearching &&
             getSearchResults(metrics, searchQuery).size === 0 ? (
                 <></>
@@ -106,6 +111,7 @@ const TableTreeSections: FC<Props> = ({
                     )}
                 </MetricsSectionRow>
             )}
+
             {hasNoMetrics ? (
                 <EmptyState>No metrics defined in your dbt project</EmptyState>
             ) : (
@@ -118,6 +124,7 @@ const TableTreeSections: FC<Props> = ({
                     <TreeRoot depth={treeRootDepth} />
                 </TreeProvider>
             )}
+
             {isSearching &&
             getSearchResults(customMetrics, searchQuery).size === 0 ? (
                 <></>
@@ -147,6 +154,7 @@ const TableTreeSections: FC<Props> = ({
                     />
                 </CustomMetricsSectionRow>
             )}
+
             {hasNoMetrics && additionalMetrics.length <= 0 ? (
                 <EmptyState>
                     Add custom metrics by hovering over the dimension of your

@@ -1,9 +1,9 @@
 import { Collapse, Colors, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useToggle } from 'react-use';
 import HighlightedText from '../../../../common/HighlightedText';
-import { GroupNodeRow, Highlighted, RowIcon } from '../TableTree.styles';
+import { Highlighted, Row, RowIcon } from '../TableTree.styles';
 import TreeNodes from './TreeNodes';
 import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
 
@@ -44,10 +44,7 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
 
     return (
         <>
-            <GroupNodeRow
-                depth={depth}
-                onClick={isDisabled ? undefined : toggle}
-            >
+            <Row depth={depth} onClick={isDisabled ? undefined : toggle}>
                 <RowIcon
                     icon={
                         isOpen || forceOpen ? 'chevron-down' : 'chevron-right'
@@ -62,7 +59,8 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                         highlightElement={Highlighted}
                     />
                 </Text>
-            </GroupNodeRow>
+            </Row>
+
             <Collapse isOpen={isOpen || forceOpen}>
                 <TreeNodes nodeMap={node.children} depth={depth + 1} />
             </Collapse>
