@@ -4,14 +4,17 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
+import { promises as fs } from 'fs';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
 
-export type SnowflakeUserPasswordTarget = {
+type SnowflakeTarget = {
     type: 'snowflake';
     account: string;
     user: string;
-    password: string;
+    password?: string;
+    private_key_path?: string;
+    private_key_passphrase?: string;
     role: string;
     database: string;
     warehouse: string;
@@ -25,88 +28,107 @@ export type SnowflakeUserPasswordTarget = {
     retry_all?: boolean;
 };
 
-export const snowflakeUserPasswordSchema: JSONSchemaType<SnowflakeUserPasswordTarget> =
-    {
-        type: 'object',
-        properties: {
-            type: {
-                type: 'string',
-                enum: ['snowflake'],
-            },
-            account: {
-                type: 'string',
-            },
-            user: {
-                type: 'string',
-            },
-            password: {
-                type: 'string',
-            },
-            role: {
-                type: 'string',
-            },
-            database: {
-                type: 'string',
-            },
-            warehouse: {
-                type: 'string',
-            },
-            schema: {
-                type: 'string',
-            },
-            threads: {
-                type: 'integer',
-                nullable: true,
-            },
-            client_session_keep_alive: {
-                type: 'boolean',
-                nullable: true,
-            },
-            query_tag: {
-                type: 'string',
-                nullable: true,
-            },
-            connect_retries: {
-                type: 'integer',
-                nullable: true,
-            },
-            connect_timeout: {
-                type: 'integer',
-                nullable: true,
-            },
-            retry_on_database_errors: {
-                type: 'boolean',
-                nullable: true,
-            },
-            retry_all: {
-                type: 'boolean',
-                nullable: true,
-            },
+const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: ['snowflake'],
         },
-        required: [
-            'type',
-            'account',
-            'user',
-            'password',
-            'role',
-            'database',
-            'warehouse',
-            'schema',
-        ],
-    };
+        account: {
+            type: 'string',
+        },
+        user: {
+            type: 'string',
+        },
+        password: {
+            type: 'string',
+            nullable: true,
+        },
+        private_key_path: {
+            type: 'string',
+            nullable: true,
+        },
+        private_key_passphrase: {
+            type: 'string',
+            nullable: true,
+        },
+        role: {
+            type: 'string',
+        },
+        database: {
+            type: 'string',
+        },
+        warehouse: {
+            type: 'string',
+        },
+        schema: {
+            type: 'string',
+        },
+        threads: {
+            type: 'integer',
+            nullable: true,
+        },
+        client_session_keep_alive: {
+            type: 'boolean',
+            nullable: true,
+        },
+        query_tag: {
+            type: 'string',
+            nullable: true,
+        },
+        connect_retries: {
+            type: 'integer',
+            nullable: true,
+        },
+        connect_timeout: {
+            type: 'integer',
+            nullable: true,
+        },
+        retry_on_database_errors: {
+            type: 'boolean',
+            nullable: true,
+        },
+        retry_all: {
+            type: 'boolean',
+            nullable: true,
+        },
+    },
+    required: [
+        'type',
+        'account',
+        'user',
+        'role',
+        'database',
+        'warehouse',
+        'schema',
+    ],
+};
 
-export const convertSnowflakeSchema = (
+export const convertSnowflakeSchema = async (
     target: Target,
-): CreateSnowflakeCredentials => {
-    const validate = ajv.compile<SnowflakeUserPasswordTarget>(
-        snowflakeUserPasswordSchema,
-    );
+): Promise<CreateSnowflakeCredentials> => {
+    const validate = ajv.compile<SnowflakeTarget>(snowflakeSchema);
     if (validate(target)) {
+        const keyfilePath = target.private_key_path;
+        let privateKey;
+        if (keyfilePath) {
+            try {
+                privateKey = await fs.readFile(keyfilePath, 'utf8');
+            } catch (e: any) {
+                throw new ParseError(
+                    `Cannot read keyfile for snowflake target at: ${keyfilePath}:\n  ${e.message}`,
+                );
+            }
+        }
+
         return {
             type: WarehouseTypes.SNOWFLAKE,
             account: target.account,
             user: target.user,
             password: target.password,
+            privateKey,
+            privateKeyPass: target.private_key_passphrase,
             role: target.role,
             warehouse: target.warehouse,
             database: target.database,

@@ -5,6 +5,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
+import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../types';
@@ -107,10 +108,29 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
     constructor(credentials: CreateSnowflakeCredentials) {
+        let decodedPrivateKey: string | Buffer | undefined =
+            credentials.privateKey;
+        if (credentials.privateKey && credentials.privateKeyPass) {
+            // Get the private key from the file as an object.
+            const privateKeyObject = crypto.createPrivateKey({
+                key: credentials.privateKey,
+                format: 'pem',
+                passphrase: credentials.privateKeyPass,
+            });
+
+            // Extract the private key from the object as a PEM-encoded string.
+            decodedPrivateKey = privateKeyObject.export({
+                format: 'pem',
+                type: 'pkcs8',
+            });
+        }
+
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
             password: credentials.password,
+            authenticator: decodedPrivateKey ? 'SNOWFLAKE_JWT' : undefined,
+            privateKey: decodedPrivateKey,
             database: credentials.database,
             schema: credentials.schema,
             warehouse: credentials.warehouse,

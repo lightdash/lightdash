@@ -845,7 +845,9 @@ export type CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE;
     account: string;
     user: string;
-    password: string;
+    password?: string;
+    privateKey?: string;
+    privateKeyPass?: string;
     role: string;
     database: string;
     warehouse: string;
