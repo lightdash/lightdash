@@ -1,3 +1,11 @@
+# [0.242.0](https://github.com/lightdash/lightdash/compare/0.241.5...0.242.0) (2022-09-06)
+
+
+### Features
+
+* change bignumber context menu to open on left-click ([#3171](https://github.com/lightdash/lightdash/issues/3171)) ([aacd39f](https://github.com/lightdash/lightdash/commit/aacd39fc5d0deeba6caae8ff3b18a0777bc0781f))
+* table field list sort ([#3168](https://github.com/lightdash/lightdash/issues/3168)) ([766d9c0](https://github.com/lightdash/lightdash/commit/766d9c07cbc6966de131a11340f35c23688cedaa))
+
 ## [0.241.5](https://github.com/lightdash/lightdash/compare/0.241.4...0.241.5) (2022-09-06)
 
 
