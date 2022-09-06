@@ -96,6 +96,6 @@ export const getSortLabel = (field: Field, direction: SortDirection) => {
                 return assertUnreachable(field.type);
         }
     } else {
-        return direction === SortDirection.ASC ? 'Low-High' : 'Last-First';
+        throw new Error('Field is not a Dimension or Metric');
     }
 };
