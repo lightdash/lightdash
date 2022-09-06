@@ -51,6 +51,10 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
         const item = column?.meta?.item;
 
+        if (!isField(item)) {
+            return null;
+        }
+
         return (
             <SortItemContainer
                 ref={ref}
@@ -74,7 +78,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 </LabelWrapper>
 
                 <ColumnNameWrapper>
-                    {isField(item) ? item.label : item?.name || sort.fieldId}
+                    {item.label || sort.fieldId}
                 </ColumnNameWrapper>
 
                 <StretchSpacer />
