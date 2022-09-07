@@ -1,3 +1,10 @@
+# [0.244.0](https://github.com/lightdash/lightdash/compare/0.243.0...0.244.0) (2022-09-07)
+
+
+### Features
+
+* add space links to chart and dashboard headers ([#3177](https://github.com/lightdash/lightdash/issues/3177)) ([e9e8973](https://github.com/lightdash/lightdash/commit/e9e897387d0bab960176e308640f8ca7334eaaa3))
+
 # [0.243.0](https://github.com/lightdash/lightdash/compare/0.242.0...0.243.0) (2022-09-07)
 
 
