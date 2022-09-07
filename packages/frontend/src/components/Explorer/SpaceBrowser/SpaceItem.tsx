@@ -55,10 +55,7 @@ const SpaceItem: FC<SpaceItemProps> = ({
             <SpaceTitle ellipsize>{name}</SpaceTitle>
             <SpaceFooter>
                 <SpaceItemCount icon="control" value={dashboardsCount} />
-                <SpaceItemCount
-                    icon="timeline-bar-chart"
-                    value={queriesCount}
-                />
+                <SpaceItemCount icon="chart" value={queriesCount} />
             </SpaceFooter>
         </SpaceLinkButton>
     );
