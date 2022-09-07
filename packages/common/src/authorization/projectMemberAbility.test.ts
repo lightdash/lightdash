@@ -35,6 +35,9 @@ describe('Project member permissions', () => {
                 ability.can('view', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
+                ability.can('view', subject('Space', { projectUuid })),
+            ).toEqual(true);
+            expect(
                 ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
@@ -44,6 +47,9 @@ describe('Project member permissions', () => {
             ).toEqual(true);
             expect(
                 ability.can('manage', subject('Dashboard', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('manage', subject('Space', { projectUuid })),
             ).toEqual(true);
             expect(
                 ability.can('manage', subject('Project', { projectUuid })),
@@ -64,6 +70,9 @@ describe('Project member permissions', () => {
                     'view',
                     subject('Dashboard', { projectUuid: '5678' }),
                 ),
+            ).toEqual(false);
+            expect(
+                ability.can('view', subject('Space', { projectUuid: '5678' })),
             ).toEqual(false);
             expect(
                 ability.can(
@@ -87,6 +96,9 @@ describe('Project member permissions', () => {
                 ability.can('view', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
+                ability.can('view', subject('Space', { projectUuid })),
+            ).toEqual(true);
+            expect(
                 ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
@@ -96,6 +108,9 @@ describe('Project member permissions', () => {
             ).toEqual(true);
             expect(
                 ability.can('manage', subject('Dashboard', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('manage', subject('Space', { projectUuid })),
             ).toEqual(true);
             expect(
                 ability.can('manage', subject('Job', { projectUuid })),
@@ -124,6 +139,9 @@ describe('Project member permissions', () => {
                 ability.can('view', subject('Dashboard', { projectUuid })),
             ).toEqual(true);
             expect(
+                ability.can('view', subject('Space', { projectUuid })),
+            ).toEqual(true);
+            expect(
                 ability.can('view', subject('Project', { projectUuid })),
             ).toEqual(true);
         });
@@ -141,6 +159,9 @@ describe('Project member permissions', () => {
                 ),
             ).toEqual(false);
             expect(
+                ability.can('view', subject('Space', { projectUuid: '5678' })),
+            ).toEqual(false);
+            expect(
                 ability.can(
                     'view',
                     subject('Project', { projectUuid: '5678' }),
@@ -153,6 +174,9 @@ describe('Project member permissions', () => {
             ).toEqual(false);
             expect(
                 ability.can('manage', subject('Dashboard', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Space', { projectUuid })),
             ).toEqual(false);
             expect(
                 ability.can('manage', subject('Project', { projectUuid })),

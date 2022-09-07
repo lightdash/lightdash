@@ -144,6 +144,7 @@ describe('Organization member permissions', () => {
             expect(ability.can('create', 'Project')).toEqual(true);
         });
         it('cannot create any resource', () => {
+            expect(ability.can('create', 'Space')).toEqual(false);
             expect(ability.can('create', 'Dashboard')).toEqual(false);
             expect(ability.can('create', 'SavedChart')).toEqual(false);
             expect(ability.can('create', 'Organization')).toEqual(false);
@@ -152,6 +153,7 @@ describe('Organization member permissions', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(false);
         });
         it('cannot update any resource', () => {
+            expect(ability.can('update', 'Space')).toEqual(false);
             expect(ability.can('update', 'Dashboard')).toEqual(false);
             expect(ability.can('update', 'SavedChart')).toEqual(false);
             expect(ability.can('update', 'Project')).toEqual(false);
@@ -159,6 +161,7 @@ describe('Organization member permissions', () => {
             expect(ability.can('update', 'InviteLink')).toEqual(false);
         });
         it('cannot delete any resource', () => {
+            expect(ability.can('delete', 'Space')).toEqual(false);
             expect(ability.can('delete', 'Dashboard')).toEqual(false);
             expect(ability.can('delete', 'SavedChart')).toEqual(false);
             expect(ability.can('delete', 'Project')).toEqual(false);

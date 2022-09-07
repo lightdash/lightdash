@@ -1,5 +1,8 @@
+import { subject } from '@casl/ability';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
+import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../../common/Authorization';
 import LatestCard from '../../Home/LatestCard';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
@@ -12,10 +15,10 @@ import {
 import SpaceItem from './SpaceItem';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { user } = useApp();
     const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
     const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
     const { data: spaces, isLoading } = useSpaces(projectUuid);
-
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
 
     return (
@@ -24,16 +27,24 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 isLoading={isLoading}
                 title="Spaces"
                 headerAction={
-                    <CreateNewButton
-                        minimal
-                        loading={isLoading}
-                        intent="primary"
-                        onClick={() => {
-                            setIsCreateModalOpen(true);
-                        }}
+                    <Can
+                        I="create"
+                        this={subject('Space', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
                     >
-                        + Create new
-                    </CreateNewButton>
+                        <CreateNewButton
+                            minimal
+                            loading={isLoading}
+                            intent="primary"
+                            onClick={() => {
+                                setIsCreateModalOpen(true);
+                            }}
+                        >
+                            + Create new
+                        </CreateNewButton>
+                    </Can>
                 }
             >
                 <SpaceListWrapper>

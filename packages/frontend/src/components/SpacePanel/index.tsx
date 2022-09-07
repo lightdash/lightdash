@@ -1,5 +1,6 @@
 import { Button, NonIdealState } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -9,6 +10,7 @@ import {
 } from '../../hooks/dashboard/useDashboard';
 import { useApp } from '../../providers/AppProvider';
 import ActionCardList from '../common/ActionCardList';
+import { Can } from '../common/Authorization';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
 import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
 import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
@@ -66,7 +68,15 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     onRename={() => setUpdateSpace(true)}
                     onDelete={() => setDeleteSpace(true)}
                 >
-                    <Button icon="edit" text="Edit space" />
+                    <Can
+                        I="manage"
+                        this={subject('Space', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        <Button icon="edit" text="Edit space" />
+                    </Can>
                 </SpaceBrowserMenu>
                 {updateSpace && (
                     <EditSpaceModal
