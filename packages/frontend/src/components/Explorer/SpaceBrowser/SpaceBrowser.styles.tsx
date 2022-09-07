@@ -31,7 +31,8 @@ export const CreateNewButton = styled(Button)`
 export const SpaceTitle = styled(Text)`
     font-weight: 600;
     text-align: left;
-    margin-bottom: 5px;
+    margin-top: 5px;
+    margin-bottom: 10px;
 `;
 
 export const CountWrapper = styled.span`
