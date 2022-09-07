@@ -119,7 +119,7 @@ export class ProjectService {
         data: CreateProject,
     ): Promise<Project> {
         if (
-            user.ability.cannot('manage', 'Job') ||
+            user.ability.cannot('create', 'Job') ||
             user.ability.cannot('create', 'Project')
         ) {
             throw new ForbiddenError();
@@ -128,6 +128,15 @@ export class ProjectService {
             user.organizationUuid,
             data,
         );
+
+        // Give admin user permissions to user who created this project even if he is an admin
+        if (user.email) {
+            await this.projectModel.createProjectAccess(
+                projectUuid,
+                user.email,
+                ProjectMemberRole.ADMIN,
+            );
+        }
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
@@ -150,7 +159,7 @@ export class ProjectService {
         data: CreateProject,
     ): Promise<{ jobUuid: string }> {
         if (
-            user.ability.cannot('manage', 'Job') ||
+            user.ability.cannot('create', 'Job') ||
             user.ability.cannot('create', 'Project')
         ) {
             throw new ForbiddenError();
@@ -382,7 +391,7 @@ export class ProjectService {
         if (
             user.ability.cannot(
                 'delete',
-                subject('Project', { organizationUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -712,7 +721,7 @@ export class ProjectService {
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (
-            user.ability.cannot('manage', 'Job') ||
+            user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
                 subject('Project', {
