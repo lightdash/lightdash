@@ -8,7 +8,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { FC, useEffect, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import {
     useDuplicateMutation,
@@ -185,7 +185,11 @@ const SavedChartsHeader: FC = () => {
                                             icon="folder-close"
                                             size={10}
                                         />
-                                        {space.name}
+                                        <Link
+                                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                                        >
+                                            {space.name}
+                                        </Link>
                                     </>
                                 )}
                             </PageDetailsContainer>

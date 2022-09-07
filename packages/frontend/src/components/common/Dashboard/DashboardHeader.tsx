@@ -7,7 +7,7 @@ import {
     UpdatedByUser,
 } from '@lightdash/common';
 import { useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -134,7 +134,12 @@ const DashboardHeader = ({
                                 icon="folder-close"
                                 size={10}
                             />
-                            {dashboardSpaceName}
+
+                            <Link
+                                to={`/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`}
+                            >
+                                {dashboardSpaceName}
+                            </Link>
                         </>
                     )}
                 </PageDetailsContainer>
