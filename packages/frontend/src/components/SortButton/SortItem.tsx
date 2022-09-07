@@ -1,11 +1,12 @@
-import { Button, ButtonGroup, Icon } from '@blueprintjs/core';
-import { SortField } from '@lightdash/common';
+import { Button, Icon } from '@blueprintjs/core';
+import { isField, SortField } from '@lightdash/common';
 import { forwardRef } from 'react';
 import {
     DraggableProvidedDraggableProps,
     DraggableProvidedDragHandleProps,
 } from 'react-beautiful-dnd';
 import { ExplorerContext } from '../../providers/ExplorerProvider';
+import { getSortLabel, SortDirection } from '../../utils/sortUtils';
 import { TableColumn } from '../common/Table/types';
 import {
     ColumnNameWrapper,
@@ -13,6 +14,7 @@ import {
     SortItemContainer,
     Spacer,
     StretchSpacer,
+    StyledButtonGroup,
 } from './SortButton.styles';
 
 interface SortItemProps {
@@ -47,6 +49,12 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
         const isDescending = !!sort.descending;
         const isAscending = !isDescending;
 
+        const item = column?.meta?.item;
+
+        if (!isField(item)) {
+            return null;
+        }
+
         return (
             <SortItemContainer
                 ref={ref}
@@ -70,12 +78,12 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 </LabelWrapper>
 
                 <ColumnNameWrapper>
-                    <b>{column?.columnLabel || sort.fieldId}</b>
+                    {item.label || sort.fieldId}
                 </ColumnNameWrapper>
 
                 <StretchSpacer />
 
-                <ButtonGroup>
+                <StyledButtonGroup>
                     <Button
                         small
                         intent={isAscending ? 'primary' : 'none'}
@@ -85,7 +93,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                 : onAddSortField({ descending: false })
                         }
                     >
-                        A-Z
+                        {getSortLabel(item, SortDirection.ASC)}
                     </Button>
 
                     <Button
@@ -97,9 +105,9 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                 : onAddSortField({ descending: true })
                         }
                     >
-                        Z-A
+                        {getSortLabel(item, SortDirection.DESC)}
                     </Button>
-                </ButtonGroup>
+                </StyledButtonGroup>
 
                 <Spacer $width={6} />
 

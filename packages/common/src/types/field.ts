@@ -165,8 +165,8 @@ const NonAggregateMetricTypes = [
     MetricType.BOOLEAN,
 ];
 
-export const isMetric = (field: Field): field is Metric =>
-    field.fieldType === FieldType.METRIC;
+export const isMetric = (field: Field | undefined): field is Metric =>
+    field ? field.fieldType === FieldType.METRIC : false;
 
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
