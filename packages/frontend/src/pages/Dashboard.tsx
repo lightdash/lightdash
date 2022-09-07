@@ -122,6 +122,8 @@ const Dashboard = () => {
     const layouts = useMemo(
         () => ({
             lg: dashboardTiles.map<Layout>((tile) => ({
+                minH: 2,
+                minW: 6,
                 x: tile.x,
                 y: tile.y,
                 w: tile.w,
@@ -379,7 +381,8 @@ const Dashboard = () => {
                     onDragStop={updateTiles}
                     onResizeStop={updateTiles}
                     breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                    cols={{ lg: 12, md: 10, sm: 6 }}
+                    cols={{ lg: 36, md: 30, sm: 18 }}
+                    rowHeight={50}
                     layouts={layouts}
                 >
                     {dashboardTiles.map((tile) => {
