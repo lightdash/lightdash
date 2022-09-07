@@ -1,3 +1,10 @@
+# [0.243.0](https://github.com/lightdash/lightdash/compare/0.242.0...0.243.0) (2022-09-07)
+
+
+### Features
+
+* proper sort indicators based on field type ([#3163](https://github.com/lightdash/lightdash/issues/3163)) ([00f98d3](https://github.com/lightdash/lightdash/commit/00f98d3c71ae07f9599336964ded9d83abac6ab2))
+
 # [0.242.0](https://github.com/lightdash/lightdash/compare/0.241.5...0.242.0) (2022-09-06)
 
 
