@@ -43,8 +43,8 @@ export async function seed(knex: Knex): Promise<void> {
         uuid: uuidv4(),
         x: 0,
         y: 0,
-        w: 6,
-        h: 3,
+        w: 18,
+        h: 9,
         type: DashboardTileTypes.LOOM,
         properties: {
             title: 'Tutorial: Creating your first metrics and dimensions',
@@ -54,10 +54,10 @@ export async function seed(knex: Knex): Promise<void> {
 
     const markdownTile: DashboardMarkdownTile = {
         uuid: uuidv4(),
-        x: 6,
+        x: 18,
         y: 0,
-        w: 6,
-        h: 3,
+        w: 18,
+        h: 9,
         type: DashboardTileTypes.MARKDOWN,
         properties: {
             title: 'Welcome to Lightdash!',
@@ -68,9 +68,9 @@ export async function seed(knex: Knex): Promise<void> {
     const markdownRevenueTile: DashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 0,
-        y: 3,
-        w: 12,
-        h: 1,
+        y: 9,
+        w: 36,
+        h: 3,
         type: DashboardTileTypes.MARKDOWN,
         properties: {
             title: '💸 Revenue',
@@ -81,19 +81,19 @@ export async function seed(knex: Knex): Promise<void> {
     const barChart: DashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
-        y: 4,
-        w: 8,
-        h: 3,
+        y: 12,
+        w: 24,
+        h: 9,
         type: DashboardTileTypes.SAVED_CHART,
         properties: { savedChartUuid: queries[0].uuid },
     };
 
     const bigNumberTile: DashboardChartTile = {
         uuid: uuidv4(),
-        x: 8,
-        y: 4,
-        w: 4,
-        h: 3,
+        x: 24,
+        y: 12,
+        w: 12,
+        h: 9,
         type: DashboardTileTypes.SAVED_CHART,
         properties: { savedChartUuid: queries[1].uuid },
     };
@@ -101,19 +101,19 @@ export async function seed(knex: Knex): Promise<void> {
     const lineChartTile: DashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
-        y: 8,
-        w: 6,
-        h: 3,
+        y: 24,
+        w: 18,
+        h: 9,
         type: DashboardTileTypes.SAVED_CHART,
         properties: { savedChartUuid: queries[2].uuid },
     };
 
     const barTile: DashboardChartTile = {
         uuid: uuidv4(),
-        x: 6,
-        y: 8,
-        w: 6,
-        h: 3,
+        x: 18,
+        y: 24,
+        w: 18,
+        h: 9,
         type: DashboardTileTypes.SAVED_CHART,
         properties: { savedChartUuid: queries[3].uuid },
     };
@@ -121,9 +121,9 @@ export async function seed(knex: Knex): Promise<void> {
     const tableTile: DashboardChartTile = {
         uuid: uuidv4(),
         x: 0,
-        y: 11,
-        w: 12,
-        h: 3,
+        y: 33,
+        w: 36,
+        h: 9,
         type: DashboardTileTypes.SAVED_CHART,
         properties: { savedChartUuid: queries[4].uuid },
     };
@@ -131,9 +131,9 @@ export async function seed(knex: Knex): Promise<void> {
     const markdownOrdersTile: DashboardMarkdownTile = {
         uuid: uuidv4(),
         x: 0,
-        y: 7,
-        w: 12,
-        h: 1,
+        y: 21,
+        w: 36,
+        h: 3,
         type: DashboardTileTypes.MARKDOWN,
         properties: {
             title: '📨 Orders',
