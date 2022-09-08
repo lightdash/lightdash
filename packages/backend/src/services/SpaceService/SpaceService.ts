@@ -54,7 +54,7 @@ export class SpaceService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Project', {
+                subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
                 }),
@@ -73,8 +73,8 @@ export class SpaceService {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (
             user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
+                'create',
+                subject('Space', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -103,7 +103,7 @@ export class SpaceService {
         if (
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),
@@ -130,8 +130,8 @@ export class SpaceService {
         const space = await this.spaceModel.get(spaceUuid);
         if (
             user.ability.cannot(
-                'manage',
-                subject('Project', {
+                'delete',
+                subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),

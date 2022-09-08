@@ -34,6 +34,9 @@ export const organizationMemberAbilities: Record<
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
         });
@@ -47,6 +50,9 @@ export const organizationMemberAbilities: Record<
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
         can('manage', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'SavedChart', {

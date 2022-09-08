@@ -1,6 +1,9 @@
 import { Button, Colors, Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { FC } from 'react';
+import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../../common/Authorization';
 import {
     SpaceFooter,
     SpaceHeader,
@@ -29,6 +32,7 @@ const SpaceItem: FC<SpaceItemProps> = ({
     onRename,
     onDelete,
 }) => {
+    const { user } = useApp();
     return (
         <SpaceLinkButton
             key={uuid}
@@ -47,7 +51,16 @@ const SpaceItem: FC<SpaceItemProps> = ({
                 >
                     <SpaceBrowserMenu onRename={onRename} onDelete={onDelete}>
                         <Tooltip2 content="View options">
-                            <Button minimal icon="more" />
+                            <Can
+                                I="manage"
+                                this={subject('Space', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <Button minimal icon="more" />
+                            </Can>
                         </Tooltip2>
                     </SpaceBrowserMenu>
                 </div>

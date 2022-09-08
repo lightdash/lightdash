@@ -17,6 +17,9 @@ export const projectMemberAbilities: Record<
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
+        });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
         });
@@ -27,6 +30,9 @@ export const projectMemberAbilities: Record<
     editor(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
         can('manage', 'Dashboard', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Space', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'SavedChart', {

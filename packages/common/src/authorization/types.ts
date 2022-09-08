@@ -17,6 +17,7 @@ type Subject =
     | 'Organization'
     | 'OrganizationMemberProfile'
     | 'Dashboard'
+    | 'Space'
     | 'SavedChart'
     | 'InviteLink'
     | 'Job'
