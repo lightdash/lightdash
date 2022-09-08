@@ -131,8 +131,8 @@ export const isDashboardVersionedFields = (
 ): data is DashboardVersionedFields => 'tiles' in data && !!data.tiles;
 
 export const defaultTileSize = {
-    h: 3,
-    w: 5,
+    h: 9,
+    w: 15,
     x: 0,
     y: 0,
 };
@@ -143,8 +143,8 @@ export const getDefaultChartTileSize = (
     switch (chartType) {
         case 'big_number':
             return {
-                h: 2,
-                w: 3,
+                h: 6,
+                w: 9,
                 x: 0,
                 y: 0,
             };
