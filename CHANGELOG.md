@@ -1,3 +1,10 @@
+# [0.247.0](https://github.com/lightdash/lightdash/compare/0.246.0...0.247.0) (2022-09-08)
+
+
+### Features
+
+* increase dashboard tile grid points ([#3188](https://github.com/lightdash/lightdash/issues/3188)) ([af7b818](https://github.com/lightdash/lightdash/commit/af7b8180c82b81727e4dc95dff9a347626bf45d3))
+
 # [0.246.0](https://github.com/lightdash/lightdash/compare/0.245.0...0.246.0) (2022-09-08)
 
 
