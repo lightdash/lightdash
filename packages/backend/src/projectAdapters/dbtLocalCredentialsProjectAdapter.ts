@@ -38,8 +38,20 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
     }: DbtLocalCredentialsProjectAdapterArgs) {
         const profilesDir = tempy.directory();
         const profilesFilename = path.join(profilesDir, 'profiles.yml');
-        const { profile, environment: injectedEnvironment } =
-            profileFromCredentials(warehouseCredentials, targetName);
+        const {
+            profile,
+            environment: injectedEnvironment,
+            files,
+        } = profileFromCredentials(
+            warehouseCredentials,
+            profilesDir,
+            targetName,
+        );
+        if (files) {
+            Object.entries(files).forEach(([filePath, content]) => {
+                writeFileSync(filePath, content);
+            });
+        }
         writeFileSync(profilesFilename, profile);
         const e = (environment || []).reduce<Record<string, string>>(
             (previousValue, { key, value }) => ({

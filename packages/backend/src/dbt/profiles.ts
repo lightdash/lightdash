@@ -8,9 +8,16 @@ const DEFAULT_THREADS = 1;
 
 const envVar = (v: string) => `LIGHTDASH_DBT_PROFILE_VAR_${v.toUpperCase()}`;
 const envVarReference = (v: string) => `{{ env_var('${envVar(v)}') }}`;
+
+type CredentialsTarget = {
+    target: Record<string, any>;
+    environment: Record<string, string>;
+    files?: Record<string, string>;
+};
 const credentialsTarget = (
     credentials: CreateWarehouseCredentials,
-): { target: Record<string, any>; environment: Record<string, string> } => {
+    profilesDir: string,
+): CredentialsTarget => {
     switch (credentials.type) {
         case WarehouseTypes.BIGQUERY:
             return {
@@ -82,8 +89,8 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
-        case WarehouseTypes.SNOWFLAKE:
-            return {
+        case WarehouseTypes.SNOWFLAKE: {
+            const result: CredentialsTarget = {
                 target: {
                     type: credentials.type,
                     account: credentials.account,
@@ -100,9 +107,30 @@ const credentialsTarget = (
                 },
                 environment: {
                     [envVar('user')]: credentials.user,
-                    [envVar('password')]: credentials.password,
                 },
             };
+            if (credentials.password) {
+                result.target.password = envVarReference('password');
+                result.environment[envVar('password')] = credentials.password;
+            } else if (credentials.privateKey) {
+                const privateKeyPath = path.join(profilesDir, 'rsa_key.p8');
+                result.target.private_key_path =
+                    envVarReference('privateKeyPath');
+                result.environment[envVar('privateKeyPath')] = privateKeyPath;
+                result.files = { [privateKeyPath]: credentials.privateKey };
+                if (credentials.privateKeyPass) {
+                    result.target.private_key_passphrase =
+                        envVarReference('privateKeyPass');
+                    result.environment[envVar('privateKeyPass')] =
+                        credentials.privateKeyPass;
+                }
+            } else {
+                throw new Error(
+                    `Incorrect snowflake profile. Profile should have password or private key.`,
+                );
+            }
+            return result;
+        }
         case WarehouseTypes.DATABRICKS:
             return {
                 target: {
@@ -128,10 +156,14 @@ const credentialsTarget = (
 };
 export const profileFromCredentials = (
     credentials: CreateWarehouseCredentials,
+    profilesDir: string,
     customTargetName: string | undefined = undefined,
 ) => {
     const targetName = customTargetName || LIGHTDASH_TARGET_NAME;
-    const { target, environment } = credentialsTarget(credentials);
+    const { target, environment, files } = credentialsTarget(
+        credentials,
+        profilesDir,
+    );
     const profile = yaml.dump({
         config: {
             partial_parse: false,
@@ -147,5 +179,6 @@ export const profileFromCredentials = (
     return {
         profile,
         environment,
+        files,
     };
 };
