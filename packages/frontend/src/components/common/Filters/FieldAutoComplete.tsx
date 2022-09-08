@@ -1,5 +1,4 @@
-import { Icon } from '@blueprintjs/core';
-import { InputSharedProps } from '@blueprintjs/core/lib/esm/components/forms/inputSharedProps';
+import { Icon, InputGroupProps2 } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
@@ -52,12 +51,14 @@ type Props = {
     activeField?: Item;
     placeholder?: string;
     fields: Array<Item>;
-    rightElement?: InputSharedProps['rightElement'];
+    id?: InputGroupProps2['id'];
+    rightElement?: InputGroupProps2['rightElement'];
     onChange: (value: Item) => void;
     onClosed?: () => void;
 };
 
 const FieldAutoComplete: FC<Props> = ({
+    id,
     disabled,
     autoFocus,
     activeField,
@@ -74,6 +75,7 @@ const FieldAutoComplete: FC<Props> = ({
             fill
             disabled={disabled}
             inputProps={{
+                id,
                 autoFocus,
                 placeholder: placeholder || 'Search field...',
                 leftIcon: activeField && (
@@ -82,7 +84,7 @@ const FieldAutoComplete: FC<Props> = ({
                         color={getItemColor(activeField)}
                     />
                 ),
-                rightElement: rightElement,
+                rightElement,
             }}
             popoverProps={{
                 minimal: true,

@@ -12,7 +12,6 @@ import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import SimpleButton from '../../common/SimpleButton';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
-    AxisFieldDropdown,
     AxisGroup,
     AxisTitle,
     AxisTitleWrapper,
@@ -99,16 +98,16 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
                     />
                 </AxisTitleWrapper>
-                <AxisFieldDropdown>
-                    <FieldAutoComplete
-                        fields={items}
-                        activeField={xAxisField}
-                        onChange={(item) => {
-                            setXField(getItemId(item));
-                        }}
-                    />
-                </AxisFieldDropdown>
+
+                <FieldAutoComplete
+                    fields={items}
+                    activeField={xAxisField}
+                    onChange={(item) => {
+                        setXField(getItemId(item));
+                    }}
+                />
             </AxisGroup>
+
             <AxisGroup>
                 <AxisTitle>
                     {`${
@@ -119,30 +118,29 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 {yFields.map((field, index) => {
                     const activeField = yActiveField(field);
                     return (
-                        <AxisFieldDropdown key={`${field}-y-axis`}>
-                            <FieldAutoComplete
-                                fields={
-                                    activeField
-                                        ? [activeField, ...availableYFields]
-                                        : availableYFields
-                                }
-                                activeField={activeField}
-                                rightElement={
-                                    yFields?.length === 1 ? undefined : (
-                                        <Button
-                                            minimal
-                                            icon="cross"
-                                            onClick={() => {
-                                                removeSingleSeries(index);
-                                            }}
-                                        />
-                                    )
-                                }
-                                onChange={(item) => {
-                                    updateYField(index, getItemId(item));
-                                }}
-                            />
-                        </AxisFieldDropdown>
+                        <FieldAutoComplete
+                            key={`${field}-y-axis`}
+                            fields={
+                                activeField
+                                    ? [activeField, ...availableYFields]
+                                    : availableYFields
+                            }
+                            activeField={activeField}
+                            rightElement={
+                                yFields?.length === 1 ? undefined : (
+                                    <Button
+                                        minimal
+                                        icon="cross"
+                                        onClick={() => {
+                                            removeSingleSeries(index);
+                                        }}
+                                    />
+                                )
+                            }
+                            onChange={(item) => {
+                                updateYField(index, getItemId(item));
+                            }}
+                        />
                     );
                 })}
                 {availableYFields.length > 0 && (
@@ -159,28 +157,28 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>Group</AxisTitle>
-                <AxisFieldDropdown>
-                    <FieldAutoComplete
-                        fields={availableDimensions}
-                        placeholder="Select a field to group by"
-                        activeField={groupSelectedField}
-                        rightElement={
-                            groupSelectedField && (
-                                <Button
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => {
-                                        setPivotDimensions([]);
-                                    }}
-                                />
-                            )
-                        }
-                        onChange={(item) => {
-                            setPivotDimensions([getItemId(item)]);
-                        }}
-                    />
-                </AxisFieldDropdown>
+
+                <FieldAutoComplete
+                    fields={availableDimensions}
+                    placeholder="Select a field to group by"
+                    activeField={groupSelectedField}
+                    rightElement={
+                        groupSelectedField && (
+                            <Button
+                                minimal
+                                icon="cross"
+                                onClick={() => {
+                                    setPivotDimensions([]);
+                                }}
+                            />
+                        )
+                    }
+                    onChange={(item) => {
+                        setPivotDimensions([getItemId(item)]);
+                    }}
+                />
             </AxisGroup>
+
             {pivotDimension && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>

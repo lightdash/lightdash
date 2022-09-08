@@ -46,19 +46,6 @@ export const AxisTitle = styled.p`
     font-weight: 600;
 `;
 
-export const AxisFieldDropdown = styled.div`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 0.357em 0;
-
-    .bp4-input-group .bp4-input {
-        border: 0.7px solid ${Colors.LIGHT_GRAY1};
-        box-sizing: border-box;
-        box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2);
-    }
-`;
-
 export const StackingWrapper = styled(ButtonGroup)`
     padding: 0.357em 0;
     display: grid !important;

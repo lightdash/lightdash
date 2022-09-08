@@ -1,4 +1,4 @@
-import { Button, InputGroup } from '@blueprintjs/core';
+import { Button, ControlGroup, FormGroup, InputGroup } from '@blueprintjs/core';
 import React from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -14,40 +14,43 @@ export const ColumnConfiguration: React.FC = () => {
         },
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
+
     return (
-        <>
-            {selectedItemIds.map((fieldId) => (
-                <InputGroup
-                    key={fieldId}
-                    fill
-                    disabled={!isColumnVisible(fieldId)}
-                    defaultValue={getHeader(fieldId)}
-                    placeholder={getDefaultColumnLabel(fieldId)}
-                    rightElement={
-                        fieldId === pivotDimension ? undefined : (
-                            <Button
-                                minimal
-                                icon={
-                                    isColumnVisible(fieldId)
-                                        ? 'eye-off'
-                                        : 'eye-open'
-                                }
-                                onClick={() => {
-                                    updateColumnProperty(fieldId, {
-                                        visible: !isColumnVisible(fieldId),
-                                    });
-                                }}
-                            />
-                        )
-                    }
-                    onBlur={(e) => {
-                        updateColumnProperty(fieldId, {
-                            name: e.currentTarget.value,
-                        });
-                    }}
-                />
-            ))}
-        </>
+        <FormGroup label="Columns">
+            <ControlGroup vertical>
+                {selectedItemIds.map((fieldId) => (
+                    <InputGroup
+                        key={fieldId}
+                        fill
+                        disabled={!isColumnVisible(fieldId)}
+                        defaultValue={getHeader(fieldId)}
+                        placeholder={getDefaultColumnLabel(fieldId)}
+                        rightElement={
+                            fieldId === pivotDimension ? undefined : (
+                                <Button
+                                    minimal
+                                    icon={
+                                        isColumnVisible(fieldId)
+                                            ? 'eye-off'
+                                            : 'eye-open'
+                                    }
+                                    onClick={() => {
+                                        updateColumnProperty(fieldId, {
+                                            visible: !isColumnVisible(fieldId),
+                                        });
+                                    }}
+                                />
+                            )
+                        }
+                        onBlur={(e) => {
+                            updateColumnProperty(fieldId, {
+                                name: e.currentTarget.value,
+                            });
+                        }}
+                    />
+                ))}
+            </ControlGroup>
+        </FormGroup>
     );
 };
 

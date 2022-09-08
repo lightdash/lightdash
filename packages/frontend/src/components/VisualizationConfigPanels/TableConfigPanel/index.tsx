@@ -1,14 +1,10 @@
 import { Button, FormGroup, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { fieldId, getDimensions, getItemId } from '@lightdash/common';
-import React, { useState } from 'react';
+import React from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { AxisFieldDropdown } from '../ChartConfigPanel/ChartConfigPanel.styles';
-import {
-    ConfigWrapper,
-    SectionTitle,
-} from '../VisualizationConfigPanel.styles';
+import { ConfigPanelWrapper } from '../VisualizationConfigPanel.styles';
 import ColumnConfiguration from './ColumnConfiguration';
 
 export const TableConfigPanel: React.FC = () => {
@@ -25,7 +21,6 @@ export const TableConfigPanel: React.FC = () => {
         },
         setPivotDimensions,
     } = useVisualizationContext();
-    const [isOpen, setIsOpen] = useState(false);
     const pivotDimension = pivotDimensions?.[0];
     const disabled = rows.length <= 0;
 
@@ -42,70 +37,81 @@ export const TableConfigPanel: React.FC = () => {
 
     return (
         <Popover2
+            position="bottom"
             disabled={disabled}
             content={
-                <ConfigWrapper>
-                    <FormGroup label="Group">
-                        <AxisFieldDropdown>
-                            <FieldAutoComplete
-                                fields={availableDimensions}
-                                placeholder="Select a field to group by"
-                                activeField={groupSelectedField}
-                                rightElement={
-                                    groupSelectedField && (
-                                        <Button
-                                            minimal
-                                            icon="cross"
-                                            onClick={() => {
-                                                setPivotDimensions([]);
-                                            }}
-                                        />
-                                    )
-                                }
-                                onChange={(item) => {
-                                    setPivotDimensions([getItemId(item)]);
-                                }}
-                            />
-                        </AxisFieldDropdown>
+                <ConfigPanelWrapper>
+                    <FormGroup label="Group" labelFor="group-field">
+                        <FieldAutoComplete
+                            id="group-field"
+                            fields={availableDimensions}
+                            placeholder="Select a field to group by"
+                            activeField={groupSelectedField}
+                            rightElement={
+                                groupSelectedField && (
+                                    <Button
+                                        minimal
+                                        icon="cross"
+                                        onClick={() => {
+                                            setPivotDimensions([]);
+                                        }}
+                                    />
+                                )
+                            }
+                            onChange={(item) => {
+                                setPivotDimensions([getItemId(item)]);
+                            }}
+                        />
                     </FormGroup>
 
-                    <SectionTitle>Show column total</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={showColumnCalculation}
-                        onChange={(e) => {
-                            setShowColumnCalculation(!showColumnCalculation);
-                        }}
-                    />
-                    <SectionTitle>Show table names</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={showTableNames}
-                        onChange={(e) => {
-                            setShowTableName(!showTableNames);
-                        }}
-                    />
-                    <SectionTitle>Columns</SectionTitle>
+                    <FormGroup
+                        label="Show column total"
+                        labelFor="show-column-total-switch"
+                    >
+                        <Switch
+                            id="show-column-total-switch"
+                            large
+                            innerLabelChecked="Yes"
+                            innerLabel="No"
+                            checked={showColumnCalculation}
+                            onChange={(e) => {
+                                setShowColumnCalculation(
+                                    !showColumnCalculation,
+                                );
+                            }}
+                        />
+                    </FormGroup>
+
+                    <FormGroup
+                        label="Show table names"
+                        labelFor="show-table-name-switch"
+                    >
+                        <Switch
+                            id="show-table-name-switch"
+                            large
+                            innerLabelChecked="Yes"
+                            innerLabel="No"
+                            checked={showTableNames}
+                            onChange={(e) => {
+                                setShowTableName(!showTableNames);
+                            }}
+                        />
+                    </FormGroup>
 
                     <ColumnConfiguration />
-                </ConfigWrapper>
+                </ConfigPanelWrapper>
             }
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="bottom"
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
-        </Popover2>
+            renderTarget={({ ref, isOpen, ...targetProps }) => (
+                <Button
+                    {...targetProps}
+                    elementRef={ref}
+                    minimal
+                    rightIcon="caret-down"
+                    text="Configure"
+                    disabled={disabled}
+                />
+            )}
+        />
     );
 };
 
