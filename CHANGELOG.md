@@ -1,3 +1,10 @@
+## [0.247.1](https://github.com/lightdash/lightdash/compare/0.247.0...0.247.1) (2022-09-08)
+
+
+### Bug Fixes
+
+* member role migration rollback ([#3190](https://github.com/lightdash/lightdash/issues/3190)) ([0700960](https://github.com/lightdash/lightdash/commit/0700960ff278e44cb66398c51d19eb6fdb191026))
+
 # [0.247.0](https://github.com/lightdash/lightdash/compare/0.246.0...0.247.0) (2022-09-08)
 
 
