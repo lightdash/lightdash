@@ -22,6 +22,9 @@ const getDateFormat = (timeInterval: string | undefined = 'DAY'): string => {
         case 'YEAR':
             dateForm = 'YYYY';
             break;
+        case 'QUARTER':
+            dateForm = 'YYYY-[Q]Q';
+            break;
         case 'MONTH':
             dateForm = 'YYYY-MM';
             break;
