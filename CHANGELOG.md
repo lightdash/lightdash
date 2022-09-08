@@ -1,3 +1,16 @@
+# [0.245.0](https://github.com/lightdash/lightdash/compare/0.244.0...0.245.0) (2022-09-08)
+
+
+### Bug Fixes
+
+* create and delete project permissions for users that arent org admins ([#3181](https://github.com/lightdash/lightdash/issues/3181)) ([7353984](https://github.com/lightdash/lightdash/commit/735398413bf71b4dc66a8cd69537bac0d6db86a0))
+* space permissions ([#3182](https://github.com/lightdash/lightdash/issues/3182)) ([7a849d9](https://github.com/lightdash/lightdash/commit/7a849d9a71533cedce427228e2960b89a5b15eb3))
+
+
+### Features
+
+* snowflake key pair authentication in cli ([#3176](https://github.com/lightdash/lightdash/issues/3176)) ([5cd1943](https://github.com/lightdash/lightdash/commit/5cd1943ea1fa4b9d816fb72d662c8229c7b5ce6a))
+
 # [0.244.0](https://github.com/lightdash/lightdash/compare/0.243.0...0.244.0) (2022-09-07)
 
 
