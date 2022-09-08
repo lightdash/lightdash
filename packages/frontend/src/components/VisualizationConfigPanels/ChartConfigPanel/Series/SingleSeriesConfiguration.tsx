@@ -1,4 +1,4 @@
-import { Button, InputGroup, Switch } from '@blueprintjs/core';
+import { Button, ControlGroup, InputGroup, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -44,7 +44,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
             : series.type;
     return (
         <>
-            <div>
+            <ControlGroup>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
                     onChange={(color) => {
@@ -54,6 +54,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         });
                     }}
                 />
+
                 {!isSingle && (
                     <InputGroup
                         fill
@@ -65,27 +66,34 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 name: e.currentTarget.value,
                             });
                         }}
+                        rightElement={
+                            isGrouped ? (
+                                <Button
+                                    minimal
+                                    icon={
+                                        series.hidden ? 'eye-open' : 'eye-off'
+                                    }
+                                    onClick={() => {
+                                        updateSingleSeries({
+                                            ...series,
+                                            hidden: !series.hidden,
+                                        });
+                                    }}
+                                />
+                            ) : undefined
+                        }
                     />
                 )}
-                {isGrouped && (
-                    <Button
-                        icon={series.hidden ? 'eye-open' : 'eye-off'}
-                        onClick={() => {
-                            updateSingleSeries({
-                                ...series,
-                                hidden: !series.hidden,
-                            });
-                        }}
-                    />
-                )}
+
                 {isCollapsable && (
                     <Button
+                        minimal
                         disabled={series.hidden}
                         icon={isOpen ? 'caret-up' : 'caret-down'}
                         onClick={toggleIsOpen}
                     />
                 )}
-            </div>
+            </ControlGroup>
 
             <SeriesOptionsWrapper
                 isOpen={!isCollapsable || isOpen}

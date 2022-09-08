@@ -265,6 +265,7 @@ const ChartConfigTabs: FC = () => {
                                 Object.keys(groupedSeriesMap).length > 0 && (
                                     <Divider />
                                 )}
+
                             <GroupedSeriesConfiguration
                                 items={items}
                                 layout={dirtyLayout}

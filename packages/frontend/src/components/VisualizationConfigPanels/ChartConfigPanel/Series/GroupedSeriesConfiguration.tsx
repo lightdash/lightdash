@@ -1,4 +1,11 @@
-import { Colors, Divider, Switch } from '@blueprintjs/core';
+import {
+    Colors,
+    ControlGroup,
+    Divider,
+    FormGroup,
+    HTMLSelect,
+    Switch,
+} from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -12,15 +19,10 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC } from 'react';
-import { SectionTitle } from '../../VisualizationConfigPanel.styles';
 import {
     GroupedSeriesConfigWrapper,
-    GroupSeriesBlock,
-    GroupSeriesInputs,
     GroupSeriesWrapper,
     SeriesBlock,
-    SeriesExtraInputWrapper,
-    SeriesExtraSelect,
 } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
@@ -79,7 +81,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
         string | undefined
     >();
     return (
-        <>
+        <ControlGroup vertical>
             {Object.entries(groupedSeries).map(([fieldKey, seriesGroup], i) => {
                 const field = items.find(
                     (item) => getItemId(item) === fieldKey,
@@ -121,16 +123,17 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 const chartValue = isChartTypeTheSameForAllSeries
                     ? chartType
                     : 'mixed';
-                return (
-                    <>
-                        <GroupSeriesBlock key={fieldKey}>
-                            <SectionTitle>
-                                {getItemLabel(field)} (grouped)
-                            </SectionTitle>
 
-                            <GroupSeriesInputs>
-                                <SeriesExtraInputWrapper label="Chart type">
-                                    <SeriesExtraSelect
+                return (
+                    <React.Fragment key={fieldKey}>
+                        <FormGroup label={`${getItemLabel(field)} (grouped)`}>
+                            <ControlGroup fill>
+                                <FormGroup
+                                    label="Chart type"
+                                    labelFor="chart-type-field"
+                                >
+                                    <HTMLSelect
+                                        id="chart-type-field"
                                         fill
                                         value={chartValue}
                                         options={
@@ -161,10 +164,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             });
                                         }}
                                     />
-                                </SeriesExtraInputWrapper>
+                                </FormGroup>
 
-                                <SeriesExtraInputWrapper label="Axis">
-                                    <SeriesExtraSelect
+                                <FormGroup label="Axis" labelFor="axis-field">
+                                    <HTMLSelect
+                                        id="axis-field"
                                         fill
                                         value={
                                             isAxisTheSameForAllSeries
@@ -195,10 +199,14 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             });
                                         }}
                                     />
-                                </SeriesExtraInputWrapper>
+                                </FormGroup>
 
-                                <SeriesExtraInputWrapper label="Value labels">
-                                    <SeriesExtraSelect
+                                <FormGroup
+                                    label="Value labels"
+                                    labelFor="value-labels-field"
+                                >
+                                    <HTMLSelect
+                                        id="value-labels-field"
                                         fill
                                         value={
                                             isLabelTheSameForAllSeries
@@ -222,7 +230,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             updateAllGroupedSeries(fieldKey, {
                                                 label:
                                                     option === 'hidden'
-                                                        ? { show: false }
+                                                        ? {
+                                                              show: false,
+                                                          }
                                                         : {
                                                               show: true,
                                                               position:
@@ -231,13 +241,14 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             });
                                         }}
                                     />
-                                </SeriesExtraInputWrapper>
-                            </GroupSeriesInputs>
+                                </FormGroup>
+                            </ControlGroup>
+
                             {(chartValue === CartesianSeriesType.LINE ||
                                 chartValue === CartesianSeriesType.AREA) && (
-                                <GroupSeriesInputs>
+                                <ControlGroup>
                                     <Switch
-                                        alignIndicator={'right'}
+                                        alignIndicator="right"
                                         checked={
                                             seriesGroup[0].showSymbol ?? true
                                         }
@@ -251,8 +262,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             });
                                         }}
                                     />
+
                                     <Switch
-                                        alignIndicator={'right'}
+                                        alignIndicator="right"
                                         checked={seriesGroup[0].smooth}
                                         label={'Smooth'}
                                         onChange={() => {
@@ -264,8 +276,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                             });
                                         }}
                                     />
-                                </GroupSeriesInputs>
+                                </ControlGroup>
                             )}
+
                             <GroupSeriesWrapper>
                                 {seriesGroup?.map((singleSeries) => {
                                     const formattedValue = getFormatterValue(
@@ -318,12 +331,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     );
                                 })}
                             </GroupSeriesWrapper>
-                        </GroupSeriesBlock>
+                        </FormGroup>
+
                         {hasDivider && <Divider />}
-                    </>
+                    </React.Fragment>
                 );
             })}
-        </>
+        </ControlGroup>
     );
 };
 
