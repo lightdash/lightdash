@@ -13,6 +13,7 @@
     "npm-run-all": "^4.1.5"
   },
   "devDependencies": {
+    "dotenv-cli": "^6.0.0",
     "husky": "^7.0.0",
     "lint-staged": "^12.1.2"
   },
@@ -21,7 +22,7 @@
     "common-lint": "yarn workspace @lightdash/common lint",
     "common-format": "yarn workspace @lightdash/common format",
     "common-test": "yarn workspace @lightdash/common test",
-    "backend-dev": "yarn workspace backend dev",
+    "backend-dev": "dotenv -e .env -e docker/.env yarn workspace backend dev",
     "backend-build": "yarn workspace backend build",
     "backend-start": "yarn workspace backend start",
     "backend-lint": "yarn workspace backend lint",
