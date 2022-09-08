@@ -27,7 +27,7 @@
     "backend-lint": "yarn workspace backend lint",
     "backend-format": "yarn workspace backend format",
     "backend-test": "yarn workspace backend test",
-    "frontend-dev": "yarn workspace frontend start",
+    "frontend-dev": "PORT=3000 yarn workspace frontend start",
     "frontend-build": "yarn workspace frontend build",
     "frontend-lint": "yarn workspace frontend lint",
     "frontend-format": "yarn workspace frontend format",
