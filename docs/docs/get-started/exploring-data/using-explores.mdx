@@ -2,6 +2,9 @@ import ExploreScreenshot from './assets/explore-screenshot.jpg';
 import ResultsTable from './assets/results-table.png';
 import SaveChart from './assets/save-chart.jpg';
 import SelectTable from './assets/select-table.jpg';
+import SortOneField from './assets/sort-one-field.jpg';
+import SortManyFields from './assets/sort-multiple-fields.jpg';
+import SortOptions from './assets/sort-options.jpg';
 
 # Using Tables and the Explore view in Lightdash
 
@@ -53,8 +56,21 @@ count` metric to calculate the number of orders and the `Status` dimension to sp
 
 ### Step 3: Order the results in your table
 
-Click on the table headers that you want to sort by and click again if you want to change from ascending to descending.
-If you need multiple sorts you can add more by pressing `⌃ Control` or `⌘ Command` and click on the table header.
+Click on the three-dot-menu by your column headers and select the sorting option that you want for a column. 
+
+<img src={SortOneField} width="649" height="385" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can have multiple sorts by adding more columns using their three-dot-menu. You can see the number of sorts applied just above your results table. 
+
+<img src={SortManyFields} width="653" height="383" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can update and change the sorting using of your table by clicking on the `sort` menu. Here, you have the option to:
+
+1. Drag-and-drop columns to rearrange the order of sorting multiple columns. 
+2. Remove a sort
+3. Change the order of a column's sort
+
+<img src={SortOptions} width="694" height="230" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Step 4: Visualize query results as a chart
 
