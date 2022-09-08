@@ -88,6 +88,7 @@ export class SpaceService {
             userId: user.userUuid,
             properties: {
                 name: space.name,
+                spaceId: newSpace.uuid,
                 projectId: projectUuid,
             },
         });
@@ -120,6 +121,7 @@ export class SpaceService {
             userId: user.userUuid,
             properties: {
                 name: space.name,
+                spaceId: spaceUuid,
                 projectId: space.projectUuid,
             },
         });
@@ -146,6 +148,7 @@ export class SpaceService {
             userId: user.userUuid,
             properties: {
                 name: space.name,
+                spaceId: spaceUuid,
                 projectId: space.projectUuid,
             },
         });
