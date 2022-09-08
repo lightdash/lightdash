@@ -1,13 +1,10 @@
-import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
+import { Button, FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { getItemId, NumberStyle } from '@lightdash/common';
 import React from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import {
-    ConfigWrapper,
-    StyledFormGroup,
-} from '../VisualizationConfigPanel.styles';
+import { ConfigWrapper } from '../VisualizationConfigPanel.styles';
 
 export const BigNumberConfigPanel: React.FC = () => {
     const {
@@ -39,7 +36,7 @@ export const BigNumberConfigPanel: React.FC = () => {
             position="bottom"
             content={
                 <ConfigWrapper>
-                    <StyledFormGroup label="Select field">
+                    <FormGroup label="Select field">
                         <FieldAutoComplete
                             fields={availableFields}
                             activeField={
@@ -51,9 +48,9 @@ export const BigNumberConfigPanel: React.FC = () => {
                                 setSelectedField(getItemId(item));
                             }}
                         />
-                    </StyledFormGroup>
+                    </FormGroup>
 
-                    <StyledFormGroup label="Label">
+                    <FormGroup label="Label">
                         <InputGroup
                             placeholder={defaultLabel}
                             defaultValue={bigNumberLabel}
@@ -61,11 +58,11 @@ export const BigNumberConfigPanel: React.FC = () => {
                                 setBigNumberLabel(e.currentTarget.value)
                             }
                         />
-                    </StyledFormGroup>
+                    </FormGroup>
 
                     {showStyle && (
                         <>
-                            <StyledFormGroup label="Style">
+                            <FormGroup label="Style">
                                 <HTMLSelect
                                     fill
                                     options={styleOptions}
@@ -79,7 +76,7 @@ export const BigNumberConfigPanel: React.FC = () => {
                                             );
                                     }}
                                 />
-                            </StyledFormGroup>
+                            </FormGroup>
                         </>
                     )}
                 </ConfigWrapper>

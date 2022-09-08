@@ -25,14 +25,6 @@ const FlexTemplate = css`
     flex-direction: column;
 `;
 
-export const InputWrapper = styled(FormGroup)`
-    & label.bp4-label {
-        font-weight: 500;
-        display: inline-flex;
-        gap: 0.214em;
-    }
-`;
-
 export const GroupSeriesBlock = styled.div`
     ${FlexTemplate}
 `;
@@ -58,40 +50,6 @@ export const GroupSeriesInputs = styled.div`
 export const SeriesBlock = styled.div`
     display: flex;
     flex-direction: column;
-`;
-
-export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
-    ${FlexTemplate}
-
-    &:last-child {
-        margin-bottom: 0;
-    }
-
-    ${({ $isSingle }) =>
-        $isSingle &&
-        `
-        display: grid;
-        grid-template-columns: 2.143em auto;
-        column-gap: 0.714em;
-  `}
-`;
-
-export const SeriesTitle = styled.p`
-    color: ${Colors.DARK_GRAY1};
-    font-weight: 600;
-    margin-bottom: 0.286em;
-`;
-
-export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
-    ${GridTemplate}
-
-    ${({ $isGrouped }) =>
-        $isGrouped
-            ? `
-        grid-template-columns: 2.143em 12.5em 2.143em 2.14em;
-        column-gap: 0.357em;
-        `
-            : `margin-top: 25px;`}
 `;
 
 export const SeriesInputField = styled(InputGroup)`
@@ -171,12 +129,4 @@ export const ColorButton = styled.button`
 export const ColorButtonInner = styled.div`
     height: 100%;
     width: 100%;
-`;
-
-export const SeriesDivider = styled.hr`
-    height: 0.071em;
-    width: 100%;
-    background: ${Colors.LIGHT_GRAY2};
-    border: none;
-    margin: 1.857em 0;
 `;

@@ -115,9 +115,3 @@ export const GridSettings = styled.div`
         margin-right: 5px;
     }
 `;
-
-export const SectionTitle = styled.p`
-    color: ${Colors.DARK_GRAY1};
-    font-weight: 600;
-    margin: 5px 0;
-`;

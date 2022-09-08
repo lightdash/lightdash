@@ -7,7 +7,10 @@ import BooleanSwitch from '../../../ReactHookForm/BooleanSwitch';
 import Form from '../../../ReactHookForm/Form';
 import Input from '../../../ReactHookForm/Input';
 import Select from '../../../ReactHookForm/Select';
-import { SectionRow, SectionTitle } from './Legend.styles';
+import {
+    SectionTitle,
+    StyledFormGroup,
+} from '../../VisualizationConfigPanel.styles';
 
 const triggerSubmitFields = ['show', 'type', 'orient'];
 
@@ -52,14 +55,16 @@ const LegendPanel: FC = () => {
                 }
             >
                 <SectionTitle>Position</SectionTitle>
-                <SectionRow>
+                <StyledFormGroup>
                     <Input name="top" label="Top" placeholder={'auto'} />
                     <Input name="bottom" label="Bottom" placeholder={'auto'} />
                     <Input name="left" label="Left" placeholder={'auto'} />
                     <Input name="right" label="Right" placeholder={'auto'} />
-                </SectionRow>
+                </StyledFormGroup>
+
                 <SectionTitle>Appearance</SectionTitle>
-                <SectionRow>
+
+                <StyledFormGroup>
                     <Select
                         name="type"
                         label="Type"
@@ -78,7 +83,7 @@ const LegendPanel: FC = () => {
                         }))}
                         defaultValue="horizontal"
                     />
-                </SectionRow>
+                </StyledFormGroup>
             </Collapse>
         </Form>
     );

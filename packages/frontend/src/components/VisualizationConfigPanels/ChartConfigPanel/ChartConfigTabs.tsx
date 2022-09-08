@@ -1,4 +1,5 @@
 import {
+    Divider,
     HTMLSelect,
     InputGroup,
     Label,
@@ -28,13 +29,15 @@ import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { StyledFormGroup } from '../VisualizationConfigPanel.styles';
+import {
+    SectionTitle,
+    StyledFormGroup,
+} from '../VisualizationConfigPanel.styles';
 import {
     AutoRangeSwitch,
     GridSettings,
     MinMaxContainer,
     MinMaxWrapper,
-    SectionTitle,
     StyledMinMaxFormGroup,
     Wrapper,
 } from './ChartConfigPanel.styles';
@@ -43,7 +46,6 @@ import GridPanel from './Grid';
 import LegendPanel from './Legend';
 import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
-import { SeriesDivider } from './Series/Series.styles';
 
 interface MinMaxProps {
     label: string;
@@ -260,7 +262,7 @@ const ChartConfigTabs: FC = () => {
                             />
                             {simpleSeries.length > 0 &&
                                 Object.keys(groupedSeriesMap).length > 0 && (
-                                    <SeriesDivider />
+                                    <Divider />
                                 )}
                             <GroupedSeriesConfiguration
                                 items={items}

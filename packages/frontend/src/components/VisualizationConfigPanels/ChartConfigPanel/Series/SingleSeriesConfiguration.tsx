@@ -9,9 +9,7 @@ import {
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
     SeriesExtraSelect,
-    SeriesMainInputs,
     SeriesOptionsWrapper,
-    SeriesWrapper,
 } from './Series.styles';
 import SeriesColorPicker from './SeriesColorPicker';
 
@@ -45,8 +43,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
             ? CartesianSeriesType.AREA
             : series.type;
     return (
-        <SeriesWrapper $isSingle={isSingle}>
-            <SeriesMainInputs $isGrouped={isGrouped}>
+        <>
+            <div>
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
                     onChange={(color) => {
@@ -87,7 +85,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         onClick={toggleIsOpen}
                     />
                 )}
-            </SeriesMainInputs>
+            </div>
+
             <SeriesOptionsWrapper
                 isOpen={!isCollapsable || isOpen}
                 $isGrouped={isGrouped}
@@ -212,7 +211,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </SeriesExtraInputs>
                 )}
             </SeriesOptionsWrapper>
-        </SeriesWrapper>
+        </>
     );
 };
 

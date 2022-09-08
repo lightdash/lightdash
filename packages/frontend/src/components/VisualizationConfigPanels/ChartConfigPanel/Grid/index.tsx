@@ -4,7 +4,10 @@ import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import Form from '../../../ReactHookForm/Form';
 import Input from '../../../ReactHookForm/Input';
-import { SectionRow, SectionTitle } from './Grid.styles';
+import {
+    SectionTitle,
+    StyledFormGroup,
+} from '../../VisualizationConfigPanel.styles';
 
 export const defaultGrid: EchartsGrid = {
     containLabel: true,
@@ -31,7 +34,7 @@ const GridPanel: FC = () => {
             onBlur={methods.handleSubmit(setGrid)}
         >
             <SectionTitle>Margins</SectionTitle>
-            <SectionRow>
+            <StyledFormGroup>
                 <Input name="top" label="Top" placeholder={defaultGrid.top} />
                 <Input
                     name="bottom"
@@ -48,7 +51,7 @@ const GridPanel: FC = () => {
                     label="Right"
                     placeholder={defaultGrid.right}
                 />
-            </SectionRow>
+            </StyledFormGroup>
         </Form>
     );
 };

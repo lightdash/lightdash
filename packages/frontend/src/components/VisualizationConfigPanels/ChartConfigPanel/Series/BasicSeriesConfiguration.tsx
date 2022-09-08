@@ -1,4 +1,4 @@
-import { Colors } from '@blueprintjs/core';
+import { Colors, Divider } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     Field,
@@ -9,7 +9,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC } from 'react';
-import { SeriesBlock, SeriesDivider, SeriesTitle } from './Series.styles';
+import { SectionTitle } from '../../VisualizationConfigPanel.styles';
+import { SeriesBlock } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -53,7 +54,8 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
 
                 return (
                     <SeriesBlock key={getSeriesId(series)}>
-                        <SeriesTitle>{getItemLabel(field)}</SeriesTitle>
+                        <SectionTitle>{getItemLabel(field)}</SectionTitle>
+
                         <SingleSeriesConfiguration
                             layout={layout}
                             series={series}
@@ -62,7 +64,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             fallbackColor={getSeriesColor(getSeriesId(series))}
                             updateSingleSeries={updateSingleSeries}
                         />
-                        {hasDivider && <SeriesDivider />}
+                        {hasDivider && <Divider />}
                     </SeriesBlock>
                 );
             })}

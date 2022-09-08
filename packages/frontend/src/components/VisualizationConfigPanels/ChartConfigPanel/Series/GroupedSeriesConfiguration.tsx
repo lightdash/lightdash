@@ -1,4 +1,4 @@
-import { Colors, Switch } from '@blueprintjs/core';
+import { Colors, Divider, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -12,16 +12,15 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC } from 'react';
+import { SectionTitle } from '../../VisualizationConfigPanel.styles';
 import {
     GroupedSeriesConfigWrapper,
     GroupSeriesBlock,
     GroupSeriesInputs,
     GroupSeriesWrapper,
     SeriesBlock,
-    SeriesDivider,
     SeriesExtraInputWrapper,
     SeriesExtraSelect,
-    SeriesTitle,
 } from './Series.styles';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
@@ -125,9 +124,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                 return (
                     <>
                         <GroupSeriesBlock key={fieldKey}>
-                            <SeriesTitle>
+                            <SectionTitle>
                                 {getItemLabel(field)} (grouped)
-                            </SeriesTitle>
+                            </SectionTitle>
+
                             <GroupSeriesInputs>
                                 <SeriesExtraInputWrapper label="Chart type">
                                     <SeriesExtraSelect
@@ -162,6 +162,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                         }}
                                     />
                                 </SeriesExtraInputWrapper>
+
                                 <SeriesExtraInputWrapper label="Axis">
                                     <SeriesExtraSelect
                                         fill
@@ -195,6 +196,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                         }}
                                     />
                                 </SeriesExtraInputWrapper>
+
                                 <SeriesExtraInputWrapper label="Value labels">
                                     <SeriesExtraSelect
                                         fill
@@ -317,7 +319,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 })}
                             </GroupSeriesWrapper>
                         </GroupSeriesBlock>
-                        {hasDivider && <SeriesDivider />}
+                        {hasDivider && <Divider />}
                     </>
                 );
             })}
