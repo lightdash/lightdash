@@ -79,17 +79,14 @@ export const BigNumberConfigPanel: React.FC = () => {
                     )}
                 </ConfigPanelWrapper>
             }
-            renderTarget={({ ref, ...targetProps }) => (
-                <Button
-                    {...targetProps}
-                    elementRef={ref}
-                    minimal
-                    rightIcon="caret-down"
-                    text="Configure"
-                    disabled={disabled}
-                />
-            )}
-        />
+        >
+            <Button
+                minimal
+                rightIcon="caret-down"
+                text="Configure"
+                disabled={disabled}
+            />
+        </Popover2>
     );
 };
 

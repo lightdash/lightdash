@@ -11,7 +11,6 @@ export const ChartConfigPanel: React.FC = () => {
     return (
         <Popover2
             content={<ChartConfigTabs />}
-            interactionKind="click"
             position="bottom"
             disabled={disabled}
         >

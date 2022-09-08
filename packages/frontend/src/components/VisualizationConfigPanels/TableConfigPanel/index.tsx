@@ -101,17 +101,14 @@ export const TableConfigPanel: React.FC = () => {
                     <ColumnConfiguration />
                 </ConfigPanelWrapper>
             }
-            renderTarget={({ ref, isOpen, ...targetProps }) => (
-                <Button
-                    {...targetProps}
-                    elementRef={ref}
-                    minimal
-                    rightIcon="caret-down"
-                    text="Configure"
-                    disabled={disabled}
-                />
-            )}
-        />
+        >
+            <Button
+                minimal
+                rightIcon="caret-down"
+                text="Configure"
+                disabled={disabled}
+            />
+        </Popover2>
     );
 };
 
