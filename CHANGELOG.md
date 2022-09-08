@@ -1,3 +1,10 @@
+# [0.246.0](https://github.com/lightdash/lightdash/compare/0.245.0...0.246.0) (2022-09-08)
+
+
+### Features
+
+* add spaceId to space track events ([#3186](https://github.com/lightdash/lightdash/issues/3186)) ([f9ac02d](https://github.com/lightdash/lightdash/commit/f9ac02d258019f94419fe1e8c55fdaa32876e891))
+
 # [0.245.0](https://github.com/lightdash/lightdash/compare/0.244.0...0.245.0) (2022-09-08)
 
 
