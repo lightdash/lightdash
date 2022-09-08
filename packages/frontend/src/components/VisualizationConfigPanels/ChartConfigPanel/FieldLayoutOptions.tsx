@@ -8,9 +8,9 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import SimpleButton from '../common/SimpleButton';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import SimpleButton from '../../common/SimpleButton';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     AxisFieldDropdown,
     AxisGroup,

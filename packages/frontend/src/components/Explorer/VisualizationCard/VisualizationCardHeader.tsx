@@ -5,10 +5,10 @@ import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
-import BigNumberConfigPanel from '../../BigNumberConfig';
-import ChartConfigPanel from '../../ChartConfigPanel';
 import { ChartDownloadMenu } from '../../ChartDownload';
-import TableConfigPanel from '../../TableConfigPanel';
+import BigNumberConfigPanel from '../../VisualizationConfigPanels/BigNumberConfigPanel';
+import ChartConfigPanel from '../../VisualizationConfigPanels/ChartConfigPanel';
+import TableConfigPanel from '../../VisualizationConfigPanels/TableConfigPanel';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import ShowTotalsToggle from './ShowTotalsToggle';
 import {

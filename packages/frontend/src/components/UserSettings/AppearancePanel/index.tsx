@@ -4,8 +4,8 @@ import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
-import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
 import { Can, useAbilityContext } from '../../common/Authorization';
+import { StyledFormGroup } from '../../VisualizationConfigPanels/VisualizationConfigPanel.styles';
 import {
     AppearancePanelWrapper,
     ColorPalette,
@@ -28,7 +28,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
     onChange,
     disabled,
 }) => (
-    <InputWrapper label={`Color ${index + 1}`}>
+    <StyledFormGroup label={`Color ${index + 1}`}>
         <InputGroup
             placeholder="Enter hex color"
             value={color}
@@ -48,7 +48,7 @@ const AppearanceColor: FC<AppearanceColorProps> = ({
                 </ColorSquare>
             }
         />
-    </InputWrapper>
+    </StyledFormGroup>
 );
 
 const AppearancePanel: FC = () => {

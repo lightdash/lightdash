@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import React from 'react';
-import useEcharts from '../../hooks/echarts/useEcharts';
+import useEcharts from '../../../hooks/echarts/useEcharts';
 import ChartConfigTabs from './ChartConfigTabs';
 
 export const ChartConfigPanel: React.FC = () => {

@@ -24,18 +24,18 @@ import {
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useToggle } from 'react-use';
-import { useOrganisation } from '../../hooks/organisation/useOrganisation';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { StyledFormGroup } from '../VisualizationConfigPanel.styles';
 import {
     AutoRangeSwitch,
     GridSettings,
-    InputWrapper,
     MinMaxContainer,
-    MinMaxInput,
     MinMaxWrapper,
     SectionTitle,
+    StyledMinMaxFormGroup,
     Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
@@ -84,21 +84,21 @@ const AxisMinMax: FC<MinMaxProps> = ({ label, min, max, setMin, setMax }) => {
             />
             {!isAuto && (
                 <MinMaxWrapper>
-                    <MinMaxInput label="Min">
+                    <StyledMinMaxFormGroup label="Min">
                         <InputGroup
                             placeholder="Min"
                             defaultValue={min || undefined}
                             onBlur={(e) => setMin(e.currentTarget.value)}
                         />
-                    </MinMaxInput>
+                    </StyledMinMaxFormGroup>
 
-                    <MinMaxInput label="Max">
+                    <StyledMinMaxFormGroup label="Max">
                         <InputGroup
                             placeholder="Max"
                             defaultValue={max || undefined}
                             onBlur={(e) => setMax(e.currentTarget.value)}
                         />
-                    </MinMaxInput>
+                    </StyledMinMaxFormGroup>
                 </MinMaxWrapper>
             )}
         </MinMaxContainer>
@@ -278,7 +278,7 @@ const ChartConfigTabs: FC = () => {
                     title="Axes"
                     panel={
                         <>
-                            <InputWrapper
+                            <StyledFormGroup
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'Y' : 'X'
                                 }-axis label`}
@@ -293,7 +293,8 @@ const ChartConfigTabs: FC = () => {
                                         setXAxisName(e.currentTarget.value)
                                     }
                                 />
-                            </InputWrapper>
+                            </StyledFormGroup>
+
                             <GridSettings style={{ marginTop: 10 }}>
                                 <Label style={{ marginTop: 5 }}>Sort</Label>
                                 <HTMLSelect
@@ -320,7 +321,7 @@ const ChartConfigTabs: FC = () => {
                                 />
                             </GridSettings>
 
-                            <InputWrapper
+                            <StyledFormGroup
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
                                 }-axis label (${
@@ -344,7 +345,8 @@ const ChartConfigTabs: FC = () => {
                                         setYAxisName(0, e.currentTarget.value)
                                     }
                                 />
-                            </InputWrapper>
+                            </StyledFormGroup>
+
                             {showFirstAxisRange && (
                                 <AxisMinMax
                                     label={`Auto ${
@@ -365,7 +367,7 @@ const ChartConfigTabs: FC = () => {
                                 />
                             )}
 
-                            <InputWrapper
+                            <StyledFormGroup
                                 label={`${
                                     dirtyLayout?.flipAxes ? 'X' : 'Y'
                                 }-axis label (${
@@ -389,7 +391,8 @@ const ChartConfigTabs: FC = () => {
                                         setYAxisName(1, e.currentTarget.value)
                                     }
                                 />
-                            </InputWrapper>
+                            </StyledFormGroup>
+
                             {showSecondAxisRange && (
                                 <AxisMinMax
                                     label={`Auto ${
@@ -420,6 +423,7 @@ const ChartConfigTabs: FC = () => {
                                     {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
                                 </Label>
                             </GridSettings>
+
                             <GridSettings>
                                 <Switch
                                     checked={

@@ -4,7 +4,7 @@ import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import React, { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useOrganisation } from '../../../../hooks/organisation/useOrganisation';
 import { ColorButton, ColorButtonInner } from './Series.styles';
 
 type Props = {

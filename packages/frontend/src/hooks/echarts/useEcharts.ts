@@ -28,8 +28,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { defaultGrid } from '../../components/VisualizationConfigPanels/ChartConfigPanel/Grid';
 import { useOrganisation } from '../organisation/useOrganisation';
 import usePlottedData from '../plottedData/usePlottedData';
 

@@ -1,21 +1,6 @@
-import {
-    Button,
-    ButtonGroup,
-    Colors,
-    FormGroup,
-    Switch,
-} from '@blueprintjs/core';
+import { Button, ButtonGroup, Colors, Switch } from '@blueprintjs/core';
 import styled from 'styled-components';
-
-export const InputWrapper = styled(FormGroup)`
-    margin: 1.357em 0 0;
-    & label.bp4-label {
-        display: inline-flex;
-        gap: 0.214em;
-        color: ${Colors.DARK_GRAY1};
-        font-weight: 600;
-    }
-`;
+import { StyledFormGroup } from '../VisualizationConfigPanel.styles';
 
 export const Wrapper = styled.div`
     max-width: 28.571em;
@@ -114,7 +99,7 @@ export const MinMaxWrapper = styled.div`
     gap: 30px;
 `;
 
-export const MinMaxInput = styled(InputWrapper)`
+export const StyledMinMaxFormGroup = styled(StyledFormGroup)`
     margin-top: 0;
 `;
 

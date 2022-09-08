@@ -1,6 +1,6 @@
 import { Button, InputGroup } from '@blueprintjs/core';
 import React from 'react';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     ColumnConfigurationWrapper,
     ColumnWrapper,

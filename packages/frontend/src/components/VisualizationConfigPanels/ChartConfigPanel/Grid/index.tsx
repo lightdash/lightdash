@@ -1,9 +1,9 @@
 import { EchartsGrid } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import Form from '../../../ReactHookForm/Form';
+import Input from '../../../ReactHookForm/Input';
 import { SectionRow, SectionTitle } from './Grid.styles';
 
 export const defaultGrid: EchartsGrid = {

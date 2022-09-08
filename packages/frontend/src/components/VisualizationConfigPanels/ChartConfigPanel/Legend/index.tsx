@@ -2,11 +2,11 @@ import { Collapse } from '@blueprintjs/core';
 import { EchartsLegend, friendlyName } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import Select from '../../ReactHookForm/Select';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import BooleanSwitch from '../../../ReactHookForm/BooleanSwitch';
+import Form from '../../../ReactHookForm/Form';
+import Input from '../../../ReactHookForm/Input';
+import Select from '../../../ReactHookForm/Select';
 import { SectionRow, SectionTitle } from './Legend.styles';
 
 const triggerSubmitFields = ['show', 'type', 'orient'];

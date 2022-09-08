@@ -2,14 +2,17 @@ import { Button, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { fieldId, getDimensions, getItemId } from '@lightdash/common';
 import React, { useState } from 'react';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     AxisFieldDropdown,
     DeleteFieldButton,
 } from '../ChartConfigPanel/ChartConfigPanel.styles';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import {
+    ConfigWrapper,
+    SectionTitle,
+} from '../VisualizationConfigPanel.styles';
 import ColumnConfiguration from './ColumnConfiguration';
-import { ConfigWrapper, SectionTitle } from './TableConfig.styles';
 
 export const TableConfigPanel: React.FC = () => {
     const {

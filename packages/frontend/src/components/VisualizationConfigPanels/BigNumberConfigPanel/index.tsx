@@ -1,10 +1,13 @@
 import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { getItemId, NumberStyle } from '@lightdash/common';
-import React, { useState } from 'react';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { InputWrapper } from './BigNumberConfig.styles';
+import React from 'react';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import {
+    ConfigWrapper,
+    StyledFormGroup,
+} from '../VisualizationConfigPanel.styles';
 
 export const BigNumberConfigPanel: React.FC = () => {
     const {
@@ -21,7 +24,6 @@ export const BigNumberConfigPanel: React.FC = () => {
             getField,
         },
     } = useVisualizationContext();
-    const [isOpen, setIsOpen] = useState(false);
     const disabled = !selectedField;
 
     const styleOptions = [
@@ -32,10 +34,12 @@ export const BigNumberConfigPanel: React.FC = () => {
     ];
     return (
         <Popover2
+            lazy
             disabled={disabled}
+            position="bottom"
             content={
-                <>
-                    <InputWrapper label="Select field">
+                <ConfigWrapper>
+                    <StyledFormGroup label="Select field">
                         <FieldAutoComplete
                             fields={availableFields}
                             activeField={
@@ -47,8 +51,9 @@ export const BigNumberConfigPanel: React.FC = () => {
                                 setSelectedField(getItemId(item));
                             }}
                         />
-                    </InputWrapper>
-                    <InputWrapper label="Label">
+                    </StyledFormGroup>
+
+                    <StyledFormGroup label="Label">
                         <InputGroup
                             placeholder={defaultLabel}
                             defaultValue={bigNumberLabel}
@@ -56,10 +61,11 @@ export const BigNumberConfigPanel: React.FC = () => {
                                 setBigNumberLabel(e.currentTarget.value)
                             }
                         />
-                    </InputWrapper>
+                    </StyledFormGroup>
+
                     {showStyle && (
                         <>
-                            <InputWrapper label="Style">
+                            <StyledFormGroup label="Style">
                                 <HTMLSelect
                                     fill
                                     options={styleOptions}
@@ -73,23 +79,22 @@ export const BigNumberConfigPanel: React.FC = () => {
                                             );
                                     }}
                                 />
-                            </InputWrapper>
+                            </StyledFormGroup>
                         </>
                     )}
-                </>
+                </ConfigWrapper>
             }
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="bottom"
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
-        </Popover2>
+            renderTarget={({ isOpen, ref, ...targetProps }) => (
+                <Button
+                    {...targetProps}
+                    elementRef={ref}
+                    minimal
+                    rightIcon="caret-down"
+                    text="Configure"
+                    disabled={disabled}
+                />
+            )}
+        />
     );
 };
 
