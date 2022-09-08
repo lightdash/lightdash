@@ -34,7 +34,19 @@ export const ConfigPanelWrapper = styled.div`
     padding: 20px;
     min-width: 350px;
 
-    > .bp4-form-group:last-child {
+    > .bp4-form-group:last-child,
+    > .bp4-tabs > .bp4-form-group:last-child {
+     {
         margin-bottom: 5px;
     }
+`;
+
+export const FlexJustifyCenter = styled.div`
+    display: flex;
+    justify-content: center;
+`;
+
+export const FlexJustifyEnd = styled.div`
+    display: flex;
+    justify-content: flex-end;
 `;

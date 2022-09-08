@@ -30,6 +30,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
+    ConfigPanelWrapper,
     SectionTitle,
     StyledFormGroup,
 } from '../VisualizationConfigPanel.styles';
@@ -39,7 +40,6 @@ import {
     MinMaxContainer,
     MinMaxWrapper,
     StyledMinMaxFormGroup,
-    Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import GridPanel from './Grid';
@@ -237,7 +237,7 @@ const ChartConfigTabs: FC = () => {
         [series],
     );
     return (
-        <Wrapper>
+        <ConfigPanelWrapper>
             <Tabs
                 onChange={setTab}
                 selectedTabId={tab}
@@ -248,6 +248,7 @@ const ChartConfigTabs: FC = () => {
                     title="Layout"
                     panel={<FieldLayoutOptions items={items} />}
                 />
+
                 <Tab
                     id="series"
                     title="Series"
@@ -275,6 +276,7 @@ const ChartConfigTabs: FC = () => {
                         </>
                     }
                 />
+
                 <Tab
                     id="axes"
                     title="Axes"
@@ -451,7 +453,7 @@ const ChartConfigTabs: FC = () => {
                 <Tab id="legend" title="Legend" panel={<LegendPanel />} />
                 <Tab id="grid" title="Margins" panel={<GridPanel />} />
             </Tabs>
-        </Wrapper>
+        </ConfigPanelWrapper>
     );
 };
 

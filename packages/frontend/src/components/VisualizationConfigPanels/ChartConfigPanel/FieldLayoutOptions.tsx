@@ -1,24 +1,20 @@
-import { Button } from '@blueprintjs/core';
+import { Button, ControlGroup, FormGroup } from '@blueprintjs/core';
 import {
     CartesianSeriesType,
     Field,
     getItemId,
     isDimension,
-    isSeriesWithMixedChartTypes,
+    // isSeriesWithMixedChartTypes,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
-import SimpleButton from '../../common/SimpleButton';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
-    AxisGroup,
-    AxisTitle,
-    AxisTitleWrapper,
-    GridLabel,
-    StackButton,
-    StackingWrapper,
-} from './ChartConfigPanel.styles';
+    FlexJustifyCenter,
+    FlexJustifyEnd,
+} from '../VisualizationConfigPanel.styles';
+import { EquallySizedButtonGroup } from './ChartConfigPanel.styles';
 
 type Props = {
     items: (Field | TableCalculation)[];
@@ -44,10 +40,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const pivotDimension = pivotDimensions?.[0];
 
     const cartesianType = cartesianConfig.dirtyChartType;
-    const isChartTypeTheSameForAllSeries: boolean =
-        !isSeriesWithMixedChartTypes(
-            cartesianConfig.dirtyEchartsConfig?.series,
-        );
+    // const isChartTypeTheSameForAllSeries: boolean =
+    //     !isSeriesWithMixedChartTypes(
+    //         cartesianConfig.dirtyEchartsConfig?.series,
+    //     );
 
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
@@ -86,79 +82,91 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
     return (
         <>
-            <AxisGroup>
-                <AxisTitleWrapper>
-                    <AxisTitle>
-                        {`${
-                            validCartesianConfig?.layout.flipAxes ? 'Y' : 'X'
-                        }-axis`}
-                    </AxisTitle>
-                    <SimpleButton
-                        text="Flip axes"
-                        onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
-                    />
-                </AxisTitleWrapper>
-
+            <FormGroup
+                label={
+                    (validCartesianConfig?.layout.flipAxes ? 'Y' : 'X') +
+                    '-axis'
+                }
+                labelFor="axis-field"
+            >
                 <FieldAutoComplete
+                    id="axis-field"
                     fields={items}
                     activeField={xAxisField}
                     onChange={(item) => {
                         setXField(getItemId(item));
                     }}
                 />
-            </AxisGroup>
+            </FormGroup>
 
-            <AxisGroup>
-                <AxisTitle>
-                    {`${
-                        validCartesianConfig?.layout.flipAxes ? 'X' : 'Y'
-                    }-axis`}
-                </AxisTitle>
+            <FlexJustifyCenter>
+                <Button
+                    minimal
+                    small
+                    icon="swap-vertical"
+                    text="Flip axes"
+                    onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
+                />
+            </FlexJustifyCenter>
 
-                {yFields.map((field, index) => {
-                    const activeField = yActiveField(field);
-                    return (
-                        <FieldAutoComplete
-                            key={`${field}-y-axis`}
-                            fields={
-                                activeField
-                                    ? [activeField, ...availableYFields]
-                                    : availableYFields
-                            }
-                            activeField={activeField}
-                            rightElement={
-                                yFields?.length === 1 ? undefined : (
-                                    <Button
-                                        minimal
-                                        icon="cross"
-                                        onClick={() => {
-                                            removeSingleSeries(index);
-                                        }}
-                                    />
-                                )
-                            }
-                            onChange={(item) => {
-                                updateYField(index, getItemId(item));
-                            }}
-                        />
-                    );
-                })}
-                {availableYFields.length > 0 && (
-                    <Button
-                        minimal
-                        intent="primary"
-                        onClick={() =>
-                            addSingleSeries(getItemId(availableYFields[0]))
-                        }
-                    >
-                        + Add
-                    </Button>
-                )}
-            </AxisGroup>
-            <AxisGroup>
-                <AxisTitle>Group</AxisTitle>
+            <FormGroup
+                label={
+                    (validCartesianConfig?.layout.flipAxes ? 'X' : 'Y') +
+                    '-axis'
+                }
+            >
+                <ControlGroup vertical>
+                    {yFields.map((field, index) => {
+                        const activeField = yActiveField(field);
+                        return (
+                            <FieldAutoComplete
+                                key={`${field}-y-axis`}
+                                fields={
+                                    activeField
+                                        ? [activeField, ...availableYFields]
+                                        : availableYFields
+                                }
+                                activeField={activeField}
+                                rightElement={
+                                    yFields?.length === 1 ? undefined : (
+                                        <Button
+                                            minimal
+                                            icon="cross"
+                                            onClick={() => {
+                                                removeSingleSeries(index);
+                                            }}
+                                        />
+                                    )
+                                }
+                                onChange={(item) => {
+                                    updateYField(index, getItemId(item));
+                                }}
+                            />
+                        );
+                    })}
 
+                    {availableYFields.length > 0 && (
+                        <FlexJustifyEnd>
+                            <Button
+                                minimal
+                                intent="primary"
+                                icon="plus"
+                                onClick={() =>
+                                    addSingleSeries(
+                                        getItemId(availableYFields[0]),
+                                    )
+                                }
+                            >
+                                Add
+                            </Button>
+                        </FlexJustifyEnd>
+                    )}
+                </ControlGroup>
+            </FormGroup>
+
+            <FormGroup label="Group" labelFor="group-field">
                 <FieldAutoComplete
+                    id="group-field"
                     fields={availableDimensions}
                     placeholder="Select a field to group by"
                     activeField={groupSelectedField}
@@ -177,26 +185,28 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         setPivotDimensions([getItemId(item)]);
                     }}
                 />
-            </AxisGroup>
+            </FormGroup>
 
             {pivotDimension && canBeStacked && (
-                <AxisGroup>
-                    <GridLabel>Stacking</GridLabel>
-                    <StackingWrapper fill>
-                        <StackButton
+                <FormGroup label="Stacking">
+                    <EquallySizedButtonGroup fill>
+                        <Button
                             onClick={() => setStacking(false)}
                             active={!isStacked}
+                            intent={isStacked ? 'none' : 'primary'}
                         >
                             No stacking
-                        </StackButton>
-                        <StackButton
+                        </Button>
+
+                        <Button
                             onClick={() => setStacking(true)}
                             active={isStacked}
+                            intent={isStacked ? 'primary' : 'none'}
                         >
                             Stack
-                        </StackButton>
-                    </StackingWrapper>
-                </AxisGroup>
+                        </Button>
+                    </EquallySizedButtonGroup>
+                </FormGroup>
             )}
         </>
     );
