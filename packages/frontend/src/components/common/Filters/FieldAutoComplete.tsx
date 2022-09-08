@@ -1,4 +1,5 @@
 import { Icon } from '@blueprintjs/core';
+import { InputSharedProps } from '@blueprintjs/core/lib/esm/components/forms/inputSharedProps';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
@@ -51,6 +52,7 @@ type Props = {
     activeField?: Item;
     placeholder?: string;
     fields: Array<Item>;
+    rightElement?: InputSharedProps['rightElement'];
     onChange: (value: Item) => void;
     onClosed?: () => void;
 };
@@ -60,12 +62,14 @@ const FieldAutoComplete: FC<Props> = ({
     autoFocus,
     activeField,
     fields,
+    placeholder,
+    rightElement,
     onChange,
     onClosed,
-    placeholder,
 }) => (
     <>
         <AutocompleteMaxHeight />
+
         <FieldSuggest
             fill
             disabled={disabled}
@@ -78,6 +82,14 @@ const FieldAutoComplete: FC<Props> = ({
                         color={getItemColor(activeField)}
                     />
                 ),
+                rightElement: rightElement,
+            }}
+            popoverProps={{
+                minimal: true,
+                onClosed,
+                popoverClassName: 'autocomplete-max-height',
+                captureDismiss: true,
+                matchTargetWidth: true,
             }}
             items={fields}
             itemsEqual={(value, other) => getItemId(value) === getItemId(other)}
@@ -86,12 +98,6 @@ const FieldAutoComplete: FC<Props> = ({
                     return '';
                 }
                 return getItemLabel(item);
-            }}
-            popoverProps={{
-                minimal: true,
-                onClosed,
-                popoverClassName: 'autocomplete-max-height',
-                captureDismiss: true,
             }}
             itemRenderer={renderItem}
             selectedItem={activeField}

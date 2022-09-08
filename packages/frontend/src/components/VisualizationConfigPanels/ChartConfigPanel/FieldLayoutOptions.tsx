@@ -16,7 +16,6 @@ import {
     AxisGroup,
     AxisTitle,
     AxisTitleWrapper,
-    DeleteFieldButton,
     GridLabel,
     StackButton,
     StackingWrapper,
@@ -128,19 +127,21 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         : availableYFields
                                 }
                                 activeField={activeField}
+                                rightElement={
+                                    yFields?.length === 1 ? undefined : (
+                                        <Button
+                                            minimal
+                                            icon="cross"
+                                            onClick={() => {
+                                                removeSingleSeries(index);
+                                            }}
+                                        />
+                                    )
+                                }
                                 onChange={(item) => {
                                     updateYField(index, getItemId(item));
                                 }}
                             />
-                            {yFields?.length !== 1 && (
-                                <DeleteFieldButton
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => {
-                                        removeSingleSeries(index);
-                                    }}
-                                />
-                            )}
                         </AxisFieldDropdown>
                     );
                 })}
@@ -163,19 +164,21 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         fields={availableDimensions}
                         placeholder="Select a field to group by"
                         activeField={groupSelectedField}
+                        rightElement={
+                            groupSelectedField && (
+                                <Button
+                                    minimal
+                                    icon="cross"
+                                    onClick={() => {
+                                        setPivotDimensions([]);
+                                    }}
+                                />
+                            )
+                        }
                         onChange={(item) => {
                             setPivotDimensions([getItemId(item)]);
                         }}
                     />
-                    {groupSelectedField && (
-                        <DeleteFieldButton
-                            minimal
-                            icon="cross"
-                            onClick={() => {
-                                setPivotDimensions([]);
-                            }}
-                        />
-                    )}
                 </AxisFieldDropdown>
             </AxisGroup>
             {pivotDimension && canBeStacked && (

@@ -59,19 +59,6 @@ export const AxisFieldDropdown = styled.div`
     }
 `;
 
-export const DeleteFieldButton = styled(Button)`
-    border: 0.05em solid ${Colors.LIGHT_GRAY1} !important;
-    box-sizing: border-box;
-    box-shadow: inset 0px 1px 1px rgba(16, 22, 26, 0.2) !important;
-    margin-left: 5px;
-
-    span > svg:not([fill]) {
-        width: 13px;
-        height: 13px;
-        fill: ${Colors.GRAY1};
-    }
-`;
-
 export const StackingWrapper = styled(ButtonGroup)`
     padding: 0.357em 0;
     display: grid !important;

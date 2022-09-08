@@ -1,10 +1,6 @@
 import { Button, InputGroup } from '@blueprintjs/core';
 import React from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import {
-    ColumnConfigurationWrapper,
-    ColumnWrapper,
-} from './ColumnConfiguration.styles';
 
 export const ColumnConfiguration: React.FC = () => {
     const {
@@ -19,24 +15,18 @@ export const ColumnConfiguration: React.FC = () => {
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
     return (
-        <ColumnConfigurationWrapper>
-            {selectedItemIds.map((fieldId) => {
-                return (
-                    <ColumnWrapper>
-                        <InputGroup
-                            fill
-                            disabled={!isColumnVisible(fieldId)}
-                            defaultValue={getHeader(fieldId)}
-                            placeholder={getDefaultColumnLabel(fieldId)}
-                            onBlur={(e) => {
-                                updateColumnProperty(fieldId, {
-                                    name: e.currentTarget.value,
-                                });
-                            }}
-                        />
-
-                        {fieldId !== pivotDimension && (
+        <>
+            {selectedItemIds.map((fieldId) => (
+                <InputGroup
+                    key={fieldId}
+                    fill
+                    disabled={!isColumnVisible(fieldId)}
+                    defaultValue={getHeader(fieldId)}
+                    placeholder={getDefaultColumnLabel(fieldId)}
+                    rightElement={
+                        fieldId === pivotDimension ? undefined : (
                             <Button
+                                minimal
                                 icon={
                                     isColumnVisible(fieldId)
                                         ? 'eye-off'
@@ -48,11 +38,16 @@ export const ColumnConfiguration: React.FC = () => {
                                     });
                                 }}
                             />
-                        )}
-                    </ColumnWrapper>
-                );
-            })}
-        </ColumnConfigurationWrapper>
+                        )
+                    }
+                    onBlur={(e) => {
+                        updateColumnProperty(fieldId, {
+                            name: e.currentTarget.value,
+                        });
+                    }}
+                />
+            ))}
+        </>
     );
 };
 
