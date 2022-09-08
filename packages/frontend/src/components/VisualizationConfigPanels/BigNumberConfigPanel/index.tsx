@@ -4,7 +4,7 @@ import { getItemId, NumberStyle } from '@lightdash/common';
 import React from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { ConfigWrapper } from '../VisualizationConfigPanel.styles';
+import { ConfigPanelWrapper } from '../VisualizationConfigPanel.styles';
 
 export const BigNumberConfigPanel: React.FC = () => {
     const {
@@ -35,7 +35,7 @@ export const BigNumberConfigPanel: React.FC = () => {
             disabled={disabled}
             position="bottom"
             content={
-                <ConfigWrapper>
+                <ConfigPanelWrapper>
                     <FormGroup label="Select field">
                         <FieldAutoComplete
                             fields={availableFields}
@@ -61,27 +61,25 @@ export const BigNumberConfigPanel: React.FC = () => {
                     </FormGroup>
 
                     {showStyle && (
-                        <>
-                            <FormGroup label="Style">
-                                <HTMLSelect
-                                    fill
-                                    options={styleOptions}
-                                    value={bigNumberStyle}
-                                    onChange={(e) => {
-                                        if (e.target.value === '')
-                                            setBigNumberStyle(undefined);
-                                        else
-                                            setBigNumberStyle(
-                                                e.target.value as NumberStyle,
-                                            );
-                                    }}
-                                />
-                            </FormGroup>
-                        </>
+                        <FormGroup label="Style">
+                            <HTMLSelect
+                                fill
+                                options={styleOptions}
+                                value={bigNumberStyle}
+                                onChange={(e) => {
+                                    if (e.target.value === '')
+                                        setBigNumberStyle(undefined);
+                                    else
+                                        setBigNumberStyle(
+                                            e.target.value as NumberStyle,
+                                        );
+                                }}
+                            />
+                        </FormGroup>
                     )}
-                </ConfigWrapper>
+                </ConfigPanelWrapper>
             }
-            renderTarget={({ isOpen, ref, ...targetProps }) => (
+            renderTarget={({ ref, ...targetProps }) => (
                 <Button
                     {...targetProps}
                     elementRef={ref}
