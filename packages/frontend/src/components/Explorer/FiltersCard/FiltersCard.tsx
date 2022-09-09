@@ -21,6 +21,7 @@ import React, {
     useMemo,
     useState,
 } from 'react';
+import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
@@ -35,6 +36,7 @@ import {
 import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,
     );
@@ -183,7 +185,10 @@ const FiltersCard: FC = memo(() => {
                 ) : null}
             </CardHeader>
             <Collapse isOpen={isEditMode && filterIsOpen}>
-                <FiltersProvider fieldsMap={fieldsWithSuggestions}>
+                <FiltersProvider
+                    projectUuid={projectUuid}
+                    fieldsMap={fieldsWithSuggestions}
+                >
                     <FiltersForm filters={filters} setFilters={setFilters} />
                 </FiltersProvider>
             </Collapse>

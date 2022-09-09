@@ -183,6 +183,28 @@ projectRouter.post(
     },
 );
 
+projectRouter.get(
+    '/field/:fieldId/search/:search',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: Array<any> =
+                await projectService.searchFieldUniqueValues(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.params.fieldId,
+                    req.params.search,
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 projectRouter.post(
     '/refresh',
     isAuthenticated,

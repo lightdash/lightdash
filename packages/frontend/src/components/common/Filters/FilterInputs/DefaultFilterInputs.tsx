@@ -17,6 +17,7 @@ export type FilterInputsProps<T extends FilterRule = FilterRule> = {
 };
 
 const DefaultFilterInputs: FC<FilterInputsProps> = ({
+    field,
     filterType,
     filterRule,
     onChange,
@@ -30,15 +31,12 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             return <span style={{ width: '100%' }} />;
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS: {
-            if (
-                filterType === FilterType.STRING &&
-                suggestions &&
-                suggestions.length > 0
-            ) {
+            if (filterType === FilterType.STRING) {
                 return (
                     <StringMultiSelect
+                        field={field}
                         values={filterRule.values || []}
-                        suggestions={suggestions}
+                        suggestions={suggestions || []}
                         onChange={(values) =>
                             onChange({
                                 ...filterRule,
