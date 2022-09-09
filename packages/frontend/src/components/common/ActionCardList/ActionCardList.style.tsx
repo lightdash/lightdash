@@ -26,6 +26,9 @@ export const TitleWrapper = styled(H3)`
     flex: 1;
     margin: 0;
     color: ${Colors.GRAY1};
+    display: flex;
+    align-items: center;
+    gap: 10px;
 `;
 
 export const CardDivider = styled(Divider)`
