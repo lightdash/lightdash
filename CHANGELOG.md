@@ -1,3 +1,10 @@
+## [0.248.2](https://github.com/lightdash/lightdash/compare/0.248.1...0.248.2) (2022-09-09)
+
+
+### Bug Fixes
+
+* table viz shows all custom metrics ([#3207](https://github.com/lightdash/lightdash/issues/3207)) ([407ec33](https://github.com/lightdash/lightdash/commit/407ec33ed7f25f03582037709c1425cc1bbe7cac))
+
 ## [0.248.1](https://github.com/lightdash/lightdash/compare/0.248.0...0.248.1) (2022-09-09)
 
 
