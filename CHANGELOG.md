@@ -1,3 +1,10 @@
+## [0.248.1](https://github.com/lightdash/lightdash/compare/0.248.0...0.248.1) (2022-09-09)
+
+
+### Bug Fixes
+
+* table multisort should reorder instead of swap ([#3205](https://github.com/lightdash/lightdash/issues/3205)) ([5e96262](https://github.com/lightdash/lightdash/commit/5e962624c3f62ebf40d6517cb82de65a36b480f5))
+
 # [0.248.0](https://github.com/lightdash/lightdash/compare/0.247.1...0.248.0) (2022-09-09)
 
 
