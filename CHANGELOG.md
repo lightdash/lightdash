@@ -1,3 +1,10 @@
+# [0.248.0](https://github.com/lightdash/lightdash/compare/0.247.1...0.248.0) (2022-09-09)
+
+
+### Features
+
+* quarter date formatting ([#3193](https://github.com/lightdash/lightdash/issues/3193)) ([9ddeace](https://github.com/lightdash/lightdash/commit/9ddeaceaad18e6edbb6d28eb3c0cdd993258bf7b))
+
 ## [0.247.1](https://github.com/lightdash/lightdash/compare/0.247.0...0.247.1) (2022-09-08)
 
 
