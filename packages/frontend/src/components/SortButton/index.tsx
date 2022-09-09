@@ -44,14 +44,14 @@ const SortButton: FC<Props> = ({ sorts }) => {
     const removeSortField = useExplorerContext(
         (context) => context.actions.removeSortField,
     );
-    const swapSortFields = useExplorerContext(
-        (context) => context.actions.swapSortFields,
+    const moveSortFields = useExplorerContext(
+        (context) => context.actions.moveSortFields,
     );
 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
         if (result.destination.index === result.source.index) return;
-        swapSortFields(result.source.index, result.destination.index);
+        moveSortFields(result.source.index, result.destination.index);
     };
 
     return (
