@@ -87,7 +87,7 @@ const convertTimezone = (
     }
 };
 
-const dateIntervals = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
+const dateIntervals = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'QUARTER'];
 
 const convertDimension = (
     targetWarehouse: SupportedDbtAdapter,
@@ -279,7 +279,7 @@ export const convertTable = (
                     if (dimension.type === DimensionType.TIMESTAMP) {
                         intervals = ['RAW'];
                     }
-                    intervals = [...intervals, ...dateIntervals];
+                    intervals = [...intervals, 'DAY', 'WEEK', 'MONTH', 'YEAR'];
                 }
 
                 extraDimensions = intervals.reduce(
