@@ -64,6 +64,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         ]}
                     />
                 </BreadcrumbsWrapper>
+
                 <SpaceBrowserMenu
                     onRename={() => setUpdateSpace(true)}
                     onDelete={() => setDeleteSpace(true)}
@@ -78,26 +79,28 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         <Button icon="edit" text="Edit space" />
                     </Can>
                 </SpaceBrowserMenu>
+
                 {updateSpace && (
                     <EditSpaceModal
                         spaceUuid={space.uuid}
                         onClose={() => {
                             setUpdateSpace(false);
                         }}
-                    ></EditSpaceModal>
+                    />
                 )}
+
                 {deleteSpace && (
                     <DeleteSpaceModal
                         spaceUuid={space.uuid}
                         onClose={() => {
                             setDeleteSpace(false);
                         }}
-                    ></DeleteSpaceModal>
+                    />
                 )}
             </SpacePanelHeader>
 
             <ActionCardList
-                title={`Dashboards (${savedDashboards.length})`}
+                title="Dashboards"
                 useUpdate={useUpdateDashboardName}
                 useDelete={useDelete}
                 dataList={savedDashboards}
@@ -132,7 +135,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             />
 
             <SavedQueriesContent
-                title={`Saved charts (${savedCharts.length})`}
+                title="Saved charts"
                 savedQueries={savedCharts || []}
                 projectUuid={projectUuid}
                 headerAction={

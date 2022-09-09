@@ -1,4 +1,4 @@
-import { Button, InputGroup, NonIdealState } from '@blueprintjs/core';
+import { Button, InputGroup, NonIdealState, Tag } from '@blueprintjs/core';
 import { ApiError, Space, UpdatedByUser } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { useMemo, useState } from 'react';
@@ -105,7 +105,12 @@ const ActionCardList = <
         <ActionCardListWrapper $isHomePage={isHomePage}>
             {!isHomePage && (
                 <HeaderCardListWrapper>
-                    <TitleWrapper>{title}</TitleWrapper>
+                    <TitleWrapper>
+                        {title}
+                        <Tag large minimal round>
+                            {dataList.length}
+                        </Tag>
+                    </TitleWrapper>
                     {headerAction}
                 </HeaderCardListWrapper>
             )}
