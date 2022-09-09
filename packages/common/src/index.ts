@@ -1129,7 +1129,6 @@ export function itemsInMetricQuery(
         : [
               ...metricQuery.metrics,
               ...metricQuery.dimensions,
-              ...(metricQuery.additionalMetrics || []).map(fieldId),
               ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
           ];
 }
