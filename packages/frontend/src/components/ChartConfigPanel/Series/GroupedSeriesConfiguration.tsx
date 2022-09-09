@@ -1,4 +1,4 @@
-import { Colors, Switch } from '@blueprintjs/core';
+import { Icon, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
@@ -11,14 +11,16 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import React, { forwardRef } from 'react';
+import {
+    DraggableProvidedDraggableProps,
+    DraggableProvidedDragHandleProps,
+} from 'react-beautiful-dnd';
 import {
     GroupedSeriesConfigWrapper,
     GroupSeriesBlock,
     GroupSeriesInputs,
     GroupSeriesWrapper,
-    SeriesBlock,
-    SeriesDivider,
     SeriesExtraInputWrapper,
     SeriesExtraSelect,
     SeriesTitle,
@@ -61,268 +63,235 @@ const getFormatterValue = (
 
 type GroupedSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
-    groupedSeries: Record<string, Series[]>;
+    seriesGroup: Series[];
+    item: Field | TableCalculation;
     items: Array<Field | TableCalculation>;
+    draggableProps: DraggableProvidedDraggableProps;
+    dragHandleProps?: DraggableProvidedDragHandleProps;
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     updateSingleSeries: (series: Series) => void;
 };
 
-const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
-    layout,
-    groupedSeries,
-    items,
-    getSeriesColor,
-    updateSingleSeries,
-    updateAllGroupedSeries,
-}) => {
-    const [openSeriesId, setOpenSeriesId] = React.useState<
-        string | undefined
-    >();
-    return (
-        <>
-            {Object.entries(groupedSeries).map(([fieldKey, seriesGroup], i) => {
-                const field = items.find(
-                    (item) => getItemId(item) === fieldKey,
-                );
-                if (!field) {
-                    return (
-                        <SeriesBlock>
-                            <span
-                                style={{
-                                    width: '100%',
-                                    color: Colors.GRAY1,
-                                }}
-                            >
-                                Tried to reference field with unknown id:{' '}
-                                {fieldKey}
-                            </span>
-                        </SeriesBlock>
-                    );
-                }
-                const isLabelTheSameForAllSeries: boolean =
-                    new Set(seriesGroup.map(({ label }) => label?.position))
-                        .size === 1;
+const GroupedSeriesConfiguration = forwardRef<
+    HTMLDivElement,
+    GroupedSeriesConfigurationProps
+>(
+    (
+        {
+            layout,
+            seriesGroup,
+            item,
+            items,
+            getSeriesColor,
+            updateSingleSeries,
+            updateAllGroupedSeries,
+            draggableProps,
+            dragHandleProps,
+        },
+        innerRef,
+    ) => {
+        const [openSeriesId, setOpenSeriesId] = React.useState<
+            string | undefined
+        >();
 
-                const isAxisTheSameForAllSeries: boolean =
-                    new Set(seriesGroup.map(({ yAxisIndex }) => yAxisIndex))
-                        .size === 1;
+        const isLabelTheSameForAllSeries: boolean =
+            new Set(seriesGroup.map(({ label }) => label?.position)).size === 1;
 
-                const isChartTypeTheSameForAllSeries: boolean =
-                    !isSeriesWithMixedChartTypes(seriesGroup);
+        const isAxisTheSameForAllSeries: boolean =
+            new Set(seriesGroup.map(({ yAxisIndex }) => yAxisIndex)).size === 1;
 
-                const hasDivider = layout?.yField?.length !== i + 1;
+        const isChartTypeTheSameForAllSeries: boolean =
+            !isSeriesWithMixedChartTypes(seriesGroup);
 
-                const chartType =
-                    seriesGroup[0].type === CartesianSeriesType.LINE &&
-                    !!seriesGroup[0].areaStyle
-                        ? CartesianSeriesType.AREA
-                        : seriesGroup[0].type;
+        const chartType =
+            seriesGroup[0].type === CartesianSeriesType.LINE &&
+            !!seriesGroup[0].areaStyle
+                ? CartesianSeriesType.AREA
+                : seriesGroup[0].type;
 
-                const chartValue = isChartTypeTheSameForAllSeries
-                    ? chartType
-                    : 'mixed';
-                return (
-                    <>
-                        <GroupSeriesBlock key={fieldKey}>
-                            <SeriesTitle>
-                                {getItemLabel(field)} (grouped)
-                            </SeriesTitle>
-                            <GroupSeriesInputs>
-                                <SeriesExtraInputWrapper label="Chart type">
-                                    <SeriesExtraSelect
-                                        fill
-                                        value={chartValue}
-                                        options={
-                                            isChartTypeTheSameForAllSeries
-                                                ? CHART_TYPE_OPTIONS
-                                                : [
-                                                      ...CHART_TYPE_OPTIONS,
-                                                      {
-                                                          value: 'mixed',
-                                                          label: 'Mixed',
-                                                      },
-                                                  ]
-                                        }
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            const newType =
-                                                value ===
-                                                CartesianSeriesType.AREA
-                                                    ? CartesianSeriesType.LINE
-                                                    : value;
-                                            updateAllGroupedSeries(fieldKey, {
-                                                type: newType as Series['type'],
-                                                areaStyle:
-                                                    value ===
-                                                    CartesianSeriesType.AREA
-                                                        ? {}
-                                                        : undefined,
-                                            });
-                                        }}
-                                    />
-                                </SeriesExtraInputWrapper>
-                                <SeriesExtraInputWrapper label="Axis">
-                                    <SeriesExtraSelect
-                                        fill
-                                        value={
-                                            isAxisTheSameForAllSeries
-                                                ? seriesGroup[0].yAxisIndex
-                                                : 'mixed'
-                                        }
-                                        options={
-                                            isAxisTheSameForAllSeries
-                                                ? layout?.flipAxes
-                                                    ? FLIPPED_AXIS_OPTIONS
-                                                    : AXIS_OPTIONS
-                                                : [
-                                                      ...(layout?.flipAxes
-                                                          ? FLIPPED_AXIS_OPTIONS
-                                                          : AXIS_OPTIONS),
-                                                      {
-                                                          value: 'mixed',
-                                                          label: 'Mixed',
-                                                      },
-                                                  ]
-                                        }
-                                        onChange={(e) => {
-                                            updateAllGroupedSeries(fieldKey, {
-                                                yAxisIndex: parseInt(
-                                                    e.target.value,
-                                                    10,
-                                                ),
-                                            });
-                                        }}
-                                    />
-                                </SeriesExtraInputWrapper>
-                                <SeriesExtraInputWrapper label="Value labels">
-                                    <SeriesExtraSelect
-                                        fill
-                                        value={
-                                            isLabelTheSameForAllSeries
-                                                ? seriesGroup[0].label
-                                                      ?.position || 'hidden'
-                                                : 'mixed'
-                                        }
-                                        options={
-                                            isLabelTheSameForAllSeries
-                                                ? VALUE_LABELS_OPTIONS
-                                                : [
-                                                      ...VALUE_LABELS_OPTIONS,
-                                                      {
-                                                          value: 'mixed',
-                                                          label: 'Mixed',
-                                                      },
-                                                  ]
-                                        }
-                                        onChange={(e) => {
-                                            const option = e.target.value;
-                                            updateAllGroupedSeries(fieldKey, {
-                                                label:
-                                                    option === 'hidden'
-                                                        ? { show: false }
-                                                        : {
-                                                              show: true,
-                                                              position:
-                                                                  option as any,
-                                                          },
-                                            });
-                                        }}
-                                    />
-                                </SeriesExtraInputWrapper>
-                            </GroupSeriesInputs>
-                            {(chartValue === CartesianSeriesType.LINE ||
-                                chartValue === CartesianSeriesType.AREA) && (
-                                <GroupSeriesInputs>
-                                    <Switch
-                                        alignIndicator={'right'}
-                                        checked={
-                                            seriesGroup[0].showSymbol ?? true
-                                        }
-                                        label={'Show symbol'}
-                                        onChange={() => {
-                                            updateAllGroupedSeries(fieldKey, {
-                                                showSymbol: !(
-                                                    seriesGroup[0].showSymbol ??
-                                                    true
-                                                ),
-                                            });
-                                        }}
-                                    />
-                                    <Switch
-                                        alignIndicator={'right'}
-                                        checked={seriesGroup[0].smooth}
-                                        label={'Smooth'}
-                                        onChange={() => {
-                                            updateAllGroupedSeries(fieldKey, {
-                                                smooth: !(
-                                                    seriesGroup[0].smooth ??
-                                                    true
-                                                ),
-                                            });
-                                        }}
-                                    />
-                                </GroupSeriesInputs>
-                            )}
-                            <GroupSeriesWrapper>
-                                {seriesGroup?.map((singleSeries) => {
-                                    const formattedValue = getFormatterValue(
-                                        singleSeries.encode.yRef.pivotValues![0]
-                                            .value,
-                                        singleSeries.encode.yRef.pivotValues![0]
-                                            .field,
-                                        items,
-                                    );
-                                    return (
-                                        <GroupedSeriesConfigWrapper>
-                                            <SingleSeriesConfiguration
-                                                key={getSeriesId(singleSeries)}
-                                                isCollapsable
-                                                layout={layout}
-                                                series={singleSeries}
-                                                seriesLabel={
-                                                    layout?.yField &&
-                                                    layout.yField.length > 1
-                                                        ? `[${formattedValue}] ${getItemLabel(
-                                                              field,
-                                                          )}`
-                                                        : formattedValue
-                                                }
-                                                fallbackColor={getSeriesColor(
-                                                    getSeriesId(singleSeries),
-                                                )}
-                                                updateSingleSeries={
-                                                    updateSingleSeries
-                                                }
-                                                isGrouped
-                                                isOpen={
-                                                    openSeriesId ===
-                                                    getSeriesId(singleSeries)
-                                                }
-                                                toggleIsOpen={() =>
-                                                    setOpenSeriesId(
-                                                        openSeriesId ===
-                                                            getSeriesId(
-                                                                singleSeries,
-                                                            )
-                                                            ? undefined
-                                                            : getSeriesId(
-                                                                  singleSeries,
-                                                              ),
-                                                    )
-                                                }
-                                            />
-                                        </GroupedSeriesConfigWrapper>
-                                    );
-                                })}
-                            </GroupSeriesWrapper>
-                        </GroupSeriesBlock>
-                        {hasDivider && <SeriesDivider />}
-                    </>
-                );
-            })}
-        </>
-    );
-};
+        const chartValue = isChartTypeTheSameForAllSeries ? chartType : 'mixed';
+        const fieldKey = getItemId(item);
+        return (
+            <GroupSeriesBlock ref={innerRef} {...draggableProps}>
+                <SeriesTitle>
+                    <Icon
+                        tagName="div"
+                        icon="drag-handle-vertical"
+                        {...dragHandleProps}
+                    />
+                    {getItemLabel(item)} (grouped)
+                </SeriesTitle>
+                <GroupSeriesInputs>
+                    <SeriesExtraInputWrapper label="Chart type">
+                        <SeriesExtraSelect
+                            fill
+                            value={chartValue}
+                            options={
+                                isChartTypeTheSameForAllSeries
+                                    ? CHART_TYPE_OPTIONS
+                                    : [
+                                          ...CHART_TYPE_OPTIONS,
+                                          {
+                                              value: 'mixed',
+                                              label: 'Mixed',
+                                          },
+                                      ]
+                            }
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                const newType =
+                                    value === CartesianSeriesType.AREA
+                                        ? CartesianSeriesType.LINE
+                                        : value;
+                                updateAllGroupedSeries(fieldKey, {
+                                    type: newType as Series['type'],
+                                    areaStyle:
+                                        value === CartesianSeriesType.AREA
+                                            ? {}
+                                            : undefined,
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
+                    <SeriesExtraInputWrapper label="Axis">
+                        <SeriesExtraSelect
+                            fill
+                            value={
+                                isAxisTheSameForAllSeries
+                                    ? seriesGroup[0].yAxisIndex
+                                    : 'mixed'
+                            }
+                            options={
+                                isAxisTheSameForAllSeries
+                                    ? layout?.flipAxes
+                                        ? FLIPPED_AXIS_OPTIONS
+                                        : AXIS_OPTIONS
+                                    : [
+                                          ...(layout?.flipAxes
+                                              ? FLIPPED_AXIS_OPTIONS
+                                              : AXIS_OPTIONS),
+                                          {
+                                              value: 'mixed',
+                                              label: 'Mixed',
+                                          },
+                                      ]
+                            }
+                            onChange={(e) => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    yAxisIndex: parseInt(e.target.value, 10),
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
+                    <SeriesExtraInputWrapper label="Value labels">
+                        <SeriesExtraSelect
+                            fill
+                            value={
+                                isLabelTheSameForAllSeries
+                                    ? seriesGroup[0].label?.position || 'hidden'
+                                    : 'mixed'
+                            }
+                            options={
+                                isLabelTheSameForAllSeries
+                                    ? VALUE_LABELS_OPTIONS
+                                    : [
+                                          ...VALUE_LABELS_OPTIONS,
+                                          {
+                                              value: 'mixed',
+                                              label: 'Mixed',
+                                          },
+                                      ]
+                            }
+                            onChange={(e) => {
+                                const option = e.target.value;
+                                updateAllGroupedSeries(fieldKey, {
+                                    label:
+                                        option === 'hidden'
+                                            ? { show: false }
+                                            : {
+                                                  show: true,
+                                                  position: option as any,
+                                              },
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
+                </GroupSeriesInputs>
+                {(chartValue === CartesianSeriesType.LINE ||
+                    chartValue === CartesianSeriesType.AREA) && (
+                    <GroupSeriesInputs>
+                        <Switch
+                            alignIndicator={'right'}
+                            checked={seriesGroup[0].showSymbol ?? true}
+                            label={'Show symbol'}
+                            onChange={() => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    showSymbol: !(
+                                        seriesGroup[0].showSymbol ?? true
+                                    ),
+                                });
+                            }}
+                        />
+                        <Switch
+                            alignIndicator={'right'}
+                            checked={seriesGroup[0].smooth}
+                            label={'Smooth'}
+                            onChange={() => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    smooth: !(seriesGroup[0].smooth ?? true),
+                                });
+                            }}
+                        />
+                    </GroupSeriesInputs>
+                )}
+                <GroupSeriesWrapper>
+                    {seriesGroup?.map((singleSeries) => {
+                        const formattedValue = getFormatterValue(
+                            singleSeries.encode.yRef.pivotValues![0].value,
+                            singleSeries.encode.yRef.pivotValues![0].field,
+                            items,
+                        );
+                        return (
+                            <GroupedSeriesConfigWrapper>
+                                <SingleSeriesConfiguration
+                                    key={getSeriesId(singleSeries)}
+                                    isCollapsable
+                                    layout={layout}
+                                    series={singleSeries}
+                                    seriesLabel={
+                                        layout?.yField &&
+                                        layout.yField.length > 1
+                                            ? `[${formattedValue}] ${getItemLabel(
+                                                  item,
+                                              )}`
+                                            : formattedValue
+                                    }
+                                    fallbackColor={getSeriesColor(
+                                        getSeriesId(singleSeries),
+                                    )}
+                                    updateSingleSeries={updateSingleSeries}
+                                    isGrouped
+                                    isOpen={
+                                        openSeriesId ===
+                                        getSeriesId(singleSeries)
+                                    }
+                                    toggleIsOpen={() =>
+                                        setOpenSeriesId(
+                                            openSeriesId ===
+                                                getSeriesId(singleSeries)
+                                                ? undefined
+                                                : getSeriesId(singleSeries),
+                                        )
+                                    }
+                                />
+                            </GroupedSeriesConfigWrapper>
+                        );
+                    })}
+                </GroupSeriesWrapper>
+            </GroupSeriesBlock>
+        );
+    },
+);
 
 export default GroupedSeriesConfiguration;

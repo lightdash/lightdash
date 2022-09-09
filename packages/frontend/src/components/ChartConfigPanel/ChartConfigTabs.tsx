@@ -10,21 +10,17 @@ import {
     convertAdditionalMetric,
     fieldId,
     getAxisName,
-    getDefaultSeriesColor,
     getDimensions,
     getItemId,
     getItemLabel,
     getMetrics,
-    getSeriesId,
     isField,
     isNumericItem,
     Metric,
-    Series,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import React, { FC, useCallback, useState } from 'react';
 import { useToggle } from 'react-use';
-import { useOrganisation } from '../../hooks/organisation/useOrganisation';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -41,9 +37,7 @@ import {
 import FieldLayoutOptions from './FieldLayoutOptions';
 import GridPanel from './Grid';
 import LegendPanel from './Legend';
-import BasicSeriesConfiguration from './Series/BasicSeriesConfiguration';
-import GroupedSeriesConfiguration from './Series/GroupedSeriesConfiguration';
-import { SeriesDivider } from './Series/Series.styles';
+import SeriesTab from './Series';
 
 interface MinMaxProps {
     label: string;
@@ -112,8 +106,6 @@ const ChartConfigTabs: FC = () => {
         cartesianConfig: {
             dirtyLayout,
             dirtyEchartsConfig,
-            updateSingleSeries,
-            updateAllGroupedSeries,
             setXAxisName,
             setYAxisName,
             setYMinValue,
@@ -165,28 +157,6 @@ const ChartConfigTabs: FC = () => {
         (item) => getItemId(item) === dirtyLayout?.xField,
     );
 
-    const { data: orgData } = useOrganisation({ refetchOnMount: false });
-    const fallbackSeriesColours = useMemo(() => {
-        return (dirtyEchartsConfig?.series || [])
-            .filter(({ color }) => !color)
-            .reduce<Record<string, string>>(
-                (sum, series, index) => ({
-                    ...sum,
-                    [getSeriesId(series)]:
-                        (orgData?.chartColors && orgData?.chartColors[index]) ||
-                        getDefaultSeriesColor(index),
-                }),
-                {},
-            );
-    }, [dirtyEchartsConfig, orgData]);
-
-    const getSeriesColor = useCallback(
-        (seriesId: string) => {
-            return fallbackSeriesColours[seriesId];
-        },
-        [fallbackSeriesColours],
-    );
-
     const selectedAxisInSeries = Array.from(
         new Set(
             dirtyEchartsConfig?.series?.map(({ yAxisIndex }) => yAxisIndex),
@@ -211,29 +181,6 @@ const ChartConfigTabs: FC = () => {
         [false, false],
     );
 
-    const { series } = dirtyEchartsConfig || {};
-
-    const [simpleSeries, groupedSeriesMap] = useMemo(
-        () =>
-            (series || []).reduce<[Series[], Record<string, Series[]>]>(
-                ([simple, pivoted], obj) => {
-                    if (obj.encode.yRef.pivotValues) {
-                        return [
-                            simple,
-                            {
-                                ...pivoted,
-                                [obj.encode.yRef.field]: (
-                                    pivoted[obj.encode.yRef.field] || []
-                                ).concat(obj),
-                            },
-                        ];
-                    }
-                    return [[...simple, obj], pivoted];
-                },
-                [[], {}],
-            ) || {},
-        [series],
-    );
     return (
         <Wrapper>
             <Tabs
@@ -249,29 +196,7 @@ const ChartConfigTabs: FC = () => {
                 <Tab
                     id="series"
                     title="Series"
-                    panel={
-                        <>
-                            <BasicSeriesConfiguration
-                                items={items}
-                                layout={dirtyLayout}
-                                series={simpleSeries}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                            />
-                            {simpleSeries.length > 0 &&
-                                Object.keys(groupedSeriesMap).length > 0 && (
-                                    <SeriesDivider />
-                                )}
-                            <GroupedSeriesConfiguration
-                                items={items}
-                                layout={dirtyLayout}
-                                groupedSeries={groupedSeriesMap}
-                                getSeriesColor={getSeriesColor}
-                                updateSingleSeries={updateSingleSeries}
-                                updateAllGroupedSeries={updateAllGroupedSeries}
-                            />
-                        </>
-                    }
+                    panel={<SeriesTab items={items} />}
                 />
                 <Tab
                     id="axes"

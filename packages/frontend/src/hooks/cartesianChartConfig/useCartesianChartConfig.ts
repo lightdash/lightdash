@@ -15,6 +15,7 @@ import {
     Series,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { arrayMoveByIndex } from '../../utils/arrayUtils';
 
 type Args = {
     chartType: ChartType;
@@ -292,6 +293,52 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+
+    const updateSingleSeriesOrder = useCallback(
+        (sourceIndex: number, destinationIndex: number) => {
+            setDirtyEchartsConfig((prev) => {
+                if (prev && prev.series) {
+                    return {
+                        ...prev,
+                        series: arrayMoveByIndex(
+                            prev.series,
+                            sourceIndex,
+                            destinationIndex,
+                        ),
+                    };
+                }
+                return prev;
+            });
+        },
+        [],
+    );
+
+    const updateAllGroupedSeriesOrder = useCallback(
+        (fieldKey: string, destinationIndex: number) => {
+            setDirtyEchartsConfig((prev) => {
+                if (prev && prev.series) {
+                    const seriesIndexes = prev?.series?.reduce<number[]>(
+                        (acc, series, index) =>
+                            series.encode.yRef.field === fieldKey
+                                ? [...acc, index]
+                                : acc,
+                        [],
+                    );
+                    return {
+                        ...prev,
+                        series: arrayMoveByIndex(
+                            prev.series,
+                            seriesIndexes,
+                            destinationIndex,
+                        ),
+                    };
+                }
+                return prev;
+            });
+        },
+        [],
+    );
+
     const setStacking = useCallback(
         (stack: boolean) => {
             const yFields = dirtyLayout?.yField || [];
@@ -643,6 +690,8 @@ const useCartesianChartConfig = ({
         setShowGridX,
         setShowGridY,
         setInverseX,
+        updateSingleSeriesOrder,
+        updateAllGroupedSeriesOrder,
     };
 };
 
