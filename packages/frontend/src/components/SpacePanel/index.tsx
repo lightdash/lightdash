@@ -4,19 +4,13 @@ import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import {
-    useDeleteMutation,
-    useUpdateDashboardName,
-} from '../../hooks/dashboard/useDashboard';
 import { useApp } from '../../providers/AppProvider';
-import ActionCardList from '../common/ActionCardList';
 import { Can } from '../common/Authorization';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
+import NavigationTable from '../common/ResourceList';
 import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
 import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
-import DashboardForm from '../SavedDashboards/DashboardForm';
-import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
 import {
     BreadcrumbsWrapper,
     EmptyStateIcon,
@@ -35,14 +29,17 @@ export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user, health } = useApp();
-    const useDelete = useDeleteMutation();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const history = useHistory();
-    const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
+    const savedCharts = space.queries;
+    const orderedCharts = savedCharts.sort(
+        (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
-
     const [addToSpace, setAddToSpace] = useState<string>();
 
     return (
@@ -99,21 +96,18 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 )}
             </SpacePanelHeader>
 
-            <ActionCardList
-                title="Dashboards"
-                useUpdate={useUpdateDashboardName}
-                useDelete={useDelete}
-                dataList={savedDashboards}
-                getURL={(savedDashboard) => {
-                    const { uuid } = savedDashboard;
+            <NavigationTable
+                headerTitle="Dashboards"
+                resourceList={savedDashboards}
+                getURL={({ uuid }) => {
                     return `/projects/${projectUuid}/dashboards/${uuid}/view`;
                 }}
-                ModalContent={DashboardForm}
                 headerAction={
                     user.data?.ability?.can('manage', 'Dashboard') &&
                     !isDemo && (
                         <Button
-                            text="Add dashboard"
+                            icon="plus"
+                            large
                             onClick={() => setAddToSpace('dashboards')}
                             intent="primary"
                         />
@@ -134,15 +128,16 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 }
             />
 
-            <SavedQueriesContent
-                title="Saved charts"
-                savedQueries={savedCharts || []}
-                projectUuid={projectUuid}
+            <NavigationTable
+                headerTitle="Saved charts"
+                resourceList={orderedCharts}
+                getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
-                    user.data?.ability?.can('manage', 'SavedChart') &&
-                    !isDemo && (
+                    !isDemo &&
+                    user.data?.ability?.can('manage', 'SavedChart') && (
                         <Button
-                            text="Add chart"
+                            icon="plus"
+                            large
                             onClick={() => setAddToSpace('charts')}
                             intent="primary"
                         />
@@ -161,7 +156,9 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         }
                     />
                 }
+                isChart
             />
+
             <AddToSpaceModal
                 isOpen={addToSpace !== undefined}
                 isChart={addToSpace === 'charts'}
