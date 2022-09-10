@@ -109,7 +109,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     !isDemo && (
                         <Button
                             icon="plus"
-                            large
                             onClick={() => setAddToSpace('dashboards')}
                             intent="primary"
                         />
@@ -141,7 +140,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     user.data?.ability?.can('manage', 'SavedChart') && (
                         <Button
                             icon="plus"
-                            large
                             onClick={() => setAddToSpace('charts')}
                             intent="primary"
                         />
