@@ -1,18 +1,23 @@
-import { Card, Colors, H3 } from '@blueprintjs/core';
+import { Card, Colors, H3, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
+
+const paddingX = 20;
 
 export const ResourceListWrapper = styled(Card)`
     width: 768px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    padding: 0;
 `;
 
 export const ResourceListHeader = styled.div`
-    width: 100%;
     display: flex;
     align-items: center;
+    width: 100%;
+    padding: 12px ${paddingX}px;
     gap: 10px;
+    border-bottom: 1px solid ${Colors.LIGHT_GRAY2};
 `;
 
 export const Spacer = styled.div`
@@ -22,5 +27,11 @@ export const Spacer = styled.div`
 export const Title = styled(H3)`
     flex: 0 0 auto;
     margin: 0;
-    color: ${Colors.GRAY1};
+    color: ${Colors.DARK_GRAY1};
+`;
+
+export const ResourceTag = styled(Tag)`
+    font-weight: bold;
+    background-color: ${Colors.LIGHT_GRAY2};
+    color: ${Colors.DARK_GRAY1};
 `;

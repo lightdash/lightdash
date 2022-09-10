@@ -1,43 +1,47 @@
-import { Tag } from '@blueprintjs/core';
+import { IconName } from '@blueprintjs/core';
 import { UpdatedByUser } from '@lightdash/common';
 import React from 'react';
 import {
     ResourceListHeader,
     ResourceListWrapper,
+    ResourceTag,
     Spacer,
     Title,
 } from './ResourceList.style';
+import ResourceTable from './ResourceTable';
 
-interface DefaultResource {
+export type ResourceListProps<T extends DefaultResource> = {
+    headerTitle: string;
+    headerAction?: React.ReactNode;
+    emptyBody?: React.ReactNode;
+    resourceList: T[];
+    resourceType: 'dashboard' | 'saved_chart';
+    resourceIcon: IconName;
+    getURL: (data: T) => string;
+};
+
+export interface DefaultResource {
     uuid: string;
     name: string;
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
 }
 
-type ResourceListProps<T extends DefaultResource> = {
-    headerTitle: string;
-    headerAction?: React.ReactNode;
-    emptyBody?: React.ReactNode;
-    resourceList: T[];
-    getURL: (data: T) => string;
-};
-
-const ResourceList = <T extends DefaultResource>({
+const ResourceList: React.FC<ResourceListProps<DefaultResource>> = ({
     headerTitle,
     headerAction,
     emptyBody,
+    resourceIcon,
     resourceList,
+    resourceType,
     getURL,
-}: ResourceListProps<T>) => {
+}) => {
     return (
         <ResourceListWrapper>
             <ResourceListHeader>
                 <Title>{headerTitle}</Title>
 
-                <Tag large minimal round>
-                    {resourceList.length}
-                </Tag>
+                <ResourceTag round>{resourceList.length}</ResourceTag>
 
                 <Spacer />
 
@@ -47,24 +51,15 @@ const ResourceList = <T extends DefaultResource>({
             {resourceList.length === 0 ? (
                 emptyBody
             ) : (
-                <div>
-                    {resourceList.map((resource) => (
-                        <div key={resource.uuid}>
-                            {resource.name}
-
-                            {getURL(resource)}
-                        </div>
-                    ))}
-                </div>
+                <ResourceTable
+                    getURL={getURL}
+                    resourceType={resourceType}
+                    resourceIcon={resourceIcon}
+                    resourceList={resourceList}
+                />
             )}
         </ResourceListWrapper>
     );
-};
-
-ResourceList.defaultProps = {
-    headerAction: null,
-    isChart: false,
-    isHomePage: false,
 };
 
 export default ResourceList;
