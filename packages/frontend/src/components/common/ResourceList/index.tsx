@@ -23,6 +23,7 @@ export type ResourceListProps<T extends DefaultResource> = {
 export interface DefaultResource {
     uuid: string;
     name: string;
+    description: string;
     updatedAt: Date;
     updatedByUser?: UpdatedByUser;
 }
