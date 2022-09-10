@@ -58,7 +58,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                         </Tooltip2>
                     </Flex>
                 ),
-                enableSorting: true,
+                enableSorting: resourceList.length > 1,
                 sortingFn: (a, b) => {
                     return a.original.name.localeCompare(b.original.name);
                 },
@@ -68,7 +68,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                 cell: (info) => (
                     <>{new Date(info.getValue()).toLocaleDateString()}</>
                 ),
-                enableSorting: true,
+                enableSorting: resourceList.length > 1,
                 sortingFn: (a, b) => {
                     return (
                         new Date(a.original.updatedAt).getTime() -
@@ -86,7 +86,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                 enableSorting: false,
             }),
         ];
-    }, [resourceIcon, getURL]);
+    }, [resourceIcon, getURL, resourceList.length]);
 
     const table = useReactTable({
         data: resourceList,
@@ -106,6 +106,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                     <StyledTr key={headerGroup.id}>
                         {headerGroup.headers.map((header) => {
                             const isColumnSorted = header.column.getIsSorted();
+                            const canSortColumn = header.column.getCanSort();
 
                             return (
                                 <StyledTh
@@ -114,7 +115,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                                 >
                                     {header.isPlaceholder ? null : (
                                         <ThInteractiveWrapper
-                                            $isInteractive={header.column.getCanSort()}
+                                            $isInteractive={canSortColumn}
                                             onClick={header.column.getToggleSortingHandler()}
                                         >
                                             <Flex>
