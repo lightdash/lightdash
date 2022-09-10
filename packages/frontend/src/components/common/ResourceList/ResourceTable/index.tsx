@@ -9,9 +9,9 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { AcceptedResources, ResourceListProps } from '..';
 import ResourceLastEdited from '../ResourceLastEdited';
+import { ResourceLink } from '../ResourceList.style';
 import {
     Flex,
     Spacer,
@@ -53,9 +53,9 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                             content={info.row.original.description}
                             position={Position.TOP}
                         >
-                            <Link to={getURL(info.row.original)}>
+                            <ResourceLink to={getURL(info.row.original)}>
                                 {info.getValue()}
-                            </Link>
+                            </ResourceLink>
                         </Tooltip2>
                     </Flex>
                 ),
@@ -79,11 +79,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
             }),
             columnHelper.display({
                 id: 'actions',
-                cell: () => (
-                    <>
-                        <Button minimal icon="more" />
-                    </>
-                ),
+                cell: () => <Button minimal icon="more" />,
                 enableSorting: false,
             }),
         ];
