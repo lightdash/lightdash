@@ -1,5 +1,5 @@
 import { IconName } from '@blueprintjs/core';
-import { UpdatedByUser } from '@lightdash/common';
+import { DashboardBasicDetails, SpaceQuery } from '@lightdash/common';
 import React from 'react';
 import {
     ResourceListHeader,
@@ -10,25 +10,21 @@ import {
 } from './ResourceList.style';
 import ResourceTable from './ResourceTable';
 
-export type ResourceListProps<T extends DefaultResource> = {
-    headerTitle: string;
-    headerAction?: React.ReactNode;
-    emptyBody?: React.ReactNode;
-    resourceList: T[];
-    resourceType: 'dashboard' | 'saved_chart';
-    resourceIcon: IconName;
-    getURL: (data: T) => string;
-};
+// TODO: create a subset of this type that only includes the fields we need
+export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
 
-export interface DefaultResource {
-    uuid: string;
-    name: string;
-    description?: string;
-    updatedAt: Date;
-    updatedByUser?: UpdatedByUser;
-}
+export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
+    {
+        headerTitle: string;
+        headerAction?: React.ReactNode;
+        emptyBody?: React.ReactNode;
+        resourceList: T[];
+        resourceType: 'dashboard' | 'saved_chart';
+        resourceIcon: IconName;
+        getURL: (data: T) => string;
+    };
 
-const ResourceList: React.FC<ResourceListProps<DefaultResource>> = ({
+const ResourceList: React.FC<ResourceListProps> = ({
     headerTitle,
     headerAction,
     emptyBody,
