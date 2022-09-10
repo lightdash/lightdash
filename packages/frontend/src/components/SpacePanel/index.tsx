@@ -7,7 +7,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import AddToSpaceModal from '../common/modal/AddToSpaceModal';
-import NavigationTable from '../common/ResourceList';
+import ResourceList from '../common/ResourceList';
 import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
 import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
@@ -96,12 +96,14 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 )}
             </SpacePanelHeader>
 
-            <NavigationTable
+            <ResourceList
                 headerTitle="Dashboards"
+                resourceIcon="control"
+                resourceType="dashboard"
                 resourceList={savedDashboards}
-                getURL={({ uuid }) => {
-                    return `/projects/${projectUuid}/dashboards/${uuid}/view`;
-                }}
+                getURL={({ uuid }) =>
+                    `/projects/${projectUuid}/dashboards/${uuid}/view`
+                }
                 headerAction={
                     user.data?.ability?.can('manage', 'Dashboard') &&
                     !isDemo && (
@@ -128,9 +130,11 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 }
             />
 
-            <NavigationTable
+            <ResourceList
                 headerTitle="Saved charts"
                 resourceList={orderedCharts}
+                resourceIcon="chart"
+                resourceType="saved_chart"
                 getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
                     !isDemo &&
@@ -156,7 +160,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         }
                     />
                 }
-                isChart
             />
 
             <AddToSpaceModal
