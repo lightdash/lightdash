@@ -10,7 +10,8 @@ import {
 } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { DefaultResource, ResourceListProps } from '..';
+import { AcceptedResources, ResourceListProps } from '..';
+import ResourceLastEdited from '../ResourceLastEdited';
 import {
     Flex,
     Spacer,
@@ -23,10 +24,10 @@ import {
     ThInteractiveWrapper,
 } from './ResourceTable.style';
 
-const columnHelper = createColumnHelper<DefaultResource>();
+const columnHelper = createColumnHelper<AcceptedResources>();
 
 type ResourceTableProps = Pick<
-    ResourceListProps<DefaultResource>,
+    ResourceListProps,
     'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
 >;
 
@@ -66,7 +67,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
             columnHelper.accessor('updatedAt', {
                 header: () => 'Last Edited',
                 cell: (info) => (
-                    <>{new Date(info.getValue()).toLocaleDateString()}</>
+                    <ResourceLastEdited resource={info.row.original} />
                 ),
                 enableSorting: resourceList.length > 1,
                 sortingFn: (a, b) => {
