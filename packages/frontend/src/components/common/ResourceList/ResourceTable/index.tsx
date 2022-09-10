@@ -63,6 +63,9 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                 sortingFn: (a, b) => {
                     return a.original.name.localeCompare(b.original.name);
                 },
+                meta: {
+                    width: 75,
+                },
             }),
             columnHelper.accessor('updatedAt', {
                 header: () => 'Last Edited',
@@ -76,11 +79,17 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                         new Date(b.original.updatedAt).getTime()
                     );
                 },
+                meta: {
+                    width: 25,
+                },
             }),
             columnHelper.display({
                 id: 'actions',
                 cell: () => <Button minimal icon="more" />,
                 enableSorting: false,
+                meta: {
+                    width: 1,
+                },
             }),
         ];
     }, [resourceIcon, getURL, resourceList.length]);
@@ -109,6 +118,11 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                                 <StyledTh
                                     key={header.id}
                                     colSpan={header.colSpan}
+                                    style={{
+                                        width:
+                                            header.column.columnDef.meta
+                                                ?.width + '%',
+                                    }}
                                 >
                                     {header.isPlaceholder ? null : (
                                         <ThInteractiveWrapper
