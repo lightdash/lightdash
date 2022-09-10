@@ -38,8 +38,8 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
 }) => {
     const [sorting, setSorting] = React.useState<SortingState>([]);
 
-    const columns = useMemo(
-        () => [
+    const columns = useMemo(() => {
+        return [
             columnHelper.accessor('name', {
                 header: () => 'Name',
                 cell: (info) => (
@@ -49,7 +49,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
 
                         <Tooltip2
                             lazy
-                            content={info.row.original.name} // TODO: must be a description here...
+                            content={info.row.original.description}
                             position={Position.TOP}
                         >
                             <Link to={getURL(info.row.original)}>
@@ -85,9 +85,8 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                 ),
                 enableSorting: false,
             }),
-        ],
-        [resourceIcon, getURL],
-    );
+        ];
+    }, [resourceIcon, getURL]);
 
     const table = useReactTable({
         data: resourceList,
