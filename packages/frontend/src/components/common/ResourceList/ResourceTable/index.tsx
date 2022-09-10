@@ -11,7 +11,7 @@ import {
 import React, { useMemo } from 'react';
 import { AcceptedResources, ResourceListProps } from '..';
 import ResourceLastEdited from '../ResourceLastEdited';
-import { ResourceLink } from '../ResourceList.style';
+import { ResourceLink } from '../ResourceList.styles';
 import {
     Flex,
     Spacer,
@@ -22,7 +22,7 @@ import {
     StyledTHead,
     StyledTr,
     ThInteractiveWrapper,
-} from './ResourceTable.style';
+} from './ResourceTable.styles';
 
 const columnHelper = createColumnHelper<AcceptedResources>();
 

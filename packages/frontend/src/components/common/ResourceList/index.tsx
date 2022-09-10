@@ -7,7 +7,7 @@ import {
     ResourceTag,
     Spacer,
     Title,
-} from './ResourceList.style';
+} from './ResourceList.styles';
 import ResourceTable from './ResourceTable';
 
 // TODO: create a subset of this type that only includes the fields we need
