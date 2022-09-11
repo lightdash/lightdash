@@ -21,7 +21,8 @@
         "@types/pg": "^8.6.1",
         "@types/snowflake-sdk": "^1.6.1",
         "copyfiles": "^2.4.1",
-        "knex-mock-client": "^1.6.0"
+        "knex-mock-client": "^1.6.0",
+        "jest-fetch-mock": "^3.0.3"
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
