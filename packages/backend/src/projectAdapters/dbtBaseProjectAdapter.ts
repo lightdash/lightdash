@@ -195,7 +195,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const validator = getMetricValidator();
         metrics.forEach((metric) => {
             const isValid = validator(metric);
-            if (!isValid) {
+            if (isValid !== true) {
                 throw new ParseError(
                     `Could not parse dbt metric with id ${
                         metric.unique_id
