@@ -61,18 +61,6 @@
         "format": "prettier --check --ignore-unknown ./src",
         "fix-format": "prettier --write --ignore-unknown ./src"
     },
-    "browserslist": {
-        "production": [
-            ">0.2%",
-            "not dead",
-            "not op_mini all"
-        ],
-        "development": [
-            "last 1 chrome version",
-            "last 1 firefox version",
-            "last 1 safari version"
-        ]
-    },
     "devDependencies": {
         "@types/dagre": "^0.7.47",
         "@types/react": "^17.0.2        ",
