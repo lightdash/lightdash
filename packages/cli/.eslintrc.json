@@ -14,6 +14,7 @@
         "no-console": "off",
         "import/prefer-default-export": "off",
         "no-restricted-syntax": "off",
-        "no-throw-literal": "off"
+        "no-throw-literal": "off",
+        "@typescript-eslint/no-throw-literal": "off"
     }
 }
