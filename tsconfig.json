@@ -14,34 +14,9 @@
     },
     {
       "path": "./packages/warehouses"
+    },
+    {
+      "path": "./packages/e2e"
     }
   ],
-  "files": [],
-  "include": [],
-  "exclude": [
-    "**/node_modules",
-    "packages/backend/**/*.test.ts",
-    "packages/backend/**/*.mock.ts"
-  ],
-  "compilerOptions": {
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx"
-  }
 }

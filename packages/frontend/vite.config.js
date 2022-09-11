@@ -6,6 +6,9 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
     plugins: [react(), svgr(), tsconfigPaths()],
+    css: {
+        devSourcemap: true,
+    },
     optimizeDeps: {
         exclude: ['lightdash/common'],
     },
