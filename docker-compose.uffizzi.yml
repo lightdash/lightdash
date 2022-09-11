@@ -1,3 +1,12 @@
+x-uffizzi:
+  ingress:
+    service: loadbalancer
+    port: 8080  
+  continuous_preview:
+    deploy_preview_when_pull_request_is_opened: true
+    delete_preview_when_pull_request_is_closed: true
+    share_to_github: true
+
 name: Build Images and Handle Uffizzi Previews.
 
 on:
