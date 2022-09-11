@@ -1,0 +1,209 @@
+x-uffizzi:
+  ingress:
+    service: loadbalancer
+    port: 8080  
+  continuous_preview:
+    deploy_preview_when_pull_request_is_opened: 'true'
+    delete_preview_when_pull_request_is_closed: 'true'
+    share_to_github: 'true'
+
+name: Build Images and Handle Uffizzi Previews.
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - staging
+      - qa
+  pull_request:
+    types: [opened,reopened,synchronize,closed]
+
+jobs:
+  build-vote:
+    name: Build and Push `vote`
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: grojas2525/lightdash
+      - name: Build and Push Image to GitHub Container Registry
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          context: ./lightdash
+
+  build-worker:
+    name: Build and Push `worker`
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: grojas2525/lightdash-worker
+      - name: Build and Push Image to GitHub Container Registry
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          context: ./worker
+
+  build-result:
+    name: Build and Push `result`
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: grojas2525/lightdash-result
+      - name: Build and Push Image to GitHub Container Registry
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          context: ./result
+
+  build-loadbalancer:
+    name: Build and Push `loadbalancer`
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: grojas2525/lightdash-loadbalancer
+      - name: Build and Push Image to GitHub Container Registry
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          context: ./loadbalancer
+
+  render-compose-file:
+    name: Render Docker Compose File
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    needs: 
+      - build-vote
+      - build-worker
+      - build-result
+      - build-loadbalancer
+    outputs:
+      compose-file-cache-key: ${{ steps.hash.outputs.hash }}
+    steps:
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+      - name: Render Compose File
+        run: |
+          VOTE_IMAGE=$(echo ${{ needs.build-vote.outputs.tags }})
+          export VOTE_IMAGE
+          WORKER_IMAGE=$(echo ${{ needs.build-worker.outputs.tags }})
+          export WORKER_IMAGE
+          RESULT_IMAGE=$(echo ${{ needs.build-result.outputs.tags }})
+          export RESULT_IMAGE
+          LOADBALANCER_IMAGE=$(echo ${{ needs.build-loadbalancer.outputs.tags }})
+          export LOADBALANCER_IMAGE
+          PGUSER=${{ secrets.PGUSER }}
+          export PGUSER
+          PGPASSWORD=${{ secrets.PGPASSWORD }}
+          export PGPASSWORD
+          # Render simple template from environment variables.
+          envsubst < docker-compose.template.yml > docker-compose.rendered.yml
+          cat docker-compose.rendered.yml
+      - name: Hash Rendered Compose File
+        id: hash
+        run: echo "::set-output name=hash::$(md5sum docker-compose.rendered.yml | awk '{ print $1 }')"
+      - name: Cache Rendered Compose File
+        uses: actions/cache@v3
+        with:
+          path: docker-compose.rendered.yml
+          key: ${{ steps.hash.outputs.hash }}
+
+  deploy-uffizzi-preview:
+    name: Use Remote Workflow to Preview on Uffizzi
+    needs: render-compose-file
+    uses: UffizziCloud/preview-action/.github/workflows/reusable.yaml@v2
+    if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+    with:
+      compose-file-cache-key: ${{ needs.render-compose-file.outputs.compose-file-cache-key }}
+      compose-file-cache-path: docker-compose.rendered.yml
+      username: adam+1@idyl.tech
+      server: https://app.uffizzi.com
+      project: my-application-c2e3
+    secrets:
+      password: ${{ secrets.UFFIZZI_PASSWORD }}
+      url-username: admin
+      url-password: ${{ secrets.URL_PASSWORD }}
+      personal-access-token: ${{ secrets.GHCR_ACCESS_TOKEN }}
+    permissions:
+      contents: read
+      pull-requests: write
+
+  delete-uffizzi-preview:
+    name: Use Remote Workflow to Delete an Existing Preview
+    uses: UffizziCloud/preview-action/.github/workflows/reusable.yaml@v2
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}
+    with:
+      compose-file-cache-key: ''
+      compose-file-cache-path: docker-compose.rendered.yml
+      username: adam+1@idyl.tech
+      server: https://app.uffizzi.com
+      project: my-application-c2e3
+    secrets:
+      password: ${{ secrets.UFFIZZI_PASSWORD }}
+    permissions:
+      contents: read
+      pull-requests: write
