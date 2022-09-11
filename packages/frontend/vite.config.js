@@ -1,11 +1,27 @@
 // vite.config.js
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, splitVendorChunkPlugin } from 'vite';
 import svgr from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-    plugins: [react(), svgr(), tsconfigPaths()],
+    // TODO:
+    // configure ESLINT
+    // configure browserlist
+    // https://v2.vitejs.dev/guide/build.html#browser-compatibility
+    //"browserslist": {
+    //     "production": [
+    //         ">0.2%",
+    //         "not dead",
+    //         "not op_mini all"
+    //     ],
+    //     "development": [
+    //         "last 1 chrome version",
+    //         "last 1 firefox version",
+    //         "last 1 safari version"
+    //     ]
+    // },
+    plugins: [react(), svgr(), tsconfigPaths(), splitVendorChunkPlugin()],
     css: {
         devSourcemap: true,
     },
@@ -16,15 +32,6 @@ export default defineConfig({
         outDir: 'build',
         commonjsOptions: {
             exclude: ['lightdash/common'],
-        },
-        rollupOptions: {
-            output: {
-                manualChunks(id) {
-                    if (id.includes('node_modules')) {
-                        return 'vendor';
-                    }
-                },
-            },
         },
     },
     resolve: {
