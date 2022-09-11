@@ -39,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ghcr.io/${{ github.repository_owner }}/lightdash
+          images: grojas2525/lightdash
       - name: Build and Push Image to GitHub Container Registry
         uses: docker/build-push-action@v2
         with:
@@ -67,7 +67,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ghcr.io/${{ github.repository_owner }}/lightdash-worker
+          images: grojas2525/lightdash-worker
       - name: Build and Push Image to GitHub Container Registry
         uses: docker/build-push-action@v2
         with:
@@ -95,7 +95,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ghcr.io/${{ github.repository_owner }}/lightdash-result
+          images: grojas2525/lightdash-result
       - name: Build and Push Image to GitHub Container Registry
         uses: docker/build-push-action@v2
         with:
@@ -123,7 +123,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ghcr.io/${{ github.repository_owner }}/lightdash-loadbalancer
+          images: grojas2525/lightdash-loadbalancer
       - name: Build and Push Image to GitHub Container Registry
         uses: docker/build-push-action@v2
         with:
