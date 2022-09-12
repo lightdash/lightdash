@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DimensionType,
     Field,
     isDimension,
@@ -41,11 +42,10 @@ enum BooleanSortLabels {
     DESC = 'Yes-No',
 }
 
-const assertUnreachable = (_x: never): never => {
-    throw new Error("Didn't expect to get here");
-};
-
-export const getSortLabel = (field: Field, direction: SortDirection) => {
+export const getSortLabel = (
+    field: Field | undefined,
+    direction: SortDirection,
+) => {
     if (isDimension(field)) {
         switch (field.type) {
             case DimensionType.NUMBER:
