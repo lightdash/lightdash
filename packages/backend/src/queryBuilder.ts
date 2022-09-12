@@ -47,9 +47,13 @@ const renderStringFilterSql = (
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.INCLUDE:
-            return `(${dimensionSql}) LIKE '%${filter.values?.[0] || ''}%'`;
+            return `LOWER(${dimensionSql}) LIKE LOWER('%${
+                filter.values?.[0] || ''
+            }%')`;
         case FilterOperator.NOT_INCLUDE:
-            return `(${dimensionSql}) NOT LIKE '%${filter.values?.[0] || ''}%'`;
+            return `LOWER(${dimensionSql}) NOT LIKE LOWER('%${
+                filter.values?.[0] || ''
+            }%')`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:

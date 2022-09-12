@@ -8,6 +8,7 @@ export type FieldWithSuggestions = FilterableField & {
 export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 
 type FiltersContext = {
+    projectUuid: string;
     fieldsMap: FieldsWithSuggestions;
     getField: (filterRule: FilterRule) => FieldWithSuggestions | undefined;
 };
@@ -15,10 +16,15 @@ type FiltersContext = {
 const Context = createContext<FiltersContext | undefined>(undefined);
 
 type Props = {
+    projectUuid: string;
     fieldsMap: Record<string, FieldWithSuggestions>;
 };
 
-export const FiltersProvider: FC<Props> = ({ fieldsMap, children }) => {
+export const FiltersProvider: FC<Props> = ({
+    projectUuid,
+    fieldsMap,
+    children,
+}) => {
     const getField = useCallback(
         (filterRule: FilterRule) => {
             if (fieldsMap) {
@@ -28,7 +34,7 @@ export const FiltersProvider: FC<Props> = ({ fieldsMap, children }) => {
         [fieldsMap],
     );
     return (
-        <Context.Provider value={{ fieldsMap, getField }}>
+        <Context.Provider value={{ projectUuid, fieldsMap, getField }}>
             {children}
         </Context.Provider>
     );

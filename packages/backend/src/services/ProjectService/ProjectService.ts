@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AdditionalMetric,
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -9,12 +10,15 @@ import {
     CreateProjectMember,
     Explore,
     ExploreError,
-    fieldId,
+    fieldId as getFieldId,
     FilterableField,
+    FilterOperator,
+    findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
     getDimensions,
     getFields,
+    getItemId,
     getMetrics,
     hasIntersection,
     isExploreError,
@@ -24,6 +28,7 @@ import {
     JobStepType,
     JobType,
     MetricQuery,
+    MetricType,
     MissingWarehouseCredentialsError,
     NotExistsError,
     NotFoundError,
@@ -528,7 +533,7 @@ export class ProjectService {
                 additionalMetricsCount: (
                     metricQuery.additionalMetrics || []
                 ).filter((metric) =>
-                    metricQuery.metrics.includes(fieldId(metric)),
+                    metricQuery.metrics.includes(getFieldId(metric)),
                 ).length,
             },
         });
@@ -576,6 +581,87 @@ export class ProjectService {
         });
         const adapter = await this.getAdapter(projectUuid);
         return adapter.runQuery(sql);
+    }
+
+    async searchFieldUniqueValues(
+        user: SessionUser,
+        projectUuid: string,
+        fieldId: string,
+        search: string,
+        limit: number,
+    ): Promise<Array<any>> {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.getExploreByFieldId(
+            user,
+            projectUuid,
+            fieldId,
+        );
+
+        const field = findFieldByIdInExplore(explore, fieldId);
+
+        if (!field) {
+            throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
+        }
+
+        const distinctMetric: AdditionalMetric = {
+            name: `${field.name}_distinct`,
+            label: `Distinct of ${field.label}`,
+            table: field.table,
+            sql: `DISTINCT ${field.sql}`,
+            type: MetricType.STRING,
+        };
+
+        const metricQuery: MetricQuery = {
+            dimensions: [],
+            metrics: [getItemId(distinctMetric)],
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    and: [
+                        {
+                            id: uuidv4(),
+                            target: {
+                                fieldId,
+                            },
+                            operator: FilterOperator.INCLUDE,
+                            values: [search],
+                        },
+                    ],
+                },
+            },
+            additionalMetrics: [distinctMetric],
+            tableCalculations: [],
+            sorts: [
+                {
+                    fieldId: getItemId(distinctMetric),
+                    descending: false,
+                },
+            ],
+            limit,
+        };
+
+        const { query } = await this.compileQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            explore.name,
+        );
+
+        const adapter = await this.getAdapter(projectUuid);
+        const { rows } = await adapter.runQuery(query);
+
+        return rows.map((row) => row[getItemId(distinctMetric)]);
     }
 
     async refreshAllTables(
@@ -874,6 +960,37 @@ export class ProjectService {
         if (explore === undefined || isExploreError(explore)) {
             throw new NotExistsError(
                 `Explore "${exploreName}" does not exist.`,
+            );
+        }
+
+        return explore;
+    }
+
+    async getExploreByFieldId(
+        user: SessionUser,
+        projectUuid: string,
+        fieldId: string,
+    ): Promise<Explore> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const explores =
+            (await this.projectModel.getExploresFromCache(projectUuid)) || [];
+        const explore = explores.find((t) =>
+            isExploreError(t) ? false : !!findFieldByIdInExplore(t, fieldId),
+        );
+        if (explore === undefined || isExploreError(explore)) {
+            throw new NotExistsError(
+                `Can't find explore with field id: ${fieldId}`,
             );
         }
 

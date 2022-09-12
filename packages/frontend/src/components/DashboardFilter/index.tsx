@@ -1,6 +1,7 @@
 import { Classes, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
 import React, { FC, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isOpen, setIsOpen] = useState(false);
     const {
         dashboard,
@@ -32,7 +34,10 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         ).length >= 1;
     return (
-        <FiltersProvider fieldsMap={fieldsWithSuggestions}>
+        <FiltersProvider
+            projectUuid={projectUuid}
+            fieldsMap={fieldsWithSuggestions}
+        >
             <DashboardFilterWrapper>
                 <TriggerWrapper
                     content={

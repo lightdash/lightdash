@@ -1,6 +1,13 @@
+import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, MultiSelect } from '@blueprintjs/select';
-import React, { FC, useCallback } from 'react';
+import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
+import { FilterableField, getItemId } from '@lightdash/common';
+import React, { FC, useCallback, useEffect, useState } from 'react';
+import { useDebounce } from 'react-use';
+import { useFieldValues } from '../../../../hooks/useFieldValues';
+import { Hightlighed } from '../../../NavBar/GlobalSearch/globalSearch.styles';
+import HighlightedText from '../../HighlightedText';
+import { useFiltersContext } from '../FiltersProvider';
 
 function toggleValueFromArray<T>(array: T[], value: T) {
     const copy = [...array];
@@ -27,14 +34,68 @@ function itemPredicate(
 }
 
 type Props = {
+    field: FilterableField;
     values: string[];
     suggestions: string[];
     onChange: (values: string[]) => void;
 };
 
-const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
+export const useDebouncedSearch = (
+    projectUuid: string,
+    fieldId: string,
+    query: string | undefined,
+    enabled: boolean,
+) => {
+    const [debouncedQuery, setDebouncedQuery] = useState<string>();
+    useDebounce(
+        () => {
+            setDebouncedQuery(query);
+        },
+        500,
+        [query],
+    );
+    const { data, isLoading } = useFieldValues(
+        projectUuid,
+        fieldId,
+        debouncedQuery || '',
+        10,
+        enabled,
+    );
+
+    const isSearching = (query && query !== debouncedQuery) || isLoading;
+
+    return {
+        isSearching,
+        items: data,
+    };
+};
+
+const StringMultiSelect: FC<Props> = ({
+    values,
+    field,
+    suggestions,
+    onChange,
+}) => {
+    const [options, setOptions] = useState(
+        new Set([...suggestions, ...values]),
+    );
+    const { projectUuid } = useFiltersContext();
+    const [search, setSearch] = useState<string>();
+    const { items, isSearching } = useDebouncedSearch(
+        projectUuid,
+        getItemId(field),
+        search,
+        suggestions.length <= 0 || !!search,
+    );
+
+    useEffect(() => {
+        setOptions((prev) => {
+            return new Set([...prev, ...values, ...(items || [])]);
+        });
+    }, [suggestions, values, items]);
+
     const renderItem: ItemRenderer<string> = useCallback(
-        (name, { modifiers, handleClick }) => {
+        (name, { modifiers, handleClick, query }) => {
             if (!modifiers.matchesPredicate) {
                 return null;
             }
@@ -43,7 +104,13 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
                     active={modifiers.active}
                     icon={values.includes(name) ? 'tick' : 'blank'}
                     key={name}
-                    text={name}
+                    text={
+                        <HighlightedText
+                            text={name}
+                            query={query}
+                            highlightElement={Hightlighed}
+                        />
+                    }
                     onClick={handleClick}
                     shouldDismissPopover={false}
                 />
@@ -53,19 +120,22 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
     );
     const renderCreateOption = useCallback(
         (
-            query: string,
+            q: string,
             active: boolean,
             handleClick: React.MouseEventHandler<HTMLElement>,
-        ) => (
-            <MenuItem2
-                icon="add"
-                text={`Add "${query}"`}
-                active={active}
-                onClick={handleClick}
-                shouldDismissPopover={false}
-            />
-        ),
-        [],
+        ) =>
+            !isSearching ? (
+                <MenuItem2
+                    icon="add"
+                    text={`Add "${q}"`}
+                    active={active}
+                    onClick={handleClick}
+                    shouldDismissPopover={false}
+                />
+            ) : (
+                <Spinner size={16} style={{ margin: 12 }} />
+            ),
+        [isSearching],
     );
     const onItemSelect = useCallback(
         (value: string) => {
@@ -80,9 +150,9 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
         [onChange, values],
     );
     return (
-        <MultiSelect
+        <MultiSelect2
             fill
-            items={Array.from(new Set([...suggestions, ...values]))}
+            items={Array.from(options).sort()}
             noResults={<MenuItem2 disabled text="No suggestions." />}
             itemsEqual={(value, other) =>
                 value.toLowerCase() === other.toLowerCase()
@@ -98,11 +168,12 @@ const StringMultiSelect: FC<Props> = ({ values, suggestions, onChange }) => {
                 },
                 onRemove,
             }}
-            popoverProps={{ minimal: true }}
+            popoverProps={{ minimal: true, matchTargetWidth: true }}
             resetOnSelect
             itemPredicate={itemPredicate}
             createNewItemRenderer={renderCreateOption}
             createNewItemFromQuery={(name: string) => name}
+            onQueryChange={setSearch}
         />
     );
 };
