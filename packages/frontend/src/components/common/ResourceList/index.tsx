@@ -28,7 +28,6 @@ import {
 } from './ResourceList.styles';
 import ResourceTable from './ResourceTable';
 
-// TODO: create a subset of this type that only includes the fields we need
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
 export type AcceptedResourceTypes = 'saved_chart' | 'dashboard';
 
@@ -49,7 +48,7 @@ const getResourceLabel = (resourceType: AcceptedResourceTypes) => {
         case 'saved_chart':
             return 'chart';
         default:
-            throw new Error(`Unknown resource type: ${resourceType}`);
+            assertUnreachable(resourceType);
     }
 };
 
@@ -81,13 +80,11 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 return {
                     update: useUpdateDashboardName,
                     moveToSpace: moveDashboard,
-                    ModalContent: DashboardForm,
                 };
             case 'saved_chart':
                 return {
                     update: useUpdateMutation,
                     moveToSpace: moveChart,
-                    ModalContent: SavedQueryForm,
                 };
             default:
                 return assertUnreachable(resourceType);
@@ -149,13 +146,20 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 )}
             </ResourceListWrapper>
 
-            {actionState.actionType === ActionTypeModal.UPDATE && (
-                <UpdateActionModal
-                    useActionModalState={[actionState, setActionState]}
-                    useUpdate={actions.update}
-                    ModalContent={actions.ModalContent}
-                />
-            )}
+            {actionState.actionType === ActionTypeModal.UPDATE &&
+                (resourceType === 'saved_chart' ? (
+                    <UpdateActionModal
+                        useActionModalState={[actionState, setActionState]}
+                        useUpdate={actions.update}
+                        ModalContent={SavedQueryForm}
+                    />
+                ) : (
+                    <UpdateActionModal
+                        useActionModalState={[actionState, setActionState]}
+                        useUpdate={actions.update}
+                        ModalContent={DashboardForm}
+                    />
+                ))}
             {actionState.actionType === ActionTypeModal.DELETE &&
                 actionState.data && (
                     <DeleteActionModal
