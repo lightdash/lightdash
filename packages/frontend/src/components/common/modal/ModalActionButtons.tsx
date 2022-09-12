@@ -1,6 +1,6 @@
-import { Button, Divider, Menu } from '@blueprintjs/core';
+import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
@@ -17,12 +17,12 @@ type ModalActionButtonsProps = {
     isChart?: boolean;
 };
 
-const ModalActionButtons = ({
+const ModalActionButtons: FC<ModalActionButtonsProps> = ({
     data,
     url,
     setActionState,
     isChart,
-}: ModalActionButtonsProps) => {
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
     const { mutate: duplicateChart } = useDuplicateMutation(itemId, true);
@@ -30,7 +30,7 @@ const ModalActionButtons = ({
         itemId,
         true,
     );
-    const isDashboardPage = url.includes('/dashboards');
+    const isDashboardPage = url.includes('/dashboards') || !isChart;
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces } = useSpaces(projectUuid);
 
@@ -48,6 +48,7 @@ const ModalActionButtons = ({
     return (
         <Popover2
             isOpen={isOpen}
+            position={Position.BOTTOM_RIGHT}
             onClose={() => {
                 setIsOpen(false);
             }}
@@ -109,18 +110,19 @@ const ModalActionButtons = ({
                         }}
                     >
                         {spaces?.map((space) => {
-                            const isDisabled = data.spaceUuid === space.uuid;
+                            const isSelected = data.spaceUuid === space.uuid;
                             return (
                                 <MenuItem2
                                     key={space.uuid}
+                                    roleStructure="listoption"
                                     text={space.name}
-                                    icon={isDisabled ? 'small-tick' : undefined}
-                                    className={isDisabled ? 'bp4-disabled' : ''}
+                                    selected={isSelected}
+                                    className={isSelected ? 'bp4-disabled' : ''}
                                     onClick={(e) => {
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        if (!isDisabled)
+                                        if (!isSelected)
                                             setActionState({
                                                 actionType:
                                                     ActionTypeModal.MOVE_TO_SPACE,
@@ -135,8 +137,10 @@ const ModalActionButtons = ({
                         })}
 
                         <Divider />
+
                         <MenuItem2
-                            text="+ Create new"
+                            icon="plus"
+                            text="Create new"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -167,7 +171,6 @@ const ModalActionButtons = ({
                     />
                 </Menu>
             }
-            placement="bottom"
         >
             <Button
                 icon="more"
