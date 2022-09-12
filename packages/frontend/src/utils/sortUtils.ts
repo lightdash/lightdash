@@ -11,6 +11,16 @@ export enum SortDirection {
     DESC = 'DESC',
 }
 
+export const getSortDirectionOrder = (field: Field) => {
+    switch (field.type) {
+        case DimensionType.BOOLEAN:
+        case MetricType.BOOLEAN:
+            return [SortDirection.DESC, SortDirection.ASC];
+        default:
+            return [SortDirection.ASC, SortDirection.DESC];
+    }
+};
+
 enum NumericSortLabels {
     ASC = '1-9',
     DESC = '9-1',
@@ -26,19 +36,16 @@ enum DateSortLabels {
     DESC = 'New-Old',
 }
 
-enum DefaultSortLabels {
-    ASC = 'First-Last',
-    DESC = 'Last-First',
+enum BooleanSortLabels {
+    ASC = 'No-Yes',
+    DESC = 'Yes-No',
 }
 
 const assertUnreachable = (_x: never): never => {
     throw new Error("Didn't expect to get here");
 };
 
-export const getSortLabel = (
-    field: Field | undefined,
-    direction: SortDirection,
-) => {
+export const getSortLabel = (field: Field, direction: SortDirection) => {
     if (isDimension(field)) {
         switch (field.type) {
             case DimensionType.NUMBER:
@@ -56,8 +63,8 @@ export const getSortLabel = (
                     : DateSortLabels.DESC;
             case DimensionType.BOOLEAN:
                 return direction === SortDirection.ASC
-                    ? DefaultSortLabels.ASC
-                    : DefaultSortLabels.DESC;
+                    ? BooleanSortLabels.ASC
+                    : BooleanSortLabels.DESC;
             default:
                 return assertUnreachable(field.type);
         }
@@ -83,12 +90,12 @@ export const getSortLabel = (
                     : DateSortLabels.DESC;
             case MetricType.BOOLEAN:
                 return direction === SortDirection.ASC
-                    ? DefaultSortLabels.ASC
-                    : DefaultSortLabels.DESC;
+                    ? BooleanSortLabels.ASC
+                    : BooleanSortLabels.DESC;
             default:
                 return assertUnreachable(field.type);
         }
     } else {
-        return direction === SortDirection.ASC ? 'Low-High' : 'Last-First';
+        throw new Error('Field is not a Dimension or Metric');
     }
 };

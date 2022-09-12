@@ -11,7 +11,7 @@ export const PopoverGlobalStyles = createGlobalStyle`
 
 export const StyledButtonGroup = styled(ButtonGroup)`
     button {
-        min-width: 70px !important;
+        min-width: 60px !important;
         font-size: 12px;
     }
 `;
