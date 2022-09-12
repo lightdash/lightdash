@@ -1,3 +1,10 @@
+# [0.251.0](https://github.com/lightdash/lightdash/compare/0.250.0...0.251.0) (2022-09-12)
+
+
+### Features
+
+* filter autocomplete ([#3210](https://github.com/lightdash/lightdash/issues/3210)) ([d597467](https://github.com/lightdash/lightdash/commit/d5974676e5caac5429bb19b4a5ff0bf1f807b54f))
+
 # [0.250.0](https://github.com/lightdash/lightdash/compare/0.249.0...0.250.0) (2022-09-12)
 
 
