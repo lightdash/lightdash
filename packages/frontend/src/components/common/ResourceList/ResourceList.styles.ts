@@ -10,6 +10,7 @@ export const ResourceListWrapper = styled(Card)`
     flex-direction: column;
     justify-content: flex-start;
     padding: 0;
+    overflow: hidden;
 `;
 
 export const ResourceListHeader = styled.div`
