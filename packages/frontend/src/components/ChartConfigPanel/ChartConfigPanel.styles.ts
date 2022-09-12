@@ -1,11 +1,16 @@
 import {
     Button,
     ButtonGroup,
+    Callout,
     Colors,
     FormGroup,
     Switch,
 } from '@blueprintjs/core';
 import styled from 'styled-components';
+
+type CustomAxisGroup = {
+    disabled?: boolean;
+};
 
 export const InputWrapper = styled(FormGroup)`
     margin: 1.357em 0 0;
@@ -44,8 +49,19 @@ export const GridFieldLabel = styled.span`
     }
 `;
 
-export const AxisGroup = styled.div`
+export const AxisGroup = styled.div<CustomAxisGroup>`
     margin-top: 1.286em;
+
+    ${({ disabled }) =>
+        disabled &&
+        `
+        opacity: 0.4;
+        pointer-events: none;
+    `}
+`;
+
+export const GroupInfoCallout = styled(Callout)`
+    margin-top: 5px;
 `;
 
 export const AxisTitleWrapper = styled.div`

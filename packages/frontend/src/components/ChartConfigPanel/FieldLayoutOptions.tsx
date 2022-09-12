@@ -18,6 +18,7 @@ import {
     AxisTitleWrapper,
     DeleteFieldButton,
     GridLabel,
+    GroupInfoCallout,
     StackButton,
     StackingWrapper,
 } from './ChartConfigPanel.styles';
@@ -156,7 +157,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Button>
                 )}
             </AxisGroup>
-            <AxisGroup>
+            <AxisGroup disabled>
                 <AxisTitle>Group</AxisTitle>
                 <AxisFieldDropdown>
                     <FieldAutoComplete
@@ -178,6 +179,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     )}
                 </AxisFieldDropdown>
             </AxisGroup>
+            <GroupInfoCallout icon="help">
+                You need at least one metric in your chart to add a group
+            </GroupInfoCallout>
             {pivotDimension && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>
