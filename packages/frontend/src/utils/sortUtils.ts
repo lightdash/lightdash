@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DimensionType,
     Field,
     isDimension,

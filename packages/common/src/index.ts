@@ -1189,3 +1189,7 @@ export const deepEqual = (
         );
     });
 };
+
+export const assertUnreachable = (x_: never): never => {
+    throw new Error("Didn't expect to get here");
+};
