@@ -55,7 +55,7 @@
         "start": "vite",
         "build": "vite build",
         "serve": "vite preview",
-        "test": "TODO: react-scripts test --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
+        "test": "jest --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
         "lint": "eslint ./src",
         "fix-lint": "eslint --fix ./src",
         "format": "prettier --check --ignore-unknown ./src",
