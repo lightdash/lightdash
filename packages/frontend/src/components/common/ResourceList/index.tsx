@@ -1,7 +1,10 @@
-import { IconName } from '@blueprintjs/core';
+import { IconName, NonIdealState } from '@blueprintjs/core';
 import { DashboardBasicDetails, SpaceQuery } from '@lightdash/common';
 import React from 'react';
 import {
+    EmptyStateIcon,
+    EmptyStateText,
+    EmptyStateWrapper,
     ResourceListHeader,
     ResourceListWrapper,
     ResourceTag,
@@ -12,22 +15,32 @@ import ResourceTable from './ResourceTable';
 
 // TODO: create a subset of this type that only includes the fields we need
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
+export type AcceptedResourceTypes = 'saved_chart' | 'dashboard';
 
 export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
     {
         headerTitle: string;
         headerAction?: React.ReactNode;
-        emptyBody?: React.ReactNode;
         resourceList: T[];
-        resourceType: 'dashboard' | 'saved_chart';
+        resourceType: AcceptedResourceTypes;
         resourceIcon: IconName;
         getURL: (data: T) => string;
     };
 
+const getResourceLabel = (resourceType: AcceptedResourceTypes) => {
+    switch (resourceType) {
+        case 'dashboard':
+            return 'dashboard';
+        case 'saved_chart':
+            return 'chart';
+        default:
+            throw new Error(`Unknown resource type: ${resourceType}`);
+    }
+};
+
 const ResourceList: React.FC<ResourceListProps> = ({
     headerTitle,
     headerAction,
-    emptyBody,
     resourceIcon,
     resourceList,
     resourceType,
@@ -46,7 +59,22 @@ const ResourceList: React.FC<ResourceListProps> = ({
             </ResourceListHeader>
 
             {resourceList.length === 0 ? (
-                emptyBody
+                <EmptyStateWrapper>
+                    <NonIdealState
+                        description={
+                            <EmptyStateWrapper>
+                                <EmptyStateIcon icon="chart" size={40} />
+                                <EmptyStateText>
+                                    No {getResourceLabel(resourceType)}s added
+                                    yet
+                                </EmptyStateText>
+                                <p>
+                                    Hit <b>+</b> to get started.
+                                </p>
+                            </EmptyStateWrapper>
+                        }
+                    />
+                </EmptyStateWrapper>
             ) : (
                 <ResourceTable
                     getURL={getURL}

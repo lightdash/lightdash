@@ -1,4 +1,4 @@
-import { Button, NonIdealState } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
@@ -13,9 +13,6 @@ import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
 import {
     BreadcrumbsWrapper,
-    EmptyStateIcon,
-    EmptyStateText,
-    EmptyStateWrapper,
     SpacePanelHeader,
     SpacePanelWrapper,
 } from './SpacePanel.styles';
@@ -114,19 +111,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         />
                     )
                 }
-                emptyBody={
-                    <NonIdealState
-                        description={
-                            <EmptyStateWrapper>
-                                <EmptyStateIcon icon="control" size={50} />
-                                <EmptyStateText>
-                                    No dashboards added yet
-                                </EmptyStateText>
-                                <p>Hit 'Add dashboard' to get started.</p>
-                            </EmptyStateWrapper>
-                        }
-                    />
-                }
             />
 
             <ResourceList
@@ -144,19 +128,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             intent="primary"
                         />
                     )
-                }
-                emptyBody={
-                    <NonIdealState
-                        description={
-                            <EmptyStateWrapper>
-                                <EmptyStateIcon icon="chart" size={50} />
-                                <EmptyStateText>
-                                    No charts added yet
-                                </EmptyStateText>
-                                <p>Hit 'Add chart' to get started.</p>
-                            </EmptyStateWrapper>
-                        }
-                    />
                 }
             />
 
