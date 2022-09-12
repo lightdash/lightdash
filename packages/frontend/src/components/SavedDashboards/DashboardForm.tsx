@@ -1,5 +1,4 @@
 import { DashboardBasicDetails } from '@lightdash/common';
-import React from 'react';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';
 import Input from '../ReactHookForm/Input';
 
@@ -21,6 +20,13 @@ const DashboardForm = ({
                         disabled={isDisabled}
                         rules={{ required: true }}
                         defaultValue={data?.name}
+                    />
+
+                    <Input
+                        label="Description"
+                        name="description"
+                        disabled={isDisabled}
+                        defaultValue={data?.description}
                     />
                 </>
             )}
