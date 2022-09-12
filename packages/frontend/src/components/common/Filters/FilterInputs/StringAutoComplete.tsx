@@ -44,10 +44,12 @@ type Props = {
 const getFieldValues = async (
     projectId: string,
     fieldId: string,
-    search: string,
+    value: string,
 ) =>
     lightdashApi<Array<any>>({
-        url: `/projects/${projectId}/field/${fieldId}/search/${search}`,
+        url: `/projects/${projectId}/field/${fieldId}/search?value=${encodeURIComponent(
+            value,
+        )}`,
         method: 'GET',
         body: undefined,
     });
@@ -56,11 +58,12 @@ export const useFieldValues = (
     projectId: string,
     fieldId: string,
     search: string | undefined,
+    enabled: boolean,
 ) => {
     return useQuery<Array<any>, ApiError>({
         queryKey: ['project', projectId, fieldId, search],
         queryFn: () => getFieldValues(projectId, fieldId, search || ''),
-        enabled: !!search,
+        enabled: enabled,
     });
 };
 
@@ -68,6 +71,7 @@ export const useDebouncedSearch = (
     projectUuid: string,
     fieldId: string,
     query: string | undefined,
+    enabled: boolean,
 ) => {
     const [debouncedQuery, setDebouncedQuery] = useState<string>();
     useDebounce(
@@ -77,9 +81,14 @@ export const useDebouncedSearch = (
         500,
         [query],
     );
-    const { data } = useFieldValues(projectUuid, fieldId, debouncedQuery);
+    const { data, isLoading } = useFieldValues(
+        projectUuid,
+        fieldId,
+        debouncedQuery,
+        enabled,
+    );
 
-    const isSearching = query && query.length > 1 && query !== debouncedQuery;
+    const isSearching = (query && query !== debouncedQuery) || isLoading;
 
     return {
         isSearching,
@@ -102,6 +111,7 @@ const StringMultiSelect: FC<Props> = ({
         projectUuid,
         getItemId(field),
         search,
+        suggestions.length <= 0 || !!search,
     );
 
     useEffect(() => {

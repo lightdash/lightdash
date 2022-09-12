@@ -184,16 +184,20 @@ projectRouter.post(
 );
 
 projectRouter.get(
-    '/field/:fieldId/search/:search',
+    '/field/:fieldId/search',
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const value: string =
+                typeof req.query.value === 'string'
+                    ? req.query.value.toString()
+                    : '';
             const results: Array<any> =
                 await projectService.searchFieldUniqueValues(
                     req.user!,
                     req.params.projectUuid,
                     req.params.fieldId,
-                    req.params.search,
+                    value,
                 );
             res.json({
                 status: 'ok',
