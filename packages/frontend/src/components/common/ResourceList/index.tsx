@@ -1,6 +1,21 @@
 import { IconName, NonIdealState } from '@blueprintjs/core';
-import { DashboardBasicDetails, SpaceQuery } from '@lightdash/common';
-import React from 'react';
+import {
+    assertUnreachable,
+    DashboardBasicDetails,
+    Space,
+    SpaceQuery,
+} from '@lightdash/common';
+import React, { useMemo, useState } from 'react';
+import { useUpdateDashboardName } from '../../../hooks/dashboard/useDashboard';
+import useMoveToSpace from '../../../hooks/useMoveToSpace';
+import { useUpdateMutation } from '../../../hooks/useSavedQuery';
+import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
+import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import DashboardForm from '../../SavedDashboards/DashboardForm';
+import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
+import { ActionTypeModal } from '../modal/ActionModal';
+import DeleteActionModal from '../modal/DeleteActionModal';
+import UpdateActionModal from '../modal/UpdateActionModal';
 import {
     EmptyStateIcon,
     EmptyStateText,
@@ -46,44 +61,149 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceType,
     getURL,
 }) => {
+    const [actionState, setActionState] = useState<{
+        actionType: number;
+        data?: any; // TODO: typedef this
+    }>({
+        actionType: ActionTypeModal.CLOSE,
+    });
+
+    const { moveChart, moveDashboard } = useMoveToSpace(
+        resourceType === 'saved_chart',
+        actionState.data,
+    );
+
+    const actions = useMemo(() => {
+        switch (resourceType) {
+            case 'dashboard':
+                return {
+                    update: useUpdateDashboardName,
+                    moveToSpace: moveDashboard,
+                    ModalContent: DashboardForm,
+                };
+            case 'saved_chart':
+                return {
+                    update: useUpdateMutation,
+                    moveToSpace: moveChart,
+                    ModalContent: SavedQueryForm,
+                };
+            default:
+                return assertUnreachable(resourceType);
+        }
+    }, [moveChart, moveDashboard, resourceType]);
+
     return (
-        <ResourceListWrapper>
-            <ResourceListHeader>
-                <Title>{headerTitle}</Title>
+        <>
+            <ResourceListWrapper>
+                <ResourceListHeader>
+                    <Title>{headerTitle}</Title>
 
-                <ResourceTag round>{resourceList.length}</ResourceTag>
+                    <ResourceTag round>{resourceList.length}</ResourceTag>
 
-                <Spacer />
+                    <Spacer />
 
-                {headerAction}
-            </ResourceListHeader>
+                    {headerAction}
+                </ResourceListHeader>
 
-            {resourceList.length === 0 ? (
-                <EmptyStateWrapper>
-                    <NonIdealState
-                        description={
-                            <EmptyStateWrapper>
-                                <EmptyStateIcon icon={resourceIcon} size={40} />
-                                <EmptyStateText>
-                                    No {getResourceLabel(resourceType)}s added
-                                    yet
-                                </EmptyStateText>
-                                <p>
-                                    Hit <b>+</b> to get started.
-                                </p>
-                            </EmptyStateWrapper>
-                        }
+                {resourceList.length === 0 ? (
+                    <EmptyStateWrapper>
+                        <NonIdealState
+                            description={
+                                <EmptyStateWrapper>
+                                    <EmptyStateIcon
+                                        icon={resourceIcon}
+                                        size={40}
+                                    />
+                                    <EmptyStateText>
+                                        No {getResourceLabel(resourceType)}s
+                                        added yet
+                                    </EmptyStateText>
+                                    <p>
+                                        Hit <b>+</b> to get started.
+                                    </p>
+                                </EmptyStateWrapper>
+                            }
+                        />
+                    </EmptyStateWrapper>
+                ) : (
+                    <ResourceTable
+                        getURL={getURL}
+                        onChangeAction={setActionState}
+                        resourceType={resourceType}
+                        resourceIcon={resourceIcon}
+                        resourceList={resourceList}
                     />
-                </EmptyStateWrapper>
-            ) : (
-                <ResourceTable
-                    getURL={getURL}
-                    resourceType={resourceType}
-                    resourceIcon={resourceIcon}
-                    resourceList={resourceList}
+                )}
+            </ResourceListWrapper>
+
+            {actionState.actionType === ActionTypeModal.UPDATE && (
+                <UpdateActionModal
+                    useActionModalState={[actionState, setActionState]}
+                    useUpdate={actions.update}
+                    ModalContent={actions.ModalContent}
                 />
             )}
-        </ResourceListWrapper>
+            {actionState.actionType === ActionTypeModal.DELETE &&
+                actionState.data && (
+                    <DeleteActionModal
+                        isOpen={
+                            actionState.actionType === ActionTypeModal.DELETE
+                        }
+                        onClose={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
+                        uuid={actionState.data.uuid}
+                        name={actionState.data.name}
+                        isChart={resourceType === 'saved_chart'}
+                    />
+                )}
+
+            {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
+                <AddTilesToDashboardModal
+                    savedChart={actionState.data}
+                    isOpen={
+                        actionState.actionType ===
+                        ActionTypeModal.ADD_TO_DASHBOARD
+                    }
+                    onClose={() =>
+                        setActionState({ actionType: ActionTypeModal.CLOSE })
+                    }
+                />
+            )}
+
+            {actionState.actionType === ActionTypeModal.MOVE_TO_SPACE &&
+                actionState.data &&
+                actions.moveToSpace(actionState.data)}
+
+            {actionState.actionType === ActionTypeModal.CREATE_SPACE &&
+                actionState.data && (
+                    <CreateSpaceModal
+                        isOpen={
+                            actionState.actionType ===
+                            ActionTypeModal.CREATE_SPACE
+                        }
+                        onCreated={(space: Space) => {
+                            if (actionState.data)
+                                actions.moveToSpace({
+                                    uuid: actionState.data.uuid,
+                                    name: actionState.data.name,
+                                    spaceUuid: space.uuid,
+                                });
+
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
+                        onClose={() =>
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            })
+                        }
+                    />
+                )}
+        </>
     );
 };
 
