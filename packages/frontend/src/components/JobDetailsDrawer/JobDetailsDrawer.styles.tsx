@@ -92,4 +92,7 @@ export const StepIconWrapper = styled(Icon)<{ status: string }>`
 
 export const ErrorMessageWrapper = styled.div`
     margin-top: 10px;
+    word-wrap: break-word;
+    max-width: 290px;
+    hyphens: auto;
 `;
