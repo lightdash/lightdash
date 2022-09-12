@@ -5,7 +5,7 @@ import {
     Space,
     SpaceQuery,
 } from '@lightdash/common';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useUpdateDashboardName } from '../../../hooks/dashboard/useDashboard';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -94,6 +94,15 @@ const ResourceList: React.FC<ResourceListProps> = ({
         }
     }, [moveChart, moveDashboard, resourceType]);
 
+    useEffect(() => {
+        if (
+            actionState.actionType === ActionTypeModal.MOVE_TO_SPACE &&
+            actionState.data
+        ) {
+            actions.moveToSpace(actionState.data);
+        }
+    }, [actionState, actions]);
+
     return (
         <>
             <ResourceListWrapper>
@@ -176,10 +185,6 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     }
                 />
             )}
-
-            {actionState.actionType === ActionTypeModal.MOVE_TO_SPACE &&
-                actionState.data &&
-                actions.moveToSpace(actionState.data)}
 
             {actionState.actionType === ActionTypeModal.CREATE_SPACE &&
                 actionState.data && (
