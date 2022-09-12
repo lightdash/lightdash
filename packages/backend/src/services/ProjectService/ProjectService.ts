@@ -588,6 +588,7 @@ export class ProjectService {
         projectUuid: string,
         fieldId: string,
         search: string,
+        limit: number,
     ): Promise<Array<any>> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -647,7 +648,7 @@ export class ProjectService {
                     descending: false,
                 },
             ],
-            limit: 5,
+            limit,
         };
 
         const { query } = await this.compileQuery(

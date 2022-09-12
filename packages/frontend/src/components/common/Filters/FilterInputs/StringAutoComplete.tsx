@@ -1,11 +1,10 @@
 import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import { ApiError, FilterableField, getItemId } from '@lightdash/common';
+import { FilterableField, getItemId } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
-import { useQuery } from 'react-query';
 import { useDebounce } from 'react-use';
-import { lightdashApi } from '../../../../api';
+import { useFieldValues } from '../../../../hooks/useFieldValues';
 import { Hightlighed } from '../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../HighlightedText';
 import { useFiltersContext } from '../FiltersProvider';
@@ -41,32 +40,6 @@ type Props = {
     onChange: (values: string[]) => void;
 };
 
-const getFieldValues = async (
-    projectId: string,
-    fieldId: string,
-    value: string,
-) =>
-    lightdashApi<Array<any>>({
-        url: `/projects/${projectId}/field/${fieldId}/search?value=${encodeURIComponent(
-            value,
-        )}`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useFieldValues = (
-    projectId: string,
-    fieldId: string,
-    search: string | undefined,
-    enabled: boolean,
-) => {
-    return useQuery<Array<any>, ApiError>({
-        queryKey: ['project', projectId, fieldId, search],
-        queryFn: () => getFieldValues(projectId, fieldId, search || ''),
-        enabled: enabled,
-    });
-};
-
 export const useDebouncedSearch = (
     projectUuid: string,
     fieldId: string,
@@ -84,7 +57,8 @@ export const useDebouncedSearch = (
     const { data, isLoading } = useFieldValues(
         projectUuid,
         fieldId,
-        debouncedQuery,
+        debouncedQuery || '',
+        10,
         enabled,
     );
 
