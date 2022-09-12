@@ -103,7 +103,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             hasSort && selectedSortDirection === sortDirection
                                 ? removeSortField(itemFieldId)
                                 : addSortField(itemFieldId, {
-                                      descending: false,
+                                      descending:
+                                          sortDirection === SortDirection.DESC,
                                   })
                         }
                     />
