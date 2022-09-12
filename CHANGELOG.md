@@ -1,3 +1,10 @@
+# [0.249.0](https://github.com/lightdash/lightdash/compare/0.248.2...0.249.0) (2022-09-12)
+
+
+### Features
+
+* multisort for booleans ([#3218](https://github.com/lightdash/lightdash/issues/3218)) ([55e0069](https://github.com/lightdash/lightdash/commit/55e006984906554c7bb8acadecda75909e7f1951))
+
 ## [0.248.2](https://github.com/lightdash/lightdash/compare/0.248.1...0.248.2) (2022-09-09)
 
 
