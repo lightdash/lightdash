@@ -1,22 +1,23 @@
 {
-  "references": [
-    {
-      "path": "./packages/frontend"
-    },
-    {
-      "path": "./packages/backend"
-    },
-    {
-      "path": "./packages/common"
-    },
-    {
-      "path": "./packages/cli"
-    },
-    {
-      "path": "./packages/warehouses"
-    },
-    {
-      "path": "./packages/e2e"
-    }
-  ],
+    "references": [
+        {
+            "path": "./packages/frontend"
+        },
+        {
+            "path": "./packages/backend"
+        },
+        {
+            "path": "./packages/common"
+        },
+        {
+            "path": "./packages/cli"
+        },
+        {
+            "path": "./packages/warehouses"
+        },
+        {
+            "path": "./packages/e2e"
+        }
+    ],
+    "exclude": ["dist", "build", "node_modules"]
 }
