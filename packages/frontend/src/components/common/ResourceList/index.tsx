@@ -63,7 +63,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     <NonIdealState
                         description={
                             <EmptyStateWrapper>
-                                <EmptyStateIcon icon="chart" size={40} />
+                                <EmptyStateIcon icon={resourceIcon} size={40} />
                                 <EmptyStateText>
                                     No {getResourceLabel(resourceType)}s added
                                     yet
