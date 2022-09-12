@@ -1,0 +1,29 @@
+# Uffizzi extension
+x-uffizzi:
+  ingress:
+    service: app
+    port: 8080
+  continuous_previews:
+    deploy_preview_when_pull_request_is_opened: true
+    delete_preview_after: 1h
+    share_to_github: true
+
+services:
+  app:
+  image: "${APP_IMAGE}"
+    build:
+      context: https://github.com/grojas2525/lightdash
+      dockerfile: Dockerfile
+    environment:
+      PGUSER: "postgres"
+      PGPASSWORD: "postgres"
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+
+  db:
+    image: postgres:9.6
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
