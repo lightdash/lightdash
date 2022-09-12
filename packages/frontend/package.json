@@ -53,7 +53,7 @@
     },
     "scripts": {
         "start": "vite",
-        "build": "tsc && vite build",
+        "build": "vite build",
         "serve": "vite preview",
         "test": "TODO: react-scripts test --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
         "lint": "eslint ./src",
