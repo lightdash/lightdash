@@ -1,4 +1,4 @@
-import { Button, Colors, Icon, Position } from '@blueprintjs/core';
+import { Colors, Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     createColumnHelper,
@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-table';
 import React, { useMemo } from 'react';
 import { AcceptedResources, ResourceListProps } from '..';
+import ModalActionButtons from '../../modal/ModalActionButtons';
 import ResourceLastEdited from '../ResourceLastEdited';
 import { ResourceLink } from '../ResourceList.styles';
 import {
@@ -26,16 +27,25 @@ import {
 
 const columnHelper = createColumnHelper<AcceptedResources>();
 
-type ResourceTableProps = Pick<
-    ResourceListProps,
-    'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
->;
+interface ResourceTableProps
+    extends Pick<
+        ResourceListProps,
+        'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
+    > {
+    onChangeAction: React.Dispatch<
+        React.SetStateAction<{
+            actionType: number;
+            data?: any;
+        }>
+    >;
+}
 
 const ResourceTable: React.FC<ResourceTableProps> = ({
     resourceList,
     resourceType,
     resourceIcon,
     getURL,
+    onChangeAction,
 }) => {
     const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -85,14 +95,27 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
             }),
             columnHelper.display({
                 id: 'actions',
-                cell: () => <Button minimal icon="more" />,
+                cell: (cell) => (
+                    <ModalActionButtons
+                        data={cell.row.original}
+                        url={getURL(cell.row.original)}
+                        setActionState={onChangeAction}
+                        isChart={resourceType === 'saved_chart'}
+                    />
+                ),
                 enableSorting: false,
                 meta: {
                     width: 1,
                 },
             }),
         ];
-    }, [resourceIcon, getURL, resourceList.length]);
+    }, [
+        resourceIcon,
+        resourceType,
+        onChangeAction,
+        getURL,
+        resourceList.length,
+    ]);
 
     const table = useReactTable({
         data: resourceList,
