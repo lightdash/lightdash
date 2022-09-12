@@ -53,6 +53,11 @@ const getResourceLabel = (resourceType: AcceptedResourceTypes) => {
     }
 };
 
+interface ActionStateWithData {
+    actionType: ActionTypeModal;
+    data?: any;
+}
+
 const ResourceList: React.FC<ResourceListProps> = ({
     headerTitle,
     headerAction,
@@ -61,10 +66,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceType,
     getURL,
 }) => {
-    const [actionState, setActionState] = useState<{
-        actionType: number;
-        data?: any; // TODO: typedef this
-    }>({
+    const [actionState, setActionState] = useState<ActionStateWithData>({
         actionType: ActionTypeModal.CLOSE,
     });
 
@@ -98,7 +100,9 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 <ResourceListHeader>
                     <Title>{headerTitle}</Title>
 
-                    <ResourceTag round>{resourceList.length}</ResourceTag>
+                    {resourceList.length > 0 && (
+                        <ResourceTag round>{resourceList.length}</ResourceTag>
+                    )}
 
                     <Spacer />
 
