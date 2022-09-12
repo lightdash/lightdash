@@ -9,7 +9,7 @@ import {
     MetricType,
     Source,
 } from '@lightdash/common';
-import React, { FC, ReactNode, useCallback, useMemo } from 'react';
+import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
@@ -157,6 +157,8 @@ const FieldButtons: FC<{
         return items;
     }, [addFilter, createCustomMetric, node, onOpenSourceDialog, track]);
 
+    const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+
     return (
         <ItemOptions>
             {isFiltered && <Icon icon="filter" />}
@@ -165,7 +167,7 @@ const FieldButtons: FC<{
                     <WarningIcon icon={'warning-sign'} intent="warning" />
                 </Tooltip2>
             )}
-            {menuItems.length > 0 && (isHovered || isSelected) && (
+            {menuItems.length > 0 && (isHovered || isSelected || isMenuOpen) && (
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
@@ -174,7 +176,11 @@ const FieldButtons: FC<{
                     lazy
                     interactionKind="click"
                     renderTarget={({ isOpen, ref, ...targetProps }) => (
-                        <Tooltip2 content="View options">
+                        <Tooltip2
+                            content="View options"
+                            hoverCloseDelay={500}
+                            onClosed={(e) => setIsMenuOpen(false)}
+                        >
                             <Button
                                 {...targetProps}
                                 elementRef={ref === null ? undefined : ref}
@@ -183,6 +189,7 @@ const FieldButtons: FC<{
                                 onClick={(e) => {
                                     (targetProps as any).onClick(e);
                                     e.stopPropagation();
+                                    setIsMenuOpen(true);
                                 }}
                             />
                         </Tooltip2>
@@ -190,7 +197,9 @@ const FieldButtons: FC<{
                 />
             )}
 
-            {isFiltered && !isHovered && !isSelected && <Placeholder />}
+            {isFiltered && !isHovered && !isSelected && !isMenuOpen && (
+                <Placeholder />
+            )}
         </ItemOptions>
     );
 };
