@@ -1,3 +1,15 @@
+# [0.250.0](https://github.com/lightdash/lightdash/compare/0.249.0...0.250.0) (2022-09-12)
+
+
+### Bug Fixes
+
+* wrap errors dbt compile ([#3217](https://github.com/lightdash/lightdash/issues/3217)) ([057e3f0](https://github.com/lightdash/lightdash/commit/057e3f093abbb183dbee3396e0f8782f9cefd2c7))
+
+
+### Features
+
+* add delay to sidebar ([#3220](https://github.com/lightdash/lightdash/issues/3220)) ([22ee65b](https://github.com/lightdash/lightdash/commit/22ee65b679a4ef453bda15e518862fa88fbe3ba4))
+
 # [0.249.0](https://github.com/lightdash/lightdash/compare/0.248.2...0.249.0) (2022-09-12)
 
 
