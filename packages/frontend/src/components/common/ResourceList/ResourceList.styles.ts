@@ -1,4 +1,4 @@
-import { Card, Colors, H3, Tag } from '@blueprintjs/core';
+import { Card, Colors, H3, H4, Icon, Tag } from '@blueprintjs/core';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
@@ -45,4 +45,18 @@ export const ResourceLink = styled(Link)`
     &:hover {
         color: ${Colors.DARK_GRAY1};
     }
+`;
+
+export const EmptyStateWrapper = styled.div`
+    padding: 20px;
+`;
+
+export const EmptyStateIcon = styled(Icon)`
+    path {
+        fill: ${Colors.LIGHT_GRAY3};
+    }
+`;
+
+export const EmptyStateText = styled(H4)`
+    margin: 18px auto;
 `;

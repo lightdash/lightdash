@@ -1,4 +1,3 @@
-import { Colors, H4, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const SpacePanelWrapper = styled.div`
@@ -30,16 +29,4 @@ export const BreadcrumbsWrapper = styled.div`
     .bp4-breadcrumbs > li::after {
         margin-top: 5px;
     }
-`;
-export const EmptyStateWrapper = styled.div`
-    max-width: 250px;
-`;
-
-export const EmptyStateIcon = styled(Icon)`
-    path {
-        fill: ${Colors.LIGHT_GRAY3};
-    }
-`;
-export const EmptyStateText = styled(H4)`
-    margin: 18px auto;
 `;
