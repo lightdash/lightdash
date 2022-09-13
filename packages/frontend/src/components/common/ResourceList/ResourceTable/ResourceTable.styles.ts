@@ -36,7 +36,7 @@ interface ThInteractiveWrapperProps {
 }
 
 export const ThInteractiveWrapper = styled.div<ThInteractiveWrapperProps>`
-    padding: 6px ${paddingX}px !important;
+    padding: 7px ${paddingX}px !important;
 
     ${(props) =>
         props.$isInteractive
