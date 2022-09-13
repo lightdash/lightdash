@@ -9,8 +9,8 @@ export const ResourceListWrapper = styled(Card)`
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding: 0;
     overflow: hidden;
+    padding: 0;
 `;
 
 export const ResourceListHeader = styled.div`

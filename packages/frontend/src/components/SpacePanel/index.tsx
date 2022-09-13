@@ -6,6 +6,11 @@ import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
+import {
+    PageBreadcrumbsWrapper,
+    PageContentWrapper,
+    PageHeader,
+} from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
@@ -15,11 +20,6 @@ import CreateResourceToSpace from '../Explorer/SpaceBrowser/CreateResourceToSpac
 import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
 import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
-import {
-    BreadcrumbsWrapper,
-    SpacePanelHeader,
-    SpacePanelWrapper,
-} from './SpacePanel.styles';
 
 interface Props {
     space: Space;
@@ -45,9 +45,9 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
     return (
-        <SpacePanelWrapper>
-            <SpacePanelHeader>
-                <BreadcrumbsWrapper>
+        <PageContentWrapper>
+            <PageHeader>
+                <PageBreadcrumbsWrapper>
                     <Breadcrumbs2
                         items={[
                             {
@@ -62,7 +62,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             { text: space.name },
                         ]}
                     />
-                </BreadcrumbsWrapper>
+                </PageBreadcrumbsWrapper>
 
                 <SpaceBrowserMenu
                     onRename={() => setUpdateSpace(true)}
@@ -96,7 +96,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         }}
                     />
                 )}
-            </SpacePanelHeader>
+            </PageHeader>
 
             <ResourceList
                 headerTitle="Dashboards"
@@ -159,7 +159,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             {createToSpace && (
                 <CreateResourceToSpace resourceType={createToSpace} />
             )}
-        </SpacePanelWrapper>
+        </PageContentWrapper>
     );
 };
 
