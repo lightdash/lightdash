@@ -3,12 +3,9 @@ import {
     CartesianChart,
     CartesianSeriesType,
     ChartType,
-    DimensionType,
     EchartsGrid,
     EchartsLegend,
     Explore,
-    getDimensions,
-    getItemId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -16,7 +13,11 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { arrayMoveByIndex } from '../../utils/arrayUtils';
-import { getExpectedSeriesMap, mergeExistingAndExpectedSeries } from './utils';
+import {
+    getExpectedSeriesMap,
+    mergeExistingAndExpectedSeries,
+    sortDimensions,
+} from './utils';
 
 type Args = {
     chartType: ChartType;
@@ -28,53 +29,6 @@ type Args = {
     >;
     columnOrder: string[];
     explore: Explore | undefined;
-};
-
-export const sortDimensions = (
-    dimensionIds: string[],
-    explore: Explore | undefined,
-    columnOrder: string[],
-) => {
-    if (!explore) return dimensionIds;
-
-    if (dimensionIds.length <= 1) return dimensionIds;
-
-    const dimensions = getDimensions(explore);
-
-    const dateDimensions = dimensions.filter(
-        (dimension) =>
-            dimensionIds.includes(getItemId(dimension)) &&
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                dimension.type,
-            ),
-    );
-    switch (dateDimensions.length) {
-        case 0:
-            return dimensionIds; // No dates, we return the same order
-        case 1: // Only 1 date, we return this date first
-            const dateDimensionId = getItemId(dateDimensions[0]);
-            return [
-                dateDimensionId,
-                ...dimensionIds.filter(
-                    (dimensionId) => dimensionId !== dateDimensionId,
-                ),
-            ];
-        default:
-            // 2 or more dates, we return first the date further left in the results table
-            const sortedDateDimensions = dateDimensions.sort(
-                (a, b) =>
-                    columnOrder.indexOf(getItemId(a)) -
-                    columnOrder.indexOf(getItemId(b)),
-            );
-            const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
-            return [
-                ...sortedDateDimensionIds,
-                ...dimensionIds.filter(
-                    (dimensionId) =>
-                        !sortedDateDimensionIds.includes(dimensionId),
-                ),
-            ];
-    }
 };
 
 const useCartesianChartConfig = ({

@@ -1,11 +1,15 @@
 import {
     ApiQueryResults,
     CartesianSeriesType,
+    DimensionType,
+    Explore,
+    getDimensions,
+    getItemId,
     getSeriesId,
     Series,
 } from '@lightdash/common';
 
-type Args = {
+export type GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
@@ -25,7 +29,7 @@ export const getExpectedSeriesMap = ({
     yFields,
     xField,
     availableDimensions,
-}: Args) => {
+}: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
     if (pivotKey) {
         const uniquePivotValues: string[] = Array.from(
@@ -188,4 +192,51 @@ export const getSeriesGroupedByField = (series: Series[]) => {
         };
     }, {});
     return Object.values(seriesGroupMap).sort((a, b) => a.index - b.index);
+};
+
+export const sortDimensions = (
+    dimensionIds: string[],
+    explore: Explore | undefined,
+    columnOrder: string[],
+) => {
+    if (!explore) return dimensionIds;
+
+    if (dimensionIds.length <= 1) return dimensionIds;
+
+    const dimensions = getDimensions(explore);
+
+    const dateDimensions = dimensions.filter(
+        (dimension) =>
+            dimensionIds.includes(getItemId(dimension)) &&
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                dimension.type,
+            ),
+    );
+    switch (dateDimensions.length) {
+        case 0:
+            return dimensionIds; // No dates, we return the same order
+        case 1: // Only 1 date, we return this date first
+            const dateDimensionId = getItemId(dateDimensions[0]);
+            return [
+                dateDimensionId,
+                ...dimensionIds.filter(
+                    (dimensionId) => dimensionId !== dateDimensionId,
+                ),
+            ];
+        default:
+            // 2 or more dates, we return first the date further left in the results table
+            const sortedDateDimensions = dateDimensions.sort(
+                (a, b) =>
+                    columnOrder.indexOf(getItemId(a)) -
+                    columnOrder.indexOf(getItemId(b)),
+            );
+            const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
+            return [
+                ...sortedDateDimensionIds,
+                ...dimensionIds.filter(
+                    (dimensionId) =>
+                        !sortedDateDimensionIds.includes(dimensionId),
+                ),
+            ];
+    }
 };

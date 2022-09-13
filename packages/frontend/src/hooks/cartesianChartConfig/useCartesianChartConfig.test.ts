@@ -1,5 +1,11 @@
-import { sortDimensions } from './useCartesianChartConfig';
-import { explore } from './useCartesianChartConfig.mock';
+import {
+    expectedPivotedSeriesMap,
+    expectedSimpleSeriesMap,
+    explore,
+    pivotSeriesMapArgs,
+    simpleSeriesMapArgs,
+} from './useCartesianChartConfig.mock';
+import { getExpectedSeriesMap, sortDimensions } from './utils';
 
 describe('sortDimensions', () => {
     test('should not sort anything if no explore', () => {
@@ -98,5 +104,18 @@ describe('sortDimensions', () => {
             'dimension_timestamp',
             'dimension_string',
         ]);
+    });
+});
+
+describe('getExpectedSeriesMap', () => {
+    test('should return series without pivot', () => {
+        expect(getExpectedSeriesMap(simpleSeriesMapArgs)).toStrictEqual(
+            expectedSimpleSeriesMap,
+        );
+    });
+    test('should return series with pivot', () => {
+        expect(getExpectedSeriesMap(pivotSeriesMapArgs)).toStrictEqual(
+            expectedPivotedSeriesMap,
+        );
     });
 });
