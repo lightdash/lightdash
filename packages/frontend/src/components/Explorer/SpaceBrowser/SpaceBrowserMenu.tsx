@@ -19,7 +19,9 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
             content={
                 <Menu>
                     <MenuItem2 icon="edit" text="Rename" onClick={onRename} />
+
                     <MenuDivider />
+
                     <MenuItem2
                         icon="cross"
                         intent="danger"

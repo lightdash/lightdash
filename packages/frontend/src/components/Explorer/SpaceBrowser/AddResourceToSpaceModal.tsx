@@ -6,10 +6,10 @@ import {
     Intent,
     NonIdealState,
 } from '@blueprintjs/core';
-import React, { FC, useCallback } from 'react';
+import { assertUnreachable } from '@lightdash/common';
+import { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
-import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import { useParams } from 'react-router-dom';
 import {
     useDashboards,
     useUpdateMultipleDashboard,
@@ -18,20 +18,39 @@ import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSavedCharts, useSpace, useSpaces } from '../../../hooks/useSpaces';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
-import { DEFAULT_DASHBOARD_NAME } from '../../SpacePanel';
-import { CreateNewText, SpaceLabel } from './AddToSpaceModal.style';
+import { SpaceLabel } from './AddResourceToSpaceModal.style';
 
-interface Props {
-    isOpen: boolean;
-    isChart?: boolean;
-    onClose?: () => void;
+export enum AddToSpaceResources {
+    DASHBOARD = 'dashboard',
+    CHART = 'chart',
 }
+
+const getResourceTypeLabel = (resourceType: AddToSpaceResources) => {
+    switch (resourceType) {
+        case AddToSpaceResources.DASHBOARD:
+            return 'Dashboard';
+        case AddToSpaceResources.CHART:
+            return 'Chart';
+        default:
+            return assertUnreachable(resourceType);
+    }
+};
 
 type AddItemForm = {
     items: { value: string; label: string }[];
 };
 
-const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
+interface Props {
+    isOpen: boolean;
+    resourceType: AddToSpaceResources;
+    onClose?: () => void;
+}
+
+const AddResourceToSpaceModal: FC<Props> = ({
+    isOpen,
+    resourceType,
+    onClose,
+}) => {
     const { projectUuid, spaceUuid } = useParams<{
         projectUuid: string;
         spaceUuid: string;
@@ -50,46 +69,49 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
 
     const { data: savedCharts, isLoading } = useSavedCharts(projectUuid);
     const { data: dashboards } = useDashboards(projectUuid);
-    const {
-        isLoading: isCreatingDashboard,
-        isSuccess: hasCreatedDashboard,
-        mutate: createDashboard,
-        data: newDashboard,
-    } = useCreateMutation(projectUuid);
 
-    const history = useHistory();
     const closeModal = useCallback(() => {
         methods.reset();
         if (onClose) onClose();
     }, [methods, onClose]);
+
     const handleSubmit = useCallback(
         (formData: AddItemForm) => {
-            if (isChart && savedCharts && formData.items) {
-                const selectedCharts = formData.items.map((item) => {
-                    const chart = savedCharts.find(
-                        (savedChart) => savedChart.uuid === item.value,
-                    );
-                    return {
-                        uuid: item.value,
-                        name: chart?.name || '',
-                        spaceUuid,
-                    };
-                });
+            switch (resourceType) {
+                case AddToSpaceResources.CHART:
+                    if (savedCharts && formData.items) {
+                        const selectedCharts = formData.items.map((item) => {
+                            const chart = savedCharts.find(
+                                (savedChart) => savedChart.uuid === item.value,
+                            );
+                            return {
+                                uuid: item.value,
+                                name: chart?.name || '',
+                                spaceUuid,
+                            };
+                        });
 
-                chartMutation(selectedCharts);
-            }
-            if (!isChart && dashboards && formData.items) {
-                const selectedDashboards = formData.items.map((item) => {
-                    const dashboard = dashboards.find(
-                        (dash) => dash.uuid === item.value,
-                    );
-                    return {
-                        uuid: item.value,
-                        name: dashboard?.name || '',
-                        spaceUuid,
-                    };
-                });
-                dashboardMutation(selectedDashboards);
+                        chartMutation(selectedCharts);
+                    }
+                    break;
+                case AddToSpaceResources.DASHBOARD:
+                    if (dashboards && formData.items) {
+                        const selectedDashboards = formData.items.map(
+                            (item) => {
+                                const dashboard = dashboards.find(
+                                    (dash) => dash.uuid === item.value,
+                                );
+                                return {
+                                    uuid: item.value,
+                                    name: dashboard?.name || '',
+                                    spaceUuid,
+                                };
+                            },
+                        );
+
+                        dashboardMutation(selectedDashboards);
+                    }
+                    break;
             }
 
             closeModal();
@@ -97,14 +119,16 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
         [
             chartMutation,
             savedCharts,
-            isChart,
+            resourceType,
             spaceUuid,
             dashboardMutation,
             dashboards,
             closeModal,
         ],
     );
-    const allItems = isChart === true ? savedCharts : dashboards;
+
+    const allItems =
+        resourceType === AddToSpaceResources.CHART ? savedCharts : dashboards;
 
     if (allItems === undefined) {
         return <NonIdealState title="No results available" icon="search" />;
@@ -126,28 +150,21 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
                 label: name,
                 disabled: alreadyAddedChart,
                 title: alreadyAddedChart
-                    ? `${
-                          isChart ? 'Chart' : 'Dashboard'
-                      } already added on this space ${spaceName}`
+                    ? `${getResourceTypeLabel(
+                          resourceType,
+                      )} already added on this space ${spaceName}`
                     : '',
                 subLabel: subLabel,
             };
         },
     );
-    if (hasCreatedDashboard && newDashboard) {
-        return (
-            <Redirect
-                push
-                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
-            />
-        );
-    }
+
     return (
         <Dialog
             isOpen={isOpen}
             onClose={closeModal}
             lazy
-            title={`Add ${isChart ? 'chart' : 'dashboard'} to '${space?.name}'`}
+            title={`Add ${resourceType} to '${space?.name}' space`}
         >
             <Form
                 name="add_items_to_space"
@@ -156,8 +173,8 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
-                        Select the {isChart ? 'charts' : 'dashboards'} that you
-                        would like to move into '{space?.name}'
+                        Select the {resourceType}s that you would like to move
+                        into '{space?.name}'
                     </p>
                     <MultiSelect
                         name="items"
@@ -168,30 +185,14 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
                         disabled={isLoading}
                         defaultValue={[]}
                     />
-
-                    <CreateNewText
-                        onClick={() => {
-                            if (isChart) {
-                                history.push(`/projects/${projectUuid}/tables`);
-                            } else {
-                                createDashboard({
-                                    name: DEFAULT_DASHBOARD_NAME,
-                                    tiles: [],
-                                    spaceUuid,
-                                });
-                            }
-                            closeModal();
-                        }}
-                    >
-                        {`+ Create new ${isChart ? 'chart' : 'dashboard'}`}
-                    </CreateNewText>
                 </div>
+
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
                         <Button onClick={closeModal}>Cancel</Button>
                         <Button
                             intent={Intent.SUCCESS}
-                            text={`Move ${isChart ? 'charts' : 'dashboards'}`}
+                            text={`Move ${resourceType}s`}
                             disabled={isLoading}
                             type="submit"
                         />
@@ -202,4 +203,4 @@ const AddToSpaceModal: FC<Props> = ({ isOpen, isChart, onClose }) => {
     );
 };
 
-export default AddToSpaceModal;
+export default AddResourceToSpaceModal;
