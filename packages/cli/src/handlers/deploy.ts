@@ -4,6 +4,7 @@ import {
     Project,
     ProjectType,
 } from '@lightdash/common';
+import inquirer from 'inquirer';
 import ora from 'ora';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -45,17 +46,31 @@ const createNewProject = async (
     options: DeployHandlerOptions,
 ): Promise<Project> => {
     console.error('');
-    const spinner = ora(`  Creating new project`).start();
     const absoluteProjectPath = path.resolve(options.projectDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
-    const projectName = friendlyName(context.projectName);
+    const dbtName = friendlyName(context.projectName);
+
+    const answers = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'name',
+            message: `Add a project name or press enter to use the default: [${dbtName}] `,
+        },
+    ]);
+    const projectName = answers.name ? answers.name : dbtName;
+
+    console.error('');
+    const spinner = ora(`  Creating new project`).start();
 
     try {
-        return await createProject({
+        const project = await createProject({
             ...options,
             name: projectName,
             type: ProjectType.NONE,
         });
+        spinner.succeed(`  New project ${styles.bold(projectName)} created\n`);
+
+        return project;
     } catch (e) {
         spinner.fail();
         throw e;
