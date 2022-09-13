@@ -9,6 +9,10 @@ import {
     PageHeader,
 } from '../components/common/Page/Page.styles';
 import ResourceList from '../components/common/ResourceList';
+import {
+    ResourceBreadcrumbTitle,
+    ResourceTag,
+} from '../components/common/ResourceList/ResourceList.styles';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
@@ -50,6 +54,11 @@ const SavedDashboards = () => {
         );
     }
 
+    const orderedDashboards = dashboards.sort(
+        (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+
     return (
         <Page>
             <PageContentWrapper>
@@ -65,7 +74,18 @@ const SavedDashboards = () => {
                                         history.push('/home');
                                     },
                                 },
-                                { text: 'All dashboards' },
+                                {
+                                    text: (
+                                        <ResourceBreadcrumbTitle>
+                                            All dashboards
+                                            {orderedDashboards.length > 0 && (
+                                                <ResourceTag round>
+                                                    {orderedDashboards.length}
+                                                </ResourceTag>
+                                            )}
+                                        </ResourceBreadcrumbTitle>
+                                    ),
+                                },
                             ]}
                         />
                     </PageBreadcrumbsWrapper>
@@ -95,7 +115,7 @@ const SavedDashboards = () => {
                 <ResourceList
                     resourceType="dashboard"
                     resourceIcon="control"
-                    resourceList={dashboards}
+                    resourceList={orderedDashboards}
                     getURL={({ uuid }) =>
                         `/projects/${projectUuid}/dashboards/${uuid}/view`
                     }

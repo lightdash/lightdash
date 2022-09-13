@@ -1,6 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode, SpaceQuery } from '@lightdash/common';
+import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import {
@@ -9,6 +10,10 @@ import {
     PageHeader,
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
+import {
+    ResourceBreadcrumbTitle,
+    ResourceTag,
+} from '../common/ResourceList/ResourceList.styles';
 
 type SavedQueriesContentProps = {
     savedQueries: SpaceQuery[];
@@ -16,11 +21,11 @@ type SavedQueriesContentProps = {
     title: string;
 };
 
-const SavedQueriesContent = ({
+const SavedQueriesContent: FC<SavedQueriesContentProps> = ({
     savedQueries,
     projectUuid,
     title,
-}: SavedQueriesContentProps) => {
+}) => {
     const history = useHistory();
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -44,7 +49,18 @@ const SavedQueriesContent = ({
                                     history.push('/home');
                                 },
                             },
-                            { text: title },
+                            {
+                                text: (
+                                    <ResourceBreadcrumbTitle>
+                                        {title}
+                                        {orderedCharts.length > 0 && (
+                                            <ResourceTag round>
+                                                {orderedCharts.length}
+                                            </ResourceTag>
+                                        )}
+                                    </ResourceBreadcrumbTitle>
+                                ),
+                            },
                         ]}
                     />
                 </PageBreadcrumbsWrapper>
