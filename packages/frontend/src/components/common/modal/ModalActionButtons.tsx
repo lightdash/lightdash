@@ -1,15 +1,15 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Space } from '@lightdash/common';
 import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
-import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { ActionTypeModal } from './ActionModal';
 
 type ModalActionButtonsProps = {
     data: any;
+    spaces: Space[];
     url: string;
     setActionState: Dispatch<
         SetStateAction<{ actionType: number; data?: any }>
@@ -19,22 +19,21 @@ type ModalActionButtonsProps = {
 
 const ModalActionButtons: FC<ModalActionButtonsProps> = ({
     data,
+    spaces,
     url,
     setActionState,
     isChart,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
+
+    const { user } = useApp();
     const { mutate: duplicateChart } = useDuplicateMutation(itemId, true);
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
         itemId,
         true,
     );
     const isDashboardPage = url.includes('/dashboards') || !isChart;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces } = useSpaces(projectUuid);
-
-    const { user } = useApp();
 
     useEffect(() => {
         setItemId(data.uuid);
@@ -45,8 +44,10 @@ const ModalActionButtons: FC<ModalActionButtonsProps> = ({
     } else {
         if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
     }
+
     return (
         <Popover2
+            lazy
             isOpen={isOpen}
             position={Position.BOTTOM_RIGHT}
             onClose={() => {
@@ -75,12 +76,13 @@ const ModalActionButtons: FC<ModalActionButtonsProps> = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (!isChart) {
-                                duplicateDashboard(itemId);
-                            }
+
                             if (isChart) {
                                 duplicateChart(itemId);
+                            } else {
+                                duplicateDashboard(itemId);
                             }
+
                             setIsOpen(false);
                         }}
                     />

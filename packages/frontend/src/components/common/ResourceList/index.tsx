@@ -54,6 +54,7 @@ export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
         resourceList: T[];
         resourceType: AcceptedResourceTypes;
         resourceIcon: IconName;
+        showSpaceColumn?: boolean;
         getURL: (data: T) => string;
     };
 
@@ -63,6 +64,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceIcon,
     resourceList,
     resourceType,
+    showSpaceColumn = false,
     getURL,
 }) => {
     const [actionState, setActionState] = useState<ActionStateWithData>({
@@ -141,11 +143,12 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     </EmptyStateWrapper>
                 ) : (
                     <ResourceTable
-                        getURL={getURL}
-                        onChangeAction={setActionState}
                         resourceType={resourceType}
                         resourceIcon={resourceIcon}
                         resourceList={resourceList}
+                        showSpaceColumn={showSpaceColumn}
+                        getURL={getURL}
+                        onChangeAction={setActionState}
                     />
                 )}
             </ResourceListWrapper>
