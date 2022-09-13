@@ -3,8 +3,10 @@ import {
     getDefaultSeriesColor,
     getItemId,
     getSeriesId,
+    Series,
     TableCalculation,
 } from '@lightdash/common';
+import produce from 'immer';
 import React, { FC, useCallback, useMemo } from 'react';
 import {
     DragDropContext,
@@ -45,8 +47,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
             dirtyEchartsConfig,
             updateSingleSeries,
             updateAllGroupedSeries,
-            updateSingleSeriesOrder,
-            updateAllGroupedSeriesOrder,
+            updateSeries,
         },
     } = useVisualizationContext();
     const { data: orgData } = useOrganisation({ refetchOnMount: false });
@@ -82,34 +83,22 @@ const SeriesTab: FC<Props> = ({ items }) => {
         (result: DropResult) => {
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
-
-            const sourceSeriesGroup = seriesGroupedByField[result.source.index];
-            const destinationSeriesGroup =
-                seriesGroupedByField[result.destination.index];
-            const isGroup = sourceSeriesGroup.value.length > 1;
-            const destinationIndex =
-                result.destination.index < result.source.index
-                    ? destinationSeriesGroup.index
-                    : destinationSeriesGroup.index +
-                      destinationSeriesGroup.value.length -
-                      1;
-            if (isGroup) {
-                updateAllGroupedSeriesOrder(
-                    sourceSeriesGroup.value[0].encode.yRef.field,
-                    destinationIndex,
-                );
-            } else {
-                updateSingleSeriesOrder(
-                    seriesGroupedByField[result.source.index].index,
-                    destinationIndex,
-                );
-            }
+            const sourceIndex = result.source.index;
+            const destinationIndex = result.destination.index;
+            const reorderedSeriesGroups = produce(
+                seriesGroupedByField,
+                (newState) => {
+                    const [removed] = newState.splice(sourceIndex, 1);
+                    newState.splice(destinationIndex, 0, removed);
+                },
+            );
+            const reorderedSeries = reorderedSeriesGroups.reduce<Series[]>(
+                (acc, seriesGroup) => [...acc, ...seriesGroup.value],
+                [],
+            );
+            updateSeries(reorderedSeries);
         },
-        [
-            seriesGroupedByField,
-            updateAllGroupedSeriesOrder,
-            updateSingleSeriesOrder,
-        ],
+        [seriesGroupedByField, updateSeries],
     );
 
     return (
