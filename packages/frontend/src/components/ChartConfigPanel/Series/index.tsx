@@ -93,12 +93,18 @@ const SeriesTab: FC<Props> = ({ items }) => {
                 },
             );
             const reorderedSeries = reorderedSeriesGroups.reduce<Series[]>(
-                (acc, seriesGroup) => [...acc, ...seriesGroup.value],
+                (acc, seriesGroup) => [
+                    ...acc,
+                    ...seriesGroup.value.map((s) => ({
+                        ...s,
+                        color: s.color || getSeriesColor(getSeriesId(s)),
+                    })),
+                ],
                 [],
             );
             updateSeries(reorderedSeries);
         },
-        [seriesGroupedByField, updateSeries],
+        [getSeriesColor, seriesGroupedByField, updateSeries],
     );
 
     return (
