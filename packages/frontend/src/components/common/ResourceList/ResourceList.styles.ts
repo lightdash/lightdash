@@ -26,6 +26,12 @@ export const Spacer = styled.div`
     flex: 1 0 auto;
 `;
 
+export const ResourceBreadcrumbTitle = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+`;
+
 export const Title = styled(H3)`
     flex: 0 0 auto;
     margin: 0;
