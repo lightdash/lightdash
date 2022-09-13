@@ -1,3 +1,10 @@
+## [0.251.2](https://github.com/lightdash/lightdash/compare/0.251.1...0.251.2) (2022-09-13)
+
+
+### Bug Fixes
+
+* ascending sort in header cell context menu ([#3224](https://github.com/lightdash/lightdash/issues/3224)) ([bf1a61a](https://github.com/lightdash/lightdash/commit/bf1a61acd5076e71ace5b0eb98dd1a0142906290))
+
 ## [0.251.1](https://github.com/lightdash/lightdash/compare/0.251.0...0.251.1) (2022-09-13)
 
 
