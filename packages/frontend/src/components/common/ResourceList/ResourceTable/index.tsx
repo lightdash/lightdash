@@ -7,12 +7,15 @@ import {
     getSortedRowModel,
     SortingState,
     useReactTable,
+    VisibilityState,
 } from '@tanstack/react-table';
-import React, { useMemo } from 'react';
+import React, { FC, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { AcceptedResources, ResourceListProps } from '..';
+import { useSpaces } from '../../../../hooks/useSpaces';
 import ModalActionButtons from '../../modal/ModalActionButtons';
 import ResourceLastEdited from '../ResourceLastEdited';
-import { ResourceLink } from '../ResourceList.styles';
+import { ResourceLink, ResourceSpaceLink } from '../ResourceList.styles';
 import {
     Flex,
     Spacer,
@@ -30,7 +33,11 @@ const columnHelper = createColumnHelper<AcceptedResources>();
 interface ResourceTableProps
     extends Pick<
         ResourceListProps,
-        'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
+        | 'resourceList'
+        | 'resourceType'
+        | 'resourceIcon'
+        | 'getURL'
+        | 'showSpaceColumn'
     > {
     onChangeAction: React.Dispatch<
         React.SetStateAction<{
@@ -40,18 +47,25 @@ interface ResourceTableProps
     >;
 }
 
-const ResourceTable: React.FC<ResourceTableProps> = ({
+const ResourceTable: FC<ResourceTableProps> = ({
     resourceList,
     resourceType,
     resourceIcon,
+    showSpaceColumn = false,
     getURL,
     onChangeAction,
 }) => {
-    const [sorting, setSorting] = React.useState<SortingState>([]);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: spaces = [] } = useSpaces(projectUuid);
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+        space: showSpaceColumn,
+    });
 
     const columns = useMemo(() => {
         return [
             columnHelper.accessor('name', {
+                id: 'name',
                 header: () => 'Name',
                 cell: (info) => (
                     <Flex>
@@ -60,6 +74,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
 
                         <Tooltip2
                             lazy
+                            disabled={!info.row.original.description}
                             content={info.row.original.description}
                             position={Position.TOP}
                         >
@@ -74,10 +89,42 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                     return a.original.name.localeCompare(b.original.name);
                 },
                 meta: {
-                    width: 75,
+                    width: showSpaceColumn ? 50 : 75,
+                },
+            }),
+            columnHelper.display({
+                id: 'space',
+                header: () => 'Space',
+                cell: (info) => {
+                    const space = spaces.find(
+                        (s) => s.uuid === info.row.original.spaceUuid,
+                    );
+
+                    return space ? (
+                        <ResourceSpaceLink
+                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                        >
+                            {space.name}
+                        </ResourceSpaceLink>
+                    ) : null;
+                },
+                enableSorting: resourceList.length > 1,
+                sortingFn: (a, b) => {
+                    const space1 = spaces.find(
+                        (s) => s.uuid === a.original.spaceUuid,
+                    );
+                    const space2 = spaces.find(
+                        (s) => s.uuid === b.original.spaceUuid,
+                    );
+
+                    return space1?.name.localeCompare(space2?.name || '') || 0;
+                },
+                meta: {
+                    width: showSpaceColumn ? 25 : undefined,
                 },
             }),
             columnHelper.accessor('updatedAt', {
+                id: 'updatedAt',
                 header: () => 'Last Edited',
                 cell: (info) => (
                     <ResourceLastEdited resource={info.row.original} />
@@ -98,6 +145,7 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
                 cell: (cell) => (
                     <ModalActionButtons
                         data={cell.row.original}
+                        spaces={spaces}
                         url={getURL(cell.row.original)}
                         setActionState={onChangeAction}
                         isChart={resourceType === 'saved_chart'}
@@ -112,9 +160,12 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
     }, [
         resourceIcon,
         resourceType,
+        resourceList.length,
+        showSpaceColumn,
+        spaces,
+        projectUuid,
         onChangeAction,
         getURL,
-        resourceList.length,
     ]);
 
     const table = useReactTable({
@@ -122,7 +173,9 @@ const ResourceTable: React.FC<ResourceTableProps> = ({
         columns,
         state: {
             sorting,
+            columnVisibility,
         },
+        onColumnVisibilityChange: setColumnVisibility,
         onSortingChange: setSorting,
         getSortedRowModel: getSortedRowModel(),
         getCoreRowModel: getCoreRowModel(),

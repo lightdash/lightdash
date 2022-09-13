@@ -56,7 +56,7 @@
         "web-vitals": "^2.1.4"
     },
     "scripts": {
-        "start": "GENERATE_SOURCEMAP=false react-scripts start",
+        "start": "PORT=3000 GENERATE_SOURCEMAP=false react-scripts start",
         "build": "GENERATE_SOURCEMAP=false react-scripts build",
         "test": "react-scripts test --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
         "eject": "react-scripts eject",

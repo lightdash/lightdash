@@ -2,8 +2,10 @@ import { Button, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { SessionUser, UpdatedByUser } from '@lightdash/common';
 import { Dispatch, FC, SetStateAction } from 'react';
+import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useSpaces } from '../../../hooks/useSpaces';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import LinkButton from '../LinkButton';
 import ModalActionButtons from '../modal/ModalActionButtons';
@@ -79,6 +81,8 @@ const ActionCard = <
     const { data: savedChart } = useSavedQuery({
         id: isChart ? data.uuid : '',
     });
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: spaces = [] } = useSpaces(projectUuid);
 
     return (
         <LinkButtonWrapper
@@ -96,6 +100,7 @@ const ActionCard = <
                     )}
                     <ModalActionButtons
                         data={data}
+                        spaces={spaces}
                         url={url}
                         setActionState={setActionState}
                         isChart={isChart}
