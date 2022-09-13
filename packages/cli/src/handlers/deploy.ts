@@ -1,8 +1,17 @@
-import { AuthorizationError } from '@lightdash/common';
+import {
+    AuthorizationError,
+    friendlyName,
+    Project,
+    ProjectType,
+} from '@lightdash/common';
+import ora from 'ora';
+import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { getDbtContext } from '../dbt/context';
 import * as styles from '../styles';
 import { compile } from './compile';
+import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 
@@ -11,6 +20,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    create?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -31,19 +41,50 @@ export const deploy = async (options: DeployArgs): Promise<void> => {
     });
 };
 
+const createNewProject = async (
+    options: DeployHandlerOptions,
+): Promise<Project> => {
+    console.error('');
+    const spinner = ora(`  Creating new project`).start();
+    const absoluteProjectPath = path.resolve(options.projectDir);
+    const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const projectName = friendlyName(context.projectName);
+
+    try {
+        return await createProject({
+            ...options,
+            name: projectName,
+            type: ProjectType.NONE,
+        });
+    } catch (e) {
+        spinner.fail();
+        throw e;
+    }
+};
+
 export const deployHandler = async (options: DeployHandlerOptions) => {
     const config = await getConfig();
-    if (!(config.context?.project && config.context.serverUrl)) {
-        throw new AuthorizationError(
-            `No active Lightdash project. Run 'lightdash login --help'`,
-        );
+    let projectUuid: string;
+
+    if (options.create) {
+        const project = await createNewProject(options);
+        projectUuid = project.projectUuid;
+    } else {
+        if (!(config.context?.project && config.context.serverUrl)) {
+            throw new AuthorizationError(
+                `No active Lightdash project. Run 'lightdash login --help'`,
+            );
+        }
+        projectUuid = config.context.project;
     }
-    await deploy({ ...options, projectUuid: config.context.project });
+
+    await deploy({ ...options, projectUuid });
+
     console.error(`${styles.bold('Successfully deployed project:')}`);
     console.error('');
     console.error(
         `      ${styles.bold(
-            `⚡️ ${config.context.serverUrl}/projects/${config.context.project}/tables`,
+            `⚡️ ${config.context?.serverUrl}/projects/${projectUuid}/tables`,
         )}`,
     );
     console.error('');

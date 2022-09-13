@@ -299,6 +299,7 @@ program
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
+    .option('--create', 'Create a new project on your organization', false)
     .action(deployHandler);
 
 program
