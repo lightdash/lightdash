@@ -134,6 +134,9 @@ export const mergeExistingAndExpectedSeries = ({
             },
             { existingValidSeries: [], existingValidSeriesIds: [] },
         );
+    if (existingValidSeries.length <= 0) {
+        return Object.values(expectedSeriesMap);
+    }
     // add missing series in the correct order (next to series of the same group)
     return Object.entries(expectedSeriesMap).reduce<Series[]>(
         (acc, [expectedSeriesId, expectedSeries]) => {
@@ -153,14 +156,17 @@ export const mergeExistingAndExpectedSeries = ({
                             expectedSeries.encode.yRef.field ===
                             series.encode.yRef.field,
                     );
-                return [
-                    // part of the array before the specified index
-                    ...acc.slice(0, lastSeriesInGroupIndex),
-                    // inserted item
-                    expectedSeries,
-                    // part of the array after the specified index
-                    ...acc.slice(lastSeriesInGroupIndex),
-                ].reverse();
+                if (lastSeriesInGroupIndex >= 0) {
+                    return [
+                        // part of the array before the specified index
+                        ...acc.slice(0, lastSeriesInGroupIndex),
+                        // inserted item
+                        expectedSeries,
+                        // part of the array after the specified index
+                        ...acc.slice(lastSeriesInGroupIndex),
+                    ].reverse();
+                }
+                return [...acc.reverse(), expectedSeries];
             }
             // Add series to the end
             return [...acc, expectedSeries];

@@ -173,3 +173,207 @@ export const expectedPivotedSeriesMap: Record<string, Series> = {
         },
     },
 };
+
+export const existingMixedSeries: Series[] = [
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_dimension',
+            },
+        },
+        hidden: true,
+    },
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'a' }],
+            },
+        },
+        name: 'custom label',
+    },
+];
+
+export const expectedMixedSeriesMap: Record<string, Series> = {
+    'my_dimension|my_second_dimension': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_dimension',
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.a': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'a' }],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.b': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'b' }],
+            },
+        },
+    },
+    'my_dimension|my_second_metric.dimension_x.a': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'a' }],
+            },
+        },
+    },
+    'my_dimension|my_second_metric.dimension_x.b': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'b' }],
+            },
+        },
+    },
+    'my_dimension|my_third_dimension': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_third_dimension',
+            },
+        },
+    },
+};
+
+export const mergedMixedSeries: Series[] = [
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_dimension',
+            },
+        },
+        hidden: true,
+    },
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'a' }],
+            },
+        },
+        name: 'custom label',
+    },
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_second_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'b' }],
+            },
+        },
+    },
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'a' }],
+            },
+        },
+    },
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [{ field: 'dimension_x', value: 'b' }],
+            },
+        },
+    },
+    {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_third_dimension',
+            },
+        },
+    },
+];
