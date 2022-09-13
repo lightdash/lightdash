@@ -1,15 +1,15 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { LightdashMode } from '@lightdash/common';
-import React from 'react';
-import { Redirect, useParams } from 'react-router-dom';
-import ActionCardList from '../components/common/ActionCardList';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
-import DashboardForm from '../components/SavedDashboards/DashboardForm';
 import {
-    useCreateMutation,
-    useDeleteMutation,
-    useUpdateDashboardName,
-} from '../hooks/dashboard/useDashboard';
+    PageBreadcrumbsWrapper,
+    PageContentWrapper,
+    PageHeader,
+} from '../components/common/Page/Page.styles';
+import ResourceList from '../components/common/ResourceList';
+import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -17,15 +17,17 @@ import { useApp } from '../providers/AppProvider';
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
 const SavedDashboards = () => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
-    const useDelete = useDeleteMutation();
+
     const {
         isLoading: isCreatingDashboard,
         isSuccess: hasCreatedDashboard,
         mutate: createDashboard,
         data: newDashboard,
     } = useCreateMutation(projectUuid);
+
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(projectUuid);
@@ -50,21 +52,28 @@ const SavedDashboards = () => {
 
     return (
         <Page>
-            <ActionCardList
-                title="All dashboards"
-                useUpdate={useUpdateDashboardName}
-                useDelete={useDelete}
-                dataList={dashboards}
-                getURL={(savedDashboard) => {
-                    const { uuid } = savedDashboard;
-                    return `/projects/${projectUuid}/dashboards/${uuid}/view`;
-                }}
-                ModalContent={DashboardForm}
-                headerAction={
-                    user.data?.ability?.can('manage', 'Dashboard') &&
-                    !isDemo && (
+            <PageContentWrapper>
+                <PageHeader>
+                    <PageBreadcrumbsWrapper>
+                        <Breadcrumbs2
+                            items={[
+                                {
+                                    href: '/home',
+                                    text: 'Home',
+                                    className: 'home-breadcrumb',
+                                    onClick: (e) => {
+                                        history.push('/home');
+                                    },
+                                },
+                                { text: 'All dashboards' },
+                            ]}
+                        />
+                    </PageBreadcrumbsWrapper>
+
+                    {user.data?.ability?.can('manage', 'Dashboard') && !isDemo && (
                         <Button
                             text="Create dashboard"
+                            icon="plus"
                             loading={isCreatingDashboard}
                             onClick={() =>
                                 createDashboard({
@@ -80,9 +89,18 @@ const SavedDashboards = () => {
                             }
                             intent="primary"
                         />
-                    )
-                }
-            />
+                    )}
+                </PageHeader>
+
+                <ResourceList
+                    resourceType="dashboard"
+                    resourceIcon="control"
+                    resourceList={dashboards}
+                    getURL={({ uuid }) =>
+                        `/projects/${projectUuid}/dashboards/${uuid}/view`
+                    }
+                />
+            </PageContentWrapper>
         </Page>
     );
 };

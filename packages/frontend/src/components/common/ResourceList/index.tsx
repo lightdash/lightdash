@@ -31,16 +31,6 @@ import ResourceTable from './ResourceTable';
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
 export type AcceptedResourceTypes = 'saved_chart' | 'dashboard';
 
-export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
-    {
-        headerTitle: string;
-        headerAction?: React.ReactNode;
-        resourceList: T[];
-        resourceType: AcceptedResourceTypes;
-        resourceIcon: IconName;
-        getURL: (data: T) => string;
-    };
-
 const getResourceLabel = (resourceType: AcceptedResourceTypes) => {
     switch (resourceType) {
         case 'dashboard':
@@ -56,6 +46,16 @@ interface ActionStateWithData {
     actionType: ActionTypeModal;
     data?: any;
 }
+
+export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
+    {
+        headerTitle?: string;
+        headerAction?: React.ReactNode;
+        resourceList: T[];
+        resourceType: AcceptedResourceTypes;
+        resourceIcon: IconName;
+        getURL: (data: T) => string;
+    };
 
 const ResourceList: React.FC<ResourceListProps> = ({
     headerTitle,
@@ -103,17 +103,21 @@ const ResourceList: React.FC<ResourceListProps> = ({
     return (
         <>
             <ResourceListWrapper>
-                <ResourceListHeader>
-                    <Title>{headerTitle}</Title>
+                {headerTitle || headerAction ? (
+                    <ResourceListHeader>
+                        {headerTitle && <Title>{headerTitle}</Title>}
 
-                    {resourceList.length > 0 && (
-                        <ResourceTag round>{resourceList.length}</ResourceTag>
-                    )}
+                        {resourceList.length > 0 && (
+                            <ResourceTag round>
+                                {resourceList.length}
+                            </ResourceTag>
+                        )}
 
-                    <Spacer />
+                        <Spacer />
 
-                    {headerAction}
-                </ResourceListHeader>
+                        {headerAction}
+                    </ResourceListHeader>
+                ) : null}
 
                 {resourceList.length === 0 ? (
                     <EmptyStateWrapper>
