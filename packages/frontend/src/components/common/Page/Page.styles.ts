@@ -1,6 +1,10 @@
 import styled from 'styled-components';
 
 export const PageContentWrapper = styled.div`
+    .bp4-card:not(:last-child) {
+        margin-bottom: 20px;
+    }
+
     h3 {
         font-size: 18px;
     }
