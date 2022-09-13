@@ -1,3 +1,10 @@
+## [0.251.1](https://github.com/lightdash/lightdash/compare/0.251.0...0.251.1) (2022-09-13)
+
+
+### Bug Fixes
+
+* auto height for chart tile  ([#3219](https://github.com/lightdash/lightdash/issues/3219)) ([33554d3](https://github.com/lightdash/lightdash/commit/33554d310290484f7cc6c092aac9c0d68e50a417))
+
 # [0.251.0](https://github.com/lightdash/lightdash/compare/0.250.0...0.251.0) (2022-09-12)
 
 
