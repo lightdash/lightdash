@@ -4,12 +4,14 @@ import {
     expectedPivotedSeriesMap,
     expectedSimpleSeriesMap,
     explore,
+    groupedMixedSeries,
     mergedMixedSeries,
     pivotSeriesMapArgs,
     simpleSeriesMapArgs,
 } from './useCartesianChartConfig.mock';
 import {
     getExpectedSeriesMap,
+    getSeriesGroupedByField,
     mergeExistingAndExpectedSeries,
     sortDimensions,
 } from './utils';
@@ -157,5 +159,13 @@ describe('mergeExistingAndExpectedSeries', () => {
                 existingSeries: existingMixedSeries,
             }),
         ).toStrictEqual(Object.values(mergedMixedSeries));
+    });
+});
+
+describe('getSeriesGroupedByField', () => {
+    test('should return series grouped by Y field', () => {
+        expect(
+            getSeriesGroupedByField(Object.values(mergedMixedSeries)),
+        ).toStrictEqual(groupedMixedSeries);
     });
 });

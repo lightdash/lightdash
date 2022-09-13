@@ -377,3 +377,22 @@ export const mergedMixedSeries: Series[] = [
         },
     },
 ];
+
+export const groupedMixedSeries: Array<{ index: number; value: Series[] }> = [
+    {
+        index: 0,
+        value: [mergedMixedSeries[0]],
+    },
+    {
+        index: 1,
+        value: [mergedMixedSeries[1], mergedMixedSeries[2]],
+    },
+    {
+        index: 3,
+        value: [mergedMixedSeries[3], mergedMixedSeries[4]],
+    },
+    {
+        index: 5,
+        value: [mergedMixedSeries[5]],
+    },
+];
