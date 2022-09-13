@@ -54,6 +54,16 @@ export const ResourceLink = styled(Link)`
     }
 `;
 
+export const ResourceSpaceLink = styled(Link)`
+    font-size: 13px;
+    font-weight: 500;
+    color: ${Colors.GRAY2};
+
+    &:hover {
+        color: ${Colors.GRAY1};
+    }
+`;
+
 export const EmptyStateWrapper = styled.div`
     padding: 20px;
 `;

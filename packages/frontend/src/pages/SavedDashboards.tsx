@@ -54,11 +54,6 @@ const SavedDashboards = () => {
         );
     }
 
-    const orderedDashboards = dashboards.sort(
-        (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
-
     return (
         <Page>
             <PageContentWrapper>
@@ -78,9 +73,9 @@ const SavedDashboards = () => {
                                     text: (
                                         <ResourceBreadcrumbTitle>
                                             All dashboards
-                                            {orderedDashboards.length > 0 && (
+                                            {dashboards.length > 0 && (
                                                 <ResourceTag round>
-                                                    {orderedDashboards.length}
+                                                    {dashboards.length}
                                                 </ResourceTag>
                                             )}
                                         </ResourceBreadcrumbTitle>
@@ -115,7 +110,8 @@ const SavedDashboards = () => {
                 <ResourceList
                     resourceType="dashboard"
                     resourceIcon="control"
-                    resourceList={orderedDashboards}
+                    resourceList={dashboards}
+                    showSpaceColumn
                     getURL={({ uuid }) =>
                         `/projects/${projectUuid}/dashboards/${uuid}/view`
                     }
