@@ -6,8 +6,12 @@ import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
-import AddToSpaceModal from '../common/modal/AddToSpaceModal';
 import ResourceList from '../common/ResourceList';
+import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
+import AddResourceToSpaceModal, {
+    AddToSpaceResources,
+} from '../Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import CreateResourceToSpace from '../Explorer/SpaceBrowser/CreateResourceToSpace';
 import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
 import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
@@ -37,7 +41,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
-    const [addToSpace, setAddToSpace] = useState<string>();
+    const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
+    const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
     return (
         <SpacePanelWrapper>
@@ -104,11 +109,17 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 headerAction={
                     user.data?.ability?.can('manage', 'Dashboard') &&
                     !isDemo && (
-                        <Button
-                            icon="plus"
-                            onClick={() => setAddToSpace('dashboards')}
-                            intent="primary"
-                        />
+                        <AddResourceToSpaceMenu
+                            resourceType={AddToSpaceResources.DASHBOARD}
+                            onAdd={() =>
+                                setAddToSpace(AddToSpaceResources.DASHBOARD)
+                            }
+                            onCreate={() =>
+                                setCreateToSpace(AddToSpaceResources.DASHBOARD)
+                            }
+                        >
+                            <Button icon="plus" intent="primary" />
+                        </AddResourceToSpaceMenu>
                     )
                 }
             />
@@ -122,20 +133,32 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 headerAction={
                     !isDemo &&
                     user.data?.ability?.can('manage', 'SavedChart') && (
-                        <Button
-                            icon="plus"
-                            onClick={() => setAddToSpace('charts')}
-                            intent="primary"
-                        />
+                        <AddResourceToSpaceMenu
+                            resourceType={AddToSpaceResources.CHART}
+                            onAdd={() =>
+                                setAddToSpace(AddToSpaceResources.CHART)
+                            }
+                            onCreate={() =>
+                                setCreateToSpace(AddToSpaceResources.CHART)
+                            }
+                        >
+                            <Button icon="plus" intent="primary" />
+                        </AddResourceToSpaceMenu>
                     )
                 }
             />
 
-            <AddToSpaceModal
-                isOpen={addToSpace !== undefined}
-                isChart={addToSpace === 'charts'}
-                onClose={() => setAddToSpace(undefined)}
-            />
+            {addToSpace && (
+                <AddResourceToSpaceModal
+                    isOpen
+                    resourceType={addToSpace}
+                    onClose={() => setAddToSpace(undefined)}
+                />
+            )}
+
+            {createToSpace && (
+                <CreateResourceToSpace resourceType={createToSpace} />
+            )}
         </SpacePanelWrapper>
     );
 };
