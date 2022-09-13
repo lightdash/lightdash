@@ -3,7 +3,6 @@ import {
     getDefaultSeriesColor,
     getItemId,
     getSeriesId,
-    Series,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -15,6 +14,7 @@ import {
     DropResult,
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
+import { getSeriesGroupedByField } from '../../../hooks/cartesianChartConfig/utils';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
@@ -75,24 +75,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
     const { series } = dirtyEchartsConfig || {};
 
     const seriesGroupedByField = useMemo(() => {
-        const seriesGroupMap = (series || []).reduce<
-            Record<string, { index: number; value: Series[] }>
-        >((acc, obj, index) => {
-            if (acc[obj.encode.yRef.field]) {
-                return {
-                    ...acc,
-                    [obj.encode.yRef.field]: {
-                        ...acc[obj.encode.yRef.field],
-                        value: [...acc[obj.encode.yRef.field].value, obj],
-                    },
-                };
-            }
-            return {
-                ...acc,
-                [obj.encode.yRef.field]: { index, value: [obj] },
-            };
-        }, {});
-        return Object.values(seriesGroupMap).sort((a, b) => a.index - b.index);
+        return getSeriesGroupedByField(series || []);
     }, [series]);
 
     const onDragEnd = useCallback(

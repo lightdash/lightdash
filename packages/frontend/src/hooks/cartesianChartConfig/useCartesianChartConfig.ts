@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { arrayMoveByIndex } from '../../utils/arrayUtils';
+import { getExpectedSeriesMap, mergeExistingAndExpectedSeries } from './utils';
 
 type Args = {
     chartType: ChartType;
@@ -537,105 +538,23 @@ const useCartesianChartConfig = ({
                     defaultCartesianType === CartesianSeriesType.LINE
                         ? prev?.series?.[0]?.areaStyle
                         : undefined;
-                let expectedSeriesMap: Record<string, Series>;
-                if (pivotKey) {
-                    const uniquePivotValues: string[] = Array.from(
-                        new Set(
-                            resultsData?.rows.map(
-                                (row) => row[pivotKey].value.raw,
-                            ),
-                        ),
-                    );
-                    expectedSeriesMap = (dirtyLayout.yField || []).reduce<
-                        Record<string, Series>
-                    >((sum, yField) => {
-                        if (availableDimensions.includes(yField)) {
-                            const series = {
-                                encode: {
-                                    xRef: { field: dirtyLayout.xField },
-                                    yRef: {
-                                        field: yField,
-                                    },
-                                },
-                                type: defaultCartesianType,
-                                areaStyle: defaultAreaStyle,
-                            };
-                            return { ...sum, [getSeriesId(series)]: series };
-                        }
-                        const stack =
-                            defaultAreaStyle || isStacked ? yField : undefined;
-                        const groupSeries = uniquePivotValues.reduce<
-                            Record<string, Series>
-                        >((acc, rawValue) => {
-                            const pivotSeries: Series = {
-                                type: defaultCartesianType,
-                                encode: {
-                                    xRef: { field: dirtyLayout.xField },
-                                    yRef: {
-                                        field: yField,
-                                        pivotValues: [
-                                            {
-                                                field: pivotKey,
-                                                value: rawValue,
-                                            },
-                                        ],
-                                    },
-                                },
-                                areaStyle: defaultAreaStyle,
-                                stack,
-                            };
-                            return {
-                                ...acc,
-                                [getSeriesId(pivotSeries)]: pivotSeries,
-                            };
-                        }, {});
-
-                        return { ...sum, ...groupSeries };
-                    }, {});
-                } else {
-                    expectedSeriesMap = (dirtyLayout.yField || []).reduce<
-                        Record<string, Series>
-                    >((sum, yField) => {
-                        const series = {
-                            encode: {
-                                xRef: { field: dirtyLayout.xField },
-                                yRef: {
-                                    field: yField,
-                                },
-                            },
-                            type: defaultCartesianType,
-                            areaStyle: defaultAreaStyle,
-                            stack:
-                                isStacked || !!defaultAreaStyle
-                                    ? 'stack-all-series'
-                                    : undefined,
-                        };
-                        return { ...sum, [getSeriesId(series)]: series };
-                    }, {});
-                }
-                const existingValidSeriesMap =
-                    prev?.series?.reduce<Record<string, Series>>(
-                        (sum, series) => {
-                            if (
-                                !Object.keys(expectedSeriesMap).includes(
-                                    getSeriesId(series),
-                                )
-                            ) {
-                                return { ...sum };
-                            }
-                            return {
-                                ...sum,
-                                [getSeriesId(series)]: series,
-                            };
-                        },
-                        {},
-                    ) || {};
+                let expectedSeriesMap = getExpectedSeriesMap({
+                    defaultAreaStyle,
+                    defaultCartesianType,
+                    availableDimensions,
+                    isStacked,
+                    pivotKey,
+                    resultsData,
+                    xField: dirtyLayout.xField,
+                    yFields: dirtyLayout.yField,
+                });
+                let newSeries = mergeExistingAndExpectedSeries({
+                    expectedSeriesMap,
+                    existingSeries: prev?.series || [],
+                });
                 return {
                     ...prev,
-                    series: Object.values({
-                        ...expectedSeriesMap,
-                        ...existingValidSeriesMap,
-                    }),
+                    series: newSeries,
                 };
             });
         }
