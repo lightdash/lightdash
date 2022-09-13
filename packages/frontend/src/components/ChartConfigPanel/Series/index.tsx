@@ -159,56 +159,61 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                         <DraggablePortalHandler
                                             snapshot={snapshot}
                                         >
-                                            {isGroup ? (
-                                                <GroupedSeriesConfiguration
-                                                    ref={innerRef}
-                                                    item={field}
-                                                    items={items}
-                                                    layout={dirtyLayout}
-                                                    seriesGroup={
-                                                        seriesGroup.value
-                                                    }
-                                                    getSeriesColor={
-                                                        getSeriesColor
-                                                    }
-                                                    updateSingleSeries={
-                                                        updateSingleSeries
-                                                    }
-                                                    updateAllGroupedSeries={
-                                                        updateAllGroupedSeries
-                                                    }
-                                                    draggableProps={
-                                                        draggableProps
-                                                    }
-                                                    dragHandleProps={
-                                                        dragHandleProps
-                                                    }
-                                                />
-                                            ) : (
-                                                <BasicSeriesConfiguration
-                                                    ref={innerRef}
-                                                    item={field}
-                                                    layout={dirtyLayout}
-                                                    isSingle={
-                                                        seriesGroupedByField.length <=
-                                                        1
-                                                    }
-                                                    series={seriesEntry}
-                                                    getSeriesColor={
-                                                        getSeriesColor
-                                                    }
-                                                    updateSingleSeries={
-                                                        updateSingleSeries
-                                                    }
-                                                    draggableProps={
-                                                        draggableProps
-                                                    }
-                                                    dragHandleProps={
-                                                        dragHandleProps
-                                                    }
-                                                />
-                                            )}
-                                            {hasDivider && <SeriesDivider />}
+                                            <div
+                                                ref={innerRef}
+                                                {...draggableProps}
+                                            >
+                                                {isGroup ? (
+                                                    <GroupedSeriesConfiguration
+                                                        item={field}
+                                                        items={items}
+                                                        layout={dirtyLayout}
+                                                        seriesGroup={
+                                                            seriesGroup.value
+                                                        }
+                                                        getSeriesColor={
+                                                            getSeriesColor
+                                                        }
+                                                        updateSingleSeries={
+                                                            updateSingleSeries
+                                                        }
+                                                        updateAllGroupedSeries={
+                                                            updateAllGroupedSeries
+                                                        }
+                                                        dragHandleProps={
+                                                            dragHandleProps
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <BasicSeriesConfiguration
+                                                        item={field}
+                                                        layout={dirtyLayout}
+                                                        isSingle={
+                                                            seriesGroupedByField.length <=
+                                                            1
+                                                        }
+                                                        series={seriesEntry}
+                                                        getSeriesColor={
+                                                            getSeriesColor
+                                                        }
+                                                        updateSingleSeries={
+                                                            updateSingleSeries
+                                                        }
+                                                        dragHandleProps={
+                                                            dragHandleProps
+                                                        }
+                                                    />
+                                                )}
+                                                {hasDivider && (
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                        }}
+                                                    >
+                                                        <SeriesDivider />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </DraggablePortalHandler>
                                     )}
                                 </Draggable>
