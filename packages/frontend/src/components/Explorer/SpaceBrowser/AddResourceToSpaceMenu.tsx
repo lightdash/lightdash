@@ -22,10 +22,12 @@ const AddResourceToSpaceMenu: React.FC<AddResourceToSpaceMenuProps> = ({
             content={
                 <Menu>
                     <MenuItem2
+                        icon="plus"
                         text={`Add existing ${resourceType}`}
                         onClick={onAdd}
                     />
                     <MenuItem2
+                        icon="clean"
                         text={`Create new ${resourceType}`}
                         onClick={onCreate}
                     />
