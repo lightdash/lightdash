@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
 import { promises as fs } from 'fs';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuth, UserRefreshClient } from 'google-auth-library';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
 
@@ -137,19 +137,40 @@ export const bigqueryServiceAccountJsonSchema: JSONSchemaType<BigqueryServiceAcc
         required: ['type', 'project', 'dataset', 'method', 'keyfile_json'],
     };
 
-const getBigueryCredentialsFromOauth = async (
+const getBigqueryCredentialsFromOauth = async (
     target: Target,
 ): Promise<CreateBigqueryCredentials> => {
     const auth = new GoogleAuth();
-    const client = await auth.getClient();
-    const projectId = target.project; // await auth.getProjectId();
-    const url = `https://dns.googleapis.com/dns/v1/projects/${projectId}`;
-    const res = await client.request({ url });
-    console.log(res.data);
+    const credentials = await auth.getApplicationDefault();
+
+    if (credentials.credential instanceof UserRefreshClient) {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        const { _clientId, _clientSecret, _refreshToken } =
+            credentials.credential;
+        if (_clientId && _clientSecret && _refreshToken) {
+            return {
+                type: WarehouseTypes.BIGQUERY,
+                project: target.project,
+                dataset: target.dataset,
+                timeoutSeconds: target.timeout_seconds,
+                priority: target.priority,
+                keyfileContents: {
+                    client_id: _clientId,
+                    client_secret: _clientSecret,
+                    refresh_token: _refreshToken,
+                    type: 'authorized_user',
+                },
+                retries: target.retries,
+                location: target.location,
+                maximumBytesBilled: target.maximum_bytes_billed,
+            };
+        }
+        throw new ParseError(`Cannot get credentials from UserRefreshClient`);
+    }
     throw new ParseError(`Cannot get credentials from oauth`);
 };
 
-const getBigueryCredentialsFromServiceAccount = async (
+const getBigqueryCredentialsFromServiceAccount = async (
     target: Target,
 ): Promise<CreateBigqueryCredentials> => {
     const validate = ajv.compile<BigqueryServiceAccountTarget>(
@@ -187,7 +208,7 @@ const getBigueryCredentialsFromServiceAccount = async (
     );
 };
 
-const getBigueryCredentialsFromServiceAccountJson = async (
+const getBigqueryCredentialsFromServiceAccountJson = async (
     target: Target,
 ): Promise<CreateBigqueryCredentials> => {
     const validate = ajv.compile<BigqueryServiceAccountJsonTarget>(
@@ -219,11 +240,11 @@ export const convertBigquerySchema = async (
 ): Promise<CreateBigqueryCredentials> => {
     switch (target.method) {
         case 'oauth':
-            return getBigueryCredentialsFromOauth(target);
+            return getBigqueryCredentialsFromOauth(target);
         case 'service-account':
-            return getBigueryCredentialsFromServiceAccount(target);
+            return getBigqueryCredentialsFromServiceAccount(target);
         case 'service-account-json':
-            return getBigueryCredentialsFromServiceAccountJson(target);
+            return getBigqueryCredentialsFromServiceAccountJson(target);
         default:
             throw new ParseError(
                 `BigQuery method ${target.method} is not yet supported`,
