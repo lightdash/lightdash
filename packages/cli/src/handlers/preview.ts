@@ -1,7 +1,9 @@
 import { Project, ProjectType } from '@lightdash/common';
+import chokidar from 'chokidar';
 import inquirer from 'inquirer';
 import PressToContinuePrompt from 'inquirer-press-to-continue';
 import ora from 'ora';
+import path from 'path';
 import {
     adjectives,
     animals,
@@ -10,6 +12,8 @@ import {
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { getDbtContext } from '../dbt/context';
+import * as styles from '../styles';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
@@ -65,6 +69,30 @@ export const previewHandler = async (
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${projectUrl}\n`,
         );
+
+        const absoluteProjectPath = path.resolve(options.projectDir);
+        const context = await getDbtContext({
+            projectDir: absoluteProjectPath,
+        });
+        const manifestFilePath = path.join(context.targetDir, 'manifest.json');
+        const watcher = chokidar
+            .watch(manifestFilePath)
+            .on('change', async () => {
+                process.stdout.write('\r\x1b[K'); // removes last output log (inquirer.prompt)
+                console.error(
+                    `${styles.title(
+                        '↻',
+                    )}   Detected changes on DBT project. Updating preview`,
+                );
+                watcher.unwatch(manifestFilePath);
+                // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
+                await deploy({ ...options, projectUuid: project.projectUuid });
+                process.stdout.write('\r\x1b[K'); // removes last output log (inquirer.prompt)
+                console.error(`${styles.success('✔')}   Preview updated \n`);
+
+                watcher.add(manifestFilePath);
+            });
+
         await inquirer.prompt({
             type: 'press-to-continue',
             name: 'key',
