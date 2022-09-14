@@ -33,7 +33,6 @@
 
 ### Enable everybody in your company to answer their own questions using data
 
-
 connect your dbt project --> add metrics into dbt --> share insights with your team
 
 If you're a fan, star the repo ⭐️ (we [plant a tree](#the-lightdash-forest) for every GitHub star we get 🌱).
@@ -44,15 +43,15 @@ Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-B
 
 ## Features:
 
-* [x] 🙏 Familiar interface for your users to self-serve using pre-defined metrics
-* [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
-* [x] 🤖 Automatically creates dimensions from your dbt models
-* [x] 📖 All dbt descriptions synced for your users
-* [x] 🧮 Table calculations make it easy to dig into your data, on the fly
-* [x] 🕵️‍♀️ Lineage lets you see the upstream and downstream dependencies of a model
-* [x] 📊 Simple data visualisations for your metrics
-* [x] 👷‍♂️ Save charts & build dashboards to share your insights with your team
-* [x] 🚀 Share your work as a URL or export results to use in any other tool
+- [x] 🙏 Familiar interface for your users to self-serve using pre-defined metrics
+- [x] 👩‍💻 Declare dimensions and metrics in yaml alongside your dbt project
+- [x] 🤖 Automatically creates dimensions from your dbt models
+- [x] 📖 All dbt descriptions synced for your users
+- [x] 🧮 Table calculations make it easy to dig into your data, on the fly
+- [x] 🕵️‍♀️ Lineage lets you see the upstream and downstream dependencies of a model
+- [x] 📊 Simple data visualisations for your metrics
+- [x] 👷‍♂️ Save charts & build dashboards to share your insights with your team
+- [x] 🚀 Share your work as a URL or export results to use in any other tool
 
 Something missing? Check out our [open issues](https://github.com/lightdash/lightdash/issues)
 to see if what you're looking for already exists (and give it a 👍). Otherwise, we'd love it if
@@ -67,6 +66,7 @@ Play with our [demo app](https://demo.lightdash.com)!
 ### 1-click deploy
 
 Deploy Lightdash with 1-click (free options available
+
 <div>
 
 <a href="https://render.com/deploy?repo=https://github.com/lightdash/lightdash-deploy-render">
@@ -77,11 +77,9 @@ Deploy Lightdash with 1-click (free options available
 </a>
 </div>
 
-
 Deploy your own hosted Lightdash instance with Heroku (free account available). Check
 the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-to-heroku) for
 more details.
-
 
 ### Run locally
 
@@ -97,10 +95,11 @@ cd lightdash
 
 ### Deploy to production
 
-Follow our [kubernetes guide](https://docs.lightdash.com/guides/how-to-deploy-to-kubernetes) to deploy Lightdash to 
+Follow our [kubernetes guide](https://docs.lightdash.com/guides/how-to-deploy-to-kubernetes) to deploy Lightdash to
 production using our [community helm charts](https://github.com/lightdash/helm-charts).
 
 ### Sign up to Lightdash Cloud
+
 You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up to the waitlist for Lightdash Cloud Beta](https://lightdash.typeform.com/to/HFlicx4i#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
 ## Getting started
@@ -116,6 +115,7 @@ Step 3 - 👩‍💻 [Create your first metric](https://docs.lightdash.com/get-s
 📣 If you want something a bit more, then [head on over to our Slack Community](https://join.slack.com/t/lightdash-community/shared_invite/zt-1bfmfnyfq-nSeTVj0cT7i2ekAHYbBVdQ) where you’ll be able to chat directly with all of us at Lightdash and all the other amazing members of our community. We’re happy to talk about anything from feature requests, implementation details or dbt quirks to memes and SQL jokes!
 
 You can also keep up to date with Lightdash by following us elsewhere:
+
 - [Twitter](https://twitter.com/lightdash_devs)
 - [LinkedIn](https://www.linkedin.com/company/lightdash)
 
@@ -125,13 +125,13 @@ You can also keep up to date with Lightdash by following us elsewhere:
 
 We let you define your metrics and dimensions directly in your dbt project, keeping all of your business logic in one place and increasing the context around your analytics.
 
-No more deciding which of the four different values for total revenue is the ***right*** one (you can thank us later 😉).
+No more deciding which of the four different values for total revenue is the **_right_** one (you can thank us later 😉).
 
 ### 🤝 **Build trust in your data.**
 
-We want everyone at your company to feel like they can trust the data. So, why not ***show*** them that they can?
+We want everyone at your company to feel like they can trust the data. So, why not **_show_** them that they can?
 
-We bring the context you want around data quality *into* your BI tool so people know that they can trust the data.
+We bring the context you want around data quality _into_ your BI tool so people know that they can trust the data.
 
 ### 🧱 **Give users meaningful building blocks to answer their own data questions.**
 
@@ -161,6 +161,7 @@ our [Lightdash documentation](https://docs.lightdash.com/) to check out some tut
 Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
 
 ## The Lightdash Forest
+
 We're planting trees with the help of the Lightdash community.
 
 Tree planting is one of the simplest and most cost-effective means of mitigating climate change, by absorbing CO2 from the atmosphere. So we thought it would be pretty neat to grow a forest while we grow Lightdash.
@@ -289,3 +290,5 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification.
 Contributions of any kind welcome!
+
++
