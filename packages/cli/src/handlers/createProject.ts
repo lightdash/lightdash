@@ -18,6 +18,7 @@ type CreateProjectHandlerOptions = {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    type: ProjectType;
 };
 export const createProject = async (
     options: CreateProjectHandlerOptions,
@@ -34,7 +35,7 @@ export const createProject = async (
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const project: CreateProject = {
         name: options.name,
-        type: ProjectType.PREVIEW,
+        type: options.type,
         warehouseConnection: credentials,
         dbtConnection: {
             type: DbtProjectType.DBT,

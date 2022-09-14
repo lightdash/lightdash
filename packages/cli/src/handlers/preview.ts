@@ -1,4 +1,4 @@
-import { Project } from '@lightdash/common';
+import { Project, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
 import PressToContinuePrompt from 'inquirer-press-to-continue';
 import ora from 'ora';
@@ -38,7 +38,11 @@ export const previewHandler = async (
     let project: Project;
 
     try {
-        project = await createProject({ ...options, name });
+        project = await createProject({
+            ...options,
+            name,
+            type: ProjectType.PREVIEW,
+        });
     } catch (e) {
         spinner.fail();
         throw e;
