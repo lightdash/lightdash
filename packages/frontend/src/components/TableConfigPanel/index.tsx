@@ -21,13 +21,12 @@ export const TableConfigPanel: React.FC = () => {
             showTableNames,
             setShowTableName,
             setShowColumnCalculation,
-            rows,
         },
         setPivotDimensions,
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
     const pivotDimension = pivotDimensions?.[0];
-    const disabled = rows.length <= 0;
+    const disabled = !resultsData;
 
     const availableDimensions = explore
         ? getDimensions(explore).filter((field) =>
