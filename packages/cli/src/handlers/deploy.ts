@@ -62,16 +62,38 @@ const createNewProject = async (
     console.error('');
     const spinner = ora(`  Creating new project`).start();
 
+    LightdashAnalytics.track({
+        event: 'create.started',
+        properties: {
+            projectName,
+            isDefaultName: !!answers.name,
+        },
+    });
     try {
         const project = await createProject({
             ...options,
             name: projectName,
-            type: ProjectType.NONE,
+            type: ProjectType.DEFAULT,
         });
         spinner.succeed(`  New project ${styles.bold(projectName)} created\n`);
 
+        LightdashAnalytics.track({
+            event: 'create.completed',
+            properties: {
+                projectId: project.projectUuid,
+                projectName,
+            },
+        });
+
         return project;
     } catch (e) {
+        LightdashAnalytics.track({
+            event: 'create.error',
+            properties: {
+                error: `Error creating developer preview ${e}`,
+            },
+        });
+
         spinner.fail();
         throw e;
     }
