@@ -1,11 +1,15 @@
-target: jaffle
-outputs:
-  jaffle:
-    type: postgres
-    host: "{{ env_var('PGHOST') }}"
-    port: "{{ env_var('PGPORT') | as_number }}"
-    user: "{{ env_var('PGUSER') }}"
-    pass: "{{ env_var('PGPASSWORD') }}"
-    dbname: "{{ env_var('PGDATABASE') }}"
-    sslmode: disable
-    schema: jaffle
+config:
+  send_anonymous_usage_stats: false
+
+jaffle_shop:
+  target: jaffle
+  outputs:
+    jaffle:
+      type: postgres
+      host: "{{ env_var('PGHOST') }}"
+      port: "{{ env_var('PGPORT') | as_number }}"
+      user: "{{ env_var('PGUSER') }}"
+      pass: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE') }}"
+      sslmode: disable
+      schema: jaffle
