@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
+import { PageContentWrapper } from '../components/common/Page/Page.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
@@ -61,18 +62,20 @@ const Home: FC = () => {
 
     return (
         <Page>
-            {!onboarding.data.ranQuery ? (
-                <OnboardingPanel
-                    projectUuid={project.data.projectUuid}
-                    userName={user.data?.firstName}
-                />
-            ) : (
-                <LandingPanel
-                    hasSavedChart={!!savedChartStatus.data}
-                    userName={user.data?.firstName}
-                    projectUuid={project.data.projectUuid}
-                />
-            )}
+            <PageContentWrapper>
+                {!onboarding.data.ranQuery ? (
+                    <OnboardingPanel
+                        projectUuid={project.data.projectUuid}
+                        userName={user.data?.firstName}
+                    />
+                ) : (
+                    <LandingPanel
+                        hasSavedChart={!!savedChartStatus.data}
+                        userName={user.data?.firstName}
+                        projectUuid={project.data.projectUuid}
+                    />
+                )}
+            </PageContentWrapper>
         </Page>
     );
 };

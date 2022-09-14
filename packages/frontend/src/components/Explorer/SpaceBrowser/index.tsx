@@ -1,18 +1,11 @@
-import { subject } from '@casl/ability';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import { Can } from '../../common/Authorization';
-import LatestCard from '../../Home/LatestCard';
+// import LatestCard from '../../Home/LatestCard';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
 import { EditSpaceModal } from './EditSpaceModal';
-import {
-    CreateNewButton,
-    SpaceBrowserWrapper,
-    SpaceListWrapper,
-} from './SpaceBrowser.styles';
-import SpaceItem from './SpaceItem';
+import { SpaceBrowserWrapper } from './SpaceBrowser.styles';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { user } = useApp();
@@ -23,7 +16,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     return (
         <SpaceBrowserWrapper>
-            <LatestCard
+            {/* <LatestCard
                 isLoading={isLoading}
                 title="Spaces"
                 headerAction={
@@ -61,7 +54,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         />
                     ))}
                 </SpaceListWrapper>
-            </LatestCard>
+            </LatestCard> */}
 
             <CreateSpaceModal
                 isOpen={isCreateModalOpen}
