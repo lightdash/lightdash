@@ -1,12 +1,11 @@
-config:
-  send_anonymous_usage_stats: false
-
-jaffle_shop:
-  target: jaffle
-  outputs:
-    jaffle:
-      type: bigquery
-      method: oauth
-      project: lightdash-database-staging
-      dataset: e2e_jaffle_shop
-      threads: 1
+target: jaffle
+outputs:
+  jaffle:
+    type: postgres
+    host: "{{ env_var('PGHOST') }}"
+    port: "{{ env_var('PGPORT') | as_number }}"
+    user: "{{ env_var('PGUSER') }}"
+    pass: "{{ env_var('PGPASSWORD') }}"
+    dbname: "{{ env_var('PGDATABASE') }}"
+    sslmode: disable
+    schema: jaffle
