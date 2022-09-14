@@ -128,7 +128,6 @@ export function hexToRGB(hex: string, alpha: number | undefined): string {
 export enum ProjectType {
     DEFAULT = 'DEFAULT',
     PREVIEW = 'PREVIEW',
-    NONE = 'NONE',
 }
 
 export enum DbtProjectType {

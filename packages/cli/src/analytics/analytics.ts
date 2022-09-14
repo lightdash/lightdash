@@ -115,10 +115,32 @@ type CliCompileError = BaseTrack & {
         error: string;
     };
 };
+
 type CliDeployTriggered = BaseTrack & {
     event: 'deploy.triggered';
     properties: {
         projectId: string;
+    };
+};
+
+type CliCreateStarted = BaseTrack & {
+    event: 'create.started';
+    properties: {
+        projectName: string;
+        isDefaultName: boolean;
+    };
+};
+type CliCreateCompleted = BaseTrack & {
+    event: 'create.completed';
+    properties: {
+        projectId: string;
+        projectName: string;
+    };
+};
+type CliCreateError = BaseTrack & {
+    event: 'create.error';
+    properties: {
+        error: string;
     };
 };
 type Track =
@@ -133,7 +155,10 @@ type Track =
     | CliCompileStarted
     | CliCompileCompleted
     | CliCompileError
-    | CliDeployTriggered;
+    | CliDeployTriggered
+    | CliCreateStarted
+    | CliCreateCompleted
+    | CliCreateError;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
