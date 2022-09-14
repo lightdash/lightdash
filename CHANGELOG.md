@@ -1,3 +1,10 @@
+## [0.252.1](https://github.com/lightdash/lightdash/compare/0.252.0...0.252.1) (2022-09-14)
+
+
+### Bug Fixes
+
+* only disable table config when there are no results ([#3241](https://github.com/lightdash/lightdash/issues/3241)) ([d23995d](https://github.com/lightdash/lightdash/commit/d23995d04dd8101be7129163fa2f352e237e7f24))
+
 # [0.252.0](https://github.com/lightdash/lightdash/compare/0.251.2...0.252.0) (2022-09-14)
 
 
