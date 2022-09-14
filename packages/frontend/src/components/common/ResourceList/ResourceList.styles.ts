@@ -32,7 +32,7 @@ export const ResourceBreadcrumbTitle = styled.div`
     gap: 10px;
 `;
 
-export const Title = styled(H3)`
+export const ResourceTitle = styled(H3)`
     flex: 0 0 auto;
     margin: 0;
     color: ${Colors.DARK_GRAY1};

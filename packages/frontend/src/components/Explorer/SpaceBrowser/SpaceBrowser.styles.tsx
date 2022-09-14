@@ -1,14 +1,11 @@
-import { Button, Colors, Icon, IconName, Text } from '@blueprintjs/core';
+import { Colors, Icon, IconName, Text } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
 
-export const SpaceBrowserWrapper = styled.div`
-    margin-bottom: 40px;
-`;
-
 export const SpaceLinkButton = styled(LinkButton)`
     padding: 10px;
+    border: 1px solid ${Colors.LIGHT_GRAY3} !important;
 
     .bp4-button-text {
         width: 100%;
@@ -17,15 +14,10 @@ export const SpaceLinkButton = styled(LinkButton)`
 `;
 
 export const SpaceListWrapper = styled.div`
+    padding: 12px 20px;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 2em 1.5em;
-`;
-
-export const CreateNewButton = styled(Button)`
-    color: ${Colors.BLUE3} !important;
-
-    border: 1px solid ${Colors.LIGHT_GRAY1} !important;
 `;
 
 export const SpaceTitle = styled(Text)`

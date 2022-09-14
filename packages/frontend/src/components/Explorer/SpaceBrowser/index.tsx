@@ -1,60 +1,71 @@
+import { Button } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-// import LatestCard from '../../Home/LatestCard';
+import { Can } from '../../common/Authorization';
+import {
+    ResourceListHeader,
+    ResourceListWrapper,
+    ResourceTitle,
+    Spacer,
+} from '../../common/ResourceList/ResourceList.styles';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
 import { EditSpaceModal } from './EditSpaceModal';
-import { SpaceBrowserWrapper } from './SpaceBrowser.styles';
+import { SpaceListWrapper } from './SpaceBrowser.styles';
+import SpaceItem from './SpaceItem';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { user } = useApp();
     const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
     const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
-    const { data: spaces, isLoading } = useSpaces(projectUuid);
+    const { data: spaces = [], isLoading } = useSpaces(projectUuid);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
 
     return (
-        <SpaceBrowserWrapper>
-            {/* <LatestCard
-                isLoading={isLoading}
-                title="Spaces"
-                headerAction={
-                    <Can
-                        I="create"
-                        this={subject('Space', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
-                        })}
+        <ResourceListWrapper>
+            <ResourceListHeader>
+                <ResourceTitle>Spaces</ResourceTitle>
+
+                <Spacer />
+
+                <Can
+                    I="create"
+                    this={subject('Space', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid,
+                    })}
+                >
+                    <Button
+                        minimal
+                        outlined
+                        intent="primary"
+                        icon="plus"
+                        loading={isLoading}
+                        onClick={() => {
+                            setIsCreateModalOpen(true);
+                        }}
                     >
-                        <CreateNewButton
-                            minimal
-                            loading={isLoading}
-                            intent="primary"
-                            onClick={() => {
-                                setIsCreateModalOpen(true);
-                            }}
-                        >
-                            + Create new
-                        </CreateNewButton>
-                    </Can>
-                }
-            >
-                <SpaceListWrapper>
-                    {spaces?.map(({ uuid, name, dashboards, queries }) => (
-                        <SpaceItem
-                            key={uuid}
-                            projectUuid={projectUuid}
-                            uuid={uuid}
-                            name={name}
-                            dashboardsCount={dashboards.length}
-                            queriesCount={queries.length}
-                            onRename={() => setUpdateSpaceUuid(uuid)}
-                            onDelete={() => setDeleteSpaceUuid(uuid)}
-                        />
-                    ))}
-                </SpaceListWrapper>
-            </LatestCard> */}
+                        Create new
+                    </Button>
+                </Can>
+            </ResourceListHeader>
+
+            <SpaceListWrapper>
+                {spaces?.map(({ uuid, name, dashboards, queries }) => (
+                    <SpaceItem
+                        key={uuid}
+                        projectUuid={projectUuid}
+                        uuid={uuid}
+                        name={name}
+                        dashboardsCount={dashboards.length}
+                        queriesCount={queries.length}
+                        onRename={() => setUpdateSpaceUuid(uuid)}
+                        onDelete={() => setDeleteSpaceUuid(uuid)}
+                    />
+                ))}
+            </SpaceListWrapper>
 
             <CreateSpaceModal
                 isOpen={isCreateModalOpen}
@@ -80,7 +91,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     }}
                 />
             )}
-        </SpaceBrowserWrapper>
+        </ResourceListWrapper>
     );
 };
 
