@@ -4,7 +4,7 @@ import styled from 'styled-components';
 
 const paddingX = 20;
 
-export const ResourceListWrapper = styled(Card)`
+export const ResourceListContainer = styled(Card)`
     width: 768px;
     display: flex;
     flex-direction: column;
