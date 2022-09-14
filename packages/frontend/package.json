@@ -15,7 +15,7 @@
         "@lightdash/common": "^0.260.2",
         "@sentry/react": "^6.17.6",
         "@sentry/tracing": "^6.17.6",
-        "@tanstack/react-table": "^8.5.11",
+        "@tanstack/react-table": "^8.5.13",
         "@testing-library/jest-dom": "^5.16.2",
         "@testing-library/react": "^12.1.2",
         "@testing-library/user-event": "^13.5.0",
