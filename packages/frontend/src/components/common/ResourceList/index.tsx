@@ -23,8 +23,8 @@ import {
     ResourceListHeader,
     ResourceListWrapper,
     ResourceTag,
+    ResourceTitle,
     Spacer,
-    Title,
 } from './ResourceList.styles';
 import ResourceTable from './ResourceTable';
 
@@ -55,6 +55,7 @@ export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
         resourceType: AcceptedResourceTypes;
         resourceIcon: IconName;
         showSpaceColumn?: boolean;
+        showCountTag?: boolean;
         getURL: (data: T) => string;
     };
 
@@ -65,6 +66,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceList,
     resourceType,
     showSpaceColumn = false,
+    showCountTag = true,
     getURL,
 }) => {
     const [actionState, setActionState] = useState<ActionStateWithData>({
@@ -107,9 +109,11 @@ const ResourceList: React.FC<ResourceListProps> = ({
             <ResourceListWrapper>
                 {headerTitle || headerAction ? (
                     <ResourceListHeader>
-                        {headerTitle && <Title>{headerTitle}</Title>}
+                        {headerTitle && (
+                            <ResourceTitle>{headerTitle}</ResourceTitle>
+                        )}
 
-                        {resourceList.length > 0 && (
+                        {showCountTag && resourceList.length > 0 && (
                             <ResourceTag round>
                                 {resourceList.length}
                             </ResourceTag>

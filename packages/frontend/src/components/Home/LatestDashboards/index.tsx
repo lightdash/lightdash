@@ -26,13 +26,15 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             resourceType="dashboard"
             resourceList={featuredDashboards}
             showSpaceColumn
+            showCountTag={false}
             headerTitle="Recently updated dashboards"
             headerAction={
-                featuredDashboards.length === 0 ? (
+                featuredDashboards.length > 0 ? (
                     <LinkButton
                         text={`View all ${featuredDashboards.length}`}
                         minimal
                         outlined
+                        intent="primary"
                         href={`/projects/${projectUuid}/dashboards`}
                     />
                 ) : (

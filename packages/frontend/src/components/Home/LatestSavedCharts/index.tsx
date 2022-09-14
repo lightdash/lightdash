@@ -21,6 +21,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             resourceType="saved_chart"
             resourceList={featuredCharts}
             showSpaceColumn
+            showCountTag={false}
             headerTitle="Recently updated charts"
             headerAction={
                 savedCharts.length > 0 ? (
@@ -28,6 +29,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         text={`View all ${savedCharts.length}`}
                         minimal
                         outlined
+                        intent="primary"
                         href={`/projects/${projectUuid}/saved`}
                     />
                 ) : (
@@ -37,7 +39,6 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         minimal
                         outlined
                         href="https://docs.lightdash.com/get-started/exploring-data/sharing-insights"
-                        style={{ width: 100 }}
                     />
                 )
             }
