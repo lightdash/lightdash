@@ -242,7 +242,8 @@ const DashboardHeader = ({
                                     <Divider />
 
                                     <MenuItem2
-                                        text="+ Create new"
+                                        icon="plus"
+                                        text="Create new"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
