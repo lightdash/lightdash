@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
 import { setContext, setDefaultUser } from '../config';
+import * as styles from '../styles';
 import { setProjectInteractively } from './setProject';
 
 type LoginOptions = {
@@ -90,5 +91,24 @@ export const login = async (url: string, options: LoginOptions) => {
         : await loginWithPassword(url);
     await setContext({ serverUrl: url, apiKey: token });
     await setDefaultUser(userUuid);
-    await setProjectInteractively();
+
+    console.error(`\n  ✅️ Login successful\n`);
+
+    try {
+        await setProjectInteractively();
+    } catch (e: any) {
+        if (e.statusCode === 404) {
+            console.error(
+                'Now you can add your first project to lightdash by doing: ',
+            );
+            console.error(
+                `\n  ${styles.bold(`⚡️ lightdash deploy --create`)}\n`,
+            );
+        } else {
+            console.error('Unable to select projects, try with: ');
+            console.error(
+                `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,
+            );
+        }
+    }
 };
