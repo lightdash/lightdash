@@ -26,7 +26,7 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             resourceType="dashboard"
             resourceList={featuredDashboards}
             showSpaceColumn
-            showCountTag={false}
+            showCount={false}
             headerTitle="Recently updated dashboards"
             headerAction={
                 featuredDashboards.length > 0 ? (

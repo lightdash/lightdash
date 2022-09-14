@@ -20,12 +20,10 @@ import {
     EmptyStateIcon,
     EmptyStateText,
     EmptyStateWrapper,
-    ResourceListHeader,
-    ResourceListWrapper,
-    ResourceTag,
-    ResourceTitle,
-    Spacer,
 } from './ResourceList.styles';
+import ResourceListWrapper, {
+    ResourceListWrapperProps,
+} from './ResourceListWrapper';
 import ResourceTable from './ResourceTable';
 
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
@@ -48,14 +46,14 @@ interface ActionStateWithData {
 }
 
 export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
-    {
+    ResourceListWrapperProps & {
         headerTitle?: string;
         headerAction?: React.ReactNode;
         resourceList: T[];
         resourceType: AcceptedResourceTypes;
         resourceIcon: IconName;
         showSpaceColumn?: boolean;
-        showCountTag?: boolean;
+        showCount?: boolean;
         getURL: (data: T) => string;
     };
 
@@ -66,7 +64,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceList,
     resourceType,
     showSpaceColumn = false,
-    showCountTag = true,
+    showCount = true,
     getURL,
 }) => {
     const [actionState, setActionState] = useState<ActionStateWithData>({
@@ -106,25 +104,12 @@ const ResourceList: React.FC<ResourceListProps> = ({
 
     return (
         <>
-            <ResourceListWrapper>
-                {headerTitle || headerAction ? (
-                    <ResourceListHeader>
-                        {headerTitle && (
-                            <ResourceTitle>{headerTitle}</ResourceTitle>
-                        )}
-
-                        {showCountTag && resourceList.length > 0 && (
-                            <ResourceTag round>
-                                {resourceList.length}
-                            </ResourceTag>
-                        )}
-
-                        <Spacer />
-
-                        {headerAction}
-                    </ResourceListHeader>
-                ) : null}
-
+            <ResourceListWrapper
+                headerTitle={headerTitle}
+                headerAction={headerAction}
+                resourceCount={resourceList.length}
+                showCount={showCount}
+            >
                 {resourceList.length === 0 ? (
                     <EmptyStateWrapper>
                         <NonIdealState

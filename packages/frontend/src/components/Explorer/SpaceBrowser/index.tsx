@@ -4,12 +4,7 @@ import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
-import {
-    ResourceListHeader,
-    ResourceListWrapper,
-    ResourceTitle,
-    Spacer,
-} from '../../common/ResourceList/ResourceList.styles';
+import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
 import { EditSpaceModal } from './EditSpaceModal';
@@ -24,12 +19,10 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
 
     return (
-        <ResourceListWrapper>
-            <ResourceListHeader>
-                <ResourceTitle>Spaces</ResourceTitle>
-
-                <Spacer />
-
+        <ResourceListWrapper
+            headerTitle="Spaces"
+            showCount={false}
+            headerAction={
                 <Can
                     I="create"
                     this={subject('Space', {
@@ -50,8 +43,8 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         Create new
                     </Button>
                 </Can>
-            </ResourceListHeader>
-
+            }
+        >
             <SpaceListWrapper>
                 {spaces?.map(({ uuid, name, dashboards, queries }) => (
                     <SpaceItem
