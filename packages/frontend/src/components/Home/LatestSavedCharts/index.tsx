@@ -21,7 +21,7 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             resourceType="saved_chart"
             resourceList={featuredCharts}
             showSpaceColumn
-            showCountTag={false}
+            showCount={false}
             headerTitle="Recently updated charts"
             headerAction={
                 savedCharts.length > 0 ? (
