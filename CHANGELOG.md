@@ -1,3 +1,15 @@
+# [0.252.0](https://github.com/lightdash/lightdash/compare/0.251.2...0.252.0) (2022-09-14)
+
+
+### Bug Fixes
+
+* do not error when login in without projects ([#3229](https://github.com/lightdash/lightdash/issues/3229)) ([db7476d](https://github.com/lightdash/lightdash/commit/db7476dd8c9595bc86ee16dda1995e5083de520a))
+
+
+### Features
+
+* cli deploy create new project ([#3227](https://github.com/lightdash/lightdash/issues/3227)) ([9b6ad72](https://github.com/lightdash/lightdash/commit/9b6ad72b5c75eef87f59a6402263778c20d69671))
+
 ## [0.251.2](https://github.com/lightdash/lightdash/compare/0.251.1...0.251.2) (2022-09-13)
 
 
