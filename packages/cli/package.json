@@ -20,6 +20,7 @@
         "chokidar": "^3.5.3",
         "commander": "^9.2.0",
         "execa": "^5",
+        "google-auth-library": "^8.5.1",
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
         "node-fetch": "^2.6.1",
