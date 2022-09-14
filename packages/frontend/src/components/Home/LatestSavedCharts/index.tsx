@@ -1,15 +1,8 @@
 import { AnchorButton } from '@blueprintjs/core';
-import { SpaceQuery } from '@lightdash/common';
-import React, { FC } from 'react';
-import {
-    useDeleteMutation,
-    useUpdateMutation,
-} from '../../../hooks/useSavedQuery';
+import { FC } from 'react';
 import { useSavedCharts } from '../../../hooks/useSpaces';
-import ActionCardList from '../../common/ActionCardList';
-import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
-import LatestCard from '../LatestCard';
-import { ViewAllButton } from './LatestSavedCharts.style';
+import LinkButton from '../../common/LinkButton';
+import ResourceList from '../../common/ResourceList';
 
 const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const savedChartsRequest = useSavedCharts(projectUuid);
@@ -23,12 +16,15 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         .slice(0, 5);
 
     return (
-        <LatestCard
-            isLoading={savedChartsRequest.isLoading}
-            title="Recently updated charts"
+        <ResourceList
+            resourceIcon="chart"
+            resourceType="saved_chart"
+            resourceList={featuredCharts}
+            showSpaceColumn
+            headerTitle="Recently updated charts"
             headerAction={
                 savedCharts.length > 0 ? (
-                    <ViewAllButton
+                    <LinkButton
                         text={`View all ${savedCharts.length}`}
                         minimal
                         outlined
@@ -45,21 +41,8 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     />
                 )
             }
-        >
-            <ActionCardList
-                title="Saved charts"
-                useUpdate={useUpdateMutation}
-                useDelete={useDeleteMutation()}
-                dataList={featuredCharts}
-                getURL={(savedQuery: SpaceQuery) => {
-                    const { uuid } = savedQuery;
-                    return `/projects/${projectUuid}/saved/${uuid}`;
-                }}
-                ModalContent={SavedQueryForm}
-                isHomePage
-                isChart
-            />
-        </LatestCard>
+            getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
+        />
     );
 };
 

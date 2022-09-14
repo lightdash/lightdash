@@ -158,7 +158,7 @@ const ModalActionButtons: FC<ModalActionButtonsProps> = ({
 
                     <MenuItem2
                         role="button"
-                        icon="trash"
+                        icon="cross"
                         text="Delete"
                         intent="danger"
                         onClick={(e) => {

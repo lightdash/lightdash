@@ -254,7 +254,7 @@ const DashboardHeader = ({
                                 <Divider />
 
                                 <MenuItem2
-                                    icon="trash"
+                                    icon="cross"
                                     text="Delete"
                                     intent="danger"
                                     onClick={onDelete}
