@@ -1,3 +1,10 @@
+## [0.252.2](https://github.com/lightdash/lightdash/compare/0.252.1...0.252.2) (2022-09-14)
+
+
+### Bug Fixes
+
+* amend project type and add analytics to deploy create ([#3242](https://github.com/lightdash/lightdash/issues/3242)) ([164d006](https://github.com/lightdash/lightdash/commit/164d0067e902c57ac75368932aa97df90222c6cd))
+
 ## [0.252.1](https://github.com/lightdash/lightdash/compare/0.252.0...0.252.1) (2022-09-14)
 
 
