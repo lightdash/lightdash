@@ -53,6 +53,7 @@ export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
         resourceType: AcceptedResourceTypes;
         resourceIcon: IconName;
         showSpaceColumn?: boolean;
+        enableSorting?: boolean;
         showCount?: boolean;
         getURL: (data: T) => string;
     };
@@ -64,6 +65,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceList,
     resourceType,
     showSpaceColumn = false,
+    enableSorting = true,
     showCount = true,
     getURL,
 }) => {
@@ -136,6 +138,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         resourceIcon={resourceIcon}
                         resourceList={resourceList}
                         showSpaceColumn={showSpaceColumn}
+                        enableSorting={enableSorting}
                         getURL={getURL}
                         onChangeAction={setActionState}
                     />
