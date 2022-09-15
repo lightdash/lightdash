@@ -56,10 +56,10 @@
         "build": "vite build",
         "serve": "vite preview",
         "test": "jest --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
-        "lint": "eslint ./src",
-        "fix-lint": "eslint --fix ./src",
-        "format": "prettier --check --ignore-unknown ./src",
-        "fix-format": "prettier --write --ignore-unknown ./src"
+        "lint": "eslint -c .eslintrc.js ./src",
+        "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
+        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",
+        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./src"
     },
     "devDependencies": {
         "@types/dagre": "^0.7.47",

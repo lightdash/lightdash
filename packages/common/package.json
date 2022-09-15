@@ -22,9 +22,10 @@
     "scripts": {
         "dev": "nodemon src/index.ts",
         "build": "tsc --build tsconfig.json",
-        "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src",
-        "fix-format": "prettier --write --ignore-unknown ./src",
+        "lint": "eslint -c .eslintrc.js ./src",
+        "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
+        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",
+        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./src",
         "bundle-openapi": "openapi bundle --output ./src/openapibundle --ext json ./src/openapi/openapi.json --lint",
         "test": "jest"
     }

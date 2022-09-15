@@ -53,8 +53,10 @@
     "scripts": {
         "test": "jest",
         "build": "tsc --build tsconfig.json",
-        "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src",
+        "lint": "eslint -c .eslintrc.js ./src",
+        "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
+        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",
+        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./src",
         "preinstall": "bash track.sh started",
         "postinstall": "bash track.sh completed"
     }

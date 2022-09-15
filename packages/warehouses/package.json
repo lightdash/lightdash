@@ -17,8 +17,10 @@
     "description": "Warehouse connectors for Lightdash",
     "devDependencies": {},
     "scripts": {
-        "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src",
+        "lint": "eslint -c .eslintrc.js ./src",
+        "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
+        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",
+        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./src",
         "test": "jest",
         "copy-files": "copyfiles -u 1 src/warehouseClients/amazon-trust-ca-bundle.crt dist/",
         "build": "tsc --build tsconfig.json && yarn copy-files",

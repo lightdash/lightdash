@@ -6,8 +6,10 @@
     "scripts": {
         "cypress:open": "cypress open",
         "cypress:run": "cypress run",
-        "lint": "eslint ./cypress",
-        "format": "prettier --check --ignore-unknown ./cypress"
+        "lint": "eslint -c .eslintrc.js ./cypress",
+        "fix-lint": "eslint -c .eslintrc.js --fix ./cypress ",
+        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./cypress",
+        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./cypress"
     },
     "devDependencies": {},
     "dependencies": {
