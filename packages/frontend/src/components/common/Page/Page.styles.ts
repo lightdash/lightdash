@@ -4,10 +4,6 @@ export const PageContentWrapper = styled.div`
     .bp4-card:not(:last-child) {
         margin-bottom: 20px;
     }
-
-    h3 {
-        font-size: 18px;
-    }
 `;
 
 export const PageHeader = styled.div`
