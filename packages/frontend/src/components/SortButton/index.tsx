@@ -37,7 +37,6 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
 };
 
 const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
-    console.log(sorts);
     const columns = useColumns();
 
     const addSortField = useExplorerContext(
