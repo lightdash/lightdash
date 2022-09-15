@@ -21,6 +21,7 @@ import SortItem from './SortItem';
 
 type Props = {
     sorts: SortField[];
+    isEditMode: boolean;
 };
 
 type DraggablePortalHandlerProps = {
@@ -35,7 +36,7 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
     return <>{children}</>;
 };
 
-const SortButton: FC<Props> = ({ sorts }) => {
+const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     const columns = useColumns();
 
     const addSortField = useExplorerContext(
@@ -54,103 +55,112 @@ const SortButton: FC<Props> = ({ sorts }) => {
         moveSortFields(result.source.index, result.destination.index);
     };
 
+    const tag = (
+        <Tag
+            large
+            round
+            minimal
+            intent="primary"
+            interactive={isEditMode}
+            rightIcon={isEditMode ? 'caret-down' : null}
+        >
+            Sorted by{' '}
+            {sorts.length === 1 ? '1 field' : `${sorts.length} fields`}
+        </Tag>
+    );
+
     return (
         <>
             <PopoverGlobalStyles />
 
             <Spacer $width={10} />
 
-            <Popover2
-                portalClassName="bp4-popover-portal-results-table-sort-fields"
-                content={
-                    <DragDropContext onDragEnd={onDragEnd}>
-                        <Droppable droppableId="results-table-sort-fields">
-                            {(dropProps) => (
-                                <DroppableContainer
-                                    {...dropProps.droppableProps}
-                                    ref={dropProps.innerRef}
-                                >
-                                    {sorts.map((sort, index) => (
-                                        <Draggable
-                                            key={sort.fieldId}
-                                            draggableId={sort.fieldId}
-                                            index={index}
-                                        >
-                                            {(
-                                                {
-                                                    draggableProps,
-                                                    dragHandleProps,
-                                                    innerRef,
-                                                },
-                                                snapshot,
-                                            ) => (
-                                                <DraggablePortalHandler
-                                                    snapshot={snapshot}
-                                                >
-                                                    <SortItem
-                                                        ref={innerRef}
-                                                        isFirstItem={
-                                                            index === 0
-                                                        }
-                                                        isOnlyItem={
-                                                            sorts.length === 1
-                                                        }
-                                                        isDragging={
-                                                            snapshot.isDragging
-                                                        }
-                                                        draggableProps={
-                                                            draggableProps
-                                                        }
-                                                        dragHandleProps={
-                                                            dragHandleProps
-                                                        }
-                                                        sort={sort}
-                                                        column={columns.find(
-                                                            (c) =>
-                                                                c.id ===
-                                                                sort.fieldId,
-                                                        )}
-                                                        onAddSortField={(
-                                                            options,
-                                                        ) => {
-                                                            addSortField(
-                                                                sort.fieldId,
+            {isEditMode ? (
+                <Popover2
+                    portalClassName="bp4-popover-portal-results-table-sort-fields"
+                    content={
+                        <DragDropContext onDragEnd={onDragEnd}>
+                            <Droppable droppableId="results-table-sort-fields">
+                                {(dropProps) => (
+                                    <DroppableContainer
+                                        {...dropProps.droppableProps}
+                                        ref={dropProps.innerRef}
+                                    >
+                                        {sorts.map((sort, index) => (
+                                            <Draggable
+                                                key={sort.fieldId}
+                                                draggableId={sort.fieldId}
+                                                index={index}
+                                            >
+                                                {(
+                                                    {
+                                                        draggableProps,
+                                                        dragHandleProps,
+                                                        innerRef,
+                                                    },
+                                                    snapshot,
+                                                ) => (
+                                                    <DraggablePortalHandler
+                                                        snapshot={snapshot}
+                                                    >
+                                                        <SortItem
+                                                            ref={innerRef}
+                                                            isFirstItem={
+                                                                index === 0
+                                                            }
+                                                            isOnlyItem={
+                                                                sorts.length ===
+                                                                1
+                                                            }
+                                                            isDragging={
+                                                                snapshot.isDragging
+                                                            }
+                                                            draggableProps={
+                                                                draggableProps
+                                                            }
+                                                            dragHandleProps={
+                                                                dragHandleProps
+                                                            }
+                                                            sort={sort}
+                                                            column={columns.find(
+                                                                (c) =>
+                                                                    c.id ===
+                                                                    sort.fieldId,
+                                                            )}
+                                                            onAddSortField={(
                                                                 options,
-                                                            );
-                                                        }}
-                                                        onRemoveSortField={() => {
-                                                            removeSortField(
-                                                                sort.fieldId,
-                                                            );
-                                                        }}
-                                                    />
-                                                </DraggablePortalHandler>
-                                            )}
-                                        </Draggable>
-                                    ))}
+                                                            ) => {
+                                                                addSortField(
+                                                                    sort.fieldId,
+                                                                    options,
+                                                                );
+                                                            }}
+                                                            onRemoveSortField={() => {
+                                                                removeSortField(
+                                                                    sort.fieldId,
+                                                                );
+                                                            }}
+                                                        />
+                                                    </DraggablePortalHandler>
+                                                )}
+                                            </Draggable>
+                                        ))}
 
-                                    {dropProps.placeholder}
-                                </DroppableContainer>
-                            )}
-                        </Droppable>
-                    </DragDropContext>
-                }
-                interactionKind="click"
-                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                position="bottom"
-            >
-                <Tag
-                    large
-                    round
-                    minimal
-                    interactive
-                    intent="primary"
-                    rightIcon="caret-down"
+                                        {dropProps.placeholder}
+                                    </DroppableContainer>
+                                )}
+                            </Droppable>
+                        </DragDropContext>
+                    }
+                    interactionKind="click"
+                    popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+                    position="bottom"
                 >
-                    Sorted by{' '}
-                    {sorts.length === 1 ? '1 field' : `${sorts.length} fields`}
-                </Tag>
-            </Popover2>
+                    {tag}
+                </Popover2>
+            ) : (
+                tag
+            )}
         </>
     );
 };

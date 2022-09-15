@@ -21,6 +21,10 @@ export const CardHeaderLeftContent = styled.div`
         padding: 0;
         margin-right: 10px;
     }
+
+    .bp4-tag {
+        flex-shrink: 0;
+    }
 `;
 export const CardHeaderRightContent = styled.div`
     display: flex;
