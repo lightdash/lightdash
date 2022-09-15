@@ -34,7 +34,7 @@ describe('Dashboard List', () => {
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
         // click on rename
-        cy.contains('Untitled dashboard').children().eq(1).click();
+        cy.contains('Untitled dashboard').closest('tr').find('button').click();
         cy.findByRole('button', { name: 'Rename' }).click();
         cy.findByLabelText('Name *').clear().type('e2e dashboard');
         // click on save
@@ -49,7 +49,7 @@ describe('Dashboard List', () => {
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
         // click on delete
-        cy.contains('e2e dashboard').children().eq(1).click();
+        cy.contains('e2e dashboard').closest('tr').find('button').click();
         cy.findByRole('button', { name: 'Delete' }).click();
         // click on delete in the popup
         cy.findByText('Delete').click();
