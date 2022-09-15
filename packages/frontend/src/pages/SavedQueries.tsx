@@ -1,5 +1,6 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -26,6 +27,14 @@ const SavedQueries: FC = () => {
 
     const history = useHistory();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     if (isLoading && !cannotView) {
         return (
@@ -66,19 +75,16 @@ const SavedQueries: FC = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {user.data?.ability?.can('manage', 'Dashboard') &&
-                        !isDemo && (
-                            <Button
-                                text="Create chart"
-                                icon="plus"
-                                onClick={() =>
-                                    history.push(
-                                        `/projects/${projectUuid}/tables`,
-                                    )
-                                }
-                                intent="primary"
-                            />
-                        )}
+                    {userCanManageCharts && !isDemo && (
+                        <Button
+                            text="Create chart"
+                            icon="plus"
+                            onClick={() =>
+                                history.push(`/projects/${projectUuid}/tables`)
+                            }
+                            intent="primary"
+                        />
+                    )}
                 </PageHeader>
 
                 <ResourceList
