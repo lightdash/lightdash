@@ -8,7 +8,11 @@ import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
 import { login } from './handlers/login';
-import { previewHandler } from './handlers/preview';
+import {
+    previewHandler,
+    startPreviewHandler,
+    stopPreviewHandler,
+} from './handlers/preview';
 import { setProjectInteractively } from './handlers/setProject';
 import * as styles from './styles';
 
@@ -259,11 +263,58 @@ program
         '-m, --models <models...>',
         'specify models (accepts dbt selection syntax)',
     )
+    .option(
+        '--name <preview name>',
+        'name for the preview project, if not specified it will be random',
+    )
     .option('--exclude <models...>')
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
     .action(previewHandler);
+
+program
+    .command('start-preview')
+    .description('Creates new preview project')
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--name <preview name>', 'name for the preview project [required]')
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
+    .action(startPreviewHandler);
+
+program
+    .command('stop-preview')
+    .description('Deletes preview project')
+    .option('--name <preview name>', 'name for the preview project [required]')
+    .action(stopPreviewHandler);
 
 program
     .command('deploy')

@@ -26,8 +26,36 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    name?: string;
 };
 
+type StopPreviewHandlerOptions = {
+    name: string;
+};
+
+const projectUrl = async (project: Project) => {
+    const config = await getConfig();
+
+    return (
+        config.context?.serverUrl &&
+        new URL(
+            `/projects/${project.projectUuid}/tables`,
+            config.context.serverUrl,
+        )
+    );
+};
+
+const getPreviewProject = async (name: string) => {
+    const projects = await lightdashApi<Project[]>({
+        method: 'GET',
+        url: `/api/v1/org/projects/`,
+        body: undefined,
+    });
+    return projects.find(
+        (project) =>
+            project.type === ProjectType.PREVIEW && project.name === name,
+    );
+};
 export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
@@ -36,7 +64,6 @@ export const previewHandler = async (
         separator: ' ',
         dictionaries: [adjectives, animals],
     });
-    const config = await getConfig();
     console.error('');
     const spinner = ora(`  Setting up preview environment`).start();
     let project: Project;
@@ -59,15 +86,11 @@ export const previewHandler = async (
         },
     });
     try {
-        const projectUrl =
-            config.context?.serverUrl &&
-            new URL(
-                `/projects/${project.projectUuid}/tables`,
-                config.context.serverUrl,
-            );
         await deploy({ ...options, projectUuid: project.projectUuid });
         spinner.succeed(
-            `  Developer preview "${name}" ready at: ${projectUrl}\n`,
+            `  Developer preview "${name}" ready at: ${await projectUrl(
+                project,
+            )}\n`,
         );
 
         const absoluteProjectPath = path.resolve(options.projectDir);
@@ -129,4 +152,60 @@ export const previewHandler = async (
         },
     });
     teardownSpinner.succeed(`  Cleaned up`);
+};
+
+export const startPreviewHandler = async (
+    options: PreviewHandlerOptions,
+): Promise<void> => {
+    if (!options.name) {
+        console.error(styles.error(`--name argument is required`));
+        return;
+    }
+
+    const projectName = options.name;
+
+    const previewProject = await getPreviewProject(projectName);
+    if (previewProject) {
+        // Update
+        console.error(`Updating project preview ${projectName}`);
+        await deploy({ ...options, projectUuid: previewProject.projectUuid });
+        console.error(`Project updated on ${await projectUrl(previewProject)}`);
+    } else {
+        // Create
+        console.error(`Creating new project preview ${projectName}`);
+        const project = await createProject({
+            ...options,
+            name: projectName,
+            type: ProjectType.PREVIEW,
+        });
+        await deploy({ ...options, projectUuid: project.projectUuid });
+        console.error(`New project created on ${await projectUrl(project)}`);
+    }
+};
+
+export const stopPreviewHandler = async (
+    options: StopPreviewHandlerOptions,
+): Promise<void> => {
+    if (!options.name) {
+        console.error(styles.error(`--name argument is required`));
+        return;
+    }
+
+    const projectName = options.name;
+
+    const previewProject = await getPreviewProject(projectName);
+    if (previewProject) {
+        await lightdashApi({
+            method: 'DELETE',
+            url: `/api/v1/org/projects/${previewProject.projectUuid}`,
+            body: undefined,
+        });
+        console.error(
+            `Successfully deleted preview project name ${projectName}`,
+        );
+    } else {
+        console.error(
+            `Could not find preview project with name ${projectName}`,
+        );
+    }
 };
