@@ -47,10 +47,6 @@ enum BooleanSortLabels {
     DESC = 'Yes-No',
 }
 
-const assertUnreachable = (_x: never): never => {
-    throw new Error("Didn't expect to get here");
-};
-
 export const getSortLabel = (
     item: Field | TableCalculation,
     direction: SortDirection,
