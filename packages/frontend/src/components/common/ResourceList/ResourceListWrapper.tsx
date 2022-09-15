@@ -29,9 +29,11 @@ const ResourceListWrapper: FC<ResourceListWrapperProps> = ({
                         <ResourceTitle>{headerTitle}</ResourceTitle>
                     )}
 
-                    {showCount && resourceCount && resourceCount > 0 && (
-                        <ResourceTag round>{resourceCount}</ResourceTag>
-                    )}
+                    {showCount &&
+                        resourceCount !== undefined &&
+                        resourceCount > 0 && (
+                            <ResourceTag round>{resourceCount}</ResourceTag>
+                        )}
 
                     <Spacer />
 
