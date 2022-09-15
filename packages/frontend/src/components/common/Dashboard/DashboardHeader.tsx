@@ -15,7 +15,6 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
-import { UpdatedInfo } from '../ActionCard';
 import {
     IconWithRightMargin,
     PageActionsContainer,
@@ -26,6 +25,7 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
+import { UpdatedInfo } from '../UpdatedInfo';
 
 type DashboardHeaderProps = {
     spaces?: Space[];
