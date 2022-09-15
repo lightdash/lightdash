@@ -111,7 +111,7 @@ const ModalActionButtons: FC<ModalActionButtonsProps> = ({
                             e.stopPropagation();
                         }}
                     >
-                        {spaces?.map((space) => {
+                        {spaces.map((space) => {
                             const isSelected = data.spaceUuid === space.uuid;
                             return (
                                 <MenuItem2
