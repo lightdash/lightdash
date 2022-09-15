@@ -1,3 +1,15 @@
+# [0.254.0](https://github.com/lightdash/lightdash/compare/0.253.0...0.254.0) (2022-09-15)
+
+
+### Bug Fixes
+
+* sort table calculations ([#3243](https://github.com/lightdash/lightdash/issues/3243)) ([0157322](https://github.com/lightdash/lightdash/commit/0157322c66cd2039b9d990b0d9627109d403b1db))
+
+
+### Features
+
+* order chart series ([#3206](https://github.com/lightdash/lightdash/issues/3206)) ([a399f40](https://github.com/lightdash/lightdash/commit/a399f4039b4b3cd43337eed09811dc2552ced320))
+
 # [0.253.0](https://github.com/lightdash/lightdash/compare/0.252.2...0.253.0) (2022-09-15)
 
 

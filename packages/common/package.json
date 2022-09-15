@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.253.0",
+    "version": "0.254.0",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
