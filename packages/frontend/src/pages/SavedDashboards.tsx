@@ -1,5 +1,6 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -36,6 +37,14 @@ const SavedDashboards = () => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
+
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     if (isLoading || isLoadingSpaces) {
         return (
@@ -85,7 +94,7 @@ const SavedDashboards = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {user.data?.ability?.can('manage', 'Dashboard') && !isDemo && (
+                    {userCanManageDashboards && !isDemo && (
                         <Button
                             text="Create dashboard"
                             icon="plus"
