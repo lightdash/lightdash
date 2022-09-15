@@ -1,5 +1,6 @@
 import { Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
+import { LightdashMode } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -12,37 +13,40 @@ import { SpaceListWrapper } from './SpaceBrowser.styles';
 import SpaceItem from './SpaceItem';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const { user } = useApp();
+    const { user, health } = useApp();
     const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
     const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
     const { data: spaces = [], isLoading } = useSpaces(projectUuid);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
 
     return (
         <ResourceListWrapper
             headerTitle="Spaces"
             showCount={false}
             headerAction={
-                <Can
-                    I="create"
-                    this={subject('Space', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid,
-                    })}
-                >
-                    <Button
-                        minimal
-                        outlined
-                        intent="primary"
-                        icon="plus"
-                        loading={isLoading}
-                        onClick={() => {
-                            setIsCreateModalOpen(true);
-                        }}
+                !isDemo && (
+                    <Can
+                        I="create"
+                        this={subject('Space', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
                     >
-                        Create new
-                    </Button>
-                </Can>
+                        <Button
+                            minimal
+                            outlined
+                            intent="primary"
+                            icon="plus"
+                            loading={isLoading}
+                            onClick={() => {
+                                setIsCreateModalOpen(true);
+                            }}
+                        >
+                            Create new
+                        </Button>
+                    </Can>
+                )
             }
         >
             <SpaceListWrapper>
