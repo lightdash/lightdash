@@ -1,4 +1,7 @@
 {
+    "compilerOptions": {
+        "useUnknownInCatchVariables": false // good to enable at some point
+    },
     "references": [
         {
             "path": "./packages/frontend"
