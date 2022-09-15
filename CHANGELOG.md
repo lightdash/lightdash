@@ -1,3 +1,10 @@
+# [0.253.0](https://github.com/lightdash/lightdash/compare/0.252.2...0.253.0) (2022-09-15)
+
+
+### Features
+
+* CLI preview reloads on DBT manifest file change ([#3246](https://github.com/lightdash/lightdash/issues/3246)) ([52d7fa0](https://github.com/lightdash/lightdash/commit/52d7fa074e7f88f5b4a38c1f7ae69aeda2907469))
+
 ## [0.252.2](https://github.com/lightdash/lightdash/compare/0.252.1...0.252.2) (2022-09-14)
 
 
