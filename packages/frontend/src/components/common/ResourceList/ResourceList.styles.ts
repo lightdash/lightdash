@@ -36,6 +36,8 @@ export const ResourceTitle = styled(H3)`
     flex: 0 0 auto;
     margin: 0;
     color: ${Colors.DARK_GRAY1};
+    font-size: 16px !important;
+    font-weight: 600;
 `;
 
 export const ResourceTag = styled(Tag)`
