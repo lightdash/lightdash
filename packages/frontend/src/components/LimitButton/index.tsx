@@ -58,7 +58,7 @@ const LimitButton: FC<Props> = memo(
             </Popover2>
         ) : (
             <Tooltip2
-                content="You must be in 'edit' or 'explore' mode to view this panel"
+                content="You must be in 'edit' or 'explore' mode to update limit"
                 position={Position.BOTTOM}
             >
                 {tag}

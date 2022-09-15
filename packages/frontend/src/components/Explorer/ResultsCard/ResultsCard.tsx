@@ -70,7 +70,7 @@ const ResultsCard: FC = memo(() => {
 
                     <H5>Results</H5>
 
-                    {resultsIsOpen && tableName && (
+                    {tableName && (
                         <LimitButton
                             isEditMode={isEditMode}
                             limit={limit}
@@ -78,7 +78,7 @@ const ResultsCard: FC = memo(() => {
                         />
                     )}
 
-                    {resultsIsOpen && tableName && sorts.length > 0 && (
+                    {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}
                 </CardHeaderLeftContent>
