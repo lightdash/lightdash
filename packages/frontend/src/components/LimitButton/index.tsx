@@ -1,5 +1,5 @@
-import { NumericInput, Tag } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { NumericInput, Position, Tag } from '@blueprintjs/core';
+import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { FC, memo, useState } from 'react';
 import { ApplyButton, Label, PopupWrapper } from './LimitButton.styles';
 
@@ -51,13 +51,18 @@ const LimitButton: FC<Props> = memo(
                     </PopupWrapper>
                 }
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                position="bottom"
+                position={Position.BOTTOM}
                 disabled={disabled}
             >
                 {tag}
             </Popover2>
         ) : (
-            tag
+            <Tooltip2
+                content="You must be in 'edit' or 'explore' mode to view this panel"
+                position={Position.BOTTOM}
+            >
+                {tag}
+            </Tooltip2>
         );
     },
 );

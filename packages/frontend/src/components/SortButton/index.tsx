@@ -1,5 +1,5 @@
-import { Tag } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { Position, Tag } from '@blueprintjs/core';
+import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { SortField } from '@lightdash/common';
 import { FC } from 'react';
 import {
@@ -154,12 +154,17 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                     }
                     interactionKind="click"
                     popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                    position="bottom"
+                    position={Position.BOTTOM}
                 >
                     {tag}
                 </Popover2>
             ) : (
-                tag
+                <Tooltip2
+                    content="You must be in 'edit' or 'explore' mode to view this panel"
+                    position={Position.BOTTOM}
+                >
+                    {tag}
+                </Tooltip2>
             )}
         </>
     );
