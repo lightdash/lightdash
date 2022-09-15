@@ -5,9 +5,9 @@ import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
 import { useApp } from '../../../providers/AppProvider';
-import { ActionTypeModal } from './ActionModal';
+import { ActionTypeModal } from '../modal/ActionModal';
 
-type ModalActionButtonsProps = {
+type Props = {
     data: any;
     spaces: Space[];
     url: string;
@@ -17,12 +17,12 @@ type ModalActionButtonsProps = {
     isChart?: boolean;
 };
 
-const ModalActionButtons: FC<ModalActionButtonsProps> = ({
+const ResourceActionMenu: FC<Props> = ({
     data,
     spaces,
     url,
     setActionState,
-    isChart,
+    isChart = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
@@ -104,6 +104,7 @@ const ModalActionButtons: FC<ModalActionButtonsProps> = ({
                     )}
 
                     <MenuItem2
+                        tagName="div"
                         icon="folder-close"
                         text="Move to Space"
                         onClick={(e) => {
@@ -187,8 +188,4 @@ const ModalActionButtons: FC<ModalActionButtonsProps> = ({
     );
 };
 
-ModalActionButtons.defaultProps = {
-    isChart: false,
-};
-
-export default ModalActionButtons;
+export default ResourceActionMenu;
