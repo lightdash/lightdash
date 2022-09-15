@@ -2,8 +2,10 @@ import {
     DimensionType,
     Field,
     isDimension,
+    isField,
     isMetric,
     MetricType,
+    TableCalculation,
 } from '@lightdash/common';
 
 export enum SortDirection {
@@ -11,8 +13,11 @@ export enum SortDirection {
     DESC = 'DESC',
 }
 
-export const getSortDirectionOrder = (field: Field) => {
-    switch (field.type) {
+export const getSortDirectionOrder = (item: Field | TableCalculation) => {
+    if (!isField(item)) {
+        return [SortDirection.ASC, SortDirection.DESC];
+    }
+    switch (item.type) {
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return [SortDirection.DESC, SortDirection.ASC];
@@ -45,9 +50,18 @@ const assertUnreachable = (_x: never): never => {
     throw new Error("Didn't expect to get here");
 };
 
-export const getSortLabel = (field: Field, direction: SortDirection) => {
-    if (isDimension(field)) {
-        switch (field.type) {
+export const getSortLabel = (
+    item: Field | TableCalculation,
+    direction: SortDirection,
+) => {
+    if (!isField(item)) {
+        return direction === SortDirection.ASC
+            ? NumericSortLabels.ASC
+            : NumericSortLabels.DESC;
+    }
+
+    if (isDimension(item)) {
+        switch (item.type) {
             case DimensionType.NUMBER:
                 return direction === SortDirection.ASC
                     ? NumericSortLabels.ASC
@@ -66,10 +80,10 @@ export const getSortLabel = (field: Field, direction: SortDirection) => {
                     ? BooleanSortLabels.ASC
                     : BooleanSortLabels.DESC;
             default:
-                return assertUnreachable(field.type);
+                return assertUnreachable(item.type);
         }
-    } else if (isMetric(field)) {
-        switch (field.type) {
+    } else if (isMetric(item)) {
+        switch (item.type) {
             case MetricType.AVERAGE:
             case MetricType.COUNT:
             case MetricType.COUNT_DISTINCT:
@@ -93,7 +107,7 @@ export const getSortLabel = (field: Field, direction: SortDirection) => {
                     ? BooleanSortLabels.ASC
                     : BooleanSortLabels.DESC;
             default:
-                return assertUnreachable(field.type);
+                return assertUnreachable(item.type);
         }
     } else {
         throw new Error('Field is not a Dimension or Metric');
