@@ -34,7 +34,6 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                     <LinkButton
                         text={`View all ${dashboards.length}`}
                         minimal
-                        outlined
                         intent="primary"
                         href={`/projects/${projectUuid}/dashboards`}
                     />
@@ -42,7 +41,6 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                     <AnchorButton
                         text="Learn"
                         minimal
-                        outlined
                         target="_blank"
                         href="https://docs.lightdash.com/get-started/exploring-data/dashboards/"
                     />
