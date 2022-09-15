@@ -35,7 +35,6 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     >
                         <Button
                             minimal
-                            outlined
                             intent="primary"
                             icon="plus"
                             loading={isLoading}

@@ -27,16 +27,18 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
                             userName ? ', ' + userName : ' to Lightdash'
                         }! ⚡`}
                     </Title>
+
                     <Intro>
                         Run a query to ask a business question or browse your
                         data below:
                     </Intro>
                 </WelcomeText>
+
                 <LinkButton
-                    style={{ height: 40 }}
+                    large
                     href={`/projects/${projectUuid}/tables`}
                     intent="primary"
-                    icon="series-search"
+                    icon="database"
                 >
                     Run a query
                 </LinkButton>
@@ -45,6 +47,7 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
             <SpaceBrowser projectUuid={projectUuid} />
 
             {hasSavedChart && <LatestDashboards projectUuid={projectUuid} />}
+
             <LatestSavedCharts projectUuid={projectUuid} />
         </LandingPanelWrapper>
     );

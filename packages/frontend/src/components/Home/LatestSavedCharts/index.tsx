@@ -29,7 +29,6 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     <LinkButton
                         text={`View all ${savedCharts.length}`}
                         minimal
-                        outlined
                         intent="primary"
                         href={`/projects/${projectUuid}/saved`}
                     />
@@ -38,7 +37,6 @@ const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         target="_blank"
                         text="Learn"
                         minimal
-                        outlined
                         href="https://docs.lightdash.com/get-started/exploring-data/sharing-insights"
                     />
                 )

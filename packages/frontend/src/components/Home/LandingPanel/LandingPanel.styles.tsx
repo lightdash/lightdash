@@ -18,6 +18,7 @@ export const WelcomeText = styled.div`
 
 export const Title = styled(H3)`
     margin: 0 0 0.455em;
+    color: ${Colors.BLACK};
 `;
 
 export const Intro = styled.p`
