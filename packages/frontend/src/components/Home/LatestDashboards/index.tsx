@@ -30,9 +30,9 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             showCount={false}
             headerTitle="Recently updated dashboards"
             headerAction={
-                featuredDashboards.length > 0 ? (
+                dashboards.length > 0 ? (
                     <LinkButton
-                        text={`View all ${featuredDashboards.length}`}
+                        text={`View all ${dashboards.length}`}
                         minimal
                         outlined
                         intent="primary"
