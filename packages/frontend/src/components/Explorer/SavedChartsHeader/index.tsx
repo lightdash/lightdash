@@ -19,7 +19,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import { UpdatedInfo } from '../../common/ActionCard';
 import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import {
@@ -32,6 +31,7 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../../common/PageHeader';
+import { UpdatedInfo } from '../../common/UpdatedInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
