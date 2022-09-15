@@ -13,7 +13,7 @@ import React, { FC, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AcceptedResources, ResourceListProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
-import ModalActionButtons from '../../modal/ModalActionButtons';
+import ResourceActionMenu from '../ResourceActionMenu';
 import ResourceLastEdited from '../ResourceLastEdited';
 import { ResourceLink, ResourceSpaceLink } from '../ResourceList.styles';
 import {
@@ -145,7 +145,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
             columnHelper.display({
                 id: 'actions',
                 cell: (cell) => (
-                    <ModalActionButtons
+                    <ResourceActionMenu
                         data={cell.row.original}
                         spaces={spaces}
                         url={getURL(cell.row.original)}

@@ -15,7 +15,8 @@ describe('Dashboard', () => {
         // wiat for the dashboard to load
         cy.findByText('Loading dashboards').should('not.exist');
 
-        cy.findByText('Jaffle dashboard').click({ force: true });
+        cy.contains('a', 'Jaffle dashboard').should('exist').wait(1000); // TODO: hack for react-table rerenders
+        cy.contains('a', 'Jaffle dashboard').click();
 
         cy.findByText("What's our total revenue to date?");
         cy.findByText("What's the average spend per customer?");
