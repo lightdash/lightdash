@@ -38,6 +38,7 @@ interface ResourceTableProps
         | 'resourceIcon'
         | 'getURL'
         | 'showSpaceColumn'
+        | 'enableSorting'
     > {
     onChangeAction: React.Dispatch<
         React.SetStateAction<{
@@ -52,6 +53,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
     resourceType,
     resourceIcon,
     showSpaceColumn = false,
+    enableSorting = true,
     getURL,
     onChangeAction,
 }) => {
@@ -175,6 +177,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
             sorting,
             columnVisibility,
         },
+        enableSorting,
         onColumnVisibilityChange: setColumnVisibility,
         onSortingChange: setSorting,
         getSortedRowModel: getSortedRowModel(),
