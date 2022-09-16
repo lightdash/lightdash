@@ -1,3 +1,10 @@
+# [0.255.0](https://github.com/lightdash/lightdash/compare/0.254.0...0.255.0) (2022-09-16)
+
+
+### Features
+
+* results table sort limit pills in view mode ([#3251](https://github.com/lightdash/lightdash/issues/3251)) ([1c03457](https://github.com/lightdash/lightdash/commit/1c0345773885d946b32b946866bacb85a0f10327))
+
 # [0.254.0](https://github.com/lightdash/lightdash/compare/0.253.0...0.254.0) (2022-09-15)
 
 
