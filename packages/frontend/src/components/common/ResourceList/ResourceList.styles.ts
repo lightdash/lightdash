@@ -67,12 +67,12 @@ export const ResourceSpaceLink = styled(Link)`
 `;
 
 export const EmptyStateWrapper = styled.div`
-    padding: 20px;
+    margin: 20px;
 `;
 
 export const EmptyStateIcon = styled(Icon)`
     path {
-        fill: ${Colors.LIGHT_GRAY3};
+        fill: ${Colors.GRAY4};
     }
 `;
 
