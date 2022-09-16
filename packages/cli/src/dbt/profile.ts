@@ -2,7 +2,7 @@ import { CreateWarehouseCredentials, ParseError } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
-import { convertBigquerySchema } from './targets/bigquery';
+import { convertBigquerySchema } from './targets/Bigquery';
 import { convertPostgresSchema } from './targets/postgres';
 import { convertRedshiftSchema } from './targets/redshift';
 import { convertSnowflakeSchema } from './targets/snowflake';
