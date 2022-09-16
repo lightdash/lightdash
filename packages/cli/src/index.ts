@@ -263,10 +263,6 @@ program
         '-m, --models <models...>',
         'specify models (accepts dbt selection syntax)',
     )
-    .option(
-        '--name <preview name>',
-        'name for the preview project, if not specified it will be random',
-    )
     .option('--exclude <models...>')
     .option('--selector <selector_name>')
     .option('--state <state>')
@@ -276,6 +272,10 @@ program
 program
     .command('start-preview')
     .description('Creates new preview project')
+    .option(
+        '--name [preview name]',
+        '[required] name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project ',
+    )
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',
@@ -303,7 +303,6 @@ program
         '-m, --models <models...>',
         'specify models (accepts dbt selection syntax)',
     )
-    .option('--name <preview name>', 'name for the preview project [required]')
     .option('--exclude <models...>')
     .option('--selector <selector_name>')
     .option('--state <state>')
@@ -313,7 +312,10 @@ program
 program
     .command('stop-preview')
     .description('Deletes preview project')
-    .option('--name <preview name>', 'name for the preview project [required]')
+    .option(
+        '--name [preview name]',
+        '[required] name for the preview project to be deleted',
+    )
     .action(stopPreviewHandler);
 
 program
