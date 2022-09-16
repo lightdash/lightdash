@@ -201,7 +201,7 @@ export const stopPreviewHandler = async (
             body: undefined,
         });
         console.error(
-            `Successfully deleted preview project name ${projectName}`,
+            `Successfully deleted preview project named ${projectName}`,
         );
     } else {
         console.error(
