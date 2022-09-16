@@ -240,27 +240,36 @@ type DbtMetricFilter = {
     value: string;
 };
 export type DbtMetric = {
+    fqn: string[];
     unique_id: string;
     package_name: string;
     path: string;
     root_path: string;
     original_file_path: string;
-    model: string;
     name: string;
     description: string;
     label: string;
     type: string;
-    timestamp: string | null;
-    filters: DbtMetricFilter[];
+    sql: string;
+    timestamp?: string | null;
+    filters: DbtMetricFilter[]; // todo
     time_grains: string[];
     dimensions: string[];
-    refs: string[][];
+    model?: string | null;
+    model_unique_id?: string | null;
     resource_type?: 'metric';
     meta?: Record<string, any> & DbtMetricLightdashMetadata;
     tags?: string[];
-    sql?: string | null;
+    sources?: string[][];
+    depends_on?: {
+        macros?: string[];
+        nodes?: string[];
+    };
+    refs?: string[][];
     metrics?: string[][];
+    created_at?: number;
 };
+
 export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
     group_label?: string;

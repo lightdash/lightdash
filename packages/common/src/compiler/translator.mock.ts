@@ -34,6 +34,8 @@ export const INVALID_ID_COLUMN_NAMES = [
 ];
 
 export const DBT_METRIC: DbtMetric = {
+    fqn: [],
+    sql: '',
     unique_id: 'dbt_metric_1',
     package_name: '',
     path: '',
