@@ -1,3 +1,10 @@
+## [0.256.1](https://github.com/lightdash/lightdash/compare/0.256.0...0.256.1) (2022-09-16)
+
+
+### Bug Fixes
+
+* snowflake role optional ([#3256](https://github.com/lightdash/lightdash/issues/3256)) ([6bf2663](https://github.com/lightdash/lightdash/commit/6bf2663574add4509a665907db13695acff6337e))
+
 # [0.256.0](https://github.com/lightdash/lightdash/compare/0.255.0...0.256.0) (2022-09-16)
 
 
