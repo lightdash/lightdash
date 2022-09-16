@@ -1,3 +1,10 @@
+# [0.256.0](https://github.com/lightdash/lightdash/compare/0.255.0...0.256.0) (2022-09-16)
+
+
+### Features
+
+* start-preview and stop-preview CLI commands ([#3252](https://github.com/lightdash/lightdash/issues/3252)) ([b23800c](https://github.com/lightdash/lightdash/commit/b23800c4dafb32e57fb3953e82f2671388ea592d))
+
 # [0.255.0](https://github.com/lightdash/lightdash/compare/0.254.0...0.255.0) (2022-09-16)
 
 
