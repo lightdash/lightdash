@@ -1,14 +1,10 @@
-import * as fs from 'fs';
 import type { Config } from 'jest';
 import * as path from 'path';
 import { pathsToModuleNameMapper } from 'ts-jest';
 
-const projectRootDir = path.resolve(path.join(__dirname, '..', '..'));
-const rootTsConfigPath = path.resolve(
-    path.join(projectRootDir, 'tsconfig.json'),
-);
-const rootTsConfig = JSON.parse(fs.readFileSync(rootTsConfigPath, 'utf8'));
-const tsConfigPath = path.resolve(path.join(__dirname, 'tsconfig.json'));
+const rootDir = path.resolve(__dirname);
+const tsConfigPath = path.resolve(path.join(rootDir, 'tsconfig.json'));
+const tsConfig = require(tsConfigPath);
 
 const config: Config = {
     testPathIgnorePatterns: ['/node_modules/', '/build/'],
@@ -17,7 +13,7 @@ const config: Config = {
 
     testEnvironment: 'node',
 
-    rootDir: path.resolve(path.join(projectRootDir, 'packages', 'frontend')),
+    rootDir: rootDir,
 
     transform: {
         '^.+\\.(js|jsx|mjs|cjs|ts|tsx)$': [
@@ -39,10 +35,9 @@ const config: Config = {
         '<rootDir>/**/*.{spec,test}.{js,jsx,ts,tsx}',
     ],
 
-    moduleNameMapper: pathsToModuleNameMapper(
-        rootTsConfig.compilerOptions.paths,
-        { prefix: '<rootDir>/../../' },
-    ),
+    moduleNameMapper: pathsToModuleNameMapper(tsConfig.compilerOptions.paths, {
+        prefix: '<rootDir>/',
+    }),
 
     setupFilesAfterEnv: ['./setupJest.ts'],
 
