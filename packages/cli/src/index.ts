@@ -274,7 +274,7 @@ program
     .description('Creates new preview project')
     .option(
         '--name [preview name]',
-        '[required] name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project ',
+        '[required] Name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project ',
     )
     .option(
         '--project-dir <path>',
@@ -314,7 +314,7 @@ program
     .description('Deletes preview project')
     .option(
         '--name [preview name]',
-        '[required] name for the preview project to be deleted',
+        '[required] Name for the preview project to be deleted',
     )
     .action(stopPreviewHandler);
 
