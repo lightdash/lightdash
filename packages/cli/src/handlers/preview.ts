@@ -166,6 +166,14 @@ export const startPreviewHandler = async (
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        LightdashAnalytics.track({
+            event: 'start_preview.update',
+            properties: {
+                projectId: previewProject.projectUuid,
+                name: options.name,
+            },
+        });
+
         // Update
         console.error(`Updating project preview ${projectName}`);
         await deploy({ ...options, projectUuid: previewProject.projectUuid });
@@ -177,6 +185,14 @@ export const startPreviewHandler = async (
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
+        });
+
+        LightdashAnalytics.track({
+            event: 'start_preview.create',
+            properties: {
+                projectId: project.projectUuid,
+                name: options.name,
+            },
         });
         await deploy({ ...options, projectUuid: project.projectUuid });
         console.error(`New project created on ${await projectUrl(project)}`);
@@ -195,6 +211,14 @@ export const stopPreviewHandler = async (
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        LightdashAnalytics.track({
+            event: 'stop_preview.delete',
+            properties: {
+                projectId: previewProject.projectUuid,
+                name: options.name,
+            },
+        });
+
         await lightdashApi({
             method: 'DELETE',
             url: `/api/v1/org/projects/${previewProject.projectUuid}`,
@@ -204,6 +228,13 @@ export const stopPreviewHandler = async (
             `Successfully deleted preview project named ${projectName}`,
         );
     } else {
+        LightdashAnalytics.track({
+            event: 'stop_preview.missing',
+            properties: {
+                name: options.name,
+            },
+        });
+
         console.error(
             `Could not find preview project with name ${projectName}`,
         );
