@@ -1,5 +1,6 @@
 import { Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
+import LinkButton from '../../common/LinkButton';
 
 export const LandingPanelWrapper = styled.div`
     width: 54.857em;
@@ -23,4 +24,8 @@ export const Title = styled(H3)`
 
 export const Intro = styled.p`
     color: ${Colors.GRAY1};
+`;
+
+export const StyledLinkButton = styled(LinkButton)`
+    font-size: 14px !important;
 `;

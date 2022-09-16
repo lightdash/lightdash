@@ -1,5 +1,4 @@
 import { FC } from 'react';
-import LinkButton from '../../common/LinkButton';
 import SpaceBrowser from '../../Explorer/SpaceBrowser';
 import LatestDashboards from '../LatestDashboards';
 import LatestSavedCharts from '../LatestSavedCharts';
@@ -7,6 +6,7 @@ import {
     Intro,
     LandingHeaderWrapper,
     LandingPanelWrapper,
+    StyledLinkButton,
     Title,
     WelcomeText,
 } from './LandingPanel.styles';
@@ -34,14 +34,14 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
                     </Intro>
                 </WelcomeText>
 
-                <LinkButton
+                <StyledLinkButton
                     large
                     href={`/projects/${projectUuid}/tables`}
                     intent="primary"
-                    icon="database"
+                    icon="series-search"
                 >
                     Run a query
-                </LinkButton>
+                </StyledLinkButton>
             </LandingHeaderWrapper>
 
             <SpaceBrowser projectUuid={projectUuid} />
