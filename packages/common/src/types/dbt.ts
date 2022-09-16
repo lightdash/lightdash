@@ -252,7 +252,7 @@ export type DbtMetric = {
     type: string;
     sql: string;
     timestamp?: string | null;
-    filters: DbtMetricFilter[]; // todo
+    filters: DbtMetricFilter[];
     time_grains: string[];
     dimensions: string[];
     model?: string | null;
