@@ -15,7 +15,7 @@ type SnowflakeTarget = {
     password?: string;
     private_key_path?: string;
     private_key_passphrase?: string;
-    role: string;
+    role?: string;
     database: string;
     warehouse: string;
     schema: string;
@@ -55,6 +55,7 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
         },
         role: {
             type: 'string',
+            nullable: true,
         },
         database: {
             type: 'string',
@@ -94,15 +95,7 @@ const snowflakeSchema: JSONSchemaType<SnowflakeTarget> = {
             nullable: true,
         },
     },
-    required: [
-        'type',
-        'account',
-        'user',
-        'role',
-        'database',
-        'warehouse',
-        'schema',
-    ],
+    required: ['type', 'account', 'user', 'database', 'warehouse', 'schema'],
 };
 
 export const convertSnowflakeSchema = async (
