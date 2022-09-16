@@ -19,11 +19,7 @@ export type Config = {
         apiKey?: string;
     };
     answers?: {
-        warehouse?: {
-            bigquery?: {
-                confirmSaveOauth?: boolean;
-            };
-        };
+        permissionToStoreWarehouseCredentials?: boolean;
     };
 };
 

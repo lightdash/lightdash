@@ -65,7 +65,7 @@ export const previewHandler = async (
     console.error('');
     const spinner = ora(`  Setting up preview environment`).start();
     GlobalState.setActiveSpinner(spinner);
-    let project: Project;
+    let project: Project | undefined;
 
     try {
         project = await createProject({
@@ -76,6 +76,21 @@ export const previewHandler = async (
     } catch (e) {
         spinner.fail();
         throw e;
+    }
+
+    if (!project) {
+        const config = await getConfig();
+        spinner.fail('Cancel preview environment');
+        console.error(
+            "To create your project, you'll need to manually enter your warehouse connection details.",
+        );
+        const createProjectUrl =
+            config.context?.serverUrl &&
+            new URL('/createProject', config.context.serverUrl);
+        console.error(
+            `Fill out the project connection form here: ${createProjectUrl}`,
+        );
+        return;
     }
 
     LightdashAnalytics.track({
@@ -112,7 +127,12 @@ export const previewHandler = async (
                 );
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
-                await deploy({ ...options, projectUuid: project.projectUuid });
+                if (project) {
+                    await deploy({
+                        ...options,
+                        projectUuid: project.projectUuid,
+                    });
+                }
 
                 console.error(`${styles.success('✔')}   Preview updated \n`);
                 pressToContinue.start();

@@ -3,9 +3,6 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
-import inquirer from 'inquirer';
-import { getConfig, setAnswer } from '../../../config';
-import GlobalState from '../../../globalState';
 import { Target } from '../../types';
 import { getBigqueryCredentialsFromOauth } from './oauth';
 import {
@@ -13,67 +10,14 @@ import {
     getBigqueryCredentialsFromServiceAccountJson,
 } from './serviceAccount';
 
-const askToRememberAnswer = async (): Promise<void> => {
-    const answers = await inquirer.prompt([
-        {
-            type: 'confirm',
-            name: 'isConfirm',
-            message: 'Do you want us to remember this answer forever ?',
-        },
-    ]);
-    if (answers.isConfirm) {
-        await setAnswer({
-            warehouse: {
-                bigquery: {
-                    confirmSaveOauth: true,
-                },
-            },
-        });
-    }
-};
-
-const askPermissionToCopyOauth = async (): Promise<boolean> => {
-    const config = await getConfig();
-    const savedAnswer = config.answers?.warehouse?.bigquery?.confirmSaveOauth;
-    if (!savedAnswer) {
-        const spinner = GlobalState.getActiveSpinner();
-        if (spinner) {
-            spinner.stop();
-        }
-        const answers = await inquirer.prompt([
-            {
-                type: 'confirm',
-                name: 'isConfirm',
-                message: `Do you confirm Lightdash can store your oauth credentials in the server ?`,
-            },
-        ]);
-        if (answers.isConfirm) {
-            await askToRememberAnswer();
-        }
-        if (spinner) {
-            spinner.start();
-        }
-        return answers.isConfirm;
-    }
-    return savedAnswer;
-};
-
 export const convertBigquerySchema = async (
     target: Target,
-    willCredentialsBeSaved: boolean,
 ): Promise<CreateBigqueryCredentials> => {
     let getBigqueryCredentials;
     switch (target.method) {
-        case 'oauth': {
-            if (!willCredentialsBeSaved || (await askPermissionToCopyOauth())) {
-                getBigqueryCredentials = getBigqueryCredentialsFromOauth;
-            } else {
-                throw new Error(
-                    'Bigquery authentication failed. Try using a different authentication type',
-                );
-            }
+        case 'oauth':
+            getBigqueryCredentials = getBigqueryCredentialsFromOauth;
             break;
-        }
         case 'service-account':
             getBigqueryCredentials = getBigqueryCredentialsFromServiceAccount;
             break;

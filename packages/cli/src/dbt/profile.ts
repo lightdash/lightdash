@@ -46,7 +46,6 @@ export const loadDbtTarget = async ({
 
 export const warehouseCredentialsFromDbtTarget = async (
     target: Target,
-    willCredentialsBeSaved: boolean = false,
 ): Promise<CreateWarehouseCredentials> => {
     switch (target.type) {
         case 'postgres':
@@ -54,7 +53,7 @@ export const warehouseCredentialsFromDbtTarget = async (
         case 'snowflake':
             return convertSnowflakeSchema(target);
         case 'bigquery':
-            return convertBigquerySchema(target, willCredentialsBeSaved);
+            return convertBigquerySchema(target);
         case 'redshift':
             return convertRedshiftSchema(target);
         default:
