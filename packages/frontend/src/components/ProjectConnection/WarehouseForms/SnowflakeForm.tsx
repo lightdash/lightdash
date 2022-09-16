@@ -81,7 +81,6 @@ const SnowflakeForm: FC<{
                 label="Role"
                 labelHelp="This is the role to assume when running queries as the specified user."
                 rules={{
-                    required: 'Required field',
                     validate: {
                         hasNoWhiteSpaces: hasNoWhiteSpaces('Role'),
                     },
