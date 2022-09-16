@@ -321,6 +321,7 @@ projectRouter.post(
     '/spaces',
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         spaceService
             .createSpace(req.params.projectUuid, req.user!, req.body)
@@ -337,6 +338,7 @@ projectRouter.post(
 projectRouter.delete(
     '/spaces/:spaceUUid',
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         spaceService
             .deleteSpace(req.user!, req.params.spaceUUid)
@@ -353,6 +355,7 @@ projectRouter.delete(
 projectRouter.patch(
     '/spaces/:spaceUUid',
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         spaceService
             .updateSpace(req.user!, req.params.spaceUUid, req.body)
