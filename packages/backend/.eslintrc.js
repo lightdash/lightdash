@@ -1,15 +1,16 @@
 module.exports = {
+    parserOptions: {
+        project: './tsconfig.json',
+        createDefaultProgram: true,
+    },
     extends: [
+        './../../.eslintrc.js',
         'eslint:recommended',
         'plugin:json/recommended',
         'airbnb-base',
         'airbnb-typescript/base',
         'prettier',
     ],
-    parserOptions: {
-        project: './tsconfig.json',
-        createDefaultProgram: true,
-    },
     plugins: ['@typescript-eslint'],
     rules: {
         'import/prefer-default-export': 'off',
