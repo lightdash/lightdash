@@ -1,4 +1,4 @@
-import { Icon, NonIdealState } from '@blueprintjs/core';
+import { Button, NonIdealState } from '@blueprintjs/core';
 import { FC } from 'react';
 import { ResourceListProps } from '.';
 import {
@@ -9,9 +9,9 @@ import {
 
 type Props = Pick<
     ResourceListProps,
-    'headerAction' | 'resourceType' | 'resourceIcon'
+    'headerAction' | 'resourceIcon' | 'onClickCTA'
 > & {
-    onClickCTA?: () => void;
+    resourceType: ResourceListProps['resourceType'] | 'space';
 };
 
 const ResourceEmptyState: FC<Props> = ({
@@ -30,9 +30,14 @@ const ResourceEmptyState: FC<Props> = ({
                             No {resourceType}s added yet
                         </EmptyStateText>
 
-                        <p>
-                            Hit <Icon icon="plus" size={14} /> to get started.
-                        </p>
+                        {onClickCTA && (
+                            <Button
+                                text={`Create ${resourceType}`}
+                                icon="plus"
+                                intent="primary"
+                                onClick={onClickCTA}
+                            />
+                        )}
                     </EmptyStateWrapper>
                 }
             />
