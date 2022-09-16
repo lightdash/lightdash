@@ -32,7 +32,7 @@ export const createProject = async (
         profileName,
         targetName: options.target,
     });
-    const credentials = await warehouseCredentialsFromDbtTarget(target);
+    const credentials = await warehouseCredentialsFromDbtTarget(target, true);
     const project: CreateProject = {
         name: options.name,
         type: options.type,

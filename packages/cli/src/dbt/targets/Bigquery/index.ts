@@ -60,11 +60,12 @@ const askPermissionToCopyOauth = async (): Promise<boolean> => {
 
 export const convertBigquerySchema = async (
     target: Target,
+    willCredentialsBeSaved: boolean,
 ): Promise<CreateBigqueryCredentials> => {
     let getBigqueryCredentials;
     switch (target.method) {
         case 'oauth': {
-            if (await askPermissionToCopyOauth()) {
+            if (!willCredentialsBeSaved || (await askPermissionToCopyOauth())) {
                 getBigqueryCredentials = getBigqueryCredentialsFromOauth;
             } else {
                 throw new Error(
