@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { getConfig, setAnswer } from '../../../config';
+import GlobalState from '../../../globalState';
 import { Target } from '../../types';
 import { getBigqueryCredentialsFromOauth } from './oauth';
 import {
@@ -35,6 +36,10 @@ const askPermissionToCopyOauth = async (): Promise<boolean> => {
     const config = await getConfig();
     const savedAnswer = config.answers?.warehouse?.bigquery?.confirmSaveOauth;
     if (!savedAnswer) {
+        const spinner = GlobalState.getActiveSpinner();
+        if (spinner) {
+            spinner.stop();
+        }
         const answers = await inquirer.prompt([
             {
                 type: 'confirm',
@@ -44,6 +49,9 @@ const askPermissionToCopyOauth = async (): Promise<boolean> => {
         ]);
         if (answers.isConfirm) {
             await askToRememberAnswer();
+        }
+        if (spinner) {
+            spinner.start();
         }
         return answers.isConfirm;
     }

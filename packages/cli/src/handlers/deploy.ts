@@ -10,6 +10,7 @@ import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { getDbtContext } from '../dbt/context';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
@@ -61,7 +62,7 @@ const createNewProject = async (
 
     console.error('');
     const spinner = ora(`  Creating new project`).start();
-
+    GlobalState.setActiveSpinner(spinner);
     LightdashAnalytics.track({
         event: 'create.started',
         properties: {

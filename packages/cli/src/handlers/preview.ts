@@ -12,6 +12,7 @@ import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { getDbtContext } from '../dbt/context';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
@@ -63,6 +64,7 @@ export const previewHandler = async (
     });
     console.error('');
     const spinner = ora(`  Setting up preview environment`).start();
+    GlobalState.setActiveSpinner(spinner);
     let project: Project;
 
     try {
@@ -144,7 +146,7 @@ export const previewHandler = async (
         throw e;
     }
     const teardownSpinner = ora(`  Cleaning up`).start();
-
+    GlobalState.setActiveSpinner(spinner);
     await lightdashApi({
         method: 'DELETE',
         url: `/api/v1/org/projects/${project.projectUuid}`,
