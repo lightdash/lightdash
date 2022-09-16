@@ -16,11 +16,12 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "noEmit": true,
-        "jsx": "react-jsx"
+        "jsx": "react-jsx",
+        "types": ["jest", "node"]
     },
     "references": [
         {
-            "path": "../common"
+            "path": "./../common"
         }
     ],
     "include": ["src"]

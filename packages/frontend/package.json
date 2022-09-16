@@ -55,7 +55,7 @@
         "start": "vite",
         "build": "vite build",
         "serve": "vite preview",
-        "test": "jest --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
+        "test": "jest",
         "lint": "eslint -c .eslintrc.js ./src",
         "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
         "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",

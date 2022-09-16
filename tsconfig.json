@@ -1,6 +1,9 @@
 {
     "compilerOptions": {
-        "useUnknownInCatchVariables": false // good to enable at some point
+        "baseUrl": ".",
+        "paths": {
+            "@lightdash/common": ["./packages/common/src"]
+        }
     },
     "references": [
         {

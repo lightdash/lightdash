@@ -21,6 +21,7 @@ export default defineConfig({
     //         "last 1 safari version"
     //     ]
     // },
+
     plugins: [react(), svgr(), tsconfigPaths(), splitVendorChunkPlugin()],
     css: {
         devSourcemap: true,
