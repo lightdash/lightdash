@@ -2,10 +2,13 @@ import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { FC, useMemo } from 'react';
+import { Redirect } from 'react-router-dom';
+import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import LinkButton from '../../common/LinkButton';
 import ResourceList from '../../common/ResourceList';
+import { DEFAULT_DASHBOARD_NAME } from '../../SpacePanel';
 
 interface Props {
     projectUuid: string;
@@ -15,6 +18,12 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: dashboards = [] } = useDashboards(projectUuid);
+    const {
+        isLoading: isCreatingDashboard,
+        isSuccess: hasCreatedDashboard,
+        mutate: createDashboard,
+        data: newDashboard,
+    } = useCreateMutation(projectUuid);
 
     const featuredDashboards = useMemo(() => {
         return dashboards
@@ -27,6 +36,15 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             .slice(0, 5);
     }, [dashboards]);
 
+    if (hasCreatedDashboard && newDashboard) {
+        return (
+            <Redirect
+                push
+                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
+            />
+        );
+    }
+
     const userCanManageDashboards = user.data?.ability?.can(
         'manage',
         subject('Dashboard', {
@@ -34,6 +52,13 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             projectUuid,
         }),
     );
+
+    const handleCreateDashboard = () => {
+        createDashboard({
+            name: DEFAULT_DASHBOARD_NAME,
+            tiles: [],
+        });
+    };
 
     return (
         <ResourceList
@@ -63,6 +88,11 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                         href={`/projects/${projectUuid}/dashboards`}
                     />
                 ) : null
+            }
+            onClickCTA={
+                !isDemo && userCanManageDashboards
+                    ? handleCreateDashboard
+                    : undefined
             }
         />
     );

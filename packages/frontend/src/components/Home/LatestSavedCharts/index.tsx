@@ -2,6 +2,7 @@ import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { FC, useMemo } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import LinkButton from '../../common/LinkButton';
@@ -13,6 +14,7 @@ interface Props {
 
 const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
     const { user, health } = useApp();
+    const history = useHistory();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
@@ -34,6 +36,10 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
             projectUuid,
         }),
     );
+
+    const handleCreateChart = () => {
+        history.push(`/projects/${projectUuid}/tables`);
+    };
 
     return (
         <ResourceList
@@ -61,6 +67,9 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
                         href={`/projects/${projectUuid}/saved`}
                     />
                 ) : null
+            }
+            onClickCTA={
+                !isDemo && userCanManageCharts ? handleCreateChart : undefined
             }
         />
     );

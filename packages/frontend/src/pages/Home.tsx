@@ -7,10 +7,7 @@ import { PageContentWrapper } from '../components/common/Page/Page.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
-import {
-    useOnboardingStatus,
-    useProjectSavedChartStatus,
-} from '../hooks/useOnboardingStatus';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 
@@ -21,11 +18,10 @@ const Home: FC = () => {
     const onboarding = useOnboardingStatus();
 
     const { user } = useApp();
-    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
-    const isLoading =
-        onboarding.isLoading || project.isLoading || savedChartStatus.isLoading;
 
-    const error = onboarding.error || project.error || savedChartStatus.error;
+    const isLoading = onboarding.isLoading || project.isLoading;
+    const error = onboarding.error || project.error;
+
     useUnmount(() => onboarding.remove());
 
     if (user.data?.ability?.cannot('view', 'SavedChart')) {
