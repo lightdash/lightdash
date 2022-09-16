@@ -1,3 +1,10 @@
+## [0.256.2](https://github.com/lightdash/lightdash/compare/0.256.1...0.256.2) (2022-09-16)
+
+
+### Bug Fixes
+
+* disable space actions in demo env ([#3259](https://github.com/lightdash/lightdash/issues/3259)) ([9d9185b](https://github.com/lightdash/lightdash/commit/9d9185b3fc4330f4da966329714fefce2a75da66))
+
 ## [0.256.1](https://github.com/lightdash/lightdash/compare/0.256.0...0.256.1) (2022-09-16)
 
 
