@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { FC, useState } from 'react';
@@ -25,7 +25,14 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             headerTitle="Spaces"
             showCount={false}
             headerAction={
-                !isDemo && (
+                spaces.length === 0 ? (
+                    <AnchorButton
+                        text="Learn"
+                        minimal
+                        target="_blank"
+                        href="https://docs.lightdash.com/guides/spaces/"
+                    />
+                ) : !isDemo ? (
                     <Can
                         I="create"
                         this={subject('Space', {
@@ -45,7 +52,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             Create new
                         </Button>
                     </Can>
-                )
+                ) : null
             }
         >
             <SpaceListWrapper>

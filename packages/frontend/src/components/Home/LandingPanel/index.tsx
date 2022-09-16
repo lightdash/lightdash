@@ -12,12 +12,11 @@ import {
 } from './LandingPanel.styles';
 
 interface Props {
-    hasSavedChart: boolean;
     userName: string | undefined;
     projectUuid: string;
 }
 
-const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
+const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
     return (
         <LandingPanelWrapper>
             <LandingHeaderWrapper>
@@ -46,7 +45,7 @@ const LandingPanel: FC<Props> = ({ hasSavedChart, userName, projectUuid }) => {
 
             <SpaceBrowser projectUuid={projectUuid} />
 
-            {hasSavedChart && <LatestDashboards projectUuid={projectUuid} />}
+            <LatestDashboards projectUuid={projectUuid} />
 
             <LatestSavedCharts projectUuid={projectUuid} />
         </LandingPanelWrapper>

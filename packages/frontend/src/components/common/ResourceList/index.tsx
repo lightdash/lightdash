@@ -1,4 +1,4 @@
-import { IconName, NonIdealState } from '@blueprintjs/core';
+import { IconName } from '@blueprintjs/core';
 import {
     assertUnreachable,
     DashboardBasicDetails,
@@ -16,29 +16,14 @@ import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import { ActionTypeModal } from '../modal/ActionModal';
 import DeleteActionModal from '../modal/DeleteActionModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
-import {
-    EmptyStateIcon,
-    EmptyStateText,
-    EmptyStateWrapper,
-} from './ResourceList.styles';
+import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
 import ResourceTable from './ResourceTable';
 
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
-export type AcceptedResourceTypes = 'saved_chart' | 'dashboard';
-
-const getResourceLabel = (resourceType: AcceptedResourceTypes) => {
-    switch (resourceType) {
-        case 'dashboard':
-            return 'dashboard';
-        case 'saved_chart':
-            return 'chart';
-        default:
-            assertUnreachable(resourceType);
-    }
-};
+export type AcceptedResourceTypes = 'chart' | 'dashboard';
 
 interface ActionStateWithData {
     actionType: ActionTypeModal;
@@ -74,7 +59,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     });
 
     const { moveChart, moveDashboard } = useMoveToSpace(
-        resourceType === 'saved_chart',
+        resourceType === 'chart',
         actionState.data,
     );
 
@@ -85,7 +70,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     update: useUpdateDashboardName,
                     moveToSpace: moveDashboard,
                 };
-            case 'saved_chart':
+            case 'chart':
                 return {
                     update: useUpdateMutation,
                     moveToSpace: moveChart,
@@ -113,25 +98,11 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 showCount={showCount}
             >
                 {resourceList.length === 0 ? (
-                    <EmptyStateWrapper>
-                        <NonIdealState
-                            description={
-                                <EmptyStateWrapper>
-                                    <EmptyStateIcon
-                                        icon={resourceIcon}
-                                        size={40}
-                                    />
-                                    <EmptyStateText>
-                                        No {getResourceLabel(resourceType)}s
-                                        added yet
-                                    </EmptyStateText>
-                                    <p>
-                                        Hit <b>+</b> to get started.
-                                    </p>
-                                </EmptyStateWrapper>
-                            }
-                        />
-                    </EmptyStateWrapper>
+                    <ResourceEmptyState
+                        resourceIcon={resourceIcon}
+                        resourceType={resourceType}
+                        headerAction={headerAction}
+                    />
                 ) : (
                     <ResourceTable
                         resourceType={resourceType}
@@ -146,7 +117,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
             </ResourceListWrapper>
 
             {actionState.actionType === ActionTypeModal.UPDATE &&
-                (resourceType === 'saved_chart' ? (
+                (resourceType === 'chart' ? (
                     <UpdateActionModal
                         useActionModalState={[actionState, setActionState]}
                         useUpdate={actions.update}
@@ -172,7 +143,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         }}
                         uuid={actionState.data.uuid}
                         name={actionState.data.name}
-                        isChart={resourceType === 'saved_chart'}
+                        isChart={resourceType === 'chart'}
                     />
                 )}
 
