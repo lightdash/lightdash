@@ -1,5 +1,5 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
@@ -39,6 +39,7 @@ const Home: FC = () => {
             </div>
         );
     }
+
     if (error) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -49,6 +50,7 @@ const Home: FC = () => {
             </div>
         );
     }
+
     if (!project.data || !onboarding.data) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -70,7 +72,6 @@ const Home: FC = () => {
                     />
                 ) : (
                     <LandingPanel
-                        hasSavedChart={!!savedChartStatus.data}
                         userName={user.data?.firstName}
                         projectUuid={project.data.projectUuid}
                     />

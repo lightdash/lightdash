@@ -44,6 +44,22 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     return (
         <PageContentWrapper>
             <PageHeader>
@@ -107,8 +123,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     `/projects/${projectUuid}/dashboards/${uuid}/view`
                 }
                 headerAction={
-                    user.data?.ability?.can('manage', 'Dashboard') &&
-                    !isDemo && (
+                    !isDemo &&
+                    userCanManageDashboards && (
                         <AddResourceToSpaceMenu
                             resourceType={AddToSpaceResources.DASHBOARD}
                             onAdd={() =>
@@ -128,11 +144,11 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 headerTitle="Saved charts"
                 resourceList={orderedCharts}
                 resourceIcon="chart"
-                resourceType="saved_chart"
+                resourceType="chart"
                 getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
                     !isDemo &&
-                    user.data?.ability?.can('manage', 'SavedChart') && (
+                    userCanManageCharts && (
                         <AddResourceToSpaceMenu
                             resourceType={AddToSpaceResources.CHART}
                             onAdd={() =>

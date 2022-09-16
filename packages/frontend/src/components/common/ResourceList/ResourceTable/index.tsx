@@ -150,7 +150,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         spaces={spaces}
                         url={getURL(cell.row.original)}
                         setActionState={onChangeAction}
-                        isChart={resourceType === 'saved_chart'}
+                        isChart={resourceType === 'chart'}
                     />
                 ),
                 enableSorting: false,

@@ -89,7 +89,7 @@ const SavedQueries: FC = () => {
 
                 <ResourceList
                     resourceIcon="chart"
-                    resourceType="saved_chart"
+                    resourceType="chart"
                     resourceList={savedQueries || []}
                     showSpaceColumn
                     getURL={({ uuid }) =>
