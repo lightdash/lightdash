@@ -49,7 +49,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             }
         >
             <SpaceListWrapper>
-                {spaces?.map(({ uuid, name, dashboards, queries }) => (
+                {spaces.map(({ uuid, name, dashboards, queries }) => (
                     <SpaceItem
                         key={uuid}
                         projectUuid={projectUuid}
