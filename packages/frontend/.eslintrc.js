@@ -1,6 +1,10 @@
 const restrictedGlobals = require('confusing-browser-globals');
 
 module.exports = {
+    parser: '@typescript-eslint/parser',
+    parserOptions: {
+        project: './tsconfig.json',
+    },
     plugins: [
         '@typescript-eslint',
         'css-modules',
@@ -22,11 +26,7 @@ module.exports = {
         'airbnb-typescript',
         'prettier',
     ],
-    parser: '@typescript-eslint/parser',
-    parserOptions: {
-        project: './tsconfig.json',
-        createDefaultProgram: true,
-    },
+
     settings: {
         react: {
             version: 'detect',

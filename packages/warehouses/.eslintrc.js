@@ -1,4 +1,8 @@
 module.exports = {
+    parser: '@typescript-eslint/parser',
+    parserOptions: {
+        project: './tsconfig.json',
+    },
     extends: [
         'eslint:recommended',
         'airbnb-base',
@@ -7,9 +11,6 @@ module.exports = {
         'plugin:json/recommended',
     ],
     plugins: ['@typescript-eslint'],
-    parserOptions: {
-        project: './tsconfig.json',
-    },
     rules: {
         'max-classes-per-file': 'off',
         '@typescript-eslint/no-unused-vars': 'off',

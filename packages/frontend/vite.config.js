@@ -1,26 +1,10 @@
-// vite.config.js
 import react from '@vitejs/plugin-react';
 import { defineConfig, splitVendorChunkPlugin } from 'vite';
 import svgr from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-    // TODO:
-    // configure ESLINT
-    // configure browserlist
-    // https://v2.vitejs.dev/guide/build.html#browser-compatibility
-    //"browserslist": {
-    //     "production": [
-    //         ">0.2%",
-    //         "not dead",
-    //         "not op_mini all"
-    //     ],
-    //     "development": [
-    //         "last 1 chrome version",
-    //         "last 1 firefox version",
-    //         "last 1 safari version"
-    //     ]
-    // },
+    // TODO: add ESLINT plugin
 
     plugins: [react(), svgr(), tsconfigPaths(), splitVendorChunkPlugin()],
     css: {
