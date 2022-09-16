@@ -20,3 +20,65 @@ Then `cmd` + `click` to open the preview link from your terminal. Once you're in
 When you create developer previews, Lightdash will use the same warehouse connection settings you have in your 
 `profiles.yml` file for your current dbt project. This can be a problem if you're using a local database that your 
 laptop can reach but your Lightdash instance cannot.
+
+
+## How to set up developer previews on your pull requests
+
+If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to create new dynamic `preview` projects automatically 
+when a new `pull request` is created, and it will automatically delete the `preview` project when the `pull request` is closed or merged. 
+
+## First add the credentials to Github secrets
+
+We are going to add some secrets and config to GitHub actions, 
+but you don't want those to be public , so the best way to do this is to add them as secrets on Github
+
+Go to your repo, click on `Settings` , on the left sidebar, click on `Secrets` under `Security`. 
+Now click on the `New repository secret`
+
+![Github secrets page](./assets/github-secrets.png)
+
+We need the following credentials, you can find them on the app, 
+or in your `~/.config/lightdash/config.yaml` file on your machine if you have used the Lightdash CLI already.
+
+- `LIGHTDASH_API_KEY`: Your personal access token on Lightdash. [See these instructions](https://docs.lightdash.com/guides/cli/cli-authentication#:~:text=First%2C%20you%27ll%20need%20to%20create%20a%20new%20personal%20access%20token%20in%20the%20UI%20by%20going%20to%20Settings%20%3E%20Personal%20Access%20Tokens.%20You%20can%27t%20use%20an%20existing%20personal%20access%20token!%20You%20have%20to%20create%20a%20new%20one%20just%20for%20yourself.) for creating a personal access token in the app.
+- `LIGHTDASH_PROJECT`: The UUID for your project. For example, if your URL looks like `https://eu1.lightdash.cloud/projects/3538ab33-dc90-aabb-bc00-e50bba3a5f69/tables`, then `3538ab33-dc90-45f0-aabb-e50bba3a5f69` is your `LIGHTDASH_PROJECT`  
+- `LIGHTDASH_URL`: (like https://eu1.lightdash.cloud or https://app.lightdash.cloud)
+- `DBT_PROFILES`: Copy your full profiles.yml file into this secret, like:
+
+```
+jaffle_shop:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: abcd
+      user: test
+      password: ****
+      role: SYSADMIN
+      database: database
+      warehouse: warehouse
+      schema: jaffle_shop
+```
+
+
+## Create start-preview.yml and stop-preview.yml workflows in Github
+
+Go to your repo, click on `Actions` menu, and click on `Configure`
+
+![Github actions page](./assets/github-actions.png)
+
+Now copy [this start-preview.yml file](https://github.com/lightdash/cli-actions/blob/main/start-preview.yml) from our [cli-actions](https://github.com/lightdash/cli-actions) repo 
+
+And save by clicking on `Start commit`
+
+Do the same with [this stop-preview.yml file](https://github.com/lightdash/cli-actions/blob/main/stop-preview.yml).
+
+## You're done 
+
+Everytime you create a new `pull request` , a new `preview` project with your `branch` name will be created on your organization.
+Everytime you make a change to that branch, the preview environment will get updated. 
+Once you close or merge your `pull request`, the `preview` project will get deleted. 
+
+You can see the log on `Github actions` page
+
+![Github actions stop preview](./assets/github-actions-stop.png)
