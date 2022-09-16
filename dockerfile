@@ -27,7 +27,7 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-redshift==1.2.0" \
     "dbt-snowflake==1.2.0" \
     "dbt-bigquery==1.2.0" \
-    "dbt-databricks==1.1.1"
+    "dbt-databricks==1.2.0"
 ENV PATH $PATH:/usr/local/venv/bin
 
 RUN wget \
