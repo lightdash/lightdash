@@ -143,6 +143,24 @@ type CliCreateError = BaseTrack & {
         error: string;
     };
 };
+
+type CliStartStopPreview = BaseTrack & {
+    event:
+        | 'start_preview.update'
+        | 'start_preview.create'
+        | 'stop_preview.delete'
+        | 'stop_preview.missing';
+    properties: {
+        projectId: string;
+        name: string;
+    };
+};
+type CliStopPreviewMissing = BaseTrack & {
+    event: 'stop_preview.missing';
+    properties: {
+        name: string;
+    };
+};
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -158,7 +176,9 @@ type Track =
     | CliDeployTriggered
     | CliCreateStarted
     | CliCreateCompleted
-    | CliCreateError;
+    | CliCreateError
+    | CliStartStopPreview
+    | CliStopPreviewMissing;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
