@@ -1,5 +1,5 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -63,6 +63,13 @@ const SavedDashboards = () => {
         );
     }
 
+    const handleCreateDashboard = () => {
+        createDashboard({
+            name: DEFAULT_DASHBOARD_NAME,
+            tiles: [],
+        });
+    };
+
     return (
         <Page>
             <PageContentWrapper>
@@ -94,26 +101,27 @@ const SavedDashboards = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageDashboards && !isDemo && (
-                        <Button
-                            text="Create dashboard"
-                            icon="plus"
-                            loading={isCreatingDashboard}
-                            onClick={() =>
-                                createDashboard({
-                                    name: DEFAULT_DASHBOARD_NAME,
-                                    tiles: [],
-                                })
-                            }
-                            disabled={hasNoSpaces}
-                            title={
-                                hasNoSpaces
-                                    ? 'First you must create a space for this dashboard'
-                                    : ''
-                            }
-                            intent="primary"
-                        />
-                    )}
+                    {userCanManageDashboards &&
+                        !isDemo &&
+                        (dashboards.length > 0 || hasNoSpaces) && (
+                            <Tooltip2
+                                content={
+                                    hasNoSpaces
+                                        ? 'First you must create a space for this dashboard'
+                                        : undefined
+                                }
+                                interactionKind="hover"
+                            >
+                                <Button
+                                    text="Create dashboard"
+                                    icon="plus"
+                                    loading={isCreatingDashboard}
+                                    onClick={handleCreateDashboard}
+                                    disabled={hasNoSpaces}
+                                    intent="primary"
+                                />
+                            </Tooltip2>
+                        )}
                 </PageHeader>
 
                 <ResourceList
@@ -121,6 +129,13 @@ const SavedDashboards = () => {
                     resourceIcon="control"
                     resourceList={dashboards}
                     showSpaceColumn
+                    onClickCTA={
+                        isDemo
+                            ? undefined
+                            : hasNoSpaces
+                            ? undefined
+                            : handleCreateDashboard
+                    }
                     getURL={({ uuid }) =>
                         `/projects/${projectUuid}/dashboards/${uuid}/view`
                     }

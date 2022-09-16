@@ -44,6 +44,10 @@ const SavedQueries: FC = () => {
         );
     }
 
+    const handleCreateChart = () => {
+        history.push(`/projects/${projectUuid}/tables`);
+    };
+
     return (
         <Page>
             <PageContentWrapper>
@@ -75,23 +79,24 @@ const SavedQueries: FC = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageCharts && !isDemo && (
-                        <Button
-                            text="Create chart"
-                            icon="plus"
-                            onClick={() =>
-                                history.push(`/projects/${projectUuid}/tables`)
-                            }
-                            intent="primary"
-                        />
-                    )}
+                    {userCanManageCharts &&
+                        !isDemo &&
+                        savedQueries.length > 0 && (
+                            <Button
+                                text="Create chart"
+                                icon="plus"
+                                intent="primary"
+                                onClick={handleCreateChart}
+                            />
+                        )}
                 </PageHeader>
 
                 <ResourceList
                     resourceIcon="chart"
                     resourceType="chart"
-                    resourceList={savedQueries || []}
+                    resourceList={savedQueries}
                     showSpaceColumn
+                    onClickCTA={isDemo ? undefined : handleCreateChart}
                     getURL={({ uuid }) =>
                         `/projects/${projectUuid}/saved/${uuid}`
                     }

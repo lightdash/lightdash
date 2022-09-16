@@ -41,6 +41,7 @@ export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
         enableSorting?: boolean;
         showCount?: boolean;
         getURL: (data: T) => string;
+        onClickCTA?: () => void;
     };
 
 const ResourceList: React.FC<ResourceListProps> = ({
@@ -53,6 +54,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     enableSorting = true,
     showCount = true,
     getURL,
+    onClickCTA,
 }) => {
     const [actionState, setActionState] = useState<ActionStateWithData>({
         actionType: ActionTypeModal.CLOSE,
@@ -102,6 +104,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         resourceIcon={resourceIcon}
                         resourceType={resourceType}
                         headerAction={headerAction}
+                        onClickCTA={onClickCTA}
                     />
                 ) : (
                     <ResourceTable
