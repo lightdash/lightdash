@@ -1,11 +1,11 @@
 import {
     Button,
     ButtonGroup,
-    Callout,
     Colors,
     FormGroup,
     Switch,
 } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
 type CustomAxisGroup = {
@@ -60,8 +60,8 @@ export const AxisGroup = styled.div<CustomAxisGroup>`
     `}
 `;
 
-export const GroupInfoCallout = styled(Callout)`
-    margin-top: 5px;
+export const BlockTooltip = styled(Tooltip2)`
+    display: block !important;
 `;
 
 export const AxisTitleWrapper = styled.div`

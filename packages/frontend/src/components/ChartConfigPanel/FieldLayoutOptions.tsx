@@ -4,7 +4,6 @@ import {
     Field,
     getItemId,
     isDimension,
-    isSeriesWithMixedChartTypes,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -16,9 +15,9 @@ import {
     AxisGroup,
     AxisTitle,
     AxisTitleWrapper,
+    BlockTooltip,
     DeleteFieldButton,
     GridLabel,
-    GroupInfoCallout,
     StackButton,
     StackingWrapper,
 } from './ChartConfigPanel.styles';
@@ -43,14 +42,11 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         pivotDimensions,
         cartesianConfig,
         setPivotDimensions,
+        resultsData,
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
 
     const cartesianType = cartesianConfig.dirtyChartType;
-    const isChartTypeTheSameForAllSeries: boolean =
-        !isSeriesWithMixedChartTypes(
-            cartesianConfig.dirtyEchartsConfig?.series,
-        );
 
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
@@ -86,6 +82,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const availableDimensions = useMemo(() => {
         return items.filter((item) => isDimension(item));
     }, [items]);
+
+    const chartInvolvesMetrics = resultsData
+        ? resultsData.metricQuery.metrics.length > 0
+        : false;
 
     return (
         <>
@@ -157,31 +157,33 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Button>
                 )}
             </AxisGroup>
-            <AxisGroup disabled>
-                <AxisTitle>Group</AxisTitle>
-                <AxisFieldDropdown>
-                    <FieldAutoComplete
-                        fields={availableDimensions}
-                        placeholder="Select a field to group by"
-                        activeField={groupSelectedField}
-                        onChange={(item) => {
-                            setPivotDimensions([getItemId(item)]);
-                        }}
-                    />
-                    {groupSelectedField && (
-                        <DeleteFieldButton
-                            minimal
-                            icon="cross"
-                            onClick={() => {
-                                setPivotDimensions([]);
+            <BlockTooltip
+                content="You need at least one metric in your chart to add a group"
+                disabled={chartInvolvesMetrics}
+            >
+                <AxisGroup disabled={!chartInvolvesMetrics}>
+                    <AxisTitle>Group</AxisTitle>
+                    <AxisFieldDropdown>
+                        <FieldAutoComplete
+                            fields={availableDimensions}
+                            placeholder="Select a field to group by"
+                            activeField={groupSelectedField}
+                            onChange={(item) => {
+                                setPivotDimensions([getItemId(item)]);
                             }}
                         />
-                    )}
-                </AxisFieldDropdown>
-            </AxisGroup>
-            <GroupInfoCallout icon="help">
-                You need at least one metric in your chart to add a group
-            </GroupInfoCallout>
+                        {groupSelectedField && (
+                            <DeleteFieldButton
+                                minimal
+                                icon="cross"
+                                onClick={() => {
+                                    setPivotDimensions([]);
+                                }}
+                            />
+                        )}
+                    </AxisFieldDropdown>
+                </AxisGroup>
+            </BlockTooltip>
             {pivotDimension && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>
