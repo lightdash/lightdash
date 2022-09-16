@@ -70,17 +70,17 @@ const ResultsCard: FC = memo(() => {
 
                     <H5>Results</H5>
 
-                    {isEditMode && resultsIsOpen && tableName && (
+                    {tableName && (
                         <LimitButton
+                            isEditMode={isEditMode}
                             limit={limit}
                             onLimitChange={setRowLimit}
                         />
                     )}
 
-                    {isEditMode &&
-                        resultsIsOpen &&
-                        tableName &&
-                        sorts.length > 0 && <SortButton sorts={sorts} />}
+                    {tableName && sorts.length > 0 && (
+                        <SortButton isEditMode={isEditMode} sorts={sorts} />
+                    )}
                 </CardHeaderLeftContent>
 
                 {resultsIsOpen && tableName && (

@@ -1,4 +1,4 @@
-import { Button, Divider, Menu, Position } from '@blueprintjs/core';
+import { Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
@@ -7,29 +7,17 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
-import styled from 'styled-components';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import {
-    getSortDirectionOrder,
-    getSortLabel,
-    SortDirection,
-} from '../../../utils/sortUtils';
 import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../TableCalculationModels';
-
-const BolderLabel = styled.span`
-    font-weight: 600;
-`;
-
-const FlatButton = styled(Button)`
-    min-height: 16px !important;
-`;
+import { BolderLabel, FlatButton } from './ColumnHeaderContextMenu.styles';
+import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
 interface ContextMenuProps extends HeaderProps {
     onToggleCalculationEditModal: (value: boolean) => void;
@@ -46,27 +34,14 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
     const meta = header.column.columnDef.meta;
     const item = meta?.item;
+    const sort = meta?.sort?.sort;
 
     const removeActiveField = useExplorerContext(
         (context) => context.actions.removeActiveField,
     );
-    const addSortField = useExplorerContext(
-        (context) => context.actions.addSortField,
-    );
-    const removeSortField = useExplorerContext(
-        (context) => context.actions.removeSortField,
-    );
 
     if (item && isField(item) && isFilterableField(item)) {
-        const sort = meta.sort?.sort;
-        const hasSort = !!sort;
-        const selectedSortDirection = sort
-            ? sort.descending
-                ? SortDirection.DESC
-                : SortDirection.ASC
-            : undefined;
         const itemFieldId = fieldId(item);
-
         return (
             <Menu>
                 <MenuItem2
@@ -84,31 +59,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 <Divider />
 
-                {getSortDirectionOrder(item).map((sortDirection) => (
-                    <MenuItem2
-                        key={sortDirection}
-                        roleStructure="listoption"
-                        selected={
-                            hasSort && selectedSortDirection === sortDirection
-                        }
-                        text={
-                            <>
-                                Sort{' '}
-                                <BolderLabel>
-                                    {getSortLabel(item, sortDirection)}
-                                </BolderLabel>
-                            </>
-                        }
-                        onClick={() =>
-                            hasSort && selectedSortDirection === sortDirection
-                                ? removeSortField(itemFieldId)
-                                : addSortField(itemFieldId, {
-                                      descending:
-                                          sortDirection === SortDirection.DESC,
-                                  })
-                        }
-                    />
-                ))}
+                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                 <Divider />
 
@@ -135,7 +86,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 />
             </Menu>
         );
-    } else if (meta?.item && !isField(meta.item)) {
+    } else if (item && !isField(item)) {
         return (
             <Menu>
                 <MenuItem2
@@ -149,6 +100,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         onToggleCalculationEditModal(true);
                     }}
                 />
+
+                <Divider />
+
+                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                 <Divider />
 

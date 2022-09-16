@@ -180,7 +180,10 @@ const FiltersCard: FC = memo(() => {
                         interactionKind="hover"
                         placement={'bottom-start'}
                     >
-                        <Tag>{totalActiveFilters} active filters</Tag>
+                        <Tag large round minimal>
+                            {totalActiveFilters} active filter
+                            {totalActiveFilters === 1 ? '' : 's'}
+                        </Tag>
                     </Tooltip2>
                 ) : null}
             </CardHeader>

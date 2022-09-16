@@ -3,18 +3,20 @@ import {
     CartesianChart,
     CartesianSeriesType,
     ChartType,
-    DimensionType,
     EchartsGrid,
     EchartsLegend,
     Explore,
-    getDimensions,
-    getItemId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
     Series,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    getExpectedSeriesMap,
+    mergeExistingAndExpectedSeries,
+    sortDimensions,
+} from './utils';
 
 type Args = {
     chartType: ChartType;
@@ -26,53 +28,6 @@ type Args = {
     >;
     columnOrder: string[];
     explore: Explore | undefined;
-};
-
-export const sortDimensions = (
-    dimensionIds: string[],
-    explore: Explore | undefined,
-    columnOrder: string[],
-) => {
-    if (!explore) return dimensionIds;
-
-    if (dimensionIds.length <= 1) return dimensionIds;
-
-    const dimensions = getDimensions(explore);
-
-    const dateDimensions = dimensions.filter(
-        (dimension) =>
-            dimensionIds.includes(getItemId(dimension)) &&
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                dimension.type,
-            ),
-    );
-    switch (dateDimensions.length) {
-        case 0:
-            return dimensionIds; // No dates, we return the same order
-        case 1: // Only 1 date, we return this date first
-            const dateDimensionId = getItemId(dateDimensions[0]);
-            return [
-                dateDimensionId,
-                ...dimensionIds.filter(
-                    (dimensionId) => dimensionId !== dateDimensionId,
-                ),
-            ];
-        default:
-            // 2 or more dates, we return first the date further left in the results table
-            const sortedDateDimensions = dateDimensions.sort(
-                (a, b) =>
-                    columnOrder.indexOf(getItemId(a)) -
-                    columnOrder.indexOf(getItemId(b)),
-            );
-            const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
-            return [
-                ...sortedDateDimensionIds,
-                ...dimensionIds.filter(
-                    (dimensionId) =>
-                        !sortedDateDimensionIds.includes(dimensionId),
-                ),
-            ];
-    }
 };
 
 const useCartesianChartConfig = ({
@@ -292,6 +247,19 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+
+    const updateSeries = useCallback((series: Series[]) => {
+        setDirtyEchartsConfig((prev) => {
+            if (prev) {
+                return {
+                    ...prev,
+                    series,
+                };
+            }
+            return prev;
+        });
+    }, []);
+
     const setStacking = useCallback(
         (stack: boolean) => {
             const yFields = dirtyLayout?.yField || [];
@@ -490,105 +458,23 @@ const useCartesianChartConfig = ({
                     defaultCartesianType === CartesianSeriesType.LINE
                         ? prev?.series?.[0]?.areaStyle
                         : undefined;
-                let expectedSeriesMap: Record<string, Series>;
-                if (pivotKey) {
-                    const uniquePivotValues: string[] = Array.from(
-                        new Set(
-                            resultsData?.rows.map(
-                                (row) => row[pivotKey].value.raw,
-                            ),
-                        ),
-                    );
-                    expectedSeriesMap = (dirtyLayout.yField || []).reduce<
-                        Record<string, Series>
-                    >((sum, yField) => {
-                        if (availableDimensions.includes(yField)) {
-                            const series = {
-                                encode: {
-                                    xRef: { field: dirtyLayout.xField },
-                                    yRef: {
-                                        field: yField,
-                                    },
-                                },
-                                type: defaultCartesianType,
-                                areaStyle: defaultAreaStyle,
-                            };
-                            return { ...sum, [getSeriesId(series)]: series };
-                        }
-                        const stack =
-                            defaultAreaStyle || isStacked ? yField : undefined;
-                        const groupSeries = uniquePivotValues.reduce<
-                            Record<string, Series>
-                        >((acc, rawValue) => {
-                            const pivotSeries: Series = {
-                                type: defaultCartesianType,
-                                encode: {
-                                    xRef: { field: dirtyLayout.xField },
-                                    yRef: {
-                                        field: yField,
-                                        pivotValues: [
-                                            {
-                                                field: pivotKey,
-                                                value: rawValue,
-                                            },
-                                        ],
-                                    },
-                                },
-                                areaStyle: defaultAreaStyle,
-                                stack,
-                            };
-                            return {
-                                ...acc,
-                                [getSeriesId(pivotSeries)]: pivotSeries,
-                            };
-                        }, {});
-
-                        return { ...sum, ...groupSeries };
-                    }, {});
-                } else {
-                    expectedSeriesMap = (dirtyLayout.yField || []).reduce<
-                        Record<string, Series>
-                    >((sum, yField) => {
-                        const series = {
-                            encode: {
-                                xRef: { field: dirtyLayout.xField },
-                                yRef: {
-                                    field: yField,
-                                },
-                            },
-                            type: defaultCartesianType,
-                            areaStyle: defaultAreaStyle,
-                            stack:
-                                isStacked || !!defaultAreaStyle
-                                    ? 'stack-all-series'
-                                    : undefined,
-                        };
-                        return { ...sum, [getSeriesId(series)]: series };
-                    }, {});
-                }
-                const existingValidSeriesMap =
-                    prev?.series?.reduce<Record<string, Series>>(
-                        (sum, series) => {
-                            if (
-                                !Object.keys(expectedSeriesMap).includes(
-                                    getSeriesId(series),
-                                )
-                            ) {
-                                return { ...sum };
-                            }
-                            return {
-                                ...sum,
-                                [getSeriesId(series)]: series,
-                            };
-                        },
-                        {},
-                    ) || {};
+                let expectedSeriesMap = getExpectedSeriesMap({
+                    defaultAreaStyle,
+                    defaultCartesianType,
+                    availableDimensions,
+                    isStacked,
+                    pivotKey,
+                    resultsData,
+                    xField: dirtyLayout.xField,
+                    yFields: dirtyLayout.yField,
+                });
+                let newSeries = mergeExistingAndExpectedSeries({
+                    expectedSeriesMap,
+                    existingSeries: prev?.series || [],
+                });
                 return {
                     ...prev,
-                    series: Object.values({
-                        ...expectedSeriesMap,
-                        ...existingValidSeriesMap,
-                    }),
+                    series: newSeries,
                 };
             });
         }
@@ -643,6 +529,7 @@ const useCartesianChartConfig = ({
         setShowGridX,
         setShowGridY,
         setInverseX,
+        updateSeries,
     };
 };
 
