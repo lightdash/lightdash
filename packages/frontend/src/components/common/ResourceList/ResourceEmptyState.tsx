@@ -7,11 +7,9 @@ import {
     EmptyStateWrapper,
 } from './ResourceEmptyState.styles';
 
-type Props = Pick<
-    ResourceListProps,
-    'headerAction' | 'resourceIcon' | 'onClickCTA'
-> & {
+type Props = Pick<ResourceListProps, 'headerAction' | 'onClickCTA'> & {
     resourceType: ResourceListProps['resourceType'] | 'space';
+    resourceIcon?: ResourceListProps['resourceIcon'];
 };
 
 const ResourceEmptyState: FC<Props> = ({
@@ -24,7 +22,9 @@ const ResourceEmptyState: FC<Props> = ({
             <NonIdealState
                 description={
                     <EmptyStateWrapper>
-                        <EmptyStateIcon icon={resourceIcon} size={40} />
+                        {resourceIcon && (
+                            <EmptyStateIcon icon={resourceIcon} size={40} />
+                        )}
 
                         <EmptyStateText>
                             No {resourceType}s added yet

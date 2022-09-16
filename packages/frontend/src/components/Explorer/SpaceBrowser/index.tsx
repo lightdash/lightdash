@@ -5,6 +5,7 @@ import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
+import ResourceEmptyState from '../../common/ResourceList/ResourceEmptyState';
 import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
 import { CreateSpaceModal } from './CreateSpaceModal';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
@@ -19,6 +20,10 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: spaces = [], isLoading } = useSpaces(projectUuid);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const isDemo = health.data?.mode === LightdashMode.DEMO;
+
+    const handleCreateSpace = () => {
+        setIsCreateModalOpen(true);
+    };
 
     return (
         <ResourceListWrapper
@@ -45,9 +50,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             intent="primary"
                             icon="plus"
                             loading={isLoading}
-                            onClick={() => {
-                                setIsCreateModalOpen(true);
-                            }}
+                            onClick={handleCreateSpace}
                         >
                             Create new
                         </Button>
@@ -55,20 +58,27 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 ) : null
             }
         >
-            <SpaceListWrapper>
-                {spaces.map(({ uuid, name, dashboards, queries }) => (
-                    <SpaceItem
-                        key={uuid}
-                        projectUuid={projectUuid}
-                        uuid={uuid}
-                        name={name}
-                        dashboardsCount={dashboards.length}
-                        queriesCount={queries.length}
-                        onRename={() => setUpdateSpaceUuid(uuid)}
-                        onDelete={() => setDeleteSpaceUuid(uuid)}
-                    />
-                ))}
-            </SpaceListWrapper>
+            {spaces.length === 0 ? (
+                <ResourceEmptyState
+                    resourceType="space"
+                    onClickCTA={handleCreateSpace}
+                />
+            ) : (
+                <SpaceListWrapper>
+                    {spaces.map(({ uuid, name, dashboards, queries }) => (
+                        <SpaceItem
+                            key={uuid}
+                            projectUuid={projectUuid}
+                            uuid={uuid}
+                            name={name}
+                            dashboardsCount={dashboards.length}
+                            queriesCount={queries.length}
+                            onRename={() => setUpdateSpaceUuid(uuid)}
+                            onDelete={() => setDeleteSpaceUuid(uuid)}
+                        />
+                    ))}
+                </SpaceListWrapper>
+            )}
 
             <CreateSpaceModal
                 isOpen={isCreateModalOpen}
