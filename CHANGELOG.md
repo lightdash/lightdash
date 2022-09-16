@@ -1,3 +1,10 @@
+# [0.257.0](https://github.com/lightdash/lightdash/compare/0.256.2...0.257.0) (2022-09-16)
+
+
+### Features
+
+* upgrade dbt to 1.2.0 ([#2919](https://github.com/lightdash/lightdash/issues/2919)) ([186c5f6](https://github.com/lightdash/lightdash/commit/186c5f67bb317d6bcc9b337adcf9ca3520edd1d6))
+
 ## [0.256.2](https://github.com/lightdash/lightdash/compare/0.256.1...0.256.2) (2022-09-16)
 
 
