@@ -25,6 +25,7 @@ interface SortItemProps {
     isFirstItem: boolean;
     isOnlyItem: boolean;
     isDragging: boolean;
+    isEditMode: boolean;
     sort: SortField;
     column?: TableColumn;
     draggableProps: DraggableProvidedDraggableProps;
@@ -41,6 +42,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
             isFirstItem,
             isOnlyItem,
             isDragging,
+            isEditMode,
             sort,
             column,
             draggableProps,
@@ -66,7 +68,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                 {...draggableProps}
                 $isDragging={isDragging}
             >
-                {!isOnlyItem && (
+                {isEditMode && !isOnlyItem && (
                     <>
                         <Icon
                             tagName="div"
@@ -93,18 +95,23 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         <Button
                             key={direction}
                             small
+                            disabled={!isEditMode}
+                            active={direction === selectedSortDirection}
                             intent={
                                 selectedSortDirection === direction
                                     ? 'primary'
                                     : 'none'
                             }
                             onClick={() =>
-                                selectedSortDirection === direction
-                                    ? undefined
-                                    : onAddSortField({
-                                          descending:
-                                              direction === SortDirection.DESC,
-                                      })
+                                isEditMode
+                                    ? selectedSortDirection === direction
+                                        ? undefined
+                                        : onAddSortField({
+                                              descending:
+                                                  direction ===
+                                                  SortDirection.DESC,
+                                          })
+                                    : undefined
                             }
                         >
                             {getSortLabel(item, direction)}
@@ -114,14 +121,16 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
 
                 <Spacer $width={6} />
 
-                <Button
-                    minimal
-                    small
-                    icon="small-cross"
-                    onClick={() => {
-                        onRemoveSortField();
-                    }}
-                />
+                {isEditMode && (
+                    <Button
+                        minimal
+                        small
+                        icon="small-cross"
+                        onClick={() => {
+                            onRemoveSortField();
+                        }}
+                    />
+                )}
             </SortItemContainer>
         );
     },

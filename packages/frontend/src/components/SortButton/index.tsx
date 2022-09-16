@@ -1,4 +1,4 @@
-import { Tag } from '@blueprintjs/core';
+import { Position, Tag } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { SortField } from '@lightdash/common';
 import { FC } from 'react';
@@ -21,6 +21,7 @@ import SortItem from './SortItem';
 
 type Props = {
     sorts: SortField[];
+    isEditMode: boolean;
 };
 
 type DraggablePortalHandlerProps = {
@@ -35,7 +36,7 @@ const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
     return <>{children}</>;
 };
 
-const SortButton: FC<Props> = ({ sorts }) => {
+const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     const columns = useColumns();
 
     const addSortField = useExplorerContext(
@@ -72,6 +73,7 @@ const SortButton: FC<Props> = ({ sorts }) => {
                                 >
                                     {sorts.map((sort, index) => (
                                         <Draggable
+                                            isDragDisabled={!isEditMode}
                                             key={sort.fieldId}
                                             draggableId={sort.fieldId}
                                             index={index}
@@ -88,6 +90,7 @@ const SortButton: FC<Props> = ({ sorts }) => {
                                                     snapshot={snapshot}
                                                 >
                                                     <SortItem
+                                                        isEditMode={isEditMode}
                                                         ref={innerRef}
                                                         isFirstItem={
                                                             index === 0
@@ -135,17 +138,17 @@ const SortButton: FC<Props> = ({ sorts }) => {
                         </Droppable>
                     </DragDropContext>
                 }
-                interactionKind="click"
+                interactionKind={isEditMode ? 'click' : 'hover'}
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                position="bottom"
+                position={Position.BOTTOM}
             >
                 <Tag
                     large
                     round
                     minimal
-                    interactive
                     intent="primary"
-                    rightIcon="caret-down"
+                    interactive={isEditMode}
+                    rightIcon={isEditMode ? 'caret-down' : null}
                 >
                     Sorted by{' '}
                     {sorts.length === 1 ? '1 field' : `${sorts.length} fields`}

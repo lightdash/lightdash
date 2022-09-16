@@ -14,6 +14,11 @@ export const StyledButtonGroup = styled(ButtonGroup)`
         min-width: 60px !important;
         font-size: 12px;
     }
+
+    button:disabled.bp4-intent-primary {
+        background-color: ${Colors.BLUE1} !important;
+        color: ${Colors.WHITE} !important;
+    }
 `;
 
 export const DroppableContainer = styled.div`
