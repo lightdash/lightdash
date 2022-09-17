@@ -8,10 +8,6 @@ import {
 import { Tooltip2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
-type CustomAxisGroup = {
-    disabled?: boolean;
-};
-
 export const InputWrapper = styled(FormGroup)`
     margin: 1.357em 0 0;
     & label.bp4-label {
@@ -49,15 +45,8 @@ export const GridFieldLabel = styled.span`
     }
 `;
 
-export const AxisGroup = styled.div<CustomAxisGroup>`
+export const AxisGroup = styled.div`
     margin-top: 1.286em;
-
-    ${({ disabled }) =>
-        disabled &&
-        `
-        opacity: 0.4;
-        pointer-events: none;
-    `}
 `;
 
 export const BlockTooltip = styled(Tooltip2)`

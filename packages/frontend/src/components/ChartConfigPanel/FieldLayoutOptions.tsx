@@ -3,6 +3,7 @@ import {
     CartesianSeriesType,
     Field,
     getItemId,
+    getMetrics,
     isDimension,
     TableCalculation,
 } from '@lightdash/common';
@@ -42,7 +43,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         pivotDimensions,
         cartesianConfig,
         setPivotDimensions,
-        resultsData,
+        explore,
     } = useVisualizationContext();
     const pivotDimension = pivotDimensions?.[0];
 
@@ -83,9 +84,20 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         return items.filter((item) => isDimension(item));
     }, [items]);
 
-    const chartInvolvesMetrics = resultsData
-        ? resultsData.metricQuery.metrics.length > 0
-        : false;
+    const chartInvolvesMetrics = useMemo(() => {
+        if (!validCartesianConfig || !explore) return false;
+
+        const {
+            layout: { xField, yField },
+        } = validCartesianConfig;
+
+        if (!xField || !yField) return false;
+
+        const chartAxes = [xField, ...yField];
+        return getMetrics(explore).some((metric) =>
+            chartAxes.includes(`${metric.table}_${metric.name}`),
+        );
+    }, [validCartesianConfig, explore]);
 
     return (
         <>
@@ -161,16 +173,21 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                 content="You need at least one metric in your chart to add a group"
                 disabled={chartInvolvesMetrics}
             >
-                <AxisGroup disabled={!chartInvolvesMetrics}>
+                <AxisGroup>
                     <AxisTitle>Group</AxisTitle>
                     <AxisFieldDropdown>
                         <FieldAutoComplete
                             fields={availableDimensions}
                             placeholder="Select a field to group by"
-                            activeField={groupSelectedField}
+                            activeField={
+                                chartInvolvesMetrics
+                                    ? groupSelectedField
+                                    : undefined
+                            }
                             onChange={(item) => {
                                 setPivotDimensions([getItemId(item)]);
                             }}
+                            disabled={!chartInvolvesMetrics}
                         />
                         {groupSelectedField && (
                             <DeleteFieldButton
