@@ -34,7 +34,6 @@ describe('Dashboard List', () => {
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
         // open actions menu
-        cy.contains('tr', 'Untitled dashboard').find('button').wait(1000); // TODO: hack for react-table rerenders
         cy.contains('tr', 'Untitled dashboard').find('button').click();
         // click on rename
         cy.findByRole('button', { name: 'Rename' }).click();
@@ -51,7 +50,6 @@ describe('Dashboard List', () => {
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
         // open actions menu
-        cy.contains('tr', 'e2e dashboard').find('button').wait(1000); // TODO: hack for react-table rerenders
         cy.contains('tr', 'e2e dashboard').find('button').click();
         // click on delete
         cy.findByRole('button', { name: 'Delete' }).click();
