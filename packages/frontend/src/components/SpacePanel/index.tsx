@@ -119,6 +119,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 resourceIcon="control"
                 resourceType="dashboard"
                 resourceList={savedDashboards}
+                showSpaceColumn={false}
                 getURL={({ uuid }) =>
                     `/projects/${projectUuid}/dashboards/${uuid}/view`
                 }
@@ -145,6 +146,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 resourceList={orderedCharts}
                 resourceIcon="chart"
                 resourceType="chart"
+                showSpaceColumn={false}
                 getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
                     !isDemo &&
