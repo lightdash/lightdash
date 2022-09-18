@@ -45,6 +45,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         setPivotDimensions,
         explore,
     } = useVisualizationContext();
+
     const pivotDimension = pivotDimensions?.[0];
 
     const cartesianType = cartesianConfig.dirtyChartType;
@@ -95,7 +96,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
 
         const chartAxes = [xField, ...yField];
         return getMetrics(explore).some((metric) =>
-            chartAxes.includes(`${metric.table}_${metric.name}`),
+            chartAxes.includes(getItemId(metric)),
         );
     }, [validCartesianConfig, explore]);
 
