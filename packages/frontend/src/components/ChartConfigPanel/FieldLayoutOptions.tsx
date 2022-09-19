@@ -43,7 +43,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         pivotDimensions,
         cartesianConfig,
         setPivotDimensions,
-        explore,
     } = useVisualizationContext();
 
     const pivotDimension = pivotDimensions?.[0];
