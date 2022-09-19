@@ -2,8 +2,8 @@ import { Button } from '@blueprintjs/core';
 import {
     CartesianSeriesType,
     Field,
+    FieldType,
     getItemId,
-    getMetrics,
     isDimension,
     TableCalculation,
 } from '@lightdash/common';
@@ -86,7 +86,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     }, [items]);
 
     const chartInvolvesMetrics = useMemo(() => {
-        if (!validCartesianConfig || !explore) return false;
+        if (!validCartesianConfig) return false;
 
         const {
             layout: { xField, yField },
@@ -95,10 +95,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         if (!xField || !yField) return false;
 
         const chartAxes = [xField, ...yField];
-        return getMetrics(explore).some((metric) =>
-            chartAxes.includes(getItemId(metric)),
-        );
-    }, [validCartesianConfig, explore]);
+        return items
+            .filter((item) => (item as Field)?.fieldType === FieldType.METRIC)
+            .some((metric) => chartAxes.includes(getItemId(metric)));
+    }, [validCartesianConfig, items]);
 
     return (
         <>
