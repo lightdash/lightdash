@@ -1,3 +1,10 @@
+# [0.259.0](https://github.com/lightdash/lightdash/compare/0.258.1...0.259.0) (2022-09-20)
+
+
+### Features
+
+* support oauth and service-account-json bigquery authentications via CLI ([#3248](https://github.com/lightdash/lightdash/issues/3248)) ([cfa0862](https://github.com/lightdash/lightdash/commit/cfa086241784e66632142dbaff6288c15fa3ec1f))
+
 ## [0.258.1](https://github.com/lightdash/lightdash/compare/0.258.0...0.258.1) (2022-09-20)
 
 
