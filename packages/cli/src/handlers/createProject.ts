@@ -31,6 +31,10 @@ const askToRememberAnswer = async (): Promise<void> => {
 };
 
 const askPermissionToStoreWarehouseCredentials = async (): Promise<boolean> => {
+    if (process.env.CI === 'true') {
+        return true;
+    }
+
     const config = await getConfig();
     const savedAnswer = config.answers?.permissionToStoreWarehouseCredentials;
     if (!savedAnswer) {
