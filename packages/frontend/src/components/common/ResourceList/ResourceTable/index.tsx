@@ -6,9 +6,11 @@ import { AcceptedResources, ResourceListProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import ResourceActionMenu from '../ResourceActionMenu';
 import ResourceLastEdited from '../ResourceLastEdited';
-import { ResourceLink, ResourceSpaceLink } from '../ResourceList.styles';
 import {
     Flex,
+    NoLinkContainer,
+    ResourceLink,
+    ResourceSpaceLink,
     Spacer,
     StyledTable,
     StyledTBody,
@@ -87,21 +89,31 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 id: 'name',
                 header: 'Name',
                 cell: (row: AcceptedResources) => (
-                    <Flex>
-                        <Icon icon={resourceIcon} color={Colors.BLUE5} />
-                        <Spacer $width={16} />
+                    <>
+                        <ResourceLink
+                            className="full-row-link"
+                            to={getURL(row)}
+                        />
 
-                        <Tooltip2
-                            lazy
-                            disabled={!row.description}
-                            content={row.description}
-                            position={Position.TOP}
-                        >
-                            <ResourceLink to={getURL(row)}>
-                                {row.name}
-                            </ResourceLink>
-                        </Tooltip2>
-                    </Flex>
+                        <NoLinkContainer>
+                            <Flex>
+                                <Icon
+                                    icon={resourceIcon}
+                                    color={Colors.BLUE5}
+                                />
+                                <Spacer $width={16} />
+
+                                <Tooltip2
+                                    lazy
+                                    disabled={!row.description}
+                                    content={row.description}
+                                    position={Position.TOP}
+                                >
+                                    {row.name}
+                                </Tooltip2>
+                            </Flex>
+                        </NoLinkContainer>
+                    </>
                 ),
                 enableSorting: enableSorting && resourceList.length > 1,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
@@ -139,7 +151,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 id: 'updatedAt',
                 header: 'Last Edited',
                 cell: (row: AcceptedResources) => (
-                    <ResourceLastEdited resource={row} />
+                    <NoLinkContainer>
+                        <ResourceLastEdited resource={row} />
+                    </NoLinkContainer>
                 ),
                 enableSorting: enableSorting && resourceList.length > 1,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
