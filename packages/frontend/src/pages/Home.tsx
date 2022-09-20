@@ -7,20 +7,25 @@ import { PageContentWrapper } from '../components/common/Page/Page.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
-import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
+import {
+    useOnboardingStatus,
+    useProjectSavedChartStatus,
+} from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const selectedProjectUuid = params.projectUuid;
+    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
     const { user } = useApp();
 
-    const isLoading = onboarding.isLoading || project.isLoading;
-    const error = onboarding.error || project.error;
+    const isLoading =
+        onboarding.isLoading || project.isLoading || savedChartStatus.isLoading;
+    const error = onboarding.error || project.error || savedChartStatus.error;
 
     useUnmount(() => onboarding.remove());
 
@@ -68,6 +73,7 @@ const Home: FC = () => {
                     />
                 ) : (
                     <LandingPanel
+                        hasSavedChart={!!savedChartStatus.data}
                         userName={user.data?.firstName}
                         projectUuid={project.data.projectUuid}
                     />
