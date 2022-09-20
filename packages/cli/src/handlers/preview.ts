@@ -1,7 +1,6 @@
 import { Project, ProjectType } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
-import PressToContinuePrompt from 'inquirer-press-to-continue';
 import ora from 'ora';
 import path from 'path';
 import {
@@ -18,8 +17,6 @@ import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
-
-inquirer.registerPrompt('press-to-continue', PressToContinuePrompt);
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -98,10 +95,14 @@ export const previewHandler = async (
             projectDir: absoluteProjectPath,
         });
         const manifestFilePath = path.join(context.targetDir, 'manifest.json');
+
+        const pressToContinue = ora(`  Press [ENTER] to continue...`).start();
+
         const watcher = chokidar
             .watch(manifestFilePath)
             .on('change', async () => {
-                process.stdout.write('\r\x1b[K'); // removes last output log (inquirer.prompt)
+                pressToContinue.stop();
+
                 console.error(
                     `${styles.title(
                         '↻',
@@ -110,18 +111,22 @@ export const previewHandler = async (
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                 await deploy({ ...options, projectUuid: project.projectUuid });
-                process.stdout.write('\r\x1b[K'); // removes last output log (inquirer.prompt)
+
                 console.error(`${styles.success('✔')}   Preview updated \n`);
+                pressToContinue.start();
 
                 watcher.add(manifestFilePath);
             });
 
-        await inquirer.prompt({
-            type: 'press-to-continue',
-            name: 'key',
-            anyKey: true,
-            pressToContinueMessage: 'Press any key to shutdown preview',
-        });
+        await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'press-enter',
+                prefix: styles.success('✔'),
+                message: `  Press [ENTER] to shutdown preview...`,
+            },
+        ]);
+        pressToContinue.clear();
     } catch (e) {
         spinner.fail('Error creating developer preview');
         await lightdashApi({
