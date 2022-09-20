@@ -1,3 +1,15 @@
+# [0.258.0](https://github.com/lightdash/lightdash/compare/0.257.1...0.258.0) (2022-09-20)
+
+
+### Bug Fixes
+
+* cli es5 compatible ([#3264](https://github.com/lightdash/lightdash/issues/3264)) ([29e7648](https://github.com/lightdash/lightdash/commit/29e764857439151da5603d104bcdc99a23761310))
+
+
+### Features
+
+* move refresh dbt button to project settings page ([#3260](https://github.com/lightdash/lightdash/issues/3260)) ([6572ba7](https://github.com/lightdash/lightdash/commit/6572ba74b5e29d9371917105481b358d7fc9a710))
+
 ## [0.257.1](https://github.com/lightdash/lightdash/compare/0.257.0...0.257.1) (2022-09-20)
 
 
