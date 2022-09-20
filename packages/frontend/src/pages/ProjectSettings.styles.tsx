@@ -16,6 +16,9 @@ export const UpdateProjectWrapper = styled.div`
 export const UpdateHeaderWrapper = styled.div`
     width: 800px;
     margin: 40px auto 0;
+    justify-content: space-between;
+    align-items: center;
+    display: flex;
 `;
 
 export const Header = styled.div`

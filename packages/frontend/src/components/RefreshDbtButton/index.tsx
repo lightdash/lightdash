@@ -54,7 +54,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         <RefreshDbt
             {...props}
             icon={!isLoading ? 'refresh' : <LoadingSpinner size={15} />}
-            text={!isLoading ? 'Refresh dbt' : 'Refreshing dbt'}
+            text={!isLoading ? 'Manually refresh dbt' : 'Refreshing dbt'}
             onClick={onClick}
         />
     );

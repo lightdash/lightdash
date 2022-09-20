@@ -16,6 +16,7 @@ import RouterMenuItem from '../components/common/RouterMenuItem';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import RefreshDbtButton from '../components/RefreshDbtButton';
 import { useProject } from '../hooks/useProject';
 import {
     ContentContainer,
@@ -111,6 +112,7 @@ const ProjectSettings: FC = () => {
                                 <Title marginBottom>
                                     Edit your project connection
                                 </Title>
+                                <RefreshDbtButton />
                             </UpdateHeaderWrapper>
                             <UpdateProjectConnection
                                 projectUuid={projectUuid}

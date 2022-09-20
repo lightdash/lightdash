@@ -26,8 +26,9 @@ export const MissingTablesInfo = styled(Tooltip2)`
 export const ButtonsWrapper = styled.div`
     height: 60px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: row-reverse;
+    padding-top: 10px;
+
     button {
         margin: 0;
     }
