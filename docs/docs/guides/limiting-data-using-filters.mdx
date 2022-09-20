@@ -1,3 +1,18 @@
+import AddFilter from './assets/add-filter.jpg';
+import AddMoreFiltersDashboard from './assets/add-more-filters-dashboard.jpg';
+import MultipleValuesFilter from './assets/screenshot-multiple-values-filter.jpg';
+import AddingFiltersFromToggle from './assets/adding-filters-from-toggle-1.jpg';
+import AddingFiltersFromSidebar from './assets/add-filter-sidebar.jpg';
+import AddingFiltersResultsTable from './assets/add-filter-results-table.jpg';
+import AddFilterDashboard from './assets/add-filter-dashboard.jpg';
+import NewFiltersDashboard from './assets/new-filters-dashboard.jpg';
+import CrossFilteringDashboard from './assets/cross-filtering-dashboard.jpg';
+import EditDashboard from './assets/edit-dashboard.jpg';
+import SaveDashboard from './assets/save-new-filters-dashboard.jpg';
+import EditRemoveFilters from './assets/edit-or-remove-dashboard-filters.jpg';
+import DashboardFilterApplied from './assets/dashboard-filter-applied.jpg';
+
+
 # Limit the data in your query using Filters
 
 Filters appear at the top of the Explore view or dashboard and allow users to change the data being pulled into your charts.
@@ -14,10 +29,11 @@ Here are some general tips about filters that apply to using them in both the Ex
 
 In the Explore view:
 
-![add-filter](assets/add-filter.png)
+<img src={AddFilter} width="623" height="208" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 
 Or in a dashboard:
-![add more filters](./assets/add-more-filters-dashboard.png)
+<img src={AddMoreFiltersDashboard} width="461" height="125" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### If you add multiple filters, they are joined together using AND
 
@@ -25,13 +41,13 @@ So, the example in the Explore view above would give us compiled SQL that looks 
 
 ```sql
 WHERE (
-  (users.days_since_activated) > 5
-  AND (users.days_since_activated)...
+  (pages.source) = 'lightdash_demo'
+  AND (pages.source)...
 ```
 
 ### If you want to include multiple values in your filter, just hit `enter` between each value entry in your list
 
-![screenshot-multiple-values-filter](assets/screenshot-multiple-values-filter.png)
+<img src={MultipleValuesFilter} width="585" height="198" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 The listed values are separated by an OR statement in the compiled SQL. E.g. the above would give us:
 
@@ -44,7 +60,7 @@ WHERE (
 
 ### To learn about the types of filters we have available, check out the filters reference doc.
 
-Check out our [filters reference doc here](https://docs.lightdash.com/references/filters/) to see a list of all available filters and their uses.
+Check out our [filters reference doc here](../references/filters.md) to see a list of all available filters and their uses.
 
 ## Adding filters in the Explore view
 
@@ -54,7 +70,7 @@ There are a couple of ways that you can add filters in the Explore view.
 
 In the Explores view, you can add filters from within the `Filters` tab. Just click to open the toggle, then click `add filter`.
 
-![adding filters from toggle](./assets/adding-filters-from-toggle-1.png)
+<img src={AddingFiltersFromToggle} width="516" height="251" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Select the field you would like to filter from the drop-down list, then select the filtering options.
 
@@ -62,13 +78,14 @@ Select the field you would like to filter from the drop-down list, then select t
 
 It's easy to add filters directly from the list of fields in the sidebar. Just click on the `options` for a field, then click `add filter`.
 
-![add-filter-sidebar](assets/add-filter-sidebar.png)
+<img src={AddingFiltersFromSidebar} width="493" height="263" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Adding a filter from the results table
 
-Once you have some results in your results table, you can add filters by clicking on the value you want to filter by.
+Once you have some results in your results table, you can add filters by clicking on the three-dot menu of the column you want to filter on, or by clicking on the value you want to filter by.
 
-![add-filter-results-table](assets/add-filter-results-table.png)
+<img src={AddingFiltersResultsTable} width="608" height="553" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 
 ## Adding filters to your dashboard
 
@@ -84,9 +101,12 @@ There are two ways to add temporary filters to your dashboard.
 
 1. Open up your dashboard.
 2. Click `add filter`, then specify the dimension or metric that you want to filter on.
-![add-filter-dashboard](assets/add-filter-dashboard.png)
+
+<img src={AddFilterDashboard} width="449" height="257" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 3. And voilà! Your filters will pop up on the top of your dashboard.
-![new-filters-dashboard](assets/new-filters-dashboard.png)
+
+<img src={NewFiltersDashboard} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### `Cross filtering` your dashboard using values in your tiles
 
@@ -94,9 +114,12 @@ Cross-filtering lets you interact with one chart and apply that interaction as a
 
 1. Clicking on one of the values in the chart.
 2. Selecting the value you want to filter on from the drop-down list.
-![cross-filtering-dashboard](assets/cross-filtering-dashboard.png)
+
+<img src={CrossFilteringDashboard} width="641" height="390" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 3. Now, your filter will pop up on the top of your dashboard.
-![new-filters-dashboard](assets/new-filters-dashboard.png)
+
+<img src={NewFiltersDashboard} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ### Adding saved filters to your dashboard
 
@@ -106,15 +129,24 @@ To add saved filters, you just:
 
 1. Open up your dashboard.
 2. Make sure you're in `edit` mode (if you're not, you should see the option to click `edit` on your dashboard)
-![edit-dashboard](assets/edit-dashboard.png)
+
+<img src={EditDashboard} width="435" height="180" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 3. Click `add filter`, then specify the dimension or metric that you want to filter on.
-![add-filter-dashboard](assets/add-filter-dashboard.png)
+
+<img src={AddFilterDashboard} width="449" height="257" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 4. Your filters will pop up on the top of your dashboard.
-![new-filters-dashboard](assets/new-filters-dashboard.png)
+
+<img src={NewFiltersDashboard} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 5. Once you have all of the filters you want, just hit `save` to save your filter settings.
-![save-new-filters-dashboard](assets/save-new-filters-dashboard.png)
+
+<img src={SaveDashboard} width="459" height="171" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 6. Now, whenever someone opens the dashboard, they'll see your saved filters applied!
-![saved-filters-applied](assets/saved-filters-applied.png)
+
+<img src={NewFiltersDashboard} width="543" height="188" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 :::info
 
@@ -127,7 +159,8 @@ To add saved filters to your dashboard, you must be an `editor` or an `admin` fo
 #### Users can remove and override _saved filters_ on a dashboard while they're viewing it
 
 Users have the option to delete or edit a dashboard's saved filters while they're looking at it. But, unless they're making these changes in `edit` mode and saving them, the original saved filters will be applied for the next user that comes to look at the dashboard.
-![edit-or-remove-dashboard-filters](assets/edit-or-remove-dashboard-filters.png)
+
+<img src={EditRemoveFilters} width="455" height="351" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### You can easily see which dashboard tiles have which filters applied to them
 
@@ -135,7 +168,7 @@ If a tile in a dashboard has a filter applied to it, you'll see the text `dashbo
 
 You can also hover over this to see **_which_** filters have been applied to that tile.
 
-![dashboard-filter-applied](assets/dashboard-filter-applied.png)
+<img src={DashboardFilterApplied} width="490" height="395" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Dashboard filters _override_ the filters applied in the saved chart
 
