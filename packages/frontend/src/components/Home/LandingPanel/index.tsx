@@ -14,9 +14,10 @@ import {
 interface Props {
     userName: string | undefined;
     projectUuid: string;
+    hasSavedChart: boolean;
 }
 
-const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
+const LandingPanel: FC<Props> = ({ userName, projectUuid, hasSavedChart }) => {
     return (
         <LandingPanelWrapper>
             <LandingHeaderWrapper>
@@ -45,7 +46,7 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
 
             <SpaceBrowser projectUuid={projectUuid} />
 
-            <LatestDashboards projectUuid={projectUuid} />
+            {hasSavedChart && <LatestDashboards projectUuid={projectUuid} />}
 
             <LatestSavedCharts projectUuid={projectUuid} />
         </LandingPanelWrapper>
