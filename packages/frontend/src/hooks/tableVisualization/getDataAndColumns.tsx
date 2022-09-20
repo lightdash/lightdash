@@ -12,7 +12,11 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
-import { TableColumn, TableHeader } from '../../components/common/Table/types';
+import {
+    columnHelper,
+    TableColumn,
+    TableHeader,
+} from '../../components/common/Table/types';
 import { getResultColumnTotalsFromItemsMap } from '../useColumnTotals';
 
 type Args = {
@@ -51,46 +55,49 @@ const getDataAndColumns = ({
 
             const headerOverride = getHeader(itemId);
 
-            const column: TableHeader | TableColumn = {
-                id: itemId,
-                header: () => (
-                    <TableHeaderLabelContainer>
-                        {!!headerOverride ? (
-                            <TableHeaderBoldLabel>
-                                {headerOverride}
-                            </TableHeaderBoldLabel>
-                        ) : isField(item) ? (
-                            <>
-                                {showTableNames && (
-                                    <TableHeaderRegularLabel>
-                                        {item.tableLabel} -{' '}
-                                    </TableHeaderRegularLabel>
-                                )}
-
+            const column: TableHeader | TableColumn = columnHelper.accessor(
+                (row) => row[itemId],
+                {
+                    id: itemId,
+                    header: () => (
+                        <TableHeaderLabelContainer>
+                            {!!headerOverride ? (
                                 <TableHeaderBoldLabel>
-                                    {item.label}
+                                    {headerOverride}
                                 </TableHeaderBoldLabel>
-                            </>
-                        ) : (
-                            <TableHeaderBoldLabel>
-                                {item === undefined
-                                    ? 'Undefined'
-                                    : item.displayName ||
-                                      friendlyName(item.name)}
-                            </TableHeaderBoldLabel>
-                        )}
-                    </TableHeaderLabelContainer>
-                ),
-                accessorKey: itemId,
-                cell: (info: any) => info.getValue()?.value.formatted || '-',
-                footer: () =>
-                    totals[itemId]
-                        ? formatItemValue(item, totals[itemId])
-                        : null,
-                meta: {
-                    item,
+                            ) : isField(item) ? (
+                                <>
+                                    {showTableNames && (
+                                        <TableHeaderRegularLabel>
+                                            {item.tableLabel} -{' '}
+                                        </TableHeaderRegularLabel>
+                                    )}
+
+                                    <TableHeaderBoldLabel>
+                                        {item.label}
+                                    </TableHeaderBoldLabel>
+                                </>
+                            ) : (
+                                <TableHeaderBoldLabel>
+                                    {item === undefined
+                                        ? 'Undefined'
+                                        : item.displayName ||
+                                          friendlyName(item.name)}
+                                </TableHeaderBoldLabel>
+                            )}
+                        </TableHeaderLabelContainer>
+                    ),
+                    cell: (info: any) =>
+                        info.getValue()?.value.formatted || '-',
+                    footer: () =>
+                        totals[itemId]
+                            ? formatItemValue(item, totals[itemId])
+                            : null,
+                    meta: {
+                        item,
+                    },
                 },
-            };
+            );
             return [...acc, column];
         },
         [],

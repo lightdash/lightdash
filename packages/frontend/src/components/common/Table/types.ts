@@ -27,7 +27,6 @@ export type Sort = {
 
 export type TableHeader = ColumnDef<ResultRow, unknown>;
 export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
-    columnLabel?: string;
     meta?: {
         isInvalidItem?: boolean;
         width?: number;

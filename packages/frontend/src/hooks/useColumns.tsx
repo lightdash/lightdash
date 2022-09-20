@@ -18,7 +18,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
-import { TableColumn } from '../components/common/Table/types';
+import { columnHelper, TableColumn } from '../components/common/Table/types';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import useColumnTotals from './useColumnTotals';
 import { useExplore } from './useExplore';
@@ -111,80 +111,86 @@ export const useColumns = (): TableColumn[] => {
 
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
-            const column: TableColumn = {
-                id: fieldId,
-                columnLabel: isField(item)
-                    ? item.label
-                    : friendlyName(item.name),
-                header: () => (
-                    <TableHeaderLabelContainer>
-                        {isField(item) ? (
-                            <>
-                                {hasJoins && (
-                                    <TableHeaderRegularLabel>
-                                        {item.tableLabel} -{' '}
-                                    </TableHeaderRegularLabel>
-                                )}
+            const column: TableColumn = columnHelper.accessor(
+                (row) => row[fieldId],
+                {
+                    id: fieldId,
+                    header: () => (
+                        <TableHeaderLabelContainer>
+                            {isField(item) ? (
+                                <>
+                                    {hasJoins && (
+                                        <TableHeaderRegularLabel>
+                                            {item.tableLabel} -{' '}
+                                        </TableHeaderRegularLabel>
+                                    )}
 
+                                    <TableHeaderBoldLabel>
+                                        {item.label}
+                                    </TableHeaderBoldLabel>
+                                </>
+                            ) : (
                                 <TableHeaderBoldLabel>
-                                    {item.label}
+                                    {item.displayName ||
+                                        friendlyName(item.name)}
                                 </TableHeaderBoldLabel>
-                            </>
-                        ) : (
-                            <TableHeaderBoldLabel>
-                                {item.displayName || friendlyName(item.name)}
-                            </TableHeaderBoldLabel>
-                        )}
-                    </TableHeaderLabelContainer>
-                ),
-                accessorKey: fieldId,
-                cell: (info) => info.getValue()?.value.formatted || '-',
-                footer: () =>
-                    totals[fieldId]
-                        ? formatItemValue(item, totals[fieldId])
-                        : null,
-                meta: {
-                    item,
-                    draggable: true,
-                    bgColor: getItemBgColor(item),
-                    sort: isFieldSorted
-                        ? {
-                              sortIndex,
-                              sort: sorts[sortIndex],
-                              isMultiSort: sorts.length > 1,
-                              isNumeric: isNumericItem(item),
-                          }
-                        : undefined,
+                            )}
+                        </TableHeaderLabelContainer>
+                    ),
+                    cell: (info) => info.getValue()?.value.formatted || '-',
+                    footer: () =>
+                        totals[fieldId]
+                            ? formatItemValue(item, totals[fieldId])
+                            : null,
+                    meta: {
+                        item,
+                        draggable: true,
+                        bgColor: getItemBgColor(item),
+                        sort: isFieldSorted
+                            ? {
+                                  sortIndex,
+                                  sort: sorts[sortIndex],
+                                  isMultiSort: sorts.length > 1,
+                                  isNumeric: isNumericItem(item),
+                              }
+                            : undefined,
+                    },
                 },
-            };
+            );
             return [...acc, column];
         }, []);
 
         const invalidColumns = invalidActiveItems.reduce<TableColumn[]>(
             (acc, fieldId) => {
-                const column: TableColumn = {
-                    id: fieldId,
-                    columnLabel: fieldId,
-                    header: () => (
-                        <TableHeaderLabelContainer>
-                            <Tooltip2
-                                content="This field was not found in the dbt project."
-                                position="top"
-                            >
-                                <Icon icon="warning-sign" intent="warning" />
-                            </Tooltip2>
+                const column: TableColumn = columnHelper.accessor(
+                    (row) => row[fieldId],
+                    {
+                        id: fieldId,
+                        header: () => (
+                            <TableHeaderLabelContainer>
+                                <Tooltip2
+                                    content="This field was not found in the dbt project."
+                                    position="top"
+                                >
+                                    <Icon
+                                        icon="warning-sign"
+                                        intent="warning"
+                                    />
+                                </Tooltip2>
 
-                            <TableHeaderBoldLabel style={{ marginLeft: 10 }}>
-                                {fieldId}
-                            </TableHeaderBoldLabel>
-                        </TableHeaderLabelContainer>
-                    ),
-                    accessorKey: fieldId,
-                    cell: (info) => info.getValue()?.value.formatted || '-',
-                    meta: {
-                        isInvalidItem: true,
+                                <TableHeaderBoldLabel
+                                    style={{ marginLeft: 10 }}
+                                >
+                                    {fieldId}
+                                </TableHeaderBoldLabel>
+                            </TableHeaderLabelContainer>
+                        ),
+                        cell: (info) => info.getValue()?.value.formatted || '-',
+                        meta: {
+                            isInvalidItem: true,
+                        },
                     },
-                };
+                );
                 return [...acc, column];
             },
             [],

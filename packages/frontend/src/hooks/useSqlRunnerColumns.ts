@@ -5,7 +5,7 @@ import {
     fieldId as getFieldId,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import { TableColumn } from '../components/common/Table/types';
+import { columnHelper, TableColumn } from '../components/common/Table/types';
 import useColumnTotals from './useColumnTotals';
 
 type Args = {
@@ -25,13 +25,12 @@ const useSqlRunnerColumns = ({
         if (fieldsMap) {
             return Object.values(fieldsMap).map<TableColumn>((dimension) => {
                 const fieldId = getFieldId(dimension);
-                return {
+                return columnHelper.accessor((row) => row[fieldId], {
                     id: fieldId,
                     header: () =>
                         columnHeader !== undefined
                             ? columnHeader(dimension)
                             : dimension.label,
-                    accessorKey: fieldId,
                     cell: (info) => {
                         const {
                             value: { raw },
@@ -45,7 +44,7 @@ const useSqlRunnerColumns = ({
                     meta: {
                         item: dimension,
                     },
-                };
+                });
             });
         }
         return [];
