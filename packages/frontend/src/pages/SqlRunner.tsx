@@ -15,7 +15,6 @@ import VisualizationCardOptions from '../components/Explorer/VisualizationCardOp
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
-import RefreshDbtButton from '../components/RefreshDbtButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
@@ -164,7 +163,6 @@ const SqlRunnerPage = () => {
             <ContentContainer>
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <ButtonsWrapper>
-                        <RefreshDbtButton />
                         <RunSqlQueryButton
                             onSubmit={onSubmit}
                             isLoading={isLoading}
