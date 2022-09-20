@@ -96,7 +96,11 @@ const SavedQueries: FC = () => {
                     resourceType="chart"
                     resourceList={savedQueries}
                     showSpaceColumn
-                    onClickCTA={isDemo ? undefined : handleCreateChart}
+                    onClickCTA={
+                        !isDemo && userCanManageCharts
+                            ? handleCreateChart
+                            : undefined
+                    }
                     getURL={({ uuid }) =>
                         `/projects/${projectUuid}/saved/${uuid}`
                     }
