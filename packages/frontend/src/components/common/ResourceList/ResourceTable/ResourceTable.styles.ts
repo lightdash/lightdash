@@ -89,6 +89,7 @@ export const ResourceName = styled.div`
 
 export const ResourceLink = styled(Link)`
     &.full-row-link {
+        outline: none;
         position: absolute;
         top: 0;
         left: 0;
