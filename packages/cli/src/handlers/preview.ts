@@ -79,7 +79,6 @@ export const previewHandler = async (
     }
 
     if (!project) {
-        const config = await getConfig();
         spinner.fail('Cancel preview environment');
         console.error(
             "To create your project, you'll need to manually enter your warehouse connection details.",
