@@ -83,16 +83,21 @@ const getPivotDataAndColumns = ({
         (acc, ref) => {
             if (typeof ref === 'string') {
                 const item = itemsMap[ref];
-                const column: TableColumn = columnHelper.accessor(ref, {
-                    id: ref,
-                    header: getHeader(ref) || getDefaultColumnLabel(ref),
-                    cell: (info) => info.getValue()?.value.formatted || '-',
-                    footer: () =>
-                        totals[ref] ? formatItemValue(item, totals[ref]) : null,
-                    meta: {
-                        item,
+                const column: TableColumn = columnHelper.accessor(
+                    (row) => row[ref],
+                    {
+                        id: ref,
+                        header: getHeader(ref) || getDefaultColumnLabel(ref),
+                        cell: (info) => info.getValue()?.value.formatted || '-',
+                        footer: () =>
+                            totals[ref]
+                                ? formatItemValue(item, totals[ref])
+                                : null,
+                        meta: {
+                            item,
+                        },
                     },
-                });
+                );
                 return [...acc, column];
             }
             return acc;
