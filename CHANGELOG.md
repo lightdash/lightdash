@@ -1,3 +1,10 @@
+## [0.258.1](https://github.com/lightdash/lightdash/compare/0.258.0...0.258.1) (2022-09-20)
+
+
+### Bug Fixes
+
+* query tables with dots in the name ([#3271](https://github.com/lightdash/lightdash/issues/3271)) ([7508e12](https://github.com/lightdash/lightdash/commit/7508e12cb9fcf49709c0972fae0ee2e320b15486))
+
 # [0.258.0](https://github.com/lightdash/lightdash/compare/0.257.1...0.258.0) (2022-09-20)
 
 
