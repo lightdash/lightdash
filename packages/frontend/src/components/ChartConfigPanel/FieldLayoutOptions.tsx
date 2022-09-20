@@ -2,7 +2,6 @@ import { Button } from '@blueprintjs/core';
 import {
     CartesianSeriesType,
     Field,
-    FieldType,
     getItemId,
     isDimension,
     TableCalculation,
@@ -84,7 +83,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         return items.filter((item) => isDimension(item));
     }, [items]);
 
-    const chartInvolvesMetrics = useMemo(() => {
+    const chartHasMetricOrTableCalc = useMemo(() => {
         if (!validCartesianConfig) return false;
 
         const {
@@ -94,9 +93,9 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         if (!xField || !yField) return false;
 
         const chartAxes = [xField, ...yField];
-        return items
-            .filter((item) => (item as Field)?.fieldType === FieldType.METRIC)
-            .some((metric) => chartAxes.includes(getItemId(metric)));
+        return items.some(
+            (item) => !isDimension(item) && chartAxes.includes(getItemId(item)),
+        );
     }, [validCartesianConfig, items]);
 
     return (
@@ -171,7 +170,7 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             </AxisGroup>
             <BlockTooltip
                 content="You need at least one metric in your chart to add a group"
-                disabled={chartInvolvesMetrics}
+                disabled={chartHasMetricOrTableCalc}
             >
                 <AxisGroup>
                     <AxisTitle>Group</AxisTitle>
@@ -180,14 +179,14 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                             fields={availableDimensions}
                             placeholder="Select a field to group by"
                             activeField={
-                                chartInvolvesMetrics
+                                chartHasMetricOrTableCalc
                                     ? groupSelectedField
                                     : undefined
                             }
                             onChange={(item) => {
                                 setPivotDimensions([getItemId(item)]);
                             }}
-                            disabled={!chartInvolvesMetrics}
+                            disabled={!chartHasMetricOrTableCalc}
                         />
                         {groupSelectedField && (
                             <DeleteFieldButton
