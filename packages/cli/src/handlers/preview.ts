@@ -84,12 +84,15 @@ export const previewHandler = async (
         console.error(
             "To create your project, you'll need to manually enter your warehouse connection details.",
         );
+        const config = await getConfig();
         const createProjectUrl =
             config.context?.serverUrl &&
             new URL('/createProject', config.context.serverUrl);
-        console.error(
-            `Fill out the project connection form here: ${createProjectUrl}`,
-        );
+        if (createProjectUrl) {
+            console.error(
+                `Fill out the project connection form here: ${createProjectUrl}`,
+            );
+        }
         return;
     }
 
@@ -214,6 +217,21 @@ export const startPreviewHandler = async (
             type: ProjectType.PREVIEW,
         });
 
+        if (!project) {
+            console.error(
+                "To create your project, you'll need to manually enter your warehouse connection details.",
+            );
+            const config = await getConfig();
+            const createProjectUrl =
+                config.context?.serverUrl &&
+                new URL('/createProject', config.context.serverUrl);
+            if (createProjectUrl) {
+                console.error(
+                    `Fill out the project connection form here: ${createProjectUrl}`,
+                );
+            }
+            return;
+        }
         LightdashAnalytics.track({
             event: 'start_preview.create',
             properties: {

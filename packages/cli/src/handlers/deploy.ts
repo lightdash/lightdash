@@ -118,9 +118,11 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
             const createProjectUrl =
                 config.context?.serverUrl &&
                 new URL('/createProject', config.context.serverUrl);
-            console.error(
-                `Fill out the project connection form here: ${createProjectUrl}`,
-            );
+            if (createProjectUrl) {
+                console.error(
+                    `Fill out the project connection form here: ${createProjectUrl}`,
+                );
+            }
             return;
         }
         projectUuid = project.projectUuid;
