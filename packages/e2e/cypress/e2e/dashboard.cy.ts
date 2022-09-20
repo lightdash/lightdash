@@ -15,7 +15,10 @@ describe('Dashboard', () => {
         // wiat for the dashboard to load
         cy.findByText('Loading dashboards').should('not.exist');
 
-        cy.contains('a', 'Jaffle dashboard').click();
+        cy.contains('tr', 'Jaffle dashboard')
+            .find('a')
+            .eq(0)
+            .click({ force: true });
 
         cy.findByText("What's our total revenue to date?");
         cy.findByText("What's the average spend per customer?");
