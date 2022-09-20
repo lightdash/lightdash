@@ -12,6 +12,7 @@ import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { getDbtContext } from '../dbt/context';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
@@ -63,7 +64,8 @@ export const previewHandler = async (
     });
     console.error('');
     const spinner = ora(`  Setting up preview environment`).start();
-    let project: Project;
+    GlobalState.setActiveSpinner(spinner);
+    let project: Project | undefined;
 
     try {
         project = await createProject({
@@ -74,6 +76,23 @@ export const previewHandler = async (
     } catch (e) {
         spinner.fail();
         throw e;
+    }
+
+    if (!project) {
+        spinner.fail('Cancel preview environment');
+        console.error(
+            "To create your project, you'll need to manually enter your warehouse connection details.",
+        );
+        const config = await getConfig();
+        const createProjectUrl =
+            config.context?.serverUrl &&
+            new URL('/createProject', config.context.serverUrl);
+        if (createProjectUrl) {
+            console.error(
+                `Fill out the project connection form here: ${createProjectUrl}`,
+            );
+        }
+        return;
     }
 
     LightdashAnalytics.track({
@@ -110,7 +129,12 @@ export const previewHandler = async (
                 );
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
-                await deploy({ ...options, projectUuid: project.projectUuid });
+                if (project) {
+                    await deploy({
+                        ...options,
+                        projectUuid: project.projectUuid,
+                    });
+                }
 
                 console.error(`${styles.success('✔')}   Preview updated \n`);
                 pressToContinue.start();
@@ -144,7 +168,7 @@ export const previewHandler = async (
         throw e;
     }
     const teardownSpinner = ora(`  Cleaning up`).start();
-
+    GlobalState.setActiveSpinner(spinner);
     await lightdashApi({
         method: 'DELETE',
         url: `/api/v1/org/projects/${project.projectUuid}`,
@@ -192,6 +216,21 @@ export const startPreviewHandler = async (
             type: ProjectType.PREVIEW,
         });
 
+        if (!project) {
+            console.error(
+                "To create your project, you'll need to manually enter your warehouse connection details.",
+            );
+            const config = await getConfig();
+            const createProjectUrl =
+                config.context?.serverUrl &&
+                new URL('/createProject', config.context.serverUrl);
+            if (createProjectUrl) {
+                console.error(
+                    `Fill out the project connection form here: ${createProjectUrl}`,
+                );
+            }
+            return;
+        }
         LightdashAnalytics.track({
             event: 'start_preview.create',
             properties: {

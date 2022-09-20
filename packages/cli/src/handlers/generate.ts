@@ -17,6 +17,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 
 type GenerateHandlerOptions = {
@@ -77,7 +78,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         const spinner = ora(
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
         ).start();
-
+        GlobalState.setActiveSpinner(spinner);
         try {
             const table = await getWarehouseTableForModel({
                 model: compiledModel,

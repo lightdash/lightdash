@@ -20,8 +20,10 @@
         "chokidar": "^3.5.3",
         "commander": "^9.2.0",
         "execa": "^5",
+        "google-auth-library": "^8.5.1",
         "inquirer": "^8.2.4",
         "js-yaml": "^4.1.0",
+        "lodash": "^4.17.21",
         "node-fetch": "^2.6.1",
         "nunjucks": "^3.2.3",
         "ora": "5.4.1",
@@ -31,6 +33,7 @@
     "description": "Lightdash CLI tool",
     "devDependencies": {
         "@types/jest": "^28.1.3",
+        "@types/lodash": "^4.14.185",
         "@types/node": "^14.14.35",
         "@typescript-eslint/eslint-plugin": "^5.22.0",
         "@typescript-eslint/parser": "^5.22.0",

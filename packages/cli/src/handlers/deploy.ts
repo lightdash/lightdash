@@ -7,9 +7,11 @@ import {
 import inquirer from 'inquirer';
 import ora from 'ora';
 import path from 'path';
+import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { getDbtContext } from '../dbt/context';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
@@ -44,7 +46,7 @@ export const deploy = async (options: DeployArgs): Promise<void> => {
 
 const createNewProject = async (
     options: DeployHandlerOptions,
-): Promise<Project> => {
+): Promise<Project | undefined> => {
     console.error('');
     const absoluteProjectPath = path.resolve(options.projectDir);
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
@@ -61,7 +63,7 @@ const createNewProject = async (
 
     console.error('');
     const spinner = ora(`  Creating new project`).start();
-
+    GlobalState.setActiveSpinner(spinner);
     LightdashAnalytics.track({
         event: 'create.started',
         properties: {
@@ -75,6 +77,10 @@ const createNewProject = async (
             name: projectName,
             type: ProjectType.DEFAULT,
         });
+        if (!project) {
+            spinner.fail('Cancel preview environment');
+            return undefined;
+        }
         spinner.succeed(`  New project ${styles.bold(projectName)} created\n`);
 
         LightdashAnalytics.track({
@@ -105,6 +111,20 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
 
     if (options.create) {
         const project = await createNewProject(options);
+        if (!project) {
+            console.error(
+                "To preview your project, you'll need to manually enter your warehouse connection details.",
+            );
+            const createProjectUrl =
+                config.context?.serverUrl &&
+                new URL('/createProject', config.context.serverUrl);
+            if (createProjectUrl) {
+                console.error(
+                    `Fill out the project connection form here: ${createProjectUrl}`,
+                );
+            }
+            return;
+        }
         projectUuid = project.projectUuid;
     } else {
         if (!(config.context?.project && config.context.serverUrl)) {
