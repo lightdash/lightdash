@@ -164,8 +164,10 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     toggleSearchOpen(false);
                     history.push(item.location);
                     if (
-                        item.location.pathname.includes('/tables/') &&
-                        location.pathname.includes('/tables/')
+                        (item.location.pathname.includes('/tables/') &&
+                            location.pathname.includes('/tables/')) ||
+                        (item.location.pathname.includes('/saved/') &&
+                            location.pathname.includes('/saved/'))
                     ) {
                         history.go(0); // force page refresh so explore page can pick up the new url params
                     }
