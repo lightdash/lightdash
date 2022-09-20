@@ -130,11 +130,9 @@ const SavedDashboards = () => {
                     resourceList={dashboards}
                     showSpaceColumn
                     onClickCTA={
-                        isDemo
-                            ? undefined
-                            : hasNoSpaces
-                            ? undefined
-                            : handleCreateDashboard
+                        !isDemo && !hasNoSpaces && userCanManageDashboards
+                            ? handleCreateDashboard
+                            : undefined
                     }
                     getURL={({ uuid }) =>
                         `/projects/${projectUuid}/dashboards/${uuid}/view`
