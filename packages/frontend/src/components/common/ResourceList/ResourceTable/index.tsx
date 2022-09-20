@@ -10,6 +10,7 @@ import {
     Flex,
     NoLinkContainer,
     ResourceLink,
+    ResourceName,
     ResourceSpaceLink,
     Spacer,
     StyledTable,
@@ -109,7 +110,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                     content={row.description}
                                     position={Position.TOP}
                                 >
-                                    {row.name}
+                                    <ResourceName>{row.name}</ResourceName>
                                 </Tooltip2>
                             </Flex>
                         </NoLinkContainer>

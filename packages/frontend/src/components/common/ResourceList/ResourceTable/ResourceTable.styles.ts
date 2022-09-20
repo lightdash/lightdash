@@ -81,15 +81,13 @@ export const NoLinkContainer = styled.div`
     pointer-events: none;
 `;
 
-export const ResourceLink = styled(Link)`
+export const ResourceName = styled.div`
     font-size: 13px;
     font-weight: 600;
     color: ${Colors.DARK_GRAY4};
+`;
 
-    &:hover {
-        color: ${Colors.DARK_GRAY1};
-    }
-
+export const ResourceLink = styled(Link)`
     &.full-row-link {
         position: absolute;
         top: 0;
