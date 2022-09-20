@@ -1,3 +1,10 @@
+## [0.257.1](https://github.com/lightdash/lightdash/compare/0.257.0...0.257.1) (2022-09-20)
+
+
+### Bug Fixes
+
+* explore page not reloading when navigating ([#3266](https://github.com/lightdash/lightdash/issues/3266)) ([28753ad](https://github.com/lightdash/lightdash/commit/28753ad84ad58b6cb11dc224a7215471468691a2))
+
 # [0.257.0](https://github.com/lightdash/lightdash/compare/0.256.2...0.257.0) (2022-09-16)
 
 
