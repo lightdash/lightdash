@@ -709,6 +709,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "ironchef",
+      "name": "Matt Machczynski",
+      "avatar_url": "https://avatars.githubusercontent.com/u/287705?v=4",
+      "profile": "https://github.com/ironchef",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
