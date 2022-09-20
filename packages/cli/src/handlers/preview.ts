@@ -105,7 +105,7 @@ export const previewHandler = async (
             .watch(manifestFilePath)
             .on('change', async () => {
                 pressToContinue.stop();
-                // process.stdout.write('\r\x1b[K'); // removes last output log (inquirer.prompt)
+
                 console.error(
                     `${styles.title(
                         '↻',
@@ -114,7 +114,6 @@ export const previewHandler = async (
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                 await deploy({ ...options, projectUuid: project.projectUuid });
-                // process.stdout.write('\r\x1b[K'); // removes last output log (inquirer.prompt)
 
                 console.error(`${styles.success('✔')}   Preview updated \n`);
                 pressToContinue.start();
@@ -131,28 +130,6 @@ export const previewHandler = async (
             },
         ]);
         pressToContinue.clear();
-
-        const a: any = { x: { y: 1 } };
-        console.error('a', a?.x.y);
-        const fruits = new Map([
-            ['apples', 500],
-            ['bananas', 300],
-            ['oranges', 200],
-        ]);
-        console.error('fruits', fruits);
-        class Car {
-            n: any;
-
-            year: any;
-
-            constructor(n: any, year: any) {
-                this.n = n;
-                this.year = year;
-            }
-        }
-        const myCar1 = new Car('Ford', 2014);
-        console.error('mycar', myCar1);
-        Math.trunc(3);
     } catch (e) {
         spinner.fail('Error creating developer preview');
         await lightdashApi({
