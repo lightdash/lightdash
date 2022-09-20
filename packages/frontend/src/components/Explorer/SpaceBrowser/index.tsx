@@ -61,6 +61,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             {spaces.length === 0 ? (
                 <ResourceEmptyState
                     resourceType="space"
+                    resourceIcon="folder-close"
                     onClickCTA={handleCreateSpace}
                 />
             ) : (
