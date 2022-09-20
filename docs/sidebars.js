@@ -149,7 +149,14 @@ module.exports = {
       items: [
         "get-started/exploring-data/using-explores",
         "guides/exploring-your-content",
-        "guides/limiting-data-using-filters",
+        {
+          type: "category",
+          label: "Filters",
+          items: [
+            "guides/limiting-data-using-filters",
+            "references/filters",
+          ],
+        },
         "guides/table-calculations/adding-table-calculations",
         {
           type: "category",
