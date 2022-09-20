@@ -21,7 +21,6 @@
         "commander": "^9.2.0",
         "execa": "^5",
         "inquirer": "^8.2.4",
-        "inquirer-press-to-continue": "^1.1.4",
         "js-yaml": "^4.1.0",
         "node-fetch": "^2.6.1",
         "nunjucks": "^3.2.3",
