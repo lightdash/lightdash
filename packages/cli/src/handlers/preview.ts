@@ -1,7 +1,6 @@
 import { Project, ProjectType } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
-// import PressToContinuePrompt from 'inquirer-press-to-continue';
 import ora from 'ora';
 import path from 'path';
 import {
@@ -18,8 +17,6 @@ import { createProject } from './createProject';
 import { lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
-
-// inquirer.registerPrompt('press-to-continue', PressToContinuePrompt);
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
