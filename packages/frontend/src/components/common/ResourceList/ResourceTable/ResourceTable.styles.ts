@@ -97,6 +97,14 @@ export const ResourceLink = styled(Link)`
         bottom: 0;
         z-index: 1;
     }
+
+    &:not(.full-row-link) {
+        color: ${Colors.DARK_GRAY4};
+
+        :hover {
+            text-decoration: none;
+        }
+    }
 `;
 
 export const ResourceSpaceLink = styled(Link)`

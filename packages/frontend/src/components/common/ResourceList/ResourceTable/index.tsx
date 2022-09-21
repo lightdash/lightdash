@@ -96,24 +96,24 @@ const ResourceTable: FC<ResourceTableProps> = ({
                             to={getURL(row)}
                         />
 
-                        <NoLinkContainer>
-                            <Flex>
-                                <Icon
-                                    icon={resourceIcon}
-                                    color={Colors.BLUE5}
-                                />
-                                <Spacer $width={16} />
+                        <Tooltip2
+                            lazy
+                            disabled={!row.description}
+                            content={row.description}
+                            position={Position.TOP}
+                        >
+                            <ResourceLink to={getURL(row)}>
+                                <Flex>
+                                    <Icon
+                                        icon={resourceIcon}
+                                        color={Colors.BLUE5}
+                                    />
+                                    <Spacer $width={16} />
 
-                                <Tooltip2
-                                    lazy
-                                    disabled={!row.description}
-                                    content={row.description}
-                                    position={Position.TOP}
-                                >
                                     <ResourceName>{row.name}</ResourceName>
-                                </Tooltip2>
-                            </Flex>
-                        </NoLinkContainer>
+                                </Flex>
+                            </ResourceLink>
+                        </Tooltip2>
                     </>
                 ),
                 enableSorting: enableSorting && resourceList.length > 1,
