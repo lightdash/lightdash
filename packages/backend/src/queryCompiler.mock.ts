@@ -144,6 +144,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 fieldType: FieldType.METRIC,
                 round: undefined,
                 source: undefined,
+                showUnderlyingValues: undefined,
                 format: undefined,
                 groupLabel: undefined,
             },
