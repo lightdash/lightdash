@@ -11,9 +11,9 @@ import EditDashboard from './assets/edit-dashboard.jpg';
 import SaveDashboard from './assets/save-new-filters-dashboard.jpg';
 import EditRemoveFilters from './assets/edit-or-remove-dashboard-filters.jpg';
 import DashboardFilterApplied from './assets/dashboard-filter-applied.jpg';
+import MultipleFilterOptions from './assets/multiple-filter-options.jpg';
 
-
-# Limit the data in your query using Filters
+# Using Filters
 
 Filters appear at the top of the Explore view or dashboard and allow users to change the data being pulled into your charts.
 
@@ -35,14 +35,26 @@ In the Explore view:
 Or in a dashboard:
 <img src={AddMoreFiltersDashboard} width="461" height="125" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### If you add multiple filters, they are joined together using AND
+### If you add multiple filters, you can choose to have `ALL` or `ANY` of the conditions match
 
-So, the example in the Explore view above would give us compiled SQL that looks like:
+To choose which option you want, just click on the drop-down menu on the top-left of the filters. 
+
+<img src={MultipleFilterOptions} width="538" height="167" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Selecting `ALL` conditions to match means you'd add an `AND` between your conditions in SQL. So, the example in the Explore view above would give us compiled SQL that looks like:
 
 ```sql
 WHERE (
-  (pages.source) = 'lightdash_demo'
-  AND (pages.source)...
+  (pages.source) IN ('lightdash_demo', 'lightdash_documentation')
+  AND (pages.path) = '/20%crunchbase'
+```
+
+Selecting `ANY` conditions to match means you'd add an `OR` between your conditions in SQL. So, the example in the Explore view above would give us compiled SQL that looks like:
+
+```sql
+WHERE (
+  (pages.source) IN ('lightdash_demo', 'lightdash_documentation')
+  OR (pages.path) = '/20%crunchbase'
 ```
 
 ### If you want to include multiple values in your filter, just hit `enter` between each value entry in your list
@@ -53,8 +65,8 @@ The listed values are separated by an OR statement in the compiled SQL. E.g. the
 
 ```sql
 WHERE (
-  (users.days_since_activated) > 5
-   AND (users.days_since_activated) IN (1,2,3)
+  (pages.source) = 'lightdash_demo'
+   OR (pages.source) = 'lightdash_documentation'
 )
 ```
 
