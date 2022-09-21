@@ -718,6 +718,18 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "IrakliJani",
+      "name": "Irakli Janiashvili",
+      "avatar_url": "https://avatars.githubusercontent.com/u/962095?v=4",
+      "profile": "https://iraklijani.com/",
+      "contributions": [
+        "code",
+        "bug",
+        "design",
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
