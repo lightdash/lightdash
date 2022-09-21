@@ -154,6 +154,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             isField(meta?.item) && isMetric(meta.item)
                 ? meta.item.showUnderlyingValues
                 : undefined;
+        const showUnderlyingTable: string | undefined = isField(meta?.item)
+            ? meta.item.table
+            : undefined;
 
         const availableDimensions = allDimensions.filter(
             (dimension) =>
@@ -161,7 +164,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 !dimension.timeInterval &&
                 !dimension.hidden &&
                 (showUnderlyingValues !== undefined
-                    ? showUnderlyingValues.includes(dimension.name)
+                    ? showUnderlyingValues.includes(dimension.name) &&
+                      showUnderlyingTable === dimension.table
                     : true),
         );
 
