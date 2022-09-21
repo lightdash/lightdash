@@ -3769,15 +3769,15 @@
     defer-to-connect "^1.0.1"
 
 "@tanstack/react-table@^8.5.11":
-  version "8.5.13"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-table/-/react-table-8.5.13.tgz#a394c4db1cbcd63eb0c5fa2244a963da28f246c4"
-  integrity sha512-k52HsnonKwDZMCIy59HfehTnkJYlqkqyvC+BAV0DyWdN9WmSbVq+Kf+luJVENQnXcnEX47dBHiHAjqZu592ZLQ==
+  version "8.5.11"
+  resolved "https://registry.npmjs.org/@tanstack/react-table/-/react-table-8.5.11.tgz"
+  integrity sha512-bIegBJ3VPUX3Z7rMnFEnTRCRgPccTsciilQA1ib/pA6M7Qq1boTNPjNjSbEHmBKytaxPrPfcUfzkZLogYtvu3g==
   dependencies:
-    "@tanstack/table-core" "8.5.13"
+    "@tanstack/table-core" "8.5.11"
 
 "@tanstack/table-core@8.5.11":
   version "8.5.11"
-  resolved "https://registry.yarnpkg.com/@tanstack/table-core/-/table-core-8.5.11.tgz#a23178a097df4b0b64bdfa6f79e6d8933e97c7f7"
+  resolved "https://registry.npmjs.org/@tanstack/table-core/-/table-core-8.5.11.tgz"
   integrity sha512-ZN61ockLaIAiiPbZfMKT2S03nbWx28OHg/nAiDnNfmN4QmAMcdwVajPn2QQwnNVGAr4jS4nbhbYzCcjq8livXQ==
 
 "@testing-library/cypress@^8.0.3":
