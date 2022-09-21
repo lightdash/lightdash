@@ -145,14 +145,14 @@ export const renderDateFilterSql = (
                     moment(completedDate)
                         .subtract(filter.values?.[0], unitOfTime)
                         .toDate(),
-                )}') AND (${dimensionSql}) < ('${dateFormatter(
-                    completedDate,
+                )}') AND (${dimensionSql}) <= ('${moment().format(
+                    unitOfTimeFormat[unitOfTime],
                 )}'))`;
             }
             return `((${dimensionSql}) >= ('${dateFormatter(
                 moment().subtract(filter.values?.[0], unitOfTime).toDate(),
-            )}') AND (${dimensionSql}) < ('${formatTimestamp(
-                moment().toDate(),
+            )}') AND (${dimensionSql}) <= ('${moment().format(
+                unitOfTimeFormat[unitOfTime],
             )}'))`;
         default:
             throw Error(
