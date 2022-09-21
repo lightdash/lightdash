@@ -145,7 +145,7 @@ export const renderDateFilterSql = (
                     moment(completedDate)
                         .subtract(filter.values?.[0], unitOfTime)
                         .toDate(),
-                )}') AND (${dimensionSql}) <= ('${moment().format(
+                )}') AND (${dimensionSql}) < ('${moment().format(
                     unitOfTimeFormat[unitOfTime],
                 )}'))`;
             }
