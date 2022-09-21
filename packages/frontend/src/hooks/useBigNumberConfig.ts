@@ -4,15 +4,16 @@ import {
     convertAdditionalMetric,
     Explore,
     fieldId,
-    findFieldByIdInExplore,
     formatValue,
     friendlyName,
     getDimensions,
-    getFieldLabel,
+    getItemLabel,
+    getItemMap,
     getMetrics,
     isField,
     isNumericItem,
     Metric,
+    valueIsNaN,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -96,12 +97,16 @@ const useBigNumberConfig = (
         getField,
     ]);
 
-    const field =
+    const item =
         explore && selectedField
-            ? findFieldByIdInExplore(explore, selectedField)
+            ? getItemMap(
+                  explore,
+                  resultsData?.metricQuery.additionalMetrics,
+                  resultsData?.metricQuery.tableCalculations,
+              )[selectedField]
             : undefined;
-    const label = field
-        ? getFieldLabel(field)
+    const label = item
+        ? getItemLabel(item)
         : selectedField && friendlyName(selectedField);
 
     const [bigNumberLabel, setBigNumberLabel] = useState<
@@ -123,19 +128,22 @@ const useBigNumberConfig = (
     const bigNumberRaw =
         selectedField && resultsData?.rows?.[0]?.[selectedField]?.value.raw;
 
-    const isNumber = isNumericItem(field) && !(bigNumberRaw instanceof Date);
+    const isNumber =
+        isNumericItem(item) &&
+        !(bigNumberRaw instanceof Date) &&
+        !valueIsNaN(bigNumberRaw);
 
     const bigNumber = !isNumber
         ? selectedField &&
           resultsData?.rows?.[0]?.[selectedField]?.value.formatted
         : formatValue(
-              field?.format,
-              bigNumberStyle ? 2 : field?.round,
+              isField(item) ? item.format : undefined,
+              bigNumberStyle ? 2 : isField(item) ? item.round : undefined,
               bigNumberRaw,
               bigNumberStyle,
           );
 
-    const showStyle = isNumber && field?.format !== 'percent';
+    const showStyle = isNumber && (!isField(item) || item.format !== 'percent');
 
     const validBigNumberConfig: BigNumber = useMemo(
         () => ({
