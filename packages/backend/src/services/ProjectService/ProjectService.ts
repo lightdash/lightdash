@@ -661,6 +661,17 @@ export class ProjectService {
         const adapter = await this.getAdapter(projectUuid);
         const { rows } = await adapter.runQuery(query);
 
+        analytics.track({
+            event: 'field_value.search',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                fieldId,
+                searchCharCount: search.length,
+                resultsCount: rows.length,
+                searchLimit: limit,
+            },
+        });
         return rows.map((row) => row[getItemId(distinctMetric)]);
     }
 

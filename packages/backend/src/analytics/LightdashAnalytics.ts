@@ -346,6 +346,18 @@ type PermissionsUpdated = BaseTrack & {
     };
 };
 
+type FieldValueSearch = BaseTrack & {
+    event: 'field_value.search';
+    userId?: string;
+    properties: {
+        projectId: string;
+        fieldId: string;
+        searchCharCount: number;
+        resultsCount: number;
+        searchLimit: number;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -374,6 +386,7 @@ type Track =
     | SpaceDeleted
     | DashboardUpdateMultiple
     | SavedChartUpdateMultiple
+    | FieldValueSearch
     | PermissionsUpdated;
 
 export class LightdashAnalytics extends Analytics {
