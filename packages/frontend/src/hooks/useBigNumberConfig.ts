@@ -13,6 +13,7 @@ import {
     isField,
     isNumericItem,
     Metric,
+    valueIsNaN,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -130,7 +131,7 @@ const useBigNumberConfig = (
     const isNumber =
         isNumericItem(item) &&
         !(bigNumberRaw instanceof Date) &&
-        typeof bigNumberRaw === 'number';
+        !valueIsNaN(bigNumberRaw);
 
     const bigNumber = !isNumber
         ? selectedField &&

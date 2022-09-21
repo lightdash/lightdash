@@ -81,7 +81,7 @@ export const parseTimestamp = (
     timeInterval: string | undefined = 'MILLISECOND',
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
-function valueIsNaN(value: any) {
+export function valueIsNaN(value: any) {
     if (typeof value === 'boolean') return true;
     return Number.isNaN(Number(value));
 }
