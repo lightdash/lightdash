@@ -135,6 +135,10 @@ export const renderDateFilterSql = (
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
+
+            const untilDate = moment().format(
+                unitOfTimeFormat[UnitOfTime.days],
+            );
             if (completed) {
                 const completedDate = moment(
                     moment()
@@ -145,15 +149,11 @@ export const renderDateFilterSql = (
                     moment(completedDate)
                         .subtract(filter.values?.[0], unitOfTime)
                         .toDate(),
-                )}') AND (${dimensionSql}) < ('${moment().format(
-                    unitOfTimeFormat[unitOfTime],
-                )}'))`;
+                )}') AND (${dimensionSql}) < ('${untilDate}'))`;
             }
             return `((${dimensionSql}) >= ('${dateFormatter(
                 moment().subtract(filter.values?.[0], unitOfTime).toDate(),
-            )}') AND (${dimensionSql}) <= ('${moment().format(
-                unitOfTimeFormat[unitOfTime],
-            )}'))`;
+            )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
