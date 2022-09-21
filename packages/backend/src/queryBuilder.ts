@@ -136,9 +136,9 @@ export const renderDateFilterSql = (
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
 
-            const untilDate = moment().format(
-                unitOfTimeFormat[UnitOfTime.days],
-            );
+            const untilDate = moment()
+                .startOf(unitOfTime)
+                .format(unitOfTimeFormat[UnitOfTime.days]);
             if (completed) {
                 const completedDate = moment(
                     moment()
