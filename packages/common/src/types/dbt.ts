@@ -97,6 +97,7 @@ export type DbtColumnLightdashMetric = {
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
+    show_underlying_values?: string[];
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
@@ -273,6 +274,7 @@ export type DbtMetric = {
 export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
     group_label?: string;
+    show_underlying_values?: string[];
 };
 
 export type DbtDoc = {
@@ -404,6 +406,7 @@ export const convertMetric = ({
     round: metric.round,
     format: metric.format,
     groupLabel: metric.group_label,
+    showUnderlyingValues: metric.show_underlying_values,
     ...(metric.urls ? { urls: metric.urls } : {}),
 });
 type ConvertAdditionalMetricArgs = {

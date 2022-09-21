@@ -233,6 +233,7 @@ const convertDbtMetricToLightdashMetric = (
         round: metric.meta?.round,
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
+        showUnderlyingValues: metric.meta?.show_underlying_values,
         ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
     };
 };

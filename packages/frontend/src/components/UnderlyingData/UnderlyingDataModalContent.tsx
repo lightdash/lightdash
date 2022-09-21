@@ -12,7 +12,10 @@ import {
     isField,
     MetricQuery,
 } from '@lightdash/common';
-import { fieldId as getFieldId } from '@lightdash/common/dist/types/field';
+import {
+    fieldId as getFieldId,
+    isMetric,
+} from '@lightdash/common/dist/types/field';
 import React, { FC, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -147,13 +150,23 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             },
         };
 
+        const showUnderlyingValues: string[] | undefined =
+            isField(meta?.item) && isMetric(meta.item)
+                ? meta.item.showUnderlyingValues
+                : undefined;
+
         const availableDimensions = allDimensions.filter(
             (dimension) =>
                 tablesInQuery.has(dimension.table) &&
                 !dimension.timeInterval &&
-                !dimension.hidden,
+                !dimension.hidden &&
+                (showUnderlyingValues !== undefined
+                    ? showUnderlyingValues.includes(dimension.name)
+                    : true),
         );
+
         const dimensionFields = availableDimensions.map(getFieldId);
+
         return {
             ...defaultMetricQuery,
             dimensions: dimensionFields,
