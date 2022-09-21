@@ -27,10 +27,13 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 - [Update Lightdash](/references/update-lightdash.md)
 - [Create multiple projects](/guides/how-to-create-multiple-projects.md)
 
+## 🎮 The Lightdash CLI
+
+- [The Lightdash CLI](/guides/cli/intro)
+
 ## 👷‍♀️ Developing your project
 
 - [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/get-project-lightdash-ready.mdx)
-- [The Lightdash CLI](/guides/cli/intro)
 - [An intro to metrics and dimensions](/get-started/setup-lightdash/intro-metrics-dimensions.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
 - [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.mdx)
