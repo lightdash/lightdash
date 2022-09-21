@@ -1,15 +1,20 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import React from 'react';
-import { Redirect, useParams } from 'react-router-dom';
-import ActionCardList from '../components/common/ActionCardList';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
-import DashboardForm from '../components/SavedDashboards/DashboardForm';
 import {
-    useCreateMutation,
-    useDeleteMutation,
-    useUpdateDashboardName,
-} from '../hooks/dashboard/useDashboard';
+    PageBreadcrumbsWrapper,
+    PageContentWrapper,
+    PageHeader,
+} from '../components/common/Page/Page.styles';
+import ResourceList from '../components/common/ResourceList';
+import {
+    ResourceBreadcrumbTitle,
+    ResourceTag,
+} from '../components/common/ResourceList/ResourceList.styles';
+import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -17,19 +22,29 @@ import { useApp } from '../providers/AppProvider';
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 
 const SavedDashboards = () => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
-    const useDelete = useDeleteMutation();
+
     const {
         isLoading: isCreatingDashboard,
         isSuccess: hasCreatedDashboard,
         mutate: createDashboard,
         data: newDashboard,
     } = useCreateMutation(projectUuid);
+
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
+
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     if (isLoading || isLoadingSpaces) {
         return (
@@ -48,41 +63,82 @@ const SavedDashboards = () => {
         );
     }
 
+    const handleCreateDashboard = () => {
+        createDashboard({
+            name: DEFAULT_DASHBOARD_NAME,
+            tiles: [],
+        });
+    };
+
     return (
         <Page>
-            <ActionCardList
-                title="All dashboards"
-                useUpdate={useUpdateDashboardName}
-                useDelete={useDelete}
-                dataList={dashboards}
-                getURL={(savedDashboard) => {
-                    const { uuid } = savedDashboard;
-                    return `/projects/${projectUuid}/dashboards/${uuid}/view`;
-                }}
-                ModalContent={DashboardForm}
-                headerAction={
-                    user.data?.ability?.can('manage', 'Dashboard') &&
-                    !isDemo && (
-                        <Button
-                            text="Create dashboard"
-                            loading={isCreatingDashboard}
-                            onClick={() =>
-                                createDashboard({
-                                    name: DEFAULT_DASHBOARD_NAME,
-                                    tiles: [],
-                                })
-                            }
-                            disabled={hasNoSpaces}
-                            title={
-                                hasNoSpaces
-                                    ? 'First you must create a space for this dashboard'
-                                    : ''
-                            }
-                            intent="primary"
+            <PageContentWrapper>
+                <PageHeader>
+                    <PageBreadcrumbsWrapper>
+                        <Breadcrumbs2
+                            items={[
+                                {
+                                    href: '/home',
+                                    text: 'Home',
+                                    className: 'home-breadcrumb',
+                                    onClick: (e) => {
+                                        history.push('/home');
+                                    },
+                                },
+                                {
+                                    text: (
+                                        <ResourceBreadcrumbTitle>
+                                            All dashboards
+                                            {dashboards.length > 0 && (
+                                                <ResourceTag round>
+                                                    {dashboards.length}
+                                                </ResourceTag>
+                                            )}
+                                        </ResourceBreadcrumbTitle>
+                                    ),
+                                },
+                            ]}
                         />
-                    )
-                }
-            />
+                    </PageBreadcrumbsWrapper>
+
+                    {userCanManageDashboards &&
+                        !isDemo &&
+                        (dashboards.length > 0 || hasNoSpaces) && (
+                            <Tooltip2
+                                content={
+                                    hasNoSpaces
+                                        ? 'First you must create a space for this dashboard'
+                                        : undefined
+                                }
+                                interactionKind="hover"
+                            >
+                                <Button
+                                    text="Create dashboard"
+                                    icon="plus"
+                                    loading={isCreatingDashboard}
+                                    onClick={handleCreateDashboard}
+                                    disabled={hasNoSpaces}
+                                    intent="primary"
+                                />
+                            </Tooltip2>
+                        )}
+                </PageHeader>
+
+                <ResourceList
+                    resourceType="dashboard"
+                    resourceIcon="control"
+                    resourceList={dashboards}
+                    showSpaceColumn
+                    onClickCTA={
+                        !isDemo && !hasNoSpaces && userCanManageDashboards
+                            ? handleCreateDashboard
+                            : undefined
+                    }
+                    getURL={({ uuid }) =>
+                        `/projects/${projectUuid}/dashboards/${uuid}/view`
+                    }
+                />
+            </PageContentWrapper>
         </Page>
     );
 };

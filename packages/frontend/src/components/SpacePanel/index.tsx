@@ -1,30 +1,25 @@
-import { Button, NonIdealState } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import {
-    useDeleteMutation,
-    useUpdateDashboardName,
-} from '../../hooks/dashboard/useDashboard';
 import { useApp } from '../../providers/AppProvider';
-import ActionCardList from '../common/ActionCardList';
 import { Can } from '../common/Authorization';
-import AddToSpaceModal from '../common/modal/AddToSpaceModal';
+import {
+    PageBreadcrumbsWrapper,
+    PageContentWrapper,
+    PageHeader,
+} from '../common/Page/Page.styles';
+import ResourceList from '../common/ResourceList';
+import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
+import AddResourceToSpaceModal, {
+    AddToSpaceResources,
+} from '../Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import CreateResourceToSpace from '../Explorer/SpaceBrowser/CreateResourceToSpace';
 import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
 import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
-import DashboardForm from '../SavedDashboards/DashboardForm';
-import SavedQueriesContent from '../SavedQueries/SavedQueriesContent';
-import {
-    BreadcrumbsWrapper,
-    EmptyStateIcon,
-    EmptyStateText,
-    EmptyStateWrapper,
-    SpacePanelHeader,
-    SpacePanelWrapper,
-} from './SpacePanel.styles';
 
 interface Props {
     space: Space;
@@ -35,20 +30,40 @@ export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user, health } = useApp();
-    const useDelete = useDeleteMutation();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const history = useHistory();
-    const savedCharts = space.queries;
     const savedDashboards = space.dashboards;
+    const savedCharts = space.queries;
+    const orderedCharts = savedCharts.sort(
+        (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+    const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
+    const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
-    const [addToSpace, setAddToSpace] = useState<string>();
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     return (
-        <SpacePanelWrapper>
-            <SpacePanelHeader>
-                <BreadcrumbsWrapper>
+        <PageContentWrapper>
+            <PageHeader>
+                <PageBreadcrumbsWrapper>
                     <Breadcrumbs2
                         items={[
                             {
@@ -63,7 +78,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             { text: space.name },
                         ]}
                     />
-                </BreadcrumbsWrapper>
+                </PageBreadcrumbsWrapper>
+
                 <SpaceBrowserMenu
                     onRename={() => setUpdateSpace(true)}
                     onDelete={() => setDeleteSpace(true)}
@@ -78,93 +94,90 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         <Button icon="edit" text="Edit space" />
                     </Can>
                 </SpaceBrowserMenu>
+
                 {updateSpace && (
                     <EditSpaceModal
                         spaceUuid={space.uuid}
                         onClose={() => {
                             setUpdateSpace(false);
                         }}
-                    ></EditSpaceModal>
+                    />
                 )}
+
                 {deleteSpace && (
                     <DeleteSpaceModal
                         spaceUuid={space.uuid}
                         onClose={() => {
                             setDeleteSpace(false);
                         }}
-                    ></DeleteSpaceModal>
+                    />
                 )}
-            </SpacePanelHeader>
+            </PageHeader>
 
-            <ActionCardList
-                title={`Dashboards (${savedDashboards.length})`}
-                useUpdate={useUpdateDashboardName}
-                useDelete={useDelete}
-                dataList={savedDashboards}
-                getURL={(savedDashboard) => {
-                    const { uuid } = savedDashboard;
-                    return `/projects/${projectUuid}/dashboards/${uuid}/view`;
-                }}
-                ModalContent={DashboardForm}
-                headerAction={
-                    user.data?.ability?.can('manage', 'Dashboard') &&
-                    !isDemo && (
-                        <Button
-                            text="Add dashboard"
-                            onClick={() => setAddToSpace('dashboards')}
-                            intent="primary"
-                        />
-                    )
+            <ResourceList
+                headerTitle="Dashboards"
+                resourceIcon="control"
+                resourceType="dashboard"
+                resourceList={savedDashboards}
+                showSpaceColumn={false}
+                getURL={({ uuid }) =>
+                    `/projects/${projectUuid}/dashboards/${uuid}/view`
                 }
-                emptyBody={
-                    <NonIdealState
-                        description={
-                            <EmptyStateWrapper>
-                                <EmptyStateIcon icon="control" size={50} />
-                                <EmptyStateText>
-                                    No dashboards added yet
-                                </EmptyStateText>
-                                <p>Hit 'Add dashboard' to get started.</p>
-                            </EmptyStateWrapper>
-                        }
-                    />
+                headerAction={
+                    !isDemo &&
+                    userCanManageDashboards && (
+                        <AddResourceToSpaceMenu
+                            resourceType={AddToSpaceResources.DASHBOARD}
+                            onAdd={() =>
+                                setAddToSpace(AddToSpaceResources.DASHBOARD)
+                            }
+                            onCreate={() =>
+                                setCreateToSpace(AddToSpaceResources.DASHBOARD)
+                            }
+                        >
+                            <Button icon="plus" intent="primary" />
+                        </AddResourceToSpaceMenu>
+                    )
                 }
             />
 
-            <SavedQueriesContent
-                title={`Saved charts (${savedCharts.length})`}
-                savedQueries={savedCharts || []}
-                projectUuid={projectUuid}
+            <ResourceList
+                headerTitle="Saved charts"
+                resourceList={orderedCharts}
+                resourceIcon="chart"
+                resourceType="chart"
+                showSpaceColumn={false}
+                getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
-                    user.data?.ability?.can('manage', 'SavedChart') &&
-                    !isDemo && (
-                        <Button
-                            text="Add chart"
-                            onClick={() => setAddToSpace('charts')}
-                            intent="primary"
-                        />
+                    !isDemo &&
+                    userCanManageCharts && (
+                        <AddResourceToSpaceMenu
+                            resourceType={AddToSpaceResources.CHART}
+                            onAdd={() =>
+                                setAddToSpace(AddToSpaceResources.CHART)
+                            }
+                            onCreate={() =>
+                                setCreateToSpace(AddToSpaceResources.CHART)
+                            }
+                        >
+                            <Button icon="plus" intent="primary" />
+                        </AddResourceToSpaceMenu>
                     )
                 }
-                emptyBody={
-                    <NonIdealState
-                        description={
-                            <EmptyStateWrapper>
-                                <EmptyStateIcon icon="chart" size={50} />
-                                <EmptyStateText>
-                                    No charts added yet
-                                </EmptyStateText>
-                                <p>Hit 'Add chart' to get started.</p>
-                            </EmptyStateWrapper>
-                        }
-                    />
-                }
             />
-            <AddToSpaceModal
-                isOpen={addToSpace !== undefined}
-                isChart={addToSpace === 'charts'}
-                onClose={() => setAddToSpace(undefined)}
-            />
-        </SpacePanelWrapper>
+
+            {addToSpace && (
+                <AddResourceToSpaceModal
+                    isOpen
+                    resourceType={addToSpace}
+                    onClose={() => setAddToSpace(undefined)}
+                />
+            )}
+
+            {createToSpace && (
+                <CreateResourceToSpace resourceType={createToSpace} />
+            )}
+        </PageContentWrapper>
     );
 };
 

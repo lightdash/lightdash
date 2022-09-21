@@ -1,15 +1,15 @@
-import { Button, Divider, Menu } from '@blueprintjs/core';
+import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Space } from '@lightdash/common';
+import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
-import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import { ActionTypeModal } from './ActionModal';
+import { ActionTypeModal } from '../modal/ActionModal';
 
-type ModalActionButtonsProps = {
+type Props = {
     data: any;
+    spaces: Space[];
     url: string;
     setActionState: Dispatch<
         SetStateAction<{ actionType: number; data?: any }>
@@ -17,24 +17,23 @@ type ModalActionButtonsProps = {
     isChart?: boolean;
 };
 
-const ModalActionButtons = ({
+const ResourceActionMenu: FC<Props> = ({
     data,
+    spaces,
     url,
     setActionState,
-    isChart,
-}: ModalActionButtonsProps) => {
+    isChart = false,
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
+
+    const { user } = useApp();
     const { mutate: duplicateChart } = useDuplicateMutation(itemId, true);
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
         itemId,
         true,
     );
-    const isDashboardPage = url.includes('/dashboards');
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces } = useSpaces(projectUuid);
-
-    const { user } = useApp();
+    const isDashboardPage = url.includes('/dashboards') || !isChart;
 
     useEffect(() => {
         setItemId(data.uuid);
@@ -45,9 +44,12 @@ const ModalActionButtons = ({
     } else {
         if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
     }
+
     return (
         <Popover2
+            lazy
             isOpen={isOpen}
+            position={Position.BOTTOM_RIGHT}
             onClose={() => {
                 setIsOpen(false);
             }}
@@ -74,12 +76,13 @@ const ModalActionButtons = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (!isChart) {
-                                duplicateDashboard(itemId);
-                            }
+
                             if (isChart) {
                                 duplicateChart(itemId);
+                            } else {
+                                duplicateDashboard(itemId);
                             }
+
                             setIsOpen(false);
                         }}
                     />
@@ -101,6 +104,7 @@ const ModalActionButtons = ({
                     )}
 
                     <MenuItem2
+                        tagName="div"
                         icon="folder-close"
                         text="Move to Space"
                         onClick={(e) => {
@@ -108,19 +112,20 @@ const ModalActionButtons = ({
                             e.stopPropagation();
                         }}
                     >
-                        {spaces?.map((space) => {
-                            const isDisabled = data.spaceUuid === space.uuid;
+                        {spaces.map((space) => {
+                            const isSelected = data.spaceUuid === space.uuid;
                             return (
                                 <MenuItem2
                                     key={space.uuid}
+                                    roleStructure="listoption"
                                     text={space.name}
-                                    icon={isDisabled ? 'small-tick' : undefined}
-                                    className={isDisabled ? 'bp4-disabled' : ''}
+                                    selected={isSelected}
+                                    className={isSelected ? 'bp4-disabled' : ''}
                                     onClick={(e) => {
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        if (!isDisabled)
+                                        if (!isSelected)
                                             setActionState({
                                                 actionType:
                                                     ActionTypeModal.MOVE_TO_SPACE,
@@ -135,8 +140,10 @@ const ModalActionButtons = ({
                         })}
 
                         <Divider />
+
                         <MenuItem2
-                            text="+ Create new"
+                            icon="plus"
+                            text="Create new"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -152,7 +159,7 @@ const ModalActionButtons = ({
 
                     <MenuItem2
                         role="button"
-                        icon="trash"
+                        icon="cross"
                         text="Delete"
                         intent="danger"
                         onClick={(e) => {
@@ -167,7 +174,6 @@ const ModalActionButtons = ({
                     />
                 </Menu>
             }
-            placement="bottom"
         >
             <Button
                 icon="more"
@@ -182,8 +188,4 @@ const ModalActionButtons = ({
     );
 };
 
-ModalActionButtons.defaultProps = {
-    isChart: false,
-};
-
-export default ModalActionButtons;
+export default ResourceActionMenu;

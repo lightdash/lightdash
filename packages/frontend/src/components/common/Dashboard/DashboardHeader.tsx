@@ -15,7 +15,6 @@ import AddTileButton from '../../DashboardTiles/AddTileButton';
 import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
-import { UpdatedInfo } from '../ActionCard';
 import {
     IconWithRightMargin,
     PageActionsContainer,
@@ -26,6 +25,7 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
+import { UpdatedInfo } from '../UpdatedInfo';
 
 type DashboardHeaderProps = {
     spaces?: Space[];
@@ -242,7 +242,8 @@ const DashboardHeader = ({
                                     <Divider />
 
                                     <MenuItem2
-                                        text="+ Create new"
+                                        icon="plus"
+                                        text="Create new"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
@@ -254,7 +255,7 @@ const DashboardHeader = ({
                                 <Divider />
 
                                 <MenuItem2
-                                    icon="trash"
+                                    icon="cross"
                                     text="Delete"
                                     intent="danger"
                                     onClick={onDelete}

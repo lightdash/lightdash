@@ -33,8 +33,9 @@ describe('Dashboard List', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
+        // open actions menu
+        cy.contains('tr', 'Untitled dashboard').find('button').click();
         // click on rename
-        cy.contains('Untitled dashboard').children().eq(1).click();
         cy.findByRole('button', { name: 'Rename' }).click();
         cy.findByLabelText('Name *').clear().type('e2e dashboard');
         // click on save
@@ -48,8 +49,9 @@ describe('Dashboard List', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByRole('button', { name: 'Browse' }).click();
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
+        // open actions menu
+        cy.contains('tr', 'e2e dashboard').find('button').click();
         // click on delete
-        cy.contains('e2e dashboard').children().eq(1).click();
         cy.findByRole('button', { name: 'Delete' }).click();
         // click on delete in the popup
         cy.findByText('Delete').click();

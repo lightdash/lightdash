@@ -163,6 +163,7 @@ export class SpaceModel {
                 {
                     saved_query_uuid: string;
                     name: string;
+                    description?: string;
                     created_at: Date;
                     user_uuid: string;
                     first_name: string;
@@ -171,6 +172,7 @@ export class SpaceModel {
             >([
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
+                `saved_queries.description`,
                 `saved_queries_versions.created_at`,
                 `users.user_uuid`,
                 `users.first_name`,
@@ -191,6 +193,7 @@ export class SpaceModel {
         return savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
+            description: savedQuery.description,
             updatedAt: savedQuery.created_at,
             updatedByUser: {
                 userUuid: savedQuery.user_uuid,

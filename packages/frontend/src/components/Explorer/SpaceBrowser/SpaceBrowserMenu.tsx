@@ -13,30 +13,25 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
     children,
 }) => {
     return (
-        <>
-            <Popover2
-                minimal
-                captureDismiss
-                content={
-                    <Menu>
-                        <MenuItem2
-                            icon="edit"
-                            text="Rename"
-                            onClick={onRename}
-                        />
-                        <MenuDivider />
-                        <MenuItem2
-                            icon="delete"
-                            intent="danger"
-                            text="Remove space"
-                            onClick={onDelete}
-                        />
-                    </Menu>
-                }
-                position={PopoverPosition.BOTTOM_LEFT}
-            >
-                {children}
-            </Popover2>
-        </>
+        <Popover2
+            captureDismiss
+            position={PopoverPosition.BOTTOM_RIGHT}
+            content={
+                <Menu>
+                    <MenuItem2 icon="edit" text="Rename" onClick={onRename} />
+
+                    <MenuDivider />
+
+                    <MenuItem2
+                        icon="cross"
+                        intent="danger"
+                        text="Remove space"
+                        onClick={onDelete}
+                    />
+                </Menu>
+            }
+        >
+            {children}
+        </Popover2>
     );
 };

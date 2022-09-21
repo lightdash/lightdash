@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DimensionType,
     Field,
     isDimension,
@@ -45,10 +46,6 @@ enum BooleanSortLabels {
     ASC = 'No-Yes',
     DESC = 'Yes-No',
 }
-
-const assertUnreachable = (_x: never): never => {
-    throw new Error("Didn't expect to get here");
-};
 
 export const getSortLabel = (
     item: Field | TableCalculation,

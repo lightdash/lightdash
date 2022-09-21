@@ -1,65 +1,77 @@
 import { AnchorButton } from '@blueprintjs/core';
-import { SpaceQuery } from '@lightdash/common';
-import React, { FC } from 'react';
-import {
-    useDeleteMutation,
-    useUpdateMutation,
-} from '../../../hooks/useSavedQuery';
+import { subject } from '@casl/ability';
+import { LightdashMode } from '@lightdash/common';
+import { FC, useMemo } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
-import ActionCardList from '../../common/ActionCardList';
-import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
-import LatestCard from '../LatestCard';
-import { ViewAllButton } from './LatestSavedCharts.style';
+import { useApp } from '../../../providers/AppProvider';
+import LinkButton from '../../common/LinkButton';
+import ResourceList from '../../common/ResourceList';
 
-const LatestSavedCharts: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const savedChartsRequest = useSavedCharts(projectUuid);
-    const savedCharts = savedChartsRequest.data || [];
-    const featuredCharts = savedCharts
-        .sort(
-            (a, b) =>
-                new Date(b.updatedAt).getTime() -
-                new Date(a.updatedAt).getTime(),
-        )
-        .slice(0, 5);
+interface Props {
+    projectUuid: string;
+}
+
+const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
+    const { user, health } = useApp();
+    const history = useHistory();
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
+
+    const featuredCharts = useMemo(() => {
+        return savedCharts
+            .sort((a, b) => {
+                return (
+                    new Date(b.updatedAt).getTime() -
+                    new Date(a.updatedAt).getTime()
+                );
+            })
+            .slice(0, 5);
+    }, [savedCharts]);
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const handleCreateChart = () => {
+        history.push(`/projects/${projectUuid}/tables`);
+    };
 
     return (
-        <LatestCard
-            isLoading={savedChartsRequest.isLoading}
-            title="Recently updated charts"
+        <ResourceList
+            resourceIcon="chart"
+            resourceType="chart"
+            resourceList={featuredCharts}
+            showSpaceColumn
+            enableSorting={false}
+            showCount={false}
+            getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
+            headerTitle="Recently updated charts"
             headerAction={
-                savedCharts.length > 0 ? (
-                    <ViewAllButton
-                        text={`View all ${savedCharts.length}`}
-                        minimal
-                        outlined
-                        href={`/projects/${projectUuid}/saved`}
-                    />
-                ) : (
+                savedCharts.length === 0 ? (
                     <AnchorButton
                         target="_blank"
                         text="Learn"
                         minimal
-                        outlined
                         href="https://docs.lightdash.com/get-started/exploring-data/sharing-insights"
-                        style={{ width: 100 }}
                     />
-                )
+                ) : userCanManageCharts && !isDemo ? (
+                    <LinkButton
+                        text={`View all ${savedCharts.length}`}
+                        minimal
+                        intent="primary"
+                        href={`/projects/${projectUuid}/saved`}
+                    />
+                ) : null
             }
-        >
-            <ActionCardList
-                title="Saved charts"
-                useUpdate={useUpdateMutation}
-                useDelete={useDeleteMutation()}
-                dataList={featuredCharts}
-                getURL={(savedQuery: SpaceQuery) => {
-                    const { uuid } = savedQuery;
-                    return `/projects/${projectUuid}/saved/${uuid}`;
-                }}
-                ModalContent={SavedQueryForm}
-                isHomePage
-                isChart
-            />
-        </LatestCard>
+            onClickCTA={
+                !isDemo && userCanManageCharts ? handleCreateChart : undefined
+            }
+        />
     );
 };
 

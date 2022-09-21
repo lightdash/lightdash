@@ -1,30 +1,40 @@
 import { AnchorButton } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { subject } from '@casl/ability';
+import { LightdashMode } from '@lightdash/common';
+import { FC, useMemo } from 'react';
 import { Redirect } from 'react-router-dom';
-import {
-    useCreateMutation,
-    useDeleteMutation,
-    useUpdateDashboardName,
-} from '../../../hooks/dashboard/useDashboard';
+import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
-import ActionCardList from '../../common/ActionCardList';
-import DashboardForm from '../../SavedDashboards/DashboardForm';
-import LatestCard from '../LatestCard';
-import { ViewAllDashboardsButton } from './LatestDashboard.styles';
+import { useApp } from '../../../providers/AppProvider';
+import LinkButton from '../../common/LinkButton';
+import ResourceList from '../../common/ResourceList';
+import { DEFAULT_DASHBOARD_NAME } from '../../SpacePanel';
+
 interface Props {
     projectUuid: string;
 }
 
 const LatestDashboards: FC<Props> = ({ projectUuid }) => {
-    const dashboardsRequest = useDashboards(projectUuid);
-    const dashboards = dashboardsRequest.data || [];
-    const useDelete = useDeleteMutation();
+    const { user, health } = useApp();
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+    const { data: dashboards = [] } = useDashboards(projectUuid);
     const {
         isLoading: isCreatingDashboard,
         isSuccess: hasCreatedDashboard,
         mutate: createDashboard,
         data: newDashboard,
     } = useCreateMutation(projectUuid);
+
+    const featuredDashboards = useMemo(() => {
+        return dashboards
+            .sort((a, b) => {
+                return (
+                    new Date(b.updatedAt).getTime() -
+                    new Date(a.updatedAt).getTime()
+                );
+            })
+            .slice(0, 5);
+    }, [dashboards]);
 
     if (hasCreatedDashboard && newDashboard) {
         return (
@@ -35,51 +45,56 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
         );
     }
 
-    const featuredDashboards = dashboards
-        .sort(
-            (a, b) =>
-                new Date(b.updatedAt).getTime() -
-                new Date(a.updatedAt).getTime(),
-        )
-        .slice(0, 5);
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const handleCreateDashboard = () => {
+        createDashboard({
+            name: DEFAULT_DASHBOARD_NAME,
+            tiles: [],
+        });
+    };
 
     return (
-        <LatestCard
-            isLoading={dashboardsRequest.isLoading}
-            title="Recently updated dashboards"
+        <ResourceList
+            resourceIcon="control"
+            resourceType="dashboard"
+            resourceList={featuredDashboards}
+            showSpaceColumn
+            enableSorting={false}
+            showCount={false}
+            getURL={({ uuid }) =>
+                `/projects/${projectUuid}/dashboards/${uuid}/view`
+            }
+            headerTitle="Recently updated dashboards"
             headerAction={
-                dashboards.length > 0 ? (
-                    <ViewAllDashboardsButton
-                        text={`View all ${dashboards.length}`}
-                        minimal
-                        outlined
-                        href={`/projects/${projectUuid}/dashboards`}
-                    />
-                ) : (
+                dashboards.length === 0 ? (
                     <AnchorButton
-                        target="_blank"
                         text="Learn"
                         minimal
-                        outlined
+                        target="_blank"
                         href="https://docs.lightdash.com/get-started/exploring-data/dashboards/"
-                        style={{ width: 100 }}
                     />
-                )
+                ) : userCanManageDashboards && !isDemo ? (
+                    <LinkButton
+                        text={`View all ${dashboards.length}`}
+                        minimal
+                        intent="primary"
+                        href={`/projects/${projectUuid}/dashboards`}
+                    />
+                ) : null
             }
-        >
-            <ActionCardList
-                title=""
-                useUpdate={useUpdateDashboardName}
-                useDelete={useDelete}
-                dataList={featuredDashboards}
-                getURL={(savedDashboard) => {
-                    const { uuid } = savedDashboard;
-                    return `/projects/${projectUuid}/dashboards/${uuid}/view`;
-                }}
-                ModalContent={DashboardForm}
-                isHomePage
-            />
-        </LatestCard>
+            onClickCTA={
+                !isDemo && userCanManageDashboards
+                    ? handleCreateDashboard
+                    : undefined
+            }
+        />
     );
 };
 

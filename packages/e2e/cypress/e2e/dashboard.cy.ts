@@ -12,7 +12,10 @@ describe('Dashboard', () => {
     it('Should see dashboard', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        cy.findByText('Jaffle dashboard').click();
+        // wiat for the dashboard to load
+        cy.findByText('Loading dashboards').should('not.exist');
+
+        cy.contains('a', 'Jaffle dashboard').click();
 
         cy.findByText("What's our total revenue to date?");
         cy.findByText("What's the average spend per customer?");
