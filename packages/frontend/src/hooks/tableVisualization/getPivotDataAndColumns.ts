@@ -62,11 +62,11 @@ const getPivotDataAndColumns = ({
         ),
     );
 
-    if (Object.keys(pivotValuesMap).length > 20) {
+    if (Object.keys(pivotValuesMap).length > 60) {
         return {
             rows: [],
             columns: [],
-            error: 'Exceeded max amount of 20 pivot values',
+            error: 'Exceeded max amount of 60 pivot values',
         };
     }
 
