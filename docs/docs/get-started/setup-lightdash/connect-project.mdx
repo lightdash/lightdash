@@ -1,9 +1,19 @@
----
-sidebar_position: 3
-sidebar_label: Connect your dbt project to Lightdash
----
+import ChooseDatabase from './assets/choose-database.png';
+import GetToProjects from './assets/get-to-projects.png';
+import ProjectIdList from './assets/project-id-list.png';
+import DbtCloudCredentials from './assets/dbt-cloud-credentials.png';
+import DataLocation from './assets/data-location.png';
+import SnowflakeAccountUrl from './assets/snowflake-account-url.png';
+import SnowflakeUsersList from './assets/snowflake-users-list.png';
+import SnowflakeLoginForm from './assets/snowflake-login-form.png';
+import SnowflakeRolesList from './assets/snowflake-roles-list.png';
+import SnowflakeDatabaseList from './assets/snowflake-database-list.png';
+import SnowflakeWarehouseList from './assets/snowflake-warehouse-list.png';
+import OauthScope from '../assets/oauth-scope.png';
+import DatabricksConnectScreenshot from './assets/databricks-connect-screenshot.png';
+import DatabricksAccessScreenshot from './assets/databricks-access-screenshot.png';
 
-# Connect your dbt project to Lightdash
+# Update your project connection
 
 To setup your Lightdash project you'll need to:
 
@@ -14,17 +24,11 @@ To setup your Lightdash project you'll need to:
 
 To get started with connecting your Lightdash project, you'll need to open your Lightdash instance. 
 
-If you're a Lightdash Cloud user setting up your first project, this is where you'll need to open up the registration link that we sent to you. It looks like this:
-
-![sign-up-page](./assets/sign-up-page.png)
-
-You'll be prompted to create a new user. Then, you should be prompted to connect a project (if you're joining an organization without a project).
-
 If you're looking to create a new project in an organization with an existing project, within Lightdash, you'll want to click on `Settings` --> `Project management` --> `Create new`.
 
 ## 1. Connect to a warehouse
 
-![choose-database](./assets/choose-database.png)
+<img src={ChooseDatabase} width="316" height="251" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 We always recommend giving read-only permissions to Lightdash, that way you ensure than no data can be manipulated. See each section below for warehouse specific details.
 
@@ -47,11 +51,11 @@ To find your project ID, head to the [BigQuery Cloud console](https://console.cl
 
 Once you're in there, click on the project name in the top bar.
 
-![get to projects](./assets/get-to-projects.png)
+<img src={GetToProjects} width="417" height="104" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 Then, you should see all of the projects and their project IDs in your organization (that you have access to).
 
-![project id list](./assets/project-id-list.png)
+<img src={ProjectIdList} width="553" height="203" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 For the project you want to connect Lightdash to, just copy its `id` and pop it into the `project` field in the Warehouse Connection form in Lightdash.
 
@@ -62,7 +66,7 @@ or  your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `dataset`:
@@ -87,7 +91,7 @@ The data location of the dataset in BigQuery where the output of your dbt models
 
 You can find the location of the dataset you're using for your dbt project [in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations), or in your BigQuery console.
 
-![data location](./assets/data-location.png)
+<img src={DataLocation} width="302" height="215" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Key File
 
@@ -170,7 +174,7 @@ or  your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `schema`:
@@ -238,7 +242,7 @@ or  your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `schema`:
@@ -293,7 +297,7 @@ before `snowflakecomputing.com`.
 For example in the image below, the user logs in via `https://aaa99827.snowflakecomputing.com/console/login#/` so
 the account identifier is `aaa99827`.
 
-![snowflake-account-url](./assets/snowflake-account-url.png)
+<img src={SnowflakeAccountUrl} width="430" height="47" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you don't have access via the browser, you can use the following format `<organization_name>-<account_name>` where
 `organization_name` and `account_name` can be found by following any of the methods listed in
@@ -309,21 +313,21 @@ with a username and password specifically for Lightdash to use.
 
 If you're a snowflake admin you can list all users available in the snowflake console:
 
-![snowflake-users-list](./assets/snowflake-users-list.png)
-
+<img src={SnowflakeUsersList} width="772" height="218" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Password
 
 This is the password your Snowflake user. This is usually the same password you use to login to Snowflake:
 
-![snowflake-login-form](./assets/snowflake-login-form.png)
+<img src={SnowflakeLoginForm} width="394" height="368" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 
 Alternatively, you can [create a new user through the snowflake console](https://docs.snowflake.com/en/user-guide/admin-user-management.html)
 with a username and password specifically for Lightdash to use.
 
 If you're a Snowflake admin you can list all users available in the snowflake console:
 
-![snowflake-users-list](./assets/snowflake-users-list.png)
+<img src={SnowflakeUsersList} width="772" height="218" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Role
 
@@ -332,7 +336,7 @@ access to any warehouses, databases, schemas, and tables you want to use.
 
 If you're a Snowflake admin you can list all roles available in the snowflake console:
 
-![snowflake-roles-list](./assets/snowflake-roles-list.png)
+<img src={SnowflakeRolesList} width="635" height="192" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can configure your role to allow read access to all warehouses, databases, schemas, and tables by following the
 guide for
@@ -343,14 +347,14 @@ guide for
 This is the name of your database. The specified user must be granted access to this database. You can see a list of
 databases available in the snowflake console:
 
-![snowflake-database-list](./assets/snowflake-database-list.png)
+<img src={SnowflakeDatabaseList} width="473" height="266" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Warehouse
 
 This is the name of the warehouse you would like to use for running queries. The specified user must be grantend
 access to use this warehouse. You can see al list of warehouses available in the snowflake console:
 
-![snowflake-warehouse-list](./assets/snowflake-warehouse-list.png)
+<img src={SnowflakeWarehouseList} width="386" height="203" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Schema
 
@@ -359,7 +363,7 @@ or  your local `profiles.yml` file.
 
 If you're a dbt cloud user you can find this under your profile in the dbt cloud IDE:
 
-![dbt-cloud-credentials](./assets/dbt-cloud-credentials.png)
+<img src={DbtCloudCredentials} width="740" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you work with dbt locally, then check your `profiles.yml` file at `~/.dbt/profiles.yml` and look for a field
 named `schema`:
@@ -399,7 +403,7 @@ The credentials needed to connect to your cluster can be found in the ODBC optio
 3. Expand the `Advanced options` tab
 4. Open the `JDBC/ODBC` tab
 
-![databricks connect screenshot](./assets/databricks-connect-screenshot.png)
+<img src={DatabricksConnectScreenshot} width="922" height="608" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Server hostname
 
@@ -421,8 +425,7 @@ Your personal access token can be found in your user settings in databricks:
 2. Click `Generate token`. You'll be asked to enter a name and expiry.
 3. Copy the token
 
-![databricks access screenshot](./assets/databricks-access-screenshot.png)
-
+<img src={DatabricksAccessScreenshot} width="1097" height="647" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Database
 
@@ -473,7 +476,7 @@ See the [instructions for creating a personal access token here](https://docs.gi
 
 Select `repo` scope when you're creating the token.
 
-![screenshot](../assets/oauth-scope.png)
+<img src={OauthScope} width="543" height="304" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Repository
 

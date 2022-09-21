@@ -84,29 +84,29 @@ module.exports = {
     },
     {
       type: "category",
+      label: "🎮 The Lightdash CLI",
+      link: {
+        type: 'generated-index',
+        title: 'The Lightdash CLI',
+        description: 'The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash instance. Here are some guides to get you started!',
+        slug: '/guides/cli/intro',
+        keywords: ['cli'],
+      },
+      items: [
+        "guides/cli/how-to-install-the-lightdash-cli",
+        "guides/cli/cli-authentication",
+        "guides/cli/how-to-upgrade-cli",
+        "guides/cli/how-to-auto-generate-schema-files",
+        "guides/cli/how-to-use-lightdash-preview",
+        "guides/cli/how-to-use-lightdash-deploy",
+        "guides/cli/how-to-automatically-deploy",
+      ],
+    },
+    {
+      type: "category",
       label: "👷‍♀️ Developing your project",
       items: [
         "get-started/setup-lightdash/get-project-lightdash-ready",
-        {
-          type: "category",
-          label: "The Lightdash CLI",
-          link: {
-            type: 'generated-index',
-            title: 'The Lightdash CLI',
-            description: 'The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash instance. Here are some guides to get you started!',
-            slug: '/guides/cli/intro',
-            keywords: ['cli'],
-          },
-          items: [
-            "guides/cli/how-to-install-the-lightdash-cli",
-            "guides/cli/cli-authentication",
-            "guides/cli/how-to-upgrade-cli",
-            "guides/cli/how-to-auto-generate-schema-files",
-            "guides/cli/how-to-use-lightdash-preview",
-            "guides/cli/how-to-use-lightdash-deploy",
-            "guides/cli/how-to-automatically-deploy",
-          ],
-        },
         {
           type: "category",
           label: "Tables",
@@ -149,7 +149,14 @@ module.exports = {
       items: [
         "get-started/exploring-data/using-explores",
         "guides/exploring-your-content",
-        "guides/limiting-data-using-filters",
+        {
+          type: "category",
+          label: "Filters",
+          items: [
+            "guides/limiting-data-using-filters",
+            "references/filters",
+          ],
+        },
         "guides/table-calculations/adding-table-calculations",
         {
           type: "category",

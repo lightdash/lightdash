@@ -27,10 +27,13 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 - [Update Lightdash](/references/update-lightdash.md)
 - [Create multiple projects](/guides/how-to-create-multiple-projects.md)
 
+## 🎮 The Lightdash CLI
+
+- [The Lightdash CLI](/guides/cli/intro)
+
 ## 👷‍♀️ Developing your project
 
 - [Get your dbt project Lightdash-ready](/get-started/setup-lightdash/get-project-lightdash-ready.mdx)
-- [The Lightdash CLI](/guides/cli/intro)
 - [An intro to metrics and dimensions](/get-started/setup-lightdash/intro-metrics-dimensions.mdx)
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
 - [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.mdx)
@@ -43,14 +46,14 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 - [Using Tables and the Explore view](/get-started/exploring-data/using-explores.mdx)
 - [Exploring your content](/guides/exploring-your-content.mdx)
-- [Limiting your data using filters](/guides/limiting-data-using-filters.md#adding-filters-in-the-explore-view)
+- [Limiting your data using filters](/guides/limiting-data-using-filters.mdx#adding-filters-in-the-explore-view)
 - [Adding table calculations in the Explore view](/guides/table-calculations/adding-table-calculations.mdx)
 - [Visualizing your results](/guides/visualizing-your-results.mdx)
 
 ## 🎯 Dashboards
 
 - [Creating dashboards](/get-started/exploring-data/dashboards.md)
-- [Limiting the data in your dashboard with filters](/guides/limiting-data-using-filters.md#adding-filters-to-your-dashboard)
+- [Limiting the data in your dashboard with filters](/guides/limiting-data-using-filters.mdx#adding-filters-to-your-dashboard)
 - [Interactive dashboards](/guides/interactive-dashboards.mdx)
 
 ## 🔎 Finding + organizing things
