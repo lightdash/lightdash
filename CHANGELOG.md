@@ -1,3 +1,10 @@
+# [0.260.0](https://github.com/lightdash/lightdash/compare/0.259.0...0.260.0) (2022-09-21)
+
+
+### Features
+
+* increase pivot limit to 60 ([#3274](https://github.com/lightdash/lightdash/issues/3274)) ([beda745](https://github.com/lightdash/lightdash/commit/beda745765c8bd8504da84c2d41cc81c51aeee8d))
+
 # [0.259.0](https://github.com/lightdash/lightdash/compare/0.258.1...0.259.0) (2022-09-20)
 
 
