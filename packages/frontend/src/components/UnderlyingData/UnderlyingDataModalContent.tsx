@@ -157,18 +157,19 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         const showUnderlyingTable: string | undefined = isField(meta?.item)
             ? meta.item.table
             : undefined;
-
         const availableDimensions = allDimensions.filter(
             (dimension) =>
                 tablesInQuery.has(dimension.table) &&
                 !dimension.timeInterval &&
                 !dimension.hidden &&
                 (showUnderlyingValues !== undefined
-                    ? showUnderlyingValues.includes(dimension.name) &&
-                      showUnderlyingTable === dimension.table
+                    ? (showUnderlyingValues.includes(dimension.name) &&
+                          showUnderlyingTable === dimension.table) ||
+                      showUnderlyingValues.includes(
+                          `${dimension.table}.${dimension.name}`,
+                      )
                     : true),
         );
-
         const dimensionFields = availableDimensions.map(getFieldId);
 
         return {
