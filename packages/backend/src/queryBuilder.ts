@@ -136,18 +136,9 @@ export const renderDateFilterSql = (
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
 
-            const isTimeFormat = [
-                UnitOfTime.hours,
-                UnitOfTime.minutes,
-                UnitOfTime.seconds,
-                UnitOfTime.milliseconds,
-            ].includes(unitOfTime);
-
-            const untilDate = isTimeFormat
-                ? formatTimestamp(moment().startOf(unitOfTime).toDate())
-                : moment()
-                      .startOf(unitOfTime)
-                      .format(unitOfTimeFormat[UnitOfTime.days]);
+            const untilDate = dateFormatter(
+                moment().startOf(unitOfTime).toDate(),
+            );
             if (completed) {
                 const completedDate = moment(
                     moment()
