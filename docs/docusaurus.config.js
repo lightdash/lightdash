@@ -46,6 +46,11 @@ module.exports = {
           label: "Docs",
         },
         {
+          to: "/api/v1",
+          position: "left",
+          label: "API",
+        },
+        {
           label: "Live demo",
           href: "https://demo.lightdash.com/",
           position: "left",
@@ -65,7 +70,6 @@ module.exports = {
         src: "img/lightdash-full-darkbg.png",
         href: "https://lightdash.com",
         width: 570,
-        height: 167,
       },
       links: [
         {
@@ -104,6 +108,27 @@ module.exports = {
         },
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
+        },
+      },
+    ],
+    [
+      "redocusaurus",
+      {
+        specs: [
+          {
+            id: "api-v1",
+            spec: "../packages/common/src/openapibundle.json",
+            route: "/api/v1/",
+          },
+        ],
+        theme: {
+          primaryColor: "#7262FF",
+          options: {
+            // see all options here: https://github.com/Redocly/redoc#redoc-options-object
+            disableSearch: true,
+            hideHostname: true,
+            hideDownloadButton: true,
+          },
         },
       },
     ],
