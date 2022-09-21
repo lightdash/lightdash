@@ -797,7 +797,7 @@ export const InTheLast1DayFilter = {
     },
 };
 
-export const InTheLast1DayFilterSQL = `((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04 00:12:00'))`;
+export const InTheLast1DayFilterSQL = `((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))`;
 
 export const InTheLast1WeekFilter = {
     ...InTheLast1DayFilter,
@@ -807,7 +807,7 @@ export const InTheLast1WeekFilter = {
     },
 };
 
-export const InTheLast1WeekFilterSQL = `((customers.created) >= ('2020-03-28') AND (customers.created) < ('2020-04-04 00:12:00'))`;
+export const InTheLast1WeekFilterSQL = `((customers.created) >= ('2020-03-28') AND (customers.created) <= ('2020-03-29'))`;
 
 export const InTheLast1MonthFilter = {
     ...InTheLast1WeekFilter,
@@ -817,7 +817,7 @@ export const InTheLast1MonthFilter = {
     },
 };
 
-export const InTheLast1MonthFilterSQL = `((customers.created) >= ('2020-03-04') AND (customers.created) < ('2020-04-04 00:12:00'))`;
+export const InTheLast1MonthFilterSQL = `((customers.created) >= ('2020-03-04') AND (customers.created) <= ('2020-04-01'))`;
 
 export const InTheLast1YearFilter = {
     ...InTheLast1WeekFilter,
@@ -827,7 +827,7 @@ export const InTheLast1YearFilter = {
     },
 };
 
-export const InTheLast1YearFilterSQL = `((customers.created) >= ('2019-04-04') AND (customers.created) < ('2020-04-04 00:12:00'))`;
+export const InTheLast1YearFilterSQL = `((customers.created) >= ('2019-04-04') AND (customers.created) <= ('2020-01-01'))`;
 
 export const InTheLast1CompletedYearFilter = {
     ...InTheLast1WeekFilter,
