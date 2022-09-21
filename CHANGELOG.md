@@ -1,3 +1,10 @@
+# [0.261.0](https://github.com/lightdash/lightdash/compare/0.260.2...0.261.0) (2022-09-21)
+
+
+### Features
+
+* spaces - resource list ([#3221](https://github.com/lightdash/lightdash/issues/3221)) ([184fdcf](https://github.com/lightdash/lightdash/commit/184fdcf2eda3044d2ff1870297e34323da42c926))
+
 ## [0.260.2](https://github.com/lightdash/lightdash/compare/0.260.1...0.260.2) (2022-09-21)
 
 
