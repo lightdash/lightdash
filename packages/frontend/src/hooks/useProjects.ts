@@ -1,4 +1,4 @@
-import { ApiError, OrganizationProject } from '@lightdash/common';
+import { ApiError, OrganizationProject, ProjectType } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -38,7 +38,13 @@ export const useDefaultProject = () => {
         queryFn: getProjectsQuery,
         retry: false,
     });
-    return { ...projectsQuery, data: projectsQuery.data?.[0] };
+    const defaultProject = projectsQuery.data?.find(
+        ({ type }) => type === ProjectType.DEFAULT,
+    );
+    return {
+        ...projectsQuery,
+        data: defaultProject || projectsQuery.data?.[0],
+    };
 };
 
 const deleteProjectQuery = async (id: string) =>
