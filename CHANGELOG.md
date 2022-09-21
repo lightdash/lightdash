@@ -1,3 +1,10 @@
+## [0.260.1](https://github.com/lightdash/lightdash/compare/0.260.0...0.260.1) (2022-09-21)
+
+
+### Bug Fixes
+
+* dont default to preview project ([#3277](https://github.com/lightdash/lightdash/issues/3277)) ([74d5779](https://github.com/lightdash/lightdash/commit/74d5779ef8960e4362e02d382a23a528e58928f8))
+
 # [0.260.0](https://github.com/lightdash/lightdash/compare/0.259.0...0.260.0) (2022-09-21)
 
 
