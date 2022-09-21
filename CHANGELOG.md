@@ -1,3 +1,10 @@
+## [0.260.2](https://github.com/lightdash/lightdash/compare/0.260.1...0.260.2) (2022-09-21)
+
+
+### Bug Fixes
+
+* big number style config ([#3278](https://github.com/lightdash/lightdash/issues/3278)) ([9e4a212](https://github.com/lightdash/lightdash/commit/9e4a2129dd94341f672cb215b694e7a460367fc5))
+
 ## [0.260.1](https://github.com/lightdash/lightdash/compare/0.260.0...0.260.1) (2022-09-21)
 
 
