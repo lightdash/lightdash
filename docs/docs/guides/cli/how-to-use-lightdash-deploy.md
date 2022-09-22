@@ -1,19 +1,11 @@
-# Using `lightdash deploy` to sync the changes in your dbt project to Lightdash
+# Lightdash deploy
+
+## `lightdash deploy` syncs the changes in your dbt project to Lightdash
 
 If you've made some changes to your dbt project and you'd like to make them available in your Lightdash project, you can easily do this using the `lightdash deploy` command in the Lightdash CLI tool.
 
-## Merge your changes to `main` or `master`
-
-If you're working with a version controlled project, and you made your changes on a branch, you'll just want to make sure to merge your changes into the branch you've connected your Lightdash project to (e.g. `main` or `master`).
-
-Once they've been merged or if you're just working off of `main` (_rebel_ 😏), you can deploy your changes.
-
-## Deploy your changes to your Lightdash project
-
-To deploy your changes, you'll want run these commands in your terminal:
-
 ```shell
-git checkout main # checkout main or master - or whatever your production branch name is
+git checkout main # checkout main or master - or whatever your production branch name is where you've merged your changes
 git pull
 lightdash deploy # --target prod. If you use developer profiles in your dbt project, you might need this flag. See below.
 ```
@@ -27,3 +19,9 @@ This will deploy the changes in your dbt project to the Lightdash project you se
 :::
 
 And voilà! Once it's completed click the URL to head straight to your project where your changes will be ready to be explored.
+
+## Automatically deploy your changes to Lightdash using a GitHub action
+
+If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to deploy your project automatically. This is the easiest way to keep Lightdash in sync with your changes in dbt.
+
+[See the instructions for setting this up here.](/guides/cli/how-to-automatically-deploy.mdx)

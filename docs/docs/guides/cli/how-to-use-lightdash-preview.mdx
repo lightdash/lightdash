@@ -1,6 +1,6 @@
-# Testing your changes using Lightdash Preview
+# Lightdash Preview
 
-**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics and charts 
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts 
 without affecting your production project.
 
 <a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
@@ -22,12 +22,12 @@ When you create developer previews, Lightdash will use the same warehouse connec
 laptop can reach but your Lightdash instance cannot.
 
 
-## How to set up developer previews on your pull requests
+## Set up developer previews on your pull requests
 
 If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to create new dynamic `preview` projects automatically 
 when a new `pull request` is created, and it will automatically delete the `preview` project when the `pull request` is closed or merged. 
 
-## First add the credentials to Github secrets
+### Step 1: add the credentials to Github secrets
 
 We are going to add some secrets and config to GitHub actions, 
 but you don't want those to be public , so the best way to do this is to add them as secrets on Github
@@ -61,7 +61,7 @@ jaffle_shop:
 ```
 
 
-## Create start-preview.yml and stop-preview.yml workflows in Github
+### Step 2: Create start-preview.yml and stop-preview.yml workflows in Github
 
 Go to your repo, click on `Actions` menu, and click on `Configure`
 
@@ -73,7 +73,7 @@ And save by clicking on `Start commit`
 
 Do the same with [this stop-preview.yml file](https://github.com/lightdash/cli-actions/blob/main/stop-preview.yml).
 
-## You're done 
+### You're done! 
 
 Everytime you create a new `pull request` , a new `preview` project with your `branch` name will be created on your organization.
 Everytime you make a change to that branch, the preview environment will get updated. 
