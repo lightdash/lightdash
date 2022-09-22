@@ -39,7 +39,7 @@ export const EditSpaceModal: FC<EditSpaceModalProps> = ({
             isOpen={spaceUuid !== undefined}
             onClose={onClose}
             lazy
-            title="Edit space"
+            title="Update space"
         >
             <form>
                 <div className={Classes.DIALOG_BODY}>
