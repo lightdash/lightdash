@@ -35,7 +35,13 @@ export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
     const [name, setName] = useState<string>('');
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create space">
+        <Dialog
+            icon="folder-close"
+            isOpen={isOpen}
+            onClose={onClose}
+            lazy
+            title="Create space"
+        >
             <form>
                 <div className={Classes.DIALOG_BODY}>
                     <FormGroupWrapper

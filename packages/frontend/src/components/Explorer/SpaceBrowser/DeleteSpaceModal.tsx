@@ -22,7 +22,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalProps> = ({
     return (
         <Dialog
             isOpen={true}
-            icon="folder-open"
+            icon="folder-close"
             onClose={onClose}
             title="Delete space"
             lazy

@@ -35,6 +35,7 @@ export const EditSpaceModal: FC<EditSpaceModalProps> = ({
     }, [isLoading, data]);
     return (
         <Dialog
+            icon="folder-close"
             isOpen={spaceUuid !== undefined}
             onClose={onClose}
             lazy
