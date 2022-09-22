@@ -22,7 +22,7 @@
     "common-lint": "yarn workspace @lightdash/common lint",
     "common-format": "yarn workspace @lightdash/common format",
     "common-test": "yarn workspace @lightdash/common test",
-    "backend-dev": "dotenv -e .env -e docker/.env yarn workspace backend dev",
+    "backend-dev": "yarn workspace backend dev",
     "backend-build": "yarn workspace backend build",
     "backend-start": "yarn workspace backend start",
     "backend-lint": "yarn workspace backend lint",
@@ -52,7 +52,8 @@
     "build": "run-s common-build warehouses-build frontend-build backend-build",
     "build-published-packages": "run-s common-build warehouses-build cli-build",
     "start": "run-p backend-start",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "load:env": "dotenv -c -e .env"
   },
   "lint-staged": {
     "packages/frontend/src/**/*.(ts|tsx|json|css)": [
