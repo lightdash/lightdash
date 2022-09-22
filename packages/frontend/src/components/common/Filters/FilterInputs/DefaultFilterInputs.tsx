@@ -7,7 +7,8 @@ import {
 } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useFiltersContext } from '../FiltersProvider';
-import StringMultiSelect from './StringAutoComplete';
+import AutoComplete from './AutoComplete/AutoComplete';
+import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
 
 export type FilterInputsProps<T extends FilterRule = FilterRule> = {
     filterType: FilterType;
@@ -33,7 +34,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.NOT_EQUALS: {
             if (filterType === FilterType.STRING) {
                 return (
-                    <StringMultiSelect
+                    <MultiAutoComplete
                         field={field}
                         values={filterRule.values || []}
                         suggestions={suggestions || []}
@@ -71,6 +72,21 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.STARTS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
+            if (filterType === FilterType.STRING) {
+                return (
+                    <AutoComplete
+                        field={field}
+                        value={filterRule.values?.[0] || ''}
+                        suggestions={suggestions || []}
+                        onChange={(value) =>
+                            onChange({
+                                ...filterRule,
+                                values: [value],
+                            })
+                        }
+                    />
+                );
+            }
             return (
                 <InputGroup
                     fill
