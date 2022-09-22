@@ -1,3 +1,10 @@
+# [0.262.0](https://github.com/lightdash/lightdash/compare/0.261.0...0.262.0) (2022-09-22)
+
+
+### Features
+
+* filter underlying data columns on metrics ([#3275](https://github.com/lightdash/lightdash/issues/3275)) ([ade315e](https://github.com/lightdash/lightdash/commit/ade315e95a046a8d671e3e8ee16ffd1479e990cd))
+
 # [0.261.0](https://github.com/lightdash/lightdash/compare/0.260.2...0.261.0) (2022-09-21)
 
 
