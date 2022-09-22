@@ -1,3 +1,10 @@
+## [0.262.1](https://github.com/lightdash/lightdash/compare/0.262.0...0.262.1) (2022-09-22)
+
+
+### Bug Fixes
+
+* show cell menu in underlying data ([#3291](https://github.com/lightdash/lightdash/issues/3291)) ([b37f459](https://github.com/lightdash/lightdash/commit/b37f4598e8045394b60306d5cb747b2e1e6ffa91))
+
 # [0.262.0](https://github.com/lightdash/lightdash/compare/0.261.0...0.262.0) (2022-09-22)
 
 
