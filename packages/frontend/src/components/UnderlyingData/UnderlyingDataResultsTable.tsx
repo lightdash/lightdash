@@ -11,6 +11,7 @@ import {
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
 import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
+import CellContextMenu from './CellContextMenu';
 import { LoadingPanel } from './UnderlyingDataModal.styles';
 
 const UnderlyingDataResultsTable: FC<{
@@ -65,6 +66,7 @@ const UnderlyingDataResultsTable: FC<{
                     footer={{
                         show: true,
                     }}
+                    cellContextMenu={CellContextMenu}
                 />
             </TableContainer>
         </TrackSection>
