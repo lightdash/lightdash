@@ -1,0 +1,94 @@
+import PersonalAccessToken from './assets/personal-access-token.png';
+import GithubSecrets from './assets/github-secrets.jpg';
+
+# Sync your changes with Lightdash deploy
+
+## `lightdash deploy` syncs the changes in your dbt project to Lightdash
+
+If you've made some changes to your dbt project and you'd like to make them available in your Lightdash project, you can easily do this using the `lightdash deploy` command in the Lightdash CLI tool.
+
+```shell
+git checkout main # checkout main or master - or whatever your production branch name is where you've merged your changes
+git pull
+lightdash deploy # --target prod. If you use developer profiles in your dbt project, you might need this flag. See below.
+```
+
+This will deploy the changes in your dbt project to the Lightdash project you set up on your CLI tool earlier.
+
+:::info
+
+**Note:** Lightdash's deploy command will deploy using your **default dbt profile** unless you specify to use a different target. For example, if you've set up a developer profile where it targets a dev dataset (like `dbt_khindson.my_model_names`), then you'll need to pass the production target in your `lightdash deploy` command. Something like: `lightdash deploy --profile prod`.
+
+:::
+
+And voilà! Once it's completed click the URL to head straight to your project where your changes will be ready to be explored.
+
+## Automatically deploy your changes to Lightdash using a GitHub action
+
+If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to deploy your project automatically. This is the easiest way to keep Lightdash in sync with your changes in dbt.
+
+### Step 1: add the credentials to Github secrets
+
+We are going to add some secrets and config to GitHub actions, but you don't want those to be public , so the best way to do this is to add them as secrets on Github
+
+Go to your repo, click on `Settings` , on the left sidebar, click on `Secrets` under `Security`. Now click on the `New repository secret`
+
+  <img src={GithubSecrets} width="940" height="681" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+We need to add the following secrets:
+
+- `LIGHTDASH_API_KEY`: Create a new personal access token, by going to `Settings` > `Personal Access Tokens`. This is the token you'll put in for `LIGHTDASH_API_KEY`.  
+  <img src={PersonalAccessToken} width="1304" height="517" style={{display: "block", margin: "0 auto 20px auto"}}/>
+- `LIGHTDASH_PROJECT`: The UUID for your project. For example, if your URL looks like `https://eu1.lightdash.cloud/projects/3538ab33-dc90-aabb-bc00-e50bba3a5f69/tables`, then `3538ab33-dc90-45f0-aabb-e50bba3a5f69` is your `LIGHTDASH_PROJECT`  
+- `LIGHTDASH_URL`: This is either `https://eu1.lightdash.cloud` or `https://app.lightdash.cloud` (check the URL to your Lightdash project)
+- `DBT_PROFILES`: Copy your full `profiles.yml` file from your dbt project. You should find your `profiles.yml` on your machine here: `~/.dbt/profiles.yml`. Like this:
+
+```yaml
+jaffle_shop:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: abcd
+      user: test
+      password: ****
+      role: SYSADMIN
+      database: database
+      warehouse: warehouse
+      schema: jaffle_shop
+```
+
+### Step 2: Create action.yml workflow in Github
+
+Go to your repo, click on `Actions` menu, and click on `Configure`
+
+![Github actions page](./assets/github-actions.png)
+
+Now copy [this file](https://github.com/lightdash/cli-actions/blob/main/action.yml) from our [cli-actions](https://github.com/lightdash/cli-actions) repo.
+
+And save by clicking on `Start commit`
+
+::: info
+
+This GitHub action will deploy using your **`prod` dbt profile** by default.
+
+If you don't want to use the `prod` profile by default, you'll need to replace this line in the `action.yml` file:
+
+```shell
+run: lightdash deploy --project-dir . --profiles-dir . --profile prod || lightdash deploy --project-dir . --profiles-dir .
+```
+
+With this (and update `my_profile_name` with the profile name you want to use):
+```shell
+run: lightdash deploy --project-dir . --profiles-dir . --profile my_profile_name
+```
+
+:::
+
+### You're done!
+
+Everytime you make a change to your repo, on the `main` branch, it will automatically deploy your new config into your Lightdash projects
+
+You can see the log on `Github actions` page
+
+![Action run](./assets/github-run.png)
