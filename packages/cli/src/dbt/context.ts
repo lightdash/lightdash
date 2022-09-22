@@ -6,6 +6,7 @@ import * as path from 'path';
 type GetDbtContextArgs = {
     projectDir: string;
     initialProjectDir?: string;
+    verbose?: boolean;
 };
 export type DbtContext = {
     projectName: string;
@@ -17,7 +18,10 @@ export type DbtContext = {
 export const getDbtContext = async ({
     projectDir,
     initialProjectDir,
+    verbose,
 }: GetDbtContextArgs): Promise<DbtContext> => {
+    if (verbose)
+        console.error(`> Loading dbt_project.yml file from: ${projectDir}`);
     const projectFilename = path.join(projectDir, 'dbt_project.yml');
     let file;
 
@@ -39,6 +43,8 @@ export const getDbtContext = async ({
     const config = yaml.load(file) as any;
 
     const targetSubDir = config['target-path'] || './target';
+    if (verbose) console.error(`> DBT target directory: ${targetSubDir}`);
+
     const targetDir = path.join(projectDir, targetSubDir);
     const modelsSubDir = config['models-path'] || './models';
     const modelsDir = path.join(projectDir, modelsSubDir);

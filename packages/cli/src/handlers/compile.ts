@@ -23,6 +23,7 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    verbose: boolean;
 };
 export const compile = async (options: GenerateHandlerOptions) => {
     LightdashAnalytics.track({

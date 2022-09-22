@@ -2,12 +2,13 @@ import { AuthorizationError, formatDate } from '@lightdash/common';
 import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
-import { setContext, setDefaultUser } from '../config';
+import { configFilePath, setContext, setDefaultUser } from '../config';
 import * as styles from '../styles';
 import { setProjectInteractively } from './setProject';
 
 type LoginOptions = {
     token?: boolean;
+    verbose: boolean;
 };
 
 const loginWithToken = async (url: string) => {
@@ -89,14 +90,21 @@ export const login = async (url: string, options: LoginOptions) => {
     const { userUuid, token } = options.token
         ? await loginWithToken(url)
         : await loginWithPassword(url);
+
+    if (options.verbose)
+        console.error(`> Logged in with userUuid: ${userUuid}`);
     await setContext({ serverUrl: url, apiKey: token });
+    if (options.verbose) console.error(`> Saved config on: ${configFilePath}`);
+
     await setDefaultUser(userUuid);
 
     console.error(`\n  ✅️ Login successful\n`);
 
     try {
-        await setProjectInteractively();
+        await setProjectInteractively({ verbose: options.verbose });
     } catch (e: any) {
+        if (options.verbose)
+            console.error(`> Set project returned response: ${e.statusCode}`);
         if (e.statusCode === 404) {
             console.error(
                 'Now you can add your first project to lightdash by doing: ',

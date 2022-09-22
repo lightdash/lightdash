@@ -11,6 +11,7 @@ type DbtRunHandlerOptions = {
     select: string[] | undefined;
     models: string[] | undefined;
     excludeMeta: boolean;
+    verbose: boolean;
 };
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
@@ -23,6 +24,8 @@ export const dbtRunHandler = async (
         },
     });
     try {
+        if (options.verbose)
+            console.error(`> Running DBT command: ${command.parent.args}`);
         const subprocess = execa('dbt', command.parent.args, {
             stdio: 'inherit',
         });

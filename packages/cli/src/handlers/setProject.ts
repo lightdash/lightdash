@@ -4,11 +4,16 @@ import { URL } from 'url';
 import { getConfig, setProjectUuid } from '../config';
 import { lightdashApi } from './dbt/apiClient';
 
-export const setProjectInteractively = async () => {
+type SetProjectOptions = {
+    verbose: boolean;
+};
+
+export const setProjectInteractively = async (options: SetProjectOptions) => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
         body: undefined,
+        verbose: options.verbose,
     });
     const answers = await inquirer.prompt([
         {

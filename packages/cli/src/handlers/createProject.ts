@@ -68,6 +68,7 @@ type CreateProjectHandlerOptions = {
     target: string | undefined;
     profile: string | undefined;
     type: ProjectType;
+    verbose: boolean;
 };
 export const createProject = async (
     options: CreateProjectHandlerOptions,

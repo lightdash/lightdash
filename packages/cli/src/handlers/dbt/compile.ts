@@ -15,6 +15,7 @@ export type DbtCompileOptions = {
     selector: string | undefined;
     state: string | undefined;
     fullRefresh: boolean | undefined;
+    verbose: boolean;
 };
 
 const dbtCompileArgs = [
