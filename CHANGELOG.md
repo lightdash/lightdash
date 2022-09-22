@@ -1,3 +1,10 @@
+# [0.263.0](https://github.com/lightdash/lightdash/compare/0.262.2...0.263.0) (2022-09-22)
+
+
+### Features
+
+* warn when cli and lightdash have different versions ([#3294](https://github.com/lightdash/lightdash/issues/3294)) ([62a9206](https://github.com/lightdash/lightdash/commit/62a920644eb070e03dca90db19239fc9a78f987c))
+
 ## [0.262.2](https://github.com/lightdash/lightdash/compare/0.262.1...0.262.2) (2022-09-22)
 
 
