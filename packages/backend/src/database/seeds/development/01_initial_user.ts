@@ -150,7 +150,7 @@ export async function seed(knex: Knex): Promise<void> {
                 type: WarehouseTypes.POSTGRES,
                 schema: 'jaffle',
                 host: process.env.PGHOST,
-                port: process.env.PGPORT,
+                port: Number(process.env.PGPORT),
                 user: process.env.PGUSER,
                 password: process.env.PGPASSWORD,
                 dbname: process.env.PGDATABASE,
