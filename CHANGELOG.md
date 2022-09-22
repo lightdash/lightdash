@@ -1,3 +1,10 @@
+## [0.262.2](https://github.com/lightdash/lightdash/compare/0.262.1...0.262.2) (2022-09-22)
+
+
+### Bug Fixes
+
+* fix bigquery date filter in the past ([#3279](https://github.com/lightdash/lightdash/issues/3279)) ([f4978f5](https://github.com/lightdash/lightdash/commit/f4978f5b6779be0dcefa0f92d5bf3e64d4ee33df))
+
 ## [0.262.1](https://github.com/lightdash/lightdash/compare/0.262.0...0.262.1) (2022-09-22)
 
 
