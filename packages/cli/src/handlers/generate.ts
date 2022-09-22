@@ -29,6 +29,7 @@ type GenerateHandlerOptions = {
     profile: string | undefined;
     assumeYes: boolean;
     excludeMeta: boolean;
+    verbose: boolean;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
     const select = options.select || options.models;
@@ -57,13 +58,25 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
 
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
-    const context = await getDbtContext({ projectDir: absoluteProjectPath });
+
+    const context = await getDbtContext({
+        projectDir: absoluteProjectPath,
+        verbose: options.verbose,
+    });
     const profileName = options.profile || context.profileName;
+    if (options.verbose)
+        console.error(
+            `> Loading profiles from directory: ${absoluteProfilesPath}`,
+        );
+
     const { target } = await loadDbtTarget({
         profilesDir: absoluteProfilesPath,
         profileName,
         targetName: options.target,
     });
+    if (options.verbose)
+        console.error(`> Loaded target from profiles: ${target.type}`);
+
     const credentials = await warehouseCredentialsFromDbtTarget(target);
     const warehouseClient = warehouseClientFromCredentials(credentials);
     const manifest = await loadManifest({ targetDir: context.targetDir });
@@ -72,6 +85,8 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         selectors: select,
         manifest,
     });
+    if (options.verbose)
+        console.error(`> Compiled models: ${compiledModels.length}`);
 
     console.log(styles.info(`Generated .yml files:`));
     for await (const compiledModel of compiledModels) {

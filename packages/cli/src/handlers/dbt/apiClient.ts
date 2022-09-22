@@ -21,11 +21,13 @@ type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | undefined;
+    verbose?: boolean;
 };
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
+    verbose,
 }: LightdashApiProps): Promise<T> => {
     const config = await getConfig();
     if (!(config.context?.apiKey && config.context.serverUrl)) {
@@ -33,11 +35,14 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
+
     const headers = {
         'Content-Type': 'application/json',
         Authorization: `ApiKey ${config.context.apiKey}`,
     };
     const fullUrl = new URL(url, config.context.serverUrl).href;
+    if (verbose) console.error(`> Making HTTP query to: ${fullUrl}`);
+
     return fetch(fullUrl, { method, headers, body })
         .then((r) => {
             if (!r.ok)
@@ -48,16 +53,20 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         })
         .then((r) => r.json())
         .then((d: ApiResponse | ApiError) => {
+            if (verbose)
+                console.error(`> HTTP request returned status: ${d.status}`);
+
             switch (d.status) {
                 case 'ok':
                     return d.results as T;
                 case 'error':
-                    throw d;
+                    throw new Error(`${d}`);
                 default:
-                    throw d;
+                    throw new Error(`${d}`);
             }
         })
         .catch((err) => {
-            throw handleError(err).error;
+            const apiError = `${handleError(err).error}`;
+            throw new Error(apiError);
         });
 };

@@ -122,6 +122,8 @@ ${styles.bold('Examples:')}
 `,
     )
     .option('--token', 'Login with a personal access token')
+    .option('--verbose', undefined, false)
+
     .action(login);
 
 // CONFIG
@@ -134,6 +136,8 @@ configProgram
         'Interactively choose project.\nSee https://docs.lightdash.com/guides/cli/cli-authentication#set-active-project for more help and examples',
     )
     .description('Interactively choose project')
+    .option('--verbose', undefined, false)
+
     .action(setProjectInteractively);
 
 const dbtProgram = program.command('dbt').description('runs dbt commands');
@@ -195,6 +199,8 @@ ${styles.bold('Examples:')}
         'exclude Lightdash metadata from the generated .yml',
         false,
     )
+    .option('--verbose', undefined, false)
+
     .action(dbtRunHandler);
 
 program
@@ -231,6 +237,8 @@ program
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
+    .option('--verbose', undefined, false)
+
     .action(compileHandler);
 
 program
@@ -267,6 +275,8 @@ program
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
+    .option('--verbose', undefined, false)
+
     .action(previewHandler);
 
 program
@@ -307,6 +317,8 @@ program
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
+    .option('--verbose', undefined, false)
+
     .action(startPreviewHandler);
 
 program
@@ -316,6 +328,7 @@ program
         '--name [preview name]',
         '[required] Name for the preview project to be deleted',
     )
+    .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
 program
@@ -352,6 +365,8 @@ program
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
+    .option('--verbose', undefined, false)
+
     .option('--create', 'Create a new project on your organization', false)
     .action(deployHandler);
 
@@ -418,6 +433,8 @@ ${styles.bold('Examples:')}
         'exclude Lightdash metadata from the generated .yml',
         false,
     )
+    .option('--verbose', undefined, false)
+
     .action(generateHandler);
 
 const errorHandler = (err: Error) => {

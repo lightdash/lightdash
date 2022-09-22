@@ -25,10 +25,12 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     target: string | undefined;
     profile: string | undefined;
     name?: string;
+    verbose: boolean;
 };
 
 type StopPreviewHandlerOptions = {
     name: string;
+    verbose: boolean;
 };
 
 const projectUrl = async (project: Project) => {
@@ -43,11 +45,12 @@ const projectUrl = async (project: Project) => {
     );
 };
 
-const getPreviewProject = async (name: string) => {
+const getPreviewProject = async (name: string, verbose?: boolean) => {
     const projects = await lightdashApi<Project[]>({
         method: 'GET',
         url: `/api/v1/org/projects/`,
         body: undefined,
+        verbose,
     });
     return projects.find(
         (project) =>
@@ -74,6 +77,7 @@ export const previewHandler = async (
             type: ProjectType.PREVIEW,
         });
     } catch (e) {
+        if (options.verbose) console.error(`> Unable to create project: ${e}`);
         spinner.fail();
         throw e;
     }
@@ -193,7 +197,10 @@ export const startPreviewHandler = async (
 
     const projectName = options.name;
 
-    const previewProject = await getPreviewProject(projectName);
+    const previewProject = await getPreviewProject(
+        projectName,
+        options.verbose,
+    );
     if (previewProject) {
         LightdashAnalytics.track({
             event: 'start_preview.update',
@@ -253,7 +260,10 @@ export const stopPreviewHandler = async (
 
     const projectName = options.name;
 
-    const previewProject = await getPreviewProject(projectName);
+    const previewProject = await getPreviewProject(
+        projectName,
+        options.verbose,
+    );
     if (previewProject) {
         LightdashAnalytics.track({
             event: 'stop_preview.delete',

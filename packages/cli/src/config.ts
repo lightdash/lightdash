@@ -6,7 +6,7 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 const configDir = path.join(os.homedir(), '.config', 'lightdash');
-const configFilePath = path.join(configDir, 'config.yaml');
+export const configFilePath = path.join(configDir, 'config.yaml');
 
 export type Config = {
     user?: {

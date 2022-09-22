@@ -24,6 +24,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     target: string | undefined;
     profile: string | undefined;
     create?: boolean;
+    verbose: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -49,7 +50,10 @@ const createNewProject = async (
 ): Promise<Project | undefined> => {
     console.error('');
     const absoluteProjectPath = path.resolve(options.projectDir);
-    const context = await getDbtContext({ projectDir: absoluteProjectPath });
+    const context = await getDbtContext({
+        projectDir: absoluteProjectPath,
+        verbose: options.verbose,
+    });
     const dbtName = friendlyName(context.projectName);
 
     const answers = await inquirer.prompt([
@@ -62,7 +66,9 @@ const createNewProject = async (
     const projectName = answers.name ? answers.name : dbtName;
 
     console.error('');
-    const spinner = ora(`  Creating new project`).start();
+    const spinner = ora(
+        `  Creating new project ${styles.bold(projectName)}`,
+    ).start();
     GlobalState.setActiveSpinner(spinner);
     LightdashAnalytics.track({
         event: 'create.started',
