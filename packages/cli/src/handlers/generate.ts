@@ -32,6 +32,8 @@ type GenerateHandlerOptions = {
     verbose: boolean;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
+    await checkLightdashVersion();
+
     const select = options.select || options.models;
     if (select === undefined && !options.assumeYes) {
         const answers = await inquirer.prompt([

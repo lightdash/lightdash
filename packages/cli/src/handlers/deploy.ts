@@ -15,7 +15,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
-import { lightdashApi } from './dbt/apiClient';
+import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 
 type DeployHandlerOptions = DbtCompileOptions & {
@@ -112,6 +112,8 @@ const createNewProject = async (
 };
 
 export const deployHandler = async (options: DeployHandlerOptions) => {
+    await checkLightdashVersion();
+
     const config = await getConfig();
     let projectUuid: string;
 

@@ -1,7 +1,15 @@
-import { ApiError, ApiResponse, AuthorizationError } from '@lightdash/common';
+import {
+    ApiError,
+    ApiHealthResults,
+    ApiResponse,
+    AuthorizationError,
+} from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
+import * as styles from '../../styles';
+
+const { version: VERSION } = require('../../../package.json');
 
 // should this get moved to common - very slightly modifed from the FE code
 const handleError = (err: any): ApiError => {
@@ -69,4 +77,30 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             const apiError = `${handleError(err).error}`;
             throw new Error(apiError);
         });
+};
+
+export const checkLightdashVersion = async (): Promise<void> => {
+    try {
+        const health = await lightdashApi<ApiHealthResults>({
+            method: 'GET',
+            url: `/api/v1/health`,
+            body: undefined,
+        });
+        if (health.version === VERSION) {
+            const config = await getConfig();
+            console.error(
+                `${styles.title(
+                    'Warning',
+                )}: CLI (${VERSION}) is running a different version than Lightdash (${
+                    health.version
+                }) on ${
+                    config.context?.serverUrl
+                }.\n         Some commands may fail, consider upgrading your CLI by doing: ${styles.secondary(
+                    `npm install -g @lightdash/cli@${health.version}`,
+                )}`,
+            );
+        }
+    } catch (err) {
+        // do nothing
+    }
 };
