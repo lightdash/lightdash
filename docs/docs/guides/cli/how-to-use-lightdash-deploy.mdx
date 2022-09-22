@@ -1,5 +1,6 @@
 import PersonalAccessToken from './assets/personal-access-token.png';
 import GithubSecrets from './assets/github-secrets.jpg';
+import NewWorkflowExistingActions from './assets/new-workflow-existing-action.jpg';
 
 # Sync your changes with Lightdash deploy
 
@@ -60,13 +61,21 @@ jaffle_shop:
 
 ### Step 2: Create action.yml workflow in Github
 
-Go to your repo, click on `Actions` menu, and click on `Configure`
+Go to your repo, click on `Actions` menu.
+
+If you don't have any GitHub actions, you'll just need to click on `Configure`
 
 ![Github actions page](./assets/github-actions.png)
 
+If you have some GitHub actions in your repo already, click on `New workflow`, then select `setup a workflow yourself`.
+
+<img src={NewWorkflowExistingActions} width="952" height="203" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
 Now copy [this file](https://github.com/lightdash/cli-actions/blob/main/action.yml) from our [cli-actions](https://github.com/lightdash/cli-actions) repo.
 
-And save by clicking on `Start commit`
+Give it a nice name like `lightdash-deploy.yml`
+
+And commit this to your repo by clicking on `Start commit`.
 
 ::: info
 
