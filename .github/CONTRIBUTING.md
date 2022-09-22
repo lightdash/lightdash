@@ -200,12 +200,10 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 #### Environment variables in development
 
-When developing, you must activate the `./docker/.env` environment variable file, which configures Lightdash to run
-in development mode. The following two guides will set this up correctly but if you're manually creating a
-development environment you must run:
+When developing, you must activate the `.env` environment variable file, which configures Lightdash to run in development mode. You can also override ENV variables by creating a `.env.local` file. The following two guides will set this up correctly but if you're manually creating a development environment you must prefix yarn commands with `yarn load:env [command]`. eg. if you want to run a development server you should run:
 
 ```shell
-source ./docker/.env
+yarn load:env yarn dev
 ```
 
 #### Github Codespaces / VS Code Remote Containers
@@ -249,7 +247,7 @@ git submodule update --init --recursive
 Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
 
 cd docker
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env up --detach --remove-orphans 
+docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env up --detach --remove-orphans
 ```
 
 When ready, access the development container and run these commands:
@@ -272,7 +270,7 @@ docker exec -it lightdash-app-lightdash-dev-1 bash
 yarn dev # http://localhost:3000
 
 # Log in dev mode
-When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details: 
+When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
 
 Username: demo@lightdash.com
 Password: demo_password!
