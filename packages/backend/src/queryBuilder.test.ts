@@ -1,13 +1,22 @@
+import moment from 'moment';
 import { buildQuery, renderDateFilterSql } from './queryBuilder';
 import {
     DimensionSqlMock,
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    InTheLast1CompletedHourFilter,
+    InTheLast1CompletedHourFilterSQL,
+    InTheLast1CompletedMinuteFilter,
+    InTheLast1CompletedMinuteFilterSQL,
     InTheLast1CompletedYearFilter,
     InTheLast1CompletedYearFilterSQL,
     InTheLast1DayFilter,
     InTheLast1DayFilterSQL,
+    InTheLast1HourFilter,
+    InTheLast1HourFilterSQL,
+    InTheLast1MinuteFilter,
+    InTheLast1MinuteFilterSQL,
     InTheLast1MonthFilter,
     InTheLast1MonthFilterSQL,
     InTheLast1WeekFilter,
@@ -38,6 +47,9 @@ import {
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
 } from './queryBuilder.mock';
+
+const formatTimestamp = (date: Date): string =>
+    moment(date).format('YYYY-MM-DD HH:mm:ss');
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {
@@ -174,5 +186,36 @@ describe('Filter SQL', () => {
                 InTheLast1CompletedYearFilter,
             ),
         ).toStrictEqual(InTheLast1CompletedYearFilterSQL);
+    });
+
+    test('should return in the last date filter sql for timestamps', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1HourFilter,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(InTheLast1HourFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedHourFilter,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(InTheLast1CompletedHourFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1MinuteFilter,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(InTheLast1MinuteFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedMinuteFilter,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
     });
 });
