@@ -122,12 +122,16 @@ const ResourceList: React.FC<ResourceListProps> = ({
             {actionState.actionType === ActionTypeModal.UPDATE &&
                 (resourceType === 'chart' ? (
                     <UpdateActionModal
+                        icon={resourceIcon}
+                        resourceType={resourceType}
                         useActionModalState={[actionState, setActionState]}
                         useUpdate={actions.update}
                         ModalContent={SavedQueryForm}
                     />
                 ) : (
                     <UpdateActionModal
+                        icon={resourceIcon}
+                        resourceType={resourceType}
                         useActionModalState={[actionState, setActionState]}
                         useUpdate={actions.update}
                         ModalContent={DashboardForm}

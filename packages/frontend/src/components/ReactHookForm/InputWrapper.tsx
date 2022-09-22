@@ -29,6 +29,7 @@ export interface InputWrapperProps {
             React.ComponentPropsWithRef<typeof Controller>['render']
         >[0],
     ) => ReactElement;
+    showError?: boolean;
 }
 
 const InputWrapper: FC<InputWrapperProps> = ({
@@ -40,6 +41,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
     render,
     className,
     labelHelp,
+    showError = true,
     ...rest
 }) => {
     const {
@@ -76,7 +78,9 @@ const InputWrapper: FC<InputWrapperProps> = ({
                 </>
             }
             intent={get(errors, name) ? 'danger' : 'none'}
-            helperText={<ErrorMessage errors={errors} name={name} as="p" />}
+            helperText={
+                showError && <ErrorMessage errors={errors} name={name} as="p" />
+            }
         >
             <Controller
                 control={control}
