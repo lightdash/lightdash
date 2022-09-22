@@ -838,3 +838,43 @@ export const InTheLast1CompletedYearFilter = {
 };
 
 export const InTheLast1CompletedYearFilterSQL = `((customers.created) >= ('2019-01-01') AND (customers.created) < ('2020-01-01'))`;
+
+export const InTheLast1HourFilter = {
+    ...InTheLast1WeekFilter,
+    settings: {
+        unitOfTime: UnitOfTime.hours,
+        completed: false,
+    },
+};
+
+export const InTheLast1HourFilterSQL = `((customers.created) >= ('2020-04-03 23:12:00') AND (customers.created) <= ('2020-04-04 00:00:00'))`;
+
+export const InTheLast1CompletedHourFilter = {
+    ...InTheLast1DayFilter,
+    settings: {
+        unitOfTime: UnitOfTime.hours,
+        completed: true,
+    },
+};
+
+export const InTheLast1CompletedHourFilterSQL = `((customers.created) >= ('2020-04-03 23:00:00') AND (customers.created) < ('2020-04-04 00:00:00'))`;
+
+export const InTheLast1MinuteFilter = {
+    ...InTheLast1DayFilter,
+    settings: {
+        unitOfTime: UnitOfTime.minutes,
+        completed: false,
+    },
+};
+
+export const InTheLast1MinuteFilterSQL = `((customers.created) >= ('2020-04-04 00:11:00') AND (customers.created) <= ('2020-04-04 00:12:00'))`;
+
+export const InTheLast1CompletedMinuteFilter = {
+    ...InTheLast1DayFilter,
+    settings: {
+        unitOfTime: UnitOfTime.minutes,
+        completed: true,
+    },
+};
+
+export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 00:11:00') AND (customers.created) < ('2020-04-04 00:12:00'))`;
