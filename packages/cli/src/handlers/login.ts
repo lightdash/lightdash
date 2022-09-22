@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import { URL } from 'url';
 import { configFilePath, setContext, setDefaultUser } from '../config';
 import * as styles from '../styles';
+import { checkLightdashVersion } from './dbt/apiClient';
 import { setProjectInteractively } from './setProject';
 
 type LoginOptions = {
@@ -87,6 +88,8 @@ const loginWithPassword = async (url: string) => {
 };
 
 export const login = async (url: string, options: LoginOptions) => {
+    await checkLightdashVersion();
+
     const { userUuid, token } = options.token
         ? await loginWithToken(url)
         : await loginWithPassword(url);

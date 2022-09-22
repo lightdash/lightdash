@@ -15,7 +15,7 @@ import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { createProject } from './createProject';
-import { lightdashApi } from './dbt/apiClient';
+import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
 
@@ -60,6 +60,7 @@ const getPreviewProject = async (name: string, verbose?: boolean) => {
 export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    await checkLightdashVersion();
     const name = uniqueNamesGenerator({
         length: 2,
         separator: ' ',
@@ -190,6 +191,8 @@ export const previewHandler = async (
 export const startPreviewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    await checkLightdashVersion();
+
     if (!options.name) {
         console.error(styles.error(`--name argument is required`));
         return;
@@ -253,6 +256,8 @@ export const startPreviewHandler = async (
 export const stopPreviewHandler = async (
     options: StopPreviewHandlerOptions,
 ): Promise<void> => {
+    await checkLightdashVersion();
+
     if (!options.name) {
         console.error(styles.error(`--name argument is required`));
         return;

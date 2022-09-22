@@ -19,6 +19,7 @@ import {
 } from '../dbt/profile';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { checkLightdashVersion } from './dbt/apiClient';
 
 type GenerateHandlerOptions = {
     select: string[] | undefined;
@@ -32,6 +33,8 @@ type GenerateHandlerOptions = {
     verbose: boolean;
 };
 export const generateHandler = async (options: GenerateHandlerOptions) => {
+    await checkLightdashVersion();
+
     const select = options.select || options.models;
     if (select === undefined && !options.assumeYes) {
         const answers = await inquirer.prompt([
