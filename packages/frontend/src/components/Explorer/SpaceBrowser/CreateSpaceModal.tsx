@@ -1,4 +1,12 @@
-import { Button, Classes, Dialog, InputGroup, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    Classes,
+    Dialog,
+    InputGroup,
+    Intent,
+    Position,
+} from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { Space } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -43,22 +51,29 @@ export const CreateSpaceModal: FC<CreateSpaceModalProps> = ({
                         />
                     </FormGroupWrapper>
                 </div>
+
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
                         <Button onClick={onClose}>Cancel</Button>
-                        <Button
-                            data-cy="submit-base-modal"
-                            intent={Intent.SUCCESS}
-                            text="Create"
-                            type="submit"
-                            onClick={(e) => {
-                                mutate({ name });
-                                setName('');
-                                if (onClose && !onCreated) onClose();
-                                e.preventDefault();
-                            }}
-                            disabled={isCreating || !name}
-                        />
+
+                        <Tooltip2
+                            disabled={!!name}
+                            content="Name field is required"
+                            position={Position.TOP}
+                        >
+                            <Button
+                                data-cy="submit-base-modal"
+                                intent={Intent.PRIMARY}
+                                text="Create"
+                                onClick={(e) => {
+                                    mutate({ name });
+                                    setName('');
+                                    if (onClose && !onCreated) onClose();
+                                    e.preventDefault();
+                                }}
+                                disabled={isCreating || !name}
+                            />
+                        </Tooltip2>
                     </div>
                 </div>
             </form>
