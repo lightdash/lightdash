@@ -257,14 +257,14 @@ When ready, access the development container and run these commands:
 docker exec -it lightdash-app-lightdash-dev-1 bash
 
 # Install dependencies & build common package
-./docker/scripts/build.sh
+./scripts/build.sh
 
 # Setup dbt
-./docker/scripts/seed-jaffle.sh
+./scripts/seed-jaffle.sh
 
 # Setup the database
-./docker/scripts/migrate.sh
-./docker/scripts/seed-lightdash.sh
+./scripts/migrate.sh
+./scripts/seed-lightdash.sh
 
 # Run Lightdash frontend and backend in dev mode
 yarn dev # http://localhost:3000
