@@ -1,4 +1,5 @@
 import ClickableDimension from './assets/clickable-dimension-link.jpg';
+import UnderlyingData from '../guides/assets/underlying-data.jpg';
 
 # Dimensions reference sheet
 
@@ -48,7 +49,11 @@ To customize the dimension, you can do it in your dbt model's YAML file.
 version: 2
 
 models:
-  - name: my_model
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
     columns:
       - name: revenue_gbp_total_est
         description: "Total estimated revenue in GBP based on forecasting done by the finance team."
@@ -73,22 +78,27 @@ models:
                 url: "https://finance.com/forceasts/weeks/${ value.raw }"
               - label: Open in Google Calendar
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
+            show_underlying_values: 
+              - revenue_gbp_total_est
+              - actual_date
+              - web_sessions.session_id # field from joined table
 ```
 
 All the properties you can customize:
 
-| Property                          | Required | Value                            | Description                                                                                                                                                                                                                                                                                            |
-|-----------------------------------|----------|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| label                             | No       | string                           | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                                                            |
-| type                              | No       | Dimension type                   | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                                                                     |
-| description                       | No       | string                           | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                                                             |
-| sql                               | No       | string                           | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                                                                         |
-| [time_intervals](#time-intervals) | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'`. You can use any interval values supported by your warehouse (e.g. `QUARTER`). |
-| hidden                            | No       | boolean                          | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                                       |
-| round                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                                                                        |
-| format                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                                          |
-| group_label                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                                                |
-| [urls](#urls)                              | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                        |
+| Property                                          | Required | Value                            | Description                                                                                                                                                                                                                                                                                            |
+|---------------------------------------------------|----------|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| label                                             | No       | string                           | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                                                            |
+| type                                              | No       | Dimension type                   | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                                                                     |
+| description                                       | No       | string                           | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                                                             |
+| sql                                               | No       | string                           | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                                                                         |
+| [time_intervals](#time-intervals)                 | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'`. You can use any interval values supported by your warehouse (e.g. `QUARTER`).   |
+| hidden                                            | No       | boolean                          | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                                       |
+| round                                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                                                                        |
+| format                                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                                          |
+| group_label                                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                                                |
+| [urls](#urls)                                     | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                             |
+| [show_underlying_values](#show-underlying-values) | No       | Array of dimension names         | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                                            |
 
 ## Time intervals
 
@@ -196,3 +206,36 @@ Filters can be used to make small transformations of your values:
 | append     | Append a string to another                                             | `${value.formatted \ | append: ".html"}`|
 
 There are [many more filters available in the Liquid documentation](https://liquidjs.com/filters/overview.html).
+
+## Show underlying values
+
+By default, we show all of the dimensions from the Table when you click `View underlying data`. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table. 
+
+<img src={UnderlyingData} width="1103" height="580" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can limit which dimensions are shown for a field when a user clicks `View underlying data` by adding the list of dimensions to your `.yml` files: 
+
+```yaml
+version: 2
+
+models:
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: forecast_date
+        description: "Date of the forecasting."
+        meta:
+          dimension:
+            type: date
+            show_underlying_values: 
+              - revenue_gbp_total_est
+              - actual_date
+              - web_sessions.session_id # field from joined table
+...
+```
+
+The list of fields must be made of dimension names (no metrics) from the base table or from any joined tables. To reference a field from a joined table, you just need to prefix the dimension name with the joined table name, like this: `my_joined_table_name.my_dimension`.
+

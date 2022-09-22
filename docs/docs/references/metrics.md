@@ -131,7 +131,11 @@ You can customize your metrics in your dbt model's YAML file. Here's an example 
 version: 2
 
 models:
-  - name: my_model
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
     columns:
       - name: revenue
         description: "Total estimated revenue in GBP based on forecasting done by the finance team."
@@ -145,21 +149,26 @@ models:
               hidden: false
               round: 0
               format: 'gbp'
+              show_underlying_values: 
+                - revenue
+                - forecast_date
+                - web_sessions.session_id # field from joined table
 ```
 
 Here are all of the properties you can customize:
 
-| Property                                            | Required | Value                   | Description                                                                                                                                                                                                                                                                        |
-|-----------------------------------------------------|----------|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| label                                               | No       | string                  | Custom label. This is what you'll see in Lightdash instead of the metric name.                                                                                                                                                                                                     |
-| [type](#metric-types)                               | Yes      | metric type             | Metrics must be one of the supported types.                                                                                                                                                                                                                                        |
-| [description](#adding-your-own-metric-descriptions) | No       | string                  | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                                                                                                                                          |
-| [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string                  | Custom SQL used to define the metric.                                                                                                                                                                                                                                              |
-| hidden                                              | No       | boolean                 | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                      |
-| round                                               | No       | number                  | Rounds a number to a specified number of digits                                                                                                                                                                                                                                    |
-| format                                              | No       | string                  | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                      |
-| group_label                                         | No       | string                  | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                            |
-| [urls](./dimensions.mdx#urls)                        | No       | Array of { url, label } | Adding urls to a metric <br/><br/><br/><br/><br/><br/>allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
+| Property                                                          | Required | Value                    |  Description                                                                                                                                                                                                                                                                        |
+|-------------------------------------------------------------------|----------|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| label                                                             | No       | string                   | Custom label. This is what you'll see in Lightdash instead of the metric name.                                                                                                                                                                                                      |
+| [type](#metric-types)                                             | Yes      | metric type              | Metrics must be one of the supported types.                                                                                                                                                                                                                                         |
+| [description](#adding-your-own-metric-descriptions)               | No       | string                   | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                                                                                                                                           |
+| [sql](#using-custom-sql-in-aggregate-metrics)                     | No       | string                   | Custom SQL used to define the metric.                                                                                                                                                                                                                                               |
+| hidden                                                            | No       | boolean                  | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                       |
+| round                                                             | No       | number                   | Rounds a number to a specified number of digits                                                                                                                                                                                                                                     |
+| format                                                            | No       | string                   | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                       |
+| group_label                                                       | No       | string                   | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                             |
+| [urls](./dimensions.mdx#urls)                                     | No       | Array of { url, label }  | Adding urls to a metric allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                |
+| [show_underlying_values](./dimensions.mdx#show-underlying-values) | No       | Array of dimension names | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                          |
 
 ## Metric types
 
