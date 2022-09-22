@@ -32,7 +32,7 @@ This global search matches content from everywhere in the project: dashboard nam
 
 ## Exploring data in a chart
 
-### View underlying data in a chart
+### View underlying data in a chart or your results table
 
 You can click on any point on a chart or any cell in a results table and view the records which make up that data point.
 
@@ -42,6 +42,13 @@ I can then export this as a CSV or explore from this underlying data.
 
 <img src={UnderlyingData} width="1103" height="580" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+#### You can specify which fields are shown when someone clicks on `view underlying data`
+
+By default, we show all of the dimensions from the Table. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table. 
+
+If you don't want all of the fields from your Table shown, then you can specify which fields you want users to see when they click on `show underlying data` for a field. 
+
+Check out the [dimension](./references/dimensions.mdx#show-underlying-values) or [metric](./references/metrics.md#show-underlying-values) reference docs to see how to do this in your Table's `.yml` file.
 
 ## Exploring data in a dashboard
 
