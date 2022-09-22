@@ -2,7 +2,7 @@
 set -e
 
 if [ ! -v PGPASSWORD ]; then
-   echo "Can't find ENV variables (PGPASSWORD), have you loaded them with 'source docker/.env' ?"
+    echo "Can't find ENV variables (PGPASSWORD), have you loaded '.env' environments variable file?"
     exit 1
 fi
 
