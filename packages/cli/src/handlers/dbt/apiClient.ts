@@ -86,7 +86,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
             url: `/api/v1/health`,
             body: undefined,
         });
-        if (health.version === VERSION) {
+        if (health.version !== VERSION) {
             const config = await getConfig();
             console.error(
                 `${styles.title(
