@@ -2,36 +2,15 @@ import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
-import { useDebounce } from 'react-use';
-import { useFieldValues } from '../../../../hooks/useFieldValues';
-import { Hightlighed } from '../../../NavBar/GlobalSearch/globalSearch.styles';
-import HighlightedText from '../../HighlightedText';
-import { useFiltersContext } from '../FiltersProvider';
-
-function toggleValueFromArray<T>(array: T[], value: T) {
-    const copy = [...array];
-    const index = copy.indexOf(value);
-
-    if (index === -1) {
-        copy.push(value);
-    } else {
-        copy.splice(index, 1);
-    }
-    return copy;
-}
-
-function itemPredicate(
-    query: string,
-    item: string,
-    index?: undefined | number,
-    exactMatch?: undefined | false | true,
-) {
-    if (exactMatch) {
-        return query === item;
-    }
-    return item.toLowerCase().includes(query.toLowerCase());
-}
+import React, { FC, useCallback } from 'react';
+import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
+import HighlightedText from '../../../HighlightedText';
+import { useFiltersContext } from '../../FiltersProvider';
+import {
+    itemPredicate,
+    toggleValueFromArray,
+    useAutoComplete,
+} from './autoCompleteUtils';
 
 type Props = {
     field: FilterableField;
@@ -40,59 +19,19 @@ type Props = {
     onChange: (values: string[]) => void;
 };
 
-export const useDebouncedSearch = (
-    projectUuid: string,
-    fieldId: string,
-    query: string | undefined,
-    enabled: boolean,
-) => {
-    const [debouncedQuery, setDebouncedQuery] = useState<string>();
-    useDebounce(
-        () => {
-            setDebouncedQuery(query);
-        },
-        500,
-        [query],
-    );
-    const { data, isLoading } = useFieldValues(
-        projectUuid,
-        fieldId,
-        debouncedQuery || '',
-        10,
-        enabled,
-    );
-
-    const isSearching = (query && query !== debouncedQuery) || isLoading;
-
-    return {
-        isSearching,
-        items: data,
-    };
-};
-
-const StringMultiSelect: FC<Props> = ({
+const MultiAutoComplete: FC<Props> = ({
     values,
     field,
     suggestions,
     onChange,
 }) => {
-    const [options, setOptions] = useState(
-        new Set([...suggestions, ...values]),
-    );
     const { projectUuid } = useFiltersContext();
-    const [search, setSearch] = useState<string>();
-    const { items, isSearching } = useDebouncedSearch(
-        projectUuid,
+    const { options, setSearch, isSearching } = useAutoComplete(
+        values,
+        suggestions,
         getItemId(field),
-        search,
-        suggestions.length <= 0 || !!search,
+        projectUuid,
     );
-
-    useEffect(() => {
-        setOptions((prev) => {
-            return new Set([...prev, ...values, ...(items || [])]);
-        });
-    }, [suggestions, values, items]);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -178,4 +117,4 @@ const StringMultiSelect: FC<Props> = ({
     );
 };
 
-export default StringMultiSelect;
+export default MultiAutoComplete;
