@@ -1,5 +1,10 @@
 import { ApiError, CreateSpace, Space, UpdateSpace } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -31,10 +36,15 @@ const getSpace = async (projectUuid: string, spaceUuid: string) =>
         body: undefined,
     });
 
-export const useSpace = (projectUuid: string, spaceUuid: string) =>
+export const useSpace = (
+    projectUuid: string,
+    spaceUuid: string,
+    useQueryOptions?: UseQueryOptions<Space, ApiError>,
+) =>
     useQuery<Space, ApiError>({
         queryKey: ['space', projectUuid, spaceUuid],
         queryFn: () => getSpace(projectUuid, spaceUuid),
+        ...useQueryOptions,
     });
 
 const deleteQuery = async (projectUuid: string, spaceUuid: string) =>

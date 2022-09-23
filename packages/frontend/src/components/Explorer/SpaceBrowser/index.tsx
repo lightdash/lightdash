@@ -1,4 +1,4 @@
-import { AnchorButton, Button } from '@blueprintjs/core';
+import { AnchorButton, Button, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { FC, useState } from 'react';
@@ -6,9 +6,7 @@ import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import ResourceEmptyState from '../../common/ResourceList/ResourceEmptyState';
 import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
-import { CreateSpaceModal } from './CreateSpaceModal';
-import { DeleteSpaceModal } from './DeleteSpaceModal';
-import { EditSpaceModal } from './EditSpaceModal';
+import SpaceActionModal, { ActionType } from '../../common/SpaceActionModel';
 import { SpaceListWrapper } from './SpaceBrowser.styles';
 import SpaceItem from './SpaceItem';
 
@@ -84,28 +82,39 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 </SpaceListWrapper>
             )}
 
-            <CreateSpaceModal
-                isOpen={isCreateModalOpen}
-                onClose={() => {
-                    setIsCreateModalOpen(false);
-                }}
-            />
+            {isCreateModalOpen && (
+                <SpaceActionModal
+                    projectUuid={projectUuid}
+                    actionType={ActionType.CREATE}
+                    title="Create new space"
+                    confirmButtonLabel="Create"
+                    icon="folder-close"
+                    onClose={() => setIsCreateModalOpen(false)}
+                />
+            )}
 
             {updateSpaceUuid && (
-                <EditSpaceModal
+                <SpaceActionModal
+                    projectUuid={projectUuid}
                     spaceUuid={updateSpaceUuid}
-                    onClose={() => {
-                        setUpdateSpaceUuid(undefined);
-                    }}
+                    actionType={ActionType.UPDATE}
+                    title="Update space"
+                    confirmButtonLabel="Update"
+                    icon="folder-close"
+                    onClose={() => setUpdateSpaceUuid(undefined)}
                 />
             )}
 
             {deleteSpaceUuid && (
-                <DeleteSpaceModal
+                <SpaceActionModal
+                    projectUuid={projectUuid}
                     spaceUuid={deleteSpaceUuid}
-                    onClose={() => {
-                        setDeleteSpaceUuid(undefined);
-                    }}
+                    actionType={ActionType.DELETE}
+                    title="Delete space"
+                    confirmButtonLabel="Delete"
+                    confirmButtonIntent={Intent.DANGER}
+                    icon="folder-close"
+                    onClose={() => setDeleteSpaceUuid(undefined)}
                 />
             )}
         </ResourceListWrapper>

@@ -29,7 +29,6 @@ const SavedQueryForm: FC<SavedQueryFormProps> = ({
                         placeholder="eg. How many weekly active users do we have?"
                         disabled={isDisabled}
                         rules={{ required: 'Name field is required' }}
-                        showError={false}
                         defaultValue={data?.name || ''}
                     />
 
@@ -37,7 +36,6 @@ const SavedQueryForm: FC<SavedQueryFormProps> = ({
                         label="Chart description"
                         name="description"
                         placeholder="A few words to give your team some context"
-                        showError={false}
                         disabled={isDisabled}
                         defaultValue={savedChart?.description || ''}
                     />

@@ -12,7 +12,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
-import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import UpdateDashboardModal from '../../SavedDashboards/UpdateDashboardModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import {
@@ -25,6 +24,7 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
+import SpaceActionModal, { ActionType } from '../SpaceActionModel';
 import { UpdatedInfo } from '../UpdatedInfo';
 
 type DashboardHeaderProps = {
@@ -266,16 +266,19 @@ const DashboardHeader = ({
                         <Button icon="more" />
                     </Popover2>
 
-                    <CreateSpaceModal
-                        isOpen={isCreatingNewSpace}
-                        onCreated={(space: Space) => {
-                            setIsCreatingNewSpace(false);
-                            onMoveToSpace(space.uuid);
-                        }}
-                        onClose={() => {
-                            setIsCreatingNewSpace(false);
-                        }}
-                    />
+                    {isCreatingNewSpace && (
+                        <SpaceActionModal
+                            projectUuid={projectUuid}
+                            actionType={ActionType.CREATE}
+                            title="Create new space"
+                            confirmButtonLabel="Create"
+                            icon="folder-close"
+                            onClose={() => setIsCreatingNewSpace(false)}
+                            onSubmitForm={(space) => {
+                                if (space) onMoveToSpace(space.uuid);
+                            }}
+                        />
+                    )}
                 </PageActionsContainer>
             )}
         </PageHeaderContainer>

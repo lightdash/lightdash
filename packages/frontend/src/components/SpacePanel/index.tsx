@@ -1,4 +1,4 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Intent } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
@@ -12,13 +12,12 @@ import {
     PageHeader,
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
+import SpaceActionModal, { ActionType } from '../common/SpaceActionModel';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
     AddToSpaceResources,
 } from '../Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../Explorer/SpaceBrowser/CreateResourceToSpace';
-import { DeleteSpaceModal } from '../Explorer/SpaceBrowser/DeleteSpaceModal';
-import { EditSpaceModal } from '../Explorer/SpaceBrowser/EditSpaceModal';
 import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
 
 interface Props {
@@ -96,20 +95,27 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 </SpaceBrowserMenu>
 
                 {updateSpace && (
-                    <EditSpaceModal
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
                         spaceUuid={space.uuid}
-                        onClose={() => {
-                            setUpdateSpace(false);
-                        }}
+                        actionType={ActionType.UPDATE}
+                        title="Update space"
+                        confirmButtonLabel="Update"
+                        icon="folder-close"
+                        onClose={() => setUpdateSpace(false)}
                     />
                 )}
 
                 {deleteSpace && (
-                    <DeleteSpaceModal
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
                         spaceUuid={space.uuid}
-                        onClose={() => {
-                            setDeleteSpace(false);
-                        }}
+                        actionType={ActionType.DELETE}
+                        title="Delete space"
+                        confirmButtonLabel="Delete"
+                        confirmButtonIntent={Intent.DANGER}
+                        icon="folder-close"
+                        onClose={() => setDeleteSpace(false)}
                     />
                 )}
             </PageHeader>

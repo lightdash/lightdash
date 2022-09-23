@@ -1,5 +1,4 @@
-import { Button, IconName, Intent, Position } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, IconName, Intent } from '@blueprintjs/core';
 import React, {
     Dispatch,
     FC,
@@ -118,28 +117,14 @@ const ActionModal = <T extends State>(props: ActionModalProps<T>) => {
 
                     <Button onClick={onClose}>Cancel</Button>
 
-                    <Tooltip2
-                        disabled={form.formState.isValid}
-                        position={Position.TOP}
-                        content={
-                            <>
-                                {Object.values(form.formState.errors).map(
-                                    (error) => (
-                                        <div>{error.message}</div>
-                                    ),
-                                )}
-                            </>
-                        }
-                    >
-                        <Button
-                            data-cy="submit-base-modal"
-                            disabled={isDisabled || !form.formState.isValid}
-                            intent={confirmButtonIntent || Intent.PRIMARY}
-                            type="submit"
-                            text={confirmButtonLabel}
-                            loading={isDisabled}
-                        />
-                    </Tooltip2>
+                    <Button
+                        data-cy="submit-base-modal"
+                        disabled={isDisabled || !form.formState.isValid}
+                        intent={confirmButtonIntent || Intent.PRIMARY}
+                        type="submit"
+                        text={confirmButtonLabel}
+                        loading={isDisabled}
+                    />
                 </>
             )}
         />

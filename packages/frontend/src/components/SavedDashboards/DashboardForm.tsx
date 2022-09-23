@@ -24,7 +24,6 @@ const DashboardForm: FC<DashboardFormProps> = ({
                         placeholder="eg. KPI Dashboards"
                         disabled={isDisabled}
                         rules={{ required: 'Name field is required' }}
-                        showError={false}
                         defaultValue={data?.name || ''}
                     />
 
@@ -33,7 +32,6 @@ const DashboardForm: FC<DashboardFormProps> = ({
                         name="description"
                         placeholder="A few words to give your team some context"
                         disabled={isDisabled}
-                        showError={false}
                         defaultValue={data?.description || ''}
                     />
                 </>
