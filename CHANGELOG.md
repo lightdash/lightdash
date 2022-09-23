@@ -1,3 +1,11 @@
+## [0.263.1](https://github.com/lightdash/lightdash/compare/0.263.0...0.263.1) (2022-09-23)
+
+
+### Bug Fixes
+
+* action modal save button invalid state ([#3292](https://github.com/lightdash/lightdash/issues/3292)) ([9a01f6c](https://github.com/lightdash/lightdash/commit/9a01f6c522960a7c85a6e467ff6ef13468412965))
+* resource table improvements ([#3300](https://github.com/lightdash/lightdash/issues/3300)) ([ef95512](https://github.com/lightdash/lightdash/commit/ef9551290b22831c4c6fbdaf6a63a6d37703c3bf))
+
 # [0.263.0](https://github.com/lightdash/lightdash/compare/0.262.2...0.263.0) (2022-09-22)
 
 
