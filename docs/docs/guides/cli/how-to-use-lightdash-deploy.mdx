@@ -81,7 +81,7 @@ If you have a separate `prod` and `dev` profile, you probably want to use the in
           type: xxx
           project_id: xxx
           private_key_id: xxx
-          private_key: xxx
+          private_key: "xxx" # Make sure to copy + paste your private key including the quotes around it (i.e. copy "my-private-key" NOT copy my-private-key). 
           client_email: xxx
           client_id: xxx
           auth_uri: xxx
@@ -90,6 +90,8 @@ If you have a separate `prod` and `dev` profile, you probably want to use the in
           client_x509_cert_url: xxx
   ```
 
+  Note: if you're getting a "Could not deserialize key data." error, it's likely because your private_key has had some characters changed while it was copy-pasted. To fix this, try copy-pasting your private key including the quotes around it, like this: "my-private-key" instead of copy-pasting the value without quotes, like this: my-private-key. 
+  
   More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-json)
 </details>
 
