@@ -298,6 +298,40 @@ When you want to start:
 docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env start
 ```
 
+#### Setup Development Environment without Docker
+
+To setup Development Environment without Docker you need following pre-requisits before running Lightdash:
+- node 14.x <= version <= 16.x
+- yarn
+- postgres
+- dbt
+- unixODBC
+
+eg. on MacOS you can follow this instructions:
+1. install [brew](https://brew.sh)
+2. install node 16x using [nvm](https://github.com/nvm-sh/nvm)
+  - `nvm install v16.17.0`
+  - `nvm alias default v16.17.0`
+3. install postgres
+  - `brew install postgresql@14`
+4. [install dbt](https://docs.getdbt.com/dbt-cli/install/homebrew)
+  - `brew install dbt-labs/dbt/dbt-postgres@1.1.0`
+5. before running yarn install ODBC library (required by [node-odbc](https://github.com/wankdanker/node-odbc))
+  - `brew install unixODBC`
+6. install packages
+  - `yarn`
+7. copy `.env` file as `.env.local` and override any variables you need to change
+  - `cp .env .env.local`
+8. build / migrate / seed
+  - `yarn load:env ./docker/scripts/build.sh`
+  - `yarn load:env ./docker/scripts/seed-jaffle.sh`
+  - `yarn load:env ./docker/scripts/migrate.sh`
+  - `yarn load:env ./docker/scripts/seed-lightdash.sh`
+9. run
+  - `yarn load:env yarn dev`
+
+> ⚠️ you can add env variables to your system and ignore running `yarn load:env` before each command
+
 #### How to run unit tests
 
 ```shell
