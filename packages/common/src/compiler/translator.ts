@@ -25,7 +25,11 @@ import {
     Source,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
-import { getDefaultTimeFrames, timeFrameConfigs } from '../utils/timeFrames';
+import {
+    getDefaultTimeFrames,
+    timeFrameConfigs,
+    validateTimeFrames,
+} from '../utils/timeFrames';
 import { compileExplore } from './exploreCompiler';
 
 // TODO: move this to querybuilder to compute and query-time
@@ -273,7 +277,9 @@ export const convertTable = (
                     column.meta.dimension?.time_intervals &&
                     Array.isArray(column.meta.dimension.time_intervals)
                 ) {
-                    intervals = column.meta.dimension.time_intervals;
+                    intervals = validateTimeFrames(
+                        column.meta.dimension.time_intervals,
+                    );
                 } else {
                     intervals = getDefaultTimeFrames(dimension.type);
                 }

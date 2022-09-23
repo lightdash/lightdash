@@ -49,3 +49,12 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
               TimeFrames.YEAR,
           ]
         : [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH, TimeFrames.YEAR];
+
+const isTimeInterval = (value: string): value is TimeFrames =>
+    Object.keys(timeFrameConfigs).includes(value);
+
+export const validateTimeFrames = (values: string[]): TimeFrames[] =>
+    values.reduce<TimeFrames[]>((acc, value) => {
+        const uppercaseValue = value.toUpperCase();
+        return isTimeInterval(uppercaseValue) ? [...acc, uppercaseValue] : acc;
+    }, []);
