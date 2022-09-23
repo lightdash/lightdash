@@ -24,7 +24,7 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../PageHeader';
-import SpaceActionModal, { ActionType } from '../SpaceActionModel';
+import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import { UpdatedInfo } from '../UpdatedInfo';
 
 type DashboardHeaderProps = {

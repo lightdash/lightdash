@@ -12,7 +12,7 @@ import {
     PageHeader,
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
-import SpaceActionModal, { ActionType } from '../common/SpaceActionModel';
+import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
     AddToSpaceResources,

@@ -9,7 +9,7 @@ import {
     useSpace,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
-import BaseModal from '../../common/modal/BaseModal';
+import BaseModal from '../modal/BaseModal';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
