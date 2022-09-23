@@ -198,15 +198,7 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 ## Setup Development Environment
 
-#### Environment variables in development
-
-When developing, you must activate the `.env` environment variable file, which configures Lightdash to run in development mode. You can also override ENV variables by creating a `.env.local` file. The following two guides will set this up correctly but if you're manually creating a development environment you must prefix yarn commands with `yarn load:env [command]`. eg. if you want to run a development server you should run:
-
-```shell
-yarn load:env yarn dev
-```
-
-#### Github Codespaces / VS Code Remote Containers
+#### using Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
 This provides:
@@ -232,7 +224,7 @@ yarn workspace backend seed
 yarn dev
 ```
 
-#### Docker compose
+#### using Docker compose
 
 Alternatively you can create a developer environment using docker compose:
 
