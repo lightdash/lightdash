@@ -1,14 +1,13 @@
 import { Colors, Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { AcceptedResources, ResourceListProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import ResourceActionMenu from '../ResourceActionMenu';
 import ResourceLastEdited from '../ResourceLastEdited';
 import {
     Flex,
-    NoLinkContainer,
     ResourceLink,
     ResourceName,
     ResourceSpaceLink,
@@ -69,6 +68,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
     getURL,
     onChangeAction,
 }) => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaces(projectUuid);
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(new Map());
@@ -90,31 +90,22 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 id: 'name',
                 header: 'Name',
                 cell: (row: AcceptedResources) => (
-                    <>
+                    <Tooltip2
+                        lazy
+                        disabled={!row.description}
+                        content={row.description}
+                        position={Position.TOP}
+                    >
                         <ResourceLink
-                            className="full-row-link"
                             to={getURL(row)}
-                        />
-
-                        <Tooltip2
-                            lazy
-                            disabled={!row.description}
-                            content={row.description}
-                            position={Position.TOP}
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <ResourceLink to={getURL(row)}>
-                                <Flex>
-                                    <Icon
-                                        icon={resourceIcon}
-                                        color={Colors.BLUE5}
-                                    />
-                                    <Spacer $width={16} />
+                            <Icon icon={resourceIcon} color={Colors.BLUE5} />
+                            <Spacer $width={16} />
 
-                                    <ResourceName>{row.name}</ResourceName>
-                                </Flex>
-                            </ResourceLink>
-                        </Tooltip2>
-                    </>
+                            <ResourceName>{row.name}</ResourceName>
+                        </ResourceLink>
+                    </Tooltip2>
                 ),
                 enableSorting: enableSorting && resourceList.length > 1,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
@@ -133,6 +124,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     return space ? (
                         <ResourceSpaceLink
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                            onClick={(e) => e.stopPropagation()}
                         >
                             {space.name}
                         </ResourceSpaceLink>
@@ -152,9 +144,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 id: 'updatedAt',
                 header: 'Last Edited',
                 cell: (row: AcceptedResources) => (
-                    <NoLinkContainer>
-                        <ResourceLastEdited resource={row} />
-                    </NoLinkContainer>
+                    <ResourceLastEdited resource={row} />
                 ),
                 enableSorting: enableSorting && resourceList.length > 1,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
@@ -284,7 +274,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
 
             <StyledTBody>
                 {sortedResourceList.map((row) => (
-                    <StyledTr key={row.uuid}>
+                    <StyledTr
+                        key={row.uuid}
+                        onClick={() => history.push(getURL(row))}
+                    >
                         {columns.map((column) => (
                             <StyledTd key={column.id}>
                                 {column.cell(row)}

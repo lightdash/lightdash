@@ -13,19 +13,16 @@ export const StyledTHead = styled.thead`
 `;
 
 export const StyledTr = styled.tr`
-    position: relative;
-
     :hover {
         background-color: ${Colors.LIGHT_GRAY5}75;
-    }
-
-    > td > *:not(a.full-row-link) {
-        position: relative;
-        z-index: 2;
     }
 `;
 
 export const StyledTBody = styled.tbody`
+    ${StyledTr} {
+        cursor: pointer;
+    }
+
     ${StyledTr}:not(:last-child) {
         box-shadow: inset 0 -1px 0 0 ${Colors.LIGHT_GRAY3} !important;
     }
@@ -77,10 +74,6 @@ export const Spacer = styled.div<SpacerProps>`
     width: ${(props) => props.$width}px;
 `;
 
-export const NoLinkContainer = styled.div`
-    pointer-events: none;
-`;
-
 export const ResourceName = styled.div`
     font-size: 13px;
     font-weight: 600;
@@ -88,22 +81,12 @@ export const ResourceName = styled.div`
 `;
 
 export const ResourceLink = styled(Link)`
-    &.full-row-link {
-        outline: none;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 1;
-    }
+    display: inline-flex;
+    align-items: center;
+    color: ${Colors.DARK_GRAY4};
 
-    &:not(.full-row-link) {
-        color: ${Colors.DARK_GRAY4};
-
-        :hover {
-            text-decoration: none;
-        }
+    :hover {
+        text-decoration: none;
     }
 `;
 
