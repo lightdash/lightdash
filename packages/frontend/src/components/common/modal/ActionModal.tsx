@@ -1,5 +1,11 @@
 import { Button, IconName, Intent } from '@blueprintjs/core';
-import React, { Dispatch, SetStateAction, useCallback, useEffect } from 'react';
+import React, {
+    Dispatch,
+    FC,
+    SetStateAction,
+    useCallback,
+    useEffect,
+} from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import styled from 'styled-components';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -30,9 +36,9 @@ export type ActionModalProps<T> = {
         { actionType: number; data?: T },
         Dispatch<SetStateAction<{ actionType: number; data?: T }>>,
     ];
-    ModalContent: (
-        props: Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>,
-    ) => JSX.Element;
+    ModalContent: FC<
+        Pick<ActionModalProps<T>, 'useActionModalState' | 'isDisabled'>
+    >;
     isDisabled: boolean;
     onSubmitForm: (data: T) => void;
     completedMutation: boolean;
@@ -41,7 +47,9 @@ export type ActionModalProps<T> = {
     errorMessage?: string;
 };
 
-const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
+type State = { [key: string]: string };
+
+const ActionModal = <T extends State>(props: ActionModalProps<T>) => {
     const {
         title,
         icon,
@@ -60,8 +68,8 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
     } = props;
     const { showToastError } = useToaster();
 
-    const methods = useForm<any>({
-        mode: 'onSubmit',
+    const form = useForm<State>({
+        mode: 'onChange',
         defaultValues: currentData,
     });
 
@@ -71,10 +79,10 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
             if (onCloseModal) {
                 onCloseModal();
                 // reset fields for new modal
-                methods.reset();
+                form.reset();
             }
         }
-    }, [isDisabled, methods, onCloseModal, setActionState]);
+    }, [isDisabled, form, onCloseModal, setActionState]);
 
     useEffect(() => {
         if (actionType !== ActionTypeModal.CLOSE && completedMutation) {
@@ -100,16 +108,18 @@ const ActionModal = <T extends object>(props: ActionModalProps<T>) => {
             isOpen={actionType !== ActionTypeModal.CLOSE}
             icon={icon}
             onClose={onClose}
-            methods={methods}
+            methods={form}
             handleSubmit={handleSubmit}
             renderBody={() => <ModalContent {...props} />}
             renderFooter={() => (
                 <>
                     <ErrorMessage>{errorMessage}</ErrorMessage>
+
                     <Button onClick={onClose}>Cancel</Button>
+
                     <Button
                         data-cy="submit-base-modal"
-                        disabled={isDisabled}
+                        disabled={isDisabled || !form.formState.isValid}
                         intent={confirmButtonIntent || Intent.PRIMARY}
                         type="submit"
                         text={confirmButtonLabel}

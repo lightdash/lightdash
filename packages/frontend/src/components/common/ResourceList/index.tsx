@@ -2,20 +2,20 @@ import { IconName } from '@blueprintjs/core';
 import {
     assertUnreachable,
     DashboardBasicDetails,
-    Space,
     SpaceQuery,
 } from '@lightdash/common';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useUpdateDashboardName } from '../../../hooks/dashboard/useDashboard';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
-import { CreateSpaceModal } from '../../Explorer/SpaceBrowser/CreateSpaceModal';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import DashboardForm from '../../SavedDashboards/DashboardForm';
 import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import { ActionTypeModal } from '../modal/ActionModal';
 import DeleteActionModal from '../modal/DeleteActionModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
+import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
@@ -56,6 +56,8 @@ const ResourceList: React.FC<ResourceListProps> = ({
     getURL,
     onClickCTA,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const [actionState, setActionState] = useState<ActionStateWithData>({
         actionType: ActionTypeModal.CLOSE,
     });
@@ -122,12 +124,16 @@ const ResourceList: React.FC<ResourceListProps> = ({
             {actionState.actionType === ActionTypeModal.UPDATE &&
                 (resourceType === 'chart' ? (
                     <UpdateActionModal
+                        icon={resourceIcon}
+                        resourceType={resourceType}
                         useActionModalState={[actionState, setActionState]}
                         useUpdate={actions.update}
                         ModalContent={SavedQueryForm}
                     />
                 ) : (
                     <UpdateActionModal
+                        icon={resourceIcon}
+                        resourceType={resourceType}
                         useActionModalState={[actionState, setActionState]}
                         useUpdate={actions.update}
                         ModalContent={DashboardForm}
@@ -165,28 +171,26 @@ const ResourceList: React.FC<ResourceListProps> = ({
 
             {actionState.actionType === ActionTypeModal.CREATE_SPACE &&
                 actionState.data && (
-                    <CreateSpaceModal
-                        isOpen={
-                            actionState.actionType ===
-                            ActionTypeModal.CREATE_SPACE
-                        }
-                        onCreated={(space: Space) => {
-                            if (actionState.data)
-                                actions.moveToSpace({
-                                    uuid: actionState.data.uuid,
-                                    name: actionState.data.name,
-                                    spaceUuid: space.uuid,
-                                });
-
-                            setActionState({
-                                actionType: ActionTypeModal.CLOSE,
-                            });
-                        }}
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
+                        actionType={ActionType.CREATE}
+                        title="Create new space"
+                        confirmButtonLabel="Create"
+                        icon="folder-close"
                         onClose={() =>
                             setActionState({
                                 actionType: ActionTypeModal.CLOSE,
                             })
                         }
+                        onSubmitForm={(space) => {
+                            if (space && actionState.data) {
+                                actions.moveToSpace({
+                                    uuid: actionState.data.uuid,
+                                    name: actionState.data.name,
+                                    spaceUuid: space.uuid,
+                                });
+                            }
+                        }}
                     />
                 )}
         </>
