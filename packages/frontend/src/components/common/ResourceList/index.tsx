@@ -15,7 +15,7 @@ import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import { ActionTypeModal } from '../modal/ActionModal';
 import DeleteActionModal from '../modal/DeleteActionModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
-import SpaceActionModal, { ActionType } from '../SpaceActionModel';
+import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
     ResourceListWrapperProps,

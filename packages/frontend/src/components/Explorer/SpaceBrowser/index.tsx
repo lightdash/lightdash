@@ -6,7 +6,7 @@ import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import ResourceEmptyState from '../../common/ResourceList/ResourceEmptyState';
 import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
-import SpaceActionModal, { ActionType } from '../../common/SpaceActionModel';
+import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 import { SpaceListWrapper } from './SpaceBrowser.styles';
 import SpaceItem from './SpaceItem';
 
