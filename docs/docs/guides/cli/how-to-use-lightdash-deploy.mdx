@@ -55,13 +55,13 @@ This is either `https://eu1.lightdash.cloud` or `https://app.lightdash.cloud` (c
 
 ### `DBT_PROFILES`
 
-Click on your data warehouse to get a profiles.yml file template. Fill out this template, and this is your `DBT_PROFILES` secret.
+Find your data warehouse from the list below to get a profiles.yml file template. Fill out this template, and this is your `DBT_PROFILES` secret.
 
 You might be able to copy a bunch of the information from your local `profiles.yml` file. You can see what's in there by typing `cat ~/.dbt/profiles.yml` in your terminal.
 
 <details>
   <summary>BigQuery</summary>
-  [Service Account JSON](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-json):
+  Service Account JSON:
 
   ```yaml
   my-bigquery-db:
@@ -87,11 +87,13 @@ You might be able to copy a bunch of the information from your local `profiles.y
           auth_provider_x509_cert_url: xxx
           client_x509_cert_url: xxx
   ```
+
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-json)
 </details>
 
 <details>
   <summary>Postgres</summary>
-  [Postgres profile configuration](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#profile-configuration):
+  Postgres profile configuration:
 
   ```yaml
   company-name:
@@ -110,11 +112,13 @@ You might be able to copy a bunch of the information from your local `profiles.y
         connect_timeout: 10
         retries: 1  
   ```
+
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#profile-configuration
 </details>
 
 <details>
   <summary>Redshift</summary>
-  [Redshift password-based authentication](https://docs.getdbt.com/reference/warehouse-profiles/redshift-profile#password-based-authentication):
+  Redshift password-based authentication:
 
   ```yaml
   company-name:
@@ -133,11 +137,13 @@ You might be able to copy a bunch of the information from your local `profiles.y
         connect_timeout: 10 
         ra3_node: true # enables cross-database sources
   ```
+
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/redshift-profile#password-based-authentication
 </details>
 
 <details>
   <summary>Snowflake</summary> 
-  [User / Password authentication](https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#user--password-authentication)
+  User / Password authentication:
 
   ```yaml
   my-snowflake-db:
@@ -159,11 +165,13 @@ You might be able to copy a bunch of the information from your local `profiles.y
         client_session_keep_alive: False
         query_tag: [anything]
   ```
+
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#user--password-authentication
 </details>
 
 <details>
   <summary>DataBricks</summary>
-  [Set up a DataBricks target](https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-json):
+  Set up a DataBricks target:
 
   ```yaml
   your_profile_name:
@@ -178,6 +186,8 @@ You might be able to copy a bunch of the information from your local `profiles.y
         token: [dapiXXXXXXXXXXXXXXXXXXXXXXX] # Personal Access Token (PAT)
         threads: [1 or more]
   ```
+
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-json
 </details>
 
 ### Step 2: Create action.yml workflow in Github
