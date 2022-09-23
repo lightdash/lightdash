@@ -99,7 +99,6 @@ module.exports = {
         "guides/cli/how-to-auto-generate-schema-files",
         "guides/cli/how-to-use-lightdash-preview",
         "guides/cli/how-to-use-lightdash-deploy",
-        "guides/cli/how-to-automatically-deploy",
       ],
     },
     {
