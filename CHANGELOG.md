@@ -1,3 +1,10 @@
+# [0.264.0](https://github.com/lightdash/lightdash/compare/0.263.1...0.264.0) (2022-09-23)
+
+
+### Features
+
+* autocomplete in string filters: include, start with, not include ([#3296](https://github.com/lightdash/lightdash/issues/3296)) ([351abd6](https://github.com/lightdash/lightdash/commit/351abd635ff24549b22ca97ac6cac61195c01bbf))
+
 ## [0.263.1](https://github.com/lightdash/lightdash/compare/0.263.0...0.263.1) (2022-09-23)
 
 
