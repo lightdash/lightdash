@@ -65,7 +65,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
     resourceIcon,
     showSpaceColumn = false,
     enableSorting = true,
-    enableMultiSort = true,
+    enableMultiSort = false,
     getURL,
     onChangeAction,
 }) => {
