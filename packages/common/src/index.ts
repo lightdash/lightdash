@@ -19,7 +19,6 @@ import {
     isFilterableDimension,
     Metric,
     MetricType,
-    TimeInterval,
 } from './types/field';
 import {
     DashboardFilterRule,
@@ -54,6 +53,7 @@ import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
+import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
 
@@ -79,8 +79,10 @@ export * from './types/savedCharts';
 export * from './types/search';
 export * from './types/space';
 export * from './types/table';
+export * from './types/timeFrames';
 export * from './types/user';
 export * from './utils/formatting';
+export * from './utils/timeFrames';
 
 export const validateEmail = (email: string): boolean => {
     const re =
@@ -291,18 +293,18 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
                     const defaultTimeIntervalValues: Record<string, Date> = {
-                        [TimeInterval.DAY]: new Date(),
-                        [TimeInterval.WEEK]: moment(
+                        [TimeFrames.DAY]: new Date(),
+                        [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
                         )
                             .utc(true)
                             .startOf('week')
                             .toDate(),
-                        [TimeInterval.MONTH]: moment()
+                        [TimeFrames.MONTH]: moment()
                             .utc(true)
                             .startOf('month')
                             .toDate(),
-                        [TimeInterval.YEAR]: moment(
+                        [TimeFrames.YEAR]: moment(
                             valueIsDate ? value : undefined,
                         )
                             .utc(true)
