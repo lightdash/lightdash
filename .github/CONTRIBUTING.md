@@ -315,10 +315,10 @@ eg. on MacOS you can follow this instructions:
 7. copy `.env` file as `.env.local` and override any variables you need to change
   - `cp .env .env.local`
 8. build / migrate / seed
-  - `yarn load:env ./docker/scripts/build.sh`
-  - `yarn load:env ./docker/scripts/seed-jaffle.sh`
-  - `yarn load:env ./docker/scripts/migrate.sh`
-  - `yarn load:env ./docker/scripts/seed-lightdash.sh`
+  - `yarn load:env ./scripts/build.sh`
+  - `yarn load:env ./scripts/seed-jaffle.sh`
+  - `yarn load:env ./scripts/migrate.sh`
+  - `yarn load:env ./scripts/seed-lightdash.sh`
 9. run
   - `yarn load:env yarn dev`
 
