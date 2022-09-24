@@ -87,14 +87,13 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         if (!validCartesianConfig) return false;
 
         const {
-            layout: { xField, yField },
+            layout: { yField },
         } = validCartesianConfig;
 
-        if (!xField || !yField) return false;
+        if (!yField) return false;
 
-        const chartAxes = [xField, ...yField];
         return items.some(
-            (item) => !isDimension(item) && chartAxes.includes(getItemId(item)),
+            (item) => !isDimension(item) && yField.includes(getItemId(item)),
         );
     }, [validCartesianConfig, items]);
 
