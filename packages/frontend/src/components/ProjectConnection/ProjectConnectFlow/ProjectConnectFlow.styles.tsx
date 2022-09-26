@@ -22,7 +22,8 @@ export const Wrapper = styled.div`
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
-    padding: 30px;
+    padding: 30px 20px;
+    margin-bottom: 10px;
     display: flex;
     flex-direction: column;
     text-align: center;
@@ -86,8 +87,8 @@ export const SubmitButton = styled(BigButton)`
 `;
 
 export const Codeblock = styled.div`
-    padding: 12px 20px;
-    margin-bottom: 10px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
     background: #ebf1f5;
     width: 100%;
     border-radius: 3px;
@@ -135,7 +136,7 @@ export const ButtonLabel = styled.span`
 `;
 
 export const HasDimensionsForm = styled(Form)`
-    margin-bottom: 10px;
+    margin-top: 10px;
     text-align: left;
 `;
 
