@@ -5,6 +5,7 @@ import {
     FormGroup,
     Switch,
 } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
@@ -46,6 +47,10 @@ export const GridFieldLabel = styled.span`
 
 export const AxisGroup = styled.div`
     margin-top: 1.286em;
+`;
+
+export const BlockTooltip = styled(Tooltip2)`
+    display: block !important;
 `;
 
 export const AxisTitleWrapper = styled.div`

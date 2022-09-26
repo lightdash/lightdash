@@ -12,20 +12,23 @@ import {
     TableCalculation,
 } from '../types/metricQuery';
 import { NumberStyle } from '../types/savedCharts';
+import { TimeFrames } from '../types/timeFrames';
 
 export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
 
-const getDateFormat = (timeInterval: string | undefined = 'DAY'): string => {
+const getDateFormat = (
+    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
+): string => {
     let dateForm: string;
-    switch (timeInterval.toUpperCase()) {
-        case 'YEAR':
+    switch (timeInterval) {
+        case TimeFrames.YEAR:
             dateForm = 'YYYY';
             break;
-        case 'QUARTER':
+        case TimeFrames.QUARTER:
             dateForm = 'YYYY-[Q]Q';
             break;
-        case 'MONTH':
+        case TimeFrames.MONTH:
             dateForm = 'YYYY-MM';
             break;
         default:
@@ -36,7 +39,7 @@ const getDateFormat = (timeInterval: string | undefined = 'DAY'): string => {
 };
 export function formatDate<T = string | Date>(
     date: T,
-    timeInterval: string | undefined = 'DAY',
+    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
     convertToUTC: boolean = false,
 ): string {
     const momentDate = convertToUTC ? moment(date).utc() : moment(date);
@@ -45,19 +48,21 @@ export function formatDate<T = string | Date>(
 
 export const parseDate = (
     str: string,
-    timeInterval: string | undefined = 'DAY',
+    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): Date => moment(str, getDateFormat(timeInterval)).toDate();
 
-const getTimeFormat = (timeInterval: string | undefined = 'DAY'): string => {
+const getTimeFormat = (
+    timeInterval: TimeFrames | undefined = TimeFrames.DAY,
+): string => {
     let timeFormat: string;
     switch (timeInterval.toUpperCase()) {
-        case 'HOUR':
+        case TimeFrames.HOUR:
             timeFormat = 'HH';
             break;
-        case 'MINUTE':
+        case TimeFrames.MINUTE:
             timeFormat = 'HH:mm';
             break;
-        case 'SECOND':
+        case TimeFrames.SECOND:
             timeFormat = 'HH:mm:ss';
             break;
         default:
@@ -69,7 +74,7 @@ const getTimeFormat = (timeInterval: string | undefined = 'DAY'): string => {
 
 export function formatTimestamp<T = string | Date>(
     value: T,
-    timeInterval: string | undefined = 'MILLISECOND',
+    timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
 ): string {
     const momentDate = convertToUTC ? moment(value).utc() : moment(value);
@@ -78,7 +83,7 @@ export function formatTimestamp<T = string | Date>(
 
 export const parseTimestamp = (
     str: string,
-    timeInterval: string | undefined = 'MILLISECOND',
+    timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
 export function valueIsNaN(value: any) {

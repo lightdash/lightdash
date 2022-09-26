@@ -11,6 +11,7 @@ import {
 } from './field';
 import { AdditionalMetric } from './metricQuery';
 import { TableBase } from './table';
+import { TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -79,7 +80,7 @@ type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
-    time_intervals?: string | string[];
+    time_intervals?: 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
     format?: string;

@@ -1,4 +1,5 @@
 import { FilterRule } from './filter';
+import { TimeFrames } from './timeFrames';
 
 export enum FieldType {
     METRIC = 'metric',
@@ -58,18 +59,11 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
-export enum TimeInterval {
-    DAY = 'DAY',
-    WEEK = 'WEEK',
-    MONTH = 'MONTH',
-    YEAR = 'YEAR',
-}
-
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     group?: string;
-    timeInterval?: TimeInterval | string;
+    timeInterval?: TimeFrames;
 }
 
 export interface CompiledDimension extends Dimension {

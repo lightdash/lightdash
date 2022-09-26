@@ -78,7 +78,7 @@ models:
                 url: "https://finance.com/forceasts/weeks/${ value.raw }"
               - label: Open in Google Calendar
                 url: 'https://calendar.google.com/calendar/u/0/r/day/${ value.formatted |split: "-" |join: "/"}'
-            show_underlying_values: 
+            show_underlying_values:
               - revenue_gbp_total_est
               - actual_date
               - web_sessions.session_id # field from joined table
@@ -86,19 +86,19 @@ models:
 
 All the properties you can customize:
 
-| Property                                          | Required | Value                            | Description                                                                                                                                                                                                                                                                                            |
-|---------------------------------------------------|----------|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| label                                             | No       | string                           | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                                                            |
-| type                                              | No       | Dimension type                   | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                                                                     |
-| description                                       | No       | string                           | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                                                             |
-| sql                                               | No       | string                           | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                                                                         |
-| [time_intervals](#time-intervals)                 | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'`. You can use any interval values supported by your warehouse (e.g. `QUARTER`).   |
-| hidden                                            | No       | boolean                          | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                                       |
-| round                                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                                                                        |
-| format                                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                                          |
-| group_label                                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                                                |
-| [urls](#urls)                                     | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                             |
-| [show_underlying_values](#show-underlying-values) | No       | Array of dimension names         | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                                            |
+| Property                                          | Required | Value                            | Description                                                                                                                                                                                                                                                |
+|---------------------------------------------------|----------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| label                                             | No       | string                           | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                |
+| type                                              | No       | Dimension type                   | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                         |
+| description                                       | No       | string                           | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                 |
+| sql                                               | No       | string                           | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                             |
+| [time_intervals](#time-intervals)                 | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'`.                                     |
+| hidden                                            | No       | boolean                          | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                           |
+| round                                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                            |
+| format                                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                              |
+| group_label                                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
+| [urls](#urls)                                     | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
+| [show_underlying_values](#show-underlying-values) | No       | Array of dimension names         | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                  |
 
 ## Time intervals
 
@@ -118,30 +118,8 @@ Lightdash breaks this out into the default intervals automatically. So, this is 
 ### By default, the time intervals we use are:
 
 **Date**: ['DAY', 'WEEK', 'MONTH', 'YEAR']
+
 **Timestamp**: ['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']
-
-### You can use any time interval value supported by your warehouse
-
-Here are the supported time intervals in [BigQuery](https://cloud.google.com/bigquery/docs/reference/standard-sql/date_functions#date_trunc)-,Description,-Returns%20the%20value) and [Snowflake](https://docs.snowflake.com/en/sql-reference/functions/year.html#usage-notes).
-
-### To change the time intervals used for a dimension, specify your custom intervals using `time_intervals`
-
-If you want to change the time intervals shown for a dimension, you can specify the custom time intervals you'd like you include using the `time_intervals` property for a dimension.
-
-In this example, I've only included the day, month, and quarter time intervals for the `created` dimension in Lightdash.
-
-```yaml
-      - name: created
-        description: 'Timestamp when the user was created.'
-        meta:
-          dimension:
-            time_intervals:
-              - DAY
-              - MONTH
-              - QUARTER
-```
-
-![screenshot-custom-intervals](assets/screenshot-custom-intervals.png)
 
 ### To turn off time intervals for a dimension, set `time_intervals: OFF`
 
@@ -159,14 +137,29 @@ In this example, `created` would now appear as a single, timestamp dimension wit
 
 ![screenshot-intervals-off](assets/screenshot-intervals-off.png)
 
+### Options
+
+| Option      | Description                                                      | Type            | Displayed value                           |
+|-------------|------------------------------------------------------------------|-----------------|-------------------------------------------|
+| RAW         | Original value                                                   | Date / DateTime | 2019-01-01 / 2019-01-01, 09:30:30:300 UTC |
+| YEAR        | Date truncated to the nearest year                               | Date            | 2019                                      |
+| QUARTER     | Date truncated to the nearest quarter                            | Date            | 2019-Q1                                   |
+| MONTH       | Date truncated to the nearest month                              | Date            | 2019-01-01                                |
+| WEEK        | Date of the week starting on a Monday of the underlying datetime | Date            | 2019-01-01                                |
+| DAY         | Date truncated to the nearest day                                | Date            | 2019-01-01                                |
+| HOUR        | Datetime truncated to the nearest hour                           | DateTime        | 2019-01-01, 09 UTC                        |
+| MINUTE      | Datetime truncated to the nearest minute                         | DateTime        | 2019-01-01, 09:30 UTC                     |
+| SECOND      | Datetime truncated to the nearest second                         | DateTime        | 2019-01-01, 09:30:30 UTC                  |
+| MILLISECOND | Datetime truncated to the nearest millisecond                    | DateTime        | 2019-01-01, 09:30:30:300 UTC              |
+
 ## URLs
 
-Lightdash users can interact with dimension values by clicking on them. By adding custom `urls` you can configure 
+Lightdash users can interact with dimension values by clicking on them. By adding custom `urls` you can configure
 the actions available to your users. Like linking to external tools, or taking actions in other tools.
 
 <img src={ClickableDimension} width="583" height="274" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-In the example below, users can click on a company name and open a corresponding record in their CRM or search for 
+In the example below, users can click on a company name and open a corresponding record in their CRM or search for
 the company in google or open that company's Slack channel.
 
 ```yaml
@@ -174,7 +167,7 @@ columns:
   - name: company_name
     label: Registered trading name of the company
     meta:
-      dimension: 
+      dimension:
         urls:
           - label: Search for company in Google
             url: "https://google.com/search?${ value.formatted | url_encode }"
@@ -209,11 +202,11 @@ There are [many more filters available in the Liquid documentation](https://liqu
 
 ## Show underlying values
 
-By default, we show all of the dimensions from the Table when you click `View underlying data`. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table. 
+By default, we show all of the dimensions from the Table when you click `View underlying data`. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table.
 
 <img src={UnderlyingData} width="1103" height="580" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-You can limit which dimensions are shown for a field when a user clicks `View underlying data` by adding the list of dimensions to your `.yml` files: 
+You can limit which dimensions are shown for a field when a user clicks `View underlying data` by adding the list of dimensions to your `.yml` files:
 
 ```yaml
 version: 2
@@ -230,7 +223,7 @@ models:
         meta:
           dimension:
             type: date
-            show_underlying_values: 
+            show_underlying_values:
               - revenue_gbp_total_est
               - actual_date
               - web_sessions.session_id # field from joined table

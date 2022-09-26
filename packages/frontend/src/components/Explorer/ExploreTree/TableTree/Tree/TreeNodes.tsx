@@ -3,7 +3,7 @@ import {
     Dimension,
     isDimension,
     Metric,
-    TimeInterval,
+    TimeFrames,
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import TreeGroupNode from './TreeGroupNode';
@@ -17,11 +17,16 @@ import TreeSingleNode from './TreeSingleNode';
 
 const timeIntervalSort = [
     undefined,
-    'RAW',
-    TimeInterval.DAY,
-    TimeInterval.WEEK,
-    TimeInterval.MONTH,
-    TimeInterval.YEAR,
+    TimeFrames.RAW,
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+    TimeFrames.DAY,
+    TimeFrames.WEEK,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
 ];
 
 const sortNodes =

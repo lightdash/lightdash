@@ -1,6 +1,7 @@
 import { DbtMetric, DbtModelColumn, DbtModelNode } from '../types/dbt';
 import { Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
+import { TimeFrames } from '../types/timeFrames';
 
 type WarehouseCatalog = {
     [database: string]: {
@@ -160,7 +161,7 @@ const COLUMN_WITH_CUSTOM_TIME_INTERVALS: Record<string, DbtModelColumn> = {
         data_type: DimensionType.DATE,
         meta: {
             dimension: {
-                time_intervals: ['YEAR'],
+                time_intervals: [TimeFrames.YEAR],
             },
         },
     },
@@ -477,7 +478,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             tableLabel: 'My table',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'RAW',
+            timeInterval: TimeFrames.RAW,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -494,7 +495,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             tableLabel: 'My table',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'DAY',
+            timeInterval: TimeFrames.DAY,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -511,7 +512,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             tableLabel: 'My table',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'WEEK',
+            timeInterval: TimeFrames.WEEK,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -528,7 +529,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             tableLabel: 'My table',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'MONTH',
+            timeInterval: TimeFrames.MONTH,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -545,7 +546,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             tableLabel: 'My table',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'YEAR',
+            timeInterval: TimeFrames.YEAR,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -596,7 +597,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             label: 'User created raw',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'RAW',
+            timeInterval: TimeFrames.RAW,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -615,7 +616,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
 
             source: undefined,
             group: 'user_created',
-            timeInterval: 'DAY',
+            timeInterval: TimeFrames.DAY,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -635,7 +636,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
 
             source: undefined,
             group: 'user_created',
-            timeInterval: 'WEEK',
+            timeInterval: TimeFrames.WEEK,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -655,7 +656,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
 
             source: undefined,
             group: 'user_created',
-            timeInterval: 'MONTH',
+            timeInterval: TimeFrames.MONTH,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -674,7 +675,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             label: 'User created year',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'YEAR',
+            timeInterval: TimeFrames.YEAR,
             hidden: false,
             format: undefined,
             round: undefined,
@@ -765,7 +766,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             tableLabel: 'My table',
             source: undefined,
             group: 'user_created',
-            timeInterval: 'YEAR',
+            timeInterval: TimeFrames.YEAR,
             hidden: false,
             format: undefined,
             round: undefined,
