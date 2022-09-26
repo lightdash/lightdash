@@ -13,7 +13,7 @@ import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
 
 export const Wrapper = styled.div`
-    width: 450px;
+    width: 400px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -96,6 +96,7 @@ export const Codeblock = styled.div`
     pre {
         margin: 0;
         color: ${Colors.GRAY1};
+        white-space: pre-wrap;
     }
 `;
 
