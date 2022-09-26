@@ -1,3 +1,10 @@
+## [0.264.1](https://github.com/lightdash/lightdash/compare/0.264.0...0.264.1) (2022-09-26)
+
+
+### Bug Fixes
+
+* **2829:** `group` should be unavailable if you only have dimensions in your chart ([#3258](https://github.com/lightdash/lightdash/issues/3258)) ([872737a](https://github.com/lightdash/lightdash/commit/872737a6df18a937417e93241c60fc6199535dd3))
+
 # [0.264.0](https://github.com/lightdash/lightdash/compare/0.263.1...0.264.0) (2022-09-23)
 
 
