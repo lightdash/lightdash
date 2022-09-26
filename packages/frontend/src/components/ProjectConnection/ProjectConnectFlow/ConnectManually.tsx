@@ -1,24 +1,17 @@
-import { Icon, Intent, Position, Radio } from '@blueprintjs/core';
+import { AnchorButton, Button, Intent, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { Organisation } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { CreateProjectConnection } from '..';
 import {
     BackToWarehouseButton,
     CreateHeaderWrapper,
     CreateProjectWrapper,
 } from '../../../pages/CreateProject.styles';
-import RadioGroup from '../../ReactHookForm/RadioGroup';
-import InviteExpertFooter from './InviteExpertFooter';
 import {
-    ButtonLabel,
     ButtonsWrapper,
     Codeblock,
     ConnectWarehouseWrapper,
-    HasDimensionsForm,
-    LinkToDocsButton,
-    SubmitButton,
     Subtitle,
     Title,
     Wrapper,
@@ -31,24 +24,34 @@ interface Props {
     organisation: Organisation;
 }
 
+const codeBlock = String.raw`models:
+- name: my_model
+    columns:
+    - name: my_column_1
+    - name: my_column_2
+`;
+
 interface DimensionCardProps {
     onChangeHasDimensions: (hasDimensions: boolean) => void;
 }
 
-const DefineDimensionsCard: FC<DimensionCardProps> = ({
-    onChangeHasDimensions,
-}) => {
+const DimensionCard: FC<DimensionCardProps> = ({ onChangeHasDimensions }) => {
+    const handleSubmit = () => {
+        onChangeHasDimensions(true);
+    };
+
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
                 <Title>You're in! 🎉</Title>
-
                 <Subtitle>
                     We strongly recommend that you define columns in your .yml
-                    file for a smoother experience.
-                    <br />
-                    Don’t worry! You can do this right now:
+                    to see a table in Lightdash. eg:
                 </Subtitle>
+
+                <Codeblock>
+                    <pre>{codeBlock}</pre>
+                </Codeblock>
 
                 <ButtonsWrapper>
                     <Tooltip2
@@ -58,91 +61,28 @@ const DefineDimensionsCard: FC<DimensionCardProps> = ({
                         }
                         targetTagName="div"
                     >
-                        <LinkToDocsButton
+                        <AnchorButton
+                            large
+                            minimal
+                            outlined
+                            fill
                             href="https://docs.lightdash.com/guides/how-to-create-dimensions"
                             target="_blank"
+                            rightIcon="chevron-right"
                         >
-                            <ButtonLabel>
-                                Learn how to define them manually.
-                            </ButtonLabel>
-
-                            <Icon icon="chevron-right" />
-                        </LinkToDocsButton>
+                            Learn how to define them
+                        </AnchorButton>
                     </Tooltip2>
                 </ButtonsWrapper>
 
-                <SubmitButton
+                <Button
                     type="submit"
+                    large
                     intent={Intent.PRIMARY}
                     text="I’ve defined them!"
-                    onClick={() => onChangeHasDimensions(true)}
+                    onClick={handleSubmit}
                 />
             </ConnectWarehouseWrapper>
-            <InviteExpertFooter />
-        </Wrapper>
-    );
-};
-
-const codeBlock = String.raw`models:
-- name: my_model
-    columns:
-    - name: my_column_1
-    - name: my_column_2
-`;
-
-const DefineDimensionsInstructionsCart: FC<DimensionCardProps> = ({
-    onChangeHasDimensions,
-}) => {
-    const methods = useForm<{ hasDimension: string }>({
-        mode: 'onSubmit',
-    });
-
-    const handleSubmit = (formData: { hasDimension: string }) => {
-        onChangeHasDimensions(formData?.hasDimension === 'Yes');
-    };
-
-    return (
-        <Wrapper>
-            <ConnectWarehouseWrapper>
-                <Title>You're in! 🎉</Title>
-                <Subtitle>
-                    The next step is to connect your data.
-                    <br />
-                    To see a table in Lightdash, you need to define its
-                    <br />
-                    columns in a .yml file. eg:
-                </Subtitle>
-
-                <Codeblock>
-                    <pre>{codeBlock}</pre>
-                </Codeblock>
-
-                <HasDimensionsForm
-                    name="has-dimensions-selector"
-                    methods={methods}
-                    onSubmit={handleSubmit}
-                    disableSubmitOnEnter
-                >
-                    <RadioGroup
-                        name="hasDimension"
-                        label="Have you defined dimensions in your .yml files?"
-                        rules={{
-                            required: 'Required field',
-                        }}
-                        defaultValue="hasDimensions"
-                    >
-                        <Radio label="Yes" value="Yes" />
-                        <Radio label="No" value="No" />
-                    </RadioGroup>
-
-                    <SubmitButton
-                        type="submit"
-                        intent={Intent.PRIMARY}
-                        text="Next"
-                    />
-                </HasDimensionsForm>
-            </ConnectWarehouseWrapper>
-            <InviteExpertFooter />
         </Wrapper>
     );
 };
@@ -187,16 +127,9 @@ const ConnectManually: FC<Props> = ({ organisation }) => {
 
     return (
         <>
-            {!hasDimensions &&
-                (hasDimensions === false ? (
-                    <DefineDimensionsCard
-                        onChangeHasDimensions={setHasDimensions}
-                    />
-                ) : (
-                    <DefineDimensionsInstructionsCart
-                        onChangeHasDimensions={setHasDimensions}
-                    />
-                ))}
+            {!hasDimensions && (
+                <DimensionCard onChangeHasDimensions={setHasDimensions} />
+            )}
 
             {hasDimensions && !selectedWarehouse && (
                 <WareHouseConnectCard

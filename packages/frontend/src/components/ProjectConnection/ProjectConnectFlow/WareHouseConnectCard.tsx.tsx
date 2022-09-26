@@ -5,7 +5,6 @@ import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
 import Snowflake from './Assets/snowflake.svg';
-import InviteExpertFooter from './InviteExpertFooter';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,
@@ -83,6 +82,7 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
                         </WarehouseButton>
                     ))}
                 </WarehouseGrid>
+
                 {showDemoLink && (
                     <ExternalLink
                         href="https://demo.lightdash.com/"
@@ -92,7 +92,6 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
                     </ExternalLink>
                 )}
             </ConnectWarehouseWrapper>
-            {showDemoLink && <InviteExpertFooter />}
         </Wrapper>
     );
 };

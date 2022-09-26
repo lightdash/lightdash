@@ -1,15 +1,15 @@
-import { Spinner } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import { FC, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useProjects } from '../../../hooks/useProjects';
-import SimpleButton from '../../common/SimpleButton';
-import InviteExpertFooter from './InviteExpertFooter';
+import LinkButton from '../../common/LinkButton';
 import {
     Codeblock,
     ConnectWarehouseWrapper,
     StyledNonIdealState,
     Subtitle,
+    Title,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
@@ -50,6 +50,8 @@ const ConnectUsingCLI: FC = () => {
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
+                <Title>You're in! 🎉</Title>
+
                 <Subtitle>
                     To get started, upload your dbt project to Lightdash using
                     our CLI tool.
@@ -59,24 +61,29 @@ const ConnectUsingCLI: FC = () => {
                     <pre>{codeBlock}</pre>
                 </Codeblock>
 
-                <SimpleButton
+                <LinkButton
+                    minimal
+                    intent={Intent.PRIMARY}
+                    rightIcon="share"
                     href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
                     target="_blank"
                 >
-                    read more about getting started.
-                </SimpleButton>
+                    Read more about getting started.
+                </LinkButton>
 
                 <StyledNonIdealState
                     title="Waiting for data"
-                    icon={<Spinner />}
+                    icon="stopwatch"
                 />
             </ConnectWarehouseWrapper>
 
-            <SimpleButton href="/createProject?method=manual">
+            <LinkButton
+                minimal
+                intent={Intent.PRIMARY}
+                href="/createProject?method=manual"
+            >
                 Create project manually
-            </SimpleButton>
-
-            <InviteExpertFooter />
+            </LinkButton>
         </Wrapper>
     );
 };

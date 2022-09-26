@@ -8,9 +8,6 @@ import {
     Radio,
 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-import { BigButton } from '../../common/BigButton';
-import SimpleButton from '../../common/SimpleButton';
-import Form from '../../ReactHookForm/Form';
 
 export const Wrapper = styled.div`
     width: 400px;
@@ -39,6 +36,10 @@ export const StyledSuccessIcon = styled(Icon)`
 
 export const StyledNonIdealState = styled(NonIdealState)`
     margin-top: 30px;
+
+    svg {
+        fill-opacity: unset !important;
+    }
 `;
 
 export const Title = styled(H3)<{ marginBottom?: boolean }>`
@@ -82,10 +83,6 @@ export const RadioButton = styled(Radio)`
     text-align: left;
 `;
 
-export const SubmitButton = styled(BigButton)`
-    width: 100%;
-`;
-
 export const Codeblock = styled.div`
     padding: 8px 12px;
     margin-bottom: 8px;
@@ -102,52 +99,5 @@ export const Codeblock = styled.div`
 `;
 
 export const ButtonsWrapper = styled.div`
-    margin: 20px 0 10px;
-`;
-
-export const LinkToDocsButton = styled.a`
-    padding: 21px 25px;
-    width: 100%;
-    border: 1px solid ${Colors.LIGHT_GRAY2};
-    display: flex;
-    justify-content: space-between;
-    text-decoration: none;
-    align-items: center;
-    border-radius: 3px;
-    margin-bottom: 10px;
-    transition: all 0.3s ease;
-
-    :hover {
-        background: ${Colors.LIGHT_GRAY5};
-        text-decoration: none;
-        svg {
-            transform: translateX(3px);
-        }
-    }
-
-    svg path {
-        fill: ${Colors.BLUE3};
-    }
-`;
-
-export const ButtonLabel = styled.span`
-    color: ${Colors.DARK_GRAY3};
-    font-weight: 600;
-`;
-
-export const HasDimensionsForm = styled(Form)`
-    margin-top: 10px;
-    text-align: left;
-`;
-
-export const FormFooterCopy = styled.p`
-    width: 400px;
-    margin: 35px auto 0;
-    color: ${Colors.GRAY2};
-    text-align: center;
-`;
-
-export const InviteLinkButton = styled(SimpleButton)`
-    width: fit-content;
-    padding-left: 0;
+    margin: 10px 0;
 `;
