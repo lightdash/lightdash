@@ -4,7 +4,6 @@ import {
     Field,
     getItemId,
     isDimension,
-    isSeriesWithMixedChartTypes,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -16,6 +15,7 @@ import {
     AxisGroup,
     AxisTitle,
     AxisTitleWrapper,
+    BlockTooltip,
     DeleteFieldButton,
     GridLabel,
     StackButton,
@@ -43,13 +43,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         cartesianConfig,
         setPivotDimensions,
     } = useVisualizationContext();
+
     const pivotDimension = pivotDimensions?.[0];
 
     const cartesianType = cartesianConfig.dirtyChartType;
-    const isChartTypeTheSameForAllSeries: boolean =
-        !isSeriesWithMixedChartTypes(
-            cartesianConfig.dirtyEchartsConfig?.series,
-        );
 
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
@@ -85,6 +82,20 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     const availableDimensions = useMemo(() => {
         return items.filter((item) => isDimension(item));
     }, [items]);
+
+    const chartHasMetricOrTableCalc = useMemo(() => {
+        if (!validCartesianConfig) return false;
+
+        const {
+            layout: { yField },
+        } = validCartesianConfig;
+
+        if (!yField) return false;
+
+        return items.some(
+            (item) => !isDimension(item) && yField.includes(getItemId(item)),
+        );
+    }, [validCartesianConfig, items]);
 
     return (
         <>
@@ -156,28 +167,38 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                     </Button>
                 )}
             </AxisGroup>
-            <AxisGroup>
-                <AxisTitle>Group</AxisTitle>
-                <AxisFieldDropdown>
-                    <FieldAutoComplete
-                        fields={availableDimensions}
-                        placeholder="Select a field to group by"
-                        activeField={groupSelectedField}
-                        onChange={(item) => {
-                            setPivotDimensions([getItemId(item)]);
-                        }}
-                    />
-                    {groupSelectedField && (
-                        <DeleteFieldButton
-                            minimal
-                            icon="cross"
-                            onClick={() => {
-                                setPivotDimensions([]);
+            <BlockTooltip
+                content="You need at least one metric in your chart to add a group"
+                disabled={chartHasMetricOrTableCalc}
+            >
+                <AxisGroup>
+                    <AxisTitle>Group</AxisTitle>
+                    <AxisFieldDropdown>
+                        <FieldAutoComplete
+                            fields={availableDimensions}
+                            placeholder="Select a field to group by"
+                            activeField={
+                                chartHasMetricOrTableCalc
+                                    ? groupSelectedField
+                                    : undefined
+                            }
+                            onChange={(item) => {
+                                setPivotDimensions([getItemId(item)]);
                             }}
+                            disabled={!chartHasMetricOrTableCalc}
                         />
-                    )}
-                </AxisFieldDropdown>
-            </AxisGroup>
+                        {groupSelectedField && (
+                            <DeleteFieldButton
+                                minimal
+                                icon="cross"
+                                onClick={() => {
+                                    setPivotDimensions([]);
+                                }}
+                            />
+                        )}
+                    </AxisFieldDropdown>
+                </AxisGroup>
+            </BlockTooltip>
             {pivotDimension && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>
