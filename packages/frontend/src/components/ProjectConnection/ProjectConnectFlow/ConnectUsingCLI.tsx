@@ -16,14 +16,14 @@ import {
 // TODO: where to put? lightdash help login
 
 const codeBlock = String.raw`
-# 1. install lightdash CLI
-$ npm install -g @lightdash/cli
+#1 install lightdash CLI
+npm install -g @lightdash/cli
 
-# 2. login to lightdash
-$ lightdash login ${window.location.origin}
+#2 login to lightdash
+lightdash login ${window.location.origin}
 
-# 3. create project command
-$ lightdash deploy --create
+#3 create project command
+lightdash deploy --create
 `.trim();
 
 const ConnectUsingCLI: FC = () => {
@@ -82,7 +82,7 @@ const ConnectUsingCLI: FC = () => {
                 intent={Intent.PRIMARY}
                 href="/createProject?method=manual"
             >
-                Create project manually
+                Having problems? Create your project manually
             </LinkButton>
         </Wrapper>
     );
