@@ -48,8 +48,6 @@ const CreateProject: FC = () => {
         }
     }, [projectUuid, method, isLoading, organisation, history]);
 
-    console.log({ projectUuid });
-
     if (!method && !projectUuid) {
         return null;
     }
@@ -60,11 +58,7 @@ const CreateProject: FC = () => {
 
     return (
         <ProjectFormProvider>
-            <Page
-            // TODO
-            // hideFooter={!!selectedWarehouse}
-            // noContentPadding={!!selectedWarehouse}
-            >
+            <Page hideFooter noContentPadding>
                 {projectUuid && <ConnectSuccess projectUuid={projectUuid} />}
 
                 {method === ConnectMethod.CLI && <ConnectUsingCLI />}

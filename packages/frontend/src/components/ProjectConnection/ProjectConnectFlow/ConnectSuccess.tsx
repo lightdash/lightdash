@@ -1,10 +1,10 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
     ConnectWarehouseWrapper,
     StyledSuccessIcon,
-    Subtitle,
+    Title,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
@@ -18,11 +18,11 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
-                <Subtitle>Your project's been created! 🎉</Subtitle>
+                <Title>Your project's been created! 🎉</Title>
 
                 <StyledSuccessIcon
                     icon="tick-circle"
-                    intent="success"
+                    color={Colors.GREEN4}
                     size={64}
                 />
 
@@ -33,7 +33,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         history.replace(`/projects/${projectUuid}`);
                     }}
                 >
-                    Let's do some data
+                    Let's do some data!
                 </Button>
             </ConnectWarehouseWrapper>
         </Wrapper>
