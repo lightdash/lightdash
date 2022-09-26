@@ -1,20 +1,14 @@
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useMemo } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import { CreateProjectConnection } from '../components/ProjectConnection';
-import ConnectionOptions from '../components/ProjectConnection/ProjectConnectFlow/ConnectionOptions';
-import HowToConnectDataCard from '../components/ProjectConnection/ProjectConnectFlow/HowToConnectDataCard';
-import WareHouseConnectCard from '../components/ProjectConnection/ProjectConnectFlow/WareHouseConnectCard.tsx';
+import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
+import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
+import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
-import {
-    BackToWarehouseButton,
-    CreateHeaderWrapper,
-    CreateProjectWrapper,
-    Title,
-} from './CreateProject.styles';
 
 export type SelectedWarehouse = {
     label: string;
@@ -22,67 +16,64 @@ export type SelectedWarehouse = {
     icon: string;
 };
 
+enum ConnectMethod {
+    CLI = 'cli',
+    MANUAL = 'manual',
+}
+
 const CreateProject: FC = () => {
     const { health } = useApp();
-    const { isLoading, data: orgData } = useOrganisation();
-    const [selectedWarehouse, setSelectedWarehouse] = useState<
-        SelectedWarehouse | undefined
-    >();
-    const [hasDimensions, setHasDimensions] = useState<string>();
+    const history = useHistory();
+    const location = useLocation();
+    const { isLoading, data: organisation } = useOrganisation();
+
+    const method = useMemo(() => {
+        const queryParams = new URLSearchParams(location.search);
+        return queryParams.get('method') as ConnectMethod | null;
+    }, [location.search]);
+
+    const projectUuid = useMemo(() => {
+        const queryParams = new URLSearchParams(location.search);
+        return queryParams.get('projectUuid');
+    }, [location.search]);
 
     useEffect(() => {
-        if (orgData && !orgData.needsProject) {
-            setHasDimensions('hasDimensions');
-        }
-    }, [orgData]);
+        if (projectUuid || method || !organisation || organisation.name === '')
+            return;
 
-    if (health.isLoading || isLoading) {
+        if (organisation.needsProject) {
+            history.push(`/createProject?method=${ConnectMethod.CLI}`);
+        } else {
+            history.push(`/createProject?method=${ConnectMethod.MANUAL}`);
+        }
+    }, [projectUuid, method, isLoading, organisation, history]);
+
+    console.log({ projectUuid });
+
+    if (!method && !projectUuid) {
+        return null;
+    }
+
+    if (health.isLoading || isLoading || !organisation) {
         return <PageSpinner />;
     }
 
     return (
-        <Page
-            hideFooter={!!selectedWarehouse}
-            noContentPadding={!!selectedWarehouse}
-        >
-            <ProjectFormProvider>
-                {hasDimensions === 'hasDimensions' && (
-                    <>
-                        {!selectedWarehouse ? (
-                            <WareHouseConnectCard
-                                setWarehouse={setSelectedWarehouse}
-                                showDemoLink={orgData?.needsProject}
-                            />
-                        ) : (
-                            <CreateProjectWrapper>
-                                <CreateHeaderWrapper>
-                                    <BackToWarehouseButton
-                                        icon="chevron-left"
-                                        text="Back"
-                                        onClick={() =>
-                                            setSelectedWarehouse(undefined)
-                                        }
-                                    />
-                                    <Title marginBottom>
-                                        {`Create a ${selectedWarehouse.label} connection`}
-                                    </Title>
-                                </CreateHeaderWrapper>
-                                <CreateProjectConnection
-                                    orgData={orgData}
-                                    selectedWarehouse={selectedWarehouse}
-                                />
-                            </CreateProjectWrapper>
-                        )}
-                    </>
+        <ProjectFormProvider>
+            <Page
+            // TODO
+            // hideFooter={!!selectedWarehouse}
+            // noContentPadding={!!selectedWarehouse}
+            >
+                {projectUuid && <ConnectSuccess projectUuid={projectUuid} />}
+
+                {method === ConnectMethod.CLI && <ConnectUsingCLI />}
+
+                {method === ConnectMethod.MANUAL && (
+                    <ConnectManually organisation={organisation} />
                 )}
-                {hasDimensions === 'doesNotHaveDimensions' && (
-                    <ConnectionOptions setHasDimensions={setHasDimensions} />
-                )}
-                {!hasDimensions && (
-                    <HowToConnectDataCard setHasDimensions={setHasDimensions} />
-                )}
-            </ProjectFormProvider>
-        </Page>
+            </Page>
+        </ProjectFormProvider>
     );
 };
 

@@ -1,11 +1,19 @@
-import { Button, Card, Colors, H3, Radio } from '@blueprintjs/core';
+import {
+    Button,
+    Card,
+    Colors,
+    H3,
+    Icon,
+    NonIdealState,
+    Radio,
+} from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import { BigButton } from '../../common/BigButton';
 import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
 
 export const Wrapper = styled.div`
-    width: 400px;
+    width: 450px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -14,10 +22,22 @@ export const Wrapper = styled.div`
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
-    padding: 30px 27px;
+    padding: 30px;
     display: flex;
     flex-direction: column;
     text-align: center;
+`;
+
+export const StyledSuccessIcon = styled(Icon)`
+    margin: 20px 0;
+
+    svg {
+        display: inline-block;
+    }
+`;
+
+export const StyledNonIdealState = styled(NonIdealState)`
+    margin-top: 30px;
 `;
 
 export const Title = styled(H3)<{ marginBottom?: boolean }>`
@@ -31,7 +51,7 @@ export const Title = styled(H3)<{ marginBottom?: boolean }>`
 
 export const Subtitle = styled.p`
     color: ${Colors.GRAY2};
-    margin: 5px 0 0;
+    margin: 5px 0 20px 0;
 `;
 
 export const WarehouseGrid = styled.div`
@@ -66,8 +86,8 @@ export const SubmitButton = styled(BigButton)`
 `;
 
 export const Codeblock = styled.div`
-    margin: 20px 0;
     padding: 12px 20px;
+    margin-bottom: 10px;
     background: #ebf1f5;
     width: 100%;
     border-radius: 3px;
