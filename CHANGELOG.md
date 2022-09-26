@@ -1,3 +1,10 @@
+# [0.265.0](https://github.com/lightdash/lightdash/compare/0.264.1...0.265.0) (2022-09-26)
+
+
+### Features
+
+* drop support for warehouse time intervals ([#3306](https://github.com/lightdash/lightdash/issues/3306)) ([f3346b7](https://github.com/lightdash/lightdash/commit/f3346b727337c663625cb867424fc9115a3e4335))
+
 ## [0.264.1](https://github.com/lightdash/lightdash/compare/0.264.0...0.264.1) (2022-09-26)
 
 
