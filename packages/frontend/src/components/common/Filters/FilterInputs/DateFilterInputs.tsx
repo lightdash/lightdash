@@ -7,7 +7,7 @@ import {
     formatDate,
     isDimension,
     parseDate,
-    TimeInterval,
+    TimeFrames,
     UnitOfTime,
 } from '@lightdash/common';
 import moment from 'moment';
@@ -32,7 +32,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
         case FilterOperator.LESS_THAN_OR_EQUAL:
             if (isDimension(field) && field.timeInterval) {
                 switch (field.timeInterval.toUpperCase()) {
-                    case TimeInterval.WEEK:
+                    case TimeFrames.WEEK:
                         return (
                             <>
                                 <span style={{ whiteSpace: 'nowrap' }}>
@@ -53,7 +53,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                 />
                             </>
                         );
-                    case TimeInterval.MONTH:
+                    case TimeFrames.MONTH:
                         return (
                             <MonthAndYearInput
                                 value={filterRule.values?.[0] || new Date()}
@@ -69,7 +69,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                 }}
                             />
                         );
-                    case TimeInterval.YEAR:
+                    case TimeFrames.YEAR:
                         return (
                             <YearInput
                                 value={filterRule.values?.[0] || new Date()}

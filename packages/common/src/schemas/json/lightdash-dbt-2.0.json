@@ -188,7 +188,12 @@
                                                                     "DAY",
                                                                     "WEEK",
                                                                     "MONTH",
-                                                                    "YEAR"
+                                                                    "QUARTER",
+                                                                    "YEAR",
+                                                                    "HOUR",
+                                                                    "MINUTE",
+                                                                    "SECOND",
+                                                                    "MILLISECOND"
                                                                 ]
                                                             }
                                                         },

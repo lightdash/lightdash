@@ -24,12 +24,18 @@ import {
     parseMetricType,
     Source,
 } from '../types/field';
+import { TimeFrames } from '../types/timeFrames';
+import {
+    getDefaultTimeFrames,
+    timeFrameConfigs,
+    validateTimeFrames,
+} from '../utils/timeFrames';
 import { compileExplore } from './exploreCompiler';
 
 // TODO: move this to querybuilder to compute and query-time
 const truncateTimeField = (
     adapterType: SupportedDbtAdapter,
-    timeInterval: string,
+    timeInterval: TimeFrames,
     field: string,
     type: DimensionType,
 ) => {
@@ -87,15 +93,13 @@ const convertTimezone = (
     }
 };
 
-const dateIntervals = ['DAY', 'WEEK', 'MONTH', 'YEAR', 'QUARTER'];
-
 const convertDimension = (
     targetWarehouse: SupportedDbtAdapter,
     model: Pick<DbtModelNode, 'name' | 'relation_name'>,
     tableLabel: string,
     column: DbtModelColumn,
     source?: Source,
-    timeInterval?: string,
+    timeInterval?: TimeFrames,
 ): Dimension => {
     let type =
         column.meta.dimension?.type || column.data_type || DimensionType.STRING;
@@ -117,15 +121,13 @@ const convertDimension = (
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
     if (timeInterval) {
-        if (timeInterval !== 'RAW') {
+        if (timeInterval !== TimeFrames.RAW) {
             sql = truncateTimeField(targetWarehouse, timeInterval, sql, type);
         }
         name = `${column.name}_${timeInterval.toLowerCase()}`;
         label = `${label} ${timeInterval.toLowerCase()}`;
         group = column.name;
-        if (dateIntervals.includes(timeInterval.toUpperCase())) {
-            type = DimensionType.DATE;
-        }
+        type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
     return {
         fieldType: FieldType.DIMENSION,
@@ -270,17 +272,16 @@ export const convertTable = (
                     column.meta.dimension.time_intervals !== 'OFF') ||
                     !column.meta.dimension?.time_intervals)
             ) {
-                let intervals: string[] = [];
+                let intervals: TimeFrames[] = [];
                 if (
                     column.meta.dimension?.time_intervals &&
                     Array.isArray(column.meta.dimension.time_intervals)
                 ) {
-                    intervals = column.meta.dimension.time_intervals;
+                    intervals = validateTimeFrames(
+                        column.meta.dimension.time_intervals,
+                    );
                 } else {
-                    if (dimension.type === DimensionType.TIMESTAMP) {
-                        intervals = ['RAW'];
-                    }
-                    intervals = [...intervals, 'DAY', 'WEEK', 'MONTH', 'YEAR'];
+                    intervals = getDefaultTimeFrames(dimension.type);
                 }
 
                 extraDimensions = intervals.reduce(
