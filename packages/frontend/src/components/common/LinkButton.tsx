@@ -10,6 +10,7 @@ const LinkButton: FC<
         <AnchorButton
             {...rest}
             href={href}
+            target={target}
             onClick={(e) => {
                 if (target === '_blank') return;
                 e.preventDefault();
