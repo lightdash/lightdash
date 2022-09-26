@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import {
     buildModelGraph,
     convertMetric,
@@ -11,6 +12,7 @@ import {
     MissingCatalogEntryError,
     NonCompiledModelError,
     ParseError,
+    UnexpectedServerError,
 } from '../types/errors';
 import { Explore, ExploreError, Table } from '../types/explore';
 import {
@@ -24,7 +26,11 @@ import {
     parseMetricType,
     Source,
 } from '../types/field';
+import { FilterOperator, FilterRule } from '../types/filter';
+import filterGrammar, { ParsedFilter } from '../types/filterGrammar';
 import { compileExplore } from './exploreCompiler';
+
+const peg = require('pegjs');
 
 // TODO: move this to querybuilder to compute and query-time
 const truncateTimeField = (
@@ -169,6 +175,73 @@ const generateTableLineage = (
     );
 };
 
+export const parseOperator = (
+    operator: string,
+    isTrue: boolean,
+): FilterOperator => {
+    switch (operator) {
+        case FilterOperator.EQUALS:
+            return isTrue ? FilterOperator.EQUALS : FilterOperator.NOT_EQUALS;
+        case FilterOperator.INCLUDE:
+            return isTrue ? FilterOperator.INCLUDE : FilterOperator.NOT_INCLUDE;
+        case FilterOperator.STARTS_WITH:
+            return FilterOperator.STARTS_WITH;
+        case '>':
+            return FilterOperator.GREATER_THAN;
+        case '>=':
+            return FilterOperator.GREATER_THAN_OR_EQUAL;
+        case '<':
+            return FilterOperator.LESS_THAN;
+        case '<=':
+            return FilterOperator.LESS_THAN_OR_EQUAL;
+
+        default:
+            throw new UnexpectedServerError(
+                `Invalid filter operator type ${operator}`,
+            );
+    }
+};
+export const parseFilters = (
+    rawFilters: Record<string, any> | undefined,
+): FilterRule[] => {
+    if (!rawFilters || rawFilters.size === 0) {
+        return [];
+    } 
+        const parser = peg.generate(filterGrammar);
+
+        return Object.entries(rawFilters).reduce<FilterRule[]>(
+            (acc, [key, value]) => {
+                if (typeof value === 'string') {
+                    const parsedFilter: ParsedFilter = parser.parse(value);
+
+                    return [
+                        ...acc,
+                        {
+                            id: uuidv4(),
+                            target: { fieldId: key },
+                            operator: parseOperator(
+                                parsedFilter.type,
+                                parsedFilter.is,
+                            ),
+                            values: parsedFilter.value,
+                        },
+                    ];
+                } 
+                    return [
+                        ...acc,
+                        {
+                            id: uuidv4(),
+                            target: { fieldId: key },
+                            operator: FilterOperator.EQUALS,
+                            values: value,
+                        },
+                    ];
+                
+            },
+            [],
+        );
+    
+};
 const convertDbtMetricToLightdashMetric = (
     metric: DbtMetric,
     tableName: string,
@@ -234,6 +307,7 @@ const convertDbtMetricToLightdashMetric = (
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
         showUnderlyingValues: metric.meta?.show_underlying_values,
+        filters: parseFilters(metric.meta?.filters),
         ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
     };
 };

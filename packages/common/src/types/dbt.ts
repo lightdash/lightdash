@@ -98,6 +98,7 @@ export type DbtColumnLightdashMetric = {
     group_label?: string;
     urls?: FieldUrl[];
     show_underlying_values?: string[];
+    filters?: Record<string, any>;
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
@@ -275,6 +276,7 @@ export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
     group_label?: string;
     show_underlying_values?: string[];
+    filters: Record<string, any>;
 };
 
 export type DbtDoc = {

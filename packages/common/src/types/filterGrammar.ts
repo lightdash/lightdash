@@ -1,10 +1,17 @@
+import { FilterOperator } from './filter';
+
+export type ParsedFilter = {
+    type: string;
+    value: any[];
+    is: boolean;
+};
 const filterGrammar = `ROOT
 = EXPRESSION / EMPTY_STRING
 EMPTY_STRING = '' {
     return {
-      type: 'match',
+      type: '${FilterOperator.EQUALS}',
       value: [],
-      is: true
+      is: true, 
     }
   }
 
@@ -12,7 +19,7 @@ EXPRESSION
 = NUMERICAL / LIST / TERM  
 
 
-NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:INTEGER {
+NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:NUMBER {
     return {
         type: operator,
         values: [value]
@@ -21,8 +28,15 @@ NUMERICAL = SPACE_SYMBOL* operator:OPERATOR SPACE_SYMBOL* value:INTEGER {
 
 OPERATOR = '>=' / '<=' / '>' / '<'
 
+NUMBER 
+  = FLOAT ([Ee] [+-]? INTEGER)?
+    { return Number(text()) }
 
-INTEGER =  [0-9]+ { return parseInt(text(), 10); }
+FLOAT
+  = INTEGER '.'? INTEGER?
+
+INTEGER
+  = [0-9]+
 
 LIST
 = left:TERM COMMA right:EXPRESSION {
@@ -54,13 +68,13 @@ KEYWORDS = ("EMPTY" / "empty") {
 MATCH
 = quotation_mark sequence:(char / PCT_SYMBOL / COMMA / UNDERSCORE / CARET)+ quotation_mark {
        return {
-           type:'match',
+           type:'${FilterOperator.EQUALS}',
            value: [sequence.join('')]
        }
    }
    / sequence:raw_string {
     return {
-        type:'match',
+        type:'${FilterOperator.EQUALS}',
         value: [sequence]
     }
 }
@@ -69,14 +83,14 @@ PCT
 CONTAINS
 = PCT_SYMBOL value:string PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE)  {
   return {
-      type: 'contains',
+      type: '${FilterOperator.INCLUDE}',
       value: [value]
     }
 }
 STARTS_WITH
 = value:string PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE) {
       return {
-      type: 'startsWith',
+      type: '${FilterOperator.STARTS_WITH}',
       value: [value]
   }
 }

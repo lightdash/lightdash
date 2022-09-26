@@ -13,7 +13,7 @@ describe('attachTypesToModels', () => {
     it('Empty Filter grammar', async () => {
         expect(parser.parse('')).toEqual({
             is: true,
-            type: 'match',
+            type: 'equals',
             value: [],
         });
     });
@@ -21,7 +21,7 @@ describe('attachTypesToModels', () => {
     it('Equals grammar', async () => {
         expect(parser.parse('pedram')).toEqual({
             is: true,
-            type: 'match',
+            type: 'equals',
             value: ['pedram'],
         });
     });
@@ -29,7 +29,7 @@ describe('attachTypesToModels', () => {
     it('Not equals grammar', async () => {
         expect(parser.parse('!pedram')).toEqual({
             is: false,
-            type: 'match',
+            type: 'equals',
             value: ['pedram'],
         });
     });
@@ -37,14 +37,14 @@ describe('attachTypesToModels', () => {
     it('Contains grammar', async () => {
         expect(parser.parse('%katie%')).toEqual({
             is: true,
-            type: 'contains',
+            type: 'include',
             value: ['katie'],
         });
     });
     it('Not contains grammar', async () => {
         expect(parser.parse('!%katie%')).toEqual({
             is: false,
-            type: 'contains',
+            type: 'include',
             value: ['katie'],
         });
     });
@@ -54,6 +54,15 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('> 15')).toEqual({ type: '>', values: [15] });
         expect(parser.parse('<= 15')).toEqual({ type: '<=', values: [15] });
         expect(parser.parse('>= 15')).toEqual({ type: '>=', values: [15] });
+    });
+
+    it('Float number', async () => {
+        expect(parser.parse('< 15.0')).toEqual({ type: '<', values: [15] });
+        expect(parser.parse('> 15.05')).toEqual({ type: '>', values: [15.05] });
+        expect(parser.parse('<= 15.5555')).toEqual({
+            type: '<=',
+            values: [15.5555],
+        });
     });
 
     it('Numerical operator < grammar with spaces', async () => {

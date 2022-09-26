@@ -1,6 +1,7 @@
 import { SupportedDbtAdapter } from '../types/dbt';
+import { FilterOperator, FilterRule } from '../types/filter';
 import { extractEntityNameFromIdColumn } from '../types/metricQuery';
-import { attachTypesToModels, convertTable } from './translator';
+import { attachTypesToModels, convertTable, parseFilters } from './translator';
 import {
     DBT_METRIC,
     DBT_METRIC_WITH_CUSTOM_SQL,
@@ -227,5 +228,71 @@ describe('convert tables from dbt models', () => {
                 [],
             ),
         ).toThrowError('Model has not been compiled by dbt');
+    });
+});
+
+describe('Parse metric filters', () => {
+    const removeIds = (filters: FilterRule[]) =>
+        filters.map((filter) => ({ ...filter, id: undefined }));
+    it('Should directly transform boolean filter', () => {
+        const filters = { is_active: true };
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldId: 'is_active',
+                },
+                values: true,
+            },
+        ]);
+    });
+    it('Should directly transform number filter', () => {
+        const filters = { position: 1 };
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldId: 'position',
+                },
+                values: 1,
+            },
+        ]);
+    });
+    it('Should parse string filter using grammar', () => {
+        const filters = { name: '%katie%' };
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.INCLUDE,
+                target: {
+                    fieldId: 'name',
+                },
+                values: ['katie'],
+            },
+        ]);
+    });
+
+    it('Should parse multiple filters', () => {
+        const filters = { name: '!%katie%', money: 15.33 };
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NOT_INCLUDE,
+                target: {
+                    fieldId: 'name',
+                },
+                values: ['katie'],
+            },
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldId: 'money',
+                },
+                values: 15.33,
+            },
+        ]);
     });
 });
