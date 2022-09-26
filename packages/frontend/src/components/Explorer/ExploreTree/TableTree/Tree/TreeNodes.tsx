@@ -18,9 +18,14 @@ import TreeSingleNode from './TreeSingleNode';
 const timeIntervalSort = [
     undefined,
     TimeFrames.RAW,
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
     TimeFrames.DAY,
     TimeFrames.WEEK,
     TimeFrames.MONTH,
+    TimeFrames.QUARTER,
     TimeFrames.YEAR,
 ];
 
