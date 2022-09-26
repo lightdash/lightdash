@@ -193,7 +193,9 @@
                                                                     "HOUR",
                                                                     "MINUTE",
                                                                     "SECOND",
-                                                                    "MILLISECOND"
+                                                                    "MILLISECOND",
+                                                                    "MONTH_NUM",
+                                                                    "MONTH_NAME"
                                                                 ]
                                                             }
                                                         },
