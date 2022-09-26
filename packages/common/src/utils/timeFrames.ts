@@ -3,16 +3,6 @@ import { ParseError } from '../types/errors';
 import { DimensionType } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
 
-type TimeFrameConfig = {
-    getDimensionType: (fallback: DimensionType) => DimensionType;
-    getSql: (
-        adapterType: SupportedDbtAdapter,
-        timeInterval: TimeFrames,
-        originalSql: string,
-        type: DimensionType,
-    ) => string;
-};
-
 const wrapSqlWithTruncateFn = (
     adapterType: SupportedDbtAdapter,
     timeInterval: TimeFrames,
@@ -57,12 +47,48 @@ const wrapSqlWithDatePartFn = (
     }
 };
 
+const timeFramesWithFormatExpression = TimeFrames.MONTH_NAME;
+type TimeFramesWithFormatExpression = typeof timeFramesWithFormatExpression;
+
+const isTimeFramesWithFormatExpression = (
+    timeFrame: TimeFrames,
+): timeFrame is TimeFramesWithFormatExpression =>
+    timeFramesWithFormatExpression.includes(timeFrame);
+
+const warehouseTimeFrameExpressions: Record<
+    SupportedDbtAdapter,
+    Record<TimeFramesWithFormatExpression, string>
+> = {
+    [SupportedDbtAdapter.BIGQUERY]: {
+        [TimeFrames.MONTH_NAME]: '%B',
+    },
+    [SupportedDbtAdapter.SNOWFLAKE]: {
+        [TimeFrames.MONTH_NAME]: 'MMMM',
+    },
+    [SupportedDbtAdapter.REDSHIFT]: {
+        [TimeFrames.MONTH_NAME]: 'Month',
+    },
+    [SupportedDbtAdapter.POSTGRES]: {
+        [TimeFrames.MONTH_NAME]: 'Month',
+    },
+    [SupportedDbtAdapter.DATABRICKS]: {
+        [TimeFrames.MONTH_NAME]: 'MMMM',
+    },
+};
+
 const wrapSqlWithFormatExpressionFn = (
     adapterType: SupportedDbtAdapter,
-    formatExpression: string,
+    timeFrame: TimeFrames,
     originalSql: string,
     type: DimensionType,
 ) => {
+    if (!isTimeFramesWithFormatExpression(timeFrame)) {
+        throw new ParseError(
+            `Cannot recognise format expression for ${timeFrame}`,
+        );
+    }
+    const formatExpression =
+        warehouseTimeFrameExpressions[adapterType][timeFrame];
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY: // https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#format_elements_date_time
             if (type === DimensionType.TIMESTAMP) {
@@ -83,49 +109,70 @@ const wrapSqlWithFormatExpressionFn = (
     }
 };
 
-// eslint-disable-next-line import/prefer-default-export
+type TimeFrameConfig = {
+    getLabel: () => string;
+    getDimensionType: (fallback: DimensionType) => DimensionType;
+    getSql: (
+        adapterType: SupportedDbtAdapter,
+        timeInterval: TimeFrames,
+        originalSql: string,
+        type: DimensionType,
+    ) => string;
+};
+
 export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
     RAW: {
+        getLabel: () => '',
         getDimensionType: (fallback) => fallback,
         getSql: (_adapterType, _timeInterval, originalSql) => originalSql,
     },
     MILLISECOND: {
+        getLabel: () => 'Millisecond',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: wrapSqlWithTruncateFn,
     },
     SECOND: {
+        getLabel: () => 'Second',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: wrapSqlWithTruncateFn,
     },
     MINUTE: {
+        getLabel: () => 'Minute',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: wrapSqlWithTruncateFn,
     },
     HOUR: {
+        getLabel: () => 'Hour',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: wrapSqlWithTruncateFn,
     },
     DAY: {
+        getLabel: () => 'Day',
         getDimensionType: () => DimensionType.DATE,
         getSql: wrapSqlWithTruncateFn,
     },
     WEEK: {
+        getLabel: () => 'Week',
         getDimensionType: () => DimensionType.DATE,
         getSql: wrapSqlWithTruncateFn,
     },
     MONTH: {
+        getLabel: () => 'Month',
         getDimensionType: () => DimensionType.DATE,
         getSql: wrapSqlWithTruncateFn,
     },
     QUARTER: {
+        getLabel: () => 'Quarter',
         getDimensionType: () => DimensionType.DATE,
         getSql: wrapSqlWithTruncateFn,
     },
     YEAR: {
+        getLabel: () => 'Year',
         getDimensionType: () => DimensionType.DATE,
         getSql: wrapSqlWithTruncateFn,
     },
     MONTH_NUM: {
+        getLabel: () => 'Month',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: (
             adapterType: SupportedDbtAdapter,
@@ -133,43 +180,66 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
             originalSql: string,
         ) => wrapSqlWithDatePartFn(adapterType, 'MONTH', originalSql),
     },
+    DAY_OF_WEEK_INDEX: {
+        getLabel: () => 'Day of the week',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: (
+            adapterType: SupportedDbtAdapter,
+            timeInterval: TimeFrames,
+            originalSql: string,
+        ) => wrapSqlWithDatePartFn(adapterType, 'DOW', originalSql),
+    },
+    DAY_OF_MONTH_NUM: {
+        getLabel: () => 'Day of the month',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: (
+            adapterType: SupportedDbtAdapter,
+            timeInterval: TimeFrames,
+            originalSql: string,
+        ) => wrapSqlWithDatePartFn(adapterType, 'MONTH', originalSql),
+    },
+    DAY_OF_YEAR_NUM: {
+        getLabel: () => 'Day of the year',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: (
+            adapterType: SupportedDbtAdapter,
+            timeInterval: TimeFrames,
+            originalSql: string,
+        ) => wrapSqlWithDatePartFn(adapterType, 'DOY', originalSql),
+    },
+    QUARTER_NUM: {
+        getLabel: () => 'Quarter',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: (
+            adapterType: SupportedDbtAdapter,
+            timeInterval: TimeFrames,
+            originalSql: string,
+        ) => wrapSqlWithDatePartFn(adapterType, 'QUARTER', originalSql),
+    },
+    YEAR_NUM: {
+        getLabel: () => 'Year',
+        getDimensionType: () => DimensionType.NUMBER,
+        getSql: (
+            adapterType: SupportedDbtAdapter,
+            timeInterval: TimeFrames,
+            originalSql: string,
+        ) => wrapSqlWithDatePartFn(adapterType, 'YEAR', originalSql),
+    },
     MONTH_NAME: {
+        getLabel: () => 'Month',
         getDimensionType: () => DimensionType.STRING,
         getSql: (
             adapterType: SupportedDbtAdapter,
             timeInterval: TimeFrames,
             originalSql: string,
             type: DimensionType,
-        ) => {
-            let datePart;
-            switch (adapterType) {
-                case SupportedDbtAdapter.BIGQUERY:
-                    datePart = '%B';
-                    break;
-                case SupportedDbtAdapter.SNOWFLAKE:
-                    datePart = 'MMMM';
-                    break;
-                case SupportedDbtAdapter.REDSHIFT:
-                case SupportedDbtAdapter.POSTGRES:
-                    datePart = 'Month';
-                    break;
-                case SupportedDbtAdapter.DATABRICKS:
-                    datePart = 'MMMM';
-                    break;
-                default:
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const never: never = adapterType;
-                    throw new ParseError(
-                        `Cannot recognise warehouse ${adapterType}`,
-                    );
-            }
-            return wrapSqlWithFormatExpressionFn(
+        ) =>
+            wrapSqlWithFormatExpressionFn(
                 adapterType,
-                datePart,
+                timeInterval,
                 originalSql,
                 type,
-            );
-        },
+            ),
     },
 };
 
