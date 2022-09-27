@@ -80,9 +80,9 @@ const ConnectUsingCLI: FC = () => {
             <LinkButton
                 minimal
                 intent={Intent.PRIMARY}
-                href="/createProject?method=manual"
+                href="/createProject/manual"
             >
-                Having problems? Create your project manually
+                Create project manually
             </LinkButton>
         </Wrapper>
     );

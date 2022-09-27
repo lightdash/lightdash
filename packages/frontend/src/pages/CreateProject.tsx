@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { FC, useEffect, useMemo } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { FC } from 'react';
+import { Redirect, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
@@ -8,6 +8,7 @@ import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/C
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import useSearchParams from '../hooks/useSearchParams';
 import { useApp } from '../providers/AppProvider';
 
 export type SelectedWarehouse = {
@@ -23,48 +24,27 @@ enum ConnectMethod {
 
 const CreateProject: FC = () => {
     const { health } = useApp();
-    const history = useHistory();
-    const location = useLocation();
     const { isLoading, data: organisation } = useOrganisation();
+    const projectUuid = useSearchParams('projectUuid');
 
-    const method = useMemo(() => {
-        const queryParams = new URLSearchParams(location.search);
-        return queryParams.get('method') as ConnectMethod | null;
-    }, [location.search]);
-
-    const projectUuid = useMemo(() => {
-        const queryParams = new URLSearchParams(location.search);
-        return queryParams.get('projectUuid');
-    }, [location.search]);
-
-    useEffect(() => {
-        if (projectUuid || method || !organisation || organisation.name === '')
-            return;
-
-        if (organisation.needsProject) {
-            history.push(`/createProject?method=${ConnectMethod.CLI}`);
-        } else {
-            history.push(`/createProject?method=${ConnectMethod.MANUAL}`);
-        }
-    }, [projectUuid, method, isLoading, organisation, history]);
-
-    if (!method && !projectUuid) {
-        return null;
-    }
+    const { method } = useParams<{ method: ConnectMethod }>();
 
     if (health.isLoading || isLoading || !organisation) {
         return <PageSpinner />;
     }
 
+    if (method && projectUuid) {
+        return <ConnectSuccess projectUuid={projectUuid} />;
+    }
+
     return (
         <ProjectFormProvider>
             <Page hideFooter noContentPadding>
-                {projectUuid && <ConnectSuccess projectUuid={projectUuid} />}
-
                 {method === ConnectMethod.CLI && <ConnectUsingCLI />}
+                {method === ConnectMethod.MANUAL && <ConnectManually />}
 
-                {method === ConnectMethod.MANUAL && (
-                    <ConnectManually organisation={organisation} />
+                {!method && (
+                    <Redirect to={`/createProject/${ConnectMethod.CLI}`} />
                 )}
             </Page>
         </ProjectFormProvider>

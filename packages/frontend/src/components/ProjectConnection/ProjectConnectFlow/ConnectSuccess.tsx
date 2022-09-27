@@ -1,6 +1,7 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import LinkButton from '../../common/LinkButton';
 import {
     ConnectWarehouseWrapper,
     StyledSuccessIcon,
@@ -26,15 +27,13 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                     size={64}
                 />
 
-                <Button
+                <LinkButton
                     large
                     intent="primary"
-                    onClick={() => {
-                        history.replace(`/projects/${projectUuid}`);
-                    }}
+                    href={`/projects/${projectUuid}`}
                 >
                     Let's do some data!
-                </Button>
+                </LinkButton>
             </ConnectWarehouseWrapper>
         </Wrapper>
     );

@@ -3,6 +3,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { Organisation } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { CreateProjectConnection } from '..';
+import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import {
     BackToWarehouseButton,
     CreateHeaderWrapper,
@@ -19,10 +20,6 @@ import {
 import WareHouseConnectCard, {
     SelectedWarehouse,
 } from './WareHouseConnectCard.tsx';
-
-interface Props {
-    organisation: Organisation;
-}
 
 const codeBlock = String.raw`models:
 - name: my_model
@@ -120,10 +117,13 @@ const WarehouseSelectedCard: FC<WarehouseSelectedCardProps> = ({
     );
 };
 
-const ConnectManually: FC<Props> = ({ organisation }) => {
+const ConnectManually: FC = () => {
+    const { data: organisation, isLoading } = useOrganisation();
     const [hasDimensions, setHasDimensions] = useState<boolean>();
     const [selectedWarehouse, setSelectedWarehouse] =
         useState<SelectedWarehouse>();
+
+    if (isLoading || !organisation) return null;
 
     return (
         <>
