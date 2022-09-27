@@ -118,7 +118,7 @@ const App = () => (
                                         >
                                             <UserCompletionModal />
                                             <Switch>
-                                                <Route path="/createProject">
+                                                <Route path="/createProject/:method?">
                                                     <NavBar />
                                                     <TrackPage
                                                         name={

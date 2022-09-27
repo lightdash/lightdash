@@ -1,6 +1,5 @@
 import { Colors } from '@blueprintjs/core';
 import { FC } from 'react';
-import { useHistory } from 'react-router-dom';
 import LinkButton from '../../common/LinkButton';
 import {
     ConnectWarehouseWrapper,
@@ -14,8 +13,6 @@ interface ConnectSuccessProps {
 }
 
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
-    const history = useHistory();
-
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
