@@ -119,6 +119,66 @@ const testQuery = () => {
     cy.findByText('Unique order count').click();
 };
 
+const testTimeIntervalsResults = () => {
+    cy.findByText('Explore').click();
+    cy.findByText('Tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
+
+    cy.contains('Events').click();
+    cy.findByText('Timestamp tz').click();
+
+    cy.findAllByText('Raw').click({ multiple: true });
+    cy.findAllByText('Millisecond').click({ multiple: true });
+    cy.findAllByText('Second').click({ multiple: true });
+    cy.findAllByText('Minute').click({ multiple: true });
+    cy.findAllByText('Hour').click({ multiple: true });
+    cy.findAllByText('Day').click({ multiple: true });
+    cy.findAllByText('Day of the week').click({ multiple: true });
+    cy.findAllByText('Day of the month').click({ multiple: true });
+    cy.findAllByText('Day of the year').click({ multiple: true });
+    cy.findAllByText('Week').click({ multiple: true });
+    cy.findAllByText('Month').click({ multiple: true });
+    cy.findAllByText('Quarter').click({ multiple: true });
+    cy.findAllByText('Year').click({ multiple: true });
+
+    // run query
+    cy.get('button').contains('Run query').click();
+
+    // wait for query to finish
+    cy.findByText('Loading chart').should('not.exist');
+    cy.findByText('Loading results').should('not.exist');
+
+    const rowValues = [
+        '2020-08-11, 00:17:00:000 (+00:00)',
+        '2020-08-11, 00:17:00:000 (+00:00)',
+        '2020-08-11, 00:17:00 (+00:00)',
+        '2020-08-11, 00:17 (+00:00)',
+        '2020-08-11, 00 (+00:00)',
+        '2020-08-11',
+        '2',
+        'Tuesday',
+        '11',
+        '224',
+        '2020-08-10',
+        '2020-08',
+        '8',
+        'August',
+        '2020-Q3',
+        '3',
+        'Q3',
+        '2020',
+        '2,020',
+    ];
+
+    // check first row values
+    rowValues.forEach((value, index) => {
+        cy.get('table')
+            .find('td', { timeout: 10000 })
+            .eq(index + 1)
+            .should('contain.text', value);
+    });
+};
+
 describe('Create projects', () => {
     before(() => {
         cy.login();
@@ -152,6 +212,7 @@ describe('Create projects', () => {
         testCompile();
         testQuery();
         testRunQuery();
+        testTimeIntervalsResults();
     });
     it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
@@ -167,6 +228,8 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+        testTimeIntervalsResults();
     });
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
@@ -178,6 +241,8 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+        testTimeIntervalsResults();
     });
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
@@ -189,6 +254,8 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+        testTimeIntervalsResults();
     });
 
     it('Should create a Snowflake project', () => {
@@ -201,5 +268,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+        testTimeIntervalsResults();
     });
 });
