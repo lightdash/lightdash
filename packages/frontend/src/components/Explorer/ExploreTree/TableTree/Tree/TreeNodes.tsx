@@ -3,7 +3,7 @@ import {
     Dimension,
     isDimension,
     Metric,
-    TimeFrames,
+    sortTimeFrames,
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import TreeGroupNode from './TreeGroupNode';
@@ -14,20 +14,6 @@ import {
     useTableTreeContext,
 } from './TreeProvider';
 import TreeSingleNode from './TreeSingleNode';
-
-const timeIntervalSort = [
-    undefined,
-    TimeFrames.RAW,
-    TimeFrames.MILLISECOND,
-    TimeFrames.SECOND,
-    TimeFrames.MINUTE,
-    TimeFrames.HOUR,
-    TimeFrames.DAY,
-    TimeFrames.WEEK,
-    TimeFrames.MONTH,
-    TimeFrames.QUARTER,
-    TimeFrames.YEAR,
-];
 
 const sortNodes =
     (itemsMap: Record<string, Dimension | Metric | AdditionalMetric>) =>
@@ -41,10 +27,7 @@ const sortNodes =
             itemA.timeInterval &&
             itemB.timeInterval
         ) {
-            return (
-                timeIntervalSort.indexOf(itemA.timeInterval) -
-                timeIntervalSort.indexOf(itemB.timeInterval)
-            );
+            return sortTimeFrames(itemA.timeInterval, itemB.timeInterval);
         } else {
             return a.label.localeCompare(b.label);
         }

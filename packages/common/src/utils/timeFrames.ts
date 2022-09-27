@@ -240,7 +240,7 @@ type TimeFrameConfig = {
 
 export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
     RAW: {
-        getLabel: () => '',
+        getLabel: () => 'Raw',
         getDimensionType: (fallback) => fallback,
         getSql: (_adapterType, _timeInterval, originalSql) => originalSql,
     },
@@ -356,3 +356,29 @@ export const validateTimeFrames = (values: string[]): TimeFrames[] =>
         const uppercaseValue = value.toUpperCase();
         return isTimeInterval(uppercaseValue) ? [...acc, uppercaseValue] : acc;
     }, []);
+
+const timeFrameOrder = [
+    undefined,
+    TimeFrames.RAW,
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+    TimeFrames.DAY,
+    TimeFrames.DAY_OF_WEEK_INDEX,
+    TimeFrames.DAY_OF_WEEK_NAME,
+    TimeFrames.DAY_OF_MONTH_NUM,
+    TimeFrames.DAY_OF_YEAR_NUM,
+    TimeFrames.WEEK,
+    TimeFrames.MONTH,
+    TimeFrames.MONTH_NUM,
+    TimeFrames.MONTH_NAME,
+    TimeFrames.QUARTER,
+    TimeFrames.QUARTER_NUM,
+    TimeFrames.QUARTER_NAME,
+    TimeFrames.YEAR,
+    TimeFrames.YEAR_NUM,
+];
+
+export const sortTimeFrames = (a: TimeFrames, b: TimeFrames) =>
+    timeFrameOrder.indexOf(a) - timeFrameOrder.indexOf(b);
