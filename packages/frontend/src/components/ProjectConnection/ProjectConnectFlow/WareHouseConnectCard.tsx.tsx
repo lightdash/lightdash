@@ -68,6 +68,7 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
             <ConnectWarehouseWrapper>
                 <Title>Connect your project</Title>
                 <Subtitle>Select your warehouse:</Subtitle>
+
                 <WarehouseGrid>
                     {warehouseInfo?.map((item) => (
                         <WarehouseButton

@@ -7,7 +7,7 @@ import {
     NonIdealState,
     Radio,
 } from '@blueprintjs/core';
-import styled, { css, keyframes } from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 
 export const Wrapper = styled.div`
     width: 400px;
@@ -19,7 +19,7 @@ export const Wrapper = styled.div`
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
-    padding: 30px 20px;
+    padding: 30px;
     margin-bottom: 10px;
     display: flex;
     flex-direction: column;
@@ -61,14 +61,7 @@ export const StyledNonIdealState = styled(NonIdealState)`
     }
 `;
 
-export const Title = styled(H3)<{ marginBottom?: boolean }>`
-    margin: 0;
-    ${({ marginBottom }) =>
-        marginBottom &&
-        css`
-            margin: 0 0 20px;
-        `}
-`;
+export const Title = styled(H3)``;
 
 export const Subtitle = styled.p`
     color: ${Colors.GRAY2};
@@ -76,7 +69,6 @@ export const Subtitle = styled.p`
 `;
 
 export const WarehouseGrid = styled.div`
-    margin: 28px 0 20px;
     display: grid;
     grid-template-columns: auto auto;
     gap: 10px;

@@ -39,7 +39,7 @@ const CreateProject: FC = () => {
 
     return (
         <ProjectFormProvider>
-            <Page hideFooter noContentPadding>
+            <Page noContentPadding>
                 {method === ConnectMethod.CLI && <ConnectUsingCLI />}
                 {method === ConnectMethod.MANUAL && <ConnectManually />}
 

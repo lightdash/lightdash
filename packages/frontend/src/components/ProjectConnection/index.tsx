@@ -30,6 +30,7 @@ import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import {
     CompileProjectButton,
+    CompileProjectFixedWidthContainer,
     CompileProjectWrapper,
     FormContainer,
     FormWrapper,
@@ -312,15 +313,16 @@ export const UpdateProjectConnection: FC<{
                 />
             )}
             <CompileProjectWrapper>
-                <FormWrapper>
+                <CompileProjectFixedWidthContainer>
                     <CompileProjectButton
+                        large
                         type="submit"
                         intent={Intent.PRIMARY}
                         text="Test &amp; compile project"
                         loading={isSaving}
                         disabled={isDisabled}
                     />
-                </FormWrapper>
+                </CompileProjectFixedWidthContainer>
             </CompileProjectWrapper>
         </FormContainer>
     );
@@ -398,14 +400,15 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 </FormWrapper>
             </ProjectFormProvider>
             <CompileProjectWrapper fixedButton>
-                <FormWrapper>
+                <CompileProjectFixedWidthContainer>
                     <CompileProjectButton
+                        large
                         type="submit"
                         intent={Intent.PRIMARY}
                         text="Test &amp; compile project"
                         loading={isSaving || activeJobIsRunning}
                     />
-                </FormWrapper>
+                </CompileProjectFixedWidthContainer>
             </CompileProjectWrapper>
         </FormContainer>
     );

@@ -104,7 +104,7 @@ const WarehouseSelectedCard: FC<WarehouseSelectedCardProps> = ({
                     onClick={() => onSelectWarehouse(undefined)}
                 />
 
-                <Title marginBottom>
+                <Title>
                     {`Create a ${selectedWarehouse.label} connection`}
                 </Title>
             </CreateHeaderWrapper>
