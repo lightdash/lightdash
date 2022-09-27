@@ -1,3 +1,10 @@
+# [0.266.0](https://github.com/lightdash/lightdash/compare/0.265.0...0.266.0) (2022-09-27)
+
+
+### Features
+
+* cli supports bigquery oauth service credentials ([#3317](https://github.com/lightdash/lightdash/issues/3317)) ([a175e90](https://github.com/lightdash/lightdash/commit/a175e90721e815c5e90948cf4b94078119cd23c7))
+
 # [0.265.0](https://github.com/lightdash/lightdash/compare/0.264.1...0.265.0) (2022-09-26)
 
 
