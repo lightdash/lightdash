@@ -20,6 +20,18 @@ export const getBigqueryCredentialsFromOauth = async (): Promise<
             };
         }
         throw new ParseError(`Cannot get credentials from UserRefreshClient`);
+    } else if (
+        'email' in credentials.credential &&
+        'key' in credentials.credential
+    ) {
+        // Works with service credentials
+        const { email, key } = credentials.credential as any;
+
+        return {
+            client_email: email,
+            private_key: key,
+        };
     }
+
     throw new ParseError(`Cannot get credentials from oauth`);
 };
