@@ -39,31 +39,55 @@ Go to your repo, click on `Settings` , on the left sidebar, click on `Secrets` u
 
 We need to add the following secrets:
 
-### `LIGHTDASH_API_KEY`
+#### `LIGHTDASH_API_KEY`
 
 Create a new personal access token, by going to `Settings` > `Personal Access Tokens`. This is the token you'll put in for `LIGHTDASH_API_KEY`.  
 
   <img src={PersonalAccessToken} width="1304" height="517" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### `LIGHTDASH_PROJECT`
+#### `LIGHTDASH_PROJECT`
 
 The UUID for your project. For example, if your URL looks like `https://eu1.lightdash.cloud/projects/3538ab33-dc90-aabb-bc00-e50bba3a5f69/tables`, then `3538ab33-dc90-45f0-aabb-e50bba3a5f69` is your `LIGHTDASH_PROJECT`  
 
-### `LIGHTDASH_URL`
+#### `LIGHTDASH_URL`
 
 This is either `https://eu1.lightdash.cloud` or `https://app.lightdash.cloud` (check the URL to your Lightdash project)
 
-### `DBT_PROFILES`
+#### `DBT_PROFILES`
+
+Some tips for this bit: 
+
+- You might be able to copy a bunch of the information from your local `profiles.yml` file. You can see what's in there by typing `cat ~/.dbt/profiles.yml` in your terminal.
+- If you have a separate `prod` and `dev` profile, you probably want to use the information from your `prod` profile for your GitHub action.
 
 Find your data warehouse from the list below to get a profiles.yml file template. Fill out this template, and this is your `DBT_PROFILES` secret.
 
-You might be able to copy a bunch of the information from your local `profiles.yml` file. You can see what's in there by typing `cat ~/.dbt/profiles.yml` in your terminal.
-
-If you have a separate `prod` and `dev` profile, you probably want to use the information from your `prod` profile for your GitHub action.
-
 <details>
   <summary>BigQuery</summary>
-  Service Account JSON:
+  Service Account file:
+
+  Step 1: create a secret called `GOOGLE_CREDENTIALS`. 
+  
+  This will contain the service account credentials (the JSON file) that you'll use below. It should look something like this:
+
+  ```json
+  {
+  "type": "service_account",
+  "project_id": "jaffle_shop",
+  "private_key_id": "12345",
+  "private_key": "-----BEGIN PRIVATE KEY----- ... -----END PRIVATE KEY-----\n",
+  "client_email": "jaffle_shop@jaffle_shop.iam.gserviceaccount.com",
+  "client_id": "12345",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/jaffle_shop"
+  }
+  ```
+
+  Step 2: create another secret called `DBT_PROFILES`
+
+  Copy-paste this template into the secret and fill out the details 
 
   ```yaml
   my-bigquery-db:
@@ -71,28 +95,14 @@ If you have a separate `prod` and `dev` profile, you probably want to use the in
     outputs:
       dev:
         type: bigquery
-        method: service-account-json
+        method: service-account
         project: [GCP project id]
         dataset: [the name of your dbt dataset]
         threads: [1 or more]
-
-        # These fields come from the service account json keyfile
-        keyfile_json:
-          type: xxx
-          project_id: xxx
-          private_key_id: xxx
-          private_key: "xxx" # Make sure to copy + paste your private key including the quotes around it (i.e. copy "my-private-key" NOT copy my-private-key). 
-          client_email: xxx
-          client_id: xxx
-          auth_uri: xxx
-          token_uri: xxx
-          auth_provider_x509_cert_url: xxx
-          client_x509_cert_url: xxx
-  ```
-
-  Note: if you're getting a "Could not deserialize key data." error, it's likely because your private_key has had some characters changed while it was copy-pasted. To fix this, try copy-pasting your private key including the quotes around it, like this: "my-private-key" instead of copy-pasting the value without quotes, like this: my-private-key. 
+        keyfile: []
+  ``` 
   
-  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-json)
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-file)
 </details>
 
 <details>
