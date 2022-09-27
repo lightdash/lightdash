@@ -238,8 +238,7 @@ git submodule update --init --recursive
 # Create docker containers
 Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
 
-cd docker
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env up --detach --remove-orphans
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env up --detach --remove-orphans
 ```
 
 When ready, access the development container and run these commands:
@@ -281,13 +280,13 @@ Notes:
 When you want to stop:
 
 ```shell
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env stop
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env stop
 ```
 
 When you want to start:
 
 ```shell
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env start
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env start
 ```
 
 #### Setup Development Environment without Docker
