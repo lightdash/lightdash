@@ -145,7 +145,7 @@ const postgresConfig: WarehouseConfig = {
             ...nullTimeFrameMap,
             [TimeFrames.DAY_OF_WEEK_NAME]: 'Day',
             [TimeFrames.MONTH_NAME]: 'Month',
-            [TimeFrames.QUARTER_NAME]: 'Q', // TODO: incorrect
+            [TimeFrames.QUARTER_NAME]: '"Q"Q',
         };
         const formatExpression = timeFrameExpressions[timeFrame];
         if (!formatExpression) {
