@@ -28,7 +28,7 @@ const nullTimeFrameMap: Record<TimeFrames, null> = {
 const timeFrameToDatePartMap: Record<TimeFrames, string | null> = {
     ...nullTimeFrameMap,
     [TimeFrames.DAY_OF_WEEK_INDEX]: 'DOW',
-    [TimeFrames.DAY_OF_MONTH_NUM]: 'DOM',
+    [TimeFrames.DAY_OF_MONTH_NUM]: 'DAY',
     [TimeFrames.DAY_OF_YEAR_NUM]: 'DOY',
     [TimeFrames.MONTH_NUM]: 'MONTH',
     [TimeFrames.QUARTER_NUM]: 'QUARTER',
@@ -320,7 +320,7 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getSql: getSqlForDatePart,
     },
     DAY_OF_WEEK_NAME: {
-        getLabel: () => 'Day of week',
+        getLabel: () => 'Day of the week',
         getDimensionType: () => DimensionType.STRING,
         getSql: getSqlForDatePartName,
     },
