@@ -173,6 +173,10 @@ if (
 // frontend
 app.use(express.static(path.join(__dirname, '../../frontend/build')));
 
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'));
+});
+
 // errors
 app.use(Sentry.Handlers.errorHandler());
 app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
