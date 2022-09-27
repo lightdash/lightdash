@@ -1,7 +1,7 @@
 import { Intent } from '@blueprintjs/core';
-import { FC, useState } from 'react';
+import { OrganizationProject } from '@lightdash/common';
+import { FC, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useProjects } from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
 import {
@@ -12,8 +12,6 @@ import {
     Title,
     Wrapper,
 } from './ProjectConnectFlow.styles';
-
-// TODO: where to put? lightdash help login
 
 const codeBlock = String.raw`
 #1 install lightdash CLI
@@ -28,22 +26,32 @@ lightdash deploy --create
 
 const ConnectUsingCLI: FC = () => {
     const history = useHistory();
-    const [hasProject, setHasProject] = useState(false);
-
-    useOrganisation({
-        refetchInterval: hasProject ? 0 : 1000,
-        refetchIntervalInBackground: true,
-        onSuccess: (data) => {
-            if (!data.needsProject) setHasProject(true);
-        },
-    });
+    const hasExistingProjects = useRef(false);
+    const existingProjects = useRef<OrganizationProject[]>([]);
 
     useProjects({
-        enabled: hasProject,
-        onSuccess: (projects) => {
-            history.replace(
-                `/createProject?projectUuid=${projects[0].projectUuid}`,
-            );
+        refetchInterval: 3000,
+        refetchIntervalInBackground: true,
+        onSuccess: (newProjects) => {
+            if (!hasExistingProjects.current) {
+                existingProjects.current = newProjects;
+                hasExistingProjects.current = true;
+            }
+
+            if (existingProjects.current.length < newProjects.length) {
+                const uuids = newProjects.map((p) => p.projectUuid);
+                const existingUuids = existingProjects.current.map(
+                    (p) => p.projectUuid,
+                );
+
+                const newProjectUuid = uuids.find(
+                    (uuid) => !existingUuids.includes(uuid),
+                );
+
+                history.replace(
+                    `/createProject/cli?projectUuid=${newProjectUuid}`,
+                );
+            }
         },
     });
 
