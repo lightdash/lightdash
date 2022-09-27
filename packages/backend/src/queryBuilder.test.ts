@@ -5,10 +5,16 @@ import {
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    InTheLast1CompletedDayFilter,
+    InTheLast1CompletedDayFilterSQL,
     InTheLast1CompletedHourFilter,
     InTheLast1CompletedHourFilterSQL,
     InTheLast1CompletedMinuteFilter,
     InTheLast1CompletedMinuteFilterSQL,
+    InTheLast1CompletedMonthFilter,
+    InTheLast1CompletedMonthFilterSQL,
+    InTheLast1CompletedWeekFilter,
+    InTheLast1CompletedWeekFilterSQL,
     InTheLast1CompletedYearFilter,
     InTheLast1CompletedYearFilterSQL,
     InTheLast1DayFilter,
@@ -177,9 +183,28 @@ describe('Filter SQL', () => {
         expect(
             renderDateFilterSql(DimensionSqlMock, InTheLast1MonthFilter),
         ).toStrictEqual(InTheLast1MonthFilterSQL);
+
         expect(
             renderDateFilterSql(DimensionSqlMock, InTheLast1YearFilter),
         ).toStrictEqual(InTheLast1YearFilterSQL);
+    });
+
+    test('should return in the last completed date filter sql ', () => {
+        expect(
+            renderDateFilterSql(DimensionSqlMock, InTheLast1CompletedDayFilter),
+        ).toStrictEqual(InTheLast1CompletedDayFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedWeekFilter,
+            ),
+        ).toStrictEqual(InTheLast1CompletedWeekFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedMonthFilter,
+            ),
+        ).toStrictEqual(InTheLast1CompletedMonthFilterSQL);
         expect(
             renderDateFilterSql(
                 DimensionSqlMock,
