@@ -5,7 +5,6 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { userModel } from '../models/models';
-import { UserModel } from '../models/UserModel';
 import { personalAccessTokenService, userService } from '../services/services';
 import { sanitizeStringParam } from '../utils';
 
