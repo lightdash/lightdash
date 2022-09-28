@@ -13,22 +13,33 @@ import {
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
-const codeBlock = String.raw`
+interface ConnectUsingCliProps {
+    isSSO: boolean;
+    siteUrl: string;
+    loginToken?: string;
+    needsProject: boolean;
+}
+
+const codeBlock = ({
+    siteUrl,
+    loginToken,
+}: Pick<ConnectUsingCliProps, 'siteUrl' | 'loginToken'>) =>
+    String.raw`
 #1 install lightdash CLI
 npm install -g @lightdash/cli
 
 #2 login to lightdash
-lightdash login ${window.location.origin}
+lightdash login ${siteUrl}${loginToken ? ` --token=${loginToken}` : ''}
 
 #3 create project command
 lightdash deploy --create
 `.trim();
 
-interface ConnectUsingCliProps {
-    needsProject: boolean;
-}
-
-const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({ needsProject }) => {
+const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
+    needsProject,
+    siteUrl,
+    loginToken,
+}) => {
     const history = useHistory();
     const hasExistingProjects = useRef(false);
     const existingProjects = useRef<OrganizationProject[]>([]);
@@ -74,7 +85,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({ needsProject }) => {
                 </Subtitle>
 
                 <Codeblock>
-                    <pre>{codeBlock}</pre>
+                    <pre>{codeBlock({ siteUrl, loginToken })}</pre>
                 </Codeblock>
 
                 <LinkButton
