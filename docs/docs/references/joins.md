@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Joins reference sheet
 
-Joins let you to connect different models to each other so that you can explore more than one model at the same time in Lightdash and see how different parts of your data relate to each other.
+Joins let you connect different models to each other so that you can explore more than one model at the same time in Lightdash and see how different parts of your data relate to each other.
 
 ---
 
