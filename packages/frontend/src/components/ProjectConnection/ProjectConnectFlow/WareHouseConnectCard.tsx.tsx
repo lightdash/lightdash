@@ -23,7 +23,7 @@ export type SelectedWarehouse = {
 };
 interface Props {
     setWarehouse: (warehouse: SelectedWarehouse) => void;
-    showDemoLink?: boolean;
+    needsProject: boolean;
 }
 
 export const WarehouseTypeLabels = [
@@ -54,7 +54,7 @@ export const WarehouseTypeLabels = [
     },
 ];
 
-const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
+const WareHouseConnectCard: FC<Props> = ({ setWarehouse, needsProject }) => {
     const [warehouseInfo, setWarehouseInfo] = useState<
         SelectedWarehouse[] | undefined
     >();
@@ -84,7 +84,7 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
                     ))}
                 </WarehouseGrid>
 
-                {showDemoLink && (
+                {needsProject && (
                     <ExternalLink
                         href="https://demo.lightdash.com/"
                         target="_blank"

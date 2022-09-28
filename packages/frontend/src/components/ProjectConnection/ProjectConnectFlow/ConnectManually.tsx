@@ -1,9 +1,7 @@
 import { AnchorButton, Button, Intent, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Organisation } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { CreateProjectConnection } from '..';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import {
     BackToWarehouseButton,
     CreateHeaderWrapper,
@@ -29,10 +27,14 @@ const codeBlock = String.raw`models:
 `;
 
 interface DimensionCardProps {
+    needsProject: boolean;
     onChangeHasDimensions: (hasDimensions: boolean) => void;
 }
 
-const DimensionCard: FC<DimensionCardProps> = ({ onChangeHasDimensions }) => {
+const DimensionCard: FC<DimensionCardProps> = ({
+    needsProject,
+    onChangeHasDimensions,
+}) => {
     const handleSubmit = () => {
         onChangeHasDimensions(true);
     };
@@ -40,7 +42,12 @@ const DimensionCard: FC<DimensionCardProps> = ({ onChangeHasDimensions }) => {
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
-                <Title>You're in! 🎉</Title>
+                {needsProject ? (
+                    <Title>You're in! 🎉</Title>
+                ) : (
+                    <Title>Connect new project</Title>
+                )}
+
                 <Subtitle>
                     We strongly recommend that you define columns in your .yml
                     to see a table in Lightdash. eg:
@@ -85,13 +92,13 @@ const DimensionCard: FC<DimensionCardProps> = ({ onChangeHasDimensions }) => {
 };
 
 interface WarehouseSelectedCardProps {
-    organisation: Organisation;
+    needsProject: boolean;
     selectedWarehouse: SelectedWarehouse;
     onSelectWarehouse: (warehouse: SelectedWarehouse | undefined) => void;
 }
 
 const WarehouseSelectedCard: FC<WarehouseSelectedCardProps> = ({
-    organisation,
+    needsProject,
     selectedWarehouse,
     onSelectWarehouse,
 }) => {
@@ -110,37 +117,41 @@ const WarehouseSelectedCard: FC<WarehouseSelectedCardProps> = ({
             </CreateHeaderWrapper>
 
             <CreateProjectConnection
-                orgData={organisation}
+                needsProject={needsProject}
                 selectedWarehouse={selectedWarehouse}
             />
         </CreateProjectWrapper>
     );
 };
 
-const ConnectManually: FC = () => {
-    const { data: organisation, isLoading } = useOrganisation();
+interface ConnectManuallyProps {
+    needsProject: boolean;
+}
+
+const ConnectManually: FC<ConnectManuallyProps> = ({ needsProject }) => {
     const [hasDimensions, setHasDimensions] = useState<boolean>();
     const [selectedWarehouse, setSelectedWarehouse] =
         useState<SelectedWarehouse>();
 
-    if (isLoading || !organisation) return null;
-
     return (
         <>
             {!hasDimensions && (
-                <DimensionCard onChangeHasDimensions={setHasDimensions} />
+                <DimensionCard
+                    needsProject={needsProject}
+                    onChangeHasDimensions={setHasDimensions}
+                />
             )}
 
             {hasDimensions && !selectedWarehouse && (
                 <WareHouseConnectCard
+                    needsProject={needsProject}
                     setWarehouse={setSelectedWarehouse}
-                    showDemoLink={organisation.needsProject}
                 />
             )}
 
             {hasDimensions && selectedWarehouse && (
                 <WarehouseSelectedCard
-                    organisation={organisation}
+                    needsProject={needsProject}
                     selectedWarehouse={selectedWarehouse}
                     onSelectWarehouse={setSelectedWarehouse}
                 />

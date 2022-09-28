@@ -24,7 +24,11 @@ lightdash login ${window.location.origin}
 lightdash deploy --create
 `.trim();
 
-const ConnectUsingCLI: FC = () => {
+interface ConnectUsingCliProps {
+    needsProject: boolean;
+}
+
+const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({ needsProject }) => {
     const history = useHistory();
     const hasExistingProjects = useRef(false);
     const existingProjects = useRef<OrganizationProject[]>([]);
@@ -58,7 +62,11 @@ const ConnectUsingCLI: FC = () => {
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
-                <Title>You're in! 🎉</Title>
+                {needsProject ? (
+                    <Title>You're in! 🎉</Title>
+                ) : (
+                    <Title>Create new project</Title>
+                )}
 
                 <Subtitle>
                     To get started, upload your dbt project to Lightdash using

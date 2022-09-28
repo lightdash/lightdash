@@ -24,10 +24,13 @@ enum ConnectMethod {
 
 const CreateProject: FC = () => {
     const { health } = useApp();
-    const { isLoading, data: organisation } = useOrganisation();
-    const projectUuid = useSearchParams('projectUuid');
+    const { isLoading, data: organisation } = useOrganisation({
+        staleTime: Infinity,
+        cacheTime: Infinity,
+    });
 
     const { method } = useParams<{ method: ConnectMethod }>();
+    const projectUuid = useSearchParams('projectUuid');
 
     if (health.isLoading || isLoading || !organisation) {
         return <PageSpinner />;
@@ -40,8 +43,16 @@ const CreateProject: FC = () => {
     return (
         <ProjectFormProvider>
             <Page noContentPadding>
-                {method === ConnectMethod.CLI && <ConnectUsingCLI />}
-                {method === ConnectMethod.MANUAL && <ConnectManually />}
+                {method === ConnectMethod.CLI && (
+                    <ConnectUsingCLI
+                        needsProject={!!organisation.needsProject}
+                    />
+                )}
+                {method === ConnectMethod.MANUAL && (
+                    <ConnectManually
+                        needsProject={!!organisation.needsProject}
+                    />
+                )}
 
                 {!method && (
                     <Redirect to={`/createProject/${ConnectMethod.CLI}`} />

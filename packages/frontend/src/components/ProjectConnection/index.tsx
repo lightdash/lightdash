@@ -5,7 +5,6 @@ import {
     DbtProjectConfig,
     DbtProjectType,
     friendlyName,
-    Organisation,
     ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
@@ -329,12 +328,12 @@ export const UpdateProjectConnection: FC<{
 };
 
 interface CreateProjectConnectionProps {
-    orgData: Organisation | undefined;
+    needsProject: boolean;
     selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
-    orgData,
+    needsProject,
     selectedWarehouse,
 }) => {
     const history = useHistory();
@@ -392,7 +391,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             <ProjectFormProvider>
                 <FormWrapper>
                     <ProjectForm
-                        showGeneralSettings={!orgData?.needsProject}
+                        showGeneralSettings={!needsProject}
                         disabled={isSaving || !!activeJobIsRunning}
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}

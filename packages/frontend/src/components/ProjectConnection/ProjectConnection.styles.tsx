@@ -26,7 +26,12 @@ export const CompileProjectWrapper = styled.div<{ fixedButton?: boolean }>`
     bottom: 0;
     margin-top: auto;
     padding: 20px 0;
-    ${({ fixedButton }) => fixedButton && `position: fixed;`}
+    ${({ fixedButton }) =>
+        fixedButton &&
+        `
+            position: fixed;
+            z-index: 1;
+        `}
 `;
 
 export const CompileProjectFixedWidthContainer = styled.div`
