@@ -103,7 +103,9 @@ const convertDimension = (
             type,
         );
         name = `${column.name}_${timeInterval.toLowerCase()}`;
-        label = `${label} ${timeFrameConfigs[timeInterval].getLabel()}`;
+        label = `${label} ${timeFrameConfigs[timeInterval]
+            .getLabel()
+            .toLowerCase()}`;
         group = column.name;
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
