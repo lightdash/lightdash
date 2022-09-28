@@ -1,16 +1,21 @@
-import { FilterOperator } from './filter';
+import { v4 as uuidv4 } from 'uuid';
+import { UnexpectedServerError } from './errors';
+import { FilterOperator, FilterRule } from './filter';
+
+const peg = require('pegjs');
 
 export type ParsedFilter = {
     type: string;
-    value: any[];
+    values: any[];
     is: boolean;
 };
+
 const filterGrammar = `ROOT
 = EXPRESSION / EMPTY_STRING
 EMPTY_STRING = '' {
     return {
       type: '${FilterOperator.EQUALS}',
-      value: [],
+      values: [],
       is: true, 
     }
   }
@@ -69,13 +74,13 @@ MATCH
 = quotation_mark sequence:(char / PCT_SYMBOL / COMMA / UNDERSCORE / CARET)+ quotation_mark {
        return {
            type:'${FilterOperator.EQUALS}',
-           value: [sequence.join('')]
+           values: [sequence.join('')]
        }
    }
    / sequence:raw_string {
     return {
         type:'${FilterOperator.EQUALS}',
-        value: [sequence]
+        values: [sequence]
     }
 }
 PCT
@@ -84,27 +89,27 @@ CONTAINS
 = PCT_SYMBOL value:string PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE)  {
   return {
       type: '${FilterOperator.INCLUDE}',
-      value: [value]
+      values: [value]
     }
 }
 STARTS_WITH
 = value:string PCT_SYMBOL !(string / PCT_SYMBOL / UNDERSCORE) {
       return {
       type: '${FilterOperator.STARTS_WITH}',
-      value: [value]
+      values: [value]
   }
 }
 ENDS_WITH
 =  PCT_SYMBOL value:string !(PCT_SYMBOL / UNDERSCORE) {
 return {
      type: 'endsWith',
-     value: [value]
+     values: [value]
  }
 }
 OTHER = value: $(string* (PCT_SYMBOL / UNDERSCORE) string*)+ {
  return {
      type: 'other',
-     value: [value]
+     values: [value]
  }
 }
 NOT = '!'
@@ -169,4 +174,70 @@ HEXDIG                  = [0-9a-f]i
 
 
 `;
+
+export const parseOperator = (
+    operator: string,
+    isTrue: boolean,
+): FilterOperator => {
+    switch (operator) {
+        case FilterOperator.EQUALS:
+            return isTrue ? FilterOperator.EQUALS : FilterOperator.NOT_EQUALS;
+        case FilterOperator.INCLUDE:
+            return isTrue ? FilterOperator.INCLUDE : FilterOperator.NOT_INCLUDE;
+        case FilterOperator.STARTS_WITH:
+            return FilterOperator.STARTS_WITH;
+        case '>':
+            return FilterOperator.GREATER_THAN;
+        case '>=':
+            return FilterOperator.GREATER_THAN_OR_EQUAL;
+        case '<':
+            return FilterOperator.LESS_THAN;
+        case '<=':
+            return FilterOperator.LESS_THAN_OR_EQUAL;
+
+        default:
+            throw new UnexpectedServerError(
+                `Invalid filter operator type ${operator}`,
+            );
+    }
+};
+
+export const parseFilters = (
+    rawFilters: Record<string, any>[] | undefined,
+): FilterRule[] => {
+    if (!rawFilters || rawFilters.length === 0) {
+        return [];
+    }
+    const parser = peg.generate(filterGrammar);
+
+    return rawFilters.reduce<FilterRule[]>((acc, filter) => {
+        if (Object.entries(filter).length !== 1) return acc;
+
+        const [key, value] = Object.entries(filter)[0];
+
+        if (typeof value === 'string') {
+            const parsedFilter: ParsedFilter = parser.parse(value);
+
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: { fieldId: key },
+                    operator: parseOperator(parsedFilter.type, parsedFilter.is),
+                    values: parsedFilter.values,
+                },
+            ];
+        }
+        return [
+            ...acc,
+            {
+                id: uuidv4(),
+                target: { fieldId: key },
+                operator: FilterOperator.EQUALS,
+                values: [value],
+            },
+        ];
+    }, []);
+};
+
 export default filterGrammar;

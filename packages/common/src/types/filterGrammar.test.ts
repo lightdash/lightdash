@@ -1,4 +1,5 @@
-import filterGrammar from './filterGrammar';
+import { FilterOperator, FilterRule } from './filter';
+import filterGrammar, { parseFilters } from './filterGrammar';
 
 const peg = require('pegjs');
 
@@ -80,5 +81,95 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('>= 32')).toEqual(expected);
         expect(parser.parse(' >=32')).toEqual(expected);
         expect(parser.parse(' >= 32')).toEqual(expected);
+    });
+});
+
+describe('Parse metric filters', () => {
+    const removeIds = (filters: FilterRule[]) =>
+        filters.map((filter) => ({ ...filter, id: undefined }));
+    it('Should directly transform boolean filter', () => {
+        const filters = [{ is_active: true }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldId: 'is_active',
+                },
+                values: true,
+            },
+        ]);
+    });
+    it('Should directly transform number filter', () => {
+        const filters = [{ position: 1 }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldId: 'position',
+                },
+                values: 1,
+            },
+        ]);
+    });
+    it('Should parse string filter using grammar', () => {
+        const filters = [{ name: '%katie%' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.INCLUDE,
+                target: {
+                    fieldId: 'name',
+                },
+                values: ['katie'],
+            },
+        ]);
+    });
+
+    it.only('Should parse multiple filters', () => {
+        expect(
+            removeIds(parseFilters([{ name: '!%katie%' }, { money: 15.33 }])),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NOT_INCLUDE,
+                target: {
+                    fieldId: 'name',
+                },
+                values: ['katie'],
+            },
+            {
+                id: undefined,
+                operator: FilterOperator.EQUALS,
+                target: {
+                    fieldId: 'money',
+                },
+                values: [15.33],
+            },
+        ]);
+
+        expect(
+            removeIds(
+                parseFilters([{ order_id: '> 5' }, { order_id: '< 10' }]),
+            ),
+        ).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.GREATER_THAN,
+                target: {
+                    fieldId: 'order_id',
+                },
+                values: [5],
+            },
+            {
+                id: undefined,
+                operator: FilterOperator.LESS_THAN,
+                target: {
+                    fieldId: 'order_id',
+                },
+                values: [10],
+            },
+        ]);
     });
 });

@@ -15,6 +15,7 @@ import {
 import {
     fieldId as getFieldId,
     isMetric,
+    Metric,
 } from '@lightdash/common/dist/types/field';
 import React, { FC, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
@@ -135,15 +136,31 @@ const UnderlyingDataModalContent: FC<Props> = () => {
               ]
             : [];
 
+        // Metric filters fieldId don't have table prefixes, we add it here
+        const metric: Metric | undefined =
+            isField(meta?.item) && isMetric(meta.item) ? meta.item : undefined;
+        const metricFilters =
+            metric?.filters?.map((filter) => {
+                return {
+                    ...filter,
+                    target: {
+                        fieldId: getFieldId({
+                            ...metric,
+                            name: filter.target.fieldId,
+                        }),
+                    },
+                };
+            }) || [];
         const exploreFilters =
             filters?.dimensions !== undefined ? [filters?.dimensions] : [];
         const combinedFilters = [
             ...exploreFilters,
             ...dimensionFilters,
             ...pivotFilter,
+            ...metricFilters,
         ];
 
-        const metricFilters = {
+        const allFilters = {
             dimensions: {
                 id: uuidv4(),
                 and: combinedFilters,
@@ -175,7 +192,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         return {
             ...defaultMetricQuery,
             dimensions: dimensionFields,
-            filters: metricFilters,
+            filters: allFilters,
         };
     }, [config, filters, tableName, allFields, allDimensions]);
 
