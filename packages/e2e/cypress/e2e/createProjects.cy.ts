@@ -208,11 +208,15 @@ describe('Create projects', () => {
 
         cy.url().should('include', '/createProject');
 
-        cy.contains('Connect your project');
+        cy.contains('Create new project');
     });
 
     it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
+
+        cy.contains('Create project manually').click();
+
+        cy.contains('I’ve defined them!').click();
 
         cy.contains('PostgreSQL').click();
 
@@ -231,6 +235,10 @@ describe('Create projects', () => {
 
         cy.visit(`/createProject`);
 
+        cy.contains('Create project manually').click();
+
+        cy.contains('I’ve defined them!').click();
+
         cy.contains('Redshift').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Redshift test');
@@ -243,6 +251,10 @@ describe('Create projects', () => {
     });
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
+
+        cy.contains('Create project manually').click();
+
+        cy.contains('I’ve defined them!').click();
 
         cy.contains('BigQuery').click();
 
@@ -280,6 +292,10 @@ describe('Create projects', () => {
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
+        cy.contains('Create project manually').click();
+
+        cy.contains('I’ve defined them!').click();
+
         cy.contains('Databricks').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Databricks test');
@@ -315,6 +331,10 @@ describe('Create projects', () => {
 
     it('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
+
+        cy.contains('Create project manually').click();
+
+        cy.contains('I’ve defined them!').click();
 
         cy.contains('Snowflake').click();
 
