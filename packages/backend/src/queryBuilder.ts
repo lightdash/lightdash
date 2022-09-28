@@ -136,21 +136,22 @@ export const renderDateFilterSql = (
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
 
-            const untilDate = dateFormatter(
-                moment().startOf(unitOfTime).toDate(),
-            );
             if (completed) {
                 const completedDate = moment(
                     moment()
                         .startOf(unitOfTime)
                         .format(unitOfTimeFormat[unitOfTime]),
                 ).toDate();
+                const untilDate = dateFormatter(
+                    moment().startOf(unitOfTime).toDate(),
+                );
                 return `((${dimensionSql}) >= ('${dateFormatter(
                     moment(completedDate)
                         .subtract(filter.values?.[0], unitOfTime)
                         .toDate(),
                 )}') AND (${dimensionSql}) < ('${untilDate}'))`;
             }
+            const untilDate = dateFormatter(moment().toDate());
             return `((${dimensionSql}) >= ('${dateFormatter(
                 moment().subtract(filter.values?.[0], unitOfTime).toDate(),
             )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
