@@ -21,6 +21,14 @@ const loginWithToken = async (url: string, token: string) => {
             'Content-Type': 'application/json',
         },
     });
+
+    if (response.status !== 200) {
+        throw new AuthorizationError(
+            `Cannot sign in with token:\n${JSON.stringify(
+                await response.json(),
+            )}`,
+        );
+    }
     const userBody = await response.json();
     const { userUuid } = userBody;
     return {

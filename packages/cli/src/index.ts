@@ -121,7 +121,7 @@ ${styles.bold('Examples:')}
         )}
 `,
     )
-    .option('--token', 'Login with a personal access token')
+    .option('--token <token>', 'Login with a personal access token', undefined)
     .option('--verbose', undefined, false)
 
     .action(login);
