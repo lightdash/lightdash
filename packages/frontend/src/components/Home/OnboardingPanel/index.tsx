@@ -55,7 +55,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
             <CardWrapper>
                 <StepsWrapper>
                     {onboardingSteps.map((step, item) => (
-                        <StepContainer>
+                        <StepContainer key={step.title}>
                             {step.image}
                             <StepTitle>{step.title}</StepTitle>
                             <StepDescription>

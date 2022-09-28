@@ -27,10 +27,7 @@ enum ConnectMethod {
 
 const CreateProject: FC = () => {
     const { isLoading: isLoadingOrganisation, data: organisation } =
-        useOrganisation({
-            staleTime: Infinity,
-            cacheTime: Infinity,
-        });
+        useOrganisation();
 
     const {
         health: { data: health, isLoading: isLoadingHealth },

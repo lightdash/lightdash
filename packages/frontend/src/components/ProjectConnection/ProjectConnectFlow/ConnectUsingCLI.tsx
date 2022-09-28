@@ -1,6 +1,7 @@
 import { Intent } from '@blueprintjs/core';
 import { OrganizationProject } from '@lightdash/common';
 import { FC, useRef } from 'react';
+import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { useProjects } from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
@@ -44,10 +45,12 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     const hasExistingProjects = useRef(false);
     const existingProjects = useRef<OrganizationProject[]>([]);
 
+    const queryClient = useQueryClient();
+
     useProjects({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
-        onSuccess: (newProjects) => {
+        onSuccess: async (newProjects) => {
             if (!hasExistingProjects.current) {
                 existingProjects.current = newProjects;
                 hasExistingProjects.current = true;
@@ -62,6 +65,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 const newProjectUuid = uuids.find(
                     (uuid) => !existingUuids.includes(uuid),
                 );
+
+                await queryClient.invalidateQueries('organisation');
 
                 history.replace(
                     `/createProject/cli?projectUuid=${newProjectUuid}`,
