@@ -137,7 +137,7 @@ In this example, `created` would now appear as a single, timestamp dimension wit
 
 ![screenshot-intervals-off](assets/screenshot-intervals-off.png)
 
-### Options
+### Date options
 
 | Option      | Description                                                      | Type            | Displayed value                           |
 |-------------|------------------------------------------------------------------|-----------------|-------------------------------------------|
@@ -151,6 +151,25 @@ In this example, `created` would now appear as a single, timestamp dimension wit
 | MINUTE      | Datetime truncated to the nearest minute                         | DateTime        | 2019-01-01, 09:30 UTC                     |
 | SECOND      | Datetime truncated to the nearest second                         | DateTime        | 2019-01-01, 09:30:30 UTC                  |
 | MILLISECOND | Datetime truncated to the nearest millisecond                    | DateTime        | 2019-01-01, 09:30:30:300 UTC              |
+
+### Numeric options
+
+| Option            | Description                  | Type   | Displayed value |
+|-------------------|------------------------------|--------|-----------------|
+| DAY_OF_WEEK_INDEX | Index of the day of the week | Number | 0               |
+| DAY_OF_MONTH_NUM  | Day of the month             | Number | 21              |
+| DAY_OF_YEAR_NUM   | Day of the year              | Number | 127             |
+| MONTH_NUM         | Month number                 | Number | 7               |
+| QUARTER_NUM       | Quarter number               | Number | 3               |
+| YEAR_NUM          | Year number                  | Number | 2019            |
+
+### String options
+
+| Option           | Description     | Type   | Displayed value |
+|------------------|-----------------|--------|-----------------|
+| DAY_OF_WEEK_NAME | Day of the week | String | Monday          |
+| MONTH_NAME       | Month name      | String | March           |
+| QUARTER_NAME     | Quarter name    | String | Q3              |
 
 ## URLs
 
