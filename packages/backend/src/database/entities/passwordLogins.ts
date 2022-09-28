@@ -47,13 +47,3 @@ export const updatePassword = async (
             ),
         });
 };
-
-export const passwordExists = async (userId: number): Promise<boolean> => {
-    const passwordLogin = await database<DbPasswordLogin>('password_logins')
-        .where({
-            user_id: userId,
-        })
-        .count();
-
-    return passwordLogin[0].count > 0;
-};

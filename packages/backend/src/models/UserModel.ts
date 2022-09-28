@@ -33,7 +33,6 @@ import {
 } from '../database/entities/organizations';
 import {
     createPasswordLogin,
-    passwordExists,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
@@ -350,7 +349,7 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await passwordExists(user.user_id);
+        const userHasPassword = await this.hasPassword(user.user_uuid);
 
         return {
             userId: user.user_id,
@@ -490,7 +489,7 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await passwordExists(user.user_id);
+        const userHasPassword = await this.hasPassword(user.user_uuid);
         return {
             ...lightdashUser,
             userId: user.user_id,
@@ -513,7 +512,8 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await passwordExists(user.user_id);
+
+        const userHasPassword = await this.hasPassword(user.user_uuid);
         return {
             ...lightdashUser,
             abilityRules: abilityBuilder.rules,
@@ -523,11 +523,12 @@ export class UserModel {
         };
     }
 
-    static async lightdashUserFromSession(
+    async lightdashUserFromSession(
         sessionUser: SessionUser,
     ): Promise<LightdashUserWithDetails> {
         const { userId, ability, ...lightdashUser } = sessionUser;
-        const userHasPassword = await passwordExists(userId);
+
+        const userHasPassword = await this.hasPassword(lightdashUser.userUuid);
         return {
             ...lightdashUser,
             isSSO: !userHasPassword,
@@ -580,7 +581,7 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await passwordExists(row.user_id);
+        const userHasPassword = await this.hasPassword(row.user_uuid);
         return {
             user: {
                 ...mapDbUserDetailsToLightdashUser(row),
