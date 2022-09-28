@@ -7,7 +7,7 @@ const peg = require('pegjs');
 export type ParsedFilter = {
     type: string;
     values: any[];
-    is: boolean;
+    is?: boolean;
 };
 
 const filterGrammar = `ROOT
@@ -223,7 +223,10 @@ export const parseFilters = (
                 {
                     id: uuidv4(),
                     target: { fieldId: key },
-                    operator: parseOperator(parsedFilter.type, parsedFilter.is),
+                    operator: parseOperator(
+                        parsedFilter.type,
+                        !!parsedFilter.is,
+                    ),
                     values: parsedFilter.values,
                 },
             ];

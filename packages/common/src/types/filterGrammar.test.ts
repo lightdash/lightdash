@@ -15,7 +15,7 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('')).toEqual({
             is: true,
             type: 'equals',
-            value: [],
+            values: [],
         });
     });
 
@@ -23,7 +23,7 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('pedram')).toEqual({
             is: true,
             type: 'equals',
-            value: ['pedram'],
+            values: ['pedram'],
         });
     });
 
@@ -31,7 +31,7 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('!pedram')).toEqual({
             is: false,
             type: 'equals',
-            value: ['pedram'],
+            values: ['pedram'],
         });
     });
 
@@ -39,14 +39,14 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('%katie%')).toEqual({
             is: true,
             type: 'include',
-            value: ['katie'],
+            values: ['katie'],
         });
     });
     it('Not contains grammar', async () => {
         expect(parser.parse('!%katie%')).toEqual({
             is: false,
             type: 'include',
-            value: ['katie'],
+            values: ['katie'],
         });
     });
 
@@ -96,7 +96,7 @@ describe('Parse metric filters', () => {
                 target: {
                     fieldId: 'is_active',
                 },
-                values: true,
+                values: [true],
             },
         ]);
     });
@@ -109,7 +109,7 @@ describe('Parse metric filters', () => {
                 target: {
                     fieldId: 'position',
                 },
-                values: 1,
+                values: [1],
             },
         ]);
     });
@@ -127,7 +127,7 @@ describe('Parse metric filters', () => {
         ]);
     });
 
-    it.only('Should parse multiple filters', () => {
+    it('Should parse multiple filters', () => {
         expect(
             removeIds(parseFilters([{ name: '!%katie%' }, { money: 15.33 }])),
         ).toStrictEqual([
