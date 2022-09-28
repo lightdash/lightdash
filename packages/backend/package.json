@@ -76,7 +76,6 @@
         "passport-local": "^1.0.0",
         "passport-openidconnect": "^0.1.1",
         "passport-strategy": "^1.0.0",
-        "pegjs": "^0.10.0",
         "pg": "^8.7.1",
         "pg-connection-string": "^2.5.0",
         "redoc-express": "^1.0.0",

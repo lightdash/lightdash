@@ -28,7 +28,8 @@
         "dependency-graph": "^0.11.0",
         "liquidjs": "^9.41.0",
         "moment": "^2.29.4",
-        "uuid": "^8.3.2"
+        "uuid": "^8.3.2",
+        "pegjs": "^0.10.0"
     },
     "scripts": {
         "dev": "nodemon src/index.ts",
