@@ -1,3 +1,10 @@
+## [0.266.1](https://github.com/lightdash/lightdash/compare/0.266.0...0.266.1) (2022-09-28)
+
+
+### Bug Fixes
+
+* fix in the last non completed dates and add tests ([#3320](https://github.com/lightdash/lightdash/issues/3320)) ([89f8291](https://github.com/lightdash/lightdash/commit/89f82919ebd9043d6c1561f55d1315a3a6f30522))
+
 # [0.266.0](https://github.com/lightdash/lightdash/compare/0.265.0...0.266.0) (2022-09-27)
 
 
