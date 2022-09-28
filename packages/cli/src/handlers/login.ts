@@ -8,19 +8,11 @@ import { checkLightdashVersion } from './dbt/apiClient';
 import { setProjectInteractively } from './setProject';
 
 type LoginOptions = {
-    token?: boolean;
+    token?: string;
     verbose: boolean;
 };
 
-const loginWithToken = async (url: string) => {
-    const answers = await inquirer.prompt([
-        {
-            type: 'password',
-            name: 'token',
-            message: 'Enter your personal access token:',
-        },
-    ]);
-    const { token } = answers;
+const loginWithToken = async (url: string, token: string) => {
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
     const response = await fetch(userInfoUrl, {
         method: 'GET',
@@ -91,7 +83,7 @@ export const login = async (url: string, options: LoginOptions) => {
     await checkLightdashVersion();
 
     const { userUuid, token } = options.token
-        ? await loginWithToken(url)
+        ? await loginWithToken(url, options.token)
         : await loginWithPassword(url);
 
     if (options.verbose)
