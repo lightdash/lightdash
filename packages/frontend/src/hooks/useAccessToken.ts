@@ -2,8 +2,14 @@ import {
     ApiCreateUserTokenResults,
     ApiError,
     CreatePersonalAccessToken,
+    PersonalAccessToken,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -30,13 +36,16 @@ const deleteAccessToken = async (tokenUuid: string) =>
         body: undefined,
     });
 
-export const useAccessToken = () => {
+export const useAccessToken = (
+    useQueryOptions?: UseQueryOptions<PersonalAccessToken[], ApiError>,
+) => {
     const setErrorResponse = useQueryError();
-    return useQuery<any[], ApiError>({
+    return useQuery<PersonalAccessToken[], ApiError>({
         queryKey: ['personal_access_tokens'],
         queryFn: () => getAccessToken(),
         retry: false,
         onError: (result) => setErrorResponse(result),
+        ...useQueryOptions,
     });
 };
 
