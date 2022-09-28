@@ -16,9 +16,11 @@ userRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res) => {
+        const user = await userModel.lightdashUserFromSession(req.user!);
+
         res.json({
             status: 'ok',
-            results: UserModel.lightdashUserFromSession(req.user!),
+            results: user,
         });
     },
 );

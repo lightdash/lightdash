@@ -6,7 +6,7 @@ import {
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
-    LightdashUserWithAbilityRules,
+    LightdashUserWithDetails,
     NotExistsError,
     NotFoundError,
     OpenIdUser,
@@ -33,6 +33,7 @@ import {
 } from '../database/entities/organizations';
 import {
     createPasswordLogin,
+    passwordExists,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
@@ -349,11 +350,14 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
+        const userHasPassword = await passwordExists(user.user_id);
 
         return {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            isSSO: !userHasPassword,
+
             ...lightdashUser,
         };
     }
@@ -486,11 +490,13 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
+        const userHasPassword = await passwordExists(user.user_id);
         return {
             ...lightdashUser,
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
+            isSSO: !userHasPassword,
         };
     }
 
@@ -507,19 +513,25 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
+        const userHasPassword = await passwordExists(user.user_id);
         return {
             ...lightdashUser,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             userId: user.user_id,
+            isSSO: !userHasPassword,
         };
     }
 
-    static lightdashUserFromSession(
+    static async lightdashUserFromSession(
         sessionUser: SessionUser,
-    ): LightdashUserWithAbilityRules {
+    ): Promise<LightdashUserWithDetails> {
         const { userId, ability, ...lightdashUser } = sessionUser;
-        return lightdashUser;
+        const userHasPassword = await passwordExists(userId);
+        return {
+            ...lightdashUser,
+            isSSO: !userHasPassword,
+        };
     }
 
     async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
@@ -568,12 +580,14 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
+        const userHasPassword = await passwordExists(row.user_id);
         return {
             user: {
                 ...mapDbUserDetailsToLightdashUser(row),
                 abilityRules: abilityBuilder.rules,
                 ability: abilityBuilder.build(),
                 userId: row.user_id,
+                isSSO: !userHasPassword,
             },
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),

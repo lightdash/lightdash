@@ -16,11 +16,12 @@ export interface LightdashUser {
     isActive: boolean;
 }
 
-export interface LightdashUserWithAbilityRules extends LightdashUser {
+export interface LightdashUserWithDetails extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
+    isSSO: boolean;
 }
 
-export interface SessionUser extends LightdashUserWithAbilityRules {
+export interface SessionUser extends LightdashUserWithDetails {
     userId: number;
     ability: MemberAbility;
 }
