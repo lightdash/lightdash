@@ -46,7 +46,7 @@ Once you've added your dimensions, you can use them in Lightdash to build charts
 
 We'll show you both of these options below!
 
-### Option 1: Create dimensions in Lightdash using the CLI command `lightdash dbt run -s my_model`
+### Option 1: Create dimensions in Lightdash using the CLI command `lightdash generate -s my_model`
 
 :::info
 
@@ -59,6 +59,14 @@ If you haven't installed the Lightdash CLI yet, then [follow this guide to insta
 If you've added a new field (or many fields) to your dbt project, you can generate .yml for it so that it is available in Lightdash. 
 
 All you need to do is run this in your terminal:
+
+```shell
+lightdash generate -s my_model # replace my_model with the name of your model
+```
+
+This command will update the model's .yml file with any new dimensions.
+
+If you haven't run your dbt model yet, then you can combine running the model and generating the .yml for it in a single command:
 
 ```shell
 lightdash dbt run -s my_model # replace my_model with the name of your model
@@ -89,7 +97,7 @@ models:
 
 ---
 
-## Once you've added your dimensions, you can preview your changes using `lightdash preview` (optional)
+## Once you've added your dimensions, you can preview your changes using `lightdash preview`
 
 Once you've added a dimension to your dbt model, you might want to check to make sure that it's working the way you'd expect. This is where `lightdash preview` comes in handy.
 
@@ -105,7 +113,7 @@ Then `cmd` + `click` to open the preview link from your terminal. Once you're in
 
 ---
 
-## Configure your dimension (optional)
+## Configure your dimension
 
 You can jazz up your dimensions by configuring them in your .yml files. These dimension configurations live under the `meta` tag of your columns, under `dimension`:
 
