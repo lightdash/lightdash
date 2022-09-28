@@ -155,6 +155,19 @@ const SnowflakeForm: FC<{
                     }
                     disabled={disabled}
                 />
+                <Input
+                    name="warehouse.accessUrl"
+                    label="Snowflake URL override"
+                    labelHelp={
+                        <p>
+                            Usually Lightdash would connect to a default url:
+                            account.snowflakecomputing.com. If you'd like to
+                            override this (e.g. for the dbt server) you can
+                            specify a full custom URL here.
+                        </p>
+                    }
+                    disabled={disabled}
+                />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

@@ -2,6 +2,7 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
+import { DbtCloudMetadataResponseMetrics } from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
@@ -68,6 +69,7 @@ export * from './templating/template';
 export * from './types/api';
 export * from './types/dashboard';
 export * from './types/dbt';
+export * from './types/dbtCloud';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/field';
@@ -663,6 +665,7 @@ type ApiResults =
     | ProjectMemberProfile[]
     | SearchResults
     | Space
+    | DbtCloudMetadataResponseMetrics
     | ShareUrl;
 
 export type ApiResponse = {
@@ -853,6 +856,7 @@ export type CreateSnowflakeCredentials = {
     threads?: number;
     clientSessionKeepAlive?: boolean;
     queryTag?: string;
+    accessUrl?: string;
 };
 
 export type SnowflakeCredentials = Omit<

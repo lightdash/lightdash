@@ -8,6 +8,7 @@ import '@blueprintjs/table/lib/css/table.css';
 import moment from 'moment';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { ReactQueryDevtools } from 'react-query/devtools';
 import {
     BrowserRouter as Router,
     Redirect,
@@ -315,6 +316,7 @@ const App = () => (
                     </TrackingProvider>
                 </AppProvider>
             </HotkeysProvider>
+            <ReactQueryDevtools initialIsOpen={true} />
         </QueryClientProvider>
     </>
 );

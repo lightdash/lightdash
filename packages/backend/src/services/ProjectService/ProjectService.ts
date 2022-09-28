@@ -5,6 +5,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     countTotalFilterRules,
+    CreateDbtCloudIntegration,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -52,6 +53,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logger';
+import { DbtCloudMetricsModel } from '../../models/DbtCloudMetricsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -1237,5 +1239,65 @@ export class ProjectService {
         }
 
         await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
+    }
+
+    async upsertDbtCloudIntegration(
+        user: SessionUser,
+        projectUuid: string,
+        integration: CreateDbtCloudIntegration,
+    ) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.upsertDbtCloudIntegration(
+            projectUuid,
+            integration,
+        );
+        analytics.track({
+            event: 'dbt_cloud_integration.updated',
+            userId: user.userUuid,
+        });
+    }
+
+    async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectModel.findDbtCloudIntegration(projectUuid);
+    }
+
+    async getdbtCloudMetrics(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const integration =
+            await this.projectModel.findDbtCloudIntegrationWithSecrets(
+                projectUuid,
+            );
+        if (integration === undefined) {
+            return { metrics: [] };
+        }
+        return DbtCloudMetricsModel.getMetrics(
+            integration.serviceToken,
+            integration.metricsJobId,
+        );
     }
 }

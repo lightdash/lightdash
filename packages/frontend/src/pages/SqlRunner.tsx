@@ -1,6 +1,15 @@
-import { Button, Collapse, H5, useHotkeys } from '@blueprintjs/core';
+import {
+    Button,
+    Collapse,
+    H5,
+    Menu,
+    Tab,
+    Tabs,
+    useHotkeys,
+} from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
-import { TableBase } from '@lightdash/common';
+import { MenuItem2 } from '@blueprintjs/popover2';
+import { DbtCloudMetric, TableBase } from '@lightdash/common';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useMount } from 'react-use';
 import styled from 'styled-components';
@@ -22,6 +31,7 @@ import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
+import { useProjectDbtCloudMetrics } from '../hooks/useProjectDbtCloudMetrics';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
 import {
@@ -37,7 +47,6 @@ import {
     MissingTablesInfo,
     SideBarWrapper,
     SqlCallout,
-    Title,
     VisualizationCard,
     VisualizationCardButtons,
     VisualizationCardContentWrapper,
@@ -53,12 +62,33 @@ const generateBasicSqlQuery = (table: string) =>
     `SELECT *
      FROM ${table} LIMIT 25`;
 
+const generateDefaultDbtMetricQuery = (metric: DbtCloudMetric) => {
+    const args: string[] = [`metric('${metric.name}')`];
+    if (metric.dimensions.length > 0) {
+        args.push(
+            `dimensions=[${metric.dimensions.map((d) => `'${d}'`).join(', ')}]`,
+        );
+    }
+    if (metric.timeGrains.length > 0) {
+        args.push(`grain='${metric.timeGrains[0]}'`);
+    }
+    return `SELECT *
+FROM {{ metrics.calculate(
+    ${args.join(',\n    ')}
+)}}
+LIMIT 500`;
+};
+
 const SqlRunnerPage = () => {
+    const [activeTabId, setActiveTabId] = useState<string | number>(
+        'warehouse-schema',
+    );
     const initialState = useSqlRunnerUrlState();
     const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
     const [lastSqlRan, setLastSqlRan] = useState<string>();
     const { isLoading: isCatalogLoading, data: catalogData } =
         useProjectCatalog();
+    const metrics = useProjectDbtCloudMetrics();
     const sqlQueryMutation = useSqlQueryMutation();
     const { isLoading, mutate } = sqlQueryMutation;
     const {
@@ -144,23 +174,54 @@ const SqlRunnerPage = () => {
     return (
         <PageWithSidebar>
             <Sidebar title="SQL runner">
-                <Title>Warehouse schema</Title>
-                <SideBarWrapper>
-                    {isCatalogLoading ? (
-                        <SideBarLoadingState />
-                    ) : (
-                        <Tree
-                            contents={catalogTree}
-                            handleSelect={false}
-                            onNodeClick={handleNodeClick}
-                        />
+                <Tabs
+                    id="sql-runner"
+                    selectedTabId={activeTabId}
+                    onChange={setActiveTabId}
+                >
+                    <Tab id="warehouse-schema" title="Warehouse Schema" />
+                    {!!metrics.data?.metrics.length && (
+                        <Tab id="metrics" title="dbt metrics" />
                     )}
+                </Tabs>
+                <SideBarWrapper>
+                    {activeTabId === 'warehouse-schema' &&
+                        (isCatalogLoading ? (
+                            <SideBarLoadingState />
+                        ) : (
+                            <>
+                                <Tree
+                                    contents={catalogTree}
+                                    handleSelect={false}
+                                    onNodeClick={handleNodeClick}
+                                />
+                                <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
+                                    <SqlCallout intent="none" icon="info-sign">
+                                        Tables missing?
+                                    </SqlCallout>
+                                </MissingTablesInfo>
+                            </>
+                        ))}
+                    {activeTabId === 'metrics' &&
+                        !!metrics.data?.metrics.length && (
+                            <Menu>
+                                {metrics.data.metrics.map((metric) => (
+                                    <MenuItem2
+                                        key={metric.uniqueId}
+                                        icon="numerical"
+                                        text={metric.label}
+                                        onClick={() =>
+                                            setSql(
+                                                generateDefaultDbtMetricQuery(
+                                                    metric,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                ))}
+                            </Menu>
+                        )}
                 </SideBarWrapper>
-                <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
-                    <SqlCallout intent="none" icon="info-sign">
-                        Tables missing?
-                    </SqlCallout>
-                </MissingTablesInfo>
             </Sidebar>
             <ContentContainer>
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>

@@ -42,7 +42,8 @@ type TrackSimpleEvent = BaseTrack & {
         | 'invite_link.all_revoked'
         | 'password_reset_link.created'
         | 'password_reset_link.used'
-        | 'personal_access_token.deleted';
+        | 'personal_access_token.deleted'
+        | 'dbt_cloud_integration.updated';
 };
 
 type PersonalAccessTokenEvent = BaseTrack & {

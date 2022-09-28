@@ -85,6 +85,7 @@
         ]
     },
     "devDependencies": {
+        "@tanstack/react-query-devtools": "^4.3.5",
         "@types/dagre": "^0.7.47",
         "@types/jest": "^27.4.0",
         "@types/react": "^17.0.39",

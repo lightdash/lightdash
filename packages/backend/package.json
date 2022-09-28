@@ -61,6 +61,8 @@
         "express-session": "^1.17.2",
         "fs-extra": "^10.0.0",
         "fuse.js": "^6.4.6",
+        "graphql": "^16.6.0",
+        "graphql-request": "^5.0.0",
         "js-yaml": "^4.1.0",
         "knex": "^0.95.7",
         "moment": "^2.29.4",

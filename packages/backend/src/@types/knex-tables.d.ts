@@ -15,6 +15,10 @@ import {
     DashboardViewsTableName,
     DashboardViewTable,
 } from '../database/entities/dashboards';
+import {
+    DbtCloudIntegrationsTable,
+    DbtCloudIntegrationsTableName,
+} from '../database/entities/dbtCloudIntegrations';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
     InviteLinkTable,
@@ -121,6 +125,7 @@ declare module 'knex/types/tables' {
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
+        [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
     }
 }
