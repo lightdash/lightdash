@@ -127,19 +127,25 @@ const testTimeIntervalsResults = () => {
     cy.contains('Events').click();
     cy.findByText('Timestamp tz').click();
 
-    cy.findAllByText('Raw').click({ multiple: true });
-    cy.findAllByText('Millisecond').click({ multiple: true });
-    cy.findAllByText('Second').click({ multiple: true });
-    cy.findAllByText('Minute').click({ multiple: true });
-    cy.findAllByText('Hour').click({ multiple: true });
-    cy.findAllByText('Day').click({ multiple: true });
-    cy.findAllByText('Day of the week').click({ multiple: true });
-    cy.findAllByText('Day of the month').click({ multiple: true });
-    cy.findAllByText('Day of the year').click({ multiple: true });
-    cy.findAllByText('Week').click({ multiple: true });
-    cy.findAllByText('Month').click({ multiple: true });
-    cy.findAllByText('Quarter').click({ multiple: true });
-    cy.findAllByText('Year').click({ multiple: true });
+    cy.findByText('Raw').click();
+    cy.findByText('Millisecond').click();
+    cy.findByText('Second').click();
+    cy.findByText('Minute').click();
+    cy.findByText('Hour').click();
+    cy.findByText('Day').click();
+    cy.findByText('Day of the week (index)').click();
+    cy.findByText('Day of the week (name)').click();
+    cy.findByText('Day of the month (number)').click();
+    cy.findByText('Day of the year (number)').click();
+    cy.findByText('Week').click();
+    cy.findByText('Month').click();
+    cy.findByText('Month (number)').click();
+    cy.findByText('Month (name)').click();
+    cy.findByText('Quarter').click();
+    cy.findByText('Quarter (number)').click();
+    cy.findByText('Quarter (name)').click();
+    cy.findByText('Year').click();
+    cy.findByText('Year (number)').click();
 
     // run query
     cy.get('button').contains('Run query').click();
