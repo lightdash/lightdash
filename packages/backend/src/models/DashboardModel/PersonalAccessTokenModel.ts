@@ -48,7 +48,9 @@ export class PersonalAccessTokenModel {
         const [row] = await this.database('personal_access_tokens')
             .insert({
                 created_by_user_id: user.userId,
-                expires_at: data.expiresAt,
+                expires_at: data.expiresAt
+                    ? new Date(data.expiresAt)
+                    : undefined,
                 description: data.description,
                 token_hash: tokenHash,
             })

@@ -31,6 +31,7 @@ export const user: SessionUser = {
     ]),
     isActive: true,
     abilityRules: [],
+    isSSO: false,
 };
 
 export const space: SpaceTable['base'] = {
