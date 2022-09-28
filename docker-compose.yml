@@ -13,7 +13,7 @@ services:
       - SECURE_COOKIES=${SECURE_COOKIES:-false}
       - TRUST_PROXY=${TRUST_PROXY:-false}
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
-      - SERVER_PORT=${SERVER_PORT:-8080}
+      - PORT=${PORT:-8080}
       - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
       - LIGHTDASH_INSTALL_ID=${LIGHTDASH_INSTALL_ID}
       - LIGHTDASH_INSTALL_TYPE=${LIGHTDASH_INSTALL_TYPE:-docker_image}
@@ -33,7 +33,7 @@ services:
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
-      - ${SERVER_PORT:-8080}:${SERVER_PORT:-8080}
+      - ${PORT:-8080}:${PORT:-8080}
 
   db:
     image: postgres

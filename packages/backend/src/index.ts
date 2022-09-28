@@ -210,7 +210,7 @@ app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
 });
 
 // Run the server
-const port = process.env.SERVER_PORT || 8080;
+const port = process.env.PORT || 8080;
 app.listen(port, () => {
     if (process.env.HEADLESS !== 'true') {
         Logger.info(
