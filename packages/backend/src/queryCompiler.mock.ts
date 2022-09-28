@@ -147,6 +147,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 showUnderlyingValues: undefined,
                 format: undefined,
                 groupLabel: undefined,
+                filters: [],
             },
         ],
     };
