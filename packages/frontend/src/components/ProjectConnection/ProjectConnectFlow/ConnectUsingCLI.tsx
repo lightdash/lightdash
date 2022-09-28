@@ -1,8 +1,10 @@
-import { Intent } from '@blueprintjs/core';
+import { Button, Intent } from '@blueprintjs/core';
 import { OrganizationProject } from '@lightdash/common';
 import { FC, useRef } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
 import {
@@ -28,11 +30,15 @@ const codeBlock = ({
     String.raw`
 #1 install lightdash CLI
 npm install -g @lightdash/cli
-
+${
+    loginToken
+        ? `
 #2 login to lightdash
-lightdash login ${siteUrl}${loginToken ? ` --token=${loginToken}` : ''}
-
-#3 create project command
+lightdash login ${siteUrl} --token=${loginToken}
+`
+        : ''
+}
+#${loginToken ? 3 : 2} create project command
 lightdash deploy --create
 `.trim();
 
@@ -44,7 +50,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     const history = useHistory();
     const hasExistingProjects = useRef(false);
     const existingProjects = useRef<OrganizationProject[]>([]);
-
+    const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
 
     useProjects({
@@ -91,6 +97,20 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
                 <Codeblock>
                     <pre>{codeBlock({ siteUrl, loginToken })}</pre>
+
+                    <CopyToClipboard
+                        text={codeBlock({ siteUrl, loginToken })}
+                        options={{ message: 'Copied' }}
+                        onCopy={() =>
+                            showToastSuccess({
+                                title: 'Commands copied to clipboard!',
+                            })
+                        }
+                    >
+                        <Button small minimal outlined icon="clipboard">
+                            Copy
+                        </Button>
+                    </CopyToClipboard>
                 </Codeblock>
 
                 <LinkButton

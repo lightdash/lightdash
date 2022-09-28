@@ -95,17 +95,26 @@ export const RadioButton = styled(Radio)`
 `;
 
 export const Codeblock = styled.div`
-    padding: 8px 12px;
+    position: relative;
+    padding: 10px 15px;
+    margin-left: -15px;
+    margin-right: -15px;
     margin-bottom: 8px;
     background: #ebf1f5;
-    width: 100%;
+    width: calc(100% + 30px);
     border-radius: 3px;
     text-align: initial;
+    overflow-x: scroll;
 
     pre {
         margin: 0;
         color: ${Colors.GRAY1};
-        white-space: pre-wrap;
+    }
+
+    button {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
     }
 `;
 
