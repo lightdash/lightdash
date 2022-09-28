@@ -65,7 +65,13 @@ const bigqueryConfig: WarehouseConfig = {
         return `DATE_TRUNC(${originalSql}, ${timeFrame})`;
     },
     getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
-        const datePart = timeFrameToDatePartMap[timeFrame];
+        const bigqueryTimeFrameExpressions: Record<TimeFrames, string | null> =
+            {
+                ...timeFrameToDatePartMap,
+                [TimeFrames.DAY_OF_WEEK_INDEX]: 'DAYOFWEEK',
+                [TimeFrames.DAY_OF_YEAR_NUM]: 'DAYOFYEAR',
+            };
+        const datePart = bigqueryTimeFrameExpressions[timeFrame];
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
@@ -114,8 +120,8 @@ const snowflakeConfig: WarehouseConfig = {
         > = {
             ...nullTimeFrameMap,
             [TimeFrames.DAY_OF_WEEK_NAME]: () =>
-                `DECODE(TO_CHAR('DY', ${originalSql}), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
-            [TimeFrames.MONTH_NAME]: () => `TO_CHAR('MMMM', ${originalSql})`,
+                `DECODE(TO_CHAR(${originalSql}, 'DY'), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
+            [TimeFrames.MONTH_NAME]: () => `TO_CHAR(${originalSql}, 'MMMM')`,
             [TimeFrames.QUARTER_NAME]: () =>
                 `CONCAT('Q', DATE_PART('QUARTER', ${originalSql}))`,
         };
