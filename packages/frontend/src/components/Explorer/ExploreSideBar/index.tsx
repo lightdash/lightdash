@@ -24,7 +24,6 @@ import {
     FormField,
     MenuWrapper,
     StyledBreadcrumb,
-    SwitchFilter,
 } from './ExploreSideBar.styles';
 
 const SideBarLoadingState = () => (
@@ -82,14 +81,6 @@ const BasePanel = () => {
                         placeholder="Search tables"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                    />
-                </FormField>
-
-                <FormField>
-                    <SwitchFilter
-                        checked={!filterExplores}
-                        label="Show hidden tables"
-                        onChange={toggleFilterExplores}
                     />
                 </FormField>
 
