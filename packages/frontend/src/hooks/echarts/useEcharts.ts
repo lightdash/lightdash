@@ -21,11 +21,13 @@ import {
     getResultValues,
     hashFieldReference,
     isCompleteLayout,
+    isDimension,
     isField,
     Metric,
     MetricType,
     Series,
     TableCalculation,
+    TimeFrames,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
@@ -445,15 +447,11 @@ const getEchartAxis = ({
     items,
     validCartesianConfig,
     series,
-    formats,
     resultsData,
 }: {
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
     series: EChartSeries[];
-    formats:
-        | Record<string, Pick<CompiledField, 'round' | 'format'>>
-        | undefined;
     resultsData: ApiQueryResults | undefined;
 }) => {
     const itemMap = items.reduce<Record<string, Field | TableCalculation>>(
@@ -508,15 +506,24 @@ const getEchartAxis = ({
         axisItem: Field | TableCalculation | undefined,
     ) => {
         const field =
-            axisItem && getItemId(axisItem) && formats?.[getItemId(axisItem)];
+            axisItem &&
+            getItemId(axisItem) &&
+            items.find((item) => getItemId(axisItem) === getItemId(item));
+        const hasFormatOrRound =
+            isField(field) && (field.format || field.round);
+        const isQuarterTimeInterval =
+            isDimension(field) && field.timeInterval === TimeFrames.QUARTER;
         return (
             field &&
-            (field.format || field.round) && {
+            (hasFormatOrRound || isQuarterTimeInterval) && {
                 axisLabel: {
                     formatter: (value: any) => {
-                        return formatValue(field.format, field.round, value);
+                        return formatItemValue(field, value);
                     },
                 },
+                interval: 7889400000,
+                minInterval: 7889400000,
+                maxInterval: 7889400000,
             }
         );
     };
@@ -817,10 +824,9 @@ const useEcharts = () => {
             items,
             series,
             validCartesianConfig,
-            formats,
             resultsData,
         });
-    }, [items, series, validCartesianConfig, formats, resultsData]);
+    }, [items, series, validCartesianConfig, resultsData]);
 
     //Remove stacking from invalid series
     const stackedSeries = useMemo(
