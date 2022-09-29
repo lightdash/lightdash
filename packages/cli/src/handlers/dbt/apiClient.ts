@@ -3,6 +3,7 @@ import {
     ApiHealthResults,
     ApiResponse,
     AuthorizationError,
+    LightdashError,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
@@ -10,20 +11,6 @@ import { getConfig } from '../../config';
 import * as styles from '../../styles';
 
 const { version: VERSION } = require('../../../package.json');
-
-// should this get moved to common - very slightly modifed from the FE code
-const handleError = (err: any): ApiError => {
-    if (err.error?.statusCode && err.error?.name) return err;
-    return {
-        status: 'error',
-        error: {
-            name: 'NetworkError',
-            statusCode: 500,
-            message: `Could not connect to Lightdash server. The server may have crashed or be running on an incorrect host and port configuration.`,
-            data: err,
-        },
-    };
-};
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
@@ -53,9 +40,12 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
 
     return fetch(fullUrl, { method, headers, body })
         .then((r) => {
+            if (verbose)
+                console.error(`> HTTP request returned status: ${r.status}`);
+
             if (!r.ok)
                 return r.json().then((d) => {
-                    throw d;
+                    throw new LightdashError(d.error);
                 });
             return r;
         })
@@ -68,14 +58,13 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 case 'ok':
                     return d.results as T;
                 case 'error':
-                    throw new Error(`${d}`);
+                    throw new LightdashError(d.error);
                 default:
-                    throw new Error(`${d}`);
+                    throw new Error(d);
             }
         })
         .catch((err) => {
-            const apiError = `${handleError(err).error}`;
-            throw new Error(apiError);
+            throw err;
         });
 };
 
