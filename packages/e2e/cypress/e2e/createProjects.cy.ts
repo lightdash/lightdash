@@ -254,7 +254,7 @@ describe('Create projects', () => {
             '2020-08-12, 07:58:00:000 (+00:00)',
             '2020-08-12, 07:58:00 (+00:00)',
             '2020-08-12, 07:58 (+00:00)',
-            '2020-08-12, 00 (+00:00)',
+            '2020-08-12, 07 (+00:00)',
             '2020-08-12',
             '4', // Returns values in the range [1,7] with Sunday as the first day of the week.
             'Wednesday',
