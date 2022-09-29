@@ -3,10 +3,8 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import React, { FC, useCallback, useState } from 'react';
-import { createGlobalStyle } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
-import { useTableContext } from './TableProvider';
 import { CellContextMenuProps } from './types';
 
 interface CommonBodyCellProps {
@@ -55,17 +53,7 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
     },
 );
 
-const PopoverStyles = createGlobalStyle`
-    .bp4-portal.bp4-popover-portal-results-table-cell-context-menu {
-        .bp4-overlay-content {
-            z-index: 1 !important; /* blueprint default is 20 */
-        }
-    }
-`;
-
 const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
-    const { scrollableWrapperRef } = useTableContext();
-
     const CellContextMenu = props.cellContextMenu;
 
     const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
@@ -81,33 +69,30 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     const canHaveContextMenu = !!CellContextMenu && props.hasData;
 
     return canHaveContextMenu && isCellSelected ? (
-        <>
-            <PopoverStyles />
-
-            <Popover2
-                minimal
-                position={Position.BOTTOM_RIGHT}
-                defaultIsOpen
-                portalClassName="bp4-popover-portal-results-table-cell-context-menu"
-                portalContainer={scrollableWrapperRef.current}
-                content={
+        <Popover2
+            minimal
+            defaultIsOpen
+            hasBackdrop
+            position={Position.BOTTOM_RIGHT}
+            content={
+                CellContextMenu && (
                     <CellContextMenu
                         cell={props.cell as Cell<ResultRow, ResultRow[0]>}
                     />
-                }
-                renderTarget={({ ref }) => (
-                    <BodyCell
-                        {...props}
-                        hasContextMenu
-                        isSelected={true}
-                        onSelect={handleCellSelect}
-                        ref={ref}
-                    />
-                )}
-                onOpening={() => handleCellSelect(props.cell.id)}
-                onClosing={() => handleCellSelect(undefined)}
-            />
-        </>
+                )
+            }
+            renderTarget={({ ref }) => (
+                <BodyCell
+                    {...props}
+                    hasContextMenu
+                    isSelected={true}
+                    onSelect={handleCellSelect}
+                    ref={ref}
+                />
+            )}
+            onOpening={() => handleCellSelect(props.cell.id)}
+            onClosing={() => handleCellSelect(undefined)}
+        />
     ) : (
         <BodyCell
             {...props}
