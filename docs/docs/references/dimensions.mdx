@@ -139,29 +139,29 @@ In this example, `created` would now appear as a single, timestamp dimension wit
 
 ### Date options
 
-| Option      | Description                                                      | Type            | Displayed value                           |
-|-------------|------------------------------------------------------------------|-----------------|-------------------------------------------|
-| RAW         | Original value                                                   | Date / DateTime | 2019-01-01 / 2019-01-01, 09:30:30:300 UTC |
-| YEAR        | Date truncated to the nearest year                               | Date            | 2019                                      |
-| QUARTER     | Date truncated to the nearest quarter                            | Date            | 2019-Q1                                   |
-| MONTH       | Date truncated to the nearest month                              | Date            | 2019-01-01                                |
-| WEEK        | Date of the week starting on a Monday of the underlying datetime | Date            | 2019-01-01                                |
-| DAY         | Date truncated to the nearest day                                | Date            | 2019-01-01                                |
-| HOUR        | Datetime truncated to the nearest hour                           | DateTime        | 2019-01-01, 09 UTC                        |
-| MINUTE      | Datetime truncated to the nearest minute                         | DateTime        | 2019-01-01, 09:30 UTC                     |
-| SECOND      | Datetime truncated to the nearest second                         | DateTime        | 2019-01-01, 09:30:30 UTC                  |
-| MILLISECOND | Datetime truncated to the nearest millisecond                    | DateTime        | 2019-01-01, 09:30:30:300 UTC              |
+| Option      | Description                                   | Type            | Displayed value                           | Notes                                                         |
+|-------------|-----------------------------------------------|-----------------|-------------------------------------------|---------------------------------------------------------------|
+| RAW         | Original value                                | Date / DateTime | 2019-01-01 / 2019-01-01, 09:30:30:300 UTC |                                                               |
+| YEAR        | Date truncated to the nearest year            | Date            | 2019                                      |                                                               |
+| QUARTER     | Date truncated to the nearest quarter         | Date            | 2019-Q1                                   |                                                               |
+| MONTH       | Date truncated to the nearest month           | Date            | 2019-01-01                                |                                                               |
+| WEEK        | Date truncated to the nearest week            | Date            | 2019-01-01                                | The start of the week depends on your warehouse configuration |
+| DAY         | Date truncated to the nearest day             | Date            | 2019-01-01                                |                                                               |
+| HOUR        | Datetime truncated to the nearest hour        | DateTime        | 2019-01-01, 09 UTC                        |                                                               |
+| MINUTE      | Datetime truncated to the nearest minute      | DateTime        | 2019-01-01, 09:30 UTC                     |                                                               |
+| SECOND      | Datetime truncated to the nearest second      | DateTime        | 2019-01-01, 09:30:30 UTC                  |                                                               |
+| MILLISECOND | Datetime truncated to the nearest millisecond | DateTime        | 2019-01-01, 09:30:30:300 UTC              |                                                               |
 
 ### Numeric options
 
-| Option            | Description                  | Type   | Displayed value |
-|-------------------|------------------------------|--------|-----------------|
-| DAY_OF_WEEK_INDEX | Index of the day of the week | Number | 0               |
-| DAY_OF_MONTH_NUM  | Day of the month             | Number | 21              |
-| DAY_OF_YEAR_NUM   | Day of the year              | Number | 127             |
-| MONTH_NUM         | Month number                 | Number | 7               |
-| QUARTER_NUM       | Quarter number               | Number | 3               |
-| YEAR_NUM          | Year number                  | Number | 2019            |
+| Option            | Description                  | Type   | Displayed value | Notes                                                                         |
+|-------------------|------------------------------|--------|-----------------|-------------------------------------------------------------------------------|
+| DAY_OF_WEEK_INDEX | Index of the day of the week | Number | 0               | The value range and start of the week depends on your warehouse configuration |
+| DAY_OF_MONTH_NUM  | Day of the month             | Number | 21              |                                                                               |
+| DAY_OF_YEAR_NUM   | Day of the year              | Number | 127             |                                                                               |
+| MONTH_NUM         | Month number                 | Number | 7               |                                                                               |
+| QUARTER_NUM       | Quarter number               | Number | 3               |                                                                               |
+| YEAR_NUM          | Year number                  | Number | 2019            |                                                                               |
 
 ### String options
 
