@@ -221,19 +221,6 @@ Give it a nice name like `deploy-lightdash.yml`
 
 And commit this to your repo by clicking on `Start commit`.
 
-::: info
-If you're running into an error: `fatal: Invalid --project-dir flag. Not a dbt project. Missing dbt_project.yml file` this is because we've assumed your dbt project is in your root folder. (e.g. `my-repo/models`)
-
-If your dbt project is in another folder, (e.g. `my-repo/dbt/models`), then you need to update the `--project-dir` on your run command, like this:
-
-```
-# BEFORE:
-run: lightdash deploy --project-dir . --profiles-dir . --profile prod || lightdash deploy --project-dir . --profiles-dir .
-
-# UPDATED
-run: lightdash deploy --project-dir ./dbt --profiles-dir . --profile prod || lightdash deploy --project-dir ./dbt --profiles-dir .
-```
-
 ### You're done!
 
 Everytime you make a change to your repo, on the `main` branch, it will automatically deploy your new config into your Lightdash projects
