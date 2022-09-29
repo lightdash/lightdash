@@ -1,7 +1,7 @@
 export type PersonalAccessToken = {
     uuid?: string;
-    createdAt: Date | string;
-    expiresAt?: Date | string;
+    createdAt: string;
+    expiresAt?: string;
     description: string;
 };
 
