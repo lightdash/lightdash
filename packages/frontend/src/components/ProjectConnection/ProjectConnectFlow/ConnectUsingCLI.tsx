@@ -34,7 +34,7 @@ ${
     loginToken
         ? `
 #2 login to lightdash
-lightdash login ${siteUrl} --token=${loginToken}
+lightdash login ${siteUrl} --token ${loginToken}
 `
         : ''
 }
