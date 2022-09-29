@@ -1,3 +1,15 @@
+# [0.268.0](https://github.com/lightdash/lightdash/compare/0.267.1...0.268.0) (2022-09-29)
+
+
+### Bug Fixes
+
+* set empty project after login on CLI ([#3337](https://github.com/lightdash/lightdash/issues/3337)) ([34b047d](https://github.com/lightdash/lightdash/commit/34b047d687f33efaee0d3146df18ef4ddb685275))
+
+
+### Features
+
+* support date parts ([#3316](https://github.com/lightdash/lightdash/issues/3316)) ([fe038c4](https://github.com/lightdash/lightdash/commit/fe038c4873d86d3ab532b0445804cc94bd96c34f))
+
 ## [0.267.1](https://github.com/lightdash/lightdash/compare/0.267.0...0.267.1) (2022-09-29)
 
 
