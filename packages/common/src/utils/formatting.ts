@@ -17,7 +17,7 @@ import { TimeFrames } from '../types/timeFrames';
 export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
 
-const getDateFormat = (
+export const getDateFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
     let dateForm: string;
@@ -64,9 +64,6 @@ const getTimeFormat = (
             break;
         case TimeFrames.MINUTE:
             timeFormat = 'HH:mm';
-            break;
-        case TimeFrames.SECOND:
-            timeFormat = 'HH:mm:ss';
             break;
         default:
             timeFormat = 'HH:mm:ss:SSS';

@@ -1,4 +1,4 @@
-import { formatDate, TimeFrames, WarehouseTypes } from '@lightdash/common';
+import { getDateFormat, TimeFrames, WarehouseTypes } from '@lightdash/common';
 import moment from 'moment';
 import { FC, useEffect } from 'react';
 import { Redirect, useParams } from 'react-router-dom';
@@ -46,7 +46,9 @@ const CreateProject: FC = () => {
         if (method !== ConnectMethod.CLI || isTokenCreated) return;
 
         const expiresAt = moment().add(30, 'days').toDate();
-        const generatedAtString = formatDate(new Date(), TimeFrames.SECOND);
+        const generatedAtString = moment().format(
+            getDateFormat(TimeFrames.SECOND),
+        );
 
         mutateAccessToken({
             expiresAt,
