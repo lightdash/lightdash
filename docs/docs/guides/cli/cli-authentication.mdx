@@ -56,7 +56,11 @@ Example:
 
 ## Set active project
 
-When you login you'll be asked to set an active project. You can change your active project by running:
+When you login you'll be asked to set an active project. 
+
+Your active project is just the one that you're working on/developing in. Your organization might just have one project, so that makes your decision easy!
+
+You can change your active project by running:
 
 ```shell
 lightdash config set-project
@@ -69,3 +73,16 @@ Example:
 ```shell
 LIGHTDASH_PROJECT="3675b69e-8324-4110-bdca-059031aa8da3" lightdash deploy
 ```
+
+## Now that you've logged in, you're ready to use the CLI!
+
+You can see all of the actions available on the CLI by typing this in your terminal:
+
+```shell
+lightdash
+```
+
+Some of our favourites are:
+- [Automatically generating .yml for your dbt models using `lightdash generate`](/guides/cli/how-to-auto-generate-schema-files.mdx)
+- [Testing your changes with developer previews using `lightdash preview`](/guides/cli/how-to-use-lightdash-preview.mdx)
+- [Deploying your changes to production using `lightdash deploy`](/guides/cli/how-to-use-lightdash-deploy.mdx)
