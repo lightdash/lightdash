@@ -284,7 +284,29 @@ describe('Create projects', () => {
         testCompile();
         testQuery();
         testRunQuery();
-        testTimeIntervalsResults();
+        const databricksRowValues = [
+            '2020-07-02, 09:33:00:000 (+00:00)',
+            '2020-07-02, 09:33:00:000 (+00:00)',
+            '2020-07-02, 09:33:00 (+00:00)',
+            '2020-07-02, 09:33 (+00:00)',
+            '2020-07-02, 09 (+00:00)',
+            '2020-07-02',
+            '5',
+            'Thursday',
+            '2',
+            '184',
+            '2020-06-29',
+            '2020-07',
+            '7',
+            'July',
+            '2020-Q3',
+            '3',
+            'Q3',
+            '2020',
+            '2,020',
+        ];
+
+        testTimeIntervalsResults(databricksRowValues);
     });
 
     it('Should create a Snowflake project', () => {

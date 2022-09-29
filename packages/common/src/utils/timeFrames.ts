@@ -177,9 +177,9 @@ const databricksConfig: WarehouseConfig = {
         // https://docs.databricks.com/spark/latest/spark-sql/language-manual/functions/date_format.html
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
             ...nullTimeFrameMap,
-            [TimeFrames.DAY_OF_WEEK_NAME]: 'EE',
+            [TimeFrames.DAY_OF_WEEK_NAME]: 'EEEE',
             [TimeFrames.MONTH_NAME]: 'MMMM',
-            [TimeFrames.QUARTER_NAME]: 'Q',
+            [TimeFrames.QUARTER_NAME]: 'QQQ',
         };
         const formatExpression = timeFrameExpressions[timeFrame];
         if (!formatExpression) {
