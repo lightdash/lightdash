@@ -135,6 +135,10 @@ export class OrganizationService {
             ),
         );
 
+        // If there are no projects to list after doing permission filtering, we return 404
+        if (filteredProjects.length === 0)
+            throw new NotExistsError('No project exists');
+
         return filteredProjects;
     }
 

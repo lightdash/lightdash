@@ -107,8 +107,10 @@ export const login = async (url: string, options: LoginOptions) => {
         await setProjectInteractively({ verbose: options.verbose });
     } catch (e: any) {
         if (options.verbose)
-            console.error(`> Set project returned response: ${e.statusCode}`);
-        if (e.statusCode === 404) {
+            console.error(
+                `> Set project returned response: ${JSON.stringify(e)}`,
+            );
+        if (e !== undefined && e.statusCode === 404) {
             console.error(
                 'Now you can add your first project to lightdash by doing: ',
             );
