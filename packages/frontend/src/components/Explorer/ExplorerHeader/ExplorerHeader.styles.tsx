@@ -3,9 +3,8 @@ import styled from 'styled-components';
 export const Wrapper = styled.div`
     height: 60px;
     display: flex;
-    flex-direction: row-reverse;
-    padding-top: 10px;
-
+    justify-content: space-between;
+    align-items: center;
     button {
         margin: 0;
     }
