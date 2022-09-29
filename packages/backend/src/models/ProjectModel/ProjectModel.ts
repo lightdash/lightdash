@@ -138,7 +138,7 @@ export class ProjectModel {
             .select('project_uuid', 'name', 'project_type')
             .where('organization_id', orgs[0].organization_id);
         if (projects.length === 0) {
-            return [];
+            throw new NotExistsError('No project exists');
         }
         return projects.map<OrganizationProject>(
             ({ name, project_uuid, project_type }) => ({

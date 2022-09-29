@@ -43,7 +43,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     loginToken,
 }) => {
     const history = useHistory();
-    const hasExistingProjects = useRef(false);
+    const initialProjectFetch = useRef(false);
     const existingProjects = useRef<OrganizationProject[]>([]);
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
@@ -52,9 +52,9 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
         onSuccess: async (newProjects) => {
-            if (!hasExistingProjects.current) {
+            if (!initialProjectFetch.current) {
                 existingProjects.current = newProjects;
-                hasExistingProjects.current = true;
+                initialProjectFetch.current = true;
             }
 
             if (existingProjects.current.length < newProjects.length) {
@@ -72,6 +72,12 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 history.replace(
                     `/createProject/cli?projectUuid=${newProjectUuid}`,
                 );
+            }
+        },
+        onError: ({ error }) => {
+            if (error.statusCode === 400) {
+                existingProjects.current = [];
+                initialProjectFetch.current = true;
             }
         },
     });
