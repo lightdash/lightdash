@@ -64,11 +64,11 @@ Find your data warehouse from the list below to get a profiles.yml file template
 
 <details>
   <summary>BigQuery</summary>
-  Service Account file:
+  BigQuery OAuth:
 
   Step 1: create a secret called `GOOGLE_CREDENTIALS`. 
   
-  This will contain the service account credentials (the JSON file) that you'll use below. It should look something like this:
+  Add the service account credentials (the JSON file) that you want to use for your GitHub action. It should look something like this:
 
   ```json
   {
@@ -90,19 +90,18 @@ Find your data warehouse from the list below to get a profiles.yml file template
   Copy-paste this template into the secret and fill out the details 
 
   ```yaml
-  my-bigquery-db:
+  [my-bigquery-db]: # this is the name of your project
     target: dev
     outputs:
       dev:
         type: bigquery
-        method: service-account
+        method: oauth
+        keyfile: keyfile.json # no need to change this! We'll automatically use the keyfile you created in the last step.
         project: [GCP project id]
         dataset: [the name of your dbt dataset]
-        threads: [1 or more]
-        keyfile: []
   ``` 
-  
-  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-file)
+
+  More info in dbt's profiles docs: https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#service-account-file
 </details>
 
 <details>
