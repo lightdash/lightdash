@@ -30,15 +30,11 @@ const codeBlock = ({
     String.raw`
 #1 install lightdash CLI
 npm install -g @lightdash/cli
-${
-    loginToken
-        ? `
+
 #2 login to lightdash
 lightdash login ${siteUrl} --token ${loginToken}
-`
-        : ''
-}
-#${loginToken ? 3 : 2} create project command
+
+#3 create project
 lightdash deploy --create
 `.trim();
 

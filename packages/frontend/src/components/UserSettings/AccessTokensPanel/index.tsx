@@ -124,9 +124,7 @@ const AccessTokensPanel: FC = () => {
             {hasAvailableTokens ? (
                 <div>
                     {data?.map((token) => (
-                        <>
-                            <TokenListItem key={token.uuid} token={token} />
-                        </>
+                        <TokenListItem key={token.uuid} token={token} />
                     ))}
                 </div>
             ) : (

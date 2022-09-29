@@ -31,6 +31,9 @@ const getDateFormat = (
         case TimeFrames.MONTH:
             dateForm = 'YYYY-MM';
             break;
+        case TimeFrames.SECOND:
+            dateForm = 'YYYY-MM-DD, HH:mm:ss';
+            break;
         default:
             dateForm = 'YYYY-MM-DD';
             break;

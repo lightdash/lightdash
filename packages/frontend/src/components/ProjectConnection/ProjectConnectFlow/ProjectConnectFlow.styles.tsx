@@ -96,7 +96,6 @@ export const RadioButton = styled(Radio)`
 
 export const Codeblock = styled.div`
     position: relative;
-    padding: 10px 15px;
     margin-left: -15px;
     margin-right: -15px;
     margin-bottom: 8px;
@@ -104,11 +103,12 @@ export const Codeblock = styled.div`
     width: calc(100% + 30px);
     border-radius: 3px;
     text-align: initial;
-    overflow-x: scroll;
 
     pre {
         margin: 0;
+        padding: 10px 15px;
         color: ${Colors.GRAY1};
+        overflow-x: scroll;
     }
 
     button {
