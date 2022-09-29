@@ -1,3 +1,10 @@
+## [0.267.1](https://github.com/lightdash/lightdash/compare/0.267.0...0.267.1) (2022-09-29)
+
+
+### Bug Fixes
+
+* Revert "feat: move refresh dbt button to project settings page" ([#3340](https://github.com/lightdash/lightdash/issues/3340)) ([9fc0128](https://github.com/lightdash/lightdash/commit/9fc0128d88018ae06f37065273652c840e458295)), closes [#3260](https://github.com/lightdash/lightdash/issues/3260)
+
 # [0.267.0](https://github.com/lightdash/lightdash/compare/0.266.1...0.267.0) (2022-09-29)
 
 
