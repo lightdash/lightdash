@@ -32,31 +32,6 @@ import {
 } from '../utils/timeFrames';
 import { compileExplore } from './exploreCompiler';
 
-// TODO: move this to querybuilder to compute and query-time
-const truncateTimeField = (
-    adapterType: SupportedDbtAdapter,
-    timeInterval: TimeFrames,
-    field: string,
-    type: DimensionType,
-) => {
-    switch (adapterType) {
-        case SupportedDbtAdapter.BIGQUERY:
-            if (type === DimensionType.TIMESTAMP) {
-                return `DATETIME_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
-            }
-            return `DATE_TRUNC(${field}, ${timeInterval.toUpperCase()})`;
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.DATABRICKS:
-            return `DATE_TRUNC('${timeInterval.toUpperCase()}', ${field})`;
-        default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = adapterType;
-            throw new ParseError(`Cannot recognise warehouse ${adapterType}`);
-    }
-};
-
 const convertTimezone = (
     timestampSql: string,
     default_source_tz: string,
@@ -121,11 +96,16 @@ const convertDimension = (
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
     if (timeInterval) {
-        if (timeInterval !== TimeFrames.RAW) {
-            sql = truncateTimeField(targetWarehouse, timeInterval, sql, type);
-        }
+        sql = timeFrameConfigs[timeInterval].getSql(
+            targetWarehouse,
+            timeInterval,
+            sql,
+            type,
+        );
         name = `${column.name}_${timeInterval.toLowerCase()}`;
-        label = `${label} ${timeInterval.toLowerCase()}`;
+        label = `${label} ${timeFrameConfigs[timeInterval]
+            .getLabel()
+            .toLowerCase()}`;
         group = column.name;
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }

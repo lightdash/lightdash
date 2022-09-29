@@ -193,7 +193,16 @@
                                                                     "HOUR",
                                                                     "MINUTE",
                                                                     "SECOND",
-                                                                    "MILLISECOND"
+                                                                    "MILLISECOND",
+                                                                    "MONTH_NUM",
+                                                                    "MONTH_NAME",
+                                                                    "DAY_OF_WEEK_NAME",
+                                                                    "QUARTER_NAME",
+                                                                    "DAY_OF_WEEK_INDEX",
+                                                                    "DAY_OF_MONTH_NUM",
+                                                                    "DAY_OF_YEAR_NUM",
+                                                                    "QUARTER_NUM",
+                                                                    "YEAR_NUM"
                                                                 ]
                                                             }
                                                         },

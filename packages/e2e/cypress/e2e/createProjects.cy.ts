@@ -123,6 +123,72 @@ const testQuery = () => {
     cy.findByText('Unique order count').click();
 };
 
+const defaultRowValues = [
+    '2020-08-11, 00:17:00:000 (+00:00)',
+    '2020-08-11, 00:17:00:000 (+00:00)',
+    '2020-08-11, 00:17:00 (+00:00)',
+    '2020-08-11, 00:17 (+00:00)',
+    '2020-08-11, 00 (+00:00)',
+    '2020-08-11',
+    '2',
+    'Tuesday',
+    '11',
+    '224',
+    '2020-08-10',
+    '2020-08',
+    '8',
+    'August',
+    '2020-Q3',
+    '3',
+    'Q3',
+    '2020',
+    '2,020',
+];
+
+const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
+    cy.findByText('Explore').click();
+    cy.findByText('Tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
+
+    cy.contains('Events').click();
+    cy.findByText('Timestamp tz').click();
+
+    cy.findByText('Raw').click();
+    cy.findByText('Millisecond').click();
+    cy.findByText('Second').click();
+    cy.findByText('Minute').click();
+    cy.findByText('Hour').click();
+    cy.findByText('Day').click();
+    cy.findByText('Day of the week (index)').click();
+    cy.findByText('Day of the week (name)').click();
+    cy.findByText('Day of the month (number)').click();
+    cy.findByText('Day of the year (number)').click();
+    cy.findByText('Week').click();
+    cy.findByText('Month').click();
+    cy.findByText('Month (number)').click();
+    cy.findByText('Month (name)').click();
+    cy.findByText('Quarter').click();
+    cy.findByText('Quarter (number)').click();
+    cy.findByText('Quarter (name)').click();
+    cy.findByText('Year').click();
+    cy.findByText('Year (number)').click();
+
+    // run query
+    cy.get('button').contains('Run query').click();
+
+    // wait for query to finish
+    cy.findByText('Loading chart').should('not.exist');
+    cy.findByText('Loading results').should('not.exist');
+
+    // check first row values
+    rowValues.forEach((value, index) => {
+        cy.get('table')
+            .find('td', { timeout: 10000 })
+            .eq(index + 1)
+            .should('contain.text', value);
+    });
+};
+
 describe('Create projects', () => {
     before(() => {
         cy.login();
@@ -156,6 +222,7 @@ describe('Create projects', () => {
         testCompile();
         testQuery();
         testRunQuery();
+        testTimeIntervalsResults();
     });
     it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
@@ -171,6 +238,8 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+        testTimeIntervalsResults();
     });
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
@@ -182,6 +251,31 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+
+        const bigqueryRowValues = [
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00 (+00:00)',
+            '2020-08-12, 07:58 (+00:00)',
+            '2020-08-12, 07 (+00:00)',
+            '2020-08-12',
+            '4', // Returns values in the range [1,7] with Sunday as the first day of the week.
+            'Wednesday',
+            '12',
+            '225',
+            '2020-08-09',
+            '2020-08',
+            '8',
+            'August',
+            '2020-Q3',
+            '3',
+            'Q3',
+            '2020',
+            '2,020',
+        ];
+
+        testTimeIntervalsResults(bigqueryRowValues);
     });
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
@@ -193,6 +287,30 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+        const databricksRowValues = [
+            '2020-07-02, 09:33:00:000 (+00:00)',
+            '2020-07-02, 09:33:00:000 (+00:00)',
+            '2020-07-02, 09:33:00 (+00:00)',
+            '2020-07-02, 09:33 (+00:00)',
+            '2020-07-02, 09 (+00:00)',
+            '2020-07-02',
+            '5',
+            'Thursday',
+            '2',
+            '184',
+            '2020-06-29',
+            '2020-07',
+            '7',
+            'July',
+            '2020-Q3',
+            '3',
+            'Q3',
+            '2020',
+            '2,020',
+        ];
+
+        testTimeIntervalsResults(databricksRowValues);
     });
 
     it('Should create a Snowflake project', () => {
@@ -205,5 +323,30 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testRunQuery();
+
+        const snowflakeRowValues = [
+            '2020-08-12, 00:03:00:000 (+00:00)',
+            '2020-08-12, 00:03:00:000 (+00:00)',
+            '2020-08-12, 00:03:00 (+00:00)',
+            '2020-08-12, 00:03 (+00:00)',
+            '2020-08-12, 00 (+00:00)',
+            '2020-08-12',
+            '3', // The behavior of week-related functions in Snowflake is controlled by the WEEK_START session parameters.
+            'Wednesday',
+            '12',
+            '225',
+            '2020-08-10',
+            '2020-08',
+            '8',
+            'August',
+            '2020-Q3',
+            '3',
+            'Q3',
+            '2020',
+            '2,020',
+        ];
+
+        testTimeIntervalsResults(snowflakeRowValues);
     });
 });

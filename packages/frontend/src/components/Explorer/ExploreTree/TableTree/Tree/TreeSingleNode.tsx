@@ -2,10 +2,10 @@ import { Classes, Colors, Text } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     DimensionType,
-    friendlyName,
     isAdditionalMetric,
     isDimension,
     MetricType,
+    timeFrameConfigs,
 } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -52,8 +52,8 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
     }
 
     const label: string =
-        isDimension(item) && item.group
-            ? friendlyName(item.name.replace(item?.group, ''))
+        isDimension(item) && item.timeInterval
+            ? timeFrameConfigs[item.timeInterval].getLabel()
             : item.label || item.name;
     return (
         <Row

@@ -5,6 +5,7 @@ import {
     FieldId,
     getItemId,
     isAdditionalMetric,
+    isDimension,
     isField,
     MetricType,
     ResultRow,
@@ -27,7 +28,8 @@ export const isSummable = (item: Field | TableCalculation) => {
             MetricType.SUM,
         ];
         const isPercent = item.format === 'percent';
-        return numericTypes.includes(item.type) && !isPercent;
+        const isDatePart = isDimension(item) && item.timeInterval;
+        return numericTypes.includes(item.type) && !isPercent && !isDatePart;
     }
     return true;
 };
