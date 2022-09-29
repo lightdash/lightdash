@@ -45,7 +45,7 @@ const CreateProject: FC = () => {
     useEffect(() => {
         if (method !== ConnectMethod.CLI || isTokenCreated) return;
 
-        const expiresAt = moment().add(30, 'days').toJSON();
+        const expiresAt = moment().add(30, 'days').toDate();
         const generatedAtString = moment().format(
             getDateFormat(TimeFrames.SECOND),
         );

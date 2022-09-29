@@ -1,13 +1,13 @@
 import { Ability } from '@casl/ability';
-import { ApiError, LightdashUserWithDetails } from '@lightdash/common';
+import { ApiError, LightdashUserWithAbilityRules } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 
-export type UserWithAbility = LightdashUserWithDetails & {
+export type UserWithAbility = LightdashUserWithAbilityRules & {
     ability: Ability;
 };
 const getUserState = async (): Promise<UserWithAbility> => {
-    const user = await lightdashApi<LightdashUserWithDetails>({
+    const user = await lightdashApi<LightdashUserWithAbilityRules>({
         url: `/user`,
         method: 'GET',
         body: undefined,

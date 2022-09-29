@@ -1,8 +1,8 @@
 import {
     ApiCreateUserTokenResults,
     ApiError,
+    ApiPersonalAccessTokenResponse,
     CreatePersonalAccessToken,
-    PersonalAccessToken,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -37,10 +37,13 @@ const deleteAccessToken = async (tokenUuid: string) =>
     });
 
 export const useAccessToken = (
-    useQueryOptions?: UseQueryOptions<PersonalAccessToken[], ApiError>,
+    useQueryOptions?: UseQueryOptions<
+        ApiPersonalAccessTokenResponse[],
+        ApiError
+    >,
 ) => {
     const setErrorResponse = useQueryError();
-    return useQuery<PersonalAccessToken[], ApiError>({
+    return useQuery<ApiPersonalAccessTokenResponse[], ApiError>({
         queryKey: ['personal_access_tokens'],
         queryFn: () => getAccessToken(),
         retry: false,

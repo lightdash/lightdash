@@ -16,11 +16,11 @@ export interface LightdashUser {
     isActive: boolean;
 }
 
-export interface LightdashUserWithDetails extends LightdashUser {
+export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
 }
 
-export interface SessionUser extends LightdashUserWithDetails {
+export interface SessionUser extends LightdashUserWithAbilityRules {
     userId: number;
     ability: MemberAbility;
 }

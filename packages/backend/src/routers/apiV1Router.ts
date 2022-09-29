@@ -8,6 +8,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { userModel } from '../models/models';
+import { UserModel } from '../models/UserModel';
 import { healthService, userService } from '../services/services';
 import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { dashboardRouter } from './dashboardRouter';
@@ -78,7 +79,7 @@ apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
         } else {
             res.json({
                 status: 'ok',
-                results: userModel.lightdashUserFromSession(req.user!),
+                results: UserModel.lightdashUserFromSession(req.user!),
             });
         }
     });

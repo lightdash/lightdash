@@ -6,7 +6,7 @@ import {
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
-    LightdashUserWithDetails,
+    LightdashUserWithAbilityRules,
     NotExistsError,
     NotFoundError,
     OpenIdUser,
@@ -518,9 +518,9 @@ export class UserModel {
 
     static lightdashUserFromSession(
         sessionUser: SessionUser,
-    ): LightdashUserWithDetails {
+    ): LightdashUserWithAbilityRules {
         const { userId, ability, ...lightdashUser } = sessionUser;
-        return { ...lightdashUser };
+        return lightdashUser;
     }
 
     async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
