@@ -1,3 +1,10 @@
+# [0.267.0](https://github.com/lightdash/lightdash/compare/0.266.1...0.267.0) (2022-09-29)
+
+
+### Features
+
+* change login with token ([#3331](https://github.com/lightdash/lightdash/issues/3331)) ([b384c95](https://github.com/lightdash/lightdash/commit/b384c9560e789e9310dcb1e08fd1abfde107e223))
+
 ## [0.266.1](https://github.com/lightdash/lightdash/compare/0.266.0...0.266.1) (2022-09-28)
 
 
