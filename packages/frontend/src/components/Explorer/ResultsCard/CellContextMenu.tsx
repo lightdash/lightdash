@@ -27,7 +27,7 @@ const CellContextMenu: FC<
 
     return (
         <Menu>
-            {value.raw &&
+            {!!value.raw &&
                 isField(item) &&
                 (item.urls || []).map((urlConfig) => (
                     <MenuItem2
@@ -48,7 +48,9 @@ const CellContextMenu: FC<
                         }}
                     />
                 ))}
+
             {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
+
             <MenuItem2
                 text="View underlying data"
                 icon="layers"
