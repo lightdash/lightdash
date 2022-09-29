@@ -31,9 +31,9 @@ const warehouseConfig = {
 };
 
 const configurePostgresWarehouse = (config) => {
-    cy.get('[name="warehouse.host"]').type(config.host);
-    cy.get('[name="warehouse.user"]').type(config.user);
-    cy.get('[name="warehouse.password"]').type(config.password);
+    cy.get('[name="warehouse.host"]').type(config.host, { log: false });
+    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
     cy.get('[name="warehouse.dbname"]').type(config.database);
 
     cy.contains('Advanced configuration options').click();
@@ -48,8 +48,8 @@ const configurePostgresWarehouse = (config) => {
 };
 
 const configureBigqueryWarehouse = (config) => {
-    cy.get('[name="warehouse.project"]').type(config.project);
-    cy.get('[name="warehouse.location"]').type(config.location);
+    cy.get('[name="warehouse.project"]').type(config.project, { log: false });
+    cy.get('[name="warehouse.location"]').type(config.location, { log: false });
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
 
     // DBT
@@ -59,9 +59,13 @@ const configureBigqueryWarehouse = (config) => {
 };
 
 const configureDatabricksWarehouse = (config) => {
-    cy.get('[name="warehouse.serverHostName"]').type(config.host);
-    cy.get('[name="warehouse.httpPath"]').type(config.httpPath);
-    cy.get('[name="warehouse.personalAccessToken"]').type(config.token);
+    cy.get('[name="warehouse.serverHostName"]').type(config.host, {
+        log: false,
+    });
+    cy.get('[name="warehouse.httpPath"]').type(config.httpPath, { log: false });
+    cy.get('[name="warehouse.personalAccessToken"]').type(config.token, {
+        log: false,
+    });
 
     // DBT
     cy.get('[name="dbt.type"]').select('dbt local server');
@@ -70,9 +74,9 @@ const configureDatabricksWarehouse = (config) => {
 };
 
 const configureSnowflakeWarehouse = (config) => {
-    cy.get('[name="warehouse.account"]').type(config.account);
-    cy.get('[name="warehouse.user"]').type(config.user);
-    cy.get('[name="warehouse.password"]').type(config.password);
+    cy.get('[name="warehouse.account"]').type(config.account, { log: false });
+    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
     cy.get('[name="warehouse.role"]').type(config.role);
     cy.get('[name="warehouse.database"]').type(config.database);
     cy.get('[name="warehouse.warehouse"]').type(config.warehouse);
