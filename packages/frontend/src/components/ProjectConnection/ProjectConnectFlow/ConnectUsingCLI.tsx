@@ -17,7 +17,6 @@ import {
 } from './ProjectConnectFlow.styles';
 
 interface ConnectUsingCliProps {
-    isSSO: boolean;
     siteUrl: string;
     loginToken?: string;
     needsProject: boolean;

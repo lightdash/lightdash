@@ -18,7 +18,6 @@ export interface LightdashUser {
 
 export interface LightdashUserWithDetails extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
-    isSSO: boolean;
 }
 
 export interface SessionUser extends LightdashUserWithDetails {

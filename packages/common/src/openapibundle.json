@@ -1587,9 +1587,6 @@
                     "isSetupComplete": {
                         "type": "boolean"
                     },
-                    "isSSO": {
-                        "type": "boolean"
-                    },
                     "role": {
                         "type": "string"
                     },

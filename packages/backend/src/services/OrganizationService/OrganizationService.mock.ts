@@ -24,7 +24,6 @@ export const user: SessionUser = {
     ]),
     isActive: true,
     abilityRules: [],
-    isSSO: false,
 };
 
 export const organisation: Organisation = {

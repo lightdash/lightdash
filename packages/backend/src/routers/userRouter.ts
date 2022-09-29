@@ -5,24 +5,18 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { userModel } from '../models/models';
+import { UserModel } from '../models/UserModel';
 import { personalAccessTokenService, userService } from '../services/services';
 import { sanitizeStringParam } from '../utils';
 
 export const userRouter = express.Router();
 
-userRouter.get(
-    '/',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res) => {
-        const user = await userModel.lightdashUserFromSession(req.user!);
-
-        res.json({
-            status: 'ok',
-            results: user,
-        });
-    },
-);
+userRouter.get('/', allowApiKeyAuthentication, isAuthenticated, (req, res) => {
+    res.json({
+        status: 'ok',
+        results: UserModel.lightdashUserFromSession(req.user!),
+    });
+});
 
 userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
     try {

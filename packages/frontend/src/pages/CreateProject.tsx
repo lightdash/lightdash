@@ -45,7 +45,7 @@ const CreateProject: FC = () => {
     useEffect(() => {
         if (method !== ConnectMethod.CLI || isTokenCreated) return;
 
-        const expiresAt = moment().add(30, 'days').toDate();
+        const expiresAt = moment().add(30, 'days').toJSON();
         const generatedAtString = moment().format(
             getDateFormat(TimeFrames.SECOND),
         );
@@ -75,7 +75,6 @@ const CreateProject: FC = () => {
             <Page noContentPadding>
                 {method === ConnectMethod.CLI && (
                     <ConnectUsingCLI
-                        isSSO={true}
                         loginToken={tokenData?.token}
                         siteUrl={health.siteUrl}
                         needsProject={!!organisation.needsProject}

@@ -349,14 +349,11 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await this.hasPassword(user.user_uuid);
 
         return {
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
-            isSSO: !userHasPassword,
-
             ...lightdashUser,
         };
     }
@@ -489,13 +486,11 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await this.hasPassword(user.user_uuid);
         return {
             ...lightdashUser,
             userId: user.user_id,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
-            isSSO: !userHasPassword,
         };
     }
 
@@ -513,26 +508,19 @@ export class UserModel {
             projectRoles,
         );
 
-        const userHasPassword = await this.hasPassword(user.user_uuid);
         return {
             ...lightdashUser,
             abilityRules: abilityBuilder.rules,
             ability: abilityBuilder.build(),
             userId: user.user_id,
-            isSSO: !userHasPassword,
         };
     }
 
-    async lightdashUserFromSession(
+    static lightdashUserFromSession(
         sessionUser: SessionUser,
-    ): Promise<LightdashUserWithDetails> {
+    ): LightdashUserWithDetails {
         const { userId, ability, ...lightdashUser } = sessionUser;
-
-        const userHasPassword = await this.hasPassword(lightdashUser.userUuid);
-        return {
-            ...lightdashUser,
-            isSSO: !userHasPassword,
-        };
+        return { ...lightdashUser };
     }
 
     async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
@@ -581,14 +569,12 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
-        const userHasPassword = await this.hasPassword(row.user_uuid);
         return {
             user: {
                 ...mapDbUserDetailsToLightdashUser(row),
                 abilityRules: abilityBuilder.rules,
                 ability: abilityBuilder.build(),
                 userId: row.user_id,
-                isSSO: !userHasPassword,
             },
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
