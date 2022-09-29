@@ -91,7 +91,7 @@ projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
             await projectService.getAllExploresSummary(
                 req.user!,
                 req.params.projectUuid,
-                req.query.filtered === 'true',
+                true,
             );
         res.json({
             status: 'ok',

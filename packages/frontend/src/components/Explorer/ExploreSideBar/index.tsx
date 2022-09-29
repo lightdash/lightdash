@@ -9,7 +9,6 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import Fuse from 'fuse.js';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useToggle } from 'react-use';
 import { useExplores } from '../../../hooks/useExplores';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -41,8 +40,7 @@ const BasePanel = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const errorLogs = useErrorLogs();
     const [search, setSearch] = useState<string>('');
-    const [filterExplores, toggleFilterExplores] = useToggle(true);
-    const exploresResult = useExplores(filterExplores);
+    const exploresResult = useExplores();
 
     const filteredTables = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';
