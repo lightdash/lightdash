@@ -1,6 +1,5 @@
 import dbtRepoExample from './assets/dbt-repo-example.png';
 import TablesConfiguration from './assets/tables-configuration.jpg';
-import ShowHiddenTables from './assets/show-hidden-tables.png';
 import TablesView from './assets/tables-view.jpg';
 import PickTables from './assets/pick-tables.png';
 import LightdashTag from './assets/lightdash-tag.png';
@@ -134,15 +133,9 @@ Now that you're in the right place, let's get to the juicy stuff. You have three
 
 1. **Show entire project**: I hope this one isn't too much of a surprise. If you select this option, it shows _all_ of the models with .yml files in your dbt project in Lightdash.
 
-2. **Show models with any of these tags**: This option depends on dbt tags. You can learn more about [using tags to manage your project here](#limiting-the-tables-in-lightdash-using-dbt-tags). If you already have a specific model tag (or tags) you want to limit Lightdash to using, this is where you can add them in. For example, all of our production models have the tag `prod`, so we've configured our Tables using that tag. 
+2. **Show models with any of these tags**: This option depends on dbt tags. You can learn more about [using tags to manage your project here](#limiting-the-tables-in-lightdash-using-dbt-tags). If you already have a specific model tag (or tags) you want to limit Lightdash to using, this is where you can add them in. For example, all of our production models have the tag `prod`, so we've configured our Tables using that tag.
 
-3. **Show models in this list**: If you're not keen on using tags then you can manually select the models you want to include as Tables in your Lightdash project using this option. 
-
-### Showing hidden tables in Lightdash
-
-You can still access + explore all of the Tables from your dbt project (with .yml files), even if you've filtered them from appearing in the sidebar. Just click on the `Show hidden tables` toggle in the Tables sidebar. 
-
-<img src={ShowHiddenTables} width="276" height="136" style={{display: "block", margin: "0 auto 20px auto"}}/>
+3. **Show models in this list**: If you're not keen on using tags then you can manually select the models you want to include as Tables in your Lightdash project using this option.
 
 ---
 
