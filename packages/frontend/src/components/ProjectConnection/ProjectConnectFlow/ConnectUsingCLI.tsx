@@ -88,7 +88,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 {needsProject ? (
                     <Title>You're in! 🎉</Title>
                 ) : (
-                    <Title>Create new project</Title>
+                    <Title>Connect new project</Title>
                 )}
 
                 <Subtitle>
