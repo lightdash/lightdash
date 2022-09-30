@@ -27,7 +27,7 @@ import {
     MetricType,
     Series,
     TableCalculation,
-    TimeFrames,
+    timeFrameConfigs,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
@@ -511,21 +511,22 @@ const getEchartAxis = ({
             items.find((item) => getItemId(axisItem) === getItemId(item));
         const hasFormatOrRound =
             isField(field) && (field.format || field.round);
-        const isQuarterTimeInterval =
-            isDimension(field) && field.timeInterval === TimeFrames.QUARTER;
-        return (
-            field &&
-            (hasFormatOrRound || isQuarterTimeInterval) && {
-                axisLabel: {
-                    formatter: (value: any) => {
-                        return formatItemValue(field, value);
-                    },
+        const axisMinInterval =
+            isDimension(field) &&
+            field.timeInterval &&
+            timeFrameConfigs[field.timeInterval].getAxisMinInterval();
+        const axisConfig: Record<string, any> = {};
+        if (field && (hasFormatOrRound || axisMinInterval)) {
+            axisConfig.axisLabel = {
+                formatter: (value: any) => {
+                    return formatItemValue(field, value);
                 },
-                interval: 7889400000,
-                minInterval: 7889400000,
-                maxInterval: 7889400000,
-            }
-        );
+            };
+        }
+        if (axisMinInterval) {
+            axisConfig.minInterval = axisMinInterval;
+        }
+        return axisConfig;
     };
 
     const showGridX = !!validCartesianConfig.layout.showGridX;
