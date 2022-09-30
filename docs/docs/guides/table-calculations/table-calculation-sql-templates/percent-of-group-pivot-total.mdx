@@ -1,0 +1,39 @@
+import PercentOfTotalGroup from './assets/percent-of-total-group.png';
+
+# Percent of group/pivot total
+
+The percent of the group/pivot total will give you the percentage of each value in a group out of the total sum of the values for that group.
+
+[Just gimme the code! 👾](#-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-group-pivot-total)
+
+Here's an example of a percent of the total group/pivot:
+
+<img src={PercentOfTotalGroup} width="1045" height="551" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+And here's the SQL used in the table calculation:
+
+```sql
+${dbt_orders.sum_of_profit} * 100 / SUM(${dbt_orders.sum_of_profit}) OVER(PARTITION BY ${dbt_orders.order_date_week})
+```
+
+In general, the SQL used for calculating the percent of the total has two important columns:
+
+- `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see the percent total of. In our example above, that was the `sum of profit`.
+- `column_i_want_to_group_by` - this is the column that you want the total to be grouped by. In our example above, that was the `order date - week`.
+
+### 👀 Here's the SQL you can copy-paste to calculate the percent of the group/pivot total
+
+```sql
+${table.column_i_want_to_see_the_percent_of_total} * 100 / 
+  SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER(PARTITION BY ${table.column_i_want_to_group_by})
+```
+
+:::info
+
+**💎 Level up your SQL**:
+
+- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
+
+ >```ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(PARTITION BY ${table.column_i_want_to_group_by}), 2)```
+
+:::
