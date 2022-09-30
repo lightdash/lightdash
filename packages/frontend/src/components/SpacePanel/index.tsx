@@ -12,6 +12,7 @@ import {
     PageHeader,
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
+import { SortDirection } from '../common/ResourceList/ResourceTable';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
@@ -33,10 +34,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     const history = useHistory();
     const savedDashboards = space.dashboards;
     const savedCharts = space.queries;
-    const orderedCharts = savedCharts.sort(
-        (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
@@ -125,7 +122,10 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 resourceIcon="control"
                 resourceType="dashboard"
                 resourceList={savedDashboards}
-                showSpaceColumn={false}
+                defaultSort={{
+                    updatedAt: SortDirection.DESC,
+                }}
+                defaultColumnVisibility={{ space: false }}
                 getURL={({ uuid }) =>
                     `/projects/${projectUuid}/dashboards/${uuid}/view`
                 }
@@ -149,10 +149,13 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <ResourceList
                 headerTitle="Saved charts"
-                resourceList={orderedCharts}
+                resourceList={savedCharts}
                 resourceIcon="chart"
                 resourceType="chart"
-                showSpaceColumn={false}
+                defaultSort={{
+                    updatedAt: SortDirection.DESC,
+                }}
+                defaultColumnVisibility={{ space: false }}
                 getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
                     !isDemo &&

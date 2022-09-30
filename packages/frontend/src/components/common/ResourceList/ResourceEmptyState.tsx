@@ -1,15 +1,15 @@
 import { Button, NonIdealState } from '@blueprintjs/core';
 import { FC } from 'react';
-import { ResourceListProps } from '.';
+import { ResourceListCommonProps } from '.';
 import {
     EmptyStateIcon,
     EmptyStateText,
     EmptyStateWrapper,
 } from './ResourceEmptyState.styles';
 
-type Props = Pick<ResourceListProps, 'headerAction' | 'onClickCTA'> & {
-    resourceType: ResourceListProps['resourceType'] | 'space';
-    resourceIcon?: ResourceListProps['resourceIcon'];
+type Props = Pick<ResourceListCommonProps, 'headerAction' | 'onClickCTA'> & {
+    resourceType: ResourceListCommonProps['resourceType'] | 'space';
+    resourceIcon?: ResourceListCommonProps['resourceIcon'];
 };
 
 const ResourceEmptyState: FC<Props> = ({

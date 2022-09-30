@@ -8,6 +8,7 @@ import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import LinkButton from '../../common/LinkButton';
 import ResourceList from '../../common/ResourceList';
+import { SortDirection } from '../../common/ResourceList/ResourceTable';
 import { DEFAULT_DASHBOARD_NAME } from '../../SpacePanel';
 
 interface Props {
@@ -65,8 +66,10 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             resourceIcon="control"
             resourceType="dashboard"
             resourceList={featuredDashboards}
-            showSpaceColumn
             enableSorting={false}
+            defaultSort={{
+                updatedAt: SortDirection.DESC,
+            }}
             showCount={false}
             getURL={({ uuid }) =>
                 `/projects/${projectUuid}/dashboards/${uuid}/view`

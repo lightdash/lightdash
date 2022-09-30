@@ -2,7 +2,8 @@ import { Colors, Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { AcceptedResources, ResourceListProps } from '..';
+import { useMount } from 'react-use';
+import { AcceptedResources, ResourceListCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import ResourceActionMenu from '../ResourceActionMenu';
 import ResourceLastEdited from '../ResourceLastEdited';
@@ -21,7 +22,7 @@ import {
     ThInteractiveWrapper,
 } from './ResourceTable.styles';
 
-enum SortDirection {
+export enum SortDirection {
     ASC = 'asc',
     DESC = 'desc',
 }
@@ -32,26 +33,27 @@ type SortingStateMap = Map<string, SortingState>;
 
 type ColumnVisibilityMap = Map<string, boolean>;
 
-interface ResourceTableProps
-    extends Pick<
-        ResourceListProps,
-        | 'resourceList'
-        | 'resourceType'
-        | 'resourceIcon'
-        | 'getURL'
-        | 'showSpaceColumn'
-        | 'enableSorting'
-    > {
+export interface ResourceTableCommonProps {
+    enableSorting?: boolean;
     enableMultiSort?: boolean;
-    onChangeAction: React.Dispatch<
-        React.SetStateAction<{
-            actionType: number;
-            data?: any;
-        }>
-    >;
+    defaultSort?: { [key: string]: SortDirection };
+    defaultColumnVisibility?: { [key: string]: false };
 }
 
-const sortOrder = [SortDirection.ASC, SortDirection.DESC, null];
+type ResourceTableProps = ResourceTableCommonProps &
+    Pick<
+        ResourceListCommonProps,
+        'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
+    > & {
+        onChangeAction: React.Dispatch<
+            React.SetStateAction<{
+                actionType: number;
+                data?: any;
+            }>
+        >;
+    };
+
+const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
 
 const getNextSortDirection = (current: SortingState): SortingState => {
     const currentIndex = sortOrder.indexOf(current);
@@ -62,9 +64,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
     resourceList,
     resourceType,
     resourceIcon,
-    showSpaceColumn = false,
-    enableSorting = true,
+    enableSorting: enableSortingProp = true,
     enableMultiSort = false,
+    defaultColumnVisibility = {},
+    defaultSort = {},
     getURL,
     onChangeAction,
 }) => {
@@ -73,7 +76,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
     const { data: spaces = [] } = useSpaces(projectUuid);
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(new Map());
     const [columnVisibility] = useState<ColumnVisibilityMap>(
-        new Map([['space', showSpaceColumn]]),
+        new Map(Object.entries(defaultColumnVisibility)),
     );
 
     const handleSort = (columnId: string, direction: null | SortDirection) => {
@@ -84,7 +87,16 @@ const ResourceTable: FC<ResourceTableProps> = ({
         );
     };
 
+    useMount(() => {
+        Object.entries(defaultSort).forEach(([columnId, direction]) => {
+            handleSort(columnId, direction);
+        });
+    });
+
+    const enableSorting = enableSortingProp && resourceList.length > 1;
+
     const columns = useMemo(() => {
+        console.log(columnVisibility.get('space'));
         return [
             {
                 id: 'name',
@@ -107,12 +119,13 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         </ResourceLink>
                     </Tooltip2>
                 ),
-                enableSorting: enableSorting && resourceList.length > 1,
+                enableSorting,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
                     return a.name.localeCompare(b.name);
                 },
                 meta: {
-                    width: showSpaceColumn ? '50%' : '75%',
+                    width:
+                        columnVisibility.get('space') === false ? '75%' : '50%',
                 },
             },
             {
@@ -130,14 +143,17 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         </ResourceSpaceLink>
                     ) : null;
                 },
-                enableSorting: enableSorting && resourceList.length > 1,
+                enableSorting,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
                     const space1 = spaces.find((s) => s.uuid === a.spaceUuid);
                     const space2 = spaces.find((s) => s.uuid === b.spaceUuid);
                     return space1?.name.localeCompare(space2?.name || '') || 0;
                 },
                 meta: {
-                    width: showSpaceColumn ? '25%' : undefined,
+                    width:
+                        columnVisibility.get('space') === false
+                            ? undefined
+                            : '25%',
                 },
             },
             {
@@ -146,7 +162,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 cell: (row: AcceptedResources) => (
                     <ResourceLastEdited resource={row} />
                 ),
-                enableSorting: enableSorting && resourceList.length > 1,
+                enableSorting,
                 sortingFn: (a: AcceptedResources, b: AcceptedResources) => {
                     return (
                         new Date(a.updatedAt).getTime() -
@@ -180,8 +196,6 @@ const ResourceTable: FC<ResourceTableProps> = ({
         columnVisibility,
         resourceIcon,
         resourceType,
-        resourceList.length,
-        showSpaceColumn,
         enableSorting,
         spaces,
         projectUuid,
@@ -192,27 +206,36 @@ const ResourceTable: FC<ResourceTableProps> = ({
     const sortedResourceList = useMemo(() => {
         if (columnSorts.size === 0) {
             return resourceList;
-        } else {
-            return resourceList.sort((a, b) => {
-                return [...columnSorts.entries()].reduce(
-                    (acc, [columnId, sortDirection]) => {
-                        const column = columns.find((c) => c.id === columnId);
-
-                        const sortResult = column?.sortingFn?.(a, b) ?? 0;
-
-                        switch (sortDirection) {
-                            case SortDirection.ASC:
-                                return acc + sortResult;
-                            case SortDirection.DESC:
-                                return acc - sortResult;
-                            default:
-                                return acc;
-                        }
-                    },
-                    0,
-                );
-            });
         }
+
+        return resourceList.sort((a, b) => {
+            return [...columnSorts.entries()].reduce(
+                (acc, [columnId, sortDirection]) => {
+                    const column = columns.find((c) => c.id === columnId);
+                    if (!column) {
+                        throw new Error('Column with id does not exist!');
+                    }
+
+                    if (!column.sortingFn) {
+                        throw new Error(
+                            'Column does not have sorting function!',
+                        );
+                    }
+
+                    const sortResult = column.sortingFn(a, b) ?? 0;
+
+                    switch (sortDirection) {
+                        case SortDirection.ASC:
+                            return acc + sortResult;
+                        case SortDirection.DESC:
+                            return acc - sortResult;
+                        default:
+                            return acc;
+                    }
+                },
+                0,
+            );
+        });
     }, [resourceList, columnSorts, columns]);
 
     return (
@@ -246,7 +269,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                             <>
                                                 <Spacer $width={5} />
 
-                                                {
+                                                {enableSorting &&
                                                     {
                                                         asc: (
                                                             <Icon
@@ -260,8 +283,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                                                 size={12}
                                                             />
                                                         ),
-                                                    }[columnSort]
-                                                }
+                                                    }[columnSort]}
                                             </>
                                         ) : null}
                                     </Flex>

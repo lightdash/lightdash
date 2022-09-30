@@ -20,7 +20,7 @@ import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
-import ResourceTable from './ResourceTable';
+import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
 
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
 export type AcceptedResourceTypes = 'chart' | 'dashboard';
@@ -30,19 +30,22 @@ interface ActionStateWithData {
     data?: any;
 }
 
-export type ResourceListProps<T extends AcceptedResources = AcceptedResources> =
-    ResourceListWrapperProps & {
-        headerTitle?: string;
-        headerAction?: React.ReactNode;
-        resourceList: T[];
-        resourceType: AcceptedResourceTypes;
-        resourceIcon: IconName;
-        showSpaceColumn?: boolean;
-        enableSorting?: boolean;
-        showCount?: boolean;
-        getURL: (data: T) => string;
-        onClickCTA?: () => void;
-    };
+export interface ResourceListCommonProps<
+    T extends AcceptedResources = AcceptedResources,
+> {
+    headerTitle?: string;
+    headerAction?: React.ReactNode;
+    resourceList: T[];
+    resourceType: AcceptedResourceTypes;
+    resourceIcon: IconName;
+    showCount?: boolean;
+    getURL: (data: T) => string;
+    onClickCTA?: () => void;
+}
+
+type ResourceListProps = ResourceListCommonProps &
+    ResourceTableCommonProps &
+    ResourceListWrapperProps;
 
 const ResourceList: React.FC<ResourceListProps> = ({
     headerTitle,
@@ -50,8 +53,10 @@ const ResourceList: React.FC<ResourceListProps> = ({
     resourceIcon,
     resourceList,
     resourceType,
-    showSpaceColumn = false,
-    enableSorting = true,
+    enableSorting,
+    enableMultiSort,
+    defaultColumnVisibility,
+    defaultSort,
     showCount = true,
     getURL,
     onClickCTA,
@@ -113,8 +118,10 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         resourceType={resourceType}
                         resourceIcon={resourceIcon}
                         resourceList={resourceList}
-                        showSpaceColumn={showSpaceColumn}
                         enableSorting={enableSorting}
+                        enableMultiSort={enableMultiSort}
+                        defaultColumnVisibility={defaultColumnVisibility}
+                        defaultSort={defaultSort}
                         getURL={getURL}
                         onChangeAction={setActionState}
                     />
