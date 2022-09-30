@@ -24,6 +24,7 @@ import {
     parseMetricType,
     Source,
 } from '../types/field';
+import { parseFilters } from '../types/filterGrammar';
 import { TimeFrames } from '../types/timeFrames';
 import {
     getDefaultTimeFrames,
@@ -216,6 +217,7 @@ const convertDbtMetricToLightdashMetric = (
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
         showUnderlyingValues: metric.meta?.show_underlying_values,
+        filters: parseFilters(metric.meta?.filters),
         ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
     };
 };

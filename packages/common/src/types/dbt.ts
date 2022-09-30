@@ -9,6 +9,7 @@ import {
     MetricType,
     Source,
 } from './field';
+import { parseFilters } from './filterGrammar';
 import { AdditionalMetric } from './metricQuery';
 import { TableBase } from './table';
 import { TimeFrames } from './timeFrames';
@@ -99,6 +100,7 @@ export type DbtColumnLightdashMetric = {
     group_label?: string;
     urls?: FieldUrl[];
     show_underlying_values?: string[];
+    filters?: { [key: string]: any }[];
 };
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
@@ -276,6 +278,7 @@ export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
     group_label?: string;
     show_underlying_values?: string[];
+    filters: Record<string, any>[];
 };
 
 export type DbtDoc = {
@@ -408,6 +411,7 @@ export const convertMetric = ({
     format: metric.format,
     groupLabel: metric.group_label,
     showUnderlyingValues: metric.show_underlying_values,
+    filters: parseFilters(metric.filters),
     ...(metric.urls ? { urls: metric.urls } : {}),
 });
 type ConvertAdditionalMetricArgs = {

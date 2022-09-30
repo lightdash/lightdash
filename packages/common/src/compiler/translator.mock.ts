@@ -243,6 +243,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
+            filters: [],
         },
         dbt_metric_2: {
             description: 'Description',
@@ -260,6 +261,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
+            filters: [],
         },
         dbt_metric_3: {
             description: 'Description',
@@ -277,6 +279,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
+            filters: [],
         },
         dbt_metric_4: {
             description: 'Description',
@@ -294,6 +297,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
+            filters: [],
         },
     },
 };
@@ -408,6 +412,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             showUnderlyingValues: undefined,
             groupLabel: undefined,
+            filters: [],
         },
         total_num_participating_athletes: {
             fieldType: FieldType.METRIC,
@@ -425,6 +430,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             showUnderlyingValues: undefined,
             groupLabel: undefined,
+            filters: [],
         },
     },
 };
