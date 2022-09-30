@@ -66,28 +66,32 @@ const CreateProject: FC = () => {
         return <PageSpinner />;
     }
 
-    if (method && projectUuid) {
-        return <ConnectSuccess projectUuid={projectUuid} />;
-    }
-
     return (
         <ProjectFormProvider>
             <Page noContentPadding>
-                {method === ConnectMethod.CLI && (
-                    <ConnectUsingCLI
-                        loginToken={tokenData?.token}
-                        siteUrl={health.siteUrl}
-                        needsProject={!!organisation.needsProject}
-                    />
-                )}
-                {method === ConnectMethod.MANUAL && (
-                    <ConnectManually
-                        needsProject={!!organisation.needsProject}
-                    />
-                )}
+                {method && projectUuid ? (
+                    <ConnectSuccess projectUuid={projectUuid} />
+                ) : (
+                    <>
+                        {method === ConnectMethod.CLI && (
+                            <ConnectUsingCLI
+                                loginToken={tokenData?.token}
+                                siteUrl={health.siteUrl}
+                                needsProject={!!organisation.needsProject}
+                            />
+                        )}
+                        {method === ConnectMethod.MANUAL && (
+                            <ConnectManually
+                                needsProject={!!organisation.needsProject}
+                            />
+                        )}
 
-                {!method && (
-                    <Redirect to={`/createProject/${ConnectMethod.CLI}`} />
+                        {!method && (
+                            <Redirect
+                                to={`/createProject/${ConnectMethod.CLI}`}
+                            />
+                        )}
+                    </>
                 )}
             </Page>
         </ProjectFormProvider>
