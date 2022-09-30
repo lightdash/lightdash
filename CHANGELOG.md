@@ -1,3 +1,16 @@
+# [0.269.0](https://github.com/lightdash/lightdash/compare/0.268.0...0.269.0) (2022-09-30)
+
+
+### Bug Fixes
+
+* adapt axis interval to dimension time interval ([#3346](https://github.com/lightdash/lightdash/issues/3346)) ([15ad67d](https://github.com/lightdash/lightdash/commit/15ad67df3b2ea785151d6d9fb905d3c759728d1a))
+* cell context menu table overflow ([#3344](https://github.com/lightdash/lightdash/issues/3344)) ([8f08904](https://github.com/lightdash/lightdash/commit/8f0890416e0e2a67f997324e9161e2de65efbf45))
+
+
+### Features
+
+* remove show hidden tables toggle ([#3357](https://github.com/lightdash/lightdash/issues/3357)) ([1213ad4](https://github.com/lightdash/lightdash/commit/1213ad49879056dad15e777289b8f32d1e4c437d))
+
 # [0.268.0](https://github.com/lightdash/lightdash/compare/0.267.1...0.268.0) (2022-09-29)
 
 
