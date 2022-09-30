@@ -21,11 +21,13 @@ import {
     getResultValues,
     hashFieldReference,
     isCompleteLayout,
+    isDimension,
     isField,
     Metric,
     MetricType,
     Series,
     TableCalculation,
+    timeFrameConfigs,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
@@ -445,15 +447,11 @@ const getEchartAxis = ({
     items,
     validCartesianConfig,
     series,
-    formats,
     resultsData,
 }: {
     validCartesianConfig: CartesianChart;
     items: Array<Field | TableCalculation>;
     series: EChartSeries[];
-    formats:
-        | Record<string, Pick<CompiledField, 'round' | 'format'>>
-        | undefined;
     resultsData: ApiQueryResults | undefined;
 }) => {
     const itemMap = items.reduce<Record<string, Field | TableCalculation>>(
@@ -508,17 +506,27 @@ const getEchartAxis = ({
         axisItem: Field | TableCalculation | undefined,
     ) => {
         const field =
-            axisItem && getItemId(axisItem) && formats?.[getItemId(axisItem)];
-        return (
-            field &&
-            (field.format || field.round) && {
-                axisLabel: {
-                    formatter: (value: any) => {
-                        return formatValue(field.format, field.round, value);
-                    },
+            axisItem &&
+            getItemId(axisItem) &&
+            items.find((item) => getItemId(axisItem) === getItemId(item));
+        const hasFormatOrRound =
+            isField(field) && (field.format || field.round);
+        const axisMinInterval =
+            isDimension(field) &&
+            field.timeInterval &&
+            timeFrameConfigs[field.timeInterval].getAxisMinInterval();
+        const axisConfig: Record<string, any> = {};
+        if (field && (hasFormatOrRound || axisMinInterval)) {
+            axisConfig.axisLabel = {
+                formatter: (value: any) => {
+                    return formatItemValue(field, value);
                 },
-            }
-        );
+            };
+        }
+        if (axisMinInterval) {
+            axisConfig.minInterval = axisMinInterval;
+        }
+        return axisConfig;
     };
 
     const showGridX = !!validCartesianConfig.layout.showGridX;
@@ -817,10 +825,9 @@ const useEcharts = () => {
             items,
             series,
             validCartesianConfig,
-            formats,
             resultsData,
         });
-    }, [items, series, validCartesianConfig, formats, resultsData]);
+    }, [items, series, validCartesianConfig, resultsData]);
 
     //Remove stacking from invalid series
     const stackedSeries = useMemo(
