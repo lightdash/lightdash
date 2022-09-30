@@ -1,3 +1,10 @@
+# [0.271.0](https://github.com/lightdash/lightdash/compare/0.270.0...0.271.0) (2022-09-30)
+
+
+### Features
+
+* support metric filters for underlying data ([#3313](https://github.com/lightdash/lightdash/issues/3313)) ([a3f9afd](https://github.com/lightdash/lightdash/commit/a3f9afdb3e48b3f5ba98fddd494e505d1ee3facd))
+
 # [0.270.0](https://github.com/lightdash/lightdash/compare/0.269.0...0.270.0) (2022-09-30)
 
 

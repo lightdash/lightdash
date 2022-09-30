@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.270.0",
+    "version": "0.271.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -12,7 +12,7 @@
         "snowflake-sdk": "^1.6.4",
         "pg": "^8.7.1",
         "odbc": "^2.4.2",
-        "@lightdash/common": "^0.270.0"
+        "@lightdash/common": "^0.271.0"
     },
     "description": "Warehouse connectors for Lightdash",
     "devDependencies": {
