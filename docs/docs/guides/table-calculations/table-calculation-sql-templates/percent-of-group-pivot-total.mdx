@@ -1,10 +1,10 @@
 import PercentOfTotalGroup from './assets/percent-of-total-group.png';
 
-# Percent of total group/pivot
+# Percent of group/pivot total
 
-The percent of total group/pivot will give you the percentage of each value in a group out of the total sum of the values for that group.
+The percent of the group/pivot total will give you the percentage of each value in a group out of the total sum of the values for that group.
 
-[Just gimme the code! 👾](#-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-a-total-group-pivot)
+[Just gimme the code! 👾](#-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-group-pivot-total)
 
 Here's an example of a percent of the total group/pivot:
 
@@ -21,7 +21,7 @@ In general, the SQL used for calculating the percent of the total has two import
 - `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see the percent total of. In our example above, that was the `sum of profit`.
 - `column_i_want_to_group_by` - this is the column that you want the total to be grouped by. In our example above, that was the `order date - week`.
 
-### 👀 Here's the SQL you can copy-paste to calculate the percent of a total group/pivot
+### 👀 Here's the SQL you can copy-paste to calculate the percent of the group/pivot total
 
 ```sql
 ${table.column_i_want_to_see_the_percent_of_total} * 100 / 
