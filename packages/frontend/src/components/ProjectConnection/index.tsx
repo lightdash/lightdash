@@ -5,7 +5,6 @@ import {
     DbtProjectConfig,
     DbtProjectType,
     friendlyName,
-    Organisation,
     ProjectType,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
@@ -30,6 +29,7 @@ import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import {
     CompileProjectButton,
+    CompileProjectFixedWidthContainer,
     CompileProjectWrapper,
     FormContainer,
     FormWrapper,
@@ -312,27 +312,28 @@ export const UpdateProjectConnection: FC<{
                 />
             )}
             <CompileProjectWrapper>
-                <FormWrapper>
+                <CompileProjectFixedWidthContainer>
                     <CompileProjectButton
+                        large
                         type="submit"
                         intent={Intent.PRIMARY}
                         text="Test &amp; compile project"
                         loading={isSaving}
                         disabled={isDisabled}
                     />
-                </FormWrapper>
+                </CompileProjectFixedWidthContainer>
             </CompileProjectWrapper>
         </FormContainer>
     );
 };
 
 interface CreateProjectConnectionProps {
-    orgData: Organisation | undefined;
+    needsProject: boolean;
     selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
-    orgData,
+    needsProject,
     selectedWarehouse,
 }) => {
     const history = useHistory();
@@ -390,7 +391,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             <ProjectFormProvider>
                 <FormWrapper>
                     <ProjectForm
-                        showGeneralSettings={!orgData?.needsProject}
+                        showGeneralSettings={!needsProject}
                         disabled={isSaving || !!activeJobIsRunning}
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
@@ -398,14 +399,15 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 </FormWrapper>
             </ProjectFormProvider>
             <CompileProjectWrapper fixedButton>
-                <FormWrapper>
+                <CompileProjectFixedWidthContainer>
                     <CompileProjectButton
+                        large
                         type="submit"
                         intent={Intent.PRIMARY}
                         text="Test &amp; compile project"
                         loading={isSaving || activeJobIsRunning}
                     />
-                </FormWrapper>
+                </CompileProjectFixedWidthContainer>
             </CompileProjectWrapper>
         </FormContainer>
     );

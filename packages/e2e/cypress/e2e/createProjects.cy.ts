@@ -206,15 +206,17 @@ describe('Create projects', () => {
         cy.findByText('Project management').click();
         cy.findByText('Create new').click();
 
-        cy.url().should('include', '/createProject');
+        cy.url().should('include', '/createProject/cli');
 
-        cy.contains('Connect your project');
+        cy.contains('a', 'Create project manually');
     });
 
     it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('PostgreSQL').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+        cy.contains('button', 'PostgreSQL').click();
 
         cy.get('[name="name"]').clear().type('Jaffle PostgreSQL test');
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
@@ -231,7 +233,9 @@ describe('Create projects', () => {
 
         cy.visit(`/createProject`);
 
-        cy.contains('Redshift').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+        cy.contains('button', 'Redshift').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Redshift test');
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
@@ -244,7 +248,9 @@ describe('Create projects', () => {
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('BigQuery').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+        cy.contains('button', 'BigQuery').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Bigquery test');
         configureBigqueryWarehouse(warehouseConfig.bigQuery);
@@ -280,7 +286,9 @@ describe('Create projects', () => {
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('Databricks').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+        cy.contains('button', 'Databricks').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Databricks test');
         configureDatabricksWarehouse(warehouseConfig.databricks);
@@ -316,7 +324,9 @@ describe('Create projects', () => {
     it('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
 
-        cy.contains('Snowflake').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+        cy.contains('button', 'Snowflake').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Snowflake test');
         configureSnowflakeWarehouse(warehouseConfig.snowflake);

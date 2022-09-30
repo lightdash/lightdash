@@ -11,17 +11,12 @@ import { sanitizeStringParam } from '../utils';
 
 export const userRouter = express.Router();
 
-userRouter.get(
-    '/',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res) => {
-        res.json({
-            status: 'ok',
-            results: UserModel.lightdashUserFromSession(req.user!),
-        });
-    },
-);
+userRouter.get('/', allowApiKeyAuthentication, isAuthenticated, (req, res) => {
+    res.json({
+        status: 'ok',
+        results: UserModel.lightdashUserFromSession(req.user!),
+    });
+});
 
 userRouter.post('/', unauthorisedInDemo, async (req, res, next) => {
     try {

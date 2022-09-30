@@ -6,7 +6,7 @@ import {
     Intent,
     NonIdealState,
 } from '@blueprintjs/core';
-import { formatDate, PersonalAccessToken } from '@lightdash/common';
+import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import {
     useAccessToken,
@@ -26,7 +26,7 @@ import {
 } from './AccessTokens.styles';
 
 const TokenListItem: FC<{
-    token: PersonalAccessToken;
+    token: ApiPersonalAccessTokenResponse;
 }> = ({ token }) => {
     const { description, expiresAt, uuid } = token;
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -124,9 +124,7 @@ const AccessTokensPanel: FC = () => {
             {hasAvailableTokens ? (
                 <div>
                     {data?.map((token) => (
-                        <>
-                            <TokenListItem key={token.uuid} token={token} />
-                        </>
+                        <TokenListItem key={token.uuid} token={token} />
                     ))}
                 </div>
             ) : (

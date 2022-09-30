@@ -16,19 +16,28 @@ export const WarehouseLogo = styled.img`
 `;
 
 export const CompileProjectWrapper = styled.div<{ fixedButton?: boolean }>`
-    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
     position: sticky;
     background: ${Colors.WHITE};
     border-top: 1px solid ${Colors.LIGHT_GRAY1};
     bottom: 0;
     margin-top: auto;
-
+    padding: 20px 0;
     ${({ fixedButton }) =>
         fixedButton &&
         `
-        position: fixed;
-    `}
+            position: fixed;
+            z-index: 1;
+        `}
+`;
+
+export const CompileProjectFixedWidthContainer = styled.div`
+    width: 800px;
+    display: flex;
+    justify-content: flex-end;
 `;
 
 export const FormWrapper = styled.div`
@@ -36,12 +45,7 @@ export const FormWrapper = styled.div`
     margin: 0 auto;
 `;
 
-export const CompileProjectButton = styled(Button)`
-    height: 40px;
-    width: 215px;
-    float: right;
-    margin: 15px 0;
-`;
+export const CompileProjectButton = styled(Button)``;
 
 export const AdvancedButtonWrapper = styled.div`
     display: flex;

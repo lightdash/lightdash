@@ -17,7 +17,7 @@ import { TimeFrames } from '../types/timeFrames';
 export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
 
-const getDateFormat = (
+export const getDateFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
     let dateForm: string;

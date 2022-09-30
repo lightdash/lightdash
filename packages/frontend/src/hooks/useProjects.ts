@@ -1,5 +1,10 @@
 import { ApiError, OrganizationProject, ProjectType } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -10,11 +15,15 @@ const getProjectsQuery = async () =>
         body: undefined,
     });
 
-export const useProjects = () => {
+export const useProjects = (
+    useQueryOptions: UseQueryOptions<OrganizationProject[], ApiError> = {
+        retry: false,
+    },
+) => {
     return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
-        retry: false,
+        ...useQueryOptions,
     });
 };
 

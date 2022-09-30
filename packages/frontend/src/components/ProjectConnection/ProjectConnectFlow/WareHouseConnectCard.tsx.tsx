@@ -5,7 +5,6 @@ import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
 import Snowflake from './Assets/snowflake.svg';
-import InviteExpertFooter from './InviteExpertFooter';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,
@@ -24,7 +23,7 @@ export type SelectedWarehouse = {
 };
 interface Props {
     setWarehouse: (warehouse: SelectedWarehouse) => void;
-    showDemoLink?: boolean;
+    needsProject: boolean;
 }
 
 export const WarehouseTypeLabels = [
@@ -55,7 +54,7 @@ export const WarehouseTypeLabels = [
     },
 ];
 
-const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
+const WareHouseConnectCard: FC<Props> = ({ setWarehouse, needsProject }) => {
     const [warehouseInfo, setWarehouseInfo] = useState<
         SelectedWarehouse[] | undefined
     >();
@@ -69,6 +68,7 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
             <ConnectWarehouseWrapper>
                 <Title>Connect your project</Title>
                 <Subtitle>Select your warehouse:</Subtitle>
+
                 <WarehouseGrid>
                     {warehouseInfo?.map((item) => (
                         <WarehouseButton
@@ -83,7 +83,8 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
                         </WarehouseButton>
                     ))}
                 </WarehouseGrid>
-                {showDemoLink && (
+
+                {needsProject && (
                     <ExternalLink
                         href="https://demo.lightdash.com/"
                         target="_blank"
@@ -92,7 +93,6 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, showDemoLink }) => {
                     </ExternalLink>
                 )}
             </ConnectWarehouseWrapper>
-            {showDemoLink && <InviteExpertFooter />}
         </Wrapper>
     );
 };

@@ -507,6 +507,7 @@ export class UserModel {
             lightdashUser,
             projectRoles,
         );
+
         return {
             ...lightdashUser,
             abilityRules: abilityBuilder.rules,
