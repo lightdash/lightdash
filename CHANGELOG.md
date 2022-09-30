@@ -1,3 +1,10 @@
+# [0.270.0](https://github.com/lightdash/lightdash/compare/0.269.0...0.270.0) (2022-09-30)
+
+
+### Features
+
+* cli setup flow ([#3314](https://github.com/lightdash/lightdash/issues/3314)) ([3df0ac3](https://github.com/lightdash/lightdash/commit/3df0ac3992840425b802d5c1662b2d5827d7d2d2))
+
 # [0.269.0](https://github.com/lightdash/lightdash/compare/0.268.0...0.269.0) (2022-09-30)
 
 
