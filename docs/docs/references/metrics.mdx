@@ -1,6 +1,4 @@
----
-sidebar_position: 4
----
+import UnderlyingData from '../guides/assets/underlying-data.jpg';
 
 # Metrics reference sheet
 
@@ -168,7 +166,7 @@ Here are all of the properties you can customize:
 | format                                                            | No       | string                   | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                                                       |
 | group_label                                                       | No       | string                   | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                             |
 | [urls](./dimensions.mdx#urls)                                     | No       | Array of { url, label }  | Adding urls to a metric allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                |
-| [show_underlying_values](./dimensions.mdx#show-underlying-values) | No       | Array of dimension names | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                          |
+| [show_underlying_values](#show-underlying-values)                 | No       | Array of dimension names | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                          |
 
 ## Metric types
 
@@ -421,3 +419,39 @@ metrics:
     type: number
     sql: "(${num_unique_users} - ${growth_model.num_unique_users_lag_1d}) / NULLIF(${growth_model.num_unique_users_lag_1d}, 0)"
 ```
+
+## Show underlying values
+
+By default, we show all of the dimensions from the Table when you click `View underlying data`. If you have fields from a joined table included in your results table, then we'll also show you all of the fields from the joined Table.
+
+<img src={UnderlyingData} width="1103" height="580" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can limit which dimensions are shown for a field when a user clicks `View underlying data` by adding the list of dimensions to your `.yml` files:
+
+```yaml
+version: 2
+
+models:
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: user_id
+        description: "Unique ID for users."
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_users:
+              type: count_distinct
+              show_underlying_values:
+                - revenue_gbp_total_est
+                - actual_date
+                - web_sessions.session_id # field from joined table
+...
+```
+
+The list of fields must be made of dimension names (no metrics) from the base table or from any joined tables. To reference a field from a joined table, you just need to prefix the dimension name with the joined table name, like this: `my_joined_table_name.my_dimension`.
+
