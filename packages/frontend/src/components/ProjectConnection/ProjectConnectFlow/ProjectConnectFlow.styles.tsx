@@ -87,6 +87,7 @@ export const WarehouseIcon = styled.img`
 `;
 
 export const ExternalLink = styled.a`
+    margin-top: 20px;
     color: ${Colors.BLUE3};
 `;
 
