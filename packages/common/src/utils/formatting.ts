@@ -62,6 +62,9 @@ const getTimeFormat = (
         case TimeFrames.MINUTE:
             timeFormat = 'HH:mm';
             break;
+        case TimeFrames.SECOND:
+            timeFormat = 'HH:mm:ss';
+            break;
         default:
             timeFormat = 'HH:mm:ss:SSS';
             break;
