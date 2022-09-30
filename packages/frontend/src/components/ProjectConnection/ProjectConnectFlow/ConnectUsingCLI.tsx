@@ -44,20 +44,24 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 }) => {
     const history = useHistory();
     const initialProjectFetch = useRef(false);
-    const existingProjects = useRef<OrganizationProject[]>([]);
+    const existingProjects = useRef<OrganizationProject[]>();
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
 
     useProjects({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
+        retry: false,
         onSuccess: async (newProjects) => {
             if (!initialProjectFetch.current) {
                 existingProjects.current = newProjects;
                 initialProjectFetch.current = true;
             }
 
-            if (existingProjects.current.length < newProjects.length) {
+            if (
+                existingProjects.current &&
+                existingProjects.current.length < newProjects.length
+            ) {
                 const uuids = newProjects.map((p) => p.projectUuid);
                 const existingUuids = existingProjects.current.map(
                     (p) => p.projectUuid,
@@ -75,7 +79,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             }
         },
         onError: ({ error }) => {
-            if (error.statusCode === 400) {
+            if (error.statusCode === 404) {
                 existingProjects.current = [];
                 initialProjectFetch.current = true;
             }
