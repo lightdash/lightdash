@@ -15,6 +15,7 @@ export default defineConfig({
     },
     build: {
         outDir: 'build',
+        sourcemap: true,
         commonjsOptions: {
             exclude: ['lightdash/common'],
         },
