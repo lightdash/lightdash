@@ -983,7 +983,7 @@ export const EXPLORE_WITH_FILTERS: Explore = {
                     filters: [
                         {
                             id: 'filter1',
-                            target: { fieldId: 'table1_shared' },
+                            target: { fieldId: 'shared' },
                             operator: FilterOperator.INCLUDE,
                             values: ['foo'],
                         },
@@ -1040,13 +1040,13 @@ export const EXPLORE_WITH_FILTERS: Explore = {
                     filters: [
                         {
                             id: 'filter2_1',
-                            target: { fieldId: 'table2_dim2' },
+                            target: { fieldId: 'dim2' },
                             operator: FilterOperator.LESS_THAN,
                             values: [10],
                         },
                         {
                             id: 'filter2_2',
-                            target: { fieldId: 'table2_dim2' },
+                            target: { fieldId: 'dim2' },
                             operator: FilterOperator.GREATER_THAN,
                             values: [5],
                         },
