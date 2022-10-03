@@ -232,11 +232,13 @@ export class PostgresWarehouseClient
 {
     constructor(credentials: CreatePostgresCredentials) {
         super({
-            connectionString: `postgres://${credentials.user}:${
-                credentials.password
-            }@${credentials.host}:${credentials.port}/${
-                credentials.dbname
-            }?sslmode=${credentials.sslmode || 'prefer'}`,
+            connectionString: `postgres://${encodeURIComponent(
+                credentials.user,
+            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                credentials.host,
+            )}:${credentials.port}/${encodeURIComponent(
+                credentials.dbname,
+            )}?sslmode=${credentials.sslmode || 'prefer'}`,
         });
     }
 }
