@@ -1,3 +1,10 @@
+## [0.271.1](https://github.com/lightdash/lightdash/compare/0.271.0...0.271.1) (2022-10-03)
+
+
+### Bug Fixes
+
+* postgres password with special chars ([#3367](https://github.com/lightdash/lightdash/issues/3367)) ([b112fa8](https://github.com/lightdash/lightdash/commit/b112fa8e4d7176dde24a6a83fe991fbbfc84f61f))
+
 # [0.271.0](https://github.com/lightdash/lightdash/compare/0.270.0...0.271.0) (2022-09-30)
 
 
