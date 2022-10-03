@@ -96,7 +96,6 @@ const ResourceTable: FC<ResourceTableProps> = ({
     const enableSorting = enableSortingProp && resourceList.length > 1;
 
     const columns = useMemo(() => {
-        console.log(columnVisibility.get('space'));
         return [
             {
                 id: 'name',
