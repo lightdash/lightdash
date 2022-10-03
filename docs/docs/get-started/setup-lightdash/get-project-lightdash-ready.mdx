@@ -74,9 +74,16 @@ npm install -g @lightdash/cli
 
 ## Step 2: Login to the CLI
 
-On the onboarding screen, we've automatically generated a personal access token that you can use to login in to the CLI. So, you just need to copy-paste that `lightdash login ... --token xxxxx` command into your terminal to login.
+We've automatically generated a personal access token that you can use to login to the CLI, so you just need to copy-paste that command in your Terminal.
+
+It's Step 2. and should look something like this:
+
+```shell
+lightdash login https://app.lightdash.cloud --token my-super-secret-token 
+```
 
 If you want to login using another method, then you can check our docs here on [authenticating the CLI](/guides/cli/cli-authentication.mdx). 
+
 ---
 
 ## Step 3: Add Tables
@@ -100,7 +107,7 @@ For example, if we have a `projects.yml` file, we'd have a Table called `Project
 <img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 
-### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
+#### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
 <details>
   <summary>Generate Tables and dimensions for some of the models in my dbt project:</summary>
   There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
