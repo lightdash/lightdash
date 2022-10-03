@@ -1,4 +1,9 @@
-import { ForbiddenError, OnboardingStatus } from '@lightdash/common';
+import {
+    ForbiddenError,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
+    OnboardingStatus,
+} from '@lightdash/common';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
@@ -62,7 +67,11 @@ organizationRouter.post(
     unauthorisedInDemo,
     async (req, res, next) =>
         projectService
-            .create(req.user!, req.body)
+            .create(
+                req.user!,
+                req.body,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',
@@ -79,7 +88,11 @@ organizationRouter.post(
     unauthorisedInDemo,
     async (req, res, next) =>
         projectService
-            .createPreview(req.user!, req.body)
+            .createWithoutCompile(
+                req.user!,
+                req.body,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',

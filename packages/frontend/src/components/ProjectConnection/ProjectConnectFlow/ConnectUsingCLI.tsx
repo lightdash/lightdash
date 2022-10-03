@@ -6,6 +6,8 @@ import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
@@ -49,6 +51,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     const existingProjects = useRef<OrganizationProject[]>();
     const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
+    const { track } = useTracking();
 
     useProjects({
         refetchInterval: 3000,
@@ -108,6 +111,12 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     rightIcon="share"
                     href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
                     target="_blank"
+                    trackingEvent={{
+                        name: EventName.DOCUMENTATION_BUTTON_CLICKED,
+                        properties: {
+                            action: 'getting_started',
+                        },
+                    }}
                 >
                     Read more about getting started.
                 </LinkButton>
@@ -120,18 +129,20 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     <CopyToClipboard
                         text={codeBlock({ siteUrl, loginToken })}
                         options={{ message: 'Copied' }}
-                        onCopy={() =>
+                        onCopy={() => {
                             showToastSuccess({
                                 title: 'Commands copied to clipboard!',
-                            })
-                        }
+                            });
+                            track({
+                                name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED,
+                            });
+                        }}
                     >
                         <Button small minimal outlined icon="clipboard">
                             Copy
                         </Button>
                     </CopyToClipboard>
                 </Codeblock>
-
                 <StyledNonIdealState
                     title="Waiting for data"
                     icon="stopwatch"
@@ -142,6 +153,9 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 minimal
                 intent={Intent.PRIMARY}
                 href="/createProject/manual"
+                trackingEvent={{
+                    name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
+                }}
             >
                 Create project manually
             </LinkButton>

@@ -44,6 +44,8 @@ type GenericEvent = {
         | EventName.REMOVE_CUSTOM_METRIC_CLICKED
         | EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED
         | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
+        | EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED
+        | EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED
         | EventName.GO_TO_LINK_CLICKED;
     properties?: {};
 };
@@ -56,7 +58,8 @@ type DocumentationClickedEvent = {
             | 'save_chart'
             | 'run_query'
             | 'define_metrics'
-            | 'connect_project';
+            | 'connect_project'
+            | 'getting_started';
     };
 };
 
@@ -118,7 +121,7 @@ export type CrossFilterDashboardAppliedEvent = {
     };
 };
 
-type EventData =
+export type EventData =
     | GenericEvent
     | FormClickedEvent
     | SetupStepClickedEvent

@@ -1,9 +1,15 @@
-import { ApiError, ApiResponse } from '@lightdash/common';
+import {
+    ApiError,
+    ApiResponse,
+    LightdashRequestMethodHeader,
+    RequestMethod,
+} from '@lightdash/common';
 
 const apiPrefix = '/api/v1';
 
 const headers = {
     'Content-Type': 'application/json',
+    [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
 };
 
 const handleError = (err: any): ApiError => {

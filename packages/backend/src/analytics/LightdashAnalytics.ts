@@ -6,6 +6,7 @@ import {
     LightdashInstallType,
     LightdashUser,
     OrganizationMemberRole,
+    RequestMethod,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -171,6 +172,7 @@ type ProjectEvent = BaseTrack & {
         organizationId: string;
         dbtConnectionType: DbtProjectType;
         isPreview: boolean;
+        method: RequestMethod;
     };
 };
 

@@ -4,6 +4,8 @@ import {
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
     MetricQuery,
     ProjectCatalog,
     TablesConfiguration,
@@ -44,7 +46,12 @@ projectRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         projectService
-            .update(req.params.projectUuid, req.user!, req.body)
+            .update(
+                req.params.projectUuid,
+                req.user!,
+                req.body,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
+            )
             .then((results) => {
                 res.json({
                     status: 'ok',

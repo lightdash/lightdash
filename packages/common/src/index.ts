@@ -63,6 +63,7 @@ export * from './compiler/exploreCompiler';
 export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
+export * from './types/api';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/errors';
@@ -81,6 +82,7 @@ export * from './types/space';
 export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
+export * from './utils/api';
 export * from './utils/formatting';
 export * from './utils/timeFrames';
 
