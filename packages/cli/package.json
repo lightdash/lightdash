@@ -28,6 +28,7 @@
         "nunjucks": "^3.2.3",
         "ora": "5.4.1",
         "unique-names-generator": "^4.7.1",
+        "unixodbc": "2.3.11",
         "uuid": "^8.3.2"
     },
     "description": "Lightdash CLI tool",
