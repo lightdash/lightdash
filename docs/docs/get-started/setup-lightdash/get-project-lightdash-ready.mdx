@@ -3,6 +3,7 @@ import TablesView from './assets/tables-view.jpg';
 import ExampleTable from './assets/example-table.jpg';
 import Overview from './assets/overview-intro.png';
 import PersonalAccessToken from './assets/personal-access-token.png';
+import UpdateConnection from './assets/update-connection.jpg';
 
 # Create your first project in Lightdash
 
@@ -149,4 +150,11 @@ lightdash deploy --create
 
 ## Next steps: Update your project connection settings
 
-We create your first project using your local dbt `profiles.yml` file. So, you might want to update your connection settings to point to your production environment. You can read about [how to update your connection settings here](/get-started/setup-lightdash/connect-project.mdx).  
+We create your first project using your local dbt `profiles.yml` file. So, you might want to update your connection settings to:
+
+1. Set up a service account for Lightdash to run on (instead of using your personal connection details)
+2. Connect Lightdash to your version controlled dbt project so changes are automatically synced.
+
+Check out details on [updating your connection settings here](/get-started/setup-lightdash/connect-project.mdx).  
+
+<img src={UpdateConnection} width="1062" height="602" style={{display: "block", margin: "0 auto 20px auto"}}/>
