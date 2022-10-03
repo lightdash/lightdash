@@ -26,6 +26,7 @@
         "lodash": "^4.17.21",
         "node-fetch": "^2.6.1",
         "nunjucks": "^3.2.3",
+        "odbc": "^2.4.2",
         "ora": "5.4.1",
         "unique-names-generator": "^4.7.1",
         "uuid": "^8.3.2"
@@ -49,7 +50,6 @@
         "ts-jest": "^28.0.5",
         "ts-node": "^9.1.1",
         "typescript": "^4.2.3",
-        "unixodbc": "2.3.11"
     },
     "scripts": {
         "test": "jest",
