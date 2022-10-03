@@ -230,7 +230,7 @@ To fix this, we can add the quoted column to our `sql` meta tag on dimensions
   meta: 
     dimension: 
       type: string
-      sql: '"orders"."Status"'
+      sql: '"orders"."Status"' # you can also use '${TABLE}."Status"'
 
 ```
 
