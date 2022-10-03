@@ -1,3 +1,10 @@
+## [0.272.1](https://github.com/lightdash/lightdash/compare/0.272.0...0.272.1) (2022-10-03)
+
+
+### Bug Fixes
+
+* axis label timezone ([#3369](https://github.com/lightdash/lightdash/issues/3369)) ([2364c07](https://github.com/lightdash/lightdash/commit/2364c07788081d1a3791a665f6c0dd6572d556b5))
+
 # [0.272.0](https://github.com/lightdash/lightdash/compare/0.271.1...0.272.0) (2022-10-03)
 
 
