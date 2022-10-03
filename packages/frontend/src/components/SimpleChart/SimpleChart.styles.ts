@@ -7,6 +7,5 @@ export const ChartWrapper = styled.div`
 
 export const Chart = styled(EChartsReact)`
     height: 100% !important;
-    max-height: 300px;
     width: 100%;
 `;
