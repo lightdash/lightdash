@@ -1,3 +1,7 @@
+import {
+    getRequestMethod,
+    LightdashRequestMethodHeader,
+} from '@lightdash/common';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
@@ -142,7 +146,11 @@ userRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         personalAccessTokenService
-            .createPersonalAccessToken(req.user!, req.body)
+            .createPersonalAccessToken(
+                req.user!,
+                req.body,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
+            )
             .then((results) => res.json({ status: 'ok', results }))
             .catch(next);
     },
