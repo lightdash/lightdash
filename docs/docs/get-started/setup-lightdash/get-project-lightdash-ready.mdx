@@ -10,7 +10,7 @@ import PersonalAccessToken from './assets/personal-access-token.png';
 
 In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
-But, before you hook up your dbt project to Lightdash, we want to make sure it's ready for exploring. We'll walk you through the steps of installing + using the Lightdash CLI and generating the .yml you need for your dbt project.
+But, before you hook up your dbt project to Lightdash, we need to make sure we have Tables to explore. **In this setup guide, we'll walk you through the steps of installing + using the Lightdash CLI and creating the first Tables in your project.**
 
 :::tip
 
@@ -34,6 +34,8 @@ Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.g
 Here's an example of our `Community stats daily` model we've defined in dbt. In Lightdash, we can see it in our list of available Tables to explore.
 
 <img src={TablesView} width="920" height="391" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Now that we know what tables are, let's add some and create our first project!
 
 ---
 
@@ -71,55 +73,9 @@ npm install -g @lightdash/cli
 
 ## Step 2: Login to the CLI
 
-<details>
-  <summary>1. If you use your email + password in the browser, login with your email and password.</summary>
-  To login to your Lightdash instance run the following command and provide your login email and password:
+On the onboarding screen, we've automatically generated a personal access token that you can use to login in to the CLI. So, you just need to copy-paste that `lightdash login ... --token xxxxx` command into your terminal to login.
 
-  ```shell
-  lightdash login https://my-lightdash.domain.com
-  ```
-
-where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
-cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
-`lightdash login https://eu1.lightdash.com`.
-
-</details>
-
-<details>
-  <summary>2. If you use single sign-on (SSO) in the browser, login with a personal access token.</summary>
-  First, you'll need to create a new personal access token in the UI by going to Settings > Personal Access Tokens. 
-  You can't use an existing personal access token! You have to create a new one just for yourself.  
-
-  <img src={PersonalAccessToken} width="1304" height="517" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-  Then, run the following command in your project:
-
-  ```shell
-  lightdash login https://my-lightdash.domain.com --token
-  ```
-
-where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
-cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
-`lightdash login https://eu1.lightdash.com`.
-
-</details>
-
-<details>
-  <summary>3. If you're running in a CI/CD pipeline, login with environment variables</summary>
-
-You can use the following environment variables to authenticate yourself on each command:
-
-- **LIGHTDASH_API_KEY** a personal access token you can generate in the app under the user settings
-- **LIGHTDASH_URL** address for your running Lightdash instance
-
-Example:
-
-  ```shell
-  LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" lightdash preview
-  ```
-
-</details>
-
+If you want to login using another method, then you can check our docs here on [authenticating the CLI](/guides/cli/cli-authentication.mdx). 
 ---
 
 ## Step 3: Add Tables
