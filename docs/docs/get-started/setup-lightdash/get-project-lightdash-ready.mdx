@@ -3,6 +3,7 @@ import TablesView from './assets/tables-view.jpg';
 import ExampleTable from './assets/example-table.jpg';
 import Overview from './assets/overview-intro.png';
 import PersonalAccessToken from './assets/personal-access-token.png';
+import UpdateConnection from './assets/update-connection.jpg';
 
 # Create your first project in Lightdash
 
@@ -10,7 +11,7 @@ import PersonalAccessToken from './assets/personal-access-token.png';
 
 In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
-But, before you hook up your dbt project to Lightdash, we want to make sure it's ready for exploring. We'll walk you through the steps of installing + using the Lightdash CLI and generating the .yml you need for your dbt project.
+But, before you hook up your dbt project to Lightdash, we need to make sure we have Tables to explore. **In this setup guide, we'll walk you through the steps of installing + using the Lightdash CLI and creating the first Tables in your project.**
 
 :::tip
 
@@ -34,6 +35,8 @@ Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.g
 Here's an example of our `Community stats daily` model we've defined in dbt. In Lightdash, we can see it in our list of available Tables to explore.
 
 <img src={TablesView} width="920" height="391" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Now that we know what tables are, let's add some and create our first project!
 
 ---
 
@@ -71,54 +74,15 @@ npm install -g @lightdash/cli
 
 ## Step 2: Login to the CLI
 
-<details>
-  <summary>1. If you use your email + password in the browser, login with your email and password.</summary>
-  To login to your Lightdash instance run the following command and provide your login email and password:
+We've automatically generated a personal access token that you can use to login to the CLI, so you just need to copy-paste that command in your Terminal.
 
-  ```shell
-  lightdash login https://my-lightdash.domain.com
-  ```
+It's Step 2. and should look something like this:
 
-where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
-cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
-`lightdash login https://eu1.lightdash.com`.
+```shell
+lightdash login https://app.lightdash.cloud --token my-super-secret-token 
+```
 
-</details>
-
-<details>
-  <summary>2. If you use single sign-on (SSO) in the browser, login with a personal access token.</summary>
-  First, you'll need to create a new personal access token in the UI by going to Settings > Personal Access Tokens. 
-  You can't use an existing personal access token! You have to create a new one just for yourself.  
-
-  <img src={PersonalAccessToken} width="1304" height="517" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-  Then, run the following command in your project:
-
-  ```shell
-  lightdash login https://my-lightdash.domain.com --token
-  ```
-
-where `https://my-lightdash.domain.com` is the address for your running Lightdash instance. For example Lightdash
-cloud users in the US would type `lightdash login https://app.lightdash.cloud` if you're in Europe you'd type
-`lightdash login https://eu1.lightdash.com`.
-
-</details>
-
-<details>
-  <summary>3. If you're running in a CI/CD pipeline, login with environment variables</summary>
-
-You can use the following environment variables to authenticate yourself on each command:
-
-- **LIGHTDASH_API_KEY** a personal access token you can generate in the app under the user settings
-- **LIGHTDASH_URL** address for your running Lightdash instance
-
-Example:
-
-  ```shell
-  LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" lightdash preview
-  ```
-
-</details>
+If you want to login using another method, then you [can check out our authentication methods here](/guides/cli/cli-authentication.mdx). 
 
 ---
 
@@ -143,7 +107,7 @@ For example, if we have a `projects.yml` file, we'd have a Table called `Project
 <img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 
-### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
+#### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
 <details>
   <summary>Generate Tables and dimensions for some of the models in my dbt project:</summary>
   There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
@@ -168,17 +132,6 @@ For example, if we have a `projects.yml` file, we'd have a Table called `Project
   ```
 </details>
 
-<details>
-  <summary>Generate Tables and dimensions for my entire dbt project:</summary>
-  To do this, you just need to run the following on your command line:
-
-  ```shell
-  lightdash dbt run
-  ```
-
-  This command will run + generate tables for all of the models with `.yml` files. It will also generate dimensions for all of the columns in your dbt project. 
-</details>
-
 ---
 
 ## Step 4: Create your project
@@ -188,3 +141,16 @@ Now, your dbt project is Lightdash-ready! Just run this command and follow the l
 ```bash
 lightdash deploy --create
 ```
+
+---
+
+## Next steps: Update your project connection settings
+
+We create your first project using your local dbt `profiles.yml` file. So, you might want to update your connection settings to:
+
+1. Set up a service account for Lightdash to run on (instead of using your personal connection details)
+2. Connect Lightdash to your version controlled dbt project so changes are automatically synced.
+
+Check out details on [updating your connection settings here](/get-started/setup-lightdash/connect-project.mdx).  
+
+<img src={UpdateConnection} width="1062" height="602" style={{display: "block", margin: "0 auto 20px auto"}}/>
