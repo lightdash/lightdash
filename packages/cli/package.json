@@ -28,7 +28,6 @@
         "nunjucks": "^3.2.3",
         "ora": "5.4.1",
         "unique-names-generator": "^4.7.1",
-        "unixodbc": "2.3.11",
         "uuid": "^8.3.2"
     },
     "description": "Lightdash CLI tool",
@@ -49,7 +48,8 @@
         "prettier-plugin-organize-imports": "^2.3.4",
         "ts-jest": "^28.0.5",
         "ts-node": "^9.1.1",
-        "typescript": "^4.2.3"
+        "typescript": "^4.2.3",
+        "unixodbc": "2.3.11"
     },
     "scripts": {
         "test": "jest",
