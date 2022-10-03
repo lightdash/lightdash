@@ -34,37 +34,36 @@ export const convertBigquerySchema = async (
     }
     const getLocation = async () => {
         if (target.location) return target.location;
-        
-            const config = await getConfig();
 
-            switch (config.context?.serverUrl) {
-                case 'https://eu1.lightdash.cloud':
-                    console.error(
-                        `\n${styles.title(
-                            'Warning',
-                        )}: Missing location in profiles.yml, using EU by default`,
-                    );
+        const config = await getConfig();
 
-                    return 'EU';
-                case 'https://app.lightdash.cloud':
-                    console.error(
-                        `\n${styles.title(
-                            'Warning',
-                        )}: Missing location in profiles.yml, using US by default`,
-                    );
+        switch (config.context?.serverUrl) {
+            case 'https://eu1.lightdash.cloud':
+                console.error(
+                    `\n${styles.title(
+                        'Warning',
+                    )}: Missing location in profiles.yml, using EU by default`,
+                );
 
-                    return 'US';
-                default:
-                    console.error(
-                        `\n${styles.title(
-                            'Warning',
-                        )}: Missing location in profiles.yml and can't find valid serverUrl on config "${
-                            config.context?.serverUrl
-                        }", using US by default`,
-                    );
-                    return 'US';
-            }
-        
+                return 'EU';
+            case 'https://app.lightdash.cloud':
+                console.error(
+                    `\n${styles.title(
+                        'Warning',
+                    )}: Missing location in profiles.yml, using US by default`,
+                );
+
+                return 'US';
+            default:
+                console.error(
+                    `\n${styles.title(
+                        'Warning',
+                    )}: Missing location in profiles.yml and can't find valid serverUrl on config "${
+                        config.context?.serverUrl
+                    }", using US by default`,
+                );
+                return 'US';
+        }
     };
     return {
         type: WarehouseTypes.BIGQUERY,
