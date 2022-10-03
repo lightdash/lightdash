@@ -212,3 +212,34 @@ Filters can be used to make small transformations of your values:
 | append     | Append a string to another                                             | `${value.formatted \ | append: ".html"}`|
 
 There are [many more filters available in the Liquid documentation](https://liquidjs.com/filters/overview.html).
+
+
+### Using special characters on your column names
+
+If you use special characters on your column names,  you might get errors when using those columns on explore. 
+For example, having a column named `Status` with capital S on a table named `orders` in postgres throws the following error: 
+
+```
+column orders.status does not exist
+```
+
+To fix this, we can add the quoted column to our `sql` meta tag on dimensions 
+
+```
+- name: status
+  description: "{{ doc(\"orders_status\") }}"
+  meta: 
+    dimension: 
+      type: string
+      sql: '"orders"."Status"'
+
+```
+
+This will quote the `Status` columns on the SQL query 
+
+```
+SELECT
+  "orders".order_id AS "orders_order_id",
+  "orders"."Status" AS "orders_status"
+FROM "postgres"."jaffle"."orders" AS "orders"
+```
