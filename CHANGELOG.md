@@ -1,3 +1,10 @@
+# [0.272.0](https://github.com/lightdash/lightdash/compare/0.271.1...0.272.0) (2022-10-03)
+
+
+### Features
+
+* big charts on dashboards ([#3363](https://github.com/lightdash/lightdash/issues/3363)) ([f5237d5](https://github.com/lightdash/lightdash/commit/f5237d5f23d81f4bc962f8388a11d3137b3d8db7))
+
 ## [0.271.1](https://github.com/lightdash/lightdash/compare/0.271.0...0.271.1) (2022-10-03)
 
 
