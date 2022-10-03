@@ -287,10 +287,11 @@ export const buildQuery = ({
             hasExampleMetric = true;
         } else if (metric.filters !== undefined) {
             const conditions = metric.filters.map((filter) => {
-                const dimensionField = getDimensionFromId(
-                    filter.target.fieldId,
-                    explore,
-                );
+                const dimensionId = fieldId({
+                    table: metric.table,
+                    name: filter.target.fieldId,
+                });
+                const dimensionField = getDimensionFromId(dimensionId, explore);
                 if (!dimensionField) {
                     throw new Error(
                         `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
