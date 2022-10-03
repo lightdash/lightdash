@@ -519,7 +519,7 @@ const getEchartAxis = ({
         if (field && (hasFormatOrRound || axisMinInterval)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
-                    return formatItemValue(field, value);
+                    return formatItemValue(field, value, true);
                 },
             };
         }
