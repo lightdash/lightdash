@@ -1,12 +1,13 @@
 import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import LinkButton from '../../common/LinkButton';
 import ResourceList from '../../common/ResourceList';
+import { SortDirection } from '../../common/ResourceList/ResourceTable';
 
 interface Props {
     projectUuid: string;
@@ -17,17 +18,6 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
     const history = useHistory();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
-
-    const featuredCharts = useMemo(() => {
-        return savedCharts
-            .sort((a, b) => {
-                return (
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime()
-                );
-            })
-            .slice(0, 5);
-    }, [savedCharts]);
 
     const userCanManageCharts = user.data?.ability?.can(
         'manage',
@@ -45,9 +35,11 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
         <ResourceList
             resourceIcon="chart"
             resourceType="chart"
-            resourceList={featuredCharts}
-            showSpaceColumn
+            resourceList={savedCharts}
             enableSorting={false}
+            defaultSort={{
+                updatedAt: SortDirection.DESC,
+            }}
             showCount={false}
             getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
             headerTitle="Recently updated charts"

@@ -14,6 +14,7 @@ import {
     ResourceBreadcrumbTitle,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
+import { SortDirection } from '../components/common/ResourceList/ResourceTable';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
@@ -128,7 +129,9 @@ const SavedDashboards = () => {
                     resourceType="dashboard"
                     resourceIcon="control"
                     resourceList={dashboards}
-                    showSpaceColumn
+                    defaultSort={{
+                        updatedAt: SortDirection.DESC,
+                    }}
                     onClickCTA={
                         !isDemo && !hasNoSpaces && userCanManageDashboards
                             ? handleCreateDashboard

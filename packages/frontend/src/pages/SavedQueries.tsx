@@ -15,6 +15,7 @@ import {
     ResourceBreadcrumbTitle,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
+import { SortDirection } from '../components/common/ResourceList/ResourceTable';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
@@ -95,7 +96,9 @@ const SavedQueries: FC = () => {
                     resourceIcon="chart"
                     resourceType="chart"
                     resourceList={savedQueries}
-                    showSpaceColumn
+                    defaultSort={{
+                        updatedAt: SortDirection.DESC,
+                    }}
                     onClickCTA={
                         !isDemo && userCanManageCharts
                             ? handleCreateChart
