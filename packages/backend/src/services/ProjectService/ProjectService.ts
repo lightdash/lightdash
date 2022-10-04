@@ -37,6 +37,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    RequestMethod,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -119,9 +120,10 @@ export class ProjectService {
         return project;
     }
 
-    async createPreview(
+    async createWithoutCompile(
         user: SessionUser,
         data: CreateProject,
+        method: RequestMethod,
     ): Promise<Project> {
         if (
             user.ability.cannot('create', 'Job') ||
@@ -152,7 +154,8 @@ export class ProjectService {
                 warehouseConnectionType: data.warehouseConnection.type,
                 organizationId: user.organizationUuid,
                 dbtConnectionType: data.dbtConnection.type,
-                isPreview: true,
+                isPreview: data.type === ProjectType.PREVIEW,
+                method,
             },
         });
 
@@ -162,6 +165,7 @@ export class ProjectService {
     async create(
         user: SessionUser,
         data: CreateProject,
+        method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         if (
             user.ability.cannot('create', 'Job') ||
@@ -240,6 +244,7 @@ export class ProjectService {
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
                         isPreview: data.type === ProjectType.PREVIEW,
+                        method,
                     },
                 });
                 this.projectAdapters[projectUuid] = adapter;
@@ -272,6 +277,7 @@ export class ProjectService {
         projectUuid: string,
         user: SessionUser,
         data: UpdateProject,
+        method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
@@ -346,6 +352,7 @@ export class ProjectService {
                         organizationId: user.organizationUuid,
                         dbtConnectionType: data.dbtConnection.type,
                         isPreview: savedProject.type === ProjectType.PREVIEW,
+                        method,
                     },
                 });
                 if (this.projectAdapters[projectUuid] !== undefined)

@@ -4,6 +4,8 @@ import {
     ApiResponse,
     AuthorizationError,
     LightdashError,
+    LightdashRequestMethodHeader,
+    RequestMethod,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
@@ -34,6 +36,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     const headers = {
         'Content-Type': 'application/json',
         Authorization: `ApiKey ${config.context.apiKey}`,
+        [LightdashRequestMethodHeader]: RequestMethod.CLI,
     };
     const fullUrl = new URL(url, config.context.serverUrl).href;
     if (verbose) console.error(`> Making HTTP query to: ${fullUrl}`);
