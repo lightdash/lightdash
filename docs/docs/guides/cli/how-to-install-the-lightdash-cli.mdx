@@ -9,22 +9,57 @@ To install the Lightdash CLI, run the following on your command line.
 npm install -g @lightdash/cli
 ```
 
-If you see any errors, you might need to install an extra package:
+## Installing ODBC dependency
 
-  **Mac OS**
+If you see any errors installing Lightdash CLI, you might need to install an extra package called `unixodbc`:
 
-  ```shell
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" # install homebrew if you don't have it
-  brew install unixodbc
-  npm install -g @lightdash/cli
-  ```
+### Installing unixodbc on Ubuntu/Debian
 
-  **Ubuntu**
+```
+sudo apt-get install unixodbc unixodbc-dev
+```
 
-  ```shell
-  sudo apt install unixodbc
-  npm install -g @lightdash/cli
-  ```
+### Installing unixodbc on RedHat/CentOS
+
+```
+sudo yum install unixODBC unixODBC-devel
+```
+
+### Installing unixodbc on OSX 
+
+If you  are using `macports.org` you can install unixODBC by doing: 
+
+```
+sudo port unixODBC
+```
+
+If you are using `brew` you can install unixODBC by doin: 
+
+```
+brew install unixODBC
+```
+
+If you don't have brew, you can install brew by doing: 
+
+```
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+### Installing unixodbc on FreeBSD 
+
+```
+cd /usr/ports/databases/unixODBC; make install
+```
+
+### Installing unixodbc on IBM 
+
+```
+i yum install unixODBC unixODBC-devel
+```
+
+Then you can install Lightdash CLI again `npm install -g @lightdash/cli`
+
+See https://www.npmjs.com/package/odbc for more details. 
 
 ## Once you've installed the CLI tool, [you'll want to authenticate it](/guides/cli/cli-authentication)
 
