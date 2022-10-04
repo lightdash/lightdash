@@ -54,7 +54,7 @@ export const StyledSuccessIcon = styled(Icon)`
 `;
 
 export const StyledNonIdealState = styled(NonIdealState)`
-    margin-top: 30px;
+    margin-top: 15px;
 
     svg {
         fill-opacity: unset !important;
@@ -95,13 +95,17 @@ export const RadioButton = styled(Radio)`
     text-align: left;
 `;
 
+export const CodeLabel = styled.p`
+    text-align: left;
+    color: ${Colors.GRAY1};
+    margin-top: 10px;
+    margin-bottom: 10px;
+`;
+
 export const Codeblock = styled.div`
     position: relative;
-    margin-left: -15px;
-    margin-right: -15px;
     margin-bottom: 8px;
     background: #ebf1f5;
-    width: calc(100% + 30px);
     border-radius: 3px;
     text-align: initial;
 
@@ -121,4 +125,11 @@ export const Codeblock = styled.div`
 
 export const ButtonsWrapper = styled.div`
     margin: 10px 0;
+`;
+
+export const FormFooterCopy = styled.p`
+    width: 400px;
+    margin: 35px auto 0;
+    color: ${Colors.GRAY2};
+    text-align: center;
 `;

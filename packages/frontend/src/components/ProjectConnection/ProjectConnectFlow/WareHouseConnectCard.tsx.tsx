@@ -5,6 +5,7 @@ import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
 import Snowflake from './Assets/snowflake.svg';
+import InviteExpertFooter from './InviteExpertFooter';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,
@@ -93,6 +94,8 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, needsProject }) => {
                     </ExternalLink>
                 )}
             </ConnectWarehouseWrapper>
+
+            <InviteExpertFooter />
         </Wrapper>
     );
 };
