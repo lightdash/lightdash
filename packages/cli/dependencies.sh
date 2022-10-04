@@ -7,11 +7,19 @@ GRAY='\033[0;37m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 
-if [ -f "/etc/odbcinst.ini" ]; then
+has_cmd() {
+    command -v "$1" > /dev/null 2>&1
+}
+# Check whether 'wget' command exists.
+has_odbcinst() {
+    has_cmd "odbcinst"
+}
+
+if has_odbcinst; then
     echo "Dependency ODBC exists"
 else 
     echo ""
-    echo -e "${YELLOW}warning:${NOCOLOR} Can't find ODBC drivers, you must install ODBC dependencies beforre installing ${GREEN}Lightdash CLI${NOCOLOR}"
+    echo -e "${YELLOW}warning:${NOCOLOR} Can't find ODBC drivers, you must install ODBC dependencies before installing ${GREEN}Lightdash CLI${NOCOLOR}"
     echo ""
     echo -e "- on Ubuntu/Debian: ${GRAY}sudo apt-get install unixodbc unixodbc-dev${NOCOLOR}"
     echo -e "- on RedHat/CentOS: ${GRAY} sudo yum install unixODBC unixODBC-devel${NOCOLOR}"
