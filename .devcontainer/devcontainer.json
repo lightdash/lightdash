@@ -4,7 +4,7 @@
   "service": "lightdash-dev",
   "workspaceFolder": "/workspaces/lightdash",
   "shutdownAction": "stopCompose",
-  "postCreateCommand": "git submodule update --init && ./docker/scripts/build.sh && ./docker/scripts/seed-jaffle.sh && ./docker/scripts/migrate.sh && ./docker/scripts/seed-lightdash.sh",
+  "postCreateCommand": "git submodule update --init && ./scripts/build.sh && ./scripts/seed-jaffle.sh && ./scripts/migrate.sh && ./scripts/seed-lightdash.sh",
   "forwardPorts": [3000, 8080],
   "remoteEnv": {
     "LIGHTDASH_CONFIG_FILE": "/workspaces/lightdash/lightdash.yml",

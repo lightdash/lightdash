@@ -15,7 +15,7 @@ But, before you hook up your dbt project to Lightdash, we need to make sure we h
 
 :::tip
 
-**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up) 
+**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up)
 before proceeding with setting up Lightdash.
 
 :::
@@ -24,7 +24,7 @@ before proceeding with setting up Lightdash.
 
 Tables are the starting point to any data exploration in Lightdash - they're the data in Lightdash that you can query. The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
 
-If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table. 
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table.
 
 :::tip
 
@@ -57,7 +57,7 @@ npm install -g @lightdash/cli
 
 
   ```shell
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" # install homebrew if you don't have it
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/scripts/install.sh)" # install homebrew if you don't have it
   brew install unixodbc
   npm install -g @lightdash/cli
   ```
@@ -79,10 +79,10 @@ We've automatically generated a personal access token that you can use to login 
 It's Step 2. and should look something like this:
 
 ```shell
-lightdash login https://app.lightdash.cloud --token my-super-secret-token 
+lightdash login https://app.lightdash.cloud --token my-super-secret-token
 ```
 
-If you want to login using another method, then you [can check out our authentication methods here](/guides/cli/cli-authentication.mdx). 
+If you want to login using another method, then you [can check out our authentication methods here](/guides/cli/cli-authentication.mdx).
 
 ---
 
@@ -151,6 +151,6 @@ We create your first project using your local dbt `profiles.yml` file. So, you m
 1. Set up a service account for Lightdash to run on (instead of using your personal connection details)
 2. Connect Lightdash to your version controlled dbt project so changes are automatically synced.
 
-Check out details on [updating your connection settings here](/get-started/setup-lightdash/connect-project.mdx).  
+Check out details on [updating your connection settings here](/get-started/setup-lightdash/connect-project.mdx).
 
 <img src={UpdateConnection} width="1062" height="602" style={{display: "block", margin: "0 auto 20px auto"}}/>

@@ -90,7 +90,7 @@ for more details.
 ```bash
 git clone https://github.com/lightdash/lightdash
 cd lightdash
-./install.sh
+./scripts/install.sh
 ```
 
 ### Deploy to production

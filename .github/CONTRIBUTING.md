@@ -198,17 +198,7 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 ## Setup Development Environment
 
-#### Environment variables in development
-
-When developing, you must activate the `./docker/.env` environment variable file, which configures Lightdash to run
-in development mode. The following two guides will set this up correctly but if you're manually creating a
-development environment you must run:
-
-```shell
-source ./docker/.env
-```
-
-#### Github Codespaces / VS Code Remote Containers
+#### using Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
 This provides:
@@ -234,7 +224,7 @@ yarn workspace backend seed
 yarn dev
 ```
 
-#### Docker compose
+#### using Docker compose
 
 Alternatively you can create a developer environment using docker compose:
 
@@ -248,8 +238,7 @@ git submodule update --init --recursive
 # Create docker containers
 Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
 
-cd docker
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env up --detach --remove-orphans 
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env up --detach --remove-orphans
 ```
 
 When ready, access the development container and run these commands:
@@ -259,20 +248,20 @@ When ready, access the development container and run these commands:
 docker exec -it lightdash-app-lightdash-dev-1 bash
 
 # Install dependencies & build common package
-./docker/scripts/build.sh
+./scripts/build.sh
 
 # Setup dbt
-./docker/scripts/seed-jaffle.sh
+./scripts/seed-jaffle.sh
 
 # Setup the database
-./docker/scripts/migrate.sh
-./docker/scripts/seed-lightdash.sh
+./scripts/migrate.sh
+./scripts/seed-lightdash.sh
 
 # Run Lightdash frontend and backend in dev mode
 yarn dev # http://localhost:3000
 
 # Log in dev mode
-When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details: 
+When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
 
 Username: demo@lightdash.com
 Password: demo_password!
@@ -291,14 +280,71 @@ Notes:
 When you want to stop:
 
 ```shell
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env stop
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env stop
 ```
 
 When you want to start:
 
 ```shell
-docker compose -p lightdash-app -f docker-compose.dev.yml --env-file .env start
+docker compose -p lightdash-app -f docker/docker-compose.dev.yml --env-file .env start
 ```
+
+#### Setup Development Environment without Docker
+
+To setup Development Environment without Docker you need following pre-requisits before running Lightdash:
+- node 14.x <= version <= 16.x
+- yarn
+- postgres
+- dbt
+- unixODBC
+
+eg. on MacOS you can follow this instructions:
+
+```shell
+#1 install brew (https://brew.sh)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+#2 install node 16x using NVM (https://github.com/nvm-sh/nvm)
+nvm install v16.17.0`
+nvm alias default v16.17.0`
+
+#3 install postgres (https://wiki.postgresql.org/wiki/Homebrew)
+brew install postgresql@14
+brew services start postgresql@14
+
+#4 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
+brew install dbt-labs/dbt/dbt-postgres@1.1.0
+
+#5 before running `yarn` install ODBC library which is required by [node-odbc](https://github.com/wankdanker/node-odbc)
+brew install unixODBC
+
+#6 install packages
+yarn
+
+#7 create `.env.local` and override any variables you need to change from `.env`
+touch .env.local
+open .env.local -t
+
+# here is a sample content of the `.env.local` file
+PGHOST=localhost
+PGPORT=5432
+PGUSER=pg_user
+PGPASSWORD=pg_password
+PGDATABASE=postgres
+DBT_DEMO_DIR=/path/to/the/lightdash/project/examples/full-jaffle-shop-demo
+LIGHTDASH_CONFIG_FILE=/path/to/the/lightdash/project/lightdash.yml
+
+#8 build / migrate / seed
+yarn load:env ./scripts/build.sh
+yarn load:env ./scripts/seed-jaffle.sh
+yarn load:env ./scripts/migrate.sh
+yarn load:env ./scripts/seed-lightdash.sh
+
+#9 run
+yarn load:env yarn dev
+```
+
+> ⚠️ you can add env variables to your system and ignore running `yarn load:env` before each command
 
 #### How to run unit tests
 
