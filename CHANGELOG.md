@@ -1,3 +1,10 @@
+# [0.274.0](https://github.com/lightdash/lightdash/compare/0.273.0...0.274.0) (2022-10-04)
+
+
+### Features
+
+* warn when cloud server is not valid ([#3387](https://github.com/lightdash/lightdash/issues/3387)) ([3ac0501](https://github.com/lightdash/lightdash/commit/3ac0501b9ceabcf50900b2c2b5ecf3e29576ece7))
+
 # [0.273.0](https://github.com/lightdash/lightdash/compare/0.272.1...0.273.0) (2022-10-04)
 
 
