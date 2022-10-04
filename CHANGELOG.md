@@ -1,3 +1,18 @@
+# [0.273.0](https://github.com/lightdash/lightdash/compare/0.272.1...0.273.0) (2022-10-04)
+
+
+### Bug Fixes
+
+* do not skip onboarding screens from the cli ([#3381](https://github.com/lightdash/lightdash/issues/3381)) ([0353285](https://github.com/lightdash/lightdash/commit/0353285848c1475566f2a7bb9be35cfe43f2d9f4))
+* fix verbose flag on dbt commands ([#3384](https://github.com/lightdash/lightdash/issues/3384)) ([8cdea08](https://github.com/lightdash/lightdash/commit/8cdea08e2157229c4cbac9a724933437f1f2a81d))
+* get default bigquery location if missing in profiles ([#3375](https://github.com/lightdash/lightdash/issues/3375)) ([cce2a1e](https://github.com/lightdash/lightdash/commit/cce2a1e036461e3fbce8cae34196db5ec11f609c))
+
+
+### Features
+
+* move up link to docs ([#3382](https://github.com/lightdash/lightdash/issues/3382)) ([ab16a90](https://github.com/lightdash/lightdash/commit/ab16a909b6157f9768fccb9b31e7aa3d7fefc9bd))
+* resource list default sort ([#3359](https://github.com/lightdash/lightdash/issues/3359)) ([ed6c1eb](https://github.com/lightdash/lightdash/commit/ed6c1ebbc69f87f91c4847fa57482c9e9f06f052))
+
 ## [0.272.1](https://github.com/lightdash/lightdash/compare/0.272.0...0.272.1) (2022-10-03)
 
 
