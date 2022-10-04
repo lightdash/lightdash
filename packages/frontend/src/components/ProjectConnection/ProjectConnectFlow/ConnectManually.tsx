@@ -7,6 +7,7 @@ import {
     CreateHeaderWrapper,
     CreateProjectWrapper,
 } from '../../../pages/CreateProject.styles';
+import InviteExpertFooter from './InviteExpertFooter';
 import {
     ButtonsWrapper,
     Codeblock,
@@ -87,6 +88,8 @@ const DimensionCard: FC<DimensionCardProps> = ({
                     onClick={handleSubmit}
                 />
             </ConnectWarehouseWrapper>
+
+            <InviteExpertFooter />
         </Wrapper>
     );
 };

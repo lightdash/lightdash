@@ -7,8 +7,10 @@ import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
 import LinkButton from '../../common/LinkButton';
+import InviteExpertFooter from './InviteExpertFooter';
 import {
     Codeblock,
+    CodeLabel,
     ConnectWarehouseWrapper,
     StyledNonIdealState,
     Subtitle,
@@ -100,6 +102,18 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     our CLI tool.
                 </Subtitle>
 
+                <LinkButton
+                    minimal
+                    intent={Intent.PRIMARY}
+                    rightIcon="share"
+                    href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
+                    target="_blank"
+                >
+                    Read more about getting started.
+                </LinkButton>
+
+                <CodeLabel>In your Terminal, run:</CodeLabel>
+
                 <Codeblock>
                     <pre>{codeBlock({ siteUrl, loginToken })}</pre>
 
@@ -118,16 +132,6 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     </CopyToClipboard>
                 </Codeblock>
 
-                <LinkButton
-                    minimal
-                    intent={Intent.PRIMARY}
-                    rightIcon="share"
-                    href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
-                    target="_blank"
-                >
-                    Read more about getting started.
-                </LinkButton>
-
                 <StyledNonIdealState
                     title="Waiting for data"
                     icon="stopwatch"
@@ -141,6 +145,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             >
                 Create project manually
             </LinkButton>
+
+            <InviteExpertFooter />
         </Wrapper>
     );
 };

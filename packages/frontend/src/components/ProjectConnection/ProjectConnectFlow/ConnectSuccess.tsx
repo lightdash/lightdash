@@ -1,6 +1,7 @@
 import { Colors } from '@blueprintjs/core';
 import { FC } from 'react';
 import LinkButton from '../../common/LinkButton';
+import InviteExpertFooter from './InviteExpertFooter';
 import {
     ConnectWarehouseWrapper,
     StyledSuccessIcon,
@@ -32,6 +33,8 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                     Let's do some data!
                 </LinkButton>
             </ConnectWarehouseWrapper>
+
+            <InviteExpertFooter />
         </Wrapper>
     );
 };
