@@ -1,3 +1,15 @@
+# [0.275.0](https://github.com/lightdash/lightdash/compare/0.274.0...0.275.0) (2022-10-04)
+
+
+### Bug Fixes
+
+* await cli error events ([#3388](https://github.com/lightdash/lightdash/issues/3388)) ([b6e06be](https://github.com/lightdash/lightdash/commit/b6e06be8488b00d6800eb8d55d8a0faf48e664b7))
+
+
+### Features
+
+* add back navigation ([#3386](https://github.com/lightdash/lightdash/issues/3386)) ([6154036](https://github.com/lightdash/lightdash/commit/6154036e1faa195caee725d640b08cbadb8fc4e7))
+
 # [0.274.0](https://github.com/lightdash/lightdash/compare/0.273.0...0.274.0) (2022-10-04)
 
 
