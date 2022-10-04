@@ -29,7 +29,7 @@ export const Subtitle = styled.p`
     margin: 0 0 25px;
 `;
 
-export const BackToWarehouseButton = styled(SimpleButton)`
+export const BackButton = styled(SimpleButton)`
     width: fit-content;
     padding-left: 0;
     margin-bottom: 10px;

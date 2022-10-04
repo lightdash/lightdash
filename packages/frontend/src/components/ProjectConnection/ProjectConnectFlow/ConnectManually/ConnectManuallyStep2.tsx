@@ -1,11 +1,13 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
-import BigQuery from './Assets/bigquery.svg';
-import Databricks from './Assets/databricks.svg';
-import PostgressLogo from './Assets/postgresql.svg';
-import Redshift from './Assets/redshift.svg';
-import Snowflake from './Assets/snowflake.svg';
-import InviteExpertFooter from './InviteExpertFooter';
+import { SelectedWarehouse } from '.';
+import { BackButton } from '../../../../pages/CreateProject.styles';
+import InviteExpertFooter from '../InviteExpertFooter';
+import BigQuery from './../Assets/bigquery.svg';
+import Databricks from './../Assets/databricks.svg';
+import PostgressLogo from './../Assets/postgresql.svg';
+import Redshift from './../Assets/redshift.svg';
+import Snowflake from './../Assets/snowflake.svg';
 import {
     ConnectWarehouseWrapper,
     ExternalLink,
@@ -15,17 +17,7 @@ import {
     WarehouseGrid,
     WarehouseIcon,
     Wrapper,
-} from './ProjectConnectFlow.styles';
-
-export type SelectedWarehouse = {
-    label: string;
-    key: WarehouseTypes;
-    icon: string;
-};
-interface Props {
-    setWarehouse: (warehouse: SelectedWarehouse) => void;
-    needsProject: boolean;
-}
+} from './../ProjectConnectFlow.styles';
 
 export const WarehouseTypeLabels = [
     {
@@ -55,17 +47,27 @@ export const WarehouseTypeLabels = [
     },
 ];
 
-const WareHouseConnectCard: FC<Props> = ({ setWarehouse, needsProject }) => {
+interface ConnectManuallyStep2Props {
+    needsProject: boolean;
+    onSelectWarehouse: (warehouse: SelectedWarehouse) => void;
+    onBack: () => void;
+}
+
+const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
+    needsProject,
+    onSelectWarehouse,
+    onBack,
+}) => {
     const [warehouseInfo, setWarehouseInfo] = useState<
         SelectedWarehouse[] | undefined
     >();
 
-    useMemo(() => {
-        setWarehouseInfo(WarehouseTypeLabels);
-    }, []);
+    useMemo(() => setWarehouseInfo(WarehouseTypeLabels), []);
 
     return (
         <Wrapper>
+            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
+
             <ConnectWarehouseWrapper>
                 <Title>Connect your project</Title>
                 <Subtitle>Select your warehouse:</Subtitle>
@@ -78,7 +80,7 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, needsProject }) => {
                             icon={
                                 <WarehouseIcon src={item.icon} alt={item.key} />
                             }
-                            onClick={() => setWarehouse(item)}
+                            onClick={() => onSelectWarehouse(item)}
                         >
                             {item.label}
                         </WarehouseButton>
@@ -99,4 +101,4 @@ const WareHouseConnectCard: FC<Props> = ({ setWarehouse, needsProject }) => {
         </Wrapper>
     );
 };
-export default WareHouseConnectCard;
+export default ConnectManuallyStep2;
