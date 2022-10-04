@@ -100,7 +100,7 @@ export const previewHandler = async (
         return;
     }
 
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'preview.started',
         properties: {
             projectId: project.projectUuid,
@@ -163,7 +163,7 @@ export const previewHandler = async (
             url: `/api/v1/org/projects/${project.projectUuid}`,
             body: undefined,
         });
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'preview.error',
             properties: {
                 projectId: project.projectUuid,
@@ -179,7 +179,7 @@ export const previewHandler = async (
         url: `/api/v1/org/projects/${project.projectUuid}`,
         body: undefined,
     });
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'preview.completed',
         properties: {
             projectId: project.projectUuid,
@@ -205,7 +205,7 @@ export const startPreviewHandler = async (
         options.verbose,
     );
     if (previewProject) {
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'start_preview.update',
             properties: {
                 projectId: previewProject.projectUuid,
@@ -241,7 +241,7 @@ export const startPreviewHandler = async (
             }
             return;
         }
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'start_preview.create',
             properties: {
                 projectId: project.projectUuid,
@@ -270,7 +270,7 @@ export const stopPreviewHandler = async (
         options.verbose,
     );
     if (previewProject) {
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'stop_preview.delete',
             properties: {
                 projectId: previewProject.projectUuid,
@@ -287,7 +287,7 @@ export const stopPreviewHandler = async (
             `Successfully deleted preview project named ${projectName}`,
         );
     } else {
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'stop_preview.missing',
             properties: {
                 name: options.name,

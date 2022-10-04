@@ -26,7 +26,7 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
 };
 export const compile = async (options: GenerateHandlerOptions) => {
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'compile.started',
         properties: {},
     });
@@ -54,7 +54,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const typedModels = attachTypesToModels(models, catalog, false);
     if (!isSupportedDbtAdapter(manifest.metadata)) {
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'compile.error',
             properties: {
                 error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
@@ -71,7 +71,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
         Object.values(manifest.metrics),
     );
 
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {},
     });
