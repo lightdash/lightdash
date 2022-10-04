@@ -23,10 +23,16 @@ export const dbtRunHandler = async (
             command: `${command.parent.args}`,
         },
     });
+
+    const commands = command.parent.args.reduce((acc: any, arg: any) => {
+        if (arg === '--verbose') return acc;
+        return [...acc, arg];
+    }, []);
+
+    if (options.verbose) console.error(`> Running DBT command: ${commands}`);
+
     try {
-        if (options.verbose)
-            console.error(`> Running DBT command: ${command.parent.args}`);
-        const subprocess = execa('dbt', command.parent.args, {
+        const subprocess = execa('dbt', commands, {
             stdio: 'inherit',
         });
         await subprocess;
@@ -34,7 +40,7 @@ export const dbtRunHandler = async (
         LightdashAnalytics.track({
             event: 'dbt_command.error',
             properties: {
-                command: `${command.parent.args}`,
+                command: `${commands}`,
                 error: `${e.message}`,
             },
         });
