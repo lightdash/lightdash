@@ -325,7 +325,7 @@ yarn
 touch .env.local
 open .env.local -t
 
-# here is an sample content of the `.env.local` file
+# here is a sample content of the `.env.local` file
 PGHOST=localhost
 PGPORT=5432
 PGUSER=pg_user
