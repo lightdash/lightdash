@@ -27,7 +27,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                 <LinkButton
                     large
                     intent="primary"
-                    href={`/projects/${projectUuid}`}
+                    href={`/projects/${projectUuid}/home`}
                 >
                     Let's do some data!
                 </LinkButton>
