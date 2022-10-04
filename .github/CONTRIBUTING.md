@@ -299,27 +299,50 @@ To setup Development Environment without Docker you need following pre-requisits
 - unixODBC
 
 eg. on MacOS you can follow this instructions:
-1. install [brew](https://brew.sh)
-2. install node 16x using [nvm](https://github.com/nvm-sh/nvm)
-  - `nvm install v16.17.0`
-  - `nvm alias default v16.17.0`
-3. install postgres
-  - `brew install postgresql@14`
-4. [install dbt](https://docs.getdbt.com/dbt-cli/install/homebrew)
-  - `brew install dbt-labs/dbt/dbt-postgres@1.1.0`
-5. before running yarn install ODBC library (required by [node-odbc](https://github.com/wankdanker/node-odbc))
-  - `brew install unixODBC`
-6. install packages
-  - `yarn`
-7. copy `.env` file as `.env.local` and override any variables you need to change
-  - `cp .env .env.local`
-8. build / migrate / seed
-  - `yarn load:env ./scripts/build.sh`
-  - `yarn load:env ./scripts/seed-jaffle.sh`
-  - `yarn load:env ./scripts/migrate.sh`
-  - `yarn load:env ./scripts/seed-lightdash.sh`
-9. run
-  - `yarn load:env yarn dev`
+
+```shell
+#1 install brew (https://brew.sh)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+#2 install node 16x using NVM (https://github.com/nvm-sh/nvm)
+nvm install v16.17.0`
+nvm alias default v16.17.0`
+
+#3 install postgres (https://wiki.postgresql.org/wiki/Homebrew)
+brew install postgresql@14
+brew services start postgresql@14
+
+#4 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
+brew install dbt-labs/dbt/dbt-postgres@1.1.0
+
+#5 before running `yarn` install ODBC library which is required by [node-odbc](https://github.com/wankdanker/node-odbc)
+brew install unixODBC
+
+#6 install packages
+yarn
+
+#7 create `.env.local` and override any variables you need to change from `.env`
+touch .env.local
+open .env.local -t
+
+# here is an sample content of the `.env.local` file
+PGHOST=localhost
+PGPORT=5432
+PGUSER=pg_user
+PGPASSWORD=pg_password
+PGDATABASE=postgres
+DBT_DEMO_DIR=/path/to/the/lightdash/project/examples/full-jaffle-shop-demo
+LIGHTDASH_CONFIG_FILE=/path/to/the/lightdash/project/lightdash.yml
+
+#8 build / migrate / seed
+yarn load:env ./scripts/build.sh
+yarn load:env ./scripts/seed-jaffle.sh
+yarn load:env ./scripts/migrate.sh
+yarn load:env ./scripts/seed-lightdash.sh
+
+#9 run
+yarn load:env yarn dev
+```
 
 > ⚠️ you can add env variables to your system and ignore running `yarn load:env` before each command
 
