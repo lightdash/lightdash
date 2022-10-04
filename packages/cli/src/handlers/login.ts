@@ -90,6 +90,18 @@ const loginWithPassword = async (url: string) => {
 export const login = async (url: string, options: LoginOptions) => {
     await checkLightdashVersion();
 
+    if (options.verbose) console.error(`> Login URL: ${url}`);
+
+    if (url.includes('lightdash.com')) {
+        const cloudServer = url.replace('lightdash.com', 'lightdash.cloud');
+        console.error(
+            `\n${styles.title('Warning')}: Login URL ${styles.secondary(
+                url,
+            )} does not match a valid cloud server, perhaps you meant ${styles.secondary(
+                cloudServer,
+            )} ?\n`,
+        );
+    }
     const { userUuid, token } = options.token
         ? await loginWithToken(url, options.token)
         : await loginWithPassword(url);
