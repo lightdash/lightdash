@@ -51,7 +51,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
     }
 
     const numModelsSelected = select ? select.length : undefined;
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'generate.started',
         properties: {
             trigger: 'generate',
@@ -127,7 +127,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 )}`,
             );
         } catch (e: any) {
-            LightdashAnalytics.track({
+            await LightdashAnalytics.track({
                 event: 'generate.error',
                 properties: {
                     trigger: 'generate',

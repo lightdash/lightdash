@@ -37,7 +37,7 @@ export const deploy = async (options: DeployArgs): Promise<void> => {
         url: `/api/v1/projects/${options.projectUuid}/explores`,
         body: JSON.stringify(explores),
     });
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'deploy.triggered',
         properties: {
             projectId: options.projectUuid,
@@ -70,7 +70,7 @@ const createNewProject = async (
         `  Creating new project ${styles.bold(projectName)}`,
     ).start();
     GlobalState.setActiveSpinner(spinner);
-    LightdashAnalytics.track({
+    await LightdashAnalytics.track({
         event: 'create.started',
         properties: {
             projectName,
@@ -89,7 +89,7 @@ const createNewProject = async (
         }
         spinner.succeed(`  New project ${styles.bold(projectName)} created\n`);
 
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'create.completed',
             properties: {
                 projectId: project.projectUuid,
@@ -99,7 +99,7 @@ const createNewProject = async (
 
         return project;
     } catch (e) {
-        LightdashAnalytics.track({
+        await LightdashAnalytics.track({
             event: 'create.error',
             properties: {
                 error: `Error creating developer preview ${e}`,
