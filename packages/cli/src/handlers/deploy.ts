@@ -149,7 +149,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     console.error('');
     console.error(
         `      ${styles.bold(
-            `⚡️ ${config.context?.serverUrl}/projects/${projectUuid}/tables`,
+            `⚡️ ${config.context?.serverUrl}/createProject/cli?projectUuid=${projectUuid}`,
         )}`,
     );
     console.error('');
