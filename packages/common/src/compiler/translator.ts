@@ -168,9 +168,11 @@ const convertDbtMetricToLightdashMetric = (
             );
         }
         sql = metric.sql;
+
         referencedMetrics.forEach((ref) => {
+            const re = new RegExp(ref, 'g');
             // eslint-disable-next-line no-useless-escape
-            sql = sql.replaceAll(ref, `\$\{${ref}\}`);
+            sql = sql.replace(re, `\$\{${ref}\}`);
         });
     } else {
         try {
