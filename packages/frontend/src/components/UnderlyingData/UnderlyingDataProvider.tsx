@@ -2,6 +2,7 @@ import {
     Field,
     Filters,
     getItemId,
+    hashFieldReference,
     isDimension,
     ResultRow,
     TableCalculation,
@@ -46,9 +47,24 @@ export const getDataFromChartClick = (
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
 ) => {
-    const selectedFields = Object.values(itemsMap).filter((item) =>
-        e.dimensionNames.includes(getItemId(item)),
-    );
+    const withPivot =
+        pivot !== undefined
+            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
+            : undefined;
+
+    const selectedFields = Object.values(itemsMap).filter((item) => {
+        if (!isDimension(item) && withPivot) {
+            return e.dimensionNames.includes(
+                hashFieldReference({
+                    field: getItemId(item),
+                    pivotValues: [
+                        { field: withPivot.fieldId, value: withPivot.value },
+                    ],
+                }),
+            );
+        }
+        return e.dimensionNames.includes(getItemId(item));
+    });
     const selectedMetricsAndTableCalculations = selectedFields.filter(
         (item) => !isDimension(item),
     );
@@ -65,11 +81,6 @@ export const getDataFromChartClick = (
         },
         {},
     );
-
-    const withPivot =
-        pivot !== undefined
-            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
-            : undefined;
 
     return {
         meta: { item: selectedField },
