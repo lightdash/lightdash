@@ -4,10 +4,12 @@ import {
     Popover2,
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
+import { getItemMap } from '@lightdash/common';
 import { FC, memo, useCallback, useEffect, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
 import {
     getDataFromChartClick,
@@ -24,6 +26,8 @@ export const SeriesContextMenu: FC<{
         (context) => context.state.unsavedChartVersion.tableName,
     );
     const { data: explore } = useExplore(tableName);
+    const context = useVisualizationContext();
+    const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { viewData } = useUnderlyingDataContext();
@@ -47,10 +51,16 @@ export const SeriesContextMenu: FC<{
 
     const viewUnderlyingData = useCallback(() => {
         if (explore !== undefined && echartSeriesClickEvent !== undefined) {
+            const allItemsMap = getItemMap(
+                explore,
+                metricQuery?.additionalMetrics,
+                metricQuery?.tableCalculations,
+            );
+
             const underlyingData = getDataFromChartClick(
                 echartSeriesClickEvent,
                 pivot,
-                explore,
+                allItemsMap,
                 series || [],
             );
 
@@ -62,7 +72,15 @@ export const SeriesContextMenu: FC<{
                 underlyingData.pivot,
             );
         }
-    }, [explore, echartSeriesClickEvent, viewData, pivot, dimensions, series]);
+    }, [
+        explore,
+        echartSeriesClickEvent,
+        metricQuery,
+        pivot,
+        series,
+        viewData,
+        dimensions,
+    ]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
