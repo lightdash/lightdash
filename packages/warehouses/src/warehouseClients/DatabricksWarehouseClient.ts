@@ -4,7 +4,7 @@ import IDBSQLClient, {
 } from '@databricks/sql/dist/contracts/IDBSQLClient';
 import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
-import { TTypeId as DatabricksTypes } from '@databricks/sql/thrift/TCLIService_types';
+import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
     assertUnreachable,
     CreateDatabricksCredentials,
@@ -12,41 +12,93 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import { WarehouseClient } from '../types';
+import { WarehouseCatalog, WarehouseClient } from '../types';
 
-export const DRIVER_PATH = '/opt/simba/spark/lib/64/libsparkodbc_sb64.so';
+type SparkSchemaResult = {
+    TABLE_CAT: string;
+    TABLE_SCHEM: string;
+    TABLE_NAME: string;
+    COLUMN_NAME: string;
+    DATA_TYPE: number;
+    TYPE_NAME: string;
+};
 
-const mapFieldType = (type: DatabricksTypes): DimensionType => {
+const convertDataTypeToDimensionType = (
+    type: DatabricksDataTypes,
+): DimensionType => {
     switch (type) {
-        case DatabricksTypes.BOOLEAN_TYPE:
+        case DatabricksDataTypes.BOOLEAN_TYPE:
             return DimensionType.BOOLEAN;
-        case DatabricksTypes.TINYINT_TYPE:
-        case DatabricksTypes.SMALLINT_TYPE:
-        case DatabricksTypes.INT_TYPE:
-        case DatabricksTypes.BIGINT_TYPE:
-        case DatabricksTypes.FLOAT_TYPE:
-        case DatabricksTypes.DOUBLE_TYPE:
-        case DatabricksTypes.DECIMAL_TYPE:
+        case DatabricksDataTypes.TINYINT_TYPE:
+        case DatabricksDataTypes.SMALLINT_TYPE:
+        case DatabricksDataTypes.INT_TYPE:
+        case DatabricksDataTypes.BIGINT_TYPE:
+        case DatabricksDataTypes.FLOAT_TYPE:
+        case DatabricksDataTypes.DOUBLE_TYPE:
+        case DatabricksDataTypes.DECIMAL_TYPE:
             return DimensionType.NUMBER;
-        case DatabricksTypes.DATE_TYPE:
+        case DatabricksDataTypes.DATE_TYPE:
             return DimensionType.DATE;
-        case DatabricksTypes.TIMESTAMP_TYPE:
+        case DatabricksDataTypes.TIMESTAMP_TYPE:
             return DimensionType.TIMESTAMP;
-        case DatabricksTypes.STRING_TYPE:
-        case DatabricksTypes.BINARY_TYPE:
-        case DatabricksTypes.ARRAY_TYPE:
-        case DatabricksTypes.STRUCT_TYPE:
-        case DatabricksTypes.UNION_TYPE:
-        case DatabricksTypes.USER_DEFINED_TYPE:
-        case DatabricksTypes.INTERVAL_YEAR_MONTH_TYPE:
-        case DatabricksTypes.INTERVAL_DAY_TIME_TYPE:
-        case DatabricksTypes.NULL_TYPE:
-        case DatabricksTypes.MAP_TYPE:
-        case DatabricksTypes.CHAR_TYPE:
-        case DatabricksTypes.VARCHAR_TYPE:
+        case DatabricksDataTypes.STRING_TYPE:
+        case DatabricksDataTypes.BINARY_TYPE:
+        case DatabricksDataTypes.ARRAY_TYPE:
+        case DatabricksDataTypes.STRUCT_TYPE:
+        case DatabricksDataTypes.UNION_TYPE:
+        case DatabricksDataTypes.USER_DEFINED_TYPE:
+        case DatabricksDataTypes.INTERVAL_YEAR_MONTH_TYPE:
+        case DatabricksDataTypes.INTERVAL_DAY_TIME_TYPE:
+        case DatabricksDataTypes.NULL_TYPE:
+        case DatabricksDataTypes.MAP_TYPE:
+        case DatabricksDataTypes.CHAR_TYPE:
+        case DatabricksDataTypes.VARCHAR_TYPE:
             return DimensionType.STRING;
         default:
             return assertUnreachable(type);
+    }
+};
+
+// https://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.infocenter.dc36273.1570/html/sprocs/CIHHGDBC.htm
+enum DatabricksFieldTypes {
+    CHAR = 1,
+    DECIMAL = 2,
+    DOUBLE_PRECISION = 8,
+    FLOAT = 6,
+    INTEGER = 4,
+    NUMERIC = 2,
+    REAL = 7,
+    SMALL_INT = 5,
+    BIG_INT = -5,
+    BINARY = -2,
+    BIT = -7,
+    DATE = 9,
+    TIME = 10,
+    TIMESTAMP = 11,
+    TINY_INT = -6,
+}
+
+const mapFieldType = (type: DatabricksFieldTypes): DimensionType => {
+    switch (type) {
+        case DatabricksFieldTypes.BIT:
+        case DatabricksFieldTypes.BINARY:
+            return DimensionType.BOOLEAN;
+        case DatabricksFieldTypes.TINY_INT:
+        case DatabricksFieldTypes.SMALL_INT:
+        case DatabricksFieldTypes.INTEGER:
+        case DatabricksFieldTypes.BIG_INT:
+        case DatabricksFieldTypes.FLOAT:
+        case DatabricksFieldTypes.REAL:
+        case DatabricksFieldTypes.DOUBLE_PRECISION:
+        case DatabricksFieldTypes.DECIMAL:
+        case DatabricksFieldTypes.NUMERIC:
+            return DimensionType.NUMBER;
+        case DatabricksFieldTypes.DATE:
+            return DimensionType.DATE;
+        case DatabricksFieldTypes.TIMESTAMP:
+            return DimensionType.TIMESTAMP;
+        default:
+            return DimensionType.STRING;
     }
 };
 
@@ -67,7 +119,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         };
     }
 
-    async getSession() {
+    private async getSession() {
         const client = new DBSQLClient();
         let connection: IDBSQLClient;
         let session: IDBSQLSession;
@@ -106,9 +158,9 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 (acc, column) => ({
                     ...acc,
                     [column.columnName]: {
-                        type: mapFieldType(
+                        type: convertDataTypeToDimensionType(
                             column.typeDesc.types[0]?.primitiveEntry?.type ??
-                                DatabricksTypes.STRING_TYPE,
+                                DatabricksDataTypes.STRING_TYPE,
                         ),
                     },
                 }),
@@ -135,51 +187,47 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             table: string;
         }[],
     ) {
-        let pool: odbc.Pool;
-        let results: Result<SparkSchemaResult>[];
-        try {
-            pool = await odbc.pool(this.connectionString);
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
+        const { session, close } = await this.getSession();
+        let results: SparkSchemaResult[][];
+
         try {
             const promises = requests.map(async (request) => {
-                let connection: odbc.Connection;
+                let query: IOperation | null = null;
                 try {
-                    connection = await pool.connect();
-                } catch (e) {
-                    throw new WarehouseConnectionError(e.message);
-                }
-                try {
-                    const columns = (await connection.columns(
-                        // @ts-ignore
-                        'SPARK', // This is always SPARK
-                        request.schema,
-                        request.table,
-                        '',
-                    )) as Result<SparkSchemaResult>;
-                    return columns;
+                    query = await session.getColumns({
+                        catalogName: request.database,
+                        schemaName: request.schema,
+                        tableName: request.table,
+                    });
+
+                    const result =
+                        (await query.fetchAll()) as SparkSchemaResult[];
+
+                    return result;
                 } catch (e) {
                     throw new WarehouseQueryError(e.message);
                 } finally {
-                    await connection.close();
+                    if (query) query.close();
                 }
             });
             results = await Promise.all(promises);
         } finally {
-            await pool.close();
+            await close();
         }
+
         return results.reduce<WarehouseCatalog>(
             (acc, result, index) => {
                 const columns = Object.fromEntries<DimensionType>(
                     result.map((col) => [
                         col.COLUMN_NAME,
-                        mapFieldType(col.TYPE_NAME),
+                        mapFieldType(col.DATA_TYPE),
                     ]),
                 );
                 const { schema, table } = requests[index];
+
                 acc.SPARK[schema] = acc.SPARK[schema] || {};
                 acc.SPARK[schema][table] = columns;
+
                 return acc;
             },
             { SPARK: {} } as WarehouseCatalog,
