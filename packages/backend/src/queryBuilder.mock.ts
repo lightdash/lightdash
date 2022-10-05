@@ -1071,7 +1071,7 @@ export const METRIC_QUERY_FILTER_METRIC1: CompiledMetricQuery = {
 
 export const METRIC_QUERY_SQL_FILTER_METRIC1 = `SELECT
   "table1".dim1 AS "table1_dim1",
-CASE WHEN LOWER("table1".shared) LIKE LOWER('%foo%') THEN MAX("table1".number_column) ELSE NULL END AS "table1_metric1"
+CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (MAX("table1".number_column)) ELSE NULL END AS "table1_metric1"
 FROM "db"."schema"."table1" AS "table1"
 
 
@@ -1092,7 +1092,7 @@ export const METRIC_QUERY_FILTER_METRIC2: CompiledMetricQuery = {
 
 export const METRIC_QUERY_SQL_FILTER_METRIC2 = `SELECT
   "table2".dim2 AS "table2_dim2",
-CASE WHEN ("table2".dim2) < (10) AND ("table2".dim2) > (5) THEN MAX("table2".number_column) ELSE NULL END AS "table2_metric2"
+CASE WHEN (("table2".dim2) < (10) AND ("table2".dim2) > (5)) THEN (MAX("table2".number_column)) ELSE NULL END AS "table2_metric2"
 FROM "db"."schema"."table1" AS "table1"
 LEFT JOIN "db"."schema"."table2" AS "table2"
   ON ("table1".shared) = ("table2".shared)

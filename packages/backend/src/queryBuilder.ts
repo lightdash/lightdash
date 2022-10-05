@@ -300,9 +300,9 @@ export const buildQuery = ({
                 return renderFilterRuleSql(filter, dimensionField, q);
             });
 
-            return `CASE WHEN ${conditions.join(' AND ')} THEN ${
+            return `CASE WHEN (${conditions.join(' AND ')}) THEN (${
                 metric.compiledSql
-            } ELSE NULL END AS ${q}${alias}${q}`;
+            }) ELSE NULL END AS ${q}${alias}${q}`;
         }
         return `  ${metric.compiledSql} AS ${q}${alias}${q}`;
     });
