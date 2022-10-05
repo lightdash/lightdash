@@ -6,7 +6,6 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import path from 'path';
 import { getConfig, setAnswer } from '../config';
 import { getDbtContext } from '../dbt/context';
@@ -75,7 +74,6 @@ type CreateProjectHandlerOptions = {
 };
 export const createProject = async (
     options: CreateProjectHandlerOptions,
-    spinner?: ora.Ora,
 ): Promise<Project | undefined> => {
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
@@ -98,6 +96,7 @@ export const createProject = async (
         credentials.keyfileContents.project_id &&
         credentials.keyfileContents.project_id !== credentials.project
     ) {
+        const spinner = GlobalState.getActiveSpinner();
         spinner?.stop();
         const answers = await inquirer.prompt([
             {
