@@ -78,11 +78,14 @@ const createNewProject = async (
         },
     });
     try {
-        const project = await createProject({
-            ...options,
-            name: projectName,
-            type: ProjectType.DEFAULT,
-        });
+        const project = await createProject(
+            {
+                ...options,
+                name: projectName,
+                type: ProjectType.DEFAULT,
+            },
+            spinner,
+        );
         if (!project) {
             spinner.fail('Cancel preview environment');
             return undefined;
