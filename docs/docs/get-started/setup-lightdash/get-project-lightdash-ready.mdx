@@ -90,7 +90,7 @@ If you want to login using another method, then you [can check out our authentic
 
 :::info
 
-Before you get started with the next steps, you might want to check out onto a new branch if you're working with a version controlled project!
+If you're using dbt Cloud, you'll need to [clone your repo to your local machine](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) before completing the next steps. 
 
 :::
 
@@ -106,6 +106,10 @@ For example, if we have a `projects.yml` file, we'd have a Table called `Project
 
 <img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+<details>
+  <summary>Error: Not a dbt project (or any of the parent directories). Missing dbt_project.yml file</summary>
+  Make sure that you're in your dbt project folder before you try doing `lightdash dbt run`! Otherwise, you'll run into this error.
+</details>
 
 #### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
 <details>
