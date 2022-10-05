@@ -1,3 +1,11 @@
+## [0.277.2](https://github.com/lightdash/lightdash/compare/0.277.1...0.277.2) (2022-10-05)
+
+
+### Bug Fixes
+
+* date filter without time ([#3399](https://github.com/lightdash/lightdash/issues/3399)) ([1ac2866](https://github.com/lightdash/lightdash/commit/1ac28663a9181a4fcfdbe6d324b16fec312c66eb))
+* fix sql.replaceAll method on expression ([#3404](https://github.com/lightdash/lightdash/issues/3404)) ([236dfcf](https://github.com/lightdash/lightdash/commit/236dfcf8ba80a03d0e9f71ede7a88b5ed6b8f9f3))
+
 ## [0.277.1](https://github.com/lightdash/lightdash/compare/0.277.0...0.277.1) (2022-10-05)
 
 
