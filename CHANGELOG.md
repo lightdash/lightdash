@@ -1,3 +1,10 @@
+# [0.277.0](https://github.com/lightdash/lightdash/compare/0.276.0...0.277.0) (2022-10-05)
+
+
+### Features
+
+* warning if credentials project id does not match ([#3395](https://github.com/lightdash/lightdash/issues/3395)) ([ed5f7c3](https://github.com/lightdash/lightdash/commit/ed5f7c34100cc46a6b08bedea1c1273d9e3d1e40))
+
 # [0.276.0](https://github.com/lightdash/lightdash/compare/0.275.0...0.276.0) (2022-10-05)
 
 
