@@ -32,6 +32,14 @@ export enum UnitOfTime {
     years = 'years',
 }
 
+export const UnitOfDate = {
+    [UnitOfTime.days]: UnitOfTime.days,
+    [UnitOfTime.weeks]: UnitOfTime.weeks,
+    [UnitOfTime.months]: UnitOfTime.months,
+    [UnitOfTime.quarters]: UnitOfTime.quarters,
+    [UnitOfTime.years]: UnitOfTime.years,
+};
+
 export const unitOfTimeFormat: Record<UnitOfTime, string> = {
     milliseconds: 'YYYY-MM-DD HH:mm:ss',
     seconds: 'YYYY-MM-DD HH:mm:ss',

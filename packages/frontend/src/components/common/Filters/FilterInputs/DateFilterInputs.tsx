@@ -165,6 +165,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         }
                     />
                     <UnitOfTimeAutoComplete
+                        isTimestamp={isTimestamp}
                         unitOfTime={
                             filterRule.settings?.unitOfTime || UnitOfTime.days
                         }
