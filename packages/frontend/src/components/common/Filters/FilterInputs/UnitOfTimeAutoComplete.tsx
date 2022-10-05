@@ -1,7 +1,7 @@
 import { Button } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Select } from '@blueprintjs/select';
-import { UnitOfDate, UnitOfTime } from '@lightdash/common';
+import { UnitOfTime } from '@lightdash/common';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
@@ -12,9 +12,12 @@ type UnitOfTimeOption = {
 };
 
 const UnitOfTimeOptions = (isTimestamp: boolean) => {
+    const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
+
+    // Filter unitTimes before Days if we are filtering Dates only
     const unitsOfTime = isTimestamp
         ? Object.values(UnitOfTime)
-        : Object.values(UnitOfDate);
+        : Object.values(UnitOfTime).slice(dateIndex);
 
     return unitsOfTime.reverse().reduce<UnitOfTimeOption[]>(
         (sum, unitOfTime) => [
