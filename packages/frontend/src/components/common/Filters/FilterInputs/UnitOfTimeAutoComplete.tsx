@@ -11,9 +11,15 @@ type UnitOfTimeOption = {
     completed: boolean;
 };
 
-const UnitOfTimeOptions = Object.values(UnitOfTime)
-    .reverse()
-    .reduce<UnitOfTimeOption[]>(
+const UnitOfTimeOptions = (isTimestamp: boolean) => {
+    const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
+
+    // Filter unitTimes before Days if we are filtering Dates only
+    const unitsOfTime = isTimestamp
+        ? Object.values(UnitOfTime)
+        : Object.values(UnitOfTime).slice(dateIndex);
+
+    return unitsOfTime.reverse().reduce<UnitOfTimeOption[]>(
         (sum, unitOfTime) => [
             ...sum,
             {
@@ -29,6 +35,7 @@ const UnitOfTimeOptions = Object.values(UnitOfTime)
         ],
         [],
     );
+};
 
 const FieldSuggest = Select.ofType<UnitOfTimeOption>();
 
@@ -58,6 +65,7 @@ const renderItem: ItemRenderer<UnitOfTimeOption> = (
 };
 
 type Props = {
+    isTimestamp: boolean;
     unitOfTime: UnitOfTime;
     completed: boolean;
     onChange: (value: UnitOfTimeOption) => void;
@@ -65,6 +73,7 @@ type Props = {
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
+    isTimestamp,
     unitOfTime,
     completed,
     onChange,
@@ -73,7 +82,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     <>
         <AutocompleteMaxHeight />
         <FieldSuggest
-            items={UnitOfTimeOptions}
+            items={UnitOfTimeOptions(isTimestamp)}
             itemsEqual={(value, other) =>
                 value.unitOfTime === other.unitOfTime &&
                 value.completed === other.completed
