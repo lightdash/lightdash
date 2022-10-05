@@ -121,7 +121,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     Read more about getting started.
                 </LinkButton>
 
-                <CodeLabel>In your Terminal, run:</CodeLabel>
+                <CodeLabel>Inside your dbt project, run:</CodeLabel>
 
                 <Codeblock>
                     <pre>{codeBlock({ siteUrl, loginToken })}</pre>
