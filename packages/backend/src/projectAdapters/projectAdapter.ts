@@ -26,11 +26,15 @@ export const projectAdapterFromConfig = async (
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
+
     switch (config.type) {
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
                 warehouseClient,
-                projectDir: config.project_dir || '/usr/app/dbt',
+                projectDir:
+                    config.project_dir ||
+                    process.env.DBT_PROJECT_DIR ||
+                    '/usr/app/dbt',
                 warehouseCredentials,
                 targetName: config.target,
                 environment: config.environment,
