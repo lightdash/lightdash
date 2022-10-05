@@ -20,7 +20,7 @@ export const ColumnConfiguration: React.FC = () => {
     const pivotDimension = pivotDimensions?.[0];
     return (
         <ColumnConfigurationWrapper>
-            {selectedItemIds.map((fieldId) => {
+            {selectedItemIds?.map((fieldId) => {
                 return (
                     <ColumnWrapper>
                         <InputGroup
