@@ -10,7 +10,6 @@ CYAN='\033[0;36m'
 has_cmd() {
     command -v "$1" > /dev/null 2>&1
 }
-# Check whether 'wget' command exists.
 has_odbcinst() {
     has_cmd "odbcinst"
 }
