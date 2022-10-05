@@ -1,3 +1,11 @@
+## [0.277.1](https://github.com/lightdash/lightdash/compare/0.277.0...0.277.1) (2022-10-05)
+
+
+### Bug Fixes
+
+* cli deploy link ([#3403](https://github.com/lightdash/lightdash/issues/3403)) ([bc27248](https://github.com/lightdash/lightdash/commit/bc272487846167c5739c698ab3a8713cf8275572))
+* pegjs import ([#3402](https://github.com/lightdash/lightdash/issues/3402)) ([9c15bf4](https://github.com/lightdash/lightdash/commit/9c15bf4c0c6d66aa4e5ad15f8b14715b6753c0c2))
+
 # [0.277.0](https://github.com/lightdash/lightdash/compare/0.276.0...0.277.0) (2022-10-05)
 
 
