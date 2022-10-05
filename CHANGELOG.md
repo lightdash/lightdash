@@ -1,3 +1,10 @@
+# [0.276.0](https://github.com/lightdash/lightdash/compare/0.275.0...0.276.0) (2022-10-05)
+
+
+### Features
+
+* cli warning odbc missing drivers ([#3392](https://github.com/lightdash/lightdash/issues/3392)) ([fa3fa6e](https://github.com/lightdash/lightdash/commit/fa3fa6eb988e69b7c2882a829ad4da19f7c79260))
+
 # [0.275.0](https://github.com/lightdash/lightdash/compare/0.274.0...0.275.0) (2022-10-04)
 
 
