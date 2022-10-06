@@ -2469,6 +2469,14 @@
     node-int64 "^0.4.0"
     thrift "^0.16.0"
 
+"@databricks/sql@https://github.com/databricks/databricks-sql-nodejs.git":
+  version "0.1.8-beta.2"
+  resolved "https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671"
+  dependencies:
+    commander "^9.3.0"
+    node-int64 "^0.4.0"
+    thrift "^0.16.0"
+
 "@emotion/is-prop-valid@^0.8.8":
   version "0.8.8"
   resolved "https://registry.npmjs.org/@emotion/is-prop-valid/-/is-prop-valid-0.8.8.tgz"

@@ -8,7 +8,7 @@
         "dist/**/*"
     ],
     "dependencies": {
-        "@databricks/sql": "^0.1.8-beta.2",
+        "@databricks/sql": "https://github.com/databricks/databricks-sql-nodejs.git",
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.287.4",
         "pg": "^8.7.1",

@@ -1,6 +1,6 @@
 import { DBSQLClient } from '@databricks/sql';
 import IDBSQLClient, {
-    IDBSQLConnectionOptions,
+    ConnectionOptions,
 } from '@databricks/sql/dist/contracts/IDBSQLClient';
 import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
@@ -121,7 +121,7 @@ const mapFieldType = (type: DatabricksFieldTypes): DimensionType => {
 };
 
 export class DatabricksWarehouseClient implements WarehouseClient {
-    connectionOptions: IDBSQLConnectionOptions;
+    connectionOptions: ConnectionOptions;
 
     constructor({
         serverHostName,
