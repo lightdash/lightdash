@@ -42,7 +42,9 @@ const projectUrl = async (project: Project): Promise<URL | null> => {
             config.context.serverUrl,
         );
     }
-    return null;
+    throw new Error(
+        'Missing server url. Make sure you login before running other commands.',
+    );
 };
 
 const getPreviewProject = async (name: string, verbose?: boolean) => {
