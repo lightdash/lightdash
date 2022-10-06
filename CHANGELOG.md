@@ -1,3 +1,10 @@
+## [0.277.3](https://github.com/lightdash/lightdash/compare/0.277.2...0.277.3) (2022-10-06)
+
+
+### Bug Fixes
+
+* update copy shutdown preview cli ([#3411](https://github.com/lightdash/lightdash/issues/3411)) ([e9a1310](https://github.com/lightdash/lightdash/commit/e9a1310c0064faf7061f272bcc1ba7848b003de6))
+
 ## [0.277.2](https://github.com/lightdash/lightdash/compare/0.277.1...0.277.2) (2022-10-05)
 
 
