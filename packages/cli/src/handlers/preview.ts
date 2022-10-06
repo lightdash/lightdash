@@ -33,7 +33,7 @@ type StopPreviewHandlerOptions = {
     verbose: boolean;
 };
 
-const projectUrl = async (project: Project): Promise<URL | null> => {
+const projectUrl = async (project: Project): Promise<URL> => {
     const config = await getConfig();
 
     if (config.context?.serverUrl) {
