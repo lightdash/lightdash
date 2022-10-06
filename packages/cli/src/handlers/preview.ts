@@ -33,16 +33,16 @@ type StopPreviewHandlerOptions = {
     verbose: boolean;
 };
 
-const projectUrl = async (project: Project) => {
+const projectUrl = async (project: Project): Promise<URL | null> => {
     const config = await getConfig();
 
-    return (
-        config.context?.serverUrl &&
-        new URL(
+    if (config.context?.serverUrl) {
+        return new URL(
             `/projects/${project.projectUuid}/tables`,
             config.context.serverUrl,
-        )
-    );
+        );
+    }
+    return null;
 };
 
 const getPreviewProject = async (name: string, verbose?: boolean) => {
@@ -218,7 +218,11 @@ export const startPreviewHandler = async (
         // Update
         console.error(`Updating project preview ${projectName}`);
         await deploy({ ...options, projectUuid: previewProject.projectUuid });
-        console.error(`Project updated on ${await projectUrl(previewProject)}`);
+        const url = await projectUrl(previewProject);
+        console.error(`Project updated on ${url}`);
+        if (process.env.CI === 'true') {
+            console.log(`::set-output name=url::${url}`);
+        }
     } else {
         // Create
         console.error(`Creating new project preview ${projectName}`);
@@ -251,7 +255,11 @@ export const startPreviewHandler = async (
             },
         });
         await deploy({ ...options, projectUuid: project.projectUuid });
-        console.error(`New project created on ${await projectUrl(project)}`);
+        const url = await projectUrl(project);
+        console.error(`New project created on ${url}`);
+        if (process.env.CI === 'true') {
+            console.log(`::set-output name=url::${url}`);
+        }
     }
 };
 
