@@ -14,13 +14,31 @@ import {
 } from '@lightdash/common';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
-type SparkSchemaResult = {
+type SchemaResult = {
     TABLE_CAT: string;
     TABLE_SCHEM: string;
     TABLE_NAME: string;
     COLUMN_NAME: string;
     DATA_TYPE: number;
     TYPE_NAME: string;
+    // additional props
+    // COLUMN_SIZE: null,
+    // BUFFER_LENGTH: null,
+    // DECIMAL_DIGITS: null,
+    // NUM_PREC_RADIX: null,
+    // NULLABLE: 1,
+    // REMARKS: '',
+    // COLUMN_DEF: null,
+    // SQL_DATA_TYPE: null,
+    // SQL_DATETIME_SUB: null,
+    // CHAR_OCTET_LENGTH: null,
+    // ORDINAL_POSITION: 5,
+    // IS_NULLABLE: 'YES',
+    // SCOPE_CATALOG: null,
+    // SCOPE_SCHEMA: null,
+    // SCOPE_TABLE: null,
+    // SOURCE_DATA_TYPE: null,
+    // IS_AUTO_INCREMENT: 'NO'
 };
 
 const convertDataTypeToDimensionType = (
@@ -188,20 +206,19 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         }[],
     ) {
         const { session, close } = await this.getSession();
-        let results: SparkSchemaResult[][];
+        let results: SchemaResult[][];
 
         try {
             const promises = requests.map(async (request) => {
                 let query: IOperation | null = null;
                 try {
                     query = await session.getColumns({
-                        catalogName: request.database,
+                        catalogName: 'SPARK', // This is always SPARK
                         schemaName: request.schema,
                         tableName: request.table,
                     });
 
-                    const result =
-                        (await query.fetchAll()) as SparkSchemaResult[];
+                    const result = (await query.fetchAll()) as SchemaResult[];
 
                     return result;
                 } catch (e) {
