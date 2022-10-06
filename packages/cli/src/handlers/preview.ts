@@ -120,12 +120,14 @@ export const previewHandler = async (
         });
         const manifestFilePath = path.join(context.targetDir, 'manifest.json');
 
-        const pressToContinue = ora(`  Press [ENTER] to continue...`).start();
+        const pressToShutdown = ora(
+            `  Press [ENTER] to shutdown preview...`,
+        ).start();
 
         const watcher = chokidar
             .watch(manifestFilePath)
             .on('change', async () => {
-                pressToContinue.stop();
+                pressToShutdown.stop();
 
                 console.error(
                     `${styles.title(
@@ -142,7 +144,7 @@ export const previewHandler = async (
                 }
 
                 console.error(`${styles.success('✔')}   Preview updated \n`);
-                pressToContinue.start();
+                pressToShutdown.start();
 
                 watcher.add(manifestFilePath);
             });
@@ -155,7 +157,7 @@ export const previewHandler = async (
                 message: `  Press [ENTER] to shutdown preview...`,
             },
         ]);
-        pressToContinue.clear();
+        pressToShutdown.clear();
     } catch (e) {
         spinner.fail('Error creating developer preview');
         await lightdashApi({
