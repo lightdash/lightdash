@@ -161,6 +161,16 @@ type CliStopPreviewMissing = BaseTrack & {
         name: string;
     };
 };
+
+type CliLogin = BaseTrack & {
+    event: 'login.started' | 'login.completed';
+    properties: {
+        userId?: string;
+        method: string;
+        url: string;
+    };
+};
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -178,7 +188,8 @@ type Track =
     | CliCreateCompleted
     | CliCreateError
     | CliStartStopPreview
-    | CliStopPreviewMissing;
+    | CliStopPreviewMissing
+    | CliLogin;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
