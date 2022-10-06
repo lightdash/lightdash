@@ -44,7 +44,10 @@ const useTableConfig = (
     >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
     const selectedItemIds = useMemo(
-        () => itemsInMetricQuery(resultsData?.metricQuery),
+        () =>
+            resultsData
+                ? itemsInMetricQuery(resultsData.metricQuery)
+                : undefined,
         [resultsData],
     );
     const itemsMap = useMemo(() => {
@@ -95,7 +98,7 @@ const useTableConfig = (
         error?: string;
     }>(() => {
         const pivotDimension = pivotDimensions?.[0];
-        if (!resultsData) {
+        if (!resultsData || !selectedItemIds) {
             return {
                 rows: [],
                 columns: [],
@@ -135,7 +138,7 @@ const useTableConfig = (
 
     // Remove columProperties from map if the column has been removed from results
     useEffect(() => {
-        if (Object.keys(columnProperties).length > 0) {
+        if (Object.keys(columnProperties).length > 0 && selectedItemIds) {
             const columnsRemoved = Object.keys(columnProperties).filter(
                 (field) => !selectedItemIds.includes(field),
             );

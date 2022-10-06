@@ -165,11 +165,15 @@ const SavedChartsHeader: FC = () => {
                                         minimal
                                     />
                                 )}
-                                <RenameSavedChartModal
-                                    savedChartUuid={savedChart.uuid}
-                                    isOpen={isRenamingChart}
-                                    onClose={() => setIsRenamingChart(false)}
-                                />
+                                {isRenamingChart && (
+                                    <RenameSavedChartModal
+                                        savedChartUuid={savedChart.uuid}
+                                        isOpen={isRenamingChart}
+                                        onClose={() =>
+                                            setIsRenamingChart(false)
+                                        }
+                                    />
+                                )}
                             </PageTitleContainer>
 
                             <PageDetailsContainer>
@@ -341,7 +345,7 @@ const SavedChartsHeader: FC = () => {
                     onClose={() => setIsQueryModalOpen(false)}
                 />
             )}
-            {savedChart && (
+            {savedChart && isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
                     savedChart={savedChart}
