@@ -1,3 +1,18 @@
+# [0.279.0](https://github.com/lightdash/lightdash/compare/0.278.1...0.279.0) (2022-10-06)
+
+
+### Bug Fixes
+
+* chart underlying data ([#3405](https://github.com/lightdash/lightdash/issues/3405)) ([d838481](https://github.com/lightdash/lightdash/commit/d838481a1d304c9b25979b93dee40606979f1b03))
+* save table config ([#3407](https://github.com/lightdash/lightdash/issues/3407)) ([0102b3c](https://github.com/lightdash/lightdash/commit/0102b3cb518a57464d498791fa2d34c33299002c))
+* user uuid missing from events ([#3419](https://github.com/lightdash/lightdash/issues/3419)) ([4c0aa9d](https://github.com/lightdash/lightdash/commit/4c0aa9d91a6932c8795ea869bf4cd987f8334848))
+
+
+### Features
+
+* CLI start-preview output url ([#3417](https://github.com/lightdash/lightdash/issues/3417)) ([86bc6a8](https://github.com/lightdash/lightdash/commit/86bc6a801e57e5399945ccff50b06e5c5b8d1033))
+* support metric filters for results table ([#3364](https://github.com/lightdash/lightdash/issues/3364)) ([06aa911](https://github.com/lightdash/lightdash/commit/06aa9117a4ece642830007f7ff582dd2d88a0424))
+
 ## [0.278.1](https://github.com/lightdash/lightdash/compare/0.278.0...0.278.1) (2022-10-06)
 
 
