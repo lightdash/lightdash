@@ -2460,16 +2460,7 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@databricks/sql@^0.1.8-beta.2":
-  version "0.1.8-beta.2"
-  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-0.1.8-beta.2.tgz#d124eb8275a2c135f25d825303bf3f7c9fdd5435"
-  integrity sha512-xPKWVaPaU4CyG/eBE8SFTZtdP7COvmOdeMQspOXT4iXLKhJeVoa77Kpi64gZIV9v/3laIglWLoeCyoyHI1qfHQ==
-  dependencies:
-    commander "^9.3.0"
-    node-int64 "^0.4.0"
-    thrift "^0.16.0"
-
-"@databricks/sql@https://github.com/databricks/databricks-sql-nodejs.git":
+"@databricks/sql@https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671":
   version "0.1.8-beta.2"
   resolved "https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671"
   dependencies:
