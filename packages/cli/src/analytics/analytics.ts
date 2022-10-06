@@ -7,11 +7,7 @@ const { version: VERSION } = require('../../package.json');
 
 const identifyUser = async (): Promise<Config['user']> => {
     const config = await getConfig();
-    if (
-        process.env.LIGHTDASH_API_KEY &&
-        config.context?.serverUrl &&
-        config.context.apiKey
-    ) {
+    if (config.context?.serverUrl && config.context.apiKey) {
         try {
             const user = await lightdashApi<LightdashUser>({
                 method: 'GET',
