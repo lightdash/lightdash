@@ -132,7 +132,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         this.connectionOptions = {
             token: personalAccessToken,
             host: serverHostName,
-            path: httpPath,
+            path: httpPath.startsWith('/') ? httpPath : `/${httpPath}`,
             port,
         };
     }
