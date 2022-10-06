@@ -87,6 +87,7 @@ export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
 export * from './utils/api';
+export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/formatting';
 export * from './utils/timeFrames';
 
@@ -790,6 +791,7 @@ export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
     serverHostName: string;
     port: number;
+    dbname: string;
     database: string;
     personalAccessToken: string;
     httpPath: string;
@@ -1192,8 +1194,4 @@ export const deepEqual = (
             (!areObjects && val1 !== val2)
         );
     });
-};
-
-export const assertUnreachable = (_x: never): never => {
-    throw new Error("Didn't expect to get here");
 };

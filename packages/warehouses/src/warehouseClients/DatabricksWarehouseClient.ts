@@ -121,6 +121,10 @@ const mapFieldType = (type: DatabricksFieldTypes): DimensionType => {
 };
 
 export class DatabricksWarehouseClient implements WarehouseClient {
+    schema: string;
+
+    catalog: string;
+
     connectionOptions: ConnectionOptions;
 
     constructor({
@@ -128,7 +132,11 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         port,
         personalAccessToken,
         httpPath,
+        database,
+        dbname = 'SPARK',
     }: CreateDatabricksCredentials) {
+        this.schema = database;
+        this.catalog = dbname;
         this.connectionOptions = {
             token: personalAccessToken,
             host: serverHostName,
@@ -144,7 +152,10 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
         try {
             connection = await client.connect(this.connectionOptions);
-            session = await connection.openSession();
+            session = await connection.openSession({
+                initialCatalog: this.catalog,
+                initialSchema: this.schema,
+            });
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -213,7 +224,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 let query: IOperation | null = null;
                 try {
                     query = await session.getColumns({
-                        catalogName: 'SPARK', // This is always SPARK
+                        catalogName: request.database,
                         schemaName: request.schema,
                         tableName: request.table,
                     });
