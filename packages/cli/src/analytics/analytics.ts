@@ -210,11 +210,15 @@ export class LightdashAnalytics {
                 event: `${lightdashContext.app.name}.${payload.event}`,
                 context: { ...lightdashContext },
             };
+
+            const encodedWriteKey =
+                process.env.NODE_ENV === 'development'
+                    ? 'MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
+                    : 'MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==';
             await fetch('https://analytics.lightdash.com/v1/track', {
                 method: 'POST',
                 headers: {
-                    Authorization:
-                        'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
+                    Authorization: `Basic ${encodedWriteKey}`,
                 },
                 body: JSON.stringify(body),
             });
