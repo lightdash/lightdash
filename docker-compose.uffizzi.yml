@@ -1,0 +1,40 @@
+version: "3.8"
+
+x-uffizzi:
+  ingress:
+    service: lightdash
+    port: 8080
+
+services:
+  lightdash:
+    image: lightdash/lightdash:latest
+    depends_on:
+      - db
+    environment:
+      - PGHOST=localhost
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres
+      - SECURE_COOKIES=false
+      - TRUST_PROXY=false
+      - LIGHTDASH_SECRET="not very secret"
+      - PORT=8080
+      - LIGHTDASH_LOG_LEVEL=debug
+      - LIGHTDASH_INSTALL_TYPE=${LIGHTDASH_INSTALL_TYPE:-docker_image}
+      - SITE_URL=0.0.0.0:8080
+      - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS:-false}
+    ports:
+      - ${PORT:-8080}:${PORT:-8080}
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+          
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
