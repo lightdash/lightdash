@@ -1,3 +1,10 @@
+# [0.278.0](https://github.com/lightdash/lightdash/compare/0.277.3...0.278.0) (2022-10-06)
+
+
+### Features
+
+* add login analytics to CLI ([#3413](https://github.com/lightdash/lightdash/issues/3413)) ([f653c2b](https://github.com/lightdash/lightdash/commit/f653c2b925fa05653cefb33d6abbfe963c3a4ff2))
+
 ## [0.277.3](https://github.com/lightdash/lightdash/compare/0.277.2...0.277.3) (2022-10-06)
 
 
