@@ -71,6 +71,18 @@ const DatabricksForm: FC<{
                 }
                 disabled={disabled}
             />
+            <Input
+                name="warehouse.dbname"
+                label="DB name"
+                labelHelp="This is the database name."
+                rules={{
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
+                    },
+                }}
+                placeholder="SPARK"
+                disabled={disabled}
+            />
             <NumericInput
                 name="warehouse.port"
                 label="Port"
