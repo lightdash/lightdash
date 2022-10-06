@@ -57,7 +57,7 @@ const DatabricksForm: FC<{
                     },
                 }}
                 disabled={disabled}
-                placeholder="sql/protocolv1/o/xxxx/xxxx"
+                placeholder="/sql/protocolv1/o/xxxx/xxxx"
             />
             <PasswordInput
                 name="warehouse.personalAccessToken"
