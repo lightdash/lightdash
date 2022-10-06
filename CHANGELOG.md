@@ -1,3 +1,10 @@
+## [0.278.1](https://github.com/lightdash/lightdash/compare/0.278.0...0.278.1) (2022-10-06)
+
+
+### Bug Fixes
+
+* use dev rudderstack credentials when developing on CLI ([#3414](https://github.com/lightdash/lightdash/issues/3414)) ([2648ed0](https://github.com/lightdash/lightdash/commit/2648ed0ae612306a8534d212703350bb4b9f4d62))
+
 # [0.278.0](https://github.com/lightdash/lightdash/compare/0.277.3...0.278.0) (2022-10-06)
 
 
