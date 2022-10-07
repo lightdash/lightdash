@@ -129,7 +129,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
     constructor({
         serverHostName,
-        port,
         personalAccessToken,
         httpPath,
         schema,
@@ -141,7 +140,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             token: personalAccessToken,
             host: serverHostName,
             path: httpPath.startsWith('/') ? httpPath : `/${httpPath}`,
-            port,
         };
     }
 
