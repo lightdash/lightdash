@@ -80,7 +80,7 @@ const DatabricksForm: FC<{
                         hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
                     },
                 }}
-                placeholder="SPARK"
+                placeholder="hive_metastore"
                 disabled={disabled}
             />
             <NumericInput

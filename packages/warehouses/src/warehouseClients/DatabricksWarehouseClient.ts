@@ -133,7 +133,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         personalAccessToken,
         httpPath,
         database,
-        dbname = 'SPARK',
+        dbname = 'hive_metastore',
     }: CreateDatabricksCredentials) {
         this.schema = database;
         this.catalog = dbname;
@@ -152,7 +152,11 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
         try {
             connection = await client.connect(this.connectionOptions);
-            session = await connection.openSession();
+
+            session = await connection.openSession({
+                initialCatalog: this.catalog,
+                initialSchema: this.schema,
+            });
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
@@ -171,12 +175,10 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         let query: IOperation | null = null;
 
         try {
-            query = await session.executeStatement(sql, {
-                runAsync: true,
-            });
+            query = await session.executeStatement(sql);
 
-            const schema = await query.getSchema();
             const result = await query.fetchAll();
+            const schema = await query.getSchema();
 
             const fields = (schema?.columns ?? []).reduce<
                 Record<string, { type: DimensionType }>

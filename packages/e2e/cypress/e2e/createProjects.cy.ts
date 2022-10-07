@@ -18,7 +18,7 @@ const warehouseConfig = {
         token: Cypress.env('DATABRICKS_TOKEN'),
         httpPath: Cypress.env('DATABRICKS_PATH'),
         schema: 'jaffle',
-        database: 'SPARK',
+        database: 'hive_metastore',
     },
     snowflake: {
         account: Cypress.env('SNOWFLAKE_ACCOUNT'),
