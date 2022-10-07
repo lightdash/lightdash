@@ -18,7 +18,7 @@ const warehouseConfig = {
         token: Cypress.env('DATABRICKS_TOKEN'),
         httpPath: Cypress.env('DATABRICKS_PATH'),
         schema: 'jaffle',
-        database: 'hive_metastore',
+        catalog: 'hive_metastore',
     },
     snowflake: {
         account: Cypress.env('SNOWFLAKE_ACCOUNT'),
@@ -73,7 +73,7 @@ const configureDatabricksWarehouse = (
     cy.get('[name="warehouse.personalAccessToken"]').type(config.token, {
         log: false,
     });
-    cy.get('[name="warehouse.dbname"]').type(config.database, { log: false });
+    cy.get('[name="warehouse.catalog"]').type(config.catalog, { log: false });
 
     // DBT
     cy.get('[name="dbt.type"]').select('dbt local server');
