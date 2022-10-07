@@ -1,3 +1,10 @@
+# [0.280.0](https://github.com/lightdash/lightdash/compare/0.279.1...0.280.0) (2022-10-07)
+
+
+### Features
+
+* add try demo project link ([#3424](https://github.com/lightdash/lightdash/issues/3424)) ([d1dbe51](https://github.com/lightdash/lightdash/commit/d1dbe51f31dabd01f48acc9933ff8480d3f2a13f))
+
 ## [0.279.1](https://github.com/lightdash/lightdash/compare/0.279.0...0.279.1) (2022-10-07)
 
 
