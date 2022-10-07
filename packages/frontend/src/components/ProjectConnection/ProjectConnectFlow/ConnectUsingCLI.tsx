@@ -170,6 +170,9 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         intent={Intent.PRIMARY}
                         href="https://demo.lightdash.com/"
                         target="_blank"
+                        trackingEvent={{
+                            name: EventName.TRY_DEMO_CLICKED,
+                        }}
                     >
                         ...or try our demo project instead
                     </LinkButton>

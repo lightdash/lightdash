@@ -3,6 +3,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { SelectedWarehouse } from '.';
 import { BackButton } from '../../../../pages/CreateProject.styles';
+import { EventName } from '../../../../types/Events';
 import LinkButton from '../../../common/LinkButton';
 import InviteExpertFooter from '../InviteExpertFooter';
 import BigQuery from './../Assets/bigquery.svg';
@@ -98,6 +99,9 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                             intent={Intent.PRIMARY}
                             href="https://demo.lightdash.com/"
                             target="_blank"
+                            trackingEvent={{
+                                name: EventName.TRY_DEMO_CLICKED,
+                            }}
                         >
                             ...or try our demo project instead
                         </LinkButton>

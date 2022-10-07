@@ -46,6 +46,7 @@ type GenericEvent = {
         | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED
         | EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED
+        | EventName.TRY_DEMO_CLICKED
         | EventName.GO_TO_LINK_CLICKED;
     properties?: {};
 };
