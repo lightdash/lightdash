@@ -9,7 +9,7 @@ import {
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
 import React, { FC, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import {
     deleteLastProject,
     getLastProject,
@@ -35,7 +35,8 @@ const ProjectListItem: FC<{
 }> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
     const { user } = useApp();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const { mutate, isLoading: isDeleting } = useDeleteProjectMutation();
+    const { mutate: deleteProjectMutation, isLoading: isDeleting } =
+        useDeleteProjectMutation();
     return (
         <ProjectListItemWrapper elevation={0}>
             <ItemContent>
@@ -55,6 +56,7 @@ const ProjectListItem: FC<{
                         </ProjectTag>
                     )}
                 </ProjectInfo>
+
                 <ButtonGroup>
                     <LinkButton
                         icon="cog"
@@ -70,7 +72,7 @@ const ProjectListItem: FC<{
                         })}
                     >
                         <Button
-                            icon="delete"
+                            icon="trash"
                             outlined
                             text="Delete"
                             intent={Intent.DANGER}
@@ -80,9 +82,10 @@ const ProjectListItem: FC<{
                     </Can>
                 </ButtonGroup>
             </ItemContent>
+
             <Dialog
                 isOpen={isDeleteDialogOpen}
-                icon="delete"
+                icon="trash"
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
@@ -108,7 +111,7 @@ const ProjectListItem: FC<{
                             disabled={isDeleting}
                             intent="danger"
                             onClick={() => {
-                                mutate(projectUuid);
+                                deleteProjectMutation(projectUuid);
                                 if (isCurrentProject) {
                                     deleteLastProject();
                                 }
@@ -124,16 +127,22 @@ const ProjectListItem: FC<{
 };
 
 const ProjectManagementPanel: FC = () => {
-    const { data } = useProjects();
     const history = useHistory();
-    const params = useParams<{ projectUuid: string }>();
+    const { data, isError } = useProjects({
+        retry: false,
+        onError: ({ error }) => {
+            if (error.statusCode === 404) {
+                history.push('/createProject');
+            }
+        },
+    });
     const lastProject = getLastProject();
 
     return (
         <ProjectManagementPanelWrapper>
             <HeaderActions>
                 <H5>Project management settings</H5>
-                <Can I="create" a={'Project'}>
+                <Can I="create" a="Project">
                     <Button
                         intent="primary"
                         onClick={() => history.push(`/createProject`)}
@@ -141,19 +150,17 @@ const ProjectManagementPanel: FC = () => {
                     />
                 </Can>
             </HeaderActions>
-            <div>
-                {data?.map((project) => (
-                    <>
-                        <ProjectListItem
-                            key={project.projectUuid}
-                            isCurrentProject={
-                                lastProject === project.projectUuid
-                            }
-                            project={project}
-                        />
-                    </>
+
+            {!isError &&
+                data &&
+                data.length > 0 &&
+                data.map((project) => (
+                    <ProjectListItem
+                        key={project.projectUuid}
+                        isCurrentProject={lastProject === project.projectUuid}
+                        project={project}
+                    />
                 ))}
-            </div>
         </ProjectManagementPanelWrapper>
     );
 };
