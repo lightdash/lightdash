@@ -1,3 +1,10 @@
+## [0.279.1](https://github.com/lightdash/lightdash/compare/0.279.0...0.279.1) (2022-10-07)
+
+
+### Bug Fixes
+
+* fix global search no results when filtering ([#3423](https://github.com/lightdash/lightdash/issues/3423)) ([f20c623](https://github.com/lightdash/lightdash/commit/f20c62375f89ed2795c7d9462cf3f28b1f9aa647))
+
 # [0.279.0](https://github.com/lightdash/lightdash/compare/0.278.1...0.279.0) (2022-10-06)
 
 
