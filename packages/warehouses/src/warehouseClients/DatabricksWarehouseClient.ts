@@ -252,12 +252,12 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 );
                 const { schema, table } = requests[index];
 
-                acc.SPARK[schema] = acc.SPARK[schema] || {};
-                acc.SPARK[schema][table] = columns;
+                acc[this.catalog][schema] = acc[this.catalog][schema] || {};
+                acc[this.catalog][schema][table] = columns;
 
                 return acc;
             },
-            { SPARK: {} } as WarehouseCatalog,
+            { [this.catalog]: {} } as WarehouseCatalog,
         );
     }
 }
