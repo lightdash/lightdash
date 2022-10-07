@@ -663,6 +663,7 @@ type ApiResults =
     | FilterableField[]
     | ProjectSavedChartStatus
     | undefined
+    | Array<unknown>
     | ApiJobStartedResults
     | ApiCreateUserTokenResults
     | CreatePersonalAccessToken
