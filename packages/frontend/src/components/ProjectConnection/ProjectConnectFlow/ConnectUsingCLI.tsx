@@ -14,6 +14,7 @@ import {
     Codeblock,
     CodeLabel,
     ConnectWarehouseWrapper,
+    Spacer,
     StyledNonIdealState,
     Subtitle,
     Title,
@@ -159,6 +160,24 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             >
                 Create project manually
             </LinkButton>
+
+            {needsProject && (
+                <>
+                    <Spacer $height={8} />
+
+                    <LinkButton
+                        minimal
+                        intent={Intent.PRIMARY}
+                        href="https://demo.lightdash.com/"
+                        target="_blank"
+                        trackingEvent={{
+                            name: EventName.TRY_DEMO_CLICKED,
+                        }}
+                    >
+                        ...or try our demo project instead
+                    </LinkButton>
+                </>
+            )}
 
             <InviteExpertFooter />
         </Wrapper>

@@ -1,7 +1,10 @@
+import { Intent } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { SelectedWarehouse } from '.';
 import { BackButton } from '../../../../pages/CreateProject.styles';
+import { EventName } from '../../../../types/Events';
+import LinkButton from '../../../common/LinkButton';
 import InviteExpertFooter from '../InviteExpertFooter';
 import BigQuery from './../Assets/bigquery.svg';
 import Databricks from './../Assets/databricks.svg';
@@ -10,7 +13,7 @@ import Redshift from './../Assets/redshift.svg';
 import Snowflake from './../Assets/snowflake.svg';
 import {
     ConnectWarehouseWrapper,
-    ExternalLink,
+    Spacer,
     Subtitle,
     Title,
     WarehouseButton,
@@ -88,12 +91,21 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                 </WarehouseGrid>
 
                 {needsProject && (
-                    <ExternalLink
-                        href="https://demo.lightdash.com/"
-                        target="_blank"
-                    >
-                        ...or try our demo project instead
-                    </ExternalLink>
+                    <>
+                        <Spacer $height={20} />
+
+                        <LinkButton
+                            minimal
+                            intent={Intent.PRIMARY}
+                            href="https://demo.lightdash.com/"
+                            target="_blank"
+                            trackingEvent={{
+                                name: EventName.TRY_DEMO_CLICKED,
+                            }}
+                        >
+                            ...or try our demo project instead
+                        </LinkButton>
+                    </>
                 )}
             </ConnectWarehouseWrapper>
 
