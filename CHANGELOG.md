@@ -1,3 +1,10 @@
+## [0.280.1](https://github.com/lightdash/lightdash/compare/0.280.0...0.280.1) (2022-10-07)
+
+
+### Bug Fixes
+
+* hide recover password button when email client isnt configured ([#3431](https://github.com/lightdash/lightdash/issues/3431)) ([c9a03b3](https://github.com/lightdash/lightdash/commit/c9a03b38a5c527777ca70dd3940dd0b5ef9315ab))
+
 # [0.280.0](https://github.com/lightdash/lightdash/compare/0.279.1...0.280.0) (2022-10-07)
 
 
