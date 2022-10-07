@@ -86,11 +86,6 @@ export const WarehouseIcon = styled.img`
     width: 25px;
 `;
 
-export const ExternalLink = styled.a`
-    margin-top: 20px;
-    color: ${Colors.BLUE3};
-`;
-
 export const RadioButton = styled(Radio)`
     text-align: left;
 `;
@@ -132,4 +127,14 @@ export const FormFooterCopy = styled.p`
     margin: 35px auto 0;
     color: ${Colors.GRAY2};
     text-align: center;
+`;
+
+interface SpacerProps {
+    $width?: number;
+    $height?: number;
+}
+
+export const Spacer = styled.div<SpacerProps>`
+    ${({ $width }) => $width && `width: ${$width}px;`}
+    ${({ $height }) => $height && `height: ${$height}px;`}
 `;
