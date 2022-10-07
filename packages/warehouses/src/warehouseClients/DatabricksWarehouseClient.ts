@@ -152,10 +152,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
         try {
             connection = await client.connect(this.connectionOptions);
-            session = await connection.openSession({
-                initialCatalog: this.catalog,
-                initialSchema: this.schema,
-            });
+            session = await connection.openSession();
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
