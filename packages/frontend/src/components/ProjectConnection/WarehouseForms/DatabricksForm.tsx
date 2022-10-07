@@ -1,17 +1,14 @@
-import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
-import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
-import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     return (
         <Input
-            name="warehouse.database"
+            name="warehouse.schema"
             label="Schema"
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
             rules={{
@@ -28,9 +25,6 @@ export const DatabricksSchemaInput: FC<{
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
-    const { savedProject } = useProjectFormContext();
-    const requireSecrets: boolean =
-        savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
     return (
         <>
             <Input
@@ -64,34 +58,22 @@ const DatabricksForm: FC<{
                 label="Personal access token"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
                 rules={{
-                    required: requireSecrets ? 'Required field' : undefined,
+                    required: 'Required field',
                 }}
-                placeholder={
-                    disabled || !requireSecrets ? '**************' : undefined
-                }
+                placeholder="**************"
                 disabled={disabled}
             />
             <Input
-                name="warehouse.dbname"
-                label="DB name"
-                labelHelp="This is the database name."
+                name="warehouse.catalog"
+                label="Catalog name"
+                labelHelp="This is the catalog name."
                 rules={{
                     validate: {
-                        hasNoWhiteSpaces: hasNoWhiteSpaces('DB name'),
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Catalog name'),
                     },
                 }}
                 placeholder="hive_metastore"
                 disabled={disabled}
-            />
-            <NumericInput
-                name="warehouse.port"
-                label="Port"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port-2"
-                rules={{
-                    required: 'Required field',
-                }}
-                disabled={disabled}
-                defaultValue={443}
             />
         </>
     );

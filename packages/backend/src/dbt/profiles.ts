@@ -139,8 +139,8 @@ const credentialsTarget = (
             return {
                 target: {
                     type: WarehouseTypes.DATABRICKS,
-                    database: credentials.dbname,
-                    schema: credentials.database,
+                    catalog: credentials.catalog,
+                    schema: credentials.schema,
                     host: credentials.serverHostName,
                     token: envVarReference('token'),
                     http_path: credentials.httpPath,

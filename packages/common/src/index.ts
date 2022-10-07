@@ -789,12 +789,11 @@ export type BigqueryCredentials = Omit<
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
+    catalog: string;
+    schema: string;
     serverHostName: string;
-    port: number;
-    dbname: string;
-    database: string;
-    personalAccessToken: string;
     httpPath: string;
+    personalAccessToken: string;
 };
 
 export type DatabricksCredentials = Omit<

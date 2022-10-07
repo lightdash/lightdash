@@ -132,11 +132,11 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         port,
         personalAccessToken,
         httpPath,
-        database,
-        dbname = 'hive_metastore',
+        schema,
+        catalog = 'hive_metastore',
     }: CreateDatabricksCredentials) {
-        this.schema = database;
-        this.catalog = dbname;
+        this.schema = schema;
+        this.catalog = catalog;
         this.connectionOptions = {
             token: personalAccessToken,
             host: serverHostName,

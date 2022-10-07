@@ -78,7 +78,7 @@ const configureDatabricksWarehouse = (
     // DBT
     cy.get('[name="dbt.type"]').select('dbt local server');
     cy.get('[name="dbt.target"]').type('test');
-    cy.get('[name="warehouse.database"]').type(config.schema);
+    cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 
 const configureSnowflakeWarehouse = (
