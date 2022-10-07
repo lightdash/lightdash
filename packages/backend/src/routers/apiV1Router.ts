@@ -18,6 +18,7 @@ import { organizationRouter } from './organizationRouter';
 import { passwordResetLinksRouter } from './passwordResetLinksRouter';
 import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
+import { shareRouter } from './shareRouter';
 import { userRouter } from './userRouter';
 
 export const apiV1Router = express.Router();
@@ -142,3 +143,4 @@ apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
+apiV1Router.use('/share', shareRouter);

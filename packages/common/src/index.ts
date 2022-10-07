@@ -78,6 +78,7 @@ export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
 export * from './types/search';
+export * from './types/share';
 export * from './types/space';
 export * from './types/table';
 export * from './types/timeFrames';
