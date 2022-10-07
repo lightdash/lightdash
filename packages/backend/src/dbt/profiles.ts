@@ -144,7 +144,6 @@ const credentialsTarget = (
                     host: credentials.serverHostName,
                     token: envVarReference('token'),
                     http_path: credentials.httpPath,
-                    port: credentials.port,
                 },
                 environment: {
                     [envVar('token')]: credentials.personalAccessToken,
