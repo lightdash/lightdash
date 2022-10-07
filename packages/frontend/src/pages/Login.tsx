@@ -146,11 +146,13 @@ const Login: FC = () => {
                 loading={isLoading}
                 data-cy="login-button"
             />
-            <AnchorLinkWrapper>
-                <AnchorLink href="/recover-password">
-                    Forgot your password ?
-                </AnchorLink>
-            </AnchorLinkWrapper>
+            {health.data?.hasEmailClient && (
+                <AnchorLinkWrapper>
+                    <AnchorLink href="/recover-password">
+                        Forgot your password ?
+                    </AnchorLink>
+                </AnchorLinkWrapper>
+            )}
         </Form>
     );
 
