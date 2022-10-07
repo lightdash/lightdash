@@ -63,7 +63,6 @@ export const useDefaultProject = () => {
 
     return {
         ...query,
-        originalData: query.data,
         data: defaultProject || query.data?.[0],
     };
 };
