@@ -114,7 +114,7 @@ Working on your first Pull Request? You can learn how from this free video serie
 
 [How to Contribute to an Open Source Project on GitHub](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
 
-To help you get your feet wet and get you familiar with our contribution process, we have a list of [good first issues](https://github.com/lightdash/lightdash/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) that contain changes that have a relatively limited scope. This label means that there is already a working solution to the issue in the discussion section. Therefore, it is a great place to get started.
+To help you get your feet wet and get you familiar with our contribution process, we have a list of [good first issues](https://github.com/lightdash/lightdash/issues?q=is%3Aissue+is%3Aopen+label%3A%22%F0%9F%99%8B+good+first+issue%22) that contain changes that have a relatively limited scope. This label means that there is already a working solution to the issue in the discussion section. Therefore, it is a great place to get started.
 
 Pull requests working on other issues or completely new problems may take a bit longer to review when they don't fit into our current development cycle.
 
