@@ -1,4 +1,4 @@
-import { Button, Classes, Dialog, Intent } from '@blueprintjs/core';
+import { Button, Classes, Dialog, Icon, Intent } from '@blueprintjs/core';
 import {
     Dashboard,
     DashboardTileTypes,
@@ -8,8 +8,9 @@ import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useSavedCharts, useSpaces } from '../../../hooks/useSpaces';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { SpaceLabel } from '../../Explorer/SpaceBrowser/AddResourceToSpaceModal.style';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 
@@ -28,23 +29,37 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const methods = useForm<AddSavedChartsForm>({
         mode: 'onSubmit',
     });
-    const { dashboardTiles } = useDashboardContext();
+    const { data: spaces } = useSpaces(projectUuid);
+    const { dashboardTiles, dashboard } = useDashboardContext();
+
     const allSavedCharts =
-        data?.map(({ uuid, name }) => {
+        data?.map(({ uuid, name, spaceUuid }) => {
             const alreadyAddedChart = dashboardTiles.find(
                 (tile) =>
                     tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.savedChartUuid === uuid,
             );
+
+            const spaceName = spaces?.find((sp) => sp.uuid === spaceUuid)?.name;
+
+            const subLabel = (
+                <SpaceLabel>
+                    <Icon size={12} icon="folder-close" />
+                    {spaceName}
+                </SpaceLabel>
+            );
+
             return {
                 value: uuid,
                 label: name,
+                subLabel: subLabel,
                 disabled: alreadyAddedChart !== undefined,
                 title:
                     alreadyAddedChart &&
                     'This chart has been already added to this dashboard',
             };
         }) || [];
+
     const handleSubmit = (formData: AddSavedChartsForm) => {
         onAddTiles(
             formData.savedCharts.map(({ value }) => ({
@@ -58,12 +73,17 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         );
         onClose();
     };
+
+    const dashboardTitleName = dashboard?.name
+        ? `"${dashboard.name}"`
+        : 'dashboard';
+
     return (
         <Dialog
             isOpen={true}
             onClose={onClose}
             lazy
-            title="Add tiles to dashboard"
+            title={`Add charts to ${dashboardTitleName}`}
         >
             <Form
                 name="add_saved_charts_to_dashboard"
@@ -73,7 +93,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 <div className={Classes.DIALOG_BODY}>
                     <MultiSelect
                         name="savedCharts"
-                        label="Select saved charts"
+                        label={`Select the charts that you want to add to ${dashboardTitleName}`}
                         rules={{
                             required: 'Required field',
                         }}
