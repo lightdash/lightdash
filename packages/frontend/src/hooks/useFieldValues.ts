@@ -8,7 +8,7 @@ const getFieldValues = async (
     value: string,
     limit: number,
 ) =>
-    lightdashApi<Array<any>>({
+    lightdashApi<Array<unknown>>({
         url: `/projects/${projectId}/field/${fieldId}/search?value=${encodeURIComponent(
             value,
         )}&limit=${limit}`,
@@ -23,7 +23,7 @@ export const useFieldValues = (
     limit: number,
     enabled: boolean,
 ) => {
-    return useQuery<Array<any>, ApiError>({
+    return useQuery<Array<unknown>, ApiError>({
         queryKey: ['project', projectId, fieldId, search],
         queryFn: () => getFieldValues(projectId, fieldId, search, limit),
         enabled: enabled,

@@ -596,7 +596,7 @@ export class ProjectService {
         fieldId: string,
         search: string,
         limit: number,
-    ): Promise<Array<any>> {
+    ): Promise<Array<unknown>> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 

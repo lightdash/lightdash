@@ -26,6 +26,9 @@ export function itemPredicate(
     return item.toLowerCase().includes(query.toLowerCase());
 }
 
+const isString = (value: unknown): value is string =>
+    !!value && typeof value === 'string';
+
 const useDebouncedSearch = (
     projectUuid: string,
     fieldId: string,
@@ -57,7 +60,10 @@ const useDebouncedSearch = (
         setCachedItems((prev) => {
             return {
                 ...prev,
-                [fieldId]: new Set([...(prev[fieldId] || []), ...(data || [])]),
+                [fieldId]: new Set([
+                    ...(prev[fieldId] || []),
+                    ...(data || []).filter(isString),
+                ]),
             };
         });
     }, [fieldId, data]);
