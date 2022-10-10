@@ -286,10 +286,10 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center"><a href="https://github.com/gordonkjlee"><img src="https://avatars.githubusercontent.com/u/7281432?v=4?s=100" width="100px;" alt="Gordon Lee"/><br /><sub><b>Gordon Lee</b></sub></a><br /><a href="#ideas-gordonkjlee" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center"><a href="https://github.com/olly-writes-code"><img src="https://avatars.githubusercontent.com/u/7778402?v=4?s=100" width="100px;" alt="Olly"/><br /><sub><b>Olly</b></sub></a><br /><a href="#ideas-olly-writes-code" title="Ideas, Planning, & Feedback">🤔</a></td>
     </tr>
+    <tr>
+      <td align="center"><a href="https://github.com/gautamdoulani"><img src="https://avatars.githubusercontent.com/u/3624491?v=4?s=100" width="100px;" alt="gautamdoulani"/><br /><sub><b>gautamdoulani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=gautamdoulani" title="Documentation">📖</a></td>
+    </tr>
   </tbody>
-  <tfoot>
-    
-  </tfoot>
 </table>
 
 <!-- markdownlint-restore -->
