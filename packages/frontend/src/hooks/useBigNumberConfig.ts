@@ -67,11 +67,11 @@ const useBigNumberConfig = (
     const [selectedField, setSelectedField] = useState<string | undefined>();
     const getField = useCallback(
         (fieldNameOrId: string) => {
-            return availableFields.find((f) =>
-                isField(f)
+            return availableFields.find((f) => {
+                return isField(f)
                     ? fieldId(f) === fieldNameOrId
-                    : f.name === fieldNameOrId,
-            );
+                    : f.name === fieldNameOrId;
+            });
         },
         [availableFields],
     );
