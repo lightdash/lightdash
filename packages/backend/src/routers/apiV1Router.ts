@@ -1,3 +1,4 @@
+import { ParameterError } from '@lightdash/common';
 import express from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -21,6 +22,7 @@ import { savedChartRouter } from './savedChartRouter';
 import { userRouter } from './userRouter';
 
 const puppeteer = require('puppeteer');
+const html2canvas = require('html2canvas');
 
 export const apiV1Router = express.Router();
 
@@ -146,10 +148,23 @@ apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
 
 apiV1Router.get('/screenshot', async (req, res, next) => {
+    const { dashboardId } = req.query;
+
+    if (!dashboardId) {
+        next(new ParameterError());
+    }
+
     const browser = await puppeteer.connect({
         browserWSEndpoint: 'ws://browser:3000',
     });
+
     const page = await browser.newPage();
+
+    await page.setViewport({
+        width: 1400,
+        height: 768, // hardcoded
+    });
+    await page.setExtraHTTPHeaders({ cookie: req.headers.cookie || '' }); // copy cookie
 
     const blockedUrls = [
         'headwayapp.co',
@@ -169,17 +184,57 @@ apiV1Router.get('/screenshot', async (req, res, next) => {
         request.continue();
     });
 
-    await page.goto('http://lightdash-dev:3000/register', {
+    const dashboardUrl = `http://lightdash-dev:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/7aca576e-2aca-4c3c-b4ce-a63578203fb0/view`;
+    await page.goto(dashboardUrl, {
+        timeout: 100000,
         waitUntil: 'networkidle0',
     });
-    // const html = await page.content(); // serialized HTML of page DOM.
-    const imageBuffer = await page.screenshot({ path: 'screenshot.png' });
 
-    res.writeHead(200, {
-        'Content-Type': 'image/png',
-        'Content-Length': imageBuffer.length,
-    });
-    res.end(imageBuffer);
+    //            const imageBuffer = await page.screenshot({ path: 'screenshot.png' });
+
+    try {
+        // await page.waitForSelector('#screenshot-dashboard');          // wait for the selector to load
+        // const element = await page.$('#screenshot-dashboard');        // declare a variable with an ElementHandle
+
+        // const dashboard = await page.$eval('#screenshot-dashboard', (el: any) => el.outerHTML);
+
+        // const imageBuffer = await element.screenshot({ path: 'screenshot2.png' });
+
+        const height = await page.$eval(
+            '#screenshot-dashboard > div',
+            (el: any) => el.style.height,
+        );
+        const numberHeight = height
+            ? parseInt(height.replace('px', ''), 10)
+            : 768; // await page.$(`document.querySelector('#screenshot-dashboard > div').style.height `);
+        const imageBuffer = await page.screenshot({
+            path: 'area.png',
+            clip: { x: 0, y: 50, width: 1400, height: numberHeight },
+        });
+        /* const dashboard = await page.$$eval('div.react-grid-layout', (el: any) => el[0].innerHTML);
+
+        const canvas = await html2canvas(dashboard, {
+            windowWidth: 1024,
+            windowHeight: 768
+        });
+
+            var myImage = canvas.toDataURL("image/png");
+    
+
+    
+    
+            // const html = await page.content(); // serialized HTML of page DOM.
+    */
+
+        res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': imageBuffer.length,
+        });
+        res.end(imageBuffer);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
 
     await browser.close();
 });

@@ -375,31 +375,35 @@ const Dashboard = () => {
                 {dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
-                <ResponsiveGridLayout
-                    useCSSTransforms={false}
-                    draggableCancel=".non-draggable"
-                    onDragStop={updateTiles}
-                    onResizeStop={updateTiles}
-                    breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                    cols={{ lg: 36, md: 30, sm: 18 }}
-                    rowHeight={50}
-                    layouts={layouts}
-                >
-                    {dashboardTiles.map((tile) => {
-                        return (
-                            <div key={tile.uuid}>
-                                <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                    <GridTile
-                                        isEditMode={isEditMode}
-                                        tile={tile}
-                                        onDelete={onDelete}
-                                        onEdit={onEdit}
-                                    />
-                                </TrackSection>
-                            </div>
-                        );
-                    })}
-                </ResponsiveGridLayout>
+                <div id="screenshot-dashboard">
+                    <ResponsiveGridLayout
+                        useCSSTransforms={false}
+                        draggableCancel=".non-draggable"
+                        onDragStop={updateTiles}
+                        onResizeStop={updateTiles}
+                        breakpoints={{ lg: 1200, md: 996, sm: 768 }}
+                        cols={{ lg: 36, md: 30, sm: 18 }}
+                        rowHeight={50}
+                        layouts={layouts}
+                    >
+                        {dashboardTiles.map((tile) => {
+                            return (
+                                <div key={tile.uuid}>
+                                    <TrackSection
+                                        name={SectionName.DASHBOARD_TILE}
+                                    >
+                                        <GridTile
+                                            isEditMode={isEditMode}
+                                            tile={tile}
+                                            onDelete={onDelete}
+                                            onEdit={onEdit}
+                                        />
+                                    </TrackSection>
+                                </div>
+                            );
+                        })}
+                    </ResponsiveGridLayout>
+                </div>
                 {dashboardTiles.length <= 0 && <EmptyStateNoTiles />}
             </Page>
         </>
