@@ -1,3 +1,10 @@
+## [0.280.2](https://github.com/lightdash/lightdash/compare/0.280.1...0.280.2) (2022-10-10)
+
+
+### Bug Fixes
+
+* filter auto complete values ([#3427](https://github.com/lightdash/lightdash/issues/3427)) ([c4774f7](https://github.com/lightdash/lightdash/commit/c4774f766c0e4c065a598a6cb0618689b7eda71a))
+
 ## [0.280.1](https://github.com/lightdash/lightdash/compare/0.280.0...0.280.1) (2022-10-07)
 
 
