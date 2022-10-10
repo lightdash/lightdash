@@ -58,8 +58,7 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
                             return isAllowed ? (
                                 children
                             ) : (
-                                <div>wat</div>
-                                // <Redirect to="/no-project-access" />
+                                <Redirect to="/no-project-access" />
                             );
                         }}
                     </Can>
