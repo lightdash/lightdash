@@ -1,3 +1,10 @@
+# [0.281.0](https://github.com/lightdash/lightdash/compare/0.280.2...0.281.0) (2022-10-10)
+
+
+### Features
+
+* space label in add chart to dashboard modal ([#3438](https://github.com/lightdash/lightdash/issues/3438)) ([5f4df75](https://github.com/lightdash/lightdash/commit/5f4df757db40c15bfb2c84e4f1fdc7d259646561))
+
 ## [0.280.2](https://github.com/lightdash/lightdash/compare/0.280.1...0.280.2) (2022-10-10)
 
 
