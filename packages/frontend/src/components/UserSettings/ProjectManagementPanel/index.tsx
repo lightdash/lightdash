@@ -128,7 +128,7 @@ const ProjectListItem: FC<{
 
 const ProjectManagementPanel: FC = () => {
     const history = useHistory();
-    const { data, isError } = useProjects({
+    const { data, isError, isLoading } = useProjects({
         retry: false,
         onError: ({ error }) => {
             if (error.statusCode === 404) {
@@ -136,7 +136,13 @@ const ProjectManagementPanel: FC = () => {
             }
         },
     });
-    const lastProject = getLastProject();
+    const lastProjectUuid = getLastProject();
+
+    const lastProject = data?.find(
+        (project) => project.projectUuid === lastProjectUuid,
+    );
+
+    if (isLoading || !data) return null;
 
     return (
         <ProjectManagementPanelWrapper>
@@ -152,12 +158,13 @@ const ProjectManagementPanel: FC = () => {
             </HeaderActions>
 
             {!isError &&
-                data &&
                 data.length > 0 &&
                 data.map((project) => (
                     <ProjectListItem
                         key={project.projectUuid}
-                        isCurrentProject={lastProject === project.projectUuid}
+                        isCurrentProject={
+                            lastProject?.projectUuid === project.projectUuid
+                        }
                         project={project}
                     />
                 ))}

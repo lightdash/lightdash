@@ -48,12 +48,19 @@ const NavBar = memo(() => {
     const { user } = useApp();
     const { errorLogs, setErrorLogsVisible } = useErrorLogs();
     const { showToastSuccess } = useToaster();
-    const defaultProject = useDefaultProject();
-    const { isLoading, data } = useProjects();
+    const { data: defaultProject } = useDefaultProject();
+    const { isLoading, data: projects } = useProjects();
     const params = useParams<{ projectUuid: string | undefined }>();
-    const lastProject = getLastProject();
+
+    const lastProjectUuid = getLastProject();
+    const lastProject = projects?.find(
+        (project) => project.projectUuid === lastProjectUuid,
+    );
+
     const selectedProjectUuid =
-        params.projectUuid || lastProject || defaultProject.data?.projectUuid;
+        params.projectUuid ||
+        lastProject?.projectUuid ||
+        defaultProject?.projectUuid;
 
     const history = useHistory();
     const { mutate } = useMutation(logoutQuery, {
@@ -102,8 +109,8 @@ const NavBar = memo(() => {
                     <Divider />
                     {selectedProjectUuid && (
                         <ProjectDropdown
-                            disabled={isLoading || (data || []).length <= 0}
-                            options={data?.map((item) => ({
+                            disabled={isLoading || (projects || []).length <= 0}
+                            options={projects?.map((item) => ({
                                 value: item.projectUuid,
                                 label: `${
                                     item.type === ProjectType.PREVIEW
@@ -118,7 +125,7 @@ const NavBar = memo(() => {
                                 showToastSuccess({
                                     icon: 'tick',
                                     title: `You are now viewing ${
-                                        data?.find(
+                                        projects?.find(
                                             ({ projectUuid }) =>
                                                 projectUuid === e.target.value,
                                         )?.name
@@ -157,6 +164,7 @@ const NavBar = memo(() => {
                     </Popover2>
                 </NavbarGroup>
             </NavBarWrapper>
+
             <ErrorLogsDrawer />
         </>
     );
