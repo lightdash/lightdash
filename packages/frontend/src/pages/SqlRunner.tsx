@@ -8,6 +8,7 @@ import { ChartDownloadMenu } from '../components/ChartDownload';
 import { CollapsableCard } from '../components/common/CollapsableCard';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
+import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
 import { ConfigPanel } from '../components/Explorer/VisualizationCard/VisualizationCardHeader';
@@ -165,10 +166,15 @@ const SqlRunnerPage = () => {
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <ButtonsWrapper>
                         <RefreshDbtButton />
-                        <RunSqlQueryButton
-                            onSubmit={onSubmit}
-                            isLoading={isLoading}
-                        />
+                        <div>
+                            <RunSqlQueryButton
+                                onSubmit={onSubmit}
+                                isLoading={isLoading}
+                            />
+                            <ShareShortLinkButton
+                                disabled={lastSqlRan === undefined}
+                            />
+                        </div>
                     </ButtonsWrapper>
                 </TrackSection>
                 <CardDivider />

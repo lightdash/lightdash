@@ -3,15 +3,11 @@ import React, { FC, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../hooks/useShare';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { ShareLink } from './ShareShortLinkButton.styles';
 
-const ShareShortLinkButton: FC = () => {
+const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
     const { showToastSuccess } = useToaster();
 
-    const isValidQuery = useExplorerContext(
-        (context) => context.state.isValidQuery,
-    );
     const location = useLocation();
     const {
         isLoading,
@@ -19,7 +15,7 @@ const ShareShortLinkButton: FC = () => {
         data: newShareUrl,
     } = useCreateShareMutation();
 
-    const isDisabled = !isValidQuery || isLoading;
+    const isDisabled = disabled || isLoading;
 
     useEffect(() => {
         if (newShareUrl) {

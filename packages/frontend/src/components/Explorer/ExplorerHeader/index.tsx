@@ -15,7 +15,9 @@ const ExplorerHeader: FC = memo(() => {
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
-
+    const isValidQuery = useExplorerContext(
+        (context) => context.state.isValidQuery,
+    );
     const { user } = useApp();
 
     return (
@@ -29,7 +31,7 @@ const ExplorerHeader: FC = memo(() => {
                             user.data?.ability?.can('manage', 'SavedChart') && (
                                 <SaveChartButton isExplorer />
                             )}
-                        <ShareShortLinkButton />
+                        <ShareShortLinkButton disabled={!isValidQuery} />
                     </div>
                 </>
             ) : (
