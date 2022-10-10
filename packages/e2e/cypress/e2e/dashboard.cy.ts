@@ -39,7 +39,7 @@ describe('Dashboard', () => {
 
         cy.findByText('Add tile').click();
         cy.findByText('Saved chart').click();
-        cy.findByText('Select saved charts').parent().find('input').click();
+        cy.findByRole('dialog').findByPlaceholderText('Search...').click();
         cy.contains('How much revenue').click();
         cy.findByText('Add').click();
 
