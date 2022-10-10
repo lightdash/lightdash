@@ -15,6 +15,7 @@
     "devDependencies": {
         "@types/jest": "^29.0.0",
         "@types/node": "^18.7.16",
+        "@types/pegjs": "^0.10.3",
         "@typescript-eslint/eslint-plugin": "^5.36.2",
         "@typescript-eslint/parser": "^5.36.2",
         "confusing-browser-globals": "^1.0.11",

@@ -1,7 +1,6 @@
+import * as peg from 'pegjs';
 import { FilterOperator, FilterRule } from './filter';
 import filterGrammar, { parseFilters } from './filterGrammar';
-
-const peg = require('pegjs');
 
 describe('attachTypesToModels', () => {
     const parser = peg.generate(filterGrammar);
