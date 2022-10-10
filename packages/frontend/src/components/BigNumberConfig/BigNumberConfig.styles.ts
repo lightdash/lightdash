@@ -14,6 +14,6 @@ export const InputWrapper = styled(FormGroup)`
     }
 
     .bp4-form-group:last-child {
-        margin-bottom: 0;
+        margin-bottom: 5px;
     }
 `;
