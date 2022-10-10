@@ -67,61 +67,59 @@ const FieldAutoComplete: FC<Props> = ({
     onChange,
     onClosed,
     placeholder,
-}) => {
-    return (
-        <>
-            <AutocompleteMaxHeight />
-            <FieldSuggest
-                fill
-                disabled={disabled}
-                inputProps={{
-                    id,
-                    name,
-                    autoFocus,
-                    placeholder: placeholder || 'Search field...',
-                    leftIcon: activeField && (
-                        <Icon
-                            icon={getItemIcon(activeField)}
-                            color={getItemColor(activeField)}
-                        />
-                    ),
-                }}
-                items={fields}
-                itemsEqual={(value, other) => {
-                    return getItemId(value) === getItemId(other);
-                }}
-                inputValueRenderer={(item: Item) => {
-                    if (!activeField) {
-                        return '';
-                    }
-                    return getItemLabel(item);
-                }}
-                popoverProps={{
-                    minimal: true,
-                    onClosed,
-                    popoverClassName: 'autocomplete-max-height',
-                    captureDismiss: true,
-                }}
-                itemRenderer={renderItem}
-                activeItem={activeField}
-                selectedItem={activeField}
-                noResults={<MenuItem2 disabled text="No results." />}
-                onItemSelect={onChange}
-                itemPredicate={(
-                    query: string,
-                    item: Item,
-                    index?: undefined | number,
-                    exactMatch?: undefined | false | true,
-                ) => {
-                    const label = getItemLabel(item);
-                    if (exactMatch) {
-                        return query.toLowerCase() === label.toLowerCase();
-                    }
-                    return label.toLowerCase().includes(query.toLowerCase());
-                }}
-            />
-        </>
-    );
-};
+}) => (
+    <>
+        <AutocompleteMaxHeight />
+        <FieldSuggest
+            fill
+            disabled={disabled}
+            inputProps={{
+                id,
+                name,
+                autoFocus,
+                placeholder: placeholder || 'Search field...',
+                leftIcon: activeField && (
+                    <Icon
+                        icon={getItemIcon(activeField)}
+                        color={getItemColor(activeField)}
+                    />
+                ),
+            }}
+            items={fields}
+            itemsEqual={(value, other) => {
+                return getItemId(value) === getItemId(other);
+            }}
+            inputValueRenderer={(item: Item) => {
+                if (!activeField) {
+                    return '';
+                }
+                return getItemLabel(item);
+            }}
+            popoverProps={{
+                minimal: true,
+                onClosed,
+                popoverClassName: 'autocomplete-max-height',
+                captureDismiss: true,
+            }}
+            itemRenderer={renderItem}
+            activeItem={activeField}
+            selectedItem={activeField}
+            noResults={<MenuItem2 disabled text="No results." />}
+            onItemSelect={onChange}
+            itemPredicate={(
+                query: string,
+                item: Item,
+                index?: undefined | number,
+                exactMatch?: undefined | false | true,
+            ) => {
+                const label = getItemLabel(item);
+                if (exactMatch) {
+                    return query.toLowerCase() === label.toLowerCase();
+                }
+                return label.toLowerCase().includes(query.toLowerCase());
+            }}
+        />
+    </>
+);
 
 export default FieldAutoComplete;
