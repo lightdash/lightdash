@@ -96,7 +96,7 @@ const testCompile = () => {
 
     cy.contains('selected 7 models');
     // Configure
-    cy.findByText('Start exploring!')
+    cy.findByText('Save changes')
         .parent('button')
         .should('not.be.disabled')
         .click();
