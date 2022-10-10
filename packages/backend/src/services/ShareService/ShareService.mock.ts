@@ -8,24 +8,26 @@ export const Config = {
 
 export const ShareUrl = {
     nanoid: 'abc123',
-    params: 'foo=bar',
-    path: 'projects/uuid/tables/customers',
+    params: '?foo=bar',
+    path: '/projects/uuid/tables/customers',
 };
 
 export const FullShareUrl = {
     ...ShareUrl,
     host: Config.siteUrl,
-    url: `${Config.siteUrl}/${ShareUrl.path}?${ShareUrl.params}`,
+    shareUrl: `${Config.siteUrl}/share/${ShareUrl.nanoid}`,
+    url: `${ShareUrl.path}${ShareUrl.params}`,
 };
 
 export const ShareUrlWithoutParams = {
     nanoid: 'abc123',
     params: '',
-    path: 'projects/uuid/tables/customers',
+    path: '/projects/uuid/tables/customers',
 };
 
 export const FullShareUrlWithoutParams = {
     ...ShareUrlWithoutParams,
     host: Config.siteUrl,
-    url: `${Config.siteUrl}/${ShareUrl.path}`,
+    shareUrl: `${Config.siteUrl}/share/${ShareUrl.nanoid}`,
+    url: `${ShareUrl.path}`,
 };
