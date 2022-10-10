@@ -1,7 +1,9 @@
+import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
+import { useProjectFormContext } from '../ProjectFormProvider';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
@@ -25,6 +27,10 @@ export const DatabricksSchemaInput: FC<{
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { savedProject } = useProjectFormContext();
+    const requireSecrets: boolean =
+        savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
+
     return (
         <>
             <Input
@@ -58,9 +64,11 @@ const DatabricksForm: FC<{
                 label="Personal access token"
                 documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
                 rules={{
-                    required: 'Required field',
+                    required: requireSecrets ? 'Required field' : undefined,
                 }}
-                placeholder="**************"
+                placeholder={
+                    disabled || !requireSecrets ? '**************' : undefined
+                }
                 disabled={disabled}
             />
             <Input
