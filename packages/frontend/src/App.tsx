@@ -23,6 +23,7 @@ import MobileView from './components/Mobile';
 import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import ShareRedirect from './components/ShareRedirect';
 import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -166,6 +167,14 @@ const App = () => (
                                                         }
                                                     >
                                                         <ForbiddenPanel subject="project" />
+                                                    </TrackPage>
+                                                </Route>
+                                                <Route path="/share/:shareNanoid">
+                                                    <NavBar />
+                                                    <TrackPage
+                                                        name={PageName.SHARE}
+                                                    >
+                                                        <ShareRedirect />
                                                     </TrackPage>
                                                 </Route>
                                                 <AppRoute path="/">

@@ -35,6 +35,7 @@ export enum PageName {
     NO_ACCESS = 'no_access',
     NO_PROJECT_ACCESS = 'no_project_access',
     SPACES = 'spaces',
+    SHARE = 'share',
 }
 
 export enum CategoryName {

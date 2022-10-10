@@ -20,11 +20,11 @@ export class ShareService {
 
     private shareUrlWithHost(shareUrl: ShareUrl) {
         const host = this.lightdashConfig.siteUrl;
-        const params = shareUrl.params ? `?${shareUrl.params}` : '';
         return {
             ...shareUrl,
             host,
-            url: `${host}/${shareUrl.path}${params}`,
+            shareUrl: `${host}/share/${shareUrl.nanoid}`,
+            url: `${shareUrl.path}${shareUrl.params}`,
         };
     }
 
