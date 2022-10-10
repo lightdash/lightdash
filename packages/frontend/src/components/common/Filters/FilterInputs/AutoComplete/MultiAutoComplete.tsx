@@ -1,8 +1,8 @@
 import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
-import React, { FC, useCallback, useState } from 'react';
+import React, { FC, useCallback } from 'react';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
@@ -16,6 +16,7 @@ type Props = {
     field: FilterableField;
     values: string[];
     suggestions: string[];
+    popoverProps?: Popover2Props;
     onChange: (values: string[]) => void;
 };
 
@@ -23,6 +24,7 @@ const MultiAutoComplete: FC<Props> = ({
     values,
     field,
     suggestions,
+    popoverProps,
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
@@ -32,8 +34,6 @@ const MultiAutoComplete: FC<Props> = ({
         getItemId(field),
         projectUuid,
     );
-
-    const [isOpen, setIsOpen] = useState(false);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -81,7 +81,6 @@ const MultiAutoComplete: FC<Props> = ({
     const onItemSelect = useCallback(
         (value: string) => {
             onChange(toggleValueFromArray(values, value));
-            setIsOpen(false);
         },
         [onChange, values],
     );
@@ -111,11 +110,8 @@ const MultiAutoComplete: FC<Props> = ({
                 onRemove,
             }}
             popoverProps={{
-                captureDismiss: true,
                 minimal: true,
-                matchTargetWidth: true,
-                isOpen,
-                onInteraction: setIsOpen,
+                ...popoverProps,
             }}
             resetOnSelect
             itemPredicate={itemPredicate}

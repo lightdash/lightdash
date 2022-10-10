@@ -1,5 +1,5 @@
 import { Icon } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     Field,
@@ -53,6 +53,7 @@ type Props = {
     fields: Array<Item>;
     onChange: (value: Item) => void;
     onClosed?: () => void;
+    popoverProps?: Popover2Props;
 };
 
 const FieldAutoComplete: FC<Props> = ({
@@ -63,6 +64,7 @@ const FieldAutoComplete: FC<Props> = ({
     onChange,
     onClosed,
     placeholder,
+    popoverProps,
 }) => (
     <>
         <AutocompleteMaxHeight />
@@ -92,6 +94,7 @@ const FieldAutoComplete: FC<Props> = ({
                 onClosed,
                 popoverClassName: 'autocomplete-max-height',
                 captureDismiss: true,
+                ...popoverProps,
             }}
             itemRenderer={renderItem}
             selectedItem={activeField}
