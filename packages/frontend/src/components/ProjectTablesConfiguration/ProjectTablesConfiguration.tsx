@@ -262,7 +262,7 @@ const ProjectTablesConfiguration: FC<{
                 <SaveButton
                     type="submit"
                     intent={Intent.PRIMARY}
-                    text="Start exploring!"
+                    text="Save changes"
                     loading={isSaving}
                     disabled={disabled}
                 />
