@@ -46,6 +46,8 @@ const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
 };
 
 type Props = {
+    id?: string;
+    name?: string;
     disabled?: boolean;
     autoFocus?: boolean;
     activeField?: Item;
@@ -60,6 +62,8 @@ const FieldAutoComplete: FC<Props> = ({
     autoFocus,
     activeField,
     fields,
+    id,
+    name,
     onChange,
     onClosed,
     placeholder,
@@ -70,6 +74,8 @@ const FieldAutoComplete: FC<Props> = ({
             fill
             disabled={disabled}
             inputProps={{
+                id,
+                name,
                 autoFocus,
                 placeholder: placeholder || 'Search field...',
                 leftIcon: activeField && (
