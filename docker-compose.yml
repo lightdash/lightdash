@@ -35,6 +35,10 @@ services:
     ports:
       - ${PORT:-8080}:${PORT:-8080}
 
+  browser: 
+    image: browserless/chrome
+    restart: always
+
   db:
     image: postgres
     restart: always

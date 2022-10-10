@@ -20,6 +20,8 @@ import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
 import { userRouter } from './userRouter';
 
+const puppeteer = require('puppeteer');
+
 export const apiV1Router = express.Router();
 
 apiV1Router.get('/livez', async (req, res, next) => {
@@ -142,3 +144,42 @@ apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
+
+apiV1Router.get('/screenshot', async (req, res, next) => {
+    const browser = await puppeteer.connect({
+        browserWSEndpoint: 'ws://browser:3000',
+    });
+    const page = await browser.newPage();
+
+    const blockedUrls = [
+        'headwayapp.co',
+        'rudderlabs.com',
+        'analytics.lightdash.com',
+        'cohere.so',
+        'intercom.io',
+    ];
+    await page.setRequestInterception(true);
+    page.on('request', (request: any) => {
+        const url = request.url();
+        if (blockedUrls.includes(url)) {
+            request.abort();
+            return;
+        }
+
+        request.continue();
+    });
+
+    await page.goto('http://lightdash-dev:3000/register', {
+        waitUntil: 'networkidle0',
+    });
+    // const html = await page.content(); // serialized HTML of page DOM.
+    const imageBuffer = await page.screenshot({ path: 'screenshot.png' });
+
+    res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': imageBuffer.length,
+    });
+    res.end(imageBuffer);
+
+    await browser.close();
+});

@@ -48,6 +48,10 @@ services:
     command: ""
     entrypoint: ["/bin/sh", "-c", "sleep infinity"]
 
+  browser: 
+    image: browserless/chrome
+    restart: always
+
   db-dev:
     image: postgres
     restart: always
