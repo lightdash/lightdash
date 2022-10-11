@@ -38,17 +38,14 @@ const port = 4000;
 // https://github.com/slackapi/sample-app-unfurls
 // https://api.slack.com/block-kit/building
 
-const appToken =
-    'xapp-1-A045RUZPJK0-4215807550449-fd48c147ebe85566975b66c663de07881a2cc61bd7461d3bc7bf2bc8ded2fc0f';
-const botToken = 'xoxb-1207722259383-4199846793957-EcrdRTzdPcxOXMVd4g8HC3eg';
+const appToken = process.env.SLACK_APP_TOKEN;
+const botToken = process.env.SLACK_BOT_TOKEN;
 // Reply to slack challenge
 
 // Start slack Event
 const { WebClient } = require('@slack/client');
 
-const slack = new WebClient(
-    'xoxb-1207722259383-4199846793957-EcrdRTzdPcxOXMVd4g8HC3eg',
-);
+const slack = new WebClient(botToken);
 /*
 const { App } = require('@slack/bolt');
 
