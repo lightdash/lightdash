@@ -13,6 +13,8 @@ import OauthScope from '../assets/oauth-scope.png';
 import DatabricksConnectScreenshot from './assets/databricks-connect-screenshot.png';
 import DatabricksAccessScreenshot from './assets/databricks-access-screenshot.png';
 import SelectSettings from './assets/select-settings.jpg';
+import ProjectConnectionSettings from './assets/project-connection-settings.jpg';
+import DbtConnectionSettings from './assets/dbt-connection-settings.jpg';
 
 # Update your project connection
 
@@ -471,14 +473,26 @@ If we don't support the warehouse you're using, don't be afraid to reach out to 
 ## 2. Import a dbt project
 
 ----
-Lightdash can connect to a dbt Cloud or dbt Core project. Just follow the guide for connecting the repository type of your project:
+Connecting Lightdash to a hosted dbt project means that you'll be able to keep your Lightdash instance in sync with the changes in your dbt project. 
+
+To connect your dbt project, just head to your project connection settings in Lightdash: 
+
+<img src={ProjectConnectionSettings} width="1043" height="613" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Then scroll down to your dbt project connection:
+
+<img src={DbtConnectionSettings} width="1083" height="591" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+
+Pick your repository type and follow the guide below:
 
 * [GitHub](#github)
 * [Gitlab](#gitlab)
 * [Azure DevOps](#azure-devops)
 * [Bitbucket](#bitbucket)
 
-We don't support connecting Lightdash to [dbt Cloud managed repositories](https://docs.getdbt.com/docs/dbt-cloud/cloud-configuring-dbt-cloud/cloud-using-a-managed-repository). If you'd like to use Lightdash, you'll need to have a remote repository for your dbt project in one of the services listed above.
+We don't support connecting Lightdash to [dbt Cloud managed repositories](https://docs.getdbt.com/docs/dbt-cloud/cloud-configuring-dbt-cloud/cloud-using-a-managed-repository). If you're using dbt Cloud and you'd like to use Lightdash, you'll need to have a remote repository for your dbt project in one of the services listed above.
+
 
 ### GitHub
 
