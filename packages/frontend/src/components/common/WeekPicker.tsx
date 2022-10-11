@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
+import { Popover2Props } from '@blueprintjs/popover2';
 import { formatDate, hexToRGB, parseDate } from '@lightdash/common';
 import moment from 'moment';
 import React, { FC, useState } from 'react';
@@ -68,9 +69,10 @@ function getWeekRange(date: Date): WeekRange {
 type Props = {
     value: Date;
     onChange: (value: Date) => void;
+    popoverProps?: Popover2Props;
 };
 
-const WeekPicker: FC<Props> = ({ value, onChange }) => {
+const WeekPicker: FC<Props> = ({ value, onChange, popoverProps }) => {
     const [hoverRange, setHoverRange] = useState<WeekRange>();
     const selectedDays = getWeekDays(getWeekRange(value).from);
     const daysAreSelected = selectedDays.length > 0;
@@ -115,6 +117,7 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
                 popoverProps={{
                     popoverClassName: 'WeekPicker',
                     placement: 'bottom',
+                    ...popoverProps,
                 }}
             />
         </>

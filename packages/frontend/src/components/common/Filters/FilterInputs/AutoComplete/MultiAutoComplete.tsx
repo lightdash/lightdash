@@ -1,5 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
@@ -16,6 +16,7 @@ type Props = {
     field: FilterableField;
     values: string[];
     suggestions: string[];
+    popoverProps?: Popover2Props;
     onChange: (values: string[]) => void;
 };
 
@@ -23,6 +24,7 @@ const MultiAutoComplete: FC<Props> = ({
     values,
     field,
     suggestions,
+    popoverProps,
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
@@ -107,7 +109,10 @@ const MultiAutoComplete: FC<Props> = ({
                 },
                 onRemove,
             }}
-            popoverProps={{ minimal: true, matchTargetWidth: true }}
+            popoverProps={{
+                minimal: true,
+                ...popoverProps,
+            }}
             resetOnSelect
             itemPredicate={itemPredicate}
             createNewItemRenderer={renderCreateOption}

@@ -211,6 +211,7 @@ const DashboardHeader = ({
                                             spaceToMove.uuid;
                                         return (
                                             <MenuItem2
+                                                key={spaceToMove.uuid}
                                                 text={spaceToMove.name}
                                                 icon={
                                                     isDisabled

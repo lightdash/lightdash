@@ -1,5 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
@@ -13,9 +13,16 @@ type Props2 = {
     value: string;
     suggestions: string[];
     onChange: (values: string) => void;
+    popoverProps?: Popover2Props;
 };
 
-const AutoComplete: FC<Props2> = ({ value, field, suggestions, onChange }) => {
+const AutoComplete: FC<Props2> = ({
+    value,
+    field,
+    suggestions,
+    popoverProps,
+    onChange,
+}) => {
     const { projectUuid } = useFiltersContext();
     const { options, setSearch, isSearching } = useAutoComplete(
         value,
@@ -80,6 +87,7 @@ const AutoComplete: FC<Props2> = ({ value, field, suggestions, onChange }) => {
                 minimal: true,
                 matchTargetWidth: true,
                 popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
             }}
             resetOnSelect
             itemPredicate={itemPredicate}

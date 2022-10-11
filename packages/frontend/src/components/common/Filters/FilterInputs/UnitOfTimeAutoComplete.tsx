@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, Select } from '@blueprintjs/select';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
+import { ItemRenderer, Select2 } from '@blueprintjs/select';
 import { UnitOfTime } from '@lightdash/common';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
@@ -37,7 +37,7 @@ const UnitOfTimeOptions = (isTimestamp: boolean) => {
     );
 };
 
-const FieldSuggest = Select.ofType<UnitOfTimeOption>();
+const FieldSuggest = Select2.ofType<UnitOfTimeOption>();
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -70,6 +70,7 @@ type Props = {
     completed: boolean;
     onChange: (value: UnitOfTimeOption) => void;
     onClosed?: () => void;
+    popoverProps?: Popover2Props;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
@@ -78,6 +79,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     completed,
     onChange,
     onClosed,
+    popoverProps,
 }) => (
     <>
         <AutocompleteMaxHeight />
@@ -92,6 +94,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 minimal: true,
                 onClosed,
                 popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
             }}
             itemRenderer={renderItem}
             activeItem={{
