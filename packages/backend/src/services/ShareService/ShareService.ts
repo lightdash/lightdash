@@ -64,7 +64,7 @@ export class ShareService {
             params,
             nanoid: nanoidGenerator(),
             organizationUuid: user.organizationUuid,
-            createByUserUuid: user.userUuid,
+            createdByUserUuid: user.userUuid,
         });
 
         analytics.track({
