@@ -1,17 +1,13 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import {
-    isField,
-    isFilterableField,
-    renderTemplatedUrl,
-    ResultRow,
-} from '@lightdash/common';
-import { FC } from 'react';
+import { isField, isFilterableField, ResultRow } from '@lightdash/common';
+import React, { FC } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
+import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode'>
@@ -27,27 +23,9 @@ const CellContextMenu: FC<
 
     return (
         <Menu>
-            {!!value.raw &&
-                isField(item) &&
-                (item.urls || []).map((urlConfig) => (
-                    <MenuItem2
-                        key={`url_entry_${urlConfig.label}`}
-                        icon="open-application"
-                        text={urlConfig.label}
-                        onClick={() => {
-                            track({
-                                name: EventName.GO_TO_LINK_CLICKED,
-                            });
-                            window.open(
-                                renderTemplatedUrl(urlConfig.url, {
-                                    raw: value.raw,
-                                    formatted: value.formatted,
-                                }),
-                                '_blank',
-                            );
-                        }}
-                    />
-                ))}
+            {!!value.raw && isField(item) && (
+                <UrlMenuItems urls={item.urls} cell={cell} />
+            )}
 
             {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
 

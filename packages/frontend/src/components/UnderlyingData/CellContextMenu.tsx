@@ -1,18 +1,10 @@
 import { Menu } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import {
-    FieldUrl,
-    isField,
-    renderTemplatedUrl,
-    ResultRow,
-} from '@lightdash/common';
-import { FC } from 'react';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
+import { FieldUrl, isField, ResultRow } from '@lightdash/common';
+import React, { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
+import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
-    const { track } = useTracking();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
@@ -25,25 +17,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     }
     return (
         <Menu>
-            {urls.map((urlConfig) => (
-                <MenuItem2
-                    key={`url_entry_${urlConfig.label}`}
-                    icon="open-application"
-                    text={urlConfig.label}
-                    onClick={() => {
-                        track({
-                            name: EventName.GO_TO_LINK_CLICKED,
-                        });
-                        window.open(
-                            renderTemplatedUrl(urlConfig.url, {
-                                raw: value.raw,
-                                formatted: value.formatted,
-                            }),
-                            '_blank',
-                        );
-                    }}
-                />
-            ))}
+            <UrlMenuItems urls={urls} cell={cell} />
         </Menu>
     );
 };

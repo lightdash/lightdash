@@ -1,4 +1,5 @@
 import { Liquid } from 'liquidjs';
+import { ResultRow } from '../types/results';
 
 const templateEngine = new Liquid({
     cache: true,
@@ -14,4 +15,5 @@ const templateEngine = new Liquid({
 export const renderTemplatedUrl = (
     templatedUrl: string,
     value: { raw: any; formatted: string },
-): string => templateEngine.parseAndRenderSync(templatedUrl, { value });
+    row: ResultRow,
+): string => templateEngine.parseAndRenderSync(templatedUrl, { value, row });
