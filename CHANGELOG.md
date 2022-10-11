@@ -1,3 +1,16 @@
+# [0.282.0](https://github.com/lightdash/lightdash/compare/0.281.2...0.282.0) (2022-10-11)
+
+
+### Bug Fixes
+
+* bignumber dropdown shows wrong value as active ([#3441](https://github.com/lightdash/lightdash/issues/3441)) ([900746b](https://github.com/lightdash/lightdash/commit/900746b2b9d995739d2dd0c747b2d2d365468ce6))
+* projects invalidation and data resetting on 404 ([#3422](https://github.com/lightdash/lightdash/issues/3422)) ([e8ce516](https://github.com/lightdash/lightdash/commit/e8ce5162b618da9dd210a951ee7b215314c559f3))
+
+
+### Features
+
+* include dashboard filters when exploring from chart ([#3437](https://github.com/lightdash/lightdash/issues/3437)) ([c1d0bc7](https://github.com/lightdash/lightdash/commit/c1d0bc72f0a6d768714e472d5ce28aee901f6e32))
+
 ## [0.281.2](https://github.com/lightdash/lightdash/compare/0.281.1...0.281.2) (2022-10-11)
 
 
