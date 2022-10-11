@@ -1,3 +1,10 @@
+## [0.281.2](https://github.com/lightdash/lightdash/compare/0.281.1...0.281.2) (2022-10-11)
+
+
+### Bug Fixes
+
+* typos ([#3448](https://github.com/lightdash/lightdash/issues/3448)) ([5e79e34](https://github.com/lightdash/lightdash/commit/5e79e34abf9ed2bc6cd11761a06afafb16182de3))
+
 ## [0.281.1](https://github.com/lightdash/lightdash/compare/0.281.0...0.281.1) (2022-10-10)
 
 
