@@ -1,6 +1,5 @@
 import express from 'express';
 import passport from 'passport';
-import { postTestMessage } from '../clients/Slack/Slackbot';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     redirectOIDCFailure,
@@ -143,5 +142,3 @@ apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
-
-postTestMessage();
