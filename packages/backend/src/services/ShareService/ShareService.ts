@@ -31,12 +31,18 @@ export class ShareService {
     }
 
     async getShareUrl(user: SessionUser, nanoid: string): Promise<ShareUrl> {
-        if (user.ability.cannot('view', subject('Organization', user))) {
-            throw new ForbiddenError();
-        }
-
         const shareUrl = await this.shareModel.getSharedUrl(nanoid);
 
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Organization', {
+                    organizationUuid: shareUrl.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         analytics.track({
             userId: user.userUuid,
             event: 'share_url.used',

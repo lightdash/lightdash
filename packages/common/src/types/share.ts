@@ -2,7 +2,7 @@ export type ShareUrl = {
     nanoid: string;
     path: string;
     params: string;
-    createByUserUuid?: string;
+    createdByUserUuid?: string;
     organizationUuid?: string;
     shareUrl?: string;
     url?: string;

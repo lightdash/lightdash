@@ -4,14 +4,15 @@ import {
     Config,
     FullShareUrl,
     FullShareUrlWithoutParams,
-    ShareUrl,
+    SampleShareUrl,
     ShareUrlWithoutParams,
+    User,
 } from './ShareService.mock';
 
 jest.mock('../../models/models', () => ({
     shareModel: {
-        createSharedUrl: jest.fn(async () => ShareUrl),
-        getSharedUrl: jest.fn(async () => ShareUrl),
+        createSharedUrl: jest.fn(async () => SampleShareUrl),
+        getSharedUrl: jest.fn(async () => SampleShareUrl),
     },
 }));
 
@@ -27,13 +28,17 @@ describe('share', () => {
 
     it('Should save sharedUrl', async () => {
         expect(
-            await shareService.createShareUrl(ShareUrl.path, ShareUrl.params),
+            await shareService.createShareUrl(
+                User,
+                SampleShareUrl.path,
+                SampleShareUrl.params,
+            ),
         ).toEqual(FullShareUrl);
     });
     it('Should get saved sharedUrl', async () => {
-        expect(await shareService.getShareUrl(ShareUrl.nanoid)).toEqual(
-            FullShareUrl,
-        );
+        expect(
+            await shareService.getShareUrl(User, SampleShareUrl.nanoid),
+        ).toEqual(FullShareUrl);
     });
 
     it('Should get saved sharedUrl without params', async () => {
@@ -42,7 +47,7 @@ describe('share', () => {
         );
 
         expect(
-            await shareService.getShareUrl(ShareUrlWithoutParams.nanoid),
+            await shareService.getShareUrl(User, ShareUrlWithoutParams.nanoid),
         ).toEqual(FullShareUrlWithoutParams);
     });
 });
