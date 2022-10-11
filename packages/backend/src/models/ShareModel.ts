@@ -13,8 +13,22 @@ export class ShareModel {
     }
 
     async createSharedUrl(shareUrl: ShareUrl): Promise<ShareUrl> {
+        const [user] = await this.database('users')
+            .select('user_id')
+            .where('user_uuid', shareUrl.createByUserUuid);
+
+        const [organization] = await this.database('organizations')
+            .select('organization_id')
+            .where('organization_uuid', shareUrl.organizationUuid);
+
         const [share] = await this.database(ShareTableName)
-            .insert(shareUrl)
+            .insert({
+                nanoid: shareUrl.nanoid,
+                path: shareUrl.path,
+                params: shareUrl.params,
+                organization_id: organization.organization_id,
+                created_by_user_id: user.user_id,
+            })
             .returning('*');
 
         return share;

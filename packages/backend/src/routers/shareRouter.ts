@@ -10,7 +10,10 @@ shareRouter.get('/', isAuthenticated, async (req, res, next) => {
 
 shareRouter.get('/:nanoid', isAuthenticated, async (req, res, next) => {
     try {
-        const shareUrl = await shareService.getShareUrl(req.params.nanoid);
+        const shareUrl = await shareService.getShareUrl(
+            req.user!,
+            req.params.nanoid,
+        );
         res.json({
             status: 'ok',
             results: shareUrl,
@@ -23,6 +26,7 @@ shareRouter.get('/:nanoid', isAuthenticated, async (req, res, next) => {
 shareRouter.post('/', isAuthenticated, async (req, res, next) => {
     try {
         const shareUrl = await shareService.createShareUrl(
+            req.user!,
             req.body.path,
             req.body.params,
         );

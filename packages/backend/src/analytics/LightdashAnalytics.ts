@@ -368,6 +368,15 @@ type FieldValueSearch = BaseTrack & {
     };
 };
 
+type ShareUrl = BaseTrack & {
+    event: 'share_url.created' | 'share_url.used';
+    userId: string;
+    properties: {
+        organizationId: string;
+        path: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -398,7 +407,8 @@ type Track =
     | DashboardUpdateMultiple
     | SavedChartUpdateMultiple
     | FieldValueSearch
-    | PermissionsUpdated;
+    | PermissionsUpdated
+    | ShareUrl;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
