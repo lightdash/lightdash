@@ -4,6 +4,7 @@ import {
     DimensionType,
     isAdditionalMetric,
     isDimension,
+    isTimeInterval,
     MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
@@ -51,10 +52,18 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
         return null;
     }
 
-    const label: string =
-        isDimension(item) && item.timeInterval
+    if (isDimension(item) && item.timeInterval) {
+        // @ts-ignore
+        item.timeInterval = 'day';
+    }
+
+    const timeIntervalLabel =
+        isDimension(item) &&
+        item.timeInterval &&
+        isTimeInterval(item.timeInterval)
             ? timeFrameConfigs[item.timeInterval].getLabel()
-            : item.label || item.name;
+            : undefined;
+    const label: string = timeIntervalLabel || item.label || item.name;
     return (
         <Row
             depth={depth}
