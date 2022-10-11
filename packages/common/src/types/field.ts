@@ -29,11 +29,14 @@ export interface Field {
     urls?: FieldUrl[];
 }
 
-export const isField = (field: any): field is Field => field?.fieldType;
+export const isField = (field: any): field is Field =>
+    field ? !!field.fieldType : false;
+
 // Field ids are unique across the project
 export type FieldId = string;
 export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
     `${field.table}_${field.name}`;
+
 export type Source = {
     path: string;
     range: {

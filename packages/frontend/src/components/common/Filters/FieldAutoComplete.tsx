@@ -46,6 +46,8 @@ const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
 };
 
 type Props = {
+    id?: string;
+    name?: string;
     disabled?: boolean;
     autoFocus?: boolean;
     activeField?: Item;
@@ -60,6 +62,8 @@ const FieldAutoComplete: FC<Props> = ({
     autoFocus,
     activeField,
     fields,
+    id,
+    name,
     onChange,
     onClosed,
     placeholder,
@@ -70,6 +74,8 @@ const FieldAutoComplete: FC<Props> = ({
             fill
             disabled={disabled}
             inputProps={{
+                id,
+                name,
                 autoFocus,
                 placeholder: placeholder || 'Search field...',
                 leftIcon: activeField && (
@@ -80,7 +86,9 @@ const FieldAutoComplete: FC<Props> = ({
                 ),
             }}
             items={fields}
-            itemsEqual={(value, other) => getItemId(value) === getItemId(other)}
+            itemsEqual={(value, other) => {
+                return getItemId(value) === getItemId(other);
+            }}
             inputValueRenderer={(item: Item) => {
                 if (!activeField) {
                     return '';
@@ -94,6 +102,7 @@ const FieldAutoComplete: FC<Props> = ({
                 captureDismiss: true,
             }}
             itemRenderer={renderItem}
+            activeItem={activeField}
             selectedItem={activeField}
             noResults={<MenuItem2 disabled text="No results." />}
             onItemSelect={onChange}
