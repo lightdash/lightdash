@@ -789,8 +789,9 @@ export type BigqueryCredentials = Omit<
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
-    catalog: string;
-    schema: string;
+    catalog?: string;
+    // this supposed to be a `schema` but changing it will break for existing customers
+    database: string;
     serverHostName: string;
     httpPath: string;
     personalAccessToken: string;

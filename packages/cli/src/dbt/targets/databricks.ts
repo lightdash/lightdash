@@ -57,7 +57,8 @@ export const convertDatabricksSchema = (
         return {
             type: WarehouseTypes.DATABRICKS,
             catalog: target.catalog,
-            schema: target.schema,
+            // this supposed to be a `schema` but changing it will break for existing customers
+            database: target.schema,
             serverHostName: target.host,
             httpPath: target.http_path,
             personalAccessToken: target.token,

@@ -140,7 +140,8 @@ const credentialsTarget = (
                 target: {
                     type: WarehouseTypes.DATABRICKS,
                     catalog: credentials.catalog,
-                    schema: credentials.schema,
+                    // this supposed to be a `schema` but changing it will break for existing customers
+                    schema: credentials.database,
                     host: credentials.serverHostName,
                     token: envVarReference('token'),
                     http_path: credentials.httpPath,

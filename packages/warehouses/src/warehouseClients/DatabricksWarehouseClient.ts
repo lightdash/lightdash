@@ -131,7 +131,8 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         serverHostName,
         personalAccessToken,
         httpPath,
-        schema,
+        // this supposed to be a `schema` but changing it will break for existing customers
+        database: schema,
         catalog = 'hive_metastore',
     }: CreateDatabricksCredentials) {
         this.schema = schema;
