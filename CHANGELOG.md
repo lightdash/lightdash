@@ -1,3 +1,10 @@
+# [0.283.0](https://github.com/lightdash/lightdash/compare/0.282.0...0.283.0) (2022-10-11)
+
+
+### Features
+
+* close dashboard filter on select ([#3421](https://github.com/lightdash/lightdash/issues/3421)) ([c56b3c2](https://github.com/lightdash/lightdash/commit/c56b3c2dd6497cceb2b81467429cf298233e8d33))
+
 # [0.282.0](https://github.com/lightdash/lightdash/compare/0.281.2...0.282.0) (2022-10-11)
 
 
