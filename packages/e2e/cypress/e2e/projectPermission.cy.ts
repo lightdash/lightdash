@@ -14,7 +14,7 @@ describe('Project Permissions', () => {
         cy.loginWithPermissions('member', []);
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.contains('No project exists');
+        cy.contains("You don't have access");
     });
 
     it('Organization members with project permission can see project', () => {

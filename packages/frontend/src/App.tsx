@@ -117,6 +117,7 @@ const App = () => (
                                             }}
                                         >
                                             <UserCompletionModal />
+
                                             <Switch>
                                                 <Route path="/createProject/:method?">
                                                     <NavBar />
