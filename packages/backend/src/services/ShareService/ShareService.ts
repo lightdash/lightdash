@@ -1,4 +1,5 @@
-import { SessionUser, ShareUrl } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { ForbiddenError, SessionUser, ShareUrl } from '@lightdash/common';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -30,6 +31,10 @@ export class ShareService {
     }
 
     async getShareUrl(user: SessionUser, nanoid: string): Promise<ShareUrl> {
+        if (user.ability.cannot('view', subject('Organization', user))) {
+            throw new ForbiddenError();
+        }
+
         const shareUrl = await this.shareModel.getSharedUrl(nanoid);
 
         analytics.track({
