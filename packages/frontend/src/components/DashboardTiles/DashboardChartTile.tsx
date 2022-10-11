@@ -341,15 +341,15 @@ const DashboardChartTile: FC<Props> = (props) => {
     );
 
     const exploreFromHereUrl = useMemo(() => {
-        if (savedQuery) {
+        if (savedQueryWithDashboardFilters) {
             const { pathname, search } =
                 getExplorerUrlFromCreateSavedChartVersion(
-                    savedQuery.projectUuid,
-                    savedQuery,
+                    savedQueryWithDashboardFilters.projectUuid,
+                    savedQueryWithDashboardFilters,
                 );
             return `${pathname}?${search}`;
         }
-    }, [savedQuery]);
+    }, [savedQueryWithDashboardFilters]);
 
     return (
         <TileBase
@@ -373,7 +373,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 )
             }
             title={savedQueryWithDashboardFilters?.name || ''}
-            description={savedQuery?.description}
+            description={savedQueryWithDashboardFilters?.description}
             isLoading={isLoading}
             extraMenuItems={
                 savedChartUuid !== null && (
