@@ -1,9 +1,11 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
-import { WarehouseTypeLabels as ChosenWarehouse } from '../../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
-import { SelectedWarehouse } from '../../pages/CreateProject';
 import SelectField from '../ReactHookForm/Select';
+import {
+    SelectedWarehouse,
+    WarehouseTypeLabels as ChosenWarehouse,
+} from './ProjectConnectFlow/SelectWarehouse';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';

@@ -20,8 +20,6 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
         error,
     } = useProjects();
 
-    console.log({ projects, isLoading, isRefetching, error });
-
     return (
         <Route
             {...rest}

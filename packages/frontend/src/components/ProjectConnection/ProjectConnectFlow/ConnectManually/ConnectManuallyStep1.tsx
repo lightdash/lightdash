@@ -20,13 +20,13 @@ const codeBlock = String.raw`models:
 `;
 
 interface ConnectManuallyStep1Props {
-    needsProject: boolean;
+    isCreatingFirstProject: boolean;
     onBack: () => void;
     onForward: () => void;
 }
 
 const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
-    needsProject,
+    isCreatingFirstProject,
     onBack,
     onForward,
 }) => {
@@ -35,7 +35,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
             <BackButton icon="chevron-left" text="Back" onClick={onBack} />
 
             <ConnectWarehouseWrapper>
-                {needsProject ? (
+                {isCreatingFirstProject ? (
                     <Title>You're in! 🎉</Title>
                 ) : (
                     <Title>Connect new project</Title>

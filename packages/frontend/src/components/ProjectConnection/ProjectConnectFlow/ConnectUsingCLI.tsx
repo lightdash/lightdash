@@ -6,6 +6,7 @@ import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
+import { BackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
@@ -24,7 +25,8 @@ import {
 interface ConnectUsingCliProps {
     siteUrl: string;
     loginToken?: string;
-    needsProject: boolean;
+    isCreatingFirstProject: boolean;
+    onBack: () => void;
 }
 
 const codeBlock = ({
@@ -43,9 +45,10 @@ lightdash deploy --create
 `.trim();
 
 const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
-    needsProject,
+    isCreatingFirstProject,
     siteUrl,
     loginToken,
+    onBack,
 }) => {
     const history = useHistory();
     const initialProjectFetch = useRef(false);
@@ -94,8 +97,9 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
     return (
         <Wrapper>
+            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
             <ConnectWarehouseWrapper>
-                {needsProject ? (
+                {isCreatingFirstProject ? (
                     <Title>You're in! 🎉</Title>
                 ) : (
                     <Title>Connect new project</Title>
@@ -153,6 +157,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             <LinkButton
                 minimal
                 intent={Intent.PRIMARY}
+                replace
                 href="/createProject/manual"
                 trackingEvent={{
                     name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
@@ -161,7 +166,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 Create project manually
             </LinkButton>
 
-            {needsProject && (
+            {isCreatingFirstProject && (
                 <>
                     <Spacer $height={8} />
 

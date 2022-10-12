@@ -17,7 +17,6 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
-import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useActiveJob } from '../../providers/ActiveJobProvider';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -27,6 +26,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
+import { SelectedWarehouse } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     CompileProjectFixedWidthContainer,
@@ -328,12 +328,12 @@ export const UpdateProjectConnection: FC<{
 };
 
 interface CreateProjectConnectionProps {
-    needsProject: boolean;
+    isCreatingFirstProject: boolean;
     selectedWarehouse?: SelectedWarehouse | undefined;
 }
 
 export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
-    needsProject,
+    isCreatingFirstProject,
     selectedWarehouse,
 }) => {
     const history = useHistory();
@@ -391,7 +391,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             <ProjectFormProvider>
                 <FormWrapper>
                     <ProjectForm
-                        showGeneralSettings={!needsProject}
+                        showGeneralSettings={!isCreatingFirstProject}
                         disabled={isSaving || !!activeJobIsRunning}
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
