@@ -61,7 +61,7 @@ models:
             type: string
             label: 'Total revenue' # this is the label you'll see in Lightdash
             description: 'My custom description' # you can override the description you'll see in Lightdash here
-            sql: "IF(${revenue_gbp_total_est} = NULL, 0, ${registered_user_email})" # custom SQL applied to the column from dbt used to define the dimension
+            sql: "IF(${TABLE}.revenue_gbp_total_est = NULL, 0, ${registered_user_email})" # custom SQL applied to the column from dbt used to define the dimension
             hidden: false
             round: 2
             format: 'gbp'
