@@ -1,3 +1,10 @@
+## [0.284.2](https://github.com/lightdash/lightdash/compare/0.284.1...0.284.2) (2022-10-12)
+
+
+### Bug Fixes
+
+* fix metric type function wrap on metric filters ([#3476](https://github.com/lightdash/lightdash/issues/3476)) ([a09504e](https://github.com/lightdash/lightdash/commit/a09504e86f29088d2899dd143433333f2b45a9d6))
+
 ## [0.284.1](https://github.com/lightdash/lightdash/compare/0.284.0...0.284.1) (2022-10-12)
 
 
