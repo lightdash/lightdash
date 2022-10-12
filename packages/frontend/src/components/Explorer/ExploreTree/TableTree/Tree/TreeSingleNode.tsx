@@ -52,11 +52,6 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
         return null;
     }
 
-    if (isDimension(item) && item.timeInterval) {
-        // @ts-ignore
-        item.timeInterval = 'day';
-    }
-
     const timeIntervalLabel =
         isDimension(item) &&
         item.timeInterval &&
