@@ -1,3 +1,10 @@
+## [0.284.1](https://github.com/lightdash/lightdash/compare/0.284.0...0.284.1) (2022-10-12)
+
+
+### Bug Fixes
+
+* time interval backwards compatibility ([#3464](https://github.com/lightdash/lightdash/issues/3464)) ([2a4479e](https://github.com/lightdash/lightdash/commit/2a4479e344a85fb79e41ad9bbe916f69b35893ec))
+
 # [0.284.0](https://github.com/lightdash/lightdash/compare/0.283.0...0.284.0) (2022-10-12)
 
 
