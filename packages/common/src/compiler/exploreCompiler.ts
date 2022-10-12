@@ -166,11 +166,40 @@ const compileMetricReference = (
     };
 };
 
+export const renderSqlType = (sql: string, type: MetricType): string => {
+    switch (type) {
+        case MetricType.AVERAGE:
+            return `AVG(${sql})`;
+        case MetricType.COUNT:
+            return `COUNT(${sql})`;
+        case MetricType.COUNT_DISTINCT:
+            return `COUNT(DISTINCT ${sql})`;
+        case MetricType.MAX:
+            return `MAX(${sql})`;
+        case MetricType.MIN:
+            return `MIN(${sql})`;
+        case MetricType.SUM:
+            return `SUM(${sql})`;
+        case MetricType.NUMBER:
+        case MetricType.STRING:
+        case MetricType.DATE:
+        case MetricType.BOOLEAN:
+            break;
+        default:
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const never: never = type;
+            throw new CompileError(
+                `No SQL render function implemented for metric with type "${type}"`,
+                {},
+            );
+    }
+    return sql;
+};
 export const compileMetricSql = (
     metric: Metric,
     tables: Record<string, Table>,
     quoteChar: string,
-): { sql: string; tablesReferences: Set<string> } => {
+): { sql: string; tablesReferences: Set<string>; renderedSql: string } => {
     const compileReference = isNonAggregateMetric(metric)
         ? compileMetricReference
         : compileDimensionReference;
@@ -184,7 +213,7 @@ export const compileMetricSql = (
     const currentRef = `${metric.table}.${metric.name}`;
     const currentShortRef = metric.name;
     let tablesReferences = new Set([metric.table]);
-    let renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => {
+    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => {
         if ([currentShortRef, currentRef].includes(p1)) {
             throw new CompileError(
                 `Metric "${metric.name}" in table "${metric.table}" has a sql string referencing itself: "${metric.sql}"`,
@@ -203,41 +232,9 @@ export const compileMetricSql = (
         ]);
         return compiledReference.sql;
     });
-    const metricType = metric.type;
-    switch (metricType) {
-        case MetricType.AVERAGE:
-            renderedSql = `AVG(${renderedSql})`;
-            break;
-        case MetricType.COUNT:
-            renderedSql = `COUNT(${renderedSql})`;
-            break;
-        case MetricType.COUNT_DISTINCT:
-            renderedSql = `COUNT(DISTINCT ${renderedSql})`;
-            break;
-        case MetricType.MAX:
-            renderedSql = `MAX(${renderedSql})`;
-            break;
-        case MetricType.MIN:
-            renderedSql = `MIN(${renderedSql})`;
-            break;
-        case MetricType.SUM:
-            renderedSql = `SUM(${renderedSql})`;
-            break;
-        case MetricType.NUMBER:
-        case MetricType.STRING:
-        case MetricType.DATE:
-        case MetricType.BOOLEAN:
-            break;
-        default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = metricType;
-            throw new CompileError(
-                `No SQL render function implemented for metric with type "${metricType}"`,
-                {},
-            );
-    }
+    const compiledSql = renderSqlType(renderedSql, metric.type);
 
-    return { sql: renderedSql, tablesReferences };
+    return { sql: compiledSql, tablesReferences, renderedSql };
 };
 
 export const compileExploreJoinSql = (

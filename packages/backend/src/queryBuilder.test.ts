@@ -33,12 +33,14 @@ import {
     METRIC_QUERY,
     METRIC_QUERY_FILTER_METRIC1,
     METRIC_QUERY_FILTER_METRIC2,
+    METRIC_QUERY_FILTER_METRIC_WITH_SQL,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
     METRIC_QUERY_SQL_FILTER_METRIC1,
     METRIC_QUERY_SQL_FILTER_METRIC2,
+    METRIC_QUERY_SQL_FILTER_METRIC_WITH_SQL,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
@@ -273,5 +275,14 @@ describe('Query build filter metrics', () => {
                 compiledMetricQuery: METRIC_QUERY_FILTER_METRIC2,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_FILTER_METRIC2);
+    });
+
+    test('should show filters as columns metric with sql', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_FILTERS,
+                compiledMetricQuery: METRIC_QUERY_FILTER_METRIC_WITH_SQL,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_SQL_FILTER_METRIC_WITH_SQL);
     });
 });
