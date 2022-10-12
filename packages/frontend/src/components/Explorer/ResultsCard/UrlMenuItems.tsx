@@ -1,6 +1,11 @@
 import { Icon } from '@blueprintjs/core';
 import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
-import { FieldUrl, renderTemplatedUrl, ResultRow } from '@lightdash/common';
+import {
+    FieldUrl,
+    isField,
+    renderTemplatedUrl,
+    ResultRow,
+} from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import { FC } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -11,8 +16,22 @@ const UrlMenuItems: FC<{
     cell: Cell<ResultRow, ResultRow[0]>;
 }> = ({ urls, cell }) => {
     const { track } = useTracking();
-
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const row = cell.row
+        .getAllCells()
+        .reduce<
+            Record<string, Record<string, { raw: any; formatted: string }>>
+        >((acc, rowCell) => {
+            const item = rowCell.column.columnDef.meta?.item;
+            const rowCellValue = (rowCell.getValue() as ResultRow[0])?.value;
+            if (item && isField(item) && value) {
+                acc[item.table] = acc[item.table] || {};
+                acc[item.table][item.name] = rowCellValue;
+                return acc;
+            }
+            return acc;
+        }, {});
+
     return (
         <>
             {(urls || []).map((urlConfig) => {
@@ -25,10 +44,24 @@ const UrlMenuItems: FC<{
                             raw: value.raw,
                             formatted: value.formatted,
                         },
-                        cell.row.original,
+                        row,
                     );
-                } catch (e) {
-                    error = `${e}`;
+                } catch (e: any) {
+                    if (e.originalError?.name === 'UndefinedVariableError') {
+                        const rowReferences = e.context.match(
+                            /row\.([a-z\\._]+)\.([a-z\\._]+)\.(raw|formatted)/g,
+                        );
+                        console.log('rowReferences', rowReferences);
+                        if (rowReferences && rowReferences.length > 0) {
+                            error = `To use this action add ${rowReferences.join(
+                                ' and ',
+                            )} to your query`;
+                        } else {
+                            error = `Value not found for reference "${e.token.content}"`;
+                        }
+                    } else {
+                        error = `${e}`;
+                    }
                 }
                 return (
                     <MenuItem2
@@ -37,17 +70,7 @@ const UrlMenuItems: FC<{
                         text={urlConfig.label}
                         labelElement={
                             error && (
-                                <Tooltip2
-                                    content={
-                                        <>
-                                            <p>
-                                                Error parsing the url template:{' '}
-                                                {urlConfig.url}
-                                            </p>
-                                            <p>{error}</p>
-                                        </>
-                                    }
-                                >
+                                <Tooltip2 content={error}>
                                     <Icon icon="issue" />
                                 </Tooltip2>
                             )
