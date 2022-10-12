@@ -213,25 +213,28 @@ export const compileMetricSql = (
     const currentRef = `${metric.table}.${metric.name}`;
     const currentShortRef = metric.name;
     let tablesReferences = new Set([metric.table]);
-    const renderedSql = metric.sql.replace(lightdashVariablePattern, (_, p1) => {
-        if ([currentShortRef, currentRef].includes(p1)) {
-            throw new CompileError(
-                `Metric "${metric.name}" in table "${metric.table}" has a sql string referencing itself: "${metric.sql}"`,
-                {},
+    const renderedSql = metric.sql.replace(
+        lightdashVariablePattern,
+        (_, p1) => {
+            if ([currentShortRef, currentRef].includes(p1)) {
+                throw new CompileError(
+                    `Metric "${metric.name}" in table "${metric.table}" has a sql string referencing itself: "${metric.sql}"`,
+                    {},
+                );
+            }
+            const compiledReference = compileReference(
+                p1,
+                tables,
+                metric.table,
+                quoteChar,
             );
-        }
-        const compiledReference = compileReference(
-            p1,
-            tables,
-            metric.table,
-            quoteChar,
-        );
-        tablesReferences = new Set([
-            ...tablesReferences,
-            ...compiledReference.tablesReferences,
-        ]);
-        return compiledReference.sql;
-    });
+            tablesReferences = new Set([
+                ...tablesReferences,
+                ...compiledReference.tablesReferences,
+            ]);
+            return compiledReference.sql;
+        },
+    );
     const compiledSql = renderSqlType(renderedSql, metric.type);
 
     return { sql: compiledSql, tablesReferences, renderedSql };
