@@ -10,7 +10,6 @@ interface LinkButtonProps extends React.ComponentProps<typeof AnchorButton> {
 }
 
 const LinkButton: FC<LinkButtonProps> = ({
-    replace,
     href,
     target,
     trackingEvent,
@@ -29,11 +28,7 @@ const LinkButton: FC<LinkButtonProps> = ({
                 }
                 if (target === '_blank') return;
                 e.preventDefault();
-                if (replace) {
-                    history.replace(href);
-                } else {
-                    history.push(href);
-                }
+                history.push(href);
             }}
         />
     );
