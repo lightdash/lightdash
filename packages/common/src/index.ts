@@ -51,6 +51,7 @@ import {
 } from './types/projectMemberProfile';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
+import { ShareUrl } from './types/share';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
@@ -78,6 +79,7 @@ export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
 export * from './types/savedCharts';
 export * from './types/search';
+export * from './types/share';
 export * from './types/space';
 export * from './types/table';
 export * from './types/timeFrames';
@@ -670,7 +672,8 @@ type ApiResults =
     | PersonalAccessToken
     | ProjectMemberProfile[]
     | SearchResults
-    | Space;
+    | Space
+    | ShareUrl;
 
 export type ApiResponse = {
     status: 'ok';

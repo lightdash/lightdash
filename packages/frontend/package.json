@@ -24,6 +24,7 @@
         "@uiw/react-md-editor": "^3.10.0",
         "ace-builds": "^1.4.14",
         "cohere-js": "^1.0.19",
+        "copy-to-clipboard": "^3.3.2",
         "dagre": "^0.8.5",
         "echarts": "^5.3.0",
         "echarts-for-react": "^3.0.2",

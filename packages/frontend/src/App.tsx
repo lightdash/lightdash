@@ -39,6 +39,7 @@ import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
+import ShareRedirect from './pages/ShareRedirect';
 import Signup from './pages/Signup';
 import Space from './pages/Space';
 import SqlRunner from './pages/SqlRunner';
@@ -167,6 +168,14 @@ const App = () => (
                                                         }
                                                     >
                                                         <ForbiddenPanel subject="project" />
+                                                    </TrackPage>
+                                                </Route>
+                                                <Route path="/share/:shareNanoid">
+                                                    <NavBar />
+                                                    <TrackPage
+                                                        name={PageName.SHARE}
+                                                    >
+                                                        <ShareRedirect />
                                                     </TrackPage>
                                                 </Route>
                                                 <AppRoute path="/">
