@@ -1,3 +1,10 @@
+# [0.284.0](https://github.com/lightdash/lightdash/compare/0.283.0...0.284.0) (2022-10-12)
+
+
+### Features
+
+* share short urls render ([#3466](https://github.com/lightdash/lightdash/issues/3466)) ([0f54bba](https://github.com/lightdash/lightdash/commit/0f54bba64e7d3ccf00c0a2b37d580d28d59f9d67))
+
 # [0.283.0](https://github.com/lightdash/lightdash/compare/0.282.0...0.283.0) (2022-10-11)
 
 
