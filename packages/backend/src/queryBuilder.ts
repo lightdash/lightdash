@@ -1,6 +1,7 @@
 import {
     CompiledField,
     CompiledMetricQuery,
+    compileMetricSql,
     DateFilterRule,
     DimensionType,
     Explore,
@@ -20,6 +21,7 @@ import {
     isMetric,
     MetricType,
     parseAllReferences,
+    renderSqlType,
     UnitOfTime,
     unitOfTimeFormat,
 } from '@lightdash/common';
@@ -300,9 +302,17 @@ export const buildQuery = ({
                 return renderFilterRuleSql(filter, dimensionField, q);
             });
 
-            return `CASE WHEN (${conditions.join(' AND ')}) THEN (${
-                metric.compiledSql
-            }) ELSE NULL END AS ${q}${alias}${q}`;
+            const quoteChar = getQuoteChar(explore.targetDatabase);
+            const { renderedSql } = compileMetricSql(
+                metric,
+                explore.tables,
+                quoteChar,
+            );
+
+            const caseSql = `CASE WHEN (${conditions.join(
+                ' AND ',
+            )}) THEN (${renderedSql}) ELSE NULL END`;
+            return `${renderSqlType(caseSql, metric.type)} AS ${q}${alias}${q}`;
         }
         return `  ${metric.compiledSql} AS ${q}${alias}${q}`;
     });
