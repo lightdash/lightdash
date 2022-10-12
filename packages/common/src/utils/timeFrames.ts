@@ -374,7 +374,7 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
           ]
         : [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH, TimeFrames.YEAR];
 
-const isTimeInterval = (value: string): value is TimeFrames =>
+export const isTimeInterval = (value: string): value is TimeFrames =>
     Object.keys(timeFrameConfigs).includes(value);
 
 export const validateTimeFrames = (values: string[]): TimeFrames[] =>
