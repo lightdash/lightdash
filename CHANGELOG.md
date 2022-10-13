@@ -1,3 +1,10 @@
+# [0.285.0](https://github.com/lightdash/lightdash/compare/0.284.2...0.285.0) (2022-10-13)
+
+
+### Features
+
+* create new dashboard and space from saved chart ([#3480](https://github.com/lightdash/lightdash/issues/3480)) ([3ab32c3](https://github.com/lightdash/lightdash/commit/3ab32c3f06e465bbdcf5cdba214177b73eec7c24))
+
 ## [0.284.2](https://github.com/lightdash/lightdash/compare/0.284.1...0.284.2) (2022-10-12)
 
 
