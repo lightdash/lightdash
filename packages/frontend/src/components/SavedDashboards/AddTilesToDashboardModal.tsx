@@ -13,7 +13,7 @@ import {
     getDefaultChartTileSize,
     SavedChart,
 } from '@lightdash/common';
-import { FC, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import {
@@ -24,6 +24,10 @@ import {
 } from '../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
+import {
+    useCreateMutation as useSpaceCreateMutation,
+    useSpaces,
+} from '../../hooks/useSpaces';
 import { CreateNewText } from './AddTilesToDashboardModal.styles';
 
 interface AddTilesToDashboardModalProps {
@@ -48,6 +52,8 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const useCreate = useCreateMutation(projectUuid, true);
     const { mutate: mutateCreate } = useCreate;
+    const { data: spaces } = useSpaces(projectUuid);
+
     const { data: dashboards, isLoading } = useDashboards(projectUuid);
     const [selectedDashboard, setSelectedDashboard] = useState<string>();
     const { data: dashboardData } = useDashboardQuery(selectedDashboard);
@@ -56,7 +62,23 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const [showNewDashboardInput, setShowNewDashboardInput] =
         useState<boolean>(false);
     const { data: completeSavedChart } = useSavedQuery(savedChart.uuid);
+    const [newSpaceName, setNewSpaceName] = useState<string>('');
+    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
+    const {
+        data: newSpace,
+        mutate: spaceCreateMutation,
+        isSuccess: hasCreateSpace,
+        isLoading: isCreatingSpace,
+        reset,
+    } = useSpaceCreateMutation(projectUuid);
+    const [showNewSpaceInput, setShowNewSpaceInput] = useState<boolean>(false);
 
+    const showSpaceInput = showNewSpaceInput || spaces?.length === 0;
+    useEffect(() => {
+        if (spaceUuid === undefined && spaces && spaces.length > 0) {
+            setSpaceUuid(spaces[0].uuid);
+        }
+    }, [spaces, spaceUuid]);
     useEffect(() => {
         if (dashboards && !dashboardData && !isLoading) {
             if (dashboards.length > 0) setSelectedDashboard(dashboards[0].uuid);
@@ -72,6 +94,51 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         }
     }, [dashboards, isLoading, dashboardData, showNewDashboardInput]);
 
+    const addChartToDashboard = useCallback(
+        (selectedSpaceUuid: string | undefined) => {
+            mutateCreate({
+                name,
+                spaceUuid: selectedSpaceUuid,
+                tiles: [
+                    {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+
+                        properties: {
+                            savedChartUuid: savedChart.uuid,
+                        },
+                        ...getDefaultChartTileSize(
+                            savedChart.chartConfig?.type ||
+                                completeSavedChart?.chartConfig.type,
+                        ),
+                    },
+                ],
+            });
+
+            setShowNewDashboardInput(false);
+
+            setShowNewSpaceInput(false);
+            setName('');
+            if (onClose) onClose();
+        },
+        [
+            name,
+            savedChart.uuid,
+            completeSavedChart?.chartConfig.type,
+            mutateCreate,
+            savedChart.chartConfig?.type,
+            setShowNewDashboardInput,
+            setShowNewSpaceInput,
+            setName,
+            onClose,
+        ],
+    );
+    useEffect(() => {
+        if (hasCreateSpace && newSpace) {
+            addChartToDashboard(newSpace.uuid);
+            reset();
+        }
+    }, [hasCreateSpace, newSpace, addChartToDashboard, reset]);
     return (
         <Dialog
             isOpen={isOpen}
@@ -106,21 +173,70 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             <CreateNewText
                                 onClick={() => setShowNewDashboardInput(true)}
                             >
-                                + Create new
+                                + Create new dashboard
                             </CreateNewText>
                         </>
                     )}
 
                     {showNewDashboardInput && (
-                        <FormGroup label="Name" labelFor="chart-name">
-                            <InputGroup
-                                id="chart-name"
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="eg. KPI dashboard"
-                            />
-                        </FormGroup>
+                        <>
+                            <FormGroup label="Name" labelFor="chart-name">
+                                <InputGroup
+                                    id="chart-name"
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="eg. KPI dashboard"
+                                />
+                            </FormGroup>
+                            {!showSpaceInput && (
+                                <>
+                                    <p>
+                                        <b>Select a space</b>
+                                    </p>
+                                    <HTMLSelect
+                                        id="select-dashboard"
+                                        fill={true}
+                                        value={spaceUuid}
+                                        onChange={(e) =>
+                                            setSpaceUuid(e.currentTarget.value)
+                                        }
+                                        options={
+                                            spaces
+                                                ? spaces?.map((space) => ({
+                                                      value: space.uuid,
+                                                      label: space.name,
+                                                  }))
+                                                : []
+                                        }
+                                    />
+
+                                    <CreateNewText
+                                        onClick={() =>
+                                            setShowNewSpaceInput(true)
+                                        }
+                                    >
+                                        + Create new space
+                                    </CreateNewText>
+                                </>
+                            )}
+                            {showSpaceInput && (
+                                <>
+                                    <p>
+                                        <b>Space</b>
+                                    </p>
+                                    <InputGroup
+                                        id="chart-space"
+                                        type="text"
+                                        value={newSpaceName}
+                                        onChange={(e) =>
+                                            setNewSpaceName(e.target.value)
+                                        }
+                                        placeholder="eg. KPIs"
+                                    />
+                                </>
+                            )}
+                        </>
                     )}
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
@@ -140,25 +256,16 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             type="submit"
                             onClick={(e) => {
                                 if (showNewDashboardInput) {
-                                    mutateCreate({
-                                        name,
-                                        tiles: [
-                                            {
-                                                uuid: uuid4(),
-                                                type: DashboardTileTypes.SAVED_CHART,
-                                                properties: {
-                                                    savedChartUuid:
-                                                        savedChart.uuid,
-                                                },
-                                                ...getDefaultChartTileSize(
-                                                    savedChart.chartConfig
-                                                        ?.type ||
-                                                        completeSavedChart
-                                                            ?.chartConfig.type,
-                                                ),
-                                            },
-                                        ],
-                                    });
+                                    if (showSpaceInput) {
+                                        // We create first a space
+                                        // Then we will create the saved chart
+                                        // on isSuccess hook
+                                        spaceCreateMutation({
+                                            name: newSpaceName,
+                                        });
+                                    } else {
+                                        addChartToDashboard(spaceUuid);
+                                    }
                                 } else if (dashboardData && updateMutation) {
                                     const newTile: DashboardChartTile = {
                                         uuid: uuid4(),
@@ -181,11 +288,12 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                             [newTile],
                                         ),
                                     });
-                                }
+                                    setShowNewDashboardInput(false);
 
-                                if (onClose) onClose();
-                                setShowNewDashboardInput(false);
-                                setName('');
+                                    setShowNewSpaceInput(false);
+                                    setName('');
+                                    if (onClose) onClose();
+                                }
 
                                 e.preventDefault();
                             }}
