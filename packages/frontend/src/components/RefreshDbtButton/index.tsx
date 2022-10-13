@@ -49,7 +49,8 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                         update your dbt connection. <br />
                         <a
                             target="_blank"
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#2-import-a-dbt-project" rel="noreferrer"
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#2-import-a-dbt-project"
+                            rel="noreferrer"
                         >
                             Find out how to do that here.
                         </a>
@@ -60,7 +61,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                     minimal
                     disabled
                     icon="refresh"
-                    text="Refresh dbt ds"
+                    text="Refresh dbt"
                 />
             </Tooltip2>
         );
