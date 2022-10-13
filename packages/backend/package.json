@@ -17,7 +17,7 @@
         "@types/node-fetch": "^2.5.10",
         "@types/nodemailer": "^6.4.4",
         "@types/nodemailer-express-handlebars": "^4.0.2",
-        "@types/passport": "^1.0.7",
+        "@types/passport": "^1.0.11",
         "@types/passport-local": "^1.0.34",
         "@types/passport-strategy": "^0.2.35",
         "@types/pg": "^8.6.1",
