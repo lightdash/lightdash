@@ -28,9 +28,8 @@ const AutocompleteMaxHeight = createGlobalStyle`
 `;
 
 const getFieldIcon = (field: Item) => {
-    if (isField(field)) {
-        if (isDimension(field)) return getItemIconName(field.type);
-        else if (isMetric(field)) return getItemIconName(field.type);
+    if (isField(field) && (isDimension(field) || isMetric(field))) {
+        return getItemIconName(field.type);
     }
     return getItemIcon(field);
 };
