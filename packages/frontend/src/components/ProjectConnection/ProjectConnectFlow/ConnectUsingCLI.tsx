@@ -144,6 +144,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         </Button>
                     </CopyToClipboard>
                 </Codeblock>
+
                 <StyledNonIdealState
                     title="Waiting for data"
                     icon="stopwatch"
