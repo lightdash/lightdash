@@ -3,11 +3,18 @@ import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
-const LinkButton: FC<
-    { href: string; trackingEvent?: EventData } & React.ComponentProps<
-        typeof AnchorButton
-    >
-> = ({ href, target, trackingEvent, ...rest }) => {
+interface LinkButtonProps extends React.ComponentProps<typeof AnchorButton> {
+    href: string;
+    trackingEvent?: EventData;
+    replace?: boolean;
+}
+
+const LinkButton: FC<LinkButtonProps> = ({
+    href,
+    target,
+    trackingEvent,
+    ...rest
+}) => {
     const history = useHistory();
     const { track } = useTracking();
     return (

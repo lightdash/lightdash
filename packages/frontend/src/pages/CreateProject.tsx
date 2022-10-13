@@ -1,23 +1,22 @@
-import { getDateFormat, TimeFrames, WarehouseTypes } from '@lightdash/common';
+import { getDateFormat, TimeFrames } from '@lightdash/common';
 import moment from 'moment';
-import { FC, useEffect } from 'react';
-import { Redirect, useParams } from 'react-router-dom';
+import { FC, useEffect, useState } from 'react';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
 import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
+import SelectWarehouse, {
+    OtherWarehouse,
+    SelectedWarehouse,
+} from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useCreateAccessToken } from '../hooks/useAccessToken';
 import useSearchParams from '../hooks/useSearchParams';
 import { useApp } from '../providers/AppProvider';
-
-export type SelectedWarehouse = {
-    label: string;
-    key: WarehouseTypes;
-    icon: string;
-};
 
 enum ConnectMethod {
     CLI = 'cli',
@@ -25,6 +24,7 @@ enum ConnectMethod {
 }
 
 const CreateProject: FC = () => {
+    const history = useHistory();
     const { isLoading: isLoadingOrganisation, data: organisation } =
         useOrganisation();
 
@@ -41,6 +41,8 @@ const CreateProject: FC = () => {
 
     const { method } = useParams<{ method: ConnectMethod }>();
     const projectUuid = useSearchParams('projectUuid');
+
+    const [warehouse, setWarehouse] = useState<SelectedWarehouse>();
 
     useEffect(() => {
         if (method !== ConnectMethod.CLI || isTokenCreated) return;
@@ -67,6 +69,8 @@ const CreateProject: FC = () => {
         return <PageSpinner />;
     }
 
+    const isCreatingFirstProject = !!organisation.needsProject;
+
     return (
         <ProjectFormProvider>
             <Page noContentPadding>
@@ -74,23 +78,50 @@ const CreateProject: FC = () => {
                     <ConnectSuccess projectUuid={projectUuid} />
                 ) : (
                     <>
-                        {method === ConnectMethod.CLI && (
-                            <ConnectUsingCLI
-                                loginToken={tokenData?.token}
-                                siteUrl={health.siteUrl}
-                                needsProject={!!organisation.needsProject}
+                        {!warehouse ? (
+                            <SelectWarehouse
+                                isCreatingFirstProject={isCreatingFirstProject}
+                                onSelect={setWarehouse}
                             />
-                        )}
-                        {method === ConnectMethod.MANUAL && (
-                            <ConnectManually
-                                needsProject={!!organisation.needsProject}
+                        ) : warehouse === OtherWarehouse.Other ? (
+                            <UnsupportedWarehouse
+                                onBack={() => {
+                                    setWarehouse(undefined);
+                                    history.replace('/createProject');
+                                }}
                             />
-                        )}
+                        ) : (
+                            <>
+                                {warehouse && method === ConnectMethod.CLI && (
+                                    <ConnectUsingCLI
+                                        loginToken={tokenData?.token}
+                                        siteUrl={health.siteUrl}
+                                        isCreatingFirstProject={
+                                            isCreatingFirstProject
+                                        }
+                                        onBack={() => {
+                                            setWarehouse(undefined);
+                                            history.replace('/createProject');
+                                        }}
+                                    />
+                                )}
 
-                        {!method && (
-                            <Redirect
-                                to={`/createProject/${ConnectMethod.CLI}`}
-                            />
+                                {warehouse &&
+                                    method === ConnectMethod.MANUAL && (
+                                        <ConnectManually
+                                            isCreatingFirstProject={
+                                                isCreatingFirstProject
+                                            }
+                                            selectedWarehouse={warehouse}
+                                        />
+                                    )}
+
+                                {warehouse && !method && (
+                                    <Redirect
+                                        to={`/createProject/${ConnectMethod.CLI}`}
+                                    />
+                                )}
+                            </>
                         )}
                     </>
                 )}

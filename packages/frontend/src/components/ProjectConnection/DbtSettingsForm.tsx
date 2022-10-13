@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
-import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
@@ -17,6 +16,7 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import { SelectedWarehouse } from './ProjectConnectFlow/SelectWarehouse';
 import {
     AdvancedButton,
     AdvancedButtonWrapper,
@@ -119,7 +119,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     };
 
     const warehouseSchemaInput = useMemo(() => {
-        switch (selectedWarehouse?.key || warehouseType) {
+        switch (selectedWarehouse || warehouseType) {
             case WarehouseTypes.BIGQUERY:
                 return <BigQuerySchemaInput disabled={disabled} />;
             case WarehouseTypes.POSTGRES:

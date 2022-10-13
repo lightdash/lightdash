@@ -6,6 +6,7 @@ import {
     DbtProjectType,
     friendlyName,
     ProjectType,
+    WarehouseTypes,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
@@ -17,7 +18,6 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
-import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useActiveJob } from '../../providers/ActiveJobProvider';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -27,6 +27,7 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
+import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     CompileProjectFixedWidthContainer,
@@ -49,8 +50,8 @@ interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: DbtProjectType;
-    selectedWarehouse?: SelectedWarehouse | undefined;
-    isProjectUpdate?: boolean | undefined;
+    selectedWarehouse?: WarehouseTypes;
+    isProjectUpdate?: boolean;
 }
 
 const ProjectForm: FC<Props> = ({
@@ -60,9 +61,7 @@ const ProjectForm: FC<Props> = ({
     selectedWarehouse,
     isProjectUpdate,
 }) => {
-    const [hasWarehouse, setHasWarehouse] = useState<
-        SelectedWarehouse | undefined
-    >(selectedWarehouse);
+    const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
 
     return (
         <>
@@ -108,12 +107,8 @@ const ProjectForm: FC<Props> = ({
                 elevation={1}
             >
                 <div style={{ flex: 1 }}>
-                    {hasWarehouse && (
-                        <WarehouseLogo
-                            src={hasWarehouse.icon}
-                            alt={hasWarehouse.key}
-                        />
-                    )}
+                    {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
+
                     <div>
                         <H5 style={{ display: 'inline', marginRight: 5 }}>
                             Warehouse connection
@@ -328,12 +323,12 @@ export const UpdateProjectConnection: FC<{
 };
 
 interface CreateProjectConnectionProps {
-    needsProject: boolean;
-    selectedWarehouse?: SelectedWarehouse | undefined;
+    isCreatingFirstProject: boolean;
+    selectedWarehouse?: WarehouseTypes | undefined;
 }
 
 export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
-    needsProject,
+    isCreatingFirstProject,
     selectedWarehouse,
 }) => {
     const history = useHistory();
@@ -347,7 +342,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         defaultValues: {
             name: user.data?.organizationName,
             dbt: health.data?.defaultProject,
-            warehouse: { type: selectedWarehouse?.key },
+            warehouse: { type: selectedWarehouse },
         },
     });
     const { track } = useTracking();
@@ -367,7 +362,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 //@ts-ignore
                 warehouseConnection: {
                     ...warehouseConnection,
-                    type: selectedWarehouse?.key,
+                    type: selectedWarehouse,
                 },
             });
         }
@@ -391,7 +386,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             <ProjectFormProvider>
                 <FormWrapper>
                     <ProjectForm
-                        showGeneralSettings={!needsProject}
+                        showGeneralSettings={!isCreatingFirstProject}
                         disabled={isSaving || !!activeJobIsRunning}
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
