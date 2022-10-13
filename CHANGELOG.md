@@ -1,3 +1,10 @@
+## [0.285.1](https://github.com/lightdash/lightdash/compare/0.285.0...0.285.1) (2022-10-13)
+
+
+### Bug Fixes
+
+* show fields to filter from new tiles ([#3484](https://github.com/lightdash/lightdash/issues/3484)) ([051c20a](https://github.com/lightdash/lightdash/commit/051c20a514787f43371f5290b31fcc2de3c11995))
+
 # [0.285.0](https://github.com/lightdash/lightdash/compare/0.284.2...0.285.0) (2022-10-13)
 
 
