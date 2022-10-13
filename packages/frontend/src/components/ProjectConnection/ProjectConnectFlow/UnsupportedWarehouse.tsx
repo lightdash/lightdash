@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import { BackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
+import InviteExpertFooter from './InviteExpertFooter';
 import { ConnectWarehouseWrapper, Wrapper } from './ProjectConnectFlow.styles';
 
 interface UnsupportedWarehouseProps {
@@ -35,14 +36,16 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                                 We only support warehouses that have{' '}
                                 <a
                                     href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
-                                    target="_blank" rel="noreferrer"
+                                    target="_blank"
+                                    rel="noreferrer"
                                 >
                                     verified dbt adapters
                                 </a>{' '}
                                 for now. You can vote on your warehouse in our{' '}
                                 <a
                                     href="https://github.com/lightdash/lightdash/issues"
-                                    target="_blank" rel="noreferrer"
+                                    target="_blank"
+                                    rel="noreferrer"
                                 >
                                     GitHub issues
                                 </a>{' '}
@@ -56,8 +59,10 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                             </p>
                         </>
                     }
-                ></NonIdealState>
+                />
             </ConnectWarehouseWrapper>
+
+            <InviteExpertFooter />
         </Wrapper>
     );
 };
