@@ -7,11 +7,14 @@ import {
     getItemIcon,
     getItemId,
     getItemLabel,
+    isDimension,
     isField,
+    isMetric,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
+import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 type Item = Field | TableCalculation;
 
@@ -24,6 +27,13 @@ const AutocompleteMaxHeight = createGlobalStyle`
   }
 `;
 
+const getFieldIcon = (field: Item) => {
+    if (isField(field) && (isDimension(field) || isMetric(field))) {
+        return getItemIconName(field.type);
+    }
+    return getItemIcon(field);
+};
+
 const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
         return null;
@@ -32,7 +42,7 @@ const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
         <MenuItem2
             active={modifiers.active}
             key={getItemId(item)}
-            icon={<Icon icon={getItemIcon(item)} color={getItemColor(item)} />}
+            icon={<Icon icon={getFieldIcon(item)} color={getItemColor(item)} />}
             text={
                 <span>
                     {isField(item) ? `${item.tableLabel} ` : ''}
@@ -82,7 +92,7 @@ const FieldAutoComplete: FC<Props> = ({
                 placeholder: placeholder || 'Search field...',
                 leftIcon: activeField && (
                     <Icon
-                        icon={getItemIcon(activeField)}
+                        icon={getFieldIcon(activeField)}
                         color={getItemColor(activeField)}
                     />
                 ),
