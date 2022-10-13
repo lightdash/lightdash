@@ -1,7 +1,7 @@
 import { getDateFormat, TimeFrames } from '@lightdash/common';
 import moment from 'moment';
 import { FC, useEffect, useState } from 'react';
-import { Redirect, useParams } from 'react-router-dom';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
@@ -24,6 +24,7 @@ enum ConnectMethod {
 }
 
 const CreateProject: FC = () => {
+    const history = useHistory();
     const { isLoading: isLoadingOrganisation, data: organisation } =
         useOrganisation();
 
@@ -84,7 +85,10 @@ const CreateProject: FC = () => {
                             />
                         ) : warehouse === OtherWarehouse.Other ? (
                             <UnsupportedWarehouse
-                                onBack={() => setWarehouse(undefined)}
+                                onBack={() => {
+                                    setWarehouse(undefined);
+                                    history.replace('/createProject');
+                                }}
                             />
                         ) : (
                             <>
@@ -95,7 +99,10 @@ const CreateProject: FC = () => {
                                         isCreatingFirstProject={
                                             isCreatingFirstProject
                                         }
-                                        onBack={() => setWarehouse(undefined)}
+                                        onBack={() => {
+                                            setWarehouse(undefined);
+                                            history.replace('/createProject');
+                                        }}
                                     />
                                 )}
 
