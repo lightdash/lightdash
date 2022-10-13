@@ -1,6 +1,12 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { isField, isFilterableField, ResultRow } from '@lightdash/common';
+import {
+    Field,
+    isField,
+    isFilterableField,
+    ResultRow,
+    TableCalculation,
+} from '@lightdash/common';
 import React, { FC } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -10,8 +16,10 @@ import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataPro
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell' | 'isEditMode'>
-> = ({ cell, isEditMode }) => {
+    Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
+        itemsMap: Record<string, Field | TableCalculation>;
+    }
+> = ({ cell, isEditMode, itemsMap }) => {
     const { addFilter } = useFilters();
     const { viewData } = useUnderlyingDataContext();
     const { track } = useTracking();
@@ -24,7 +32,11 @@ const CellContextMenu: FC<
     return (
         <Menu>
             {!!value.raw && isField(item) && (
-                <UrlMenuItems urls={item.urls} cell={cell} />
+                <UrlMenuItems
+                    urls={item.urls}
+                    cell={cell}
+                    itemsMap={itemsMap}
+                />
             )}
 
             {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
