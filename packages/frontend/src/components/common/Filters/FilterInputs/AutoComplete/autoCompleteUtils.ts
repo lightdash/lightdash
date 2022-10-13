@@ -70,6 +70,7 @@ const useDebouncedSearch = (
 
     return {
         isSearching,
+        isFetchingInitialData: !data && isLoading,
         items: cachedItems[fieldId],
         setSearch,
     };
@@ -91,11 +92,8 @@ export const useAutoComplete = (
         new Set([...suggestions, ...values]),
     );
 
-    const { items, isSearching, setSearch } = useDebouncedSearch(
-        projectUuid,
-        fieldId,
-        suggestions.length <= 0,
-    );
+    const { items, isSearching, isFetchingInitialData, setSearch } =
+        useDebouncedSearch(projectUuid, fieldId, suggestions.length <= 0);
 
     useEffect(() => {
         setOptions(new Set([...suggestions, ...values, ...(items || [])]));
@@ -105,5 +103,6 @@ export const useAutoComplete = (
         options,
         setSearch,
         isSearching,
+        isFetchingInitialData,
     };
 };

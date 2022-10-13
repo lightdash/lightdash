@@ -16,6 +16,8 @@ type Props2 = {
     popoverProps?: Popover2Props;
 };
 
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
 const AutoComplete: FC<Props2> = ({
     value,
     field,
@@ -24,12 +26,8 @@ const AutoComplete: FC<Props2> = ({
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
-    const { options, setSearch, isSearching } = useAutoComplete(
-        value,
-        suggestions,
-        getItemId(field),
-        projectUuid,
-    );
+    const { options, setSearch, isSearching, isFetchingInitialData } =
+        useAutoComplete(value, suggestions, getItemId(field), projectUuid);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -55,6 +53,7 @@ const AutoComplete: FC<Props2> = ({
         },
         [value],
     );
+
     const renderCreateOption = useCallback(
         (
             q: string,
@@ -70,7 +69,7 @@ const AutoComplete: FC<Props2> = ({
                     shouldDismissPopover={false}
                 />
             ) : (
-                <Spinner size={16} style={{ margin: 12 }} />
+                <StyledSpinner />
             ),
         [isSearching],
     );
@@ -78,7 +77,13 @@ const AutoComplete: FC<Props2> = ({
         <Suggest2
             fill
             items={Array.from(options).sort()}
-            noResults={<MenuItem2 disabled text="No suggestions." />}
+            noResults={
+                isFetchingInitialData ? (
+                    <StyledSpinner />
+                ) : (
+                    <MenuItem2 disabled text="No suggestions." />
+                )
+            }
             itemsEqual={(v, other) => v.toLowerCase() === other.toLowerCase()}
             selectedItem={value}
             itemRenderer={renderItem}

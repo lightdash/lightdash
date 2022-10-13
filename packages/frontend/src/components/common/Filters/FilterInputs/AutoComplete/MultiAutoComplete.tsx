@@ -20,6 +20,8 @@ type Props = {
     onChange: (values: string[]) => void;
 };
 
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
 const MultiAutoComplete: FC<Props> = ({
     values,
     field,
@@ -28,12 +30,8 @@ const MultiAutoComplete: FC<Props> = ({
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
-    const { options, setSearch, isSearching } = useAutoComplete(
-        values,
-        suggestions,
-        getItemId(field),
-        projectUuid,
-    );
+    const { options, setSearch, isSearching, isFetchingInitialData } =
+        useAutoComplete(values, suggestions, getItemId(field), projectUuid);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -59,6 +57,7 @@ const MultiAutoComplete: FC<Props> = ({
         },
         [values],
     );
+
     const renderCreateOption = useCallback(
         (
             q: string,
@@ -74,7 +73,7 @@ const MultiAutoComplete: FC<Props> = ({
                     shouldDismissPopover={false}
                 />
             ) : (
-                <Spinner size={16} style={{ margin: 12 }} />
+                <StyledSpinner />
             ),
         [isSearching],
     );
@@ -94,7 +93,13 @@ const MultiAutoComplete: FC<Props> = ({
         <MultiSelect2
             fill
             items={Array.from(options).sort()}
-            noResults={<MenuItem2 disabled text="No suggestions." />}
+            noResults={
+                isFetchingInitialData ? (
+                    <StyledSpinner />
+                ) : (
+                    <MenuItem2 disabled text="No suggestions." />
+                )
+            }
             itemsEqual={(value, other) =>
                 value.toLowerCase() === other.toLowerCase()
             }
