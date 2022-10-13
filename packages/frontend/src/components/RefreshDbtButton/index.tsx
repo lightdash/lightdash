@@ -1,5 +1,5 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { DbtProjectType, LightdashMode, ProjectType } from '@lightdash/common';
+import { DbtProjectType, ProjectType } from '@lightdash/common';
 import React, { ComponentProps, FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
@@ -22,7 +22,6 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const { activeJob } = useActiveJob();
     const { mutate } = useRefreshServer();
     const isLoading = activeJob && activeJob?.jobStatus === 'RUNNING';
-    const { health } = useApp();
 
     const { track } = useTracking();
     const { user } = useApp();
@@ -33,10 +32,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     )
         return <div></div>;
 
-    if (
-        health.data?.mode === LightdashMode.CLOUD_BETA &&
-        data?.dbtConnection?.type === DbtProjectType.NONE
-    )
+    if (data?.dbtConnection?.type === DbtProjectType.NONE)
         return (
             <Tooltip2
                 hoverCloseDelay={500}
