@@ -123,15 +123,19 @@ apiV1Router.get('/oauth/failure', redirectOIDCFailure);
 apiV1Router.get('/oauth/success', redirectOIDCSuccess);
 
 apiV1Router.get('/logout', (req, res, next) => {
-    req.logout();
-    req.session.destroy((err) => {
+    req.logout((err) => {
         if (err) {
-            next(err);
-        } else {
-            res.json({
-                status: 'ok',
-            });
+            return next(err);
         }
+        return req.session.destroy((err2) => {
+            if (err2) {
+                next(err2);
+            } else {
+                res.json({
+                    status: 'ok',
+                });
+            }
+        });
     });
 });
 
