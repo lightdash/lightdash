@@ -30,7 +30,8 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         dashboardTiles,
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboard, dashboardTiles);
+        useAvailableDashboardFilterTargets(dashboardTiles);
+
     const hasChartTiles =
         dashboardTiles.filter(
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
