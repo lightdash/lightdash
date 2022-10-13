@@ -1,3 +1,10 @@
+# [0.286.0](https://github.com/lightdash/lightdash/compare/0.285.1...0.286.0) (2022-10-13)
+
+
+### Features
+
+* select warehouse before instructions ([#3475](https://github.com/lightdash/lightdash/issues/3475)) ([bf689e4](https://github.com/lightdash/lightdash/commit/bf689e4a6f310fb9e7b25cd9dd4f06f3aa7de301))
+
 ## [0.285.1](https://github.com/lightdash/lightdash/compare/0.285.0...0.285.1) (2022-10-13)
 
 
