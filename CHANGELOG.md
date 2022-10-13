@@ -1,3 +1,12 @@
+# [0.287.0](https://github.com/lightdash/lightdash/compare/0.286.0...0.287.0) (2022-10-13)
+
+
+### Features
+
+* disable refresh dbt on dbt project type None ([#3483](https://github.com/lightdash/lightdash/issues/3483)) ([be797ef](https://github.com/lightdash/lightdash/commit/be797ef9553e598671931df7b88df52257f7bb65))
+* show dimension icons on filter fields ([#3486](https://github.com/lightdash/lightdash/issues/3486)) ([cae552b](https://github.com/lightdash/lightdash/commit/cae552b4e2bc40199d73584ed313edffeedc6ca5))
+* url can reference any value in the row ([#3467](https://github.com/lightdash/lightdash/issues/3467)) ([f7a57e3](https://github.com/lightdash/lightdash/commit/f7a57e39b0c6355813571a644af40d16bc2d9837))
+
 # [0.286.0](https://github.com/lightdash/lightdash/compare/0.285.1...0.286.0) (2022-10-13)
 
 
