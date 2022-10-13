@@ -12,13 +12,7 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
     ...rest
 }) => {
     const { user } = useApp();
-    const {
-        data: projects,
-        isLoading,
-        isRefetching,
-        isError,
-        error,
-    } = useProjects();
+    const { data: projects, isLoading, isError, error } = useProjects();
 
     return (
         <Route

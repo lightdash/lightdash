@@ -49,6 +49,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
+import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
@@ -77,6 +78,7 @@ export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
+export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/search';
 export * from './types/share';
@@ -443,14 +445,6 @@ export const snakeCaseName = (text: string): string =>
 
 export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
-export type ResultRow = {
-    [col: string]: {
-        value: {
-            raw: any;
-            formatted: any;
-        };
-    };
-};
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     rows: ResultRow[];

@@ -185,10 +185,12 @@ columns:
           - label: Search for company in Google
             url: "https://google.com/search?${ value.formatted | url_encode }"
           - label: Open in CRM
-            url: "https://mycrm.com/companies/${ value.formatted | url_encode }"
+            url: "https://mycrm.com/companies/${ row.company.company_id.raw | url_encode }"
 ```
 
 The `${ value.formatted }` will be replaced with the value of the company name in the Lightdash UI at query run time.
+The `${ row.company.company_id.raw }` will be replaced with the value of the company id in the Lightdash UI at query run time.
+The action will be disabled if the column "company_id" from table "company" is not part of the query.
 
 ### Liquid Templating
 
@@ -196,10 +198,12 @@ Use templates to configure the url values depending on the query, this allows yo
 
 **Available liquid tags**
 
-| Tag                    | Description                                                                                  |
-|------------------------|----------------------------------------------------------------------------------------------|
-| `${ value.formatted }` | The exact value of the dimension as seen in the Lightdash UI. For example "$1,427.20"        |
-| `${ value.raw }`       | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
+| Tag                                         | Description                                                                                  |
+|---------------------------------------------|----------------------------------------------------------------------------------------------|
+| `${ value.formatted }`                      | The exact value of the dimension as seen in the Lightdash UI. For example "$1,427.20"        |
+| `${ value.raw }`                            | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
+| `${ row.table_name.column_name.formatted }` | The exact value of the column as seen in the Lightdash UI. For example "$1,427.20"           |
+| `${ row.table_name.column_name.raw }`       | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
 
 **Available liquid filters**
 
