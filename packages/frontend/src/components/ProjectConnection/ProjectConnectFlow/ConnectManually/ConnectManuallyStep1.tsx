@@ -2,13 +2,13 @@ import { AnchorButton, Button, Intent, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import { BackButton } from '../../../../pages/CreateProject.styles';
+import ConnectTitle from '../ConnectTitle';
 import InviteExpertFooter from '../InviteExpertFooter';
 import {
     ButtonsWrapper,
     Codeblock,
     ConnectWarehouseWrapper,
     Subtitle,
-    Title,
     Wrapper,
 } from './../ProjectConnectFlow.styles';
 
@@ -35,11 +35,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
             <BackButton icon="chevron-left" text="Back" onClick={onBack} />
 
             <ConnectWarehouseWrapper>
-                {isCreatingFirstProject ? (
-                    <Title>You're in! 🎉</Title>
-                ) : (
-                    <Title>Connect new project</Title>
-                )}
+                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 
                 <Subtitle>
                     We strongly recommend that you define columns in your .yml

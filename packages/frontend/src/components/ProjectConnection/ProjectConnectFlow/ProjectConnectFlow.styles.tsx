@@ -82,8 +82,11 @@ export const WarehouseButton = styled(Button)`
 `;
 
 export const WarehouseIcon = styled.img`
-    margin-right: 8px;
     width: 25px;
+`;
+
+export const OtherIcon = styled(Icon)`
+    padding: 0 5px;
 `;
 
 export const RadioButton = styled(Radio)`

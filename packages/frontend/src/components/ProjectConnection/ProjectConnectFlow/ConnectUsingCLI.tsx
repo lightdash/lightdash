@@ -10,6 +10,7 @@ import { BackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
+import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
     Codeblock,
@@ -18,7 +19,6 @@ import {
     Spacer,
     StyledNonIdealState,
     Subtitle,
-    Title,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
@@ -99,11 +99,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         <Wrapper>
             <BackButton icon="chevron-left" text="Back" onClick={onBack} />
             <ConnectWarehouseWrapper>
-                {isCreatingFirstProject ? (
-                    <Title>You're in! 🎉</Title>
-                ) : (
-                    <Title>Connect new project</Title>
-                )}
+                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 
                 <Subtitle>
                     To get started, upload your dbt project to Lightdash using

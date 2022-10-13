@@ -1,58 +1,65 @@
-import { Intent } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
-import { EventName } from '../../../types/Events';
-import LinkButton from '../../common/LinkButton';
+import React, { FC } from 'react';
 import BigQuery from './Assets/bigquery.svg';
 import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
 import Redshift from './Assets/redshift.svg';
 import Snowflake from './Assets/snowflake.svg';
+import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
     ConnectWarehouseWrapper,
-    Spacer,
+    OtherIcon,
     Subtitle,
-    Title,
     WarehouseButton,
     WarehouseGrid,
     WarehouseIcon,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
-export type SelectedWarehouse = {
-    label: string;
-    key: WarehouseTypes;
-    icon: string;
-};
+export enum OtherWarehouse {
+    Other = 'Other',
+}
 
 export const WarehouseTypeLabels = [
     {
         label: 'BigQuery',
         key: WarehouseTypes.BIGQUERY,
-        icon: BigQuery,
+        icon: <WarehouseIcon src={BigQuery} alt="BigQuery" />,
     },
     {
         label: 'Databricks',
         key: WarehouseTypes.DATABRICKS,
-        icon: Databricks,
+        icon: <WarehouseIcon src={Databricks} alt="Databricks" />,
     },
     {
         label: 'PostgreSQL',
         key: WarehouseTypes.POSTGRES,
-        icon: PostgressLogo,
+        icon: <WarehouseIcon src={PostgressLogo} alt="Postgres" />,
     },
     {
         label: 'Redshift',
         key: WarehouseTypes.REDSHIFT,
-        icon: Redshift,
+        icon: <WarehouseIcon src={Redshift} alt="Redshift" />,
     },
     {
         label: 'Snowflake',
         key: WarehouseTypes.SNOWFLAKE,
-        icon: Snowflake,
+        icon: <WarehouseIcon src={Snowflake} alt="Snowflake" />,
     },
-];
+    {
+        label: 'Other',
+        key: OtherWarehouse.Other,
+        icon: <OtherIcon icon="more" color={Colors.GRAY3} />,
+    },
+] as const;
+
+export type SelectedWarehouse = typeof WarehouseTypeLabels[number]['key'];
+
+export const getWarehouseLabel = (key: SelectedWarehouse) => {
+    return WarehouseTypeLabels.find((w) => w.key === key)!;
+};
 
 interface SelectWarehouseProps {
     isCreatingFirstProject: boolean;
@@ -63,53 +70,25 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
     isCreatingFirstProject,
     onSelect,
 }) => {
-    const [warehouseInfo, setWarehouseInfo] = useState<
-        SelectedWarehouse[] | undefined
-    >();
-
-    useMemo(() => setWarehouseInfo(WarehouseTypeLabels), []);
-
     return (
         <Wrapper>
             <ConnectWarehouseWrapper>
-                {isCreatingFirstProject ? (
-                    <Title>You're in! 🎉</Title>
-                ) : (
-                    <Title>Connect new project</Title>
-                )}
+                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
+
                 <Subtitle>Select your warehouse:</Subtitle>
 
                 <WarehouseGrid>
-                    {warehouseInfo?.map((item) => (
+                    {WarehouseTypeLabels.map((item) => (
                         <WarehouseButton
                             key={item.key}
                             outlined
-                            icon={
-                                <WarehouseIcon src={item.icon} alt={item.key} />
-                            }
-                            onClick={() => onSelect(item)}
+                            icon={item.icon}
+                            onClick={() => onSelect(item.key)}
                         >
                             {item.label}
                         </WarehouseButton>
                     ))}
                 </WarehouseGrid>
-                {isCreatingFirstProject && (
-                    <>
-                        <Spacer $height={20} />
-
-                        <LinkButton
-                            minimal
-                            intent={Intent.PRIMARY}
-                            href="https://demo.lightdash.com/"
-                            target="_blank"
-                            trackingEvent={{
-                                name: EventName.TRY_DEMO_CLICKED,
-                            }}
-                        >
-                            ...or try our demo project instead
-                        </LinkButton>
-                    </>
-                )}
             </ConnectWarehouseWrapper>
 
             <InviteExpertFooter />

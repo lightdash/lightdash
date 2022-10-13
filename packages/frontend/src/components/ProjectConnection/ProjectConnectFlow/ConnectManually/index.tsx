@@ -1,12 +1,12 @@
+import { WarehouseTypes } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import { SelectedWarehouse } from '../SelectWarehouse';
 import ConnectManuallyStep1 from './ConnectManuallyStep1';
 import ConnectManuallyStep2 from './ConnectManuallyStep2';
 
 interface ConnectManuallyProps {
     isCreatingFirstProject: boolean;
-    selectedWarehouse: SelectedWarehouse;
+    selectedWarehouse: WarehouseTypes;
 }
 
 const ConnectManually: FC<ConnectManuallyProps> = ({

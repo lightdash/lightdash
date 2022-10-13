@@ -119,7 +119,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     };
 
     const warehouseSchemaInput = useMemo(() => {
-        switch (selectedWarehouse?.key || warehouseType) {
+        switch (selectedWarehouse || warehouseType) {
             case WarehouseTypes.BIGQUERY:
                 return <BigQuerySchemaInput disabled={disabled} />;
             case WarehouseTypes.POSTGRES:

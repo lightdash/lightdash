@@ -8,8 +8,10 @@ import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/
 import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import SelectWarehouse, {
+    OtherWarehouse,
     SelectedWarehouse,
 } from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
+import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useCreateAccessToken } from '../hooks/useAccessToken';
@@ -75,33 +77,44 @@ const CreateProject: FC = () => {
                     <ConnectSuccess projectUuid={projectUuid} />
                 ) : (
                     <>
-                        {!warehouse && (
+                        {!warehouse ? (
                             <SelectWarehouse
                                 isCreatingFirstProject={isCreatingFirstProject}
                                 onSelect={setWarehouse}
                             />
-                        )}
-
-                        {warehouse && method === ConnectMethod.CLI && (
-                            <ConnectUsingCLI
-                                loginToken={tokenData?.token}
-                                siteUrl={health.siteUrl}
-                                isCreatingFirstProject={isCreatingFirstProject}
+                        ) : warehouse === OtherWarehouse.Other ? (
+                            <UnsupportedWarehouse
                                 onBack={() => setWarehouse(undefined)}
                             />
-                        )}
+                        ) : (
+                            <>
+                                {warehouse && method === ConnectMethod.CLI && (
+                                    <ConnectUsingCLI
+                                        loginToken={tokenData?.token}
+                                        siteUrl={health.siteUrl}
+                                        isCreatingFirstProject={
+                                            isCreatingFirstProject
+                                        }
+                                        onBack={() => setWarehouse(undefined)}
+                                    />
+                                )}
 
-                        {warehouse && method === ConnectMethod.MANUAL && (
-                            <ConnectManually
-                                isCreatingFirstProject={isCreatingFirstProject}
-                                selectedWarehouse={warehouse}
-                            />
-                        )}
+                                {warehouse &&
+                                    method === ConnectMethod.MANUAL && (
+                                        <ConnectManually
+                                            isCreatingFirstProject={
+                                                isCreatingFirstProject
+                                            }
+                                            selectedWarehouse={warehouse}
+                                        />
+                                    )}
 
-                        {warehouse && !method && (
-                            <Redirect
-                                to={`/createProject/${ConnectMethod.CLI}`}
-                            />
+                                {warehouse && !method && (
+                                    <Redirect
+                                        to={`/createProject/${ConnectMethod.CLI}`}
+                                    />
+                                )}
+                            </>
                         )}
                     </>
                 )}

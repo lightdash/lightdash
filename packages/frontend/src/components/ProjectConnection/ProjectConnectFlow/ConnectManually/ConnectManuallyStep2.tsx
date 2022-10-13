@@ -1,3 +1,4 @@
+import { WarehouseTypes } from '@lightdash/common';
 import { FC } from 'react';
 import { CreateProjectConnection } from '../..';
 import {
@@ -6,11 +7,11 @@ import {
     CreateProjectWrapper,
 } from '../../../../pages/CreateProject.styles';
 import { Title } from '../ProjectConnectFlow.styles';
-import { SelectedWarehouse } from '../SelectWarehouse';
+import { getWarehouseLabel } from '../SelectWarehouse';
 
 interface ConnectManuallyStep2Props {
     isCreatingFirstProject: boolean;
-    selectedWarehouse: SelectedWarehouse;
+    selectedWarehouse: WarehouseTypes;
     onBack: () => void;
 }
 
@@ -24,7 +25,10 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
             <CreateHeaderWrapper>
                 <BackButton icon="chevron-left" text="Back" onClick={onBack} />
 
-                <Title>Create a {selectedWarehouse.label} connection</Title>
+                <Title>
+                    Create a {getWarehouseLabel(selectedWarehouse).label}{' '}
+                    connection
+                </Title>
             </CreateHeaderWrapper>
 
             <CreateProjectConnection
