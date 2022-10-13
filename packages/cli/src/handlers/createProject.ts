@@ -122,7 +122,7 @@ export const createProject = async (
         type: options.type,
         warehouseConnection: credentials,
         dbtConnection: {
-            type: DbtProjectType.DBT,
+            type: DbtProjectType.NONE,
             target: targetName,
         },
     };

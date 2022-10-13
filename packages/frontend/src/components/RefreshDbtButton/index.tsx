@@ -1,5 +1,5 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType, LightdashMode, ProjectType } from '@lightdash/common';
 import React, { ComponentProps, FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
@@ -10,6 +10,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { BigButton } from '../common/BigButton';
 import {
+    DisabledRefreshDbt,
     LoadingSpinner,
     PreviewTag,
     RefreshDbt,
@@ -21,6 +22,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     const { activeJob } = useActiveJob();
     const { mutate } = useRefreshServer();
     const isLoading = activeJob && activeJob?.jobStatus === 'RUNNING';
+    const { health } = useApp();
 
     const { track } = useTracking();
     const { user } = useApp();
@@ -30,6 +32,38 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
         user.data?.ability?.cannot('manage', 'Project')
     )
         return <div></div>;
+
+    if (
+        health.data?.mode === LightdashMode.CLOUD_BETA &&
+        data?.dbtConnection?.type === DbtProjectType.NONE
+    )
+        return (
+            <Tooltip2
+                hoverCloseDelay={500}
+                interactionKind="hover"
+                content={
+                    <p>
+                        You're still connected to a local dbt project.
+                        <br />
+                        To keep your Lightdash project in sync, you need to
+                        update your dbt connection. <br />
+                        <a
+                            target="_blank"
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#2-import-a-dbt-project" rel="noreferrer"
+                        >
+                            Find out how to do that here.
+                        </a>
+                    </p>
+                }
+            >
+                <DisabledRefreshDbt
+                    minimal
+                    disabled
+                    icon="refresh"
+                    text="Refresh dbt ds"
+                />
+            </Tooltip2>
+        );
 
     const onClick = () => {
         mutate();

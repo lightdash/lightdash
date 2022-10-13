@@ -15,6 +15,7 @@ import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
 import BitBucketForm from './DbtForms/BitBucketForm';
 import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
+import DbtNoneForm from './DbtForms/DbtNoneForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import {
@@ -66,6 +67,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             enabledTypes.push(DbtProjectType.DBT_CLOUD_IDE);
         }
 
+        if (type === DbtProjectType.NONE) {
+            enabledTypes.push(DbtProjectType.NONE);
+        }
+
         return enabledTypes.map((value) => ({
             value,
             label: DbtProjectTypeLabels[value],
@@ -88,6 +93,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return <BitBucketForm disabled={disabled} />;
             case DbtProjectType.AZURE_DEVOPS:
                 return <AzureDevOpsForm disabled={disabled} />;
+            case DbtProjectType.NONE:
+                return <DbtNoneForm />;
             default: {
                 const never: never = type;
                 return null;
@@ -115,6 +122,9 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         },
         [DbtProjectType.DBT_CLOUD_IDE]: {
             env: `environment-variables`,
+        },
+        [DbtProjectType.NONE]: {
+            env: `environment-variables-3`,
         },
     };
 
