@@ -304,17 +304,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
                         )
-                            .utc(true)
                             .startOf('week')
                             .toDate(),
-                        [TimeFrames.MONTH]: moment()
-                            .utc(true)
-                            .startOf('month')
-                            .toDate(),
+                        [TimeFrames.MONTH]: moment().startOf('month').toDate(),
                         [TimeFrames.YEAR]: moment(
                             valueIsDate ? value : undefined,
                         )
-                            .utc(true)
                             .startOf('year')
                             .toDate(),
                     };
