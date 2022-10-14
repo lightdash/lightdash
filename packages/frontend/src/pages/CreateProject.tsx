@@ -96,6 +96,7 @@ const CreateProject: FC = () => {
                                     <ConnectUsingCLI
                                         loginToken={tokenData?.token}
                                         siteUrl={health.siteUrl}
+                                        version={health.version}
                                         isCreatingFirstProject={
                                             isCreatingFirstProject
                                         }
