@@ -1262,6 +1262,9 @@ export class ProjectService {
         analytics.track({
             event: 'dbt_cloud_integration.updated',
             userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+            },
         });
         return this.findDbtCloudIntegration(user, projectUuid);
     }
