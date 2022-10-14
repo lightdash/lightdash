@@ -211,9 +211,23 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     }, [explore, metricQuery]);
 
     const exploreFromHereUrl = useMemo(() => {
+        const showUnderlyingValues: string[] | undefined =
+            config?.meta !== undefined &&
+            isField(config?.meta?.item) &&
+            isMetric(config?.meta.item)
+                ? config?.meta.item.showUnderlyingValues
+                : undefined;
+
+        const showDimensions =
+            showUnderlyingValues !== undefined ? metricQuery.dimensions : [];
+
         const createSavedChartVersion: CreateSavedChartVersion = {
             tableName,
-            metricQuery,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: showDimensions,
+                metrics: [],
+            },
             pivotConfig: undefined,
             tableConfig: {
                 columnOrder: [],
@@ -228,7 +242,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
-    }, [tableName, metricQuery, projectUuid]);
+    }, [tableName, metricQuery, projectUuid, config?.meta]);
 
     const { data: resultsData, isLoading } = useUnderlyingDataResults(
         tableName,
