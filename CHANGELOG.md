@@ -1,3 +1,10 @@
+## [0.287.3](https://github.com/lightdash/lightdash/compare/0.287.2...0.287.3) (2022-10-14)
+
+
+### Bug Fixes
+
+* show underlying values from joined tables ([#3493](https://github.com/lightdash/lightdash/issues/3493)) ([bb8cfc1](https://github.com/lightdash/lightdash/commit/bb8cfc1dc3849bd4cc57ed90f1c24e69f567f677))
+
 ## [0.287.2](https://github.com/lightdash/lightdash/compare/0.287.1...0.287.2) (2022-10-14)
 
 
