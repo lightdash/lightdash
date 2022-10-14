@@ -1,3 +1,10 @@
+## [0.287.1](https://github.com/lightdash/lightdash/compare/0.287.0...0.287.1) (2022-10-14)
+
+
+### Bug Fixes
+
+* show spinner on initial load for autocompletes ([#3488](https://github.com/lightdash/lightdash/issues/3488)) ([5b55848](https://github.com/lightdash/lightdash/commit/5b55848e3c341517cbfe83ad40a1ee897a1c0782))
+
 # [0.287.0](https://github.com/lightdash/lightdash/compare/0.286.0...0.287.0) (2022-10-13)
 
 
