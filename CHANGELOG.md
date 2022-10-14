@@ -1,3 +1,10 @@
+## [0.287.2](https://github.com/lightdash/lightdash/compare/0.287.1...0.287.2) (2022-10-14)
+
+
+### Bug Fixes
+
+* create project with specific CLI version ([#3494](https://github.com/lightdash/lightdash/issues/3494)) ([f17f629](https://github.com/lightdash/lightdash/commit/f17f629a53355e599bd39ba2ffad0a1cfc6f5484))
+
 ## [0.287.1](https://github.com/lightdash/lightdash/compare/0.287.0...0.287.1) (2022-10-14)
 
 
