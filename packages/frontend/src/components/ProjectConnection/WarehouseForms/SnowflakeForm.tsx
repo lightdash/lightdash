@@ -1,7 +1,11 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
-import { hasNoWhiteSpaces, isUppercase } from '../../../utils/fieldValidators';
+import {
+    hasNoWhiteSpaces,
+    isUppercase,
+    startWithHTTPSProtocol,
+} from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -167,6 +171,16 @@ const SnowflakeForm: FC<{
                         </p>
                     }
                     disabled={disabled}
+                    rules={{
+                        validate: {
+                            hasNoWhiteSpaces: hasNoWhiteSpaces(
+                                'Snowflake URL override',
+                            ),
+                            startWithHTTPSProtocol: startWithHTTPSProtocol(
+                                'Snowflake URL override',
+                            ),
+                        },
+                    }}
                 />
             </FormSection>
             <AdvancedButtonWrapper>
