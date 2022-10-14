@@ -59,6 +59,14 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         return (explore?.joinedTables || []).length > 0;
     }, [explore]);
 
+    const showUnderlyingValues: string[] | undefined = useMemo(() => {
+        return config?.meta !== undefined &&
+            isField(config?.meta?.item) &&
+            isMetric(config?.meta.item)
+            ? config?.meta.item.showUnderlyingValues
+            : undefined;
+    }, [config?.meta]);
+
     const metricQuery = useMemo<MetricQuery>(() => {
         if (!config) return defaultMetricQuery;
         const { meta, row, pivot, dimensions, value } = config;
@@ -167,10 +175,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             },
         };
 
-        const showUnderlyingValues: string[] | undefined =
-            isField(meta?.item) && isMetric(meta.item)
-                ? meta.item.showUnderlyingValues
-                : undefined;
         const showUnderlyingTable: string | undefined = isField(meta?.item)
             ? meta.item.table
             : undefined;
@@ -194,7 +198,14 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             dimensions: dimensionFields,
             filters: allFilters,
         };
-    }, [config, filters, tableName, allFields, allDimensions]);
+    }, [
+        config,
+        filters,
+        tableName,
+        allFields,
+        allDimensions,
+        showUnderlyingValues,
+    ]);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
         const selectedDimensions = metricQuery.dimensions;
@@ -211,13 +222,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     }, [explore, metricQuery]);
 
     const exploreFromHereUrl = useMemo(() => {
-        const showUnderlyingValues: string[] | undefined =
-            config?.meta !== undefined &&
-            isField(config?.meta?.item) &&
-            isMetric(config?.meta.item)
-                ? config?.meta.item.showUnderlyingValues
-                : undefined;
-
         const showDimensions =
             showUnderlyingValues !== undefined ? metricQuery.dimensions : [];
 
@@ -242,7 +246,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
-    }, [tableName, metricQuery, projectUuid, config?.meta]);
+    }, [tableName, metricQuery, projectUuid, showUnderlyingValues]);
 
     const { data: resultsData, isLoading } = useUnderlyingDataResults(
         tableName,
