@@ -53,6 +53,7 @@ FROM base AS prod-builder
 # Install development dependencies for all
 COPY package.json .
 COPY yarn.lock .
+COPY tsconfig.json .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
