@@ -1,5 +1,6 @@
 import { H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import { BigButton } from '../components/common/BigButton';
 
 export const ContentContainer = styled.div`
     width: 800px;
@@ -49,4 +50,13 @@ export const ProjectConnectionContainer = styled.div`
     min-width: 0;
     max-width: 100vw;
     height: calc(100vh - 50px) !important;
+`;
+
+export const ButtonsWrapper = styled.div`
+    display: flex;
+    justify-content: flex-end;
+`;
+
+export const SaveButton = styled(BigButton)`
+    width: 170px;
 `;

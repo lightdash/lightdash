@@ -1,4 +1,4 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import { Card, Intent, NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
 import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -7,14 +7,14 @@ import {
     useProjectDbtCloudUpdateMutation,
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
 import {
+    ButtonsWrapper,
     ContentContainer,
     Header,
+    SaveButton,
     Title,
     TitleWrapper,
 } from '../../pages/ProjectSettings.styles';
 import Content from '../common/Page/Content';
-import { FormWrapper } from '../ProjectConnection/ProjectConnection.styles';
-import { SaveButton } from '../ProjectTablesConfiguration/ProjectTablesConfiguration.styles';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import PasswordInput from '../ReactHookForm/PasswordInput';
@@ -48,7 +48,7 @@ const DbtCloudSettings: FC = () => {
                         <Title marginBottom>dbt cloud integration</Title>
                     </TitleWrapper>
                 </Header>
-                <FormWrapper>
+                <Card>
                     {dbtCloudSettings.error ? (
                         <NonIdealState
                             title={dbtCloudSettings.error.error.message}
@@ -72,22 +72,23 @@ const DbtCloudSettings: FC = () => {
 
                             <Input
                                 name="metricsJobId"
-                                label="Metrics Job ID"
+                                label="Job ID"
                                 disabled={dbtCloudSettings.isLoading}
                                 rules={{
                                     required: 'Required field',
                                 }}
                             />
-
-                            <SaveButton
-                                type="submit"
-                                intent={Intent.PRIMARY}
-                                text="Save"
-                                loading={dbtCloudSettings.isLoading}
-                            />
+                            <ButtonsWrapper>
+                                <SaveButton
+                                    type="submit"
+                                    intent={Intent.PRIMARY}
+                                    text="Save"
+                                    loading={dbtCloudSettings.isLoading}
+                                />
+                            </ButtonsWrapper>
                         </Form>
                     )}
-                </FormWrapper>
+                </Card>
             </ContentContainer>
         </Content>
     );
