@@ -13,6 +13,7 @@ import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
+import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -72,6 +73,12 @@ const ProjectSettings: FC = () => {
                         exact
                         to={`${basePath}/projectAccess`}
                     />
+                    <MenuDivider />
+                    <RouterMenuItem
+                        text="dbt cloud integration"
+                        exact
+                        to={`${basePath}/integration/dbt-cloud`}
+                    />
                 </Menu>
             </Sidebar>
 
@@ -123,6 +130,12 @@ const ProjectSettings: FC = () => {
                     path="/projects/:projectUuid/settings/projectAccess"
                 >
                     <ProjectUserAccess />
+                </Route>
+                <Route
+                    exact
+                    path="/projects/:projectUuid/settings/integration/dbt-cloud"
+                >
+                    <DbtCloudSettings />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>

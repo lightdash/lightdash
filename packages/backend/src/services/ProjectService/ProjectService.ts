@@ -1263,6 +1263,7 @@ export class ProjectService {
             event: 'dbt_cloud_integration.updated',
             userId: user.userUuid,
         });
+        return this.findDbtCloudIntegration(user, projectUuid);
     }
 
     async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {

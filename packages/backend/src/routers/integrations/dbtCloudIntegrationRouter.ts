@@ -1,5 +1,8 @@
 import express from 'express';
-import { isAuthenticated } from '../../controllers/authentication';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../../controllers/authentication';
 import { projectService } from '../../services/services';
 
 export const dbtCloudIntegrationRouter = express.Router({ mergeParams: true });
@@ -12,6 +15,27 @@ dbtCloudIntegrationRouter.get(
             const integration = await projectService.findDbtCloudIntegration(
                 req.user!,
                 req.params.projectUuid,
+            );
+            res.json({
+                status: 'ok',
+                results: integration,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dbtCloudIntegrationRouter.post(
+    '/settings',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const integration = await projectService.upsertDbtCloudIntegration(
+                req.user!,
+                req.params.projectUuid,
+                req.body,
             );
             res.json({
                 status: 'ok',

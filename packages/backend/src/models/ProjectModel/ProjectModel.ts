@@ -629,7 +629,11 @@ export class ProjectModel {
     ): Promise<DbtCloudIntegration | undefined> {
         const [row] = await this.database('dbt_cloud_integrations')
             .select(['metrics_job_id'])
-            .innerJoin('projects', 'project_id', 'project_id')
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'dbt_cloud_integrations.project_id',
+            )
             .where('project_uuid', projectUuid);
         if (row === undefined) {
             return undefined;
@@ -653,9 +657,10 @@ export class ProjectModel {
         if (row === undefined) {
             return undefined;
         }
+        const serviceToken = this.encryptionService.decrypt(row.service_token);
         return {
             metricsJobId: row.metrics_job_id,
-            serviceToken: row.service_token,
+            serviceToken,
         };
     }
 

@@ -316,7 +316,7 @@ const App = () => (
                     </TrackingProvider>
                 </AppProvider>
             </HotkeysProvider>
-            <ReactQueryDevtools initialIsOpen={true} />
+            <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
     </>
 );

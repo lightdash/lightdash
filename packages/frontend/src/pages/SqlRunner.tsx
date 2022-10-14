@@ -29,9 +29,9 @@ import RefreshDbtButton from '../components/RefreshDbtButton';
 import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
+import { useProjectDbtCloudMetrics } from '../hooks/dbtCloud/useProjectDbtCloudMetrics';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
-import { useProjectDbtCloudMetrics } from '../hooks/useProjectDbtCloudMetrics';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
 import {

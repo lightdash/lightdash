@@ -2,7 +2,10 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
-import { DbtCloudMetadataResponseMetrics } from './types/dbtCloud';
+import {
+    DbtCloudIntegration,
+    DbtCloudMetadataResponseMetrics,
+} from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
@@ -666,6 +669,7 @@ type ApiResults =
     | SearchResults
     | Space
     | DbtCloudMetadataResponseMetrics
+    | DbtCloudIntegration
     | ShareUrl;
 
 export type ApiResponse = {

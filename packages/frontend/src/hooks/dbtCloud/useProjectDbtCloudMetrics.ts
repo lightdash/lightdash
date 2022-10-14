@@ -1,8 +1,8 @@
 import { ApiError, DbtCloudMetadataResponseMetrics } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
-import { lightdashApi } from '../api';
-import useQueryError from './useQueryError';
+import { lightdashApi } from '../../api';
+import useQueryError from '../useQueryError';
 
 const get = async (projectUuid: string) =>
     lightdashApi<DbtCloudMetadataResponseMetrics>({
