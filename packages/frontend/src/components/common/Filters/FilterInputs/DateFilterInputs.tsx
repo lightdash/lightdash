@@ -48,7 +48,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
-                                            values: [moment(value).utc(true)],
+                                            values: [moment(value).toDate()],
                                         });
                                     }}
                                 />
@@ -63,8 +63,8 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc(true)
-                                                .startOf('month'),
+                                                .startOf('month')
+                                                .toDate(),
                                         ],
                                     });
                                 }}
@@ -79,8 +79,8 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc(true)
-                                                .startOf('year'),
+                                                .startOf('year')
+                                                .toDate(),
                                         ],
                                     });
                                 }}
