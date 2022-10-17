@@ -1,3 +1,10 @@
+# [0.289.0](https://github.com/lightdash/lightdash/compare/0.288.0...0.289.0) (2022-10-17)
+
+
+### Features
+
+* add dbt server integration ([#3497](https://github.com/lightdash/lightdash/issues/3497)) ([b2e804e](https://github.com/lightdash/lightdash/commit/b2e804edabaac82fe4a38f4b24d1547391a2e33c))
+
 # [0.288.0](https://github.com/lightdash/lightdash/compare/0.287.5...0.288.0) (2022-10-17)
 
 
