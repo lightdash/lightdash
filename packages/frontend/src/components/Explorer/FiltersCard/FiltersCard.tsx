@@ -1,26 +1,17 @@
-import { Button, Card, Collapse, H5, Tag } from '@blueprintjs/core';
+import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     convertAdditionalMetric,
     countTotalFilterRules,
     DimensionType,
-    Field,
     fieldId,
-    FilterRule,
     getResultValues,
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import React, {
-    FC,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
+import React, { FC, memo, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import {
@@ -28,12 +19,12 @@ import {
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import FiltersForm from '../../common/Filters';
-import { getFilterRuleLabel } from '../../common/Filters/configs';
 import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from '../../common/Filters/FiltersProvider';
-import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
+import { FilterRulesApplied } from './FilterRulesApplied';
+import { CardHeader } from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -136,25 +127,7 @@ const FiltersCard: FC = memo(() => {
         () => getTotalFilterRules(filters),
         [filters],
     );
-    const renderFilterRule = useCallback(
-        (filterRule: FilterRule) => {
-            const fields: Field[] = data ? getVisibleFields(data) : [];
-            const field = fields.find(
-                (f) => fieldId(f) === filterRule.target.fieldId,
-            );
-            if (field && isFilterableField(field)) {
-                const filterRuleLabels = getFilterRuleLabel(filterRule, field);
-                return (
-                    <Tooltip key={field.name}>
-                        {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
-                        <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </Tooltip>
-                );
-            }
-            return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-        },
-        [data],
-    );
+
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
@@ -175,16 +148,10 @@ const FiltersCard: FC = memo(() => {
                 </Tooltip2>
                 <H5>Filters</H5>
                 {totalActiveFilters > 0 && !filterIsOpen ? (
-                    <Tooltip2
-                        content={<>{allFilterRules.map(renderFilterRule)}</>}
-                        interactionKind="hover"
-                        placement={'bottom-start'}
-                    >
-                        <Tag large round minimal>
-                            {totalActiveFilters} active filter
-                            {totalActiveFilters === 1 ? '' : 's'}
-                        </Tag>
-                    </Tooltip2>
+                    <FilterRulesApplied
+                        filterRules={allFilterRules}
+                        explore={data}
+                    />
                 ) : null}
             </CardHeader>
             <Collapse isOpen={isEditMode && filterIsOpen}>
