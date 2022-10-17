@@ -1,12 +1,20 @@
-import react from '@vitejs/plugin-react';
-import { defineConfig, splitVendorChunkPlugin } from 'vite';
-import svgr from 'vite-plugin-svgr';
-import tsconfigPaths from 'vite-tsconfig-paths';
+import reactPlugin from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import svgrPlugin from 'vite-plugin-svgr';
+import tsconfigPathsPlugin from 'vite-tsconfig-paths';
+
+const mapManualChunks = (mapping) => (id) => {
+    for (const [match, chunk] of Object.entries(mapping)) {
+        if (id.includes(match)) {
+            return chunk;
+        }
+    }
+};
 
 export default defineConfig({
     // TODO: add ESLINT plugin
 
-    plugins: [react(), svgr(), tsconfigPaths(), splitVendorChunkPlugin()],
+    plugins: [reactPlugin(), svgrPlugin(), tsconfigPathsPlugin()],
     css: {
         devSourcemap: true,
     },
@@ -16,16 +24,24 @@ export default defineConfig({
     build: {
         outDir: 'build',
         sourcemap: true,
-        commonjsOptions: {
-            exclude: ['lightdash/common'],
-        },
+        target: 'es2015',
+        minify: true,
+        // commonjsOptions: {
+        //     exclude: ['lightdash/common'],
+        // },
         rollupOptions: {
             output: {
-                manualChunks: (id) => {
-                    if (id.includes('node_modules')) return id.toString().split('node_modules/')[1].split('/')[0].toString();
-                }
-            }
-        }
+                manualChunks: mapManualChunks({
+                    '@blueprintjs/icons': 'blueprint-icons-vendor',
+                    '@blueprintjs/': 'blueprint-vendor',
+                    'highlight.js': 'highlight-vendor',
+                    echarts: 'echarts-vendor',
+                    '@mapbox/': 'mapbox-vendor',
+                    rudder: 'rudder-vendor',
+                    sentry: 'sentry-vendor',
+                }),
+            },
+        },
     },
     resolve: {
         alias: {
