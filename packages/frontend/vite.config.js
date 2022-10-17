@@ -6,6 +6,7 @@ import tsconfigPathsPlugin from 'vite-tsconfig-paths';
 const mapManualChunks = (mapping) => (id) => {
     for (const [match, chunk] of Object.entries(mapping)) {
         if (id.includes(match)) {
+            console.log(id);
             return chunk;
         }
     }
@@ -35,6 +36,11 @@ export default defineConfig({
                     '@blueprintjs/icons': 'blueprint-icons-vendor',
                     '@blueprintjs/': 'blueprint-vendor',
                     'highlight.js': 'highlight-vendor',
+                    'echarts/lib/component': 'echarts-component-vendor',
+                    'echarts/lib/coord': 'echarts-coord-vendor',
+                    'echarts/lib/scale': 'echarts-scale-vendor',
+                    'echarts/lib/chart': 'echarts-chart-vendor',
+                    'echarts/lib/data': 'echarts-data-vendor',
                     echarts: 'echarts-vendor',
                     '@mapbox/': 'mapbox-vendor',
                     rudder: 'rudder-vendor',
