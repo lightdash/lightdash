@@ -5,7 +5,6 @@ import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
 import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/select/lib/css/blueprint-select.css';
 import '@blueprintjs/table/lib/css/table.css';
-import moment from 'moment';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import {
@@ -48,11 +47,6 @@ import { AppProvider } from './providers/AppProvider';
 import { DashboardProvider } from './providers/DashboardProvider';
 import { TrackingProvider, TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
-
-// Keep original date time values on filters instead of converting dates into UTC when using JSON.stringify on API requests
-Date.prototype.toJSON = function () {
-    return moment(this).format('YYYY-MM-DDTHH:mm:ss');
-};
 
 const queryClient = new QueryClient({
     defaultOptions: {
