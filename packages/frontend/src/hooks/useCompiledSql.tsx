@@ -7,18 +7,22 @@ import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useExplorerContext } from '../providers/ExplorerProvider';
+import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
 const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
-) =>
-    lightdashApi<ApiCompiledQueryResults>({
+) => {
+    const timezoneFixQuery = convertDateFilters(query);
+
+    return lightdashApi<ApiCompiledQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/compileQuery`,
         method: 'POST',
-        body: JSON.stringify(query),
+        body: JSON.stringify(timezoneFixQuery),
     });
+};
 
 export const useCompliedSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

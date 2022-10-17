@@ -1,3 +1,10 @@
+## [0.287.5](https://github.com/lightdash/lightdash/compare/0.287.4...0.287.5) (2022-10-17)
+
+
+### Bug Fixes
+
+* remove prototype date fix, fix runquery and compilequery date filters ([#3502](https://github.com/lightdash/lightdash/issues/3502)) ([95f02e3](https://github.com/lightdash/lightdash/commit/95f02e3288734008780d060cf717ce9871b55a35))
+
 ## [0.287.4](https://github.com/lightdash/lightdash/compare/0.287.3...0.287.4) (2022-10-17)
 
 
