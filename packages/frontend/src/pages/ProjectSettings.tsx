@@ -75,7 +75,7 @@ const ProjectSettings: FC = () => {
                     />
                     <MenuDivider />
                     <RouterMenuItem
-                        text="dbt cloud integration"
+                        text="dbt Cloud"
                         exact
                         to={`${basePath}/integration/dbt-cloud`}
                     />
