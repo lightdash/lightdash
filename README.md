@@ -288,6 +288,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center"><a href="https://github.com/gautamdoulani"><img src="https://avatars.githubusercontent.com/u/3624491?v=4?s=100" width="100px;" alt="gautamdoulani"/><br /><sub><b>gautamdoulani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=gautamdoulani" title="Documentation">📖</a></td>
+      <td align="center"><a href="https://github.com/davidpeitinho"><img src="https://avatars.githubusercontent.com/u/116002164?v=4?s=100" width="100px;" alt="David Peitinho"/><br /><sub><b>David Peitinho</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Adavidpeitinho" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>
