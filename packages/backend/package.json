@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.287.5",
+    "version": "0.288.0",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -34,8 +34,8 @@
         "ajv-formats": "^2.1.0",
         "bcrypt": "^5.0.1",
         "body-parser": "^1.19.0",
-        "@lightdash/common": "^0.287.5",
-        "@lightdash/warehouses": "^0.287.5",
+        "@lightdash/common": "^0.288.0",
+        "@lightdash/warehouses": "^0.288.0",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",

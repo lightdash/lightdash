@@ -1,3 +1,10 @@
+# [0.288.0](https://github.com/lightdash/lightdash/compare/0.287.5...0.288.0) (2022-10-17)
+
+
+### Features
+
+* reset password for SSO accounts ([#3501](https://github.com/lightdash/lightdash/issues/3501)) ([7b4c114](https://github.com/lightdash/lightdash/commit/7b4c11462bed3968656180b5a3b0003223ccfb24))
+
 ## [0.287.5](https://github.com/lightdash/lightdash/compare/0.287.4...0.287.5) (2022-10-17)
 
 

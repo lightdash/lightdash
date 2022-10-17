@@ -1,7 +1,7 @@
 import { Intent, NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -44,10 +44,6 @@ const PasswordReset: FC = () => {
 
     if (health.isLoading || isLoading) {
         return <PageSpinner />;
-    }
-
-    if (health.status === 'success' && health.data?.isAuthenticated) {
-        return <Redirect to={{ pathname: '/' }} />;
     }
 
     return (
