@@ -26,6 +26,9 @@ export function itemPredicate(
     return item.toLowerCase().includes(query.toLowerCase());
 }
 
+const isString = (value: unknown): value is string =>
+    !!value && typeof value === 'string';
+
 const useDebouncedSearch = (
     projectUuid: string,
     fieldId: string,
@@ -57,13 +60,17 @@ const useDebouncedSearch = (
         setCachedItems((prev) => {
             return {
                 ...prev,
-                [fieldId]: new Set([...(prev[fieldId] || []), ...(data || [])]),
+                [fieldId]: new Set([
+                    ...(prev[fieldId] || []),
+                    ...(data || []).filter(isString),
+                ]),
             };
         });
     }, [fieldId, data]);
 
     return {
         isSearching,
+        isFetchingInitialData: !data && isLoading,
         items: cachedItems[fieldId],
         setSearch,
     };
@@ -85,11 +92,8 @@ export const useAutoComplete = (
         new Set([...suggestions, ...values]),
     );
 
-    const { items, isSearching, setSearch } = useDebouncedSearch(
-        projectUuid,
-        fieldId,
-        suggestions.length <= 0,
-    );
+    const { items, isSearching, isFetchingInitialData, setSearch } =
+        useDebouncedSearch(projectUuid, fieldId, suggestions.length <= 0);
 
     useEffect(() => {
         setOptions(new Set([...suggestions, ...values, ...(items || [])]));
@@ -99,5 +103,6 @@ export const useAutoComplete = (
         options,
         setSearch,
         isSearching,
+        isFetchingInitialData,
     };
 };

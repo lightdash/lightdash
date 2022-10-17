@@ -15,6 +15,7 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
+import { ShareModel } from './ShareModel';
 import { SpaceModel } from './SpaceModel';
 import { UserModel } from './UserModel';
 
@@ -48,5 +49,9 @@ export const spaceModel = new SpaceModel({
     database,
 });
 export const searchModel = new SearchModel({
+    database,
+});
+
+export const shareModel = new ShareModel({
     database,
 });

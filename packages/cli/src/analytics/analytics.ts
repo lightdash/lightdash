@@ -7,11 +7,7 @@ const { version: VERSION } = require('../../package.json');
 
 const identifyUser = async (): Promise<Config['user']> => {
     const config = await getConfig();
-    if (
-        process.env.LIGHTDASH_API_KEY &&
-        config.context?.serverUrl &&
-        config.context.apiKey
-    ) {
+    if (config.context?.serverUrl && config.context.apiKey) {
         try {
             const user = await lightdashApi<LightdashUser>({
                 method: 'GET',
@@ -161,6 +157,16 @@ type CliStopPreviewMissing = BaseTrack & {
         name: string;
     };
 };
+
+type CliLogin = BaseTrack & {
+    event: 'login.started' | 'login.completed';
+    properties: {
+        userId?: string;
+        method: string;
+        url: string;
+    };
+};
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -178,7 +184,8 @@ type Track =
     | CliCreateCompleted
     | CliCreateError
     | CliStartStopPreview
-    | CliStopPreviewMissing;
+    | CliStopPreviewMissing
+    | CliLogin;
 
 export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
@@ -199,11 +206,15 @@ export class LightdashAnalytics {
                 event: `${lightdashContext.app.name}.${payload.event}`,
                 context: { ...lightdashContext },
             };
+
+            const encodedWriteKey =
+                process.env.NODE_ENV === 'development'
+                    ? 'MXZpa2VHYWR0QjBZMG9SREZOTDJQcmRoa2JwOg=='
+                    : 'MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==';
             await fetch('https://analytics.lightdash.com/v1/track', {
                 method: 'POST',
                 headers: {
-                    Authorization:
-                        'Basic MXZxa1NsV01WdFlPbDcwcmszUVNFMHYxZnFZOg==',
+                    Authorization: `Basic ${encodedWriteKey}`,
                 },
                 body: JSON.stringify(body),
             });

@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     Project,
     ProjectType,
+    WarehouseTypes,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -13,6 +14,7 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import GlobalState from '../globalState';
+import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
 
 const askToRememberAnswer = async (): Promise<void> => {
@@ -88,12 +90,39 @@ export const createProject = async (
         return undefined;
     }
     const credentials = await warehouseCredentialsFromDbtTarget(target);
+    if (
+        credentials.type === WarehouseTypes.BIGQUERY &&
+        'project_id' in credentials.keyfileContents &&
+        credentials.keyfileContents.project_id &&
+        credentials.keyfileContents.project_id !== credentials.project
+    ) {
+        const spinner = GlobalState.getActiveSpinner();
+        spinner?.stop();
+        const answers = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'isConfirm',
+                message: `${styles.title(
+                    'Warning',
+                )}: Your project on your credentials file ${styles.title(
+                    credentials.keyfileContents.project_id,
+                )} does not match your project on your profiles.yml ${styles.title(
+                    credentials.project,
+                )}, this might cause permission issues when accessing data on the warehouse. Are you sure you want to continue?`,
+            },
+        ]);
+
+        if (!answers.isConfirm) {
+            process.exit(1);
+        }
+        spinner?.start();
+    }
     const project: CreateProject = {
         name: options.name,
         type: options.type,
         warehouseConnection: credentials,
         dbtConnection: {
-            type: DbtProjectType.DBT,
+            type: DbtProjectType.NONE,
             target: targetName,
         },
     };

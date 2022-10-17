@@ -23,6 +23,7 @@ import {
     isCompleteLayout,
     isDimension,
     isField,
+    isTimeInterval,
     Metric,
     MetricType,
     Series,
@@ -514,6 +515,7 @@ const getEchartAxis = ({
         const axisMinInterval =
             isDimension(field) &&
             field.timeInterval &&
+            isTimeInterval(field.timeInterval) &&
             timeFrameConfigs[field.timeInterval].getAxisMinInterval();
         const axisConfig: Record<string, any> = {};
         if (field && (hasFormatOrRound || axisMinInterval)) {

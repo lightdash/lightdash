@@ -145,12 +145,12 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
 
     await deploy({ ...options, projectUuid });
 
+    const displayUrl = options.create
+        ? `${config.context?.serverUrl}/createProject/cli?projectUuid=${projectUuid}`
+        : `${config.context?.serverUrl}/projects/${projectUuid}/home`;
+
     console.error(`${styles.bold('Successfully deployed project:')}`);
     console.error('');
-    console.error(
-        `      ${styles.bold(
-            `⚡️ ${config.context?.serverUrl}/createProject/cli?projectUuid=${projectUuid}`,
-        )}`,
-    );
+    console.error(`      ${styles.bold(`⚡️ ${displayUrl}`)}`);
     console.error('');
 };

@@ -2,6 +2,7 @@ import { AuthorizationError, formatDate } from '@lightdash/common';
 import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { configFilePath, setContext, setDefaultUser } from '../config';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
@@ -92,6 +93,14 @@ export const login = async (url: string, options: LoginOptions) => {
 
     if (options.verbose) console.error(`> Login URL: ${url}`);
 
+    await LightdashAnalytics.track({
+        event: 'login.started',
+        properties: {
+            url,
+            method: options.token ? 'token' : 'password',
+        },
+    });
+
     if (url.includes('lightdash.com')) {
         const cloudServer = url.replace('lightdash.com', 'lightdash.cloud');
         console.error(
@@ -108,6 +117,15 @@ export const login = async (url: string, options: LoginOptions) => {
 
     if (options.verbose)
         console.error(`> Logged in with userUuid: ${userUuid}`);
+
+    await LightdashAnalytics.track({
+        event: 'login.completed',
+        properties: {
+            userId: userUuid,
+            url,
+            method: options.token ? 'token' : 'password',
+        },
+    });
     await setContext({ serverUrl: url, apiKey: token });
     if (options.verbose) console.error(`> Saved config on: ${configFilePath}`);
 

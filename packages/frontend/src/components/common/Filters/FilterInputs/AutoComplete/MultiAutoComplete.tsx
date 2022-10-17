@@ -1,5 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
@@ -16,22 +16,22 @@ type Props = {
     field: FilterableField;
     values: string[];
     suggestions: string[];
+    popoverProps?: Popover2Props;
     onChange: (values: string[]) => void;
 };
+
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
 
 const MultiAutoComplete: FC<Props> = ({
     values,
     field,
     suggestions,
+    popoverProps,
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
-    const { options, setSearch, isSearching } = useAutoComplete(
-        values,
-        suggestions,
-        getItemId(field),
-        projectUuid,
-    );
+    const { options, setSearch, isSearching, isFetchingInitialData } =
+        useAutoComplete(values, suggestions, getItemId(field), projectUuid);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -57,6 +57,7 @@ const MultiAutoComplete: FC<Props> = ({
         },
         [values],
     );
+
     const renderCreateOption = useCallback(
         (
             q: string,
@@ -72,7 +73,7 @@ const MultiAutoComplete: FC<Props> = ({
                     shouldDismissPopover={false}
                 />
             ) : (
-                <Spinner size={16} style={{ margin: 12 }} />
+                <StyledSpinner />
             ),
         [isSearching],
     );
@@ -92,7 +93,13 @@ const MultiAutoComplete: FC<Props> = ({
         <MultiSelect2
             fill
             items={Array.from(options).sort()}
-            noResults={<MenuItem2 disabled text="No suggestions." />}
+            noResults={
+                isFetchingInitialData ? (
+                    <StyledSpinner />
+                ) : (
+                    <MenuItem2 disabled text="No suggestions." />
+                )
+            }
             itemsEqual={(value, other) =>
                 value.toLowerCase() === other.toLowerCase()
             }
@@ -107,7 +114,10 @@ const MultiAutoComplete: FC<Props> = ({
                 },
                 onRemove,
             }}
-            popoverProps={{ minimal: true, matchTargetWidth: true }}
+            popoverProps={{
+                minimal: true,
+                ...popoverProps,
+            }}
             resetOnSelect
             itemPredicate={itemPredicate}
             createNewItemRenderer={renderCreateOption}

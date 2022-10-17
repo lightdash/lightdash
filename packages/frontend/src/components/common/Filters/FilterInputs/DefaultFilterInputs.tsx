@@ -1,4 +1,5 @@
 import { InputGroup, NumericInput, TagInput } from '@blueprintjs/core';
+import { Popover2Props } from '@blueprintjs/popover2';
 import {
     FilterableField,
     FilterOperator,
@@ -15,12 +16,14 @@ export type FilterInputsProps<T extends FilterRule = FilterRule> = {
     field: FilterableField;
     filterRule: T;
     onChange: (value: FilterRule) => void;
+    popoverProps?: Popover2Props;
 };
 
 const DefaultFilterInputs: FC<FilterInputsProps> = ({
     field,
     filterType,
     filterRule,
+    popoverProps,
     onChange,
 }) => {
     const { getField } = useFiltersContext();
@@ -38,6 +41,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                         field={field}
                         values={filterRule.values || []}
                         suggestions={suggestions || []}
+                        popoverProps={popoverProps}
                         onChange={(values) =>
                             onChange({
                                 ...filterRule,
@@ -78,6 +82,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                         field={field}
                         value={filterRule.values?.[0] || ''}
                         suggestions={suggestions || []}
+                        popoverProps={popoverProps}
                         onChange={(value) =>
                             onChange({
                                 ...filterRule,

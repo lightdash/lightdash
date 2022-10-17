@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, Select } from '@blueprintjs/select';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
+import { ItemRenderer, Select2 } from '@blueprintjs/select';
 import { UnitOfTime } from '@lightdash/common';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
@@ -11,9 +11,15 @@ type UnitOfTimeOption = {
     completed: boolean;
 };
 
-const UnitOfTimeOptions = Object.values(UnitOfTime)
-    .reverse()
-    .reduce<UnitOfTimeOption[]>(
+const UnitOfTimeOptions = (isTimestamp: boolean) => {
+    const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
+
+    // Filter unitTimes before Days if we are filtering Dates only
+    const unitsOfTime = isTimestamp
+        ? Object.values(UnitOfTime)
+        : Object.values(UnitOfTime).slice(dateIndex);
+
+    return unitsOfTime.reverse().reduce<UnitOfTimeOption[]>(
         (sum, unitOfTime) => [
             ...sum,
             {
@@ -29,8 +35,9 @@ const UnitOfTimeOptions = Object.values(UnitOfTime)
         ],
         [],
     );
+};
 
-const FieldSuggest = Select.ofType<UnitOfTimeOption>();
+const FieldSuggest = Select2.ofType<UnitOfTimeOption>();
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -58,22 +65,26 @@ const renderItem: ItemRenderer<UnitOfTimeOption> = (
 };
 
 type Props = {
+    isTimestamp: boolean;
     unitOfTime: UnitOfTime;
     completed: boolean;
     onChange: (value: UnitOfTimeOption) => void;
     onClosed?: () => void;
+    popoverProps?: Popover2Props;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
+    isTimestamp,
     unitOfTime,
     completed,
     onChange,
     onClosed,
+    popoverProps,
 }) => (
     <>
         <AutocompleteMaxHeight />
         <FieldSuggest
-            items={UnitOfTimeOptions}
+            items={UnitOfTimeOptions(isTimestamp)}
             itemsEqual={(value, other) =>
                 value.unitOfTime === other.unitOfTime &&
                 value.completed === other.completed
@@ -83,6 +94,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 minimal: true,
                 onClosed,
                 popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
             }}
             itemRenderer={renderItem}
             activeItem={{

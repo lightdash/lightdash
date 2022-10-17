@@ -35,6 +35,7 @@ export enum PageName {
     NO_ACCESS = 'no_access',
     NO_PROJECT_ACCESS = 'no_project_access',
     SPACES = 'spaces',
+    SHARE = 'share',
 }
 
 export enum CategoryName {
@@ -67,6 +68,7 @@ export enum EventName {
     UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED = 'update_project_tables_configuration.click',
     UPDATE_DASHBOARD_NAME_CLICKED = 'update_dashboard_name.click',
     DOCUMENTATION_BUTTON_CLICKED = 'documentation_button.click',
+    TRY_DEMO_CLICKED = 'try_demo.clicked',
     CREATE_PROJECT_MANUALLY_BUTTON_CLICKED = 'create_project_manually_click.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',

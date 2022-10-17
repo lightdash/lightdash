@@ -182,10 +182,12 @@ You can also hover over this to see **_which_** filters have been applied to tha
 
 <img src={DashboardFilterApplied} width="490" height="395" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### Dashboard filters _override_ the filters applied in the saved chart
+#### Dashboard filters _are added to_ the filters applied in a saved chart so `ALL` the conditions match
 
-For example, if I had a saved chart looking at the total number of orders by each status and my saved chart had the filter `status` **is equal to** `completed`. Then, on my dashboard, I added a dashboard filter for `status` **is equal to** `return_pending`. My saved chart's filter would be overridden, so the tile on the dashboard would be filtered to include orders that **_only_** had the `status` **is equal to** `return_pending`.
+For example, if I had a chart for Sales in Asia and I filtered to `country` **is equal to** `China`, `India`, `Japan`. Then, on my dashboard I added a filter `country` **is equal to** `India`. My saved chart's filter would still be included, and my new dashboard filter would be applied as well, so the tile in the dashboard would be filtered to include:
 
-NOT `status` **is equal to** `return_pending` _and_ `completed`.
+ `country` **is equal to** `China`, `India`, `Japan` AND `country` **is equal to** `India`
 
-Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2022. But, I add a date filter to my dashboard to include orders completed on or after January 1st, 2022, then my saved chart's filter will be overridden by the dashboard filter and I'll end up with the chart filtered by orders completed on or after January 1st, 2022.
+ So, the result? My tile would only include Sales where the `country = India`.
+
+Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2022. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2022, then the dashboard filter would be added to the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.

@@ -1,104 +1,42 @@
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
-import { SelectedWarehouse } from '.';
-import { BackButton } from '../../../../pages/CreateProject.styles';
-import InviteExpertFooter from '../InviteExpertFooter';
-import BigQuery from './../Assets/bigquery.svg';
-import Databricks from './../Assets/databricks.svg';
-import PostgressLogo from './../Assets/postgresql.svg';
-import Redshift from './../Assets/redshift.svg';
-import Snowflake from './../Assets/snowflake.svg';
+import { FC } from 'react';
+import { CreateProjectConnection } from '../..';
 import {
-    ConnectWarehouseWrapper,
-    ExternalLink,
-    Subtitle,
-    Title,
-    WarehouseButton,
-    WarehouseGrid,
-    WarehouseIcon,
-    Wrapper,
-} from './../ProjectConnectFlow.styles';
-
-export const WarehouseTypeLabels = [
-    {
-        label: 'BigQuery',
-        key: WarehouseTypes.BIGQUERY,
-        icon: BigQuery,
-    },
-    {
-        label: 'Databricks',
-        key: WarehouseTypes.DATABRICKS,
-        icon: Databricks,
-    },
-    {
-        label: 'PostgreSQL',
-        key: WarehouseTypes.POSTGRES,
-        icon: PostgressLogo,
-    },
-    {
-        label: 'Redshift',
-        key: WarehouseTypes.REDSHIFT,
-        icon: Redshift,
-    },
-    {
-        label: 'Snowflake',
-        key: WarehouseTypes.SNOWFLAKE,
-        icon: Snowflake,
-    },
-];
+    BackButton,
+    CreateHeaderWrapper,
+    CreateProjectWrapper,
+} from '../../../../pages/CreateProject.styles';
+import { Title } from '../ProjectConnectFlow.styles';
+import { getWarehouseLabel } from '../SelectWarehouse';
 
 interface ConnectManuallyStep2Props {
-    needsProject: boolean;
-    onSelectWarehouse: (warehouse: SelectedWarehouse) => void;
+    isCreatingFirstProject: boolean;
+    selectedWarehouse: WarehouseTypes;
     onBack: () => void;
 }
 
 const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
-    needsProject,
-    onSelectWarehouse,
+    isCreatingFirstProject,
+    selectedWarehouse,
     onBack,
 }) => {
-    const [warehouseInfo, setWarehouseInfo] = useState<
-        SelectedWarehouse[] | undefined
-    >();
-
-    useMemo(() => setWarehouseInfo(WarehouseTypeLabels), []);
-
     return (
-        <Wrapper>
-            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
+        <CreateProjectWrapper>
+            <CreateHeaderWrapper>
+                <BackButton icon="chevron-left" text="Back" onClick={onBack} />
 
-            <ConnectWarehouseWrapper>
-                <Title>Connect your project</Title>
-                <Subtitle>Select your warehouse:</Subtitle>
+                <Title>
+                    Create a {getWarehouseLabel(selectedWarehouse).label}{' '}
+                    connection
+                </Title>
+            </CreateHeaderWrapper>
 
-                <WarehouseGrid>
-                    {warehouseInfo?.map((item) => (
-                        <WarehouseButton
-                            key={item.key}
-                            outlined
-                            icon={
-                                <WarehouseIcon src={item.icon} alt={item.key} />
-                            }
-                            onClick={() => onSelectWarehouse(item)}
-                        >
-                            {item.label}
-                        </WarehouseButton>
-                    ))}
-                </WarehouseGrid>
-
-                {needsProject && (
-                    <ExternalLink
-                        href="https://demo.lightdash.com/"
-                        target="_blank"
-                    >
-                        ...or try our demo project instead
-                    </ExternalLink>
-                )}
-            </ConnectWarehouseWrapper>
-
-            <InviteExpertFooter />
-        </Wrapper>
+            <CreateProjectConnection
+                isCreatingFirstProject={isCreatingFirstProject}
+                selectedWarehouse={selectedWarehouse}
+            />
+        </CreateProjectWrapper>
     );
 };
+
 export default ConnectManuallyStep2;

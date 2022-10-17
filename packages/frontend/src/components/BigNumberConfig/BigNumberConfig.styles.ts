@@ -12,4 +12,8 @@ export const InputWrapper = styled(FormGroup)`
         color: ${Colors.DARK_GRAY1};
         font-weight: 600;
     }
+
+    .bp4-form-group:last-child {
+        margin-bottom: 5px;
+    }
 `;

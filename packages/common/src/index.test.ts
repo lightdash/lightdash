@@ -1,12 +1,22 @@
+import moment from 'moment';
 import {
     DimensionType,
     formatFieldValue,
     formatItemValue,
     formatValue,
+    getFilterRuleWithDefaultValue,
     MetricType,
     NumberStyle,
 } from '.';
-import { dimension, metric, tableCalculation } from './index.mock';
+import {
+    dateDayDimension,
+    dateMonthDimension,
+    dateYearDimension,
+    dimension,
+    emptyValueFilter,
+    metric,
+    tableCalculation,
+} from './index.mock';
 
 describe('Common index', () => {
     describe('format and round', () => {
@@ -212,6 +222,45 @@ describe('Common index', () => {
             expect(formatItemValue(tableCalculation, null)).toEqual('∅');
             expect(formatItemValue(tableCalculation, '5')).toEqual('5');
             expect(formatItemValue(tableCalculation, 5)).toEqual('5');
+        });
+    });
+
+    describe('default values on filter rule', () => {
+        // TODO mock some timezones
+        test('should return right default day value', async () => {
+            const date = getFilterRuleWithDefaultValue(
+                dateDayDimension,
+                emptyValueFilter,
+                undefined,
+            ).values?.[0];
+
+            expect(date.toISOString().split('T')[0]).toEqual(
+                new Date().toISOString().split('T')[0],
+            );
+        });
+
+        test('should return right default month value', async () => {
+            const date = moment().format('YYYY-MM-01');
+
+            expect(
+                getFilterRuleWithDefaultValue(
+                    dateMonthDimension,
+                    emptyValueFilter,
+                    undefined,
+                ).values,
+            ).toEqual([new Date(`${date}T00:00:00.000Z`)]);
+        });
+
+        test('should return right default year value', async () => {
+            const date = moment().format('YYYY-01-01');
+
+            expect(
+                getFilterRuleWithDefaultValue(
+                    dateYearDimension,
+                    emptyValueFilter,
+                    undefined,
+                ).values,
+            ).toEqual([new Date(`${date}T00:00:00.000Z`)]);
         });
     });
 });

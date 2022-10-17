@@ -66,9 +66,10 @@ export const useDebouncedSearch = (
         500,
         [query],
     );
-    const { data } = useGlobalSearch(projectUuid, debouncedQuery);
+    const { data, isFetching } = useGlobalSearch(projectUuid, debouncedQuery);
 
-    const isSearching = query && query.length > 2 && query !== debouncedQuery;
+    const isSearching =
+        (query && query.length > 2 && query !== debouncedQuery) || isFetching;
 
     const items = useMemo(() => {
         const spaces =

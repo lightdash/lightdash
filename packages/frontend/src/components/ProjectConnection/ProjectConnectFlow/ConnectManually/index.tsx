@@ -3,30 +3,25 @@ import { FC, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import ConnectManuallyStep1 from './ConnectManuallyStep1';
 import ConnectManuallyStep2 from './ConnectManuallyStep2';
-import ConnectManuallyStep3 from './ConnectManuallyStep3';
-
-export type SelectedWarehouse = {
-    label: string;
-    key: WarehouseTypes;
-    icon: string;
-};
 
 interface ConnectManuallyProps {
-    needsProject: boolean;
+    isCreatingFirstProject: boolean;
+    selectedWarehouse: WarehouseTypes;
 }
 
-const ConnectManually: FC<ConnectManuallyProps> = ({ needsProject }) => {
+const ConnectManually: FC<ConnectManuallyProps> = ({
+    isCreatingFirstProject,
+    selectedWarehouse,
+}) => {
     const history = useHistory();
 
     const [hasDimensions, setHasDimensions] = useState<boolean>();
-    const [selectedWarehouse, setSelectedWarehouse] =
-        useState<SelectedWarehouse>();
 
     return (
         <>
             {!hasDimensions && (
                 <ConnectManuallyStep1
-                    needsProject={needsProject}
+                    isCreatingFirstProject={isCreatingFirstProject}
                     onBack={() => {
                         history.goBack();
                     }}
@@ -36,24 +31,12 @@ const ConnectManually: FC<ConnectManuallyProps> = ({ needsProject }) => {
                 />
             )}
 
-            {hasDimensions && !selectedWarehouse && (
+            {hasDimensions && (
                 <ConnectManuallyStep2
-                    needsProject={needsProject}
-                    onBack={() => {
-                        setHasDimensions(false);
-                    }}
-                    onSelectWarehouse={(warehouse) => {
-                        setSelectedWarehouse(warehouse);
-                    }}
-                />
-            )}
-
-            {hasDimensions && selectedWarehouse && (
-                <ConnectManuallyStep3
-                    needsProject={needsProject}
+                    isCreatingFirstProject={isCreatingFirstProject}
                     selectedWarehouse={selectedWarehouse}
                     onBack={() => {
-                        setSelectedWarehouse(undefined);
+                        setHasDimensions(false);
                     }}
                 />
             )}

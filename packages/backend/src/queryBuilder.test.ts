@@ -5,6 +5,7 @@ import {
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
+    EXPLORE_WITH_FILTERS,
     InTheLast1CompletedDayFilter,
     InTheLast1CompletedDayFilterSQL,
     InTheLast1CompletedHourFilter,
@@ -30,10 +31,16 @@ import {
     InTheLast1YearFilter,
     InTheLast1YearFilterSQL,
     METRIC_QUERY,
+    METRIC_QUERY_FILTER_METRIC1,
+    METRIC_QUERY_FILTER_METRIC2,
+    METRIC_QUERY_FILTER_METRIC_WITH_SQL,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
+    METRIC_QUERY_SQL_FILTER_METRIC1,
+    METRIC_QUERY_SQL_FILTER_METRIC2,
+    METRIC_QUERY_SQL_FILTER_METRIC_WITH_SQL,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_TWO_TABLES_SQL,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
@@ -242,5 +249,40 @@ describe('Filter SQL', () => {
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
+    });
+});
+
+describe('Query build filter metrics', () => {
+    beforeAll(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+    });
+    afterAll(() => {
+        jest.useFakeTimers();
+    });
+    test('should show filters as columns metric1', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_FILTERS,
+                compiledMetricQuery: METRIC_QUERY_FILTER_METRIC1,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_SQL_FILTER_METRIC1);
+    });
+    test('should show filters as columns metric2', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_FILTERS,
+                compiledMetricQuery: METRIC_QUERY_FILTER_METRIC2,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_SQL_FILTER_METRIC2);
+    });
+
+    test('should show filters as columns metric with sql', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_FILTERS,
+                compiledMetricQuery: METRIC_QUERY_FILTER_METRIC_WITH_SQL,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_SQL_FILTER_METRIC_WITH_SQL);
     });
 });

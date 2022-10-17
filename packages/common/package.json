@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.275.0",
+    "version": "0.287.4",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -9,6 +9,7 @@
     "license": "MIT",
     "devDependencies": {
         "@redocly/openapi-cli": "^1.0.0-beta.54",
+        "@types/pegjs": "^0.10.3",
         "typescript-json-schema": "^0.54.0"
     },
     "dependencies": {
@@ -16,8 +17,8 @@
         "dependency-graph": "^0.11.0",
         "liquidjs": "^9.41.0",
         "moment": "^2.29.4",
-        "uuid": "^8.3.2",
-        "pegjs": "^0.10.0"
+        "pegjs": "^0.10.0",
+        "uuid": "^8.3.2"
     },
     "scripts": {
         "dev": "nodemon src/index.ts",

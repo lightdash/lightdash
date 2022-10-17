@@ -1,10 +1,11 @@
 import {
-    Explore,
-    fieldId as getFieldId,
+    Field,
     Filters,
-    getDimensions,
-    getFields,
+    getItemId,
+    hashFieldReference,
+    isDimension,
     ResultRow,
+    TableCalculation,
 } from '@lightdash/common';
 import React, {
     createContext,
@@ -43,21 +44,36 @@ type UnderlyingDataContext = {
 export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
     pivot: string | undefined,
-    explore: Explore,
+    itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
 ) => {
-    const selectedFields = getFields(explore).filter((field) =>
-        e.dimensionNames.includes(getFieldId(field)),
-    );
-    const selectedDimensions = getDimensions(explore).filter((dimension) =>
-        e.dimensionNames.includes(getFieldId(dimension)),
+    const withPivot =
+        pivot !== undefined
+            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
+            : undefined;
+
+    const selectedFields = Object.values(itemsMap).filter((item) => {
+        if (!isDimension(item) && withPivot) {
+            return e.dimensionNames.includes(
+                hashFieldReference({
+                    field: getItemId(item),
+                    pivotValues: [
+                        { field: withPivot.fieldId, value: withPivot.value },
+                    ],
+                }),
+            );
+        }
+        return e.dimensionNames.includes(getItemId(item));
+    });
+    const selectedMetricsAndTableCalculations = selectedFields.filter(
+        (item) => !isDimension(item),
     );
 
     const selectedField =
-        selectedDimensions.length > 0
-            ? selectedDimensions[0]
+        selectedMetricsAndTableCalculations.length > 0
+            ? selectedMetricsAndTableCalculations[0]
             : selectedFields[0];
-    const selectedValue = e.data[getFieldId(selectedField)];
+    const selectedValue = e.data[getItemId(selectedField)];
     const row: ResultRow = Object.entries(e.data as Record<string, any>).reduce(
         (acc, entry) => {
             const [key, val] = entry;
@@ -65,11 +81,6 @@ export const getDataFromChartClick = (
         },
         {},
     );
-
-    const withPivot =
-        pivot !== undefined
-            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
-            : undefined;
 
     return {
         meta: { item: selectedField },

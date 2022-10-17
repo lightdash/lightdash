@@ -20,11 +20,24 @@ export const useProjects = (
         retry: false,
     },
 ) => {
-    return useQuery<OrganizationProject[], ApiError>({
+    const queryClient = useQueryClient();
+
+    const query = useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
         ...useQueryOptions,
+        onError: (e) => {
+            if (e.error.statusCode === 404) {
+                queryClient.setQueryData<OrganizationProject[]>(
+                    ['projects'],
+                    [],
+                );
+            }
+            useQueryOptions.onError?.(e);
+        },
     });
+
+    return query;
 };
 
 const LAST_PROJECT_KEY = 'lastProject';
@@ -42,17 +55,15 @@ export const deleteLastProject = () => {
 };
 
 export const useDefaultProject = () => {
-    const projectsQuery = useQuery<OrganizationProject[], ApiError>({
-        queryKey: ['projects', 'defaultProject'],
-        queryFn: getProjectsQuery,
-        retry: false,
-    });
-    const defaultProject = projectsQuery.data?.find(
+    const query = useProjects();
+
+    const defaultProject = query.data?.find(
         ({ type }) => type === ProjectType.DEFAULT,
     );
+
     return {
-        ...projectsQuery,
-        data: defaultProject || projectsQuery.data?.[0],
+        ...query,
+        data: defaultProject || query.data?.[0],
     };
 };
 

@@ -14,10 +14,8 @@ const ActiveFilters: FC = () => {
         removeDimensionDashboardFilter,
         dashboardTiles,
     } = useDashboardContext();
-    const { data: filterableFields } = useAvailableDashboardFilterTargets(
-        dashboard,
-        dashboardTiles,
-    );
+    const { data: filterableFields } =
+        useAvailableDashboardFilterTargets(dashboardTiles);
 
     const fieldMap = filterableFields.reduce<Record<FieldId, FilterableField>>(
         (acc, field) => ({ ...acc, [fieldId(field)]: field }),

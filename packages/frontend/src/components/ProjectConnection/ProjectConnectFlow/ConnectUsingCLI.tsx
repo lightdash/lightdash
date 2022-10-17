@@ -6,33 +6,38 @@ import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
+import { BackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
+import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
     Codeblock,
     CodeLabel,
     ConnectWarehouseWrapper,
+    Spacer,
     StyledNonIdealState,
     Subtitle,
-    Title,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
 interface ConnectUsingCliProps {
     siteUrl: string;
+    version: string;
     loginToken?: string;
-    needsProject: boolean;
+    isCreatingFirstProject: boolean;
+    onBack: () => void;
 }
 
 const codeBlock = ({
     siteUrl,
     loginToken,
-}: Pick<ConnectUsingCliProps, 'siteUrl' | 'loginToken'>) =>
+    version,
+}: Pick<ConnectUsingCliProps, 'siteUrl' | 'version' | 'loginToken'>) =>
     String.raw`
 #1 install lightdash CLI
-npm install -g @lightdash/cli
+npm install -g @lightdash/cli@${version}
 
 #2 login to lightdash
 lightdash login ${siteUrl} --token ${loginToken}
@@ -42,9 +47,11 @@ lightdash deploy --create
 `.trim();
 
 const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
-    needsProject,
+    isCreatingFirstProject,
     siteUrl,
+    version,
     loginToken,
+    onBack,
 }) => {
     const history = useHistory();
     const initialProjectFetch = useRef(false);
@@ -93,12 +100,9 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
     return (
         <Wrapper>
+            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
             <ConnectWarehouseWrapper>
-                {needsProject ? (
-                    <Title>You're in! 🎉</Title>
-                ) : (
-                    <Title>Connect new project</Title>
-                )}
+                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 
                 <Subtitle>
                     To get started, upload your dbt project to Lightdash using
@@ -121,13 +125,13 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     Read more about getting started.
                 </LinkButton>
 
-                <CodeLabel>In your Terminal, run:</CodeLabel>
+                <CodeLabel>Inside your dbt project, run:</CodeLabel>
 
                 <Codeblock>
-                    <pre>{codeBlock({ siteUrl, loginToken })}</pre>
+                    <pre>{codeBlock({ siteUrl, version, loginToken })}</pre>
 
                     <CopyToClipboard
-                        text={codeBlock({ siteUrl, loginToken })}
+                        text={codeBlock({ siteUrl, version, loginToken })}
                         options={{ message: 'Copied' }}
                         onCopy={() => {
                             showToastSuccess({
@@ -143,6 +147,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         </Button>
                     </CopyToClipboard>
                 </Codeblock>
+
                 <StyledNonIdealState
                     title="Waiting for data"
                     icon="stopwatch"
@@ -152,6 +157,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             <LinkButton
                 minimal
                 intent={Intent.PRIMARY}
+                replace
                 href="/createProject/manual"
                 trackingEvent={{
                     name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
@@ -159,6 +165,24 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             >
                 Create project manually
             </LinkButton>
+
+            {isCreatingFirstProject && (
+                <>
+                    <Spacer $height={8} />
+
+                    <LinkButton
+                        minimal
+                        intent={Intent.PRIMARY}
+                        href="https://demo.lightdash.com/"
+                        target="_blank"
+                        trackingEvent={{
+                            name: EventName.TRY_DEMO_CLICKED,
+                        }}
+                    >
+                        ...or try our demo project instead
+                    </LinkButton>
+                </>
+            )}
 
             <InviteExpertFooter />
         </Wrapper>

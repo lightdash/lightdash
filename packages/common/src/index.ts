@@ -49,8 +49,10 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
+import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
+import { ShareUrl } from './types/share';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
@@ -76,8 +78,10 @@ export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
+export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/search';
+export * from './types/share';
 export * from './types/space';
 export * from './types/table';
 export * from './types/timeFrames';
@@ -141,6 +145,7 @@ export enum DbtProjectType {
     GITLAB = 'gitlab',
     BITBUCKET = 'bitbucket',
     AZURE_DEVOPS = 'azure_devops',
+    NONE = 'none',
 }
 
 // Seeds
@@ -299,17 +304,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
                         )
-                            .utc(true)
                             .startOf('week')
                             .toDate(),
-                        [TimeFrames.MONTH]: moment()
-                            .utc(true)
-                            .startOf('month')
-                            .toDate(),
+                        [TimeFrames.MONTH]: moment().startOf('month').toDate(),
                         [TimeFrames.YEAR]: moment(
                             valueIsDate ? value : undefined,
                         )
-                            .utc(true)
                             .startOf('year')
                             .toDate(),
                     };
@@ -441,14 +441,6 @@ export const snakeCaseName = (text: string): string =>
 
 export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
-export type ResultRow = {
-    [col: string]: {
-        value: {
-            raw: any;
-            formatted: any;
-        };
-    };
-};
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     rows: ResultRow[];
@@ -663,13 +655,15 @@ type ApiResults =
     | FilterableField[]
     | ProjectSavedChartStatus
     | undefined
+    | Array<unknown>
     | ApiJobStartedResults
     | ApiCreateUserTokenResults
     | CreatePersonalAccessToken
     | PersonalAccessToken
     | ProjectMemberProfile[]
     | SearchResults
-    | Space;
+    | Space
+    | ShareUrl;
 
 export type ApiResponse = {
     status: 'ok';
@@ -887,6 +881,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.GITLAB]: 'GitLab',
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
+    [DbtProjectType.NONE]: 'None',
 };
 
 export interface DbtProjectConfigBase {
@@ -901,6 +896,10 @@ export type DbtProjectEnvironmentVariable = {
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
     environment?: DbtProjectEnvironmentVariable[];
+}
+
+export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
+    type: DbtProjectType.NONE;
 }
 
 export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
@@ -961,7 +960,8 @@ export type DbtProjectConfig =
     | DbtGithubProjectConfig
     | DbtBitBucketProjectConfig
     | DbtGitlabProjectConfig
-    | DbtAzureDevOpsProjectConfig;
+    | DbtAzureDevOpsProjectConfig
+    | DbtNoneProjectConfig;
 
 export type OrganizationProject = {
     projectUuid: string;

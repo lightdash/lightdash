@@ -79,6 +79,7 @@ import {
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
+import { ShareTable, ShareTableName } from '../database/entities/share';
 import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
@@ -120,5 +121,6 @@ declare module 'knex/types/tables' {
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
+        [ShareTableName]: ShareTable;
     }
 }

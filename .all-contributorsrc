@@ -737,7 +737,26 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/7281432?v=4",
       "profile": "https://github.com/gordonkjlee",
       "contributions": [
+        "ideas",
+        "doc"
+      ]
+    },
+    {
+      "login": "olly-writes-code",
+      "name": "Olly",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7778402?v=4",
+      "profile": "https://github.com/olly-writes-code",
+      "contributions": [
         "ideas"
+      ]
+    },
+    {
+      "login": "gautamdoulani",
+      "name": "gautamdoulani",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3624491?v=4",
+      "profile": "https://github.com/gautamdoulani",
+      "contributions": [
+        "doc"
       ]
     }
   ],
@@ -746,5 +765,6 @@
   "projectOwner": "lightdash",
   "repoType": "github",
   "repoHost": "https://github.com",
-  "skipCi": true
+  "skipCi": true,
+  "commitConvention": "angular"
 }

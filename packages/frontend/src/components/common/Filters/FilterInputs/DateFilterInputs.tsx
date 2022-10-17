@@ -20,7 +20,7 @@ import { MultipleInputsWrapper } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
-    const { field, filterRule, onChange } = props;
+    const { field, filterRule, onChange, popoverProps } = props;
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
 
     switch (filterRule.operator) {
@@ -44,10 +44,11 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                             ? new Date(filterRule.values?.[0])
                                             : new Date()
                                     }
+                                    popoverProps={popoverProps}
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
-                                            values: [moment(value).utc(true)],
+                                            values: [moment(value).toDate()],
                                         });
                                     }}
                                 />
@@ -62,8 +63,8 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc(true)
-                                                .startOf('month'),
+                                                .startOf('month')
+                                                .toDate(),
                                         ],
                                     });
                                 }}
@@ -78,8 +79,8 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc(true)
-                                                .startOf('year'),
+                                                .startOf('year')
+                                                .toDate(),
                                         ],
                                     });
                                 }}
@@ -119,6 +120,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         }}
                         popoverProps={{
                             placement: 'bottom',
+                            ...popoverProps,
                         }}
                     />
                 );
@@ -146,6 +148,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     }}
                     popoverProps={{
                         placement: 'bottom',
+                        ...popoverProps,
                     }}
                 />
             );
@@ -165,10 +168,12 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         }
                     />
                     <UnitOfTimeAutoComplete
+                        isTimestamp={isTimestamp}
                         unitOfTime={
                             filterRule.settings?.unitOfTime || UnitOfTime.days
                         }
                         completed={filterRule.settings?.completed || false}
+                        popoverProps={popoverProps}
                         onChange={(value) =>
                             onChange({
                                 ...filterRule,

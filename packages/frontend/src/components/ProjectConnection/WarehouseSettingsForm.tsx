@@ -1,8 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
-import { WarehouseTypeLabels as ChosenWarehouse } from '../../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
-import { SelectedWarehouse } from '../../pages/CreateProject';
 import SelectField from '../ReactHookForm/Select';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
@@ -28,8 +26,8 @@ const WarehouseTypeForms = {
 
 interface WarehouseSettingsFormProps {
     disabled: boolean;
-    setSelectedWarehouse?: (warehouse: SelectedWarehouse) => void;
-    selectedWarehouse?: SelectedWarehouse | undefined;
+    setSelectedWarehouse?: (warehouse: WarehouseTypes) => void;
+    selectedWarehouse?: WarehouseTypes;
     isProjectUpdate?: boolean | undefined;
 }
 
@@ -45,16 +43,13 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     });
 
     const WarehouseForm =
-        (selectedWarehouse && WarehouseTypeForms[selectedWarehouse?.key]) ||
+        (selectedWarehouse && WarehouseTypeForms[selectedWarehouse]) ||
         WarehouseTypeForms[warehouseType] ||
         BigQueryForm;
 
     useEffect(() => {
         if (isProjectUpdate && warehouseType && setSelectedWarehouse) {
-            const defaultWarehouse = ChosenWarehouse.filter((warehouse) => {
-                return warehouse.key === warehouseType;
-            });
-            setSelectedWarehouse(defaultWarehouse[0] || ChosenWarehouse[0]);
+            setSelectedWarehouse(warehouseType || WarehouseTypes.BIGQUERY);
         }
     }, [warehouseType, setSelectedWarehouse, isProjectUpdate]);
 

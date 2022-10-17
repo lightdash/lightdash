@@ -33,15 +33,17 @@ type StopPreviewHandlerOptions = {
     verbose: boolean;
 };
 
-const projectUrl = async (project: Project) => {
+const projectUrl = async (project: Project): Promise<URL> => {
     const config = await getConfig();
 
-    return (
-        config.context?.serverUrl &&
-        new URL(
+    if (config.context?.serverUrl) {
+        return new URL(
             `/projects/${project.projectUuid}/tables`,
             config.context.serverUrl,
-        )
+        );
+    }
+    throw new Error(
+        'Missing server url. Make sure you login before running other commands.',
     );
 };
 
@@ -120,12 +122,14 @@ export const previewHandler = async (
         });
         const manifestFilePath = path.join(context.targetDir, 'manifest.json');
 
-        const pressToContinue = ora(`  Press [ENTER] to continue...`).start();
+        const pressToShutdown = ora(
+            `  Press [ENTER] to shutdown preview...`,
+        ).start();
 
         const watcher = chokidar
             .watch(manifestFilePath)
             .on('change', async () => {
-                pressToContinue.stop();
+                pressToShutdown.stop();
 
                 console.error(
                     `${styles.title(
@@ -142,7 +146,7 @@ export const previewHandler = async (
                 }
 
                 console.error(`${styles.success('✔')}   Preview updated \n`);
-                pressToContinue.start();
+                pressToShutdown.start();
 
                 watcher.add(manifestFilePath);
             });
@@ -155,7 +159,7 @@ export const previewHandler = async (
                 message: `  Press [ENTER] to shutdown preview...`,
             },
         ]);
-        pressToContinue.clear();
+        pressToShutdown.clear();
     } catch (e) {
         spinner.fail('Error creating developer preview');
         await lightdashApi({
@@ -216,7 +220,11 @@ export const startPreviewHandler = async (
         // Update
         console.error(`Updating project preview ${projectName}`);
         await deploy({ ...options, projectUuid: previewProject.projectUuid });
-        console.error(`Project updated on ${await projectUrl(previewProject)}`);
+        const url = await projectUrl(previewProject);
+        console.error(`Project updated on ${url}`);
+        if (process.env.CI === 'true') {
+            console.log(`::set-output name=url::${url}`);
+        }
     } else {
         // Create
         console.error(`Creating new project preview ${projectName}`);
@@ -249,7 +257,11 @@ export const startPreviewHandler = async (
             },
         });
         await deploy({ ...options, projectUuid: project.projectUuid });
-        console.error(`New project created on ${await projectUrl(project)}`);
+        const url = await projectUrl(project);
+        console.error(`New project created on ${url}`);
+        if (process.env.CI === 'true') {
+            console.log(`::set-output name=url::${url}`);
+        }
     }
 };
 

@@ -17,6 +17,7 @@ import {
     friendlyName,
     getDimensions,
     getFields,
+    getItemMap,
     getResultValues,
     getVisibleFields,
     isFilterableField,
@@ -244,10 +245,16 @@ const DashboardChartTile: FC<Props> = (props) => {
                 top: e.event.event.pageY,
             });
 
+            const allItemsMap = getItemMap(
+                explore,
+                savedQuery?.metricQuery.additionalMetrics,
+                savedQuery?.metricQuery.tableCalculations,
+            );
+
             const underlyingData = getDataFromChartClick(
                 e,
                 pivot,
-                explore,
+                allItemsMap,
                 series,
             );
             const queryDimensions = savedQuery?.metricQuery.dimensions || [];
@@ -256,11 +263,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 dimensions: queryDimensions,
             });
         },
-        [
-            explore,
-            savedQuery?.pivotConfig?.columns,
-            savedQuery?.metricQuery.dimensions,
-        ],
+        [explore, savedQuery],
     );
     // START DASHBOARD FILTER LOGIC
     // TODO: move this logic out of component
@@ -338,15 +341,15 @@ const DashboardChartTile: FC<Props> = (props) => {
     );
 
     const exploreFromHereUrl = useMemo(() => {
-        if (savedQuery) {
+        if (savedQueryWithDashboardFilters) {
             const { pathname, search } =
                 getExplorerUrlFromCreateSavedChartVersion(
-                    savedQuery.projectUuid,
-                    savedQuery,
+                    savedQueryWithDashboardFilters.projectUuid,
+                    savedQueryWithDashboardFilters,
                 );
             return `${pathname}?${search}`;
         }
-    }, [savedQuery]);
+    }, [savedQueryWithDashboardFilters]);
 
     return (
         <TileBase
@@ -370,7 +373,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 )
             }
             title={savedQueryWithDashboardFilters?.name || ''}
-            description={savedQuery?.description}
+            description={savedQueryWithDashboardFilters?.description}
             isLoading={isLoading}
             extraMenuItems={
                 savedChartUuid !== null && (
