@@ -113,7 +113,6 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.DATABRICKS:
             if (model.database === null) {
                 throw new ParseError(
                     `Cannot parse dbt model '${model.unique_id}' because the database field has null value.`,
@@ -121,6 +120,8 @@ export const normaliseModelDatabase = (
                 );
             }
             return { ...model, database: model.database };
+        case SupportedDbtAdapter.DATABRICKS:
+            return { ...model, database: model.database || 'DEFAULT' };
         default:
             return assertUnreachable(
                 targetWarehouse,

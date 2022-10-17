@@ -123,7 +123,7 @@ const mapFieldType = (type: DatabricksFieldTypes): DimensionType => {
 export class DatabricksWarehouseClient implements WarehouseClient {
     schema: string;
 
-    catalog: string;
+    catalog?: string;
 
     connectionOptions: ConnectionOptions;
 
@@ -133,7 +133,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         httpPath,
         // this supposed to be a `schema` but changing it will break for existing customers
         database: schema,
-        catalog = 'hive_metastore',
+        catalog,
     }: CreateDatabricksCredentials) {
         this.schema = schema;
         this.catalog = catalog;
@@ -241,6 +241,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             await close();
         }
 
+        const catalog = this.catalog || 'DEFAULT';
         return results.reduce<WarehouseCatalog>(
             (acc, result, index) => {
                 const columns = Object.fromEntries<DimensionType>(
@@ -251,12 +252,12 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 );
                 const { schema, table } = requests[index];
 
-                acc[this.catalog][schema] = acc[this.catalog][schema] || {};
-                acc[this.catalog][schema][table] = columns;
+                acc[catalog][schema] = acc[catalog][schema] || {};
+                acc[catalog][schema][table] = columns;
 
                 return acc;
             },
-            { [this.catalog]: {} } as WarehouseCatalog,
+            { [catalog]: {} } as WarehouseCatalog,
         );
     }
 }
