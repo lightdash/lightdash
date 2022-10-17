@@ -1,3 +1,10 @@
+## [0.287.4](https://github.com/lightdash/lightdash/compare/0.287.3...0.287.4) (2022-10-17)
+
+
+### Bug Fixes
+
+* timezone filter issues ([#3492](https://github.com/lightdash/lightdash/issues/3492)) ([2a95390](https://github.com/lightdash/lightdash/commit/2a95390381db175e889a1fe27859ad7cf69e8ac5))
+
 ## [0.287.3](https://github.com/lightdash/lightdash/compare/0.287.2...0.287.3) (2022-10-14)
 
 
