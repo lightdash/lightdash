@@ -9,6 +9,7 @@ import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
 export const getQueryResults = async ({
@@ -19,12 +20,14 @@ export const getQueryResults = async ({
     projectUuid: string;
     tableId: string;
     query: MetricQuery;
-}) =>
-    lightdashApi<ApiQueryResults>({
+}) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
-        body: JSON.stringify(query),
+        body: JSON.stringify(timezoneFixQuery),
     });
+};
 
 export const useQueryResults = (
     isValidQuery: boolean,
