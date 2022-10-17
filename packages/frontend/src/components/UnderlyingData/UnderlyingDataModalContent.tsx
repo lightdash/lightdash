@@ -55,9 +55,13 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         [explore],
     );
 
-    const hasJoins = useMemo(() => {
-        return (explore?.joinedTables || []).length > 0;
-    }, [explore]);
+    const joinedTables = useMemo(
+        () =>
+            (explore?.joinedTables || []).map(
+                (joinedTable) => joinedTable.table,
+            ),
+        [explore],
+    );
 
     const showUnderlyingValues: string[] | undefined = useMemo(() => {
         return config?.meta !== undefined &&
@@ -82,7 +86,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         const fieldsInQuery = allFields.filter((field) =>
             dimensionFieldIds.includes(getFieldId(field)),
         );
-        const tablesInQuery = new Set([
+        const availableTables = new Set([
+            ...joinedTables,
             ...fieldsInQuery.map((field) => field.table),
             tableName,
         ]);
@@ -180,7 +185,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             : undefined;
         const availableDimensions = allDimensions.filter(
             (dimension) =>
-                tablesInQuery.has(dimension.table) &&
+                availableTables.has(dimension.table) &&
                 !dimension.timeInterval &&
                 !dimension.hidden &&
                 (showUnderlyingValues !== undefined
@@ -192,7 +197,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     : true),
         );
         const dimensionFields = availableDimensions.map(getFieldId);
-
         return {
             ...defaultMetricQuery,
             dimensions: dimensionFields,
@@ -204,6 +208,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         tableName,
         allFields,
         allDimensions,
+        joinedTables,
         showUnderlyingValues,
     ]);
 
@@ -273,7 +278,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 isLoading={isLoading}
                 resultsData={resultsData}
                 fieldsMap={fieldsMap}
-                hasJoins={hasJoins}
+                hasJoins={joinedTables.length > 0}
             />
         </>
     );

@@ -24,6 +24,7 @@ import {
 
 interface ConnectUsingCliProps {
     siteUrl: string;
+    version: string;
     loginToken?: string;
     isCreatingFirstProject: boolean;
     onBack: () => void;
@@ -32,10 +33,11 @@ interface ConnectUsingCliProps {
 const codeBlock = ({
     siteUrl,
     loginToken,
-}: Pick<ConnectUsingCliProps, 'siteUrl' | 'loginToken'>) =>
+    version,
+}: Pick<ConnectUsingCliProps, 'siteUrl' | 'version' | 'loginToken'>) =>
     String.raw`
 #1 install lightdash CLI
-npm install -g @lightdash/cli
+npm install -g @lightdash/cli@${version}
 
 #2 login to lightdash
 lightdash login ${siteUrl} --token ${loginToken}
@@ -47,6 +49,7 @@ lightdash deploy --create
 const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     isCreatingFirstProject,
     siteUrl,
+    version,
     loginToken,
     onBack,
 }) => {
@@ -125,10 +128,10 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 <CodeLabel>Inside your dbt project, run:</CodeLabel>
 
                 <Codeblock>
-                    <pre>{codeBlock({ siteUrl, loginToken })}</pre>
+                    <pre>{codeBlock({ siteUrl, version, loginToken })}</pre>
 
                     <CopyToClipboard
-                        text={codeBlock({ siteUrl, loginToken })}
+                        text={codeBlock({ siteUrl, version, loginToken })}
                         options={{ message: 'Copied' }}
                         onCopy={() => {
                             showToastSuccess({
