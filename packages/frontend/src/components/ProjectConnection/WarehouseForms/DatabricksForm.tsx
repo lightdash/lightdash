@@ -81,7 +81,6 @@ const DatabricksForm: FC<{
                         hasNoWhiteSpaces: hasNoWhiteSpaces('Catalog name'),
                     },
                 }}
-                placeholder="hive_metastore"
                 disabled={disabled}
             />
         </>
