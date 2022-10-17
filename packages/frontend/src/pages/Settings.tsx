@@ -16,6 +16,7 @@ import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
+import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 import {
     CardContainer,
     CollapseTrigger,
@@ -60,6 +61,9 @@ const Settings: FC = () => {
         return <PageSpinner />;
     }
 
+    const hasSocialLogin =
+        health.data?.auth.google.oauth2ClientId ||
+        health.data?.auth.okta.enabled;
     return (
         <PageWithSidebar>
             <Sidebar title="Settings" noMargin>
@@ -128,13 +132,18 @@ const Settings: FC = () => {
                         <Content>
                             <CardContainer>
                                 <Title>Password settings</Title>
-                                <PasswordPanel />
+
+                                {hasSocialLogin ? (
+                                    <PasswordRecoveryForm />
+                                ) : (
+                                    <PasswordPanel />
+                                )}
                             </CardContainer>
                         </Content>
                     </Route>
                 )}
-                {(health.data?.auth.google.oauth2ClientId ||
-                    health.data?.auth.okta.enabled) && (
+
+                {hasSocialLogin && (
                     <Route exact path={`/generalSettings/socialLogins`}>
                         <Content>
                             <CardContainer>
