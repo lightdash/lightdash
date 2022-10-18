@@ -32,6 +32,9 @@ jobs:
         with:
           dbt_command: "dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt"
         env:
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
           PGHOST: ${{secrets.PGHOST}}
           PGPASSWORD: ${{secrets.PGPASSWORD}}
 
