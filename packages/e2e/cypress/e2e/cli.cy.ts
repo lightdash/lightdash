@@ -9,7 +9,24 @@ describe('CLI', () => {
             .its('stdout')
             .should('contain', 'Developer tools for dbt and Lightdash.');
     });
-
+    it.only('Should lightdash generate', () => {
+        cy.exec(
+            `${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            {
+                failOnNonZeroExit: false,
+                env: {
+                    CI: true,
+                    PGHOST: Cypress.env('PGHOST') || 'localhost',
+                    PGPORT: 5432,
+                    PGUSER: 'postgres',
+                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+                    PGDATABASE: 'postgres',
+                },
+            },
+        )
+            .its('stderr')
+            .should('contain', 'Done 🕶');
+    });
     it('Should lightdash login with token', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
