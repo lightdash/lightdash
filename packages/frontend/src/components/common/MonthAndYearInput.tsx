@@ -6,13 +6,15 @@ import YearInput from './YearInput';
 type Props = {
     value: Date;
     onChange: (value: Date) => void;
+    disabled?: boolean;
 };
 
 const months = moment.months();
 
-const MonthAndYearInput: FC<Props> = ({ value, onChange }) => (
+const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => (
     <>
         <HTMLSelect
+            disabled={disabled}
             fill={false}
             style={{ width: 150 }}
             onChange={(e) =>

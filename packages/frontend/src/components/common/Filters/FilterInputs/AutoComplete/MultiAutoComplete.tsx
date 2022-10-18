@@ -17,6 +17,7 @@ type Props = {
     values: string[];
     suggestions: string[];
     popoverProps?: Popover2Props;
+    disabled?: boolean;
     onChange: (values: string[]) => void;
 };
 
@@ -27,6 +28,7 @@ const MultiAutoComplete: FC<Props> = ({
     field,
     suggestions,
     popoverProps,
+    disabled,
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
@@ -91,6 +93,7 @@ const MultiAutoComplete: FC<Props> = ({
     );
     return (
         <MultiSelect2
+            disabled={disabled}
             fill
             items={Array.from(options).sort()}
             noResults={

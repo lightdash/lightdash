@@ -5,11 +5,13 @@ import React, { FC } from 'react';
 type Props = {
     value: Date;
     onChange: (value: Date) => void;
+    disabled?: boolean;
 };
 
-const YearInput: FC<Props> = ({ value, onChange }) => (
+const YearInput: FC<Props> = ({ value, onChange, disabled }) => (
     <NumericInput
         fill
+        disabled={disabled}
         max={9999}
         min={1000}
         minLength={4}

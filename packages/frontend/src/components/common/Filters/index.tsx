@@ -26,9 +26,10 @@ import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 type Props = {
     filters: Filters;
     setFilters: (value: Filters, shouldFetchResults: boolean) => void;
+    isEditMode: boolean;
 };
 
-const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
+const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     const { fieldsMap } = useFiltersContext();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const [fields, dimensions, metrics] = useMemo<
@@ -93,7 +94,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
         },
         [fields, filters, setFilters],
     );
-
     return (
         <>
             {totalFilterRules.length >= 1 && (
@@ -101,6 +101,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
                     {showSimplifiedForm ? (
                         <SimplifiedFilterGroupForm
                             fields={fields}
+                            isEditMode={isEditMode}
                             filterRules={getTotalFilterRules(filters)}
                             onChange={updateFieldRules}
                         />
@@ -123,6 +124,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
                                         conditionLabel="dimension"
                                         filterGroup={filters.dimensions}
                                         fields={dimensions}
+                                        isEditMode={isEditMode}
                                         onChange={(value) =>
                                             setFilters(
                                                 {
@@ -165,6 +167,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
                                     conditionLabel="metric"
                                     filterGroup={filters.metrics}
                                     fields={metrics}
+                                    isEditMode={isEditMode}
                                     onChange={(value) =>
                                         setFilters(
                                             {
@@ -210,7 +213,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
                         />
                     </>
                 )}
-                {!isOpen && (
+                {isEditMode && !isOpen && (
                     <Button
                         minimal
                         icon="plus"
@@ -218,7 +221,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters }) => {
                         onClick={toggleFieldInput}
                         disabled={fields.length <= 0}
                     >
-                        Add filter
+                        Add filter {isEditMode}
                     </Button>
                 )}
             </div>

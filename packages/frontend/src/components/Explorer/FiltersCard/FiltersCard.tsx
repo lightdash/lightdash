@@ -158,16 +158,11 @@ const FiltersCard: FC = memo(() => {
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
-                <Tooltip2
-                    content={`You must be in 'edit' or 'explore' mode to view this panel`}
-                    interactionKind="hover"
-                    placement={'bottom-start'}
-                    disabled={isEditMode}
-                >
+                <Tooltip2 interactionKind="hover" placement={'bottom-start'}>
                     <Button
                         icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
                         minimal
-                        disabled={!isEditMode || !tableName}
+                        disabled={!tableName}
                         onClick={() =>
                             toggleExpandedSection(ExplorerSection.FILTERS)
                         }
@@ -187,12 +182,16 @@ const FiltersCard: FC = memo(() => {
                     </Tooltip2>
                 ) : null}
             </CardHeader>
-            <Collapse isOpen={isEditMode && filterIsOpen}>
+            <Collapse isOpen={filterIsOpen}>
                 <FiltersProvider
                     projectUuid={projectUuid}
                     fieldsMap={fieldsWithSuggestions}
                 >
-                    <FiltersForm filters={filters} setFilters={setFilters} />
+                    <FiltersForm
+                        isEditMode={isEditMode}
+                        filters={filters}
+                        setFilters={setFilters}
+                    />
                 </FiltersProvider>
             </Collapse>
         </Card>

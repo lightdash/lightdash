@@ -14,6 +14,7 @@ type Props2 = {
     suggestions: string[];
     onChange: (values: string) => void;
     popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
 const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
@@ -23,6 +24,7 @@ const AutoComplete: FC<Props2> = ({
     field,
     suggestions,
     popoverProps,
+    disabled,
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
@@ -75,6 +77,7 @@ const AutoComplete: FC<Props2> = ({
     );
     return (
         <Suggest2
+            disabled={disabled}
             fill
             items={Array.from(options).sort()}
             noResults={

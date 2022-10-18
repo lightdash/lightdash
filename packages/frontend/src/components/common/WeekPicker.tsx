@@ -70,9 +70,10 @@ type Props = {
     value: Date;
     onChange: (value: Date) => void;
     popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
-const WeekPicker: FC<Props> = ({ value, onChange, popoverProps }) => {
+const WeekPicker: FC<Props> = ({ value, onChange, popoverProps, disabled }) => {
     const [hoverRange, setHoverRange] = useState<WeekRange>();
     const selectedDays = getWeekDays(getWeekRange(value).from);
     const daysAreSelected = selectedDays.length > 0;
@@ -98,6 +99,7 @@ const WeekPicker: FC<Props> = ({ value, onChange, popoverProps }) => {
             <SelectedWeekStyles />
             <DateInput2
                 fill
+                disabled={disabled}
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}
                 value={value.toUTCString()}
