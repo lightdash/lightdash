@@ -1,3 +1,10 @@
+# [0.291.0](https://github.com/lightdash/lightdash/compare/0.290.1...0.291.0) (2022-10-18)
+
+
+### Features
+
+* remove odbc driver dependency ([#3409](https://github.com/lightdash/lightdash/issues/3409)) ([31ee2cc](https://github.com/lightdash/lightdash/commit/31ee2ccb3049b19355434f60a7343e2964812387))
+
 ## [0.290.1](https://github.com/lightdash/lightdash/compare/0.290.0...0.290.1) (2022-10-18)
 
 
