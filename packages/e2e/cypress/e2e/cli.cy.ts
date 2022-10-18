@@ -1,9 +1,11 @@
-const lightdashUrl = Cypress.config('baseUrl');
-const projectDir = './examples/full-jaffle-shop-demo/dbt';
-const profilesDir = './examples/full-jaffle-shop-demo/profiles';
-const cliCommand = './packages/cli/dist/index.js';
+const worskpace = Cypress.env('WORKSPACE') || '../../';
 
-describe('CLI', () => {
+const lightdashUrl = Cypress.config('baseUrl');
+const projectDir = `${worskpace}examples/full-jaffle-shop-demo/dbt`;
+const profilesDir = `${worskpace}examples/full-jaffle-shop-demo/profiles`;
+const cliCommand = `${worskpace}packages/cli/dist/index.js`;
+
+describe.only('CLI', () => {
     it('Cypress path', () => {
         cy.exec(`pwd`).then((r) => cy.log(`${r.stdout}`));
     });
