@@ -3,6 +3,7 @@ import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DbtCloudMetricsModel } from './DbtCloudMetricsModel';
 import { EmailModel } from './EmailModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
@@ -51,6 +52,7 @@ export const spaceModel = new SpaceModel({
 export const searchModel = new SearchModel({
     database,
 });
+export const dbtCloudMetricsModel = new DbtCloudMetricsModel();
 
 export const shareModel = new ShareModel({
     database,

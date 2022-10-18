@@ -54,6 +54,13 @@ type PersonalAccessTokenEvent = BaseTrack & {
     };
 };
 
+type DbtCloudIntegration = BaseTrack & {
+    event: 'dbt_cloud_integration.updated';
+    properties: {
+        projectId: string;
+    };
+};
+
 type SqlExecutedEvent = BaseTrack & {
     event: 'sql.executed';
     properties: {
@@ -397,6 +404,7 @@ type Track =
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent
+    | DbtCloudIntegration
     | PersonalAccessTokenEvent
     | DuplicatedChartCreatedEvent
     | DuplicatedDashboardCreatedEvent

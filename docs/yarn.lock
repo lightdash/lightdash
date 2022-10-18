@@ -2975,7 +2975,7 @@
     "@docsearch/css" "3.2.1"
     algoliasearch "^4.0.0"
 
-"@docusaurus/core@2.1.0":
+"@docusaurus/core@2.1.0", "@docusaurus/core@^2.1.0":
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@docusaurus/core/-/core-2.1.0.tgz#4aedc306f4c4cd2e0491b641bf78941d4b480ab6"
   integrity sha512-/ZJ6xmm+VB9Izbn0/s6h6289cbPy2k4iYFwWDhjiLsVqwa/Y0YBBcXvStfaHccudUC3OfP+26hMk7UCjc50J6Q==

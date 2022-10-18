@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.288.0",
+    "version": "0.291.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -8,14 +8,13 @@
         "dist/**/*"
     ],
     "dependencies": {
+        "@databricks/sql": "https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671",
         "@google-cloud/bigquery": "^5.9.1",
-        "snowflake-sdk": "^1.6.4",
+        "@lightdash/common": "^0.291.0",
         "pg": "^8.7.1",
-        "odbc": "^2.4.2",
-        "@lightdash/common": "^0.288.0"
+        "snowflake-sdk": "^1.6.4"
     },
     "description": "Warehouse connectors for Lightdash",
-    "devDependencies": {},
     "scripts": {
         "lint": "eslint -c .eslintrc.js ./src",
         "fix-lint": "eslint -c .eslintrc.js --fix ./src ",

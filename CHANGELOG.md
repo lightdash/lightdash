@@ -1,3 +1,31 @@
+# [0.291.0](https://github.com/lightdash/lightdash/compare/0.290.1...0.291.0) (2022-10-18)
+
+
+### Features
+
+* remove odbc driver dependency ([#3409](https://github.com/lightdash/lightdash/issues/3409)) ([31ee2cc](https://github.com/lightdash/lightdash/commit/31ee2ccb3049b19355434f60a7343e2964812387))
+
+## [0.290.1](https://github.com/lightdash/lightdash/compare/0.290.0...0.290.1) (2022-10-18)
+
+
+### Bug Fixes
+
+* remove divider if spaces does not exist ([#3504](https://github.com/lightdash/lightdash/issues/3504)) ([9a18ae5](https://github.com/lightdash/lightdash/commit/9a18ae591e511ce3e116a876407d5d301ddc64db))
+
+# [0.290.0](https://github.com/lightdash/lightdash/compare/0.289.0...0.290.0) (2022-10-18)
+
+
+### Features
+
+* remove selected fields from underlying data explore from here ([#3499](https://github.com/lightdash/lightdash/issues/3499)) ([f16442a](https://github.com/lightdash/lightdash/commit/f16442a65a0bf10ea6e50dcfa6105692f3d6f1ca))
+
+# [0.289.0](https://github.com/lightdash/lightdash/compare/0.288.0...0.289.0) (2022-10-17)
+
+
+### Features
+
+* add dbt server integration ([#3497](https://github.com/lightdash/lightdash/issues/3497)) ([b2e804e](https://github.com/lightdash/lightdash/commit/b2e804edabaac82fe4a38f4b24d1547391a2e33c))
+
 # [0.288.0](https://github.com/lightdash/lightdash/compare/0.287.5...0.288.0) (2022-10-17)
 
 

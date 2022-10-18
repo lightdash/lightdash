@@ -26,6 +26,7 @@ export const projectAdapterFromConfig = async (
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
+
     switch (config.type) {
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
