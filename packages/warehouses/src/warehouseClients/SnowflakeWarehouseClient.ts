@@ -136,7 +136,10 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             warehouse: credentials.warehouse,
             role: credentials.role,
             clientSessionKeepAlive: credentials.clientSessionKeepAlive,
-        };
+            ...(credentials.accessUrl?.length
+                ? { accessUrl: credentials.accessUrl }
+                : {}),
+        } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
     async runQuery(sqlText: string) {

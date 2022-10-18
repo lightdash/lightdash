@@ -1,3 +1,24 @@
+# [0.289.0](https://github.com/lightdash/lightdash/compare/0.288.0...0.289.0) (2022-10-17)
+
+
+### Features
+
+* add dbt server integration ([#3497](https://github.com/lightdash/lightdash/issues/3497)) ([b2e804e](https://github.com/lightdash/lightdash/commit/b2e804edabaac82fe4a38f4b24d1547391a2e33c))
+
+# [0.288.0](https://github.com/lightdash/lightdash/compare/0.287.5...0.288.0) (2022-10-17)
+
+
+### Features
+
+* reset password for SSO accounts ([#3501](https://github.com/lightdash/lightdash/issues/3501)) ([7b4c114](https://github.com/lightdash/lightdash/commit/7b4c11462bed3968656180b5a3b0003223ccfb24))
+
+## [0.287.5](https://github.com/lightdash/lightdash/compare/0.287.4...0.287.5) (2022-10-17)
+
+
+### Bug Fixes
+
+* remove prototype date fix, fix runquery and compilequery date filters ([#3502](https://github.com/lightdash/lightdash/issues/3502)) ([95f02e3](https://github.com/lightdash/lightdash/commit/95f02e3288734008780d060cf717ce9871b55a35))
+
 ## [0.287.4](https://github.com/lightdash/lightdash/compare/0.287.3...0.287.4) (2022-10-17)
 
 

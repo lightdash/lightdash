@@ -16,8 +16,8 @@ module.exports = {
       type: "category",
       label: "🌟 Getting started tutorials",
       link: {
-        type: 'doc',
-        id: 'get-started/intro'
+        type: "doc",
+        id: "get-started/intro",
       },
       collapsed: false,
       items: [
@@ -25,8 +25,8 @@ module.exports = {
           type: "category",
           label: "🏗 Setting up a new project",
           link: {
-            type: 'doc',
-            id: 'get-started/setup-lightdash/intro'
+            type: "doc",
+            id: "get-started/setup-lightdash/intro",
           },
           items: [
             "get-started/setup-lightdash/get-project-lightdash-ready",
@@ -35,15 +35,15 @@ module.exports = {
             "get-started/setup-lightdash/intro-metrics-dimensions",
             "get-started/exploring-data/using-explores",
             "guides/how-to-create-metrics",
-            "get-started/exploring-data/sharing-insights"
+            "get-started/exploring-data/sharing-insights",
           ],
         },
         {
           type: "category",
           label: "👩‍💻 Developing in Lightdash",
           link: {
-            type: 'doc',
-            id: 'get-started/develop-in-lightdash/intro'
+            type: "doc",
+            id: "get-started/develop-in-lightdash/intro",
           },
           items: [
             "get-started/setup-lightdash/intro-metrics-dimensions",
@@ -57,14 +57,14 @@ module.exports = {
           type: "category",
           label: "🔭 Learning to explore data in Lightdash",
           link: {
-            type: 'doc',
-            id: 'get-started/exploring-data/intro'
+            type: "doc",
+            id: "get-started/exploring-data/intro",
           },
           items: [
             "guides/exploring-your-content",
             "get-started/exploring-data/using-explores",
             "get-started/exploring-data/sharing-insights",
-            "get-started/exploring-data/dashboards"
+            "get-started/exploring-data/dashboards",
           ],
         },
       ],
@@ -80,17 +80,18 @@ module.exports = {
         "guides/how-to-create-multiple-projects",
         "references/lightdashyaml",
         "references/personal_tokens",
-      ]
+      ],
     },
     {
       type: "category",
       label: "🎮 The Lightdash CLI",
       link: {
-        type: 'generated-index',
-        title: 'The Lightdash CLI',
-        description: 'The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash instance. Here are some guides to get you started!',
-        slug: '/guides/cli/intro',
-        keywords: ['cli'],
+        type: "generated-index",
+        title: "The Lightdash CLI",
+        description:
+          "The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash instance. Here are some guides to get you started!",
+        slug: "/guides/cli/intro",
+        keywords: ["cli"],
       },
       items: [
         "guides/cli/how-to-install-the-lightdash-cli",
@@ -109,38 +110,26 @@ module.exports = {
         {
           type: "category",
           label: "Tables",
-          items: [
-            "guides/adding-tables-to-lightdash",
-            "references/tables",
-          ],
+          items: ["guides/adding-tables-to-lightdash", "references/tables"],
         },
         {
           type: "category",
           label: "Dimensions",
-          items: [
-            "guides/how-to-create-dimensions",
-            "references/dimensions",
-          ],
+          items: ["guides/how-to-create-dimensions", "references/dimensions"],
         },
         {
           type: "category",
           label: "Metrics",
-          items: [
-            "guides/how-to-create-metrics",
-            "references/metrics",
-          ],
+          items: ["guides/how-to-create-metrics", "references/metrics"],
         },
         {
           type: "category",
           label: "Joining tables",
-          items: [
-            "guides/how-to-join-tables",
-            "references/joins",
-          ],
+          items: ["guides/how-to-join-tables", "references/joins"],
         },
         "guides/formatting-your-fields",
-        "references/syncing_your_dbt_changes"
-      ]
+        "references/syncing_your_dbt_changes",
+      ],
     },
     {
       type: "category",
@@ -151,21 +140,19 @@ module.exports = {
         {
           type: "category",
           label: "Filters",
-          items: [
-            "guides/limiting-data-using-filters",
-            "references/filters",
-          ],
+          items: ["guides/limiting-data-using-filters", "references/filters"],
         },
         "guides/table-calculations/adding-table-calculations",
         {
           type: "category",
           label: "Table calculation SQL templates",
           link: {
-            type: 'generated-index',
-            title: 'SQL templates',
-            description: 'Use our SQL templates to get started with your table calculations!',
-            slug: '/guides/table-calculations/sql-templates',
-            keywords: ['sql', 'templates'],
+            type: "generated-index",
+            title: "SQL templates",
+            description:
+              "Use our SQL templates to get started with your table calculations!",
+            slug: "/guides/table-calculations/sql-templates",
+            keywords: ["sql", "templates"],
           },
           items: [
             "guides/table-calculations/table-calculation-sql-templates/percent-change-from-previous",
@@ -177,7 +164,7 @@ module.exports = {
           ],
         },
         "guides/visualizing-your-results",
-      ]
+      ],
     },
     {
       type: "category",
@@ -186,36 +173,27 @@ module.exports = {
         "get-started/exploring-data/dashboards",
         "guides/limiting-data-using-filters",
         "guides/interactive-dashboards",
-      ]
+      ],
     },
     {
       type: "category",
-      label:"🔎 Finding + organizing things",
-      items:[
-        "guides/exploring-your-content",
-        "guides/spaces",
-      ]
+      label: "🔎 Finding + organizing things",
+      items: ["guides/exploring-your-content", "guides/spaces"],
     },
     {
       type: "category",
       label: "👪 Users",
-      items: [
-        "guides/how-to-reset-your-password",
-      ]
+      items: ["guides/how-to-reset-your-password"],
     },
     {
       type: "category",
       label: "🔐 Permissions",
-      items: [
-        "references/roles",
-      ]
+      items: ["references/roles"],
     },
     {
       type: "category",
       label: "🎨 Configuring Lightdash",
-      items: [
-        "guides/customizing-the-appearance-of-your-project",
-      ]
+      items: ["guides/customizing-the-appearance-of-your-project"],
     },
     {
       type: "category",
@@ -223,7 +201,7 @@ module.exports = {
       items: [
         "best-practice/lightdash-way",
         "best-practice/planning-your-dashboard",
-      ]
+      ],
     },
     {
       type: "category",
@@ -231,7 +209,12 @@ module.exports = {
       items: [
         "help-and-contact/contact/contact_info",
         "help-and-contact/faqs/faqs",
-      ]
+      ],
+    },
+    {
+      type: "category",
+      label: "💏 Integrations",
+      items: ["guides/dbt-semantic-layer"],
     },
   ],
 };
