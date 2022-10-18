@@ -29,6 +29,8 @@ jobs:
         run: yarn common-build
       - name: Build packages/warehouses module
         run: yarn warehouses-build
+      - name: Install ODBC drivers
+        run: apt-get install unixodbc unixodbc-dev
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g 
       # Install NPM dependencies, cache them correctly
