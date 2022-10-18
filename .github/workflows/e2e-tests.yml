@@ -28,11 +28,13 @@ jobs:
         with:
           submodules: recursive  # Download DBT submodule
       # Install DBT and ODBC to use with CLI
-
-      - name: Install dbt
-        run: pip install dbt-core dbt-postgres dbt-redshift dbt-snowflake dbt-bigquery
       - name: Install ODBC drivers
         run: apt-get install -y unixodbc unixodbc-dev
+      - name: Run DBT
+        uses: mwhitaker/dbt-action@master
+        with:
+          dbt_command: "dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt"
+
       # Install and build lightdash packages
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
