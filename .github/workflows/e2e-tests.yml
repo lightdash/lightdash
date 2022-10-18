@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     container: cypress/browsers:node14.19.0-chrome100-ff99-edge
     steps:
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.7"
       - name: Get PR number
         id: regex
         uses: AsasInnab/regex-action@v1
@@ -25,19 +28,11 @@ jobs:
         with:
           submodules: recursive  # Download DBT submodule
       # Install DBT and ODBC to use with CLI
+
+      - name: Install dbt
+        run: pithon -m pip install dbt-core dbt-postgres dbt-redshift dbt-snowflake dbt-bigquery
       - name: Install ODBC drivers
         run: apt-get install -y unixodbc unixodbc-dev
-      - name: Run DBT
-        uses: mwhitaker/dbt-action@master
-        with:
-          dbt_command: "dbt --version"
-        env:
-          PGPORT: 5432
-          PGUSER: postgres
-          PGDATABASE: postgres
-          PGHOST: ${{secrets.PGHOST}}
-          PGPASSWORD: ${{secrets.PGPASSWORD}}
-
       # Install and build lightdash packages
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
