@@ -32,7 +32,7 @@ const getRawConfig = async (): Promise<Config> => {
     try {
         const raw = yaml.load(await fs.readFile(configFilePath, 'utf8'));
         return raw as Config;
-    } catch (e) {
+    } catch (e: any) {
         if (e.code === 'ENOENT') {
             return {} as Config;
         }

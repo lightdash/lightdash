@@ -5,12 +5,12 @@ const projectDir = `${worskpace}examples/full-jaffle-shop-demo/dbt`;
 const profilesDir = `${worskpace}examples/full-jaffle-shop-demo/profiles`;
 const cliCommand = `${worskpace}packages/cli/dist/index.js`;
 
-describe.only('CLI', () => {
+describe('CLI', () => {
     it('Cypress path', () => {
-        cy.exec(`pwd`).then((r) => cy.log(`${r.stdout}`));
+        cy.exec(`pwd`).its('stdout').should('contain', 'bleh');
     });
     it('Cypress dir', () => {
-        cy.exec(`ls `).then((r) => cy.log(`${r.stdout}`));
+        cy.exec(`ls `).its('stdout').should('contain', 'bleh');
     });
     it('Should test lightdash command help', () => {
         cy.exec(`${cliCommand} help`)

@@ -48,7 +48,7 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
         env:
-          CYPRESS_WORKSPACE: $GITHUB_WORKSPACE
+          CYPRESS_WORKSPACE: ${{ env.GITHUB_WORKSPACE }}
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
           CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
