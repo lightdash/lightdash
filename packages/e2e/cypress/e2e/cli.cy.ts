@@ -1,9 +1,15 @@
 const lightdashUrl = Cypress.config('baseUrl');
-const projectDir = '../../examples/full-jaffle-shop-demo/dbt';
-const profilesDir = '../../examples/full-jaffle-shop-demo/profiles';
-const cliCommand = '../../packages/cli/dist/index.js';
+const projectDir = './examples/full-jaffle-shop-demo/dbt';
+const profilesDir = './examples/full-jaffle-shop-demo/profiles';
+const cliCommand = './packages/cli/dist/index.js';
 
 describe('CLI', () => {
+    it('Cypress path', () => {
+        cy.exec(`pwd`).then((r) => cy.log(`${r.stdout}`));
+    });
+    it('Cypress dir', () => {
+        cy.exec(`ls `).then((r) => cy.log(`${r.stdout}`));
+    });
     it('Should test lightdash command help', () => {
         cy.exec(`${cliCommand} help`)
             .its('stdout')
