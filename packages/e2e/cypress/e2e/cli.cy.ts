@@ -27,6 +27,24 @@ describe('CLI', () => {
             .its('stderr')
             .should('contain', 'Done 🕶');
     });
+    it('Should lightdash compile', () => {
+        cy.exec(
+            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            {
+                failOnNonZeroExit: false,
+                env: {
+                    CI: true,
+                    PGHOST: Cypress.env('PGHOST') || 'localhost',
+                    PGPORT: 5432,
+                    PGUSER: 'postgres',
+                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+                    PGDATABASE: 'postgres',
+                },
+            },
+        )
+            .its('stderr')
+            .should('contain', 'Successfully compiled project');
+    });
     it('Should lightdash login with token', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
