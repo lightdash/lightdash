@@ -1,10 +1,11 @@
 const server = 'http://localhost:3000';
 const projectDir = '../../examples/full-jaffle-shop-demo/dbt';
 const profilesDir = '../../examples/full-jaffle-shop-demo/profiles';
+const cliCommand = '../../packages/cli/dist/index.js';
 
 describe('CLI', () => {
     it('Should test lightdash command help', () => {
-        cy.exec('lightdash help')
+        cy.exec(`${cliCommand} help`)
             .its('stdout')
             .should('contain', 'Developer tools for dbt and Lightdash.');
     });
@@ -12,7 +13,7 @@ describe('CLI', () => {
     it('Should lightdash login with token', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
-            cy.exec(`lightdash login ${server} --token ${apiToken}`, {
+            cy.exec(`${cliCommand} login ${server} --token ${apiToken}`, {
                 failOnNonZeroExit: false,
                 env: {
                     CI: true,
@@ -27,7 +28,7 @@ describe('CLI', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
             cy.exec(
-                `lightdash deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
                 {
                     failOnNonZeroExit: false,
                     env: {
@@ -52,7 +53,7 @@ describe('CLI', () => {
         cy.getApiToken().then((apiToken) => {
             const previewName = 'e2e preview';
             cy.exec(
-                `lightdash start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
+                `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
                 {
                     failOnNonZeroExit: false,
                     env: {
@@ -75,7 +76,7 @@ describe('CLI', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
             const previewName = 'e2e preview';
-            cy.exec(`lightdash stop-preview --name "${previewName}"`, {
+            cy.exec(`${cliCommand} stop-preview --name "${previewName}"`, {
                 failOnNonZeroExit: false,
                 env: {
                     LIGHTDASH_API_KEY: apiToken,

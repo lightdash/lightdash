@@ -27,6 +27,8 @@ jobs:
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build
+      - name: Build packages/cli module
+        run: yarn cli-build
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: create-json
