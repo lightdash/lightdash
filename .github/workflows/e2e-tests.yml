@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/setup-python@v3
         with:
-          python-version: "3.7.x"
+          python-version: "3.7"
       - name: Get PR number
         id: regex
         uses: AsasInnab/regex-action@v1
