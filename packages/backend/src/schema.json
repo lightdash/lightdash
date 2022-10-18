@@ -110,7 +110,7 @@
         "LightdashNodeConfig": {
             "allOf": [
                 {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v6.json#/definitions/NodeConfig"
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/NodeConfig"
                 },
                 {
                     "type": "object",
@@ -125,7 +125,7 @@
         "LightdashColumnInfo": {
             "allOf": [
                 {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v6.json#/definitions/ColumnInfo"
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ColumnInfo"
                 },
                 {
                     "type": "object",
@@ -140,7 +140,7 @@
         "LightdashCompiledModelNode": {
             "allOf": [
                 {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v6.json#/definitions/CompiledModelNode"
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/CompiledModelNode"
                 },
                 {
                     "type": "object",
@@ -157,5 +157,5 @@
         }
     },
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schemas.lightdash.com/dbt/manifest/v6.json"
+    "$id": "https://schemas.lightdash.com/dbt/manifest/v7.json"
 }
