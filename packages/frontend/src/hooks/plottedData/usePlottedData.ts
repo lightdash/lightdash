@@ -19,8 +19,6 @@ export const getPivotedData = (
 } => {
     const pivotValuesMap: Record<string, ResultRow[0]['value']> = {};
     const rowKeyMap: Record<string, FieldId | PivotReference> = {};
-    // TODO
-    const pivotKey = pivotKeys[0];
     const pivotedRowMap = rows.reduce<Record<string, ResultRow>>((acc, row) => {
         const unpivotedKeysAndValues: string[] = [];
 
@@ -29,13 +27,17 @@ export const getPivotedData = (
             if (keysToPivot.includes(key)) {
                 const pivotReference: PivotReference = {
                     field: key,
-                    pivotValues: [
-                        { field: pivotKey, value: row[pivotKey].value.raw },
-                    ],
+                    pivotValues: pivotKeys.map((pivotKey) => ({
+                        field: pivotKey,
+                        value: row[pivotKey].value.raw,
+                    })),
                 };
                 const pivotedKeyHash: string =
                     hashFieldReference(pivotReference);
-                pivotValuesMap[row[pivotKey].value.raw] = row[pivotKey].value;
+                pivotKeys.forEach((pivotKey) => {
+                    pivotValuesMap[row[pivotKey].value.raw] =
+                        row[pivotKey].value;
+                });
                 pivotedRow[pivotedKeyHash] = value;
                 rowKeyMap[pivotedKeyHash] = pivotReference;
             }

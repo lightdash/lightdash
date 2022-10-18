@@ -158,14 +158,25 @@ export const EXPECTED_PIVOT_RESULTS_WITH_SAME_FIELD_PIVOTED_AND_NON_PIVOTED: Res
         },
     ];
 
+export const RESULTS_FOR_MULTIPLE_PIVOT: ResultRow[] = [
+    ...RESULTS_FOR_SIMPLE_PIVOT,
+    {
+        dim1: { value: { raw: 1, formatted: 1 } },
+        dim2: { value: { raw: true, formatted: 'yes' } },
+        dim3: { value: { raw: 'value2', formatted: 'value2' } },
+        metric1: { value: { raw: 50, formatted: 50 } },
+    },
+];
+
 export const EXPECTED_MULTIPLE_PIVOT_RESULTS: ResultRow[] = [
     {
         dim1: { value: { raw: 1, formatted: 1 } },
         'metric1.dim2.true.dim3.value1': { value: { raw: 10, formatted: 10 } },
-        'metric1.dim2.false.dim3.value1': { value: { raw: 20, formatted: 20 } },
+        'metric1.dim2.true.dim3.value2': { value: { raw: 50, formatted: 50 } },
+        'metric1.dim2.false.dim3.value2': { value: { raw: 20, formatted: 20 } },
     },
     {
         dim1: { value: { raw: 3, formatted: 1 } },
-        'metric1.dim2.true': { value: { raw: 30, formatted: 30 } },
+        'metric1.dim2.true.dim3.value1': { value: { raw: 30, formatted: 30 } },
     },
 ];
