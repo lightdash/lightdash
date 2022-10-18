@@ -330,13 +330,16 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=/path/to/the/lightdash/project/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=/path/to/the/lightdash/project/lightdash.yml
 
-#7 build / migrate / seed
+#7 Update submodules
+git submodule update --init --recursive
+
+#8 build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh
 yarn load:env ./scripts/seed-lightdash.sh
 
-#8 run
+#9 run
 yarn load:env yarn dev
 ```
 

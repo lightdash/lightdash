@@ -1,3 +1,17 @@
+## [0.290.1](https://github.com/lightdash/lightdash/compare/0.290.0...0.290.1) (2022-10-18)
+
+
+### Bug Fixes
+
+* remove divider if spaces does not exist ([#3504](https://github.com/lightdash/lightdash/issues/3504)) ([9a18ae5](https://github.com/lightdash/lightdash/commit/9a18ae591e511ce3e116a876407d5d301ddc64db))
+
+# [0.290.0](https://github.com/lightdash/lightdash/compare/0.289.0...0.290.0) (2022-10-18)
+
+
+### Features
+
+* remove selected fields from underlying data explore from here ([#3499](https://github.com/lightdash/lightdash/issues/3499)) ([f16442a](https://github.com/lightdash/lightdash/commit/f16442a65a0bf10ea6e50dcfa6105692f3d6f1ca))
+
 # [0.289.0](https://github.com/lightdash/lightdash/compare/0.288.0...0.289.0) (2022-10-17)
 
 
