@@ -7,9 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     container: cypress/browsers:node14.19.0-chrome100-ff99-edge
     steps:
-      - uses: actions/setup-python@v3
-        with:
-          python-version: "3.7"
       - name: Get PR number
         id: regex
         uses: AsasInnab/regex-action@v1
@@ -34,6 +31,9 @@ jobs:
         uses: mwhitaker/dbt-action@master
         with:
           dbt_command: "dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt"
+        env:
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
 
       # Install and build lightdash packages
       - name: Install packages/common modules
