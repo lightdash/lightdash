@@ -3,7 +3,7 @@ const worskpace = Cypress.env('WORKSPACE') || '../../';
 const lightdashUrl = Cypress.config('baseUrl');
 const projectDir = `${worskpace}examples/full-jaffle-shop-demo/dbt`;
 const profilesDir = `${worskpace}examples/full-jaffle-shop-demo/profiles`;
-const cliCommand = `${worskpace}packages/cli/dist/index.js`;
+const cliCommand = `lightdash`;
 
 describe('CLI', () => {
     it('Cypress path', () => {

@@ -29,8 +29,8 @@ jobs:
         run: yarn common-build
       - name: Build packages/warehouses module
         run: yarn warehouses-build
-      - name: Build packages/cli module
-        run: yarn cli-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && yarn build && npm i -g 
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: create-json
