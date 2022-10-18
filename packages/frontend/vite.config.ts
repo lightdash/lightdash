@@ -18,17 +18,11 @@ export default defineConfig({
     // css: {
     //     devSourcemap: true,
     // },
-    optimizeDeps: {
-        exclude: ['lightdash/common'],
-    },
     build: {
         outDir: 'build',
         // sourcemap: true,
         target: 'es2015',
         minify: true,
-        // commonjsOptions: {
-        //     exclude: ['lightdash/common'],
-        // },
         // rollupOptions: {
         //     output: {
         //         manualChunks: mapManualChunks({
@@ -47,11 +41,6 @@ export default defineConfig({
         //         }),
         //     },
         // },
-    },
-    resolve: {
-        alias: {
-            '@lightdash/common': '@lightdash/common/src',
-        },
     },
     server: {
         port: 3000,
