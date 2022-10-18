@@ -34,3 +34,25 @@ export const setProjectInteractively = async (options: SetProjectOptions) => {
         `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
     );
 };
+
+export const setFirstProject = async (options: SetProjectOptions) => {
+    const projects = await lightdashApi<OrganizationProject[]>({
+        method: 'GET',
+        url: `/api/v1/org/projects`,
+        body: undefined,
+        verbose: options.verbose,
+    });
+    const firstProject = projects[0];
+
+    await setProjectUuid(firstProject.projectUuid);
+    const config = await getConfig();
+    const projectUrl =
+        config.context?.serverUrl &&
+        new URL(
+            `/projects/${firstProject.name}/home`,
+            config.context.serverUrl,
+        );
+    console.error(
+        `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
+    );
+};
