@@ -57,7 +57,6 @@ const createNewProject = async (
     const dbtName = friendlyName(context.projectName);
 
     let projectName = dbtName;
-    let answerName;
     if (process.env.CI !== 'true') {
         const answers = await inquirer.prompt([
             {
@@ -66,7 +65,6 @@ const createNewProject = async (
                 message: `Add a project name or press enter to use the default: [${dbtName}] `,
             },
         ]);
-        answerName = answers.name;
         projectName = answers.name ? answers.name : dbtName;
     }
     console.error('');
@@ -78,7 +76,7 @@ const createNewProject = async (
         event: 'create.started',
         properties: {
             projectName,
-            isDefaultName: !!answerName,
+            isDefaultName: dbtName === projectName,
         },
     });
     try {
