@@ -9,6 +9,7 @@ import {
     assertUnreachable,
     CreateDatabricksCredentials,
     DimensionType,
+    ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -96,27 +97,82 @@ enum DatabricksFieldTypes {
     TINY_INT = -6,
 }
 
-const mapFieldType = (type: DatabricksFieldTypes): DimensionType => {
-    switch (type) {
-        case DatabricksFieldTypes.BIT:
-        case DatabricksFieldTypes.BINARY:
+enum DatabricksTypes {
+    BOOLEAN = 'BOOLEAN',
+    BYTE = 'BYTE',
+    TINYINT = 'TINYINT',
+    SHORT = 'SHORT',
+    SMALLINT = 'SMALLINT',
+    INT = 'INT',
+    INTEGER = 'INTEGER',
+    LONG = 'LONG',
+    BIGINT = 'BIGINT',
+    FLOAT = 'FLOAT',
+    REAL = 'REAL',
+    DOUBLE = 'DOUBLE',
+    DATE = 'DATE',
+    TIMESTAMP = 'TIMESTAMP',
+    STRING = 'STRING',
+    BINARY = 'BINARY',
+    DECIMAL = 'DECIMAL',
+    DEC = 'DEC',
+    NUMERIC = 'NUMERIC',
+    INTERVAL = 'INTERVAL', // INTERVAL HOUR
+    ARRAY = 'ARRAY', // ARRAY<type>
+    STRUCT = 'STRUCT', // STRUCT<type,type...>
+    MAP = 'MAP',
+    CHAR = 'CHAR',
+    VARCHAR = 'VARCHAR',
+}
+
+const normaliseDatabricksType = (type: string): DatabricksTypes => {
+    const r = /^[A-Z]+/;
+    const match = r.exec(type);
+    if (match === null) {
+        throw new ParseError(
+            `Cannot understand type from Databricks: ${type}`,
+            {},
+        );
+    }
+    return match[0] as DatabricksTypes;
+};
+
+const mapFieldType = (type: string): DimensionType => {
+    const normalizedType = normaliseDatabricksType(type);
+
+    switch (normalizedType) {
+        case DatabricksTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
-        case DatabricksFieldTypes.TINY_INT:
-        case DatabricksFieldTypes.SMALL_INT:
-        case DatabricksFieldTypes.INTEGER:
-        case DatabricksFieldTypes.BIG_INT:
-        case DatabricksFieldTypes.FLOAT:
-        case DatabricksFieldTypes.REAL:
-        case DatabricksFieldTypes.DOUBLE_PRECISION:
-        case DatabricksFieldTypes.DECIMAL:
-        case DatabricksFieldTypes.NUMERIC:
+        case DatabricksTypes.TINYINT:
+        case DatabricksTypes.SHORT:
+        case DatabricksTypes.SMALLINT:
+        case DatabricksTypes.INT:
+        case DatabricksTypes.INTEGER:
+        case DatabricksTypes.BIGINT:
+        case DatabricksTypes.LONG:
+        case DatabricksTypes.FLOAT:
+        case DatabricksTypes.REAL:
+        case DatabricksTypes.DOUBLE:
+        case DatabricksTypes.DECIMAL:
+        case DatabricksTypes.DEC:
+        case DatabricksTypes.NUMERIC:
             return DimensionType.NUMBER;
-        case DatabricksFieldTypes.DATE:
+        case DatabricksTypes.STRING:
+        case DatabricksTypes.BINARY:
+        case DatabricksTypes.INTERVAL:
+        case DatabricksTypes.ARRAY:
+        case DatabricksTypes.STRUCT:
+        case DatabricksTypes.MAP:
+        case DatabricksTypes.CHAR:
+        case DatabricksTypes.VARCHAR:
+        case DatabricksTypes.BYTE:
+            return DimensionType.STRING;
+        case DatabricksTypes.DATE:
             return DimensionType.DATE;
-        case DatabricksFieldTypes.TIMESTAMP:
+        case DatabricksTypes.TIMESTAMP:
             return DimensionType.TIMESTAMP;
         default:
-            return DimensionType.STRING;
+            return assertUnreachable(normalizedType);
     }
 };
 
@@ -156,7 +212,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseConnectionError(e.message);
         }
 
@@ -195,7 +251,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             );
 
             return { fields, rows: result };
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
             if (query) await query.close();
@@ -230,7 +286,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                     const result = (await query.fetchAll()) as SchemaResult[];
 
                     return result;
-                } catch (e) {
+                } catch (e: any) {
                     throw new WarehouseQueryError(e.message);
                 } finally {
                     if (query) query.close();
@@ -247,7 +303,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 const columns = Object.fromEntries<DimensionType>(
                     result.map((col) => [
                         col.COLUMN_NAME,
-                        mapFieldType(col.DATA_TYPE),
+                        mapFieldType(col.TYPE_NAME),
                     ]),
                 );
                 const { schema, table } = requests[index];
