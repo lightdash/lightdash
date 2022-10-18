@@ -9,7 +9,7 @@ describe('CLI', () => {
             .its('stdout')
             .should('contain', 'Developer tools for dbt and Lightdash.');
     });
-    it.only('Should lightdash generate', () => {
+    it('Should lightdash generate', () => {
         cy.exec(
             `${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
