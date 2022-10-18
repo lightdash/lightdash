@@ -3,14 +3,13 @@ import { defineConfig } from 'vite';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPathsPlugin from 'vite-tsconfig-paths';
 
-// const mapManualChunks = (mapping) => (id) => {
-//     for (const [match, chunk] of Object.entries(mapping)) {
-//         if (id.includes(match)) {
-//             console.log(id);
-//             return chunk;
-//         }
-//     }
-// };
+const mapManualChunks = (mapping: Record<string, string>) => (id: string) => {
+    for (const [match, chunk] of Object.entries(mapping)) {
+        if (id.includes(match)) {
+            return chunk;
+        }
+    }
+};
 
 export default defineConfig({
     // TODO: add ESLINT plugin
@@ -23,24 +22,19 @@ export default defineConfig({
         // sourcemap: true,
         target: 'es2015',
         minify: true,
-        // rollupOptions: {
-        //     output: {
-        //         manualChunks: mapManualChunks({
-        //             '@blueprintjs/icons': 'blueprint-icons-vendor',
-        //             '@blueprintjs/': 'blueprint-vendor',
-        //             'highlight.js': 'highlight-vendor',
-        //             'echarts/lib/component': 'echarts-component-vendor',
-        //             'echarts/lib/coord': 'echarts-coord-vendor',
-        //             'echarts/lib/scale': 'echarts-scale-vendor',
-        //             'echarts/lib/chart': 'echarts-chart-vendor',
-        //             'echarts/lib/data': 'echarts-data-vendor',
-        //             echarts: 'echarts-vendor',
-        //             '@mapbox/': 'mapbox-vendor',
-        //             rudder: 'rudder-vendor',
-        //             sentry: 'sentry-vendor',
-        //         }),
-        //     },
-        // },
+        rollupOptions: {
+            output: {
+                manualChunks: mapManualChunks({
+                    '@blueprintjs/icons': 'blueprint-icons-vendor',
+                    '@blueprintjs/': 'blueprint-vendor',
+                    'highlight.js': 'highlight-vendor',
+                    echarts: 'echarts-vendor',
+                    '@mapbox/': 'mapbox-vendor',
+                    rudder: 'rudder-vendor',
+                    sentry: 'sentry-vendor',
+                }),
+            },
+        },
     },
     server: {
         port: 3000,
