@@ -20,17 +20,22 @@ jobs:
           DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
         run:
           echo "::set-output name=url::$DEPLOYMENT_URL"
-      - name: Checkout
+      - name: Checkout repository and submodules
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v1
+        with:
+          python-version: "3.7.x"
       # Install and build Common package
+      - name: Install dbt
+        run: pip install dbt-core dbt-postgres dbt-redshift dbt-snowflake dbt-bigquery
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build
       - name: Build packages/warehouses module
         run: yarn warehouses-build
-      - name: Update DBT example submodule
-        run: git submodule update --init --recursive
       - name: Install ODBC drivers
         run: apt-get install -y unixodbc unixodbc-dev
       - name: Build and install packages/cli module

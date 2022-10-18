@@ -1,5 +1,3 @@
-// const worskpace = Cypress.env('WORKSPACE') || '../../';
-
 const lightdashUrl = Cypress.config('baseUrl');
 const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
 const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
@@ -10,6 +8,23 @@ describe('CLI', () => {
         cy.exec(`${cliCommand} help`)
             .its('stdout')
             .should('contain', 'Developer tools for dbt and Lightdash.');
+    });
+    it('Should DBT run', () => {
+        cy.exec(
+            `dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            {
+                failOnNonZeroExit: false,
+                env: {
+                    PGHOST: Cypress.env('PGHOST') || 'localhost',
+                    PGPORT: 5432,
+                    PGUSER: 'postgres',
+                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+                    PGDATABASE: 'postgres',
+                },
+            },
+        )
+            .its('stdout')
+            .should('contain', 'Completed successfully');
     });
     it('Should lightdash generate', () => {
         cy.exec(
