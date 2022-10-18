@@ -1,4 +1,4 @@
 module.exports = {
-    ...require("./../../.prettierrc.json"),
-    "jsxBracketSameLine": false,
-}
+    ...require('./../../.prettierrc.json'),
+    bracketSameLine: false,
+};
