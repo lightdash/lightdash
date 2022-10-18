@@ -9,9 +9,9 @@ import { useMemo } from 'react';
 
 export const getPivotedData = (
     rows: ApiQueryResults['rows'],
-    pivotKey: string,
-    pivotedKeys: string[],
-    nonPivotedKeys: string[],
+    pivotKeys: string[],
+    keysToPivot: string[],
+    keysToNotPivot: string[],
 ): {
     pivotValuesMap: Record<string, ResultRow[0]['value']>;
     rowKeyMap: Record<string, FieldId | PivotReference>;
@@ -19,12 +19,14 @@ export const getPivotedData = (
 } => {
     const pivotValuesMap: Record<string, ResultRow[0]['value']> = {};
     const rowKeyMap: Record<string, FieldId | PivotReference> = {};
+    // TODO
+    const pivotKey = pivotKeys[0];
     const pivotedRowMap = rows.reduce<Record<string, ResultRow>>((acc, row) => {
         const unpivotedKeysAndValues: string[] = [];
 
         const pivotedRow: ResultRow = {};
         Object.entries(row).forEach(([key, value]) => {
-            if (pivotedKeys.includes(key)) {
+            if (keysToPivot.includes(key)) {
                 const pivotReference: PivotReference = {
                     field: key,
                     pivotValues: [
@@ -37,7 +39,7 @@ export const getPivotedData = (
                 pivotedRow[pivotedKeyHash] = value;
                 rowKeyMap[pivotedKeyHash] = pivotReference;
             }
-            if (nonPivotedKeys.includes(key)) {
+            if (keysToNotPivot.includes(key)) {
                 unpivotedKeysAndValues.push(key, `${value.value.raw}`);
                 pivotedRow[key] = value;
                 rowKeyMap[key] = key;
@@ -68,11 +70,15 @@ const usePlottedData = (
         if (!rows) {
             return [];
         }
-        const pivotDimension = pivotDimensions?.[0];
-        if (pivotDimension && pivotedKeys && nonPivotedKeys) {
+        if (
+            pivotDimensions &&
+            pivotDimensions.length > 0 &&
+            pivotedKeys &&
+            nonPivotedKeys
+        ) {
             return getPivotedData(
                 rows,
-                pivotDimension,
+                pivotDimensions,
                 pivotedKeys,
                 nonPivotedKeys,
             ).rows;

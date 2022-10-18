@@ -15,7 +15,7 @@ describe('usePlottedData', () => {
         expect(
             getPivotedData(
                 RESULTS_FOR_SIMPLE_PIVOT,
-                'dim2',
+                ['dim2'],
                 ['metric1'],
                 ['dim1'],
             ).rows,
@@ -25,7 +25,7 @@ describe('usePlottedData', () => {
         expect(
             getPivotedData(
                 RESULTS_FOR_PIVOT_WITH_MULTIPLE_DIMENSIONS,
-                'dim3',
+                ['dim3'],
                 ['metric1'],
                 ['dim1', 'dim2'],
             ).rows,
@@ -35,7 +35,7 @@ describe('usePlottedData', () => {
         expect(
             getPivotedData(
                 RESULTS_FOR_PIVOT_WITH_MULTIPLE_DIMENSIONS,
-                'dim3',
+                ['dim3'],
                 ['metric1'],
                 ['dim1'],
             ).rows,
@@ -45,7 +45,7 @@ describe('usePlottedData', () => {
         expect(
             getPivotedData(
                 RESULTS_FOR_PIVOT_ON_ITSELF,
-                'dim1',
+                ['dim1'],
                 ['metric1', 'metric2'],
                 ['dim1'],
             ).rows,
@@ -55,7 +55,7 @@ describe('usePlottedData', () => {
         expect(
             getPivotedData(
                 RESULTS_FOR_SIMPLE_PIVOT,
-                'dim1',
+                ['dim1'],
                 ['metric1'],
                 ['metric1'],
             ).rows,

@@ -52,7 +52,7 @@ const getPivotDataAndColumns = ({
 } => {
     const { rows, pivotValuesMap, rowKeyMap } = getPivotedData(
         resultsData.rows,
-        pivotDimension,
+        [pivotDimension],
         [
             ...resultsData.metricQuery.metrics,
             ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
