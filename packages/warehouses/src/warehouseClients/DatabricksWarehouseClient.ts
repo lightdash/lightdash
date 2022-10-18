@@ -78,25 +78,6 @@ const convertDataTypeToDimensionType = (
     }
 };
 
-// https://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.infocenter.dc36273.1570/html/sprocs/CIHHGDBC.htm
-enum DatabricksFieldTypes {
-    CHAR = 1,
-    DECIMAL = 2,
-    DOUBLE_PRECISION = 8,
-    FLOAT = 6,
-    INTEGER = 4,
-    NUMERIC = 2,
-    REAL = 7,
-    SMALL_INT = 5,
-    BIG_INT = -5,
-    BINARY = -2,
-    BIT = -7,
-    DATE = 9,
-    TIME = 10,
-    TIMESTAMP = 11,
-    TINY_INT = -6,
-}
-
 enum DatabricksTypes {
     BOOLEAN = 'BOOLEAN',
     BYTE = 'BYTE',
