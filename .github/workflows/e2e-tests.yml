@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     container: cypress/browsers:node14.19.0-chrome100-ff99-edge
     steps:
+      - uses: actions/setup-python@v1
+        with:
+          python-version: "3.7.x"
       - name: Get PR number
         id: regex
         uses: AsasInnab/regex-action@v1
@@ -23,21 +26,20 @@ jobs:
       - name: Checkout repository and submodules
         uses: actions/checkout@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-python@v1
-        with:
-          python-version: "3.7.x"
-      # Install and build Common package
+          submodules: recursive  # Download DBT submodule
+      # Install DBT and ODBC to use with CLI
+
       - name: Install dbt
         run: pip install dbt-core dbt-postgres dbt-redshift dbt-snowflake dbt-bigquery
+      - name: Install ODBC drivers
+        run: apt-get install -y unixodbc unixodbc-dev
+      # Install and build lightdash packages
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build
       - name: Build packages/warehouses module
         run: yarn warehouses-build
-      - name: Install ODBC drivers
-        run: apt-get install -y unixodbc unixodbc-dev
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g 
       # Install NPM dependencies, cache them correctly
@@ -57,7 +59,6 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
         env:
-          CYPRESS_WORKSPACE: ${{ env.GITHUB_WORKSPACE }}
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
           CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}

@@ -9,7 +9,7 @@ describe('CLI', () => {
             .its('stdout')
             .should('contain', 'Developer tools for dbt and Lightdash.');
     });
-    it('Should DBT run', () => {
+    it('Should run DBT first', () => {
         cy.exec(
             `dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
