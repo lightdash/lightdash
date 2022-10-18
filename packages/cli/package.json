@@ -7,8 +7,7 @@
     },
     "files": [
         "dist/**/*",
-        "track.sh",
-        "dependencies.sh"
+        "track.sh"
     ],
     "dependencies": {
         "@lightdash/common": "^0.290.1",
@@ -56,7 +55,7 @@
         "build": "tsc --build tsconfig.json",
         "lint": "eslint ./src",
         "format": "prettier --check --ignore-unknown ./src",
-        "preinstall": "bash track.sh started; bash dependencies.sh",
+        "preinstall": "bash track.sh started",
         "postinstall": "bash track.sh completed"
     }
 }

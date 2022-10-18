@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     python3-dev \
     software-properties-common \
-    unixodbc-dev \
     unzip \
     wget \
     && apt-get clean
@@ -29,14 +28,6 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-bigquery==1.2.0" \
     "dbt-databricks==1.2.0"
 ENV PATH $PATH:/usr/local/venv/bin
-
-RUN wget \
-    --quiet \
-    https://databricks-bi-artifacts.s3.us-east-2.amazonaws.com/simbaspark-drivers/odbc/2.6.19/SimbaSparkODBC-2.6.19.1033-Debian-64bit.zip \
-    -O /tmp/databricks_odbc.zip \
-    && unzip /tmp/databricks_odbc.zip -d /tmp \
-    && dpkg -i /tmp/simbaspark_*.deb \
-    && rm -rf /tmp/*
 
 
 # -----------------------------
@@ -102,14 +93,12 @@ ENV NODE_ENV production
 ENV PATH $PATH:/usr/local/venv/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    unixodbc-dev \
     python3 \
     python3-psycopg2 \
     python3-venv \
     && apt-get clean
 
 COPY --from=prod-builder /usr/local/venv /usr/local/venv
-COPY --from=prod-builder /opt/simba /opt/simba
 COPY --from=prod-builder /usr/app /usr/app
 
 # Production config
