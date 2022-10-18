@@ -1,4 +1,4 @@
-const server = 'http://localhost:3000';
+const lightdashUrl = Cypress.config('baseUrl');
 const projectDir = '../../examples/full-jaffle-shop-demo/dbt';
 const profilesDir = '../../examples/full-jaffle-shop-demo/profiles';
 const cliCommand = '../../packages/cli/dist/index.js';
@@ -13,7 +13,7 @@ describe('CLI', () => {
     it('Should lightdash login with token', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
-            cy.exec(`${cliCommand} login ${server} --token ${apiToken}`, {
+            cy.exec(`${cliCommand} login ${lightdashUrl} --token ${apiToken}`, {
                 failOnNonZeroExit: false,
                 env: {
                     CI: true,
@@ -34,7 +34,7 @@ describe('CLI', () => {
                     env: {
                         CI: true,
                         LIGHTDASH_API_KEY: apiToken,
-                        LIGHTDASH_URL: server,
+                        LIGHTDASH_URL: lightdashUrl,
                         PGHOST: Cypress.env('PGHOST') || 'localhost',
                         PGPORT: 5432,
                         PGUSER: 'postgres',
@@ -58,7 +58,7 @@ describe('CLI', () => {
                     failOnNonZeroExit: false,
                     env: {
                         LIGHTDASH_API_KEY: apiToken,
-                        LIGHTDASH_URL: server,
+                        LIGHTDASH_URL: lightdashUrl,
                         PGHOST: Cypress.env('PGHOST') || 'localhost',
                         PGPORT: 5432,
                         PGUSER: 'postgres',
@@ -80,7 +80,7 @@ describe('CLI', () => {
                 failOnNonZeroExit: false,
                 env: {
                     LIGHTDASH_API_KEY: apiToken,
-                    LIGHTDASH_URL: server,
+                    LIGHTDASH_URL: lightdashUrl,
                 },
             })
                 .its('stderr')
