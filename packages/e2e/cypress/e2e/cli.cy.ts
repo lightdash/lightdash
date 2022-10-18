@@ -1,6 +1,7 @@
 const lightdashUrl = Cypress.config('baseUrl');
-const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
-const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
+const projectDir = `examples/full-jaffle-shop-demo/dbt`;
+const profilesDir = `examples/full-jaffle-shop-demo/profiles`;
+const rootDir = `../../`;
 const cliCommand = `lightdash`;
 
 describe('CLI', () => {
@@ -11,7 +12,7 @@ describe('CLI', () => {
     });
     it('Should run DBT first', () => {
         cy.exec(
-            `dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            `cd ${rootDir} && dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -23,12 +24,12 @@ describe('CLI', () => {
                 },
             },
         )
-            .its('stdout')
+            .its('stderr')
             .should('contain', 'Completed successfully');
     });
     it('Should lightdash generate', () => {
         cy.exec(
-            `${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            ` cd ${rootDir} && ${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -46,7 +47,7 @@ describe('CLI', () => {
     });
     it('Should lightdash compile', () => {
         cy.exec(
-            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            `cd ${rootDir} && ${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -80,7 +81,7 @@ describe('CLI', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
             cy.exec(
-                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+                `cd ${rootDir} && ${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
                 {
                     failOnNonZeroExit: false,
                     env: {
@@ -105,7 +106,7 @@ describe('CLI', () => {
         cy.getApiToken().then((apiToken) => {
             const previewName = 'e2e preview';
             cy.exec(
-                `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
+                `cd ${rootDir} && ${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
                 {
                     failOnNonZeroExit: false,
                     env: {
