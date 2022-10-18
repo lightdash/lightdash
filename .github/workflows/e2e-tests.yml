@@ -29,6 +29,8 @@ jobs:
         run: yarn common-build
       - name: Build packages/warehouses module
         run: yarn warehouses-build
+      - name: Update DBT example submodule
+        run: git submodule update --init --recursive
       - name: Install ODBC drivers
         run: apt-get install -y unixodbc unixodbc-dev
       - name: Build and install packages/cli module
