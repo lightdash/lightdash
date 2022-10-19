@@ -1,5 +1,4 @@
 import { DepGraph } from 'dependency-graph';
-import assertUnreachable from '../utils/assertUnreachable';
 import { DbtError, ParseError } from './errors';
 import {
     DimensionType,
@@ -103,7 +102,6 @@ export type DbtColumnLightdashMetric = {
     show_underlying_values?: string[];
     filters?: { [key: string]: any }[];
 };
-
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
     targetWarehouse: SupportedDbtAdapter,
@@ -121,11 +119,13 @@ export const normaliseModelDatabase = (
             }
             return { ...model, database: model.database };
         case SupportedDbtAdapter.DATABRICKS:
-            return { ...model, database: model.database || 'DEFAULT' };
+            return { ...model, database: 'SPARK' };
         default:
-            return assertUnreachable(
-                targetWarehouse,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const never: never = targetWarehouse;
+            throw new ParseError(
                 `Cannot recognise warehouse ${targetWarehouse}`,
+                {},
             );
     }
 };

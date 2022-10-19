@@ -8,28 +8,28 @@
         "dist/**/*"
     ],
     "dependencies": {
-        "@databricks/sql": "https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671",
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.291.0",
+        "snowflake-sdk": "^1.6.4",
         "pg": "^8.7.1",
-        "snowflake-sdk": "^1.6.4"
+        "odbc": "^2.4.2"
     },
     "description": "Warehouse connectors for Lightdash",
     "devDependencies": {
-        "@types/jest": "^27.0.3",
         "@types/node": "^14.14.35",
+        "@types/jest": "^27.0.3",
+        "jest": "^27.4.7",
         "@typescript-eslint/eslint-plugin": "^5.22.0",
         "@typescript-eslint/parser": "^5.22.0",
         "eslint": "^8.7.0",
         "eslint-config-airbnb-base": "^15.0.0",
+        "ts-jest": "^27.0.3",
         "eslint-config-airbnb-typescript": "^16.1.0",
         "eslint-config-prettier": "^8.3.0",
         "eslint-plugin-import": "^2.25.4",
         "eslint-plugin-json": "^3.0.0",
-        "jest": "^27.4.7",
         "prettier": "^2.3.2",
         "prettier-plugin-organize-imports": "^2.3.4",
-        "ts-jest": "^27.0.3",
         "ts-node": "^9.1.1",
         "typescript": "^4.2.3"
     },

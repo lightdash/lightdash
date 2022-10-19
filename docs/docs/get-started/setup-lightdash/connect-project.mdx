@@ -27,14 +27,14 @@ To setup your Lightdash connection you'll need to:
 
 **To update an existing connection**, head to:
  1. `Settings`
- 2. `Project management`
- 3. `Settings` for your project
+ 2. `Project management` 
+ 3. `Settings` for your project 
 
 (see steps 1-3 in the image below)
 
 **To create a new project connection**, head to:
  1. `Settings`
- 2. `Project management`
+ 2. `Project management` 
  4. `Create New`
 
 (see steps 1, 2 & 4 in the image below)
@@ -444,7 +444,7 @@ Your personal access token can be found in your user settings in databricks:
 
 #### Database
 
-The default database name used by dbt for this connection.
+The default database name used by dbt for this connection. In databricks/spark the database is also the schema.
 
 
 
@@ -473,9 +473,9 @@ If we don't support the warehouse you're using, don't be afraid to reach out to 
 ## 2. Import a dbt project
 
 ----
-Connecting Lightdash to a hosted dbt project means that you'll be able to keep your Lightdash instance in sync with the changes in your dbt project.
+Connecting Lightdash to a hosted dbt project means that you'll be able to keep your Lightdash instance in sync with the changes in your dbt project. 
 
-To connect your dbt project, just head to your project connection settings in Lightdash:
+To connect your dbt project, just head to your project connection settings in Lightdash: 
 
 <img src={ProjectConnectionSettings} width="1043" height="613" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
@@ -522,9 +522,9 @@ This is the folder where your `dbt_project.yml` file is found in the GitHub repo
 - Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
 - Include the path to the sub-folder where your dbt project is if your dbt project is in a sub-folder in your repo. For example, if my project was in lightdash/lightdash-analytics/dbt/dbt_project.yml, I'd write `/dbt` in this field.
 
-#### Host domain
+#### Host domain 
 
-If you've [customized the domain for your GitHub pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages), you can add the custom domain for your project in here.
+If you've [customized the domain for your GitHub pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages), you can add the custom domain for your project in here. 
 
 By default, this is `github.com`
 
@@ -536,15 +536,15 @@ It's the dataset/schema in your data warehouse that Lightdash will look for your
 
 If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
 
-To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target)
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
 
 #### Environment variables
 
 If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
 
-For each environment variable, you'll need to add the `key` + `value` pair for the item.
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
 
-You'll normally find these values in a file called `.env` in your dbt project directory.
+You'll normally find these values in a file called `.env` in your dbt project directory. 
 
 For example, I might have something like:
 
@@ -598,9 +598,9 @@ then you don't need to change anything in here. You can just leave the default v
 If your dbt project is in a sub-folder in your repo (e.g. `lightdash/lightdash-analytics/dbt/dbt_project.yml`), then
 you'll need to include the path to the sub-folder where your dbt project is (e.g. `/dbt`).
 
-#### Host domain
+#### Host domain 
 
-If you've [customized the domain for your GitLab pages](https://docs.gitlab.com/ee/user/project/pages/getting_started_part_one.html), you can add the custom domain for your project in here.
+If you've [customized the domain for your GitLab pages](https://docs.gitlab.com/ee/user/project/pages/getting_started_part_one.html), you can add the custom domain for your project in here. 
 
 By default, this is `gitlab.io`.
 
@@ -612,15 +612,15 @@ It's the dataset/schema in your data warehouse that Lightdash will look for your
 
 If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
 
-To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target)
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
 
 #### Environment variables
 
 If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
 
-For each environment variable, you'll need to add the `key` + `value` pair for the item.
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
 
-You'll normally find these values in a file called `.env` in your dbt project directory.
+You'll normally find these values in a file called `.env` in your dbt project directory. 
 
 For example, I might have something like:
 
@@ -688,15 +688,15 @@ It's the dataset/schema in your data warehouse that Lightdash will look for your
 
 If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
 
-To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target)
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
 
 #### Environment variables
 
 If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
 
-For each environment variable, you'll need to add the `key` + `value` pair for the item.
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
 
-You'll normally find these values in a file called `.env` in your dbt project directory.
+You'll normally find these values in a file called `.env` in your dbt project directory. 
 
 For example, I might have something like:
 
@@ -727,7 +727,7 @@ Unsuitable for production and only available for Lightdash instances installed o
 
 :::
 
-To start Lightdash with the option to connect to a local dbt project, you must specify the directory of the dbt project when
+To start Lightdash with the option to connect to a local dbt project, you must specify the directory of the dbt project when 
 you start docker compose:
 
 ```shell
@@ -743,12 +743,12 @@ docker compose start
 
 #### Username
 
-This is the login name for your Bitbucket user. This is usually the same username you use to login to
+This is the login name for your Bitbucket user. This is usually the same username you use to login to 
 Bitbucket. You can find your username in Bitbucket by:
 1. Going to your avatar in the bottom left and click **Personal settings**.
 2. From the **Account settings** page, check the value next to the **Username**
 
-Alternatively, you can [create a new user through the Bitbucket console](https://confluence.atlassian.com/bitbucketserver/users-and-groups-776640439.html)
+Alternatively, you can [create a new user through the Bitbucket console](https://confluence.atlassian.com/bitbucketserver/users-and-groups-776640439.html) 
 with a username and password specifically for Lightdash to use.
 
 #### Http access token
@@ -777,9 +777,9 @@ This is the folder where your `dbt_project.yml` file is found in the Bitbucket r
 - Put `/` if your `dbt_project.yml` file is in the main folder of your repo (e.g. lightdash/lightdash-analytics/dbt_project.yml)
 - Include the path to the sub-folder where your dbt project is if your dbt project is in a sub-folder in your repo. For example, if my project was in lightdash/lightdash-analytics/dbt/dbt_project.yml, I'd write `/dbt` in this field.
 
-#### Host domain
+#### Host domain 
 
-If you've [customized the domain for your Bitbucket server](https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html), you can add the custom domain for your project in here.
+If you've [customized the domain for your Bitbucket server](https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html), you can add the custom domain for your project in here. 
 
 #### Target name
 
@@ -789,15 +789,15 @@ It's the dataset/schema in your data warehouse that Lightdash will look for your
 
 If you want to change this to be something other than the default `target` defined in dbt, you can enter the target of your choice here (for example `dbt_khindson`.)
 
-To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target)
+To read more about dbt targets, [check out the dbt docs here.](https://docs.getdbt.com/reference/dbt-jinja-functions/target) 
 
 #### Environment variables
 
 If you've used [environment variables in your dbt `profiles.yml` file](https://docs.getdbt.com/reference/dbt-jinja-functions/env_var), you can add these to Lightdash here.
 
-For each environment variable, you'll need to add the `key` + `value` pair for the item.
+For each environment variable, you'll need to add the `key` + `value` pair for the item. 
 
-You'll normally find these values in a file called `.env` in your dbt project directory.
+You'll normally find these values in a file called `.env` in your dbt project directory. 
 
 For example, I might have something like:
 

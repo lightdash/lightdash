@@ -31,7 +31,7 @@ export type Explore = {
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
-    targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/databricks
+    targetDatabase: SupportedDbtAdapter; // Type of target database e.g. postgres/redshift/bigquery/snowflake/spark
 };
 
 export enum InlineErrorType {
