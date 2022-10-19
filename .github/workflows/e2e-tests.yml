@@ -52,7 +52,7 @@ jobs:
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g 
       - name: Check latest lightdash version
-        run: [ $(lightdash --version) == "0.290.0" ] && exit 0 || exit 1 # TODO do dynamic
+        run: lightdash --version
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: create-json
