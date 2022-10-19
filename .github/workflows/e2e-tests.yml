@@ -56,6 +56,8 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      - name: ls submodule 
+        run: ls examples/full-jaffle-shop-demo/dbt
       - name: Cypress run
         uses: cypress-io/github-action@v4
         with:

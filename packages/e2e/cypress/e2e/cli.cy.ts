@@ -1,6 +1,6 @@
 const lightdashUrl = Cypress.config('baseUrl');
-const projectDir = `examples/full-jaffle-shop-demo/dbt`;
-const profilesDir = `examples/full-jaffle-shop-demo/profiles`;
+const projectDir = `/__w/lightdash/lightdash/examples/full-jaffle-shop-demo/dbt`;
+const profilesDir = `/__w/lightdash/lightdash/examples/full-jaffle-shop-demo/profiles`;
 const rootDir = `../../`;
 const cliCommand = `lightdash`;
 
@@ -10,6 +10,32 @@ describe('CLI', () => {
             .its('stdout')
             .should('contain', 'Developer tools for dbt and Lightdash.');
     });
+
+    it('test pwd', () => {
+        cy.exec(`pwd`).its('stdout').should('contain', 'throw error');
+    });
+    it('test ls', () => {
+        cy.exec(`ls`).its('stdout').should('contain', 'throw error');
+    });
+    it('test ls projectdir', () => {
+        cy.exec(`ls ${projectDir}`)
+            .its('stdout')
+            .should('contain', 'throw error');
+    });
+
+    it('test ls /', () => {
+        cy.exec(`ls /`).its('stdout').should('contain', 'throw error');
+    });
+    it('test ls ../../', () => {
+        cy.exec(`ls ${rootDir}`).its('stdout').should('contain', 'throw error');
+    });
+
+    it('test ls /', () => {
+        cy.exec(`ls /__w/lightdash/lightdash`)
+            .its('stdout')
+            .should('contain', 'throw error');
+    });
+    /*
     it('Should run DBT first', () => {
         cy.exec(
             `cd ${rootDir} && dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
@@ -26,10 +52,10 @@ describe('CLI', () => {
         )
             .its('stderr')
             .should('contain', 'Completed successfully');
-    });
+    }); */
     it('Should lightdash generate', () => {
         cy.exec(
-            ` cd ${rootDir} && ${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            `${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -47,7 +73,7 @@ describe('CLI', () => {
     });
     it('Should lightdash compile', () => {
         cy.exec(
-            `cd ${rootDir} && ${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -81,7 +107,7 @@ describe('CLI', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
             cy.exec(
-                `cd ${rootDir} && ${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
                 {
                     failOnNonZeroExit: false,
                     env: {
@@ -106,7 +132,7 @@ describe('CLI', () => {
         cy.getApiToken().then((apiToken) => {
             const previewName = 'e2e preview';
             cy.exec(
-                `cd ${rootDir} && ${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
+                `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
                 {
                     failOnNonZeroExit: false,
                     env: {
