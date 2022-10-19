@@ -1,0 +1,44 @@
+name: CLI tests
+on: [ deployment_status ]
+jobs:
+  cli-run:
+    # Only trigger for correct environment and status
+    if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+      - name: Get deployment url
+        id: deployment_url
+        env:
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive  # Download DBT submodule
+      ## Install pip
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.7.x'
+      - run: pip install dbt-postgres
+
+      ## Install lightdash cli from source
+      - name: Install packages/common modules
+        run: yarn workspace @lightdash/common install
+      - name: Build packages/common module
+        run: yarn common-build
+      - name: Build packages/warehouses module
+        run: yarn warehouses-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && yarn build && npm i -g 
+
+      # Run tests
+      - name: Check latest lightdash version
+        run: lightdash --version
