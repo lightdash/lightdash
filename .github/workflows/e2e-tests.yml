@@ -30,6 +30,12 @@ jobs:
         uses: mwhitaker/dbt-action@master
         with:
           dbt_command: "dbt --version"
+        env:
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
       - name: Install ODBC drivers
         run: apt-get install -y unixodbc unixodbc-dev
       # Install and build lightdash packages
