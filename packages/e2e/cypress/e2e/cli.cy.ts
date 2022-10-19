@@ -1,7 +1,7 @@
 const lightdashUrl = Cypress.config('baseUrl');
 const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
 const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
-const cliCommand = `lightdash`;
+const cliCommand = `../../packages/cli/dist/index.js`;
 
 describe('CLI', () => {
     const previewName = `e2e preview ${new Date().getTime()}`;
@@ -129,7 +129,7 @@ describe('CLI', () => {
                 },
             )
                 .its('stderr')
-                .should('contain', 'New project created on');
+                .should('contain', 'New project created');
         });
     });
 
