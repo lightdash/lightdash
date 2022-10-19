@@ -82,7 +82,7 @@ jobs:
         run: lightdash compile  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
 
       - name: CLI generate
-        run: lightdash generate  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+        run: lightdash generate -y --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
 
       - name: CLI create new project
         run: lightdash deloy --create  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
