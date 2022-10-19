@@ -26,11 +26,10 @@ jobs:
           submodules: recursive  # Download DBT submodule
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10' 
-      # Install DBT and ODBC to use with CLI
+          python-version: '3.9'
+          cache: 'pip' # caching pip dependencies
+      - run: pip install dbt-postgres
 
-      - name: install dbt 
-        run: pip install dbt-postgres
 
       #- name: Run DBT
       #  uses: mwhitaker/dbt-action@master
