@@ -32,8 +32,6 @@ import {
 import '@testing-library/cypress/add-commands';
 import 'cypress-file-upload';
 
-const { exec } = require('child_process');
-
 declare global {
     namespace Cypress {
         interface Chainable {
@@ -49,7 +47,6 @@ declare global {
                 projectPermissions,
             ): Chainable<Element>;
             getApiToken(): Chainable<string>;
-            lightdash(args): void;
         }
     }
 }
@@ -192,18 +189,5 @@ Cypress.Commands.add('getApiToken', () => {
     }).then((resp) => {
         expect(resp.status).to.eq(200);
         cy.wrap(resp.body.results.token, { log: false });
-    });
-});
-
-Cypress.Commands.add('lightdash', (args: string) => {
-    const command = `lightdash ${args}`;
-    return new Promise((resolve, reject) => {
-        try {
-            resolve(exec(command));
-            cy.wrap({}, { log: false });
-        } catch (e) {
-            reject(e);
-            cy.wrap({ error: e }, { log: false });
-        }
     });
 });
