@@ -5,7 +5,7 @@ jobs:
     # Only trigger for correct environment and status
     if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
     runs-on: ubuntu-latest
-    #container: cypress/browsers:node14.19.0-chrome100-ff99-edge
+    #container: cypress/browsers:node16.17.0-chrome106
     steps:
       - name: Get PR number
         id: regex
@@ -24,10 +24,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive  # Download DBT submodule
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v1
         with:
-          python-version: '3.9'
-          cache: 'pip' # caching pip dependencies
+          python-version: '3.7.x'
       - run: pip install dbt-postgres
 
 
