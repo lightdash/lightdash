@@ -3,6 +3,7 @@ const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
 const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
 const rootDir = `../../`;
 const cliCommand = `lightdash`;
+const { exec } = require('child_process');
 
 describe('CLI', () => {
     it('Should test lightdash command help', () => {
@@ -53,6 +54,27 @@ describe('CLI', () => {
             .its('stderr')
             .should('contain', 'Completed successfully');
     });
+
+    it('Should run DBT exec', () => {
+        exec(
+            `dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            {
+                env: {
+                    CI: true,
+                    PGHOST: Cypress.env('PGHOST') || 'localhost',
+                    PGPORT: 5432,
+                    PGUSER: 'postgres',
+                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+                    PGDATABASE: 'postgres',
+                },
+            },
+            (error, stdout, stderr) => {
+                cy.log('err', error);
+                cy.log('stdout', stdout);
+                cy.log('stderr', stderr);
+            },
+        );
+    });
     it('Should lightdash generate', () => {
         cy.exec(
             `${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
@@ -71,6 +93,28 @@ describe('CLI', () => {
             .its('stderr')
             .should('contain', 'Done 🕶');
     });
+
+    it('Should lightdash generate with exec', () => {
+        exec(
+            `lightdash generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            {
+                env: {
+                    CI: true,
+                    PGHOST: Cypress.env('PGHOST') || 'localhost',
+                    PGPORT: 5432,
+                    PGUSER: 'postgres',
+                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+                    PGDATABASE: 'postgres',
+                },
+            },
+            (error, stdout, stderr) => {
+                cy.log('err', error);
+                cy.log('stdout', stdout);
+                cy.log('stderr', stderr);
+            },
+        );
+    });
+
     it('Should lightdash compile', () => {
         cy.exec(
             `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
