@@ -51,7 +51,7 @@ describe('CLI', () => {
                 },
             },
         )
-            .its('stderr')
+            .its('stdout')
             .should('contain', 'Completed successfully');
     });
 

@@ -1,5 +1,8 @@
 name: End-to-end tests
 on: [ deployment_status ]
+env:
+  PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+  PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
 jobs:
   cypress-run:
     # Only trigger for correct environment and status
@@ -29,6 +32,9 @@ jobs:
           python-version: '3.7.x'
       - run: pip install dbt-postgres
 
+      ## DBT run
+      - name: Run DBT
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
 
       #- name: Run DBT
       #  uses: mwhitaker/dbt-action@master
