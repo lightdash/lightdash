@@ -4,7 +4,7 @@ export default defineConfig({
     viewportWidth: 1080,
     defaultCommandTimeout: 5000,
     retries: {
-        runMode: 1,
+        runMode: 0,
         openMode: 0,
     },
     e2e: {

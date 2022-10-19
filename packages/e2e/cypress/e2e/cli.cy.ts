@@ -1,6 +1,6 @@
 const lightdashUrl = Cypress.config('baseUrl');
-const projectDir = `../../lightdash/lightdash/examples/full-jaffle-shop-demo/dbt`;
-const profilesDir = `../../lightdash/lightdash/examples/full-jaffle-shop-demo/profiles`;
+const projectDir = `../../examples/full-jaffle-shop-demo/dbt`;
+const profilesDir = `../../examples/full-jaffle-shop-demo/profiles`;
 const rootDir = `../../`;
 const cliCommand = `lightdash`;
 
