@@ -10,26 +10,26 @@
     "dependencies": {
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.291.1",
-        "snowflake-sdk": "^1.6.4",
+        "@lightdash/databricks-sql": "^0.1.8-beta.3",
         "pg": "^8.7.1",
-        "odbc": "^2.4.2"
+        "snowflake-sdk": "^1.6.4"
     },
     "description": "Warehouse connectors for Lightdash",
     "devDependencies": {
-        "@types/node": "^14.14.35",
         "@types/jest": "^27.0.3",
-        "jest": "^27.4.7",
+        "@types/node": "^14.14.35",
         "@typescript-eslint/eslint-plugin": "^5.22.0",
         "@typescript-eslint/parser": "^5.22.0",
         "eslint": "^8.7.0",
         "eslint-config-airbnb-base": "^15.0.0",
-        "ts-jest": "^27.0.3",
         "eslint-config-airbnb-typescript": "^16.1.0",
         "eslint-config-prettier": "^8.3.0",
         "eslint-plugin-import": "^2.25.4",
         "eslint-plugin-json": "^3.0.0",
+        "jest": "^27.4.7",
         "prettier": "^2.3.2",
         "prettier-plugin-organize-imports": "^2.3.4",
+        "ts-jest": "^27.0.3",
         "ts-node": "^9.1.1",
         "typescript": "^4.2.3"
     },

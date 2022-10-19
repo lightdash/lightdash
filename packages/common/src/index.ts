@@ -92,6 +92,7 @@ export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
 export * from './utils/api';
+export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/formatting';
 export * from './utils/timeFrames';
 
@@ -795,11 +796,12 @@ export type BigqueryCredentials = Omit<
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
-    serverHostName: string;
-    port: number;
+    catalog?: string;
+    // this supposed to be a `schema` but changing it will break for existing customers
     database: string;
-    personalAccessToken: string;
+    serverHostName: string;
     httpPath: string;
+    personalAccessToken: string;
 };
 
 export type DatabricksCredentials = Omit<
@@ -1200,8 +1202,4 @@ export const deepEqual = (
             (!areObjects && val1 !== val2)
         );
     });
-};
-
-export const assertUnreachable = (_x: never): never => {
-    throw new Error("Didn't expect to get here");
 };
