@@ -10,19 +10,26 @@ type Props = {
 
 const months = moment.months();
 
-const MonthAndYearInput: FC<Props> = ({ value, onChange }) => (
-    <>
-        <HTMLSelect
-            fill={false}
-            style={{ width: 150 }}
-            onChange={(e) =>
-                onChange(moment(value).month(e.currentTarget.value).toDate())
-            }
-            options={months.map((label, index) => ({ value: index, label }))}
-            value={moment(value).month()}
-        />
-        <YearInput value={value} onChange={onChange} />
-    </>
-);
+const MonthAndYearInput: FC<Props> = ({ value, onChange }) => {
+    return (
+        <>
+            <HTMLSelect
+                fill={false}
+                style={{ width: 150 }}
+                onChange={(e) =>
+                    onChange(
+                        moment(value).month(e.currentTarget.value).toDate(),
+                    )
+                }
+                options={months.map((label, index) => ({
+                    value: index,
+                    label,
+                }))}
+                value={moment(value).utc().month()}
+            />
+            <YearInput value={value} onChange={onChange} />
+        </>
+    );
+};
 
 export default MonthAndYearInput;

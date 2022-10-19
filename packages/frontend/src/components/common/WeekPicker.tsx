@@ -100,7 +100,7 @@ const WeekPicker: FC<Props> = ({ value, onChange, popoverProps }) => {
                 fill
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}
-                value={value.toUTCString()}
+                value={value.toString()}
                 formatDate={formatDate}
                 parseDate={parseDate}
                 defaultValue={getWeekRange(new Date()).from.toString()}
