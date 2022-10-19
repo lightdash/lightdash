@@ -1,3 +1,10 @@
+## [0.291.2](https://github.com/lightdash/lightdash/compare/0.291.1...0.291.2) (2022-10-19)
+
+
+### Bug Fixes
+
+* databricks/odbc PR ([#3409](https://github.com/lightdash/lightdash/issues/3409)) breaking cli install  ([#3524](https://github.com/lightdash/lightdash/issues/3524)) ([cee90b6](https://github.com/lightdash/lightdash/commit/cee90b6dfda8c0987a9e9d1c607e7d019f6bf729)), closes [#3522](https://github.com/lightdash/lightdash/issues/3522)
+
 ## [0.291.1](https://github.com/lightdash/lightdash/compare/0.291.0...0.291.1) (2022-10-19)
 
 
