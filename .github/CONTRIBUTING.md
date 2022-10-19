@@ -296,7 +296,6 @@ To setup Development Environment without Docker you need following pre-requisits
 - yarn
 - postgres
 - dbt
-- unixODBC
 
 eg. on MacOS you can follow this instructions:
 
@@ -315,13 +314,10 @@ brew services start postgresql@14
 #4 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
 brew install dbt-labs/dbt/dbt-postgres@1.1.0
 
-#5 before running `yarn` install ODBC library which is required by [node-odbc](https://github.com/wankdanker/node-odbc)
-brew install unixODBC
-
-#6 install packages
+#5 install packages
 yarn
 
-#7 create `.env.local` and override any variables you need to change from `.env`
+#6 create `.env.local` and override any variables you need to change from `.env`
 touch .env.local
 open .env.local -t
 
@@ -334,16 +330,16 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=/path/to/the/lightdash/project/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=/path/to/the/lightdash/project/lightdash.yml
 
-#8 Update submodules
+#7 Update submodules
 git submodule update --init --recursive
 
-#9 build / migrate / seed
+#8 build / migrate / seed
 yarn load:env ./scripts/build.sh
 yarn load:env ./scripts/seed-jaffle.sh
 yarn load:env ./scripts/migrate.sh
 yarn load:env ./scripts/seed-lightdash.sh
 
-#10 run
+#9 run
 yarn load:env yarn dev
 ```
 

@@ -1,4 +1,8 @@
-import { CreateWarehouseCredentials, WarehouseTypes } from '@lightdash/common';
+import {
+    assertUnreachable,
+    CreateWarehouseCredentials,
+    WarehouseTypes,
+} from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import path from 'path';
 
@@ -135,23 +139,23 @@ const credentialsTarget = (
             return {
                 target: {
                     type: WarehouseTypes.DATABRICKS,
+                    catalog: credentials.catalog,
+                    // this supposed to be a `schema` but changing it will break for existing customers
                     schema: credentials.database,
                     host: credentials.serverHostName,
                     token: envVarReference('token'),
                     http_path: credentials.httpPath,
-                    port: credentials.port,
                 },
                 environment: {
                     [envVar('token')]: credentials.personalAccessToken,
                 },
             };
-        default: {
+        default:
             const { type } = credentials;
-            const nope: never = credentials;
-            throw new Error(
+            return assertUnreachable(
+                credentials,
                 `No profile implemented for warehouse type: ${type}`,
             );
-        }
     }
 };
 export const profileFromCredentials = (
