@@ -40,8 +40,8 @@ jobs:
       #    PGDATABASE: postgres
       #    PGHOST: ${{secrets.PGHOST}}
       #    PGPASSWORD: ${{secrets.PGPASSWORD}}
-      - name: Install ODBC drivers
-        run: apt-get install -y unixodbc unixodbc-dev
+      #- name: Install ODBC drivers
+      #  run: apt-get install -y unixodbc unixodbc-dev
       # Install and build lightdash packages
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
@@ -51,6 +51,8 @@ jobs:
         run: yarn warehouses-build
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g 
+      - name: Check latest lightdash version
+        run: [ $(lightdash --version) == "0.290.0" ] && exit 0 || exit 1 # TODO do dynamic
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: create-json
