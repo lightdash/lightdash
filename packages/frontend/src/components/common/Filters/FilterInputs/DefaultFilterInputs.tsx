@@ -35,6 +35,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
             return <span style={{ width: '100%' }} />;
+        case FilterOperator.INCLUDE:
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS: {
             if (filterType === FilterType.STRING) {
@@ -79,7 +80,6 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         }
 
         case FilterOperator.STARTS_WITH:
-        case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
             if (filterType === FilterType.STRING) {
                 return (

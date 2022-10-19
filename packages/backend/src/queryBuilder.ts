@@ -49,9 +49,13 @@ const renderStringFilterSql = (
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.INCLUDE:
-            return `LOWER(${dimensionSql}) LIKE LOWER('%${
-                filter.values?.[0] || ''
-            }%')`;
+            const filterQuery = filter.values?.map(
+                (filterVal) =>
+                    `LOWER(${dimensionSql}) LIKE LOWER('%${filterVal}%')`,
+            );
+            return (
+                filterQuery?.join(' OR ') || `LOWER(${dimensionSql}) LIKE ''`
+            );
         case FilterOperator.NOT_INCLUDE:
             return `LOWER(${dimensionSql}) NOT LIKE LOWER('%${
                 filter.values?.[0] || ''
@@ -275,6 +279,8 @@ export const buildQuery = ({
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const q = getQuoteChar(explore.targetDatabase); // quote char
     const sqlFrom = `FROM ${baseTable} AS ${q}${explore.baseTable}${q}`;
+
+    console.log({ compiledMetricQuery, dimensions });
 
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
