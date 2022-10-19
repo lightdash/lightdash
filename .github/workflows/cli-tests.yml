@@ -70,7 +70,7 @@ jobs:
           LIGHTDASH_URL: ${{steps.deployment_url.outputs.url}}
         run: | 
           curl -s -X POST ${LIGHTDASH_URL}/api/v1/login -H 'Content-Type: application/json'  -d '{"email":"demo@lightdash.com","password":"demo_password!"}' --cookie-jar ./cookie > /dev/null
-          curl -s -X POST ${LIGHTDASH_URL}/api/v1/user/me/personal-access-tokens  -H 'Content-Type: application/json'  -d '{"description":"e2e tests"}' --cookie ./cookie | echo "::set-output name=url::$(jq -r '.results.token')"
+          curl -s -X POST ${LIGHTDASH_URL}/api/v1/user/me/personal-access-tokens  -H 'Content-Type: application/json'  -d '{"description":"e2e tests"}' --cookie ./cookie | echo "value=$(jq -r '.results.token')"  >> $GITHUB_OUTPUT
 
       - name: Echo token
         env: 
