@@ -87,10 +87,11 @@ jobs:
         run: lightdash generate -y --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
 
       - name: CLI create new project
-        run: lightdash deloy --create  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+        run: lightdash deploy --create  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
 
+      # TODO deploy existing project (requires PROJECT_ID)
       - name: CLI start preview
-        run: lightdash deloy --create  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --name "cli-test"
+        run: lightdash start-preview  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --name "cli-test"
 
       - name: CLI stop preview
         run: lightdash stop-preview --name "cli-test"
