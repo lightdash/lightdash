@@ -39,11 +39,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     week commencing
                                 </span>
                                 <WeekPicker
-                                    value={
-                                        filterRule.values?.[0]
-                                            ? new Date(filterRule.values?.[0])
-                                            : new Date()
-                                    }
+                                    value={filterRule.values?.[0] || new Date()}
                                     popoverProps={popoverProps}
                                     onChange={(value: Date) => {
                                         onChange({

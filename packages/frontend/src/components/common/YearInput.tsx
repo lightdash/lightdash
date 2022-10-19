@@ -8,6 +8,11 @@ type Props = {
 };
 
 const YearInput: FC<Props> = ({ value, onChange }) => {
+    //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
+    const utcYearValue =
+        value instanceof Date
+            ? moment(value).year()
+            : moment(value).utc().year();
     return (
         <NumericInput
             fill
@@ -15,7 +20,7 @@ const YearInput: FC<Props> = ({ value, onChange }) => {
             min={1000}
             minLength={4}
             maxLength={4}
-            defaultValue={moment(value).utc().year()}
+            defaultValue={utcYearValue}
             onValueChange={(year) => {
                 if (year > 1000 && year < 9999) {
                     onChange(moment(value).utc().year(year).toDate());
