@@ -1,6 +1,6 @@
 const lightdashUrl = Cypress.config('baseUrl');
-const projectDir = `/__w/lightdash/lightdash/examples/full-jaffle-shop-demo/dbt`;
-const profilesDir = `/__w/lightdash/lightdash/examples/full-jaffle-shop-demo/profiles`;
+const projectDir = `../../lightdash/lightdash/examples/full-jaffle-shop-demo/dbt`;
+const profilesDir = `../../lightdash/lightdash/examples/full-jaffle-shop-demo/profiles`;
 const rootDir = `../../`;
 const cliCommand = `lightdash`;
 
@@ -30,15 +30,15 @@ describe('CLI', () => {
         cy.exec(`ls ${rootDir}`).its('stdout').should('contain', 'throw error');
     });
 
-    it('test ls /', () => {
+    it('test ls /__w/lightdash/lightdash', () => {
         cy.exec(`ls /__w/lightdash/lightdash`)
             .its('stdout')
             .should('contain', 'throw error');
     });
-    /*
+
     it('Should run DBT first', () => {
         cy.exec(
-            `cd ${rootDir} && dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            ` dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -52,7 +52,7 @@ describe('CLI', () => {
         )
             .its('stderr')
             .should('contain', 'Completed successfully');
-    }); */
+    });
     it('Should lightdash generate', () => {
         cy.exec(
             `${cliCommand} generate  -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
