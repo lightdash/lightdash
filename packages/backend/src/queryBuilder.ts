@@ -280,8 +280,6 @@ export const buildQuery = ({
     const q = getQuoteChar(explore.targetDatabase); // quote char
     const sqlFrom = `FROM ${baseTable} AS ${q}${explore.baseTable}${q}`;
 
-    console.log({ compiledMetricQuery, dimensions });
-
     const dimensionSelects = dimensions.map((field) => {
         const alias = field;
         const dimension = getDimensionFromId(field, explore);
