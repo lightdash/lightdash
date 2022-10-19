@@ -1,3 +1,10 @@
+## [0.291.1](https://github.com/lightdash/lightdash/compare/0.291.0...0.291.1) (2022-10-19)
+
+
+### Bug Fixes
+
+* revert [#3409](https://github.com/lightdash/lightdash/issues/3409) - This reverts commit 31ee2ccb3049b19355434f60a7343e2964812387. ([#3522](https://github.com/lightdash/lightdash/issues/3522)) ([6b60a8b](https://github.com/lightdash/lightdash/commit/6b60a8b3f19fc7fa88dcc2d152e1d6d7bb6756b8))
+
 # [0.291.0](https://github.com/lightdash/lightdash/compare/0.290.1...0.291.0) (2022-10-18)
 
 
