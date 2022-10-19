@@ -29,6 +29,16 @@ jobs:
           python-version: '3.7.x'
       - run: pip install dbt-postgres
 
+      ## DBT run
+      - name: Run DBT
+        run: dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt
+        env:
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
+          
       ## Install lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
@@ -38,6 +48,8 @@ jobs:
         run: yarn warehouses-build
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g 
+
+
 
       # Run tests
       - name: Check latest lightdash version
