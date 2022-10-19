@@ -1,5 +1,14 @@
 name: CLI tests
 on: [ deployment_status ]
+
+env:
+  PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+  PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+  PGHOST: ${{secrets.PGHOST}}
+  PGPASSWORD: ${{secrets.PGPASSWORD}}
+  PGPORT: 5432
+  PGUSER: postgres
+  PGDATABASE: postgres
 jobs:
   cli-run:
     # Only trigger for correct environment and status
@@ -35,13 +44,8 @@ jobs:
 
       ## DBT run
       - name: Run DBT
-        run: dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt
-        env:
-          PGPORT: 5432
-          PGUSER: postgres
-          PGDATABASE: postgres
-          PGHOST: ${{secrets.PGHOST}}
-          PGPASSWORD: ${{secrets.PGPASSWORD}}
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+
 
       ## Install lightdash cli from source
       - name: Install packages/common modules
@@ -68,10 +72,24 @@ jobs:
           curl -X POST ${LIGHTDASH_URL}/api/v1/login -H 'Content-Type: application/json'  -d '{"email":"demo@lightdash.com","password":"demo_password!"}' --cookie-jar ./cookie
           curl -s -X POST ${LIGHTDASH_URL}/api/v1/user/me/personal-access-tokens  -H 'Content-Type: application/json'  -d '{"description":"e2e tests"}' --cookie ./cookie | jq -r '.results.token'
 
-
       - name: Echo token
         run: echo "token ${{ steps.version.outputs.value }}"
-         - name: Lightdash CLI deploy 
       
       - name: CLI login 
         run: lightdash login ${{steps.deployment_url.outputs.url}} login --token ${{ steps.version.outputs.value }}
+
+      - name: CLI compile
+        run: lightdash compile  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+
+      - name: CLI generate
+        run: lightdash generate  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+
+      - name: CLI create new project
+        run: lightdash deloy --create  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+
+      - name: CLI start preview
+        run: lightdash deloy --create  --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --name "cli-test"
+
+      - name: CLI stop preview
+        run: lightdash stop-preview --name "cli-test"
+
