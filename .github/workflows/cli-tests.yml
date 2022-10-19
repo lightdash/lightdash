@@ -23,6 +23,10 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive  # Download DBT submodule
+      
+      - name: Get lightdash version 
+        uses: sergeysova/jq-action@v2
+
       ## Install pip
       - uses: actions/setup-python@v1
         with:
@@ -54,3 +58,20 @@ jobs:
       # Run tests
       - name: Check latest lightdash version
         run: lightdash --version
+
+      # Get API token
+      - name: Login and get API token 
+        id: token
+        env: 
+          LIGHTDASH_URL: ${{steps.deployment_url.outputs.url}}
+        run: | 
+          curl -X POST ${LIGHTDASH_URL}/api/v1/login -H 'Content-Type: application/json'  -d '{"email":"demo@lightdash.com","password":"demo_password!"}' --cookie-jar ./cookie
+          curl -s -X POST ${LIGHTDASH_URL}/api/v1/user/me/personal-access-tokens  -H 'Content-Type: application/json'  -d '{"description":"e2e tests"}' --cookie ./cookie | jq -r '.results.token'
+
+
+      - name: Echo token
+        run: echo "token ${{ steps.version.outputs.value }}"
+         - name: Lightdash CLI deploy 
+      
+      - name: CLI login 
+        run: lightdash login ${{steps.deployment_url.outputs.url}} login --token ${{ steps.version.outputs.value }}
