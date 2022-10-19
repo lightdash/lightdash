@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@v1
         with:
           python-version: '3.7.x'
-      - run: pip install dbt-postgres
+      - run: pip install dbt-postgres==1.2
 
       ## DBT run
       - name: Run DBT
@@ -38,7 +38,7 @@ jobs:
           PGDATABASE: postgres
           PGHOST: ${{secrets.PGHOST}}
           PGPASSWORD: ${{secrets.PGPASSWORD}}
-          
+
       ## Install lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
