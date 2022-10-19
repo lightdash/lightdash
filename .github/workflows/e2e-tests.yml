@@ -3,6 +3,11 @@ on: [ deployment_status ]
 env:
   PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
   PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+  PGHOST: ${{secrets.PGHOST}}
+  PGPASSWORD: ${{secrets.PGPASSWORD}}
+  PGPORT: 5432
+  PGUSER: postgres
+  PGDATABASE: postgres
 jobs:
   cypress-run:
     # Only trigger for correct environment and status
