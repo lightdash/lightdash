@@ -29,7 +29,7 @@ jobs:
       - name: Run DBT
         uses: mwhitaker/dbt-action@master
         with:
-          dbt_command: "dbt --version"
+          dbt_command: "dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt"
         env:
           PGPORT: 5432
           PGUSER: postgres
