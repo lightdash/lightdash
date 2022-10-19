@@ -1,0 +1,55 @@
+name: CLI tests
+on: [ deployment_status ]
+
+env:
+  PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+  PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+  PGHOST: ${{secrets.PGHOST}}
+  PGPASSWORD: ${{secrets.PGPASSWORD}}
+  PGPORT: 5432
+  PGUSER: postgres
+  PGDATABASE: postgres
+jobs:
+  cli-run:
+    # Only trigger for correct environment and status
+    if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+      - name: Get deployment url
+        id: deployment_url
+        env:
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive  # Download DBT submodule
+      
+      - name: Get lightdash version 
+        uses: sergeysova/jq-action@v2
+
+      ## Install pip
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.7.x'
+      - run: pip install dbt-postgres==1.2
+
+      ## DBT run
+      - name: Run DBT
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+
+      - name: Cypress run
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/cli
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+

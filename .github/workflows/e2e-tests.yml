@@ -1,19 +1,11 @@
 name: End-to-end tests
 on: [ deployment_status ]
-env:
-  PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
-  PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
-  PGHOST: ${{secrets.PGHOST}}
-  PGPASSWORD: ${{secrets.PGPASSWORD}}
-  PGPORT: 5432
-  PGUSER: postgres
-  PGDATABASE: postgres
 jobs:
   cypress-run:
     # Only trigger for correct environment and status
     if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
     runs-on: ubuntu-latest
-    #container: cypress/browsers:node16.17.0-chrome106
+    container: cypress/browsers:node14.19.0-chrome100-ff99-edge
     steps:
       - name: Get PR number
         id: regex
@@ -28,42 +20,13 @@ jobs:
           DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
         run:
           echo "::set-output name=url::$DEPLOYMENT_URL"
-      - name: Checkout repository and submodules
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive  # Download DBT submodule
-      - uses: actions/setup-python@v1
-        with:
-          python-version: '3.7.x'
-      - run: pip install dbt-postgres==1.2
-
-      ## DBT run
-      - name: Run DBT
-        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
-
-      #- name: Run DBT
-      #  uses: mwhitaker/dbt-action@master
-      #  with:
-      #    dbt_command: "dbt run --profiles-dir examples/full-jaffle-shop-demo/profiles --project-dir examples/full-jaffle-shop-demo/dbt"
-      #  env:
-      #    PGPORT: 5432
-      #    PGUSER: postgres
-      #    PGDATABASE: postgres
-      #    PGHOST: ${{secrets.PGHOST}}
-      #    PGPASSWORD: ${{secrets.PGPASSWORD}}
-      #- name: Install ODBC drivers
-      #  run: apt-get install -y unixodbc unixodbc-dev
-      # Install and build lightdash packages
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Install and build Common package
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build
-      - name: Build packages/warehouses module
-        run: yarn warehouses-build
-      - name: Build and install packages/cli module
-        run: cd packages/cli && yarn build && npm i -g 
-      - name: Check latest lightdash version
-        run: lightdash --version
       # Install NPM dependencies, cache them correctly
       # and run all Cypress tests
       - name: create-json
@@ -73,8 +36,6 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
-      - name: ls submodule 
-        run: ls examples/full-jaffle-shop-demo/dbt
       - name: Cypress run
         uses: cypress-io/github-action@v4
         with:
