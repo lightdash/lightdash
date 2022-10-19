@@ -30,9 +30,7 @@ const warehouseConfig = {
     },
 };
 
-const configurePostgresWarehouse = (
-    config: typeof warehouseConfig['postgresSQL'],
-) => {
+const configurePostgresWarehouse = (config) => {
     cy.get('[name="warehouse.host"]').type(config.host, { log: false });
     cy.get('[name="warehouse.user"]').type(config.user, { log: false });
     cy.get('[name="warehouse.password"]').type(config.password, { log: false });
@@ -49,9 +47,7 @@ const configurePostgresWarehouse = (
     cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 
-const configureBigqueryWarehouse = (
-    config: typeof warehouseConfig['bigQuery'],
-) => {
+const configureBigqueryWarehouse = (config) => {
     cy.get('[name="warehouse.project"]').type(config.project, { log: false });
     cy.get('[name="warehouse.location"]').type(config.location, { log: false });
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
@@ -62,9 +58,7 @@ const configureBigqueryWarehouse = (
     cy.get('[name="warehouse.dataset"]').type(config.dataset);
 };
 
-const configureDatabricksWarehouse = (
-    config: typeof warehouseConfig['databricks'],
-) => {
+const configureDatabricksWarehouse = (config) => {
     cy.get('[name="warehouse.serverHostName"]').type(config.host, {
         log: false,
     });
@@ -79,9 +73,7 @@ const configureDatabricksWarehouse = (
     cy.get('[name="warehouse.database"]').type(config.schema);
 };
 
-const configureSnowflakeWarehouse = (
-    config: typeof warehouseConfig['snowflake'],
-) => {
+const configureSnowflakeWarehouse = (config) => {
     cy.get('[name="warehouse.account"]').type(config.account, { log: false });
     cy.get('[name="warehouse.user"]').type(config.user, { log: false });
     cy.get('[name="warehouse.password"]').type(config.password, { log: false });
