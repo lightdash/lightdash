@@ -16,11 +16,13 @@ const usePivotDimensions = (
                 : [];
             if (
                 dirtyPivotDimensions &&
-                dirtyPivotDimensions.every((key) =>
+                dirtyPivotDimensions.some((key) =>
                     availableDimensions.includes(key),
                 )
             ) {
-                return dirtyPivotDimensions;
+                return dirtyPivotDimensions.filter((key) =>
+                    availableDimensions.includes(key),
+                );
             }
             return undefined;
         }
