@@ -1,14 +1,6 @@
 name: CLI tests
 on: [ deployment_status ]
 
-env:
-  PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
-  PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
-  PGHOST: ${{secrets.PGHOST}}
-  PGPASSWORD: ${{secrets.PGPASSWORD}}
-  PGPORT: 5432
-  PGUSER: postgres
-  PGDATABASE: postgres
 jobs:
   cli-run:
     # Only trigger for correct environment and status
@@ -45,7 +37,15 @@ jobs:
       ## DBT run
       - name: Run DBT
         run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
-
+        with: 
+          env:
+            PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+            PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+            PGHOST: ${{secrets.PGHOST}}
+            PGPASSWORD: ${{secrets.PGPASSWORD}}
+            PGPORT: 5432
+            PGUSER: postgres
+            PGDATABASE: postgres
       ## Install packages and lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
@@ -64,4 +64,13 @@ jobs:
           project: ./packages/e2e
           spec: packages/e2e/cypress/cli/**/*
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
 
+      # After the test run completes
+      # store videos and any screenshots
+      - name: cypress-screenshots
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
