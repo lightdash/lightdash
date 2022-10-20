@@ -1,4 +1,4 @@
-import moment from 'moment';
+import moment, { MomentInput } from 'moment';
 import {
     DimensionType,
     Field,
@@ -37,8 +37,8 @@ export const getDateFormat = (
     }
     return dateForm;
 };
-export function formatDate<T = string | Date>(
-    date: T,
+export function formatDate(
+    date: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
     convertToUTC: boolean = false,
 ): string {
@@ -72,8 +72,8 @@ const getTimeFormat = (
     return `YYYY-MM-DD, ${timeFormat} (Z)`;
 };
 
-export function formatTimestamp<T = string | Date>(
-    value: T,
+export function formatTimestamp(
+    value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
 ): string {

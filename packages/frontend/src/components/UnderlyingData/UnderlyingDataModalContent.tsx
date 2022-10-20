@@ -3,6 +3,7 @@ import {
     ChartType,
     CreateSavedChartVersion,
     Field,
+    fieldId as getFieldId,
     FilterOperator,
     FilterRule,
     getDimensions,
@@ -10,14 +11,11 @@ import {
     getResultValues,
     isDimension,
     isField,
-    MetricQuery,
-} from '@lightdash/common';
-import {
-    fieldId as getFieldId,
     isMetric,
     Metric,
-} from '@lightdash/common/dist/types/field';
-import React, { FC, useMemo } from 'react';
+    MetricQuery,
+} from '@lightdash/common';
+import { FC, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';

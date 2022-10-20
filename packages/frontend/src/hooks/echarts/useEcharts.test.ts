@@ -1,5 +1,7 @@
 import { getAxisDefaultMaxValue, getAxisDefaultMinValue } from './useEcharts';
 
+jest.mock('./../../providers/TrackingProvider');
+
 describe('getAxisDefaultMinValue', () => {
     test('should return undefined', () => {
         expect(getAxisDefaultMinValue({ min: '', max: 5 })).toBeUndefined();
