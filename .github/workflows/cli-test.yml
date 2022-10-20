@@ -46,11 +46,22 @@ jobs:
       - name: Run DBT
         run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
 
+      ## Install packages and lightdash cli from source
+      - name: Install packages/common modules
+        run: yarn workspace @lightdash/common install
+      - name: Build packages/common module
+        run: yarn common-build
+      - name: Build packages/warehouses module
+        run: yarn warehouses-build
+      - name: Build and install packages/cli module
+        run: cd packages/cli && yarn build && npm i -g 
+
+      # Run cypress tests
       - name: Cypress run
         uses: cypress-io/github-action@v4
         with:
           browser: chrome
           project: ./packages/e2e
-          spec: packages/e2e/cypress/cli/*
+          spec: packages/e2e/cypress/cli/**/*
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
 
