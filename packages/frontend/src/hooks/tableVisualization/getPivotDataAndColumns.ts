@@ -45,6 +45,24 @@ const getPivottedColumnCount = (pivotValuesMap: PivotValueMap) =>
         1,
     );
 
+const getHeaderBgColor = (pivotsLength: number, pivotIndex: number) => {
+    const colorPalette = [
+        Colors.GRAY4,
+        Colors.GRAY3,
+        Colors.GRAY2,
+        Colors.GRAY1,
+    ];
+    const maxIndex = pivotsLength - 1;
+    return colorPalette[maxIndex - pivotIndex];
+};
+
+const EmptyColumn = columnHelper.accessor('empty-column', {
+    id: 'empty-column',
+    header: '',
+    cell: () => '',
+    footer: () => null,
+});
+
 const getPivotDataAndColumns = ({
     columnOrder,
     itemsMap,
@@ -73,7 +91,6 @@ const getPivotDataAndColumns = ({
         keysToNotPivot,
     );
 
-    console.log('count', getPivottedColumnCount(pivotValuesMap));
     if (getPivottedColumnCount(pivotValuesMap) > 60) {
         return {
             rows: [],
@@ -91,39 +108,46 @@ const getPivotDataAndColumns = ({
         }, []),
     );
 
-    const dimensionHeaders = keysToNotPivot.map((itemId) => {
-        const item = itemsMap[itemId];
-        const column: TableColumn = columnHelper.accessor(
-            (row) => row[itemId],
-            {
-                id: itemId,
-                header: getHeader(itemId) || getDefaultColumnLabel(itemId),
-                cell: (info) => info.getValue()?.value.formatted || '-',
-                footer: () =>
-                    totals[itemId]
-                        ? formatItemValue(item, totals[itemId])
-                        : null,
-                meta: {
-                    item,
-                },
+    const dimensionHeaders =
+        keysToNotPivot.length > 0
+            ? keysToNotPivot.map((itemId) => {
+                  const item = itemsMap[itemId];
+                  const column: TableColumn = columnHelper.accessor(
+                      (row) => row[itemId],
+                      {
+                          id: itemId,
+                          header:
+                              getHeader(itemId) ||
+                              getDefaultColumnLabel(itemId),
+                          cell: (info) =>
+                              info.getValue()?.value.formatted || '-',
+                          footer: () =>
+                              totals[itemId]
+                                  ? formatItemValue(item, totals[itemId])
+                                  : null,
+                          meta: {
+                              item,
+                          },
+                      },
+                  );
+                  return column;
+              })
+            : [EmptyColumn];
+
+    function getDimensionHeaderGroup(depth: number = 0): TableColumn {
+        const pivotKey = pivotDimensions[depth];
+        return columnHelper.group({
+            id: `dimensions_header_group_${pivotKey}`,
+            header: getHeader(pivotKey) || getDefaultColumnLabel(pivotKey),
+            columns: pivotDimensions[depth + 1]
+                ? [getDimensionHeaderGroup(depth + 1)]
+                : dimensionHeaders,
+            meta: {
+                bgColor: getHeaderBgColor(pivotDimensions.length, depth),
+                item: itemsMap[pivotKey],
             },
-        );
-        return column;
-    });
-    const dimensionsHeaderGroup = pivotDimensions
-        .reverse()
-        .reduce<TableColumn | undefined>((acc, pivotKey) => {
-            return columnHelper.group({
-                id: `dimensions_header_group_${pivotKey}`,
-                header: getHeader(pivotKey) || getDefaultColumnLabel(pivotKey),
-                columns: acc ? [acc] : dimensionHeaders,
-                meta: {
-                    bgColor: Colors.GRAY4,
-                    item: itemsMap[pivotKey],
-                },
-            }) as TableColumn;
-        }, undefined);
-    pivotDimensions.reverse();
+        }) as TableColumn;
+    }
 
     function getPivotHeaderGroups(
         depth: number = 0,
@@ -190,21 +214,21 @@ const getPivotDataAndColumns = ({
                     )}`,
                     header: () => formatted,
                     meta: {
-                        bgColor: Colors.GRAY4,
+                        bgColor: getHeaderBgColor(
+                            pivotDimensions.length,
+                            depth,
+                        ),
                     },
                     columns: innerColumns,
                 }) as TableColumn;
             });
     }
 
+    const dimensionsHeaderGroup = getDimensionHeaderGroup();
     const pivotValueHeaderGroups = getPivotHeaderGroups();
-
-    const columns = dimensionsHeaderGroup
-        ? [dimensionsHeaderGroup, ...pivotValueHeaderGroups]
-        : pivotValueHeaderGroups;
     return {
         rows,
-        columns,
+        columns: [dimensionsHeaderGroup, ...pivotValueHeaderGroups],
     };
 };
 
