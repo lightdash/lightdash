@@ -49,23 +49,31 @@ const renderStringFilterSql = (
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.INCLUDE:
-            const filterQuery = filter.values?.map(
+            const includesQuery = filter.values?.map(
                 (filterVal) =>
                     `LOWER(${dimensionSql}) LIKE LOWER('%${filterVal}%')`,
             );
             return (
-                filterQuery?.join(' OR ') || `LOWER(${dimensionSql}) LIKE ''`
+                includesQuery?.join(' OR ') || `LOWER(${dimensionSql}) LIKE ''`
             );
         case FilterOperator.NOT_INCLUDE:
-            return `LOWER(${dimensionSql}) NOT LIKE LOWER('%${
-                filter.values?.[0] || ''
-            }%')`;
+            const notIncludeQuery = filter.values?.map(
+                (filterVal) =>
+                    `LOWER(${dimensionSql}) NOT LIKE LOWER('%${filterVal}%')`,
+            );
+            return (
+                notIncludeQuery?.join(' AND ') ||
+                `LOWER(${dimensionSql}) NOT LIKE ''`
+            );
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            return `(${dimensionSql}) LIKE '${filter.values?.[0] || ''}%'`;
+            const startWithQuery = filter.values?.map(
+                (filterVal) => `(${dimensionSql}) LIKE '${filterVal}%'`,
+            );
+            return startWithQuery?.join(' OR ') || `(${dimensionSql}) LIKE ''`;
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
