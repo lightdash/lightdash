@@ -213,30 +213,27 @@ export const findAndUpdateModelYaml = async ({
             (c) => !existingColumnNames.includes(c.name),
         );
         const deletedColumnNames = existingColumnNames.filter(
-            (c) => !generatedModel.columns.map(gc=> gc.name).includes(c),
+            (c) => !generatedModel.columns.map((gc) => gc.name).includes(c),
         );
-        let updatedColumns = [...existingColumnsUpdated, ...newColumns]
-        if (deletedColumnNames.length > 0) {
-            if (process.env.CI !== 'true') {
+        let updatedColumns = [...existingColumnsUpdated, ...newColumns];
+        if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
+            spinner.stop();
+            const answers = await inquirer.prompt([
                 {
-                    spinner.stop();
-                const answers = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'isConfirm',
-                        message: `
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `
 These columns in your .yml file no longer exist in your warehouse:
-${deletedColumnNames.map(name => `- ${name} \n`).join('')}
-Would you like to remove them from your .yml file? `
-                           ,
-                    },
-                ]);
-                spinner.start();
+${deletedColumnNames.map((name) => `- ${name} \n`).join('')}
+Would you like to remove them from your .yml file? `,
+                },
+            ]);
+            spinner.start();
 
-                if (answers.isConfirm) {
-                     updatedColumns = updatedColumns.filter(column => !deletedColumnNames.includes(column.name))
-                } 
-            }
+            if (answers.isConfirm) {
+                updatedColumns = updatedColumns.filter(
+                    (column) => !deletedColumnNames.includes(column.name),
+                );
             }
         }
         const updatedModel = {
