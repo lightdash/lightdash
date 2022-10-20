@@ -33,7 +33,12 @@ import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from '../../common/Filters/FiltersProvider';
-import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
+import {
+    CardHeader,
+    DisabledFilterHeader,
+    FilterValues,
+    Tooltip,
+} from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -180,6 +185,12 @@ const FiltersCard: FC = memo(() => {
                             {totalActiveFilters === 1 ? '' : 's'}
                         </Tag>
                     </Tooltip2>
+                ) : null}
+                {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
+                    <DisabledFilterHeader>
+                        You must be in 'edit' or 'explore' mode to change the
+                        filters
+                    </DisabledFilterHeader>
                 ) : null}
             </CardHeader>
             <Collapse isOpen={filterIsOpen}>
