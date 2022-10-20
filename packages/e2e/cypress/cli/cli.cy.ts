@@ -118,6 +118,7 @@ describe('CLI', () => {
                 {
                     failOnNonZeroExit: false,
                     env: {
+                        CI: true,
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
                         PGHOST: Cypress.env('PGHOST') || 'localhost',
