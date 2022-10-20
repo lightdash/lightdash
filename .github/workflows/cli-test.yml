@@ -51,6 +51,6 @@ jobs:
         with:
           browser: chrome
           project: ./packages/e2e
-          spec: cypress/cli/*
+          spec: packages/e2e/cypress/cli/*
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
 
