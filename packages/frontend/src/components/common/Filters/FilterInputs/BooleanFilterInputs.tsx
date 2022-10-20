@@ -10,6 +10,7 @@ const BooleanFilterInputs: FC<FilterInputsProps> = (props) => {
             return (
                 <HTMLSelect
                     fill
+                    className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     onChange={(e) =>
                         onChange({

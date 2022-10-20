@@ -14,6 +14,7 @@ const months = moment.months();
 const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => (
     <>
         <HTMLSelect
+            className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             fill={false}
             style={{ width: 150 }}

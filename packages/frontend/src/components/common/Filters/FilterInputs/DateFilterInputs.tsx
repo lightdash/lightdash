@@ -97,6 +97,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             if (isTimestamp) {
                 return (
                     <DateInput2
+                        className={disabled ? 'disabled-filter' : ''}
                         disabled={disabled}
                         fill
                         defaultTimezone="UTC"
@@ -131,6 +132,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             }
             return (
                 <DateInput2
+                    className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
                     value={
@@ -162,6 +164,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             return (
                 <MultipleInputsWrapper>
                     <NumericInput
+                        className={disabled ? 'disabled-filter' : ''}
                         fill
                         disabled={disabled}
                         value={isNaN(parsedValue) ? undefined : parsedValue}

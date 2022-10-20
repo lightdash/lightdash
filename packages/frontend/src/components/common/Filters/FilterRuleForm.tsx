@@ -83,6 +83,7 @@ const FilterRuleForm: FC<Props> = ({
                         disabled={!isEditMode}
                     />
                     <HTMLSelect
+                        className={!isEditMode ? 'disabled-filter' : ''}
                         fill={false}
                         disabled={!isEditMode}
                         style={{ width: 150 }}

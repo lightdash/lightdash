@@ -77,6 +77,7 @@ const AutoComplete: FC<Props2> = ({
     );
     return (
         <Suggest2
+            className="disabled-filter"
             disabled={disabled}
             fill
             items={Array.from(options).sort()}

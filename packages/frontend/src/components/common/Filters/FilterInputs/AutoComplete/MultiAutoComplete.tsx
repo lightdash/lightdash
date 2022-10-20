@@ -93,6 +93,7 @@ const MultiAutoComplete: FC<Props> = ({
     );
     return (
         <MultiSelect2
+            className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             fill
             items={Array.from(options).sort()}

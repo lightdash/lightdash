@@ -86,6 +86,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     <>
         <AutocompleteMaxHeight />
         <FieldSuggest
+            className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             items={UnitOfTimeOptions(isTimestamp)}
             itemsEqual={(value, other) =>
@@ -120,6 +121,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
             }}
         >
             <Button
+                className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
                 rightIcon="caret-down"
                 text={completed ? `completed ${unitOfTime}` : unitOfTime}

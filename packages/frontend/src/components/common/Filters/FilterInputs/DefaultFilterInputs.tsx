@@ -56,6 +56,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             }
             return (
                 <TagInput
+                    className={disabled ? 'disabled-filter' : ''}
                     fill
                     disabled={disabled}
                     addOnBlur

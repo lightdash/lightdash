@@ -99,6 +99,7 @@ const WeekPicker: FC<Props> = ({ value, onChange, popoverProps, disabled }) => {
             <SelectedWeekStyles />
             <DateInput2
                 fill
+                className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}

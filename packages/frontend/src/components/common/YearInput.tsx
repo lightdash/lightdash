@@ -11,6 +11,7 @@ type Props = {
 const YearInput: FC<Props> = ({ value, onChange, disabled }) => (
     <NumericInput
         fill
+        className={disabled ? 'disabled-filter' : ''}
         disabled={disabled}
         max={9999}
         min={1000}

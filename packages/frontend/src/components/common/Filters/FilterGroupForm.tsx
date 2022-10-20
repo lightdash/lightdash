@@ -96,6 +96,7 @@ const FilterGroupForm: FC<Props> = ({
         <FilterGroupWrapper>
             <FilterGroupHeader>
                 <HTMLSelect
+                    className="disabled-filter"
                     fill={false}
                     disabled={!isEditMode}
                     iconProps={{ icon: 'caret-down' }}
