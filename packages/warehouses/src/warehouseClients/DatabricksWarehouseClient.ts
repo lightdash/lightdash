@@ -1,10 +1,3 @@
-import { DBSQLClient } from '@databricks/sql';
-import IDBSQLClient, {
-    ConnectionOptions,
-} from '@databricks/sql/dist/contracts/IDBSQLClient';
-import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
-import IOperation from '@databricks/sql/dist/contracts/IOperation';
-import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
     assertUnreachable,
     CreateDatabricksCredentials,
@@ -13,6 +6,13 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
+import { DBSQLClient } from '@lightdash/databricks-sql';
+import IDBSQLClient, {
+    ConnectionOptions,
+} from '@lightdash/databricks-sql/dist/contracts/IDBSQLClient';
+import IDBSQLSession from '@lightdash/databricks-sql/dist/contracts/IDBSQLSession';
+import IOperation from '@lightdash/databricks-sql/dist/contracts/IOperation';
+import { TTypeId as DatabricksDataTypes } from '@lightdash/databricks-sql/thrift/TCLIService_types';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
 type SchemaResult = {

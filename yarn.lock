@@ -1150,14 +1150,6 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@databricks/sql@https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671":
-  version "0.1.8-beta.2"
-  resolved "https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671"
-  dependencies:
-    commander "^9.3.0"
-    node-int64 "^0.4.0"
-    thrift "^0.16.0"
-
 "@emotion/is-prop-valid@^0.8.8":
   version "0.8.8"
   resolved "https://registry.npmjs.org/@emotion/is-prop-valid/-/is-prop-valid-0.8.8.tgz"
@@ -1599,6 +1591,15 @@
   version "1.1.1"
   resolved "https://registry.npmjs.org/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz"
   integrity sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==
+
+"@lightdash/databricks-sql@^0.1.8-beta.3":
+  version "0.1.8-beta.3"
+  resolved "https://registry.yarnpkg.com/@lightdash/databricks-sql/-/databricks-sql-0.1.8-beta.3.tgz#b5407108e0ecdf14035afd1638a0bcf7cf4eb7d8"
+  integrity sha512-4XLRBVzFnhh9LdeYYhDCGtYcTfYflLLT6rbCwxeSP/cHWyVnGEwydJpWx5nMWI0GTVblTiEF0BTv5xASOc8rsw==
+  dependencies:
+    commander "^9.3.0"
+    node-int64 "^0.4.0"
+    thrift "^0.16.0"
 
 "@mapbox/node-pre-gyp@^1.0.0":
   version "1.0.5"
