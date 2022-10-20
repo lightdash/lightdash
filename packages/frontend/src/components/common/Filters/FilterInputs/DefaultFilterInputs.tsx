@@ -100,7 +100,6 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             }
             return (
                 <InputGroup
-                    disabled={disabled}
                     fill
                     value={filterRule.values?.[0] || ''}
                     onChange={(e) =>
