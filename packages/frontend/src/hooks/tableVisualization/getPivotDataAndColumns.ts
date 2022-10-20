@@ -62,14 +62,15 @@ const getPivotDataAndColumns = ({
         ...resultsData.metricQuery.metrics,
         ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
     ].filter((itemId) => isColumnVisible(itemId));
+    const keysToNotPivot = resultsData.metricQuery.dimensions.filter(
+        (itemId) =>
+            isColumnVisible(itemId) && !pivotDimensions.includes(itemId),
+    );
     const { rows, pivotValuesMap, rowKeyMap } = getPivotedData(
         resultsData.rows,
         pivotDimensions,
         keysToPivot,
-        resultsData.metricQuery.dimensions.filter(
-            (itemId) =>
-                isColumnVisible(itemId) && !pivotDimensions.includes(itemId),
-        ),
+        keysToNotPivot,
     );
 
     if (getPivotValuesCount(pivotValuesMap) > 60) {
@@ -89,31 +90,25 @@ const getPivotDataAndColumns = ({
         }, []),
     );
 
-    const dimensionHeaders = Object.values(rowKeyMap).reduce<TableColumn[]>(
-        (acc, ref) => {
-            if (typeof ref === 'string') {
-                const item = itemsMap[ref];
-                const column: TableColumn = columnHelper.accessor(
-                    (row) => row[ref],
-                    {
-                        id: ref,
-                        header: getHeader(ref) || getDefaultColumnLabel(ref),
-                        cell: (info) => info.getValue()?.value.formatted || '-',
-                        footer: () =>
-                            totals[ref]
-                                ? formatItemValue(item, totals[ref])
-                                : null,
-                        meta: {
-                            item,
-                        },
-                    },
-                );
-                return [...acc, column];
-            }
-            return acc;
-        },
-        [],
-    );
+    const dimensionHeaders = keysToNotPivot.map((itemId) => {
+        const item = itemsMap[itemId];
+        const column: TableColumn = columnHelper.accessor(
+            (row) => row[itemId],
+            {
+                id: itemId,
+                header: getHeader(itemId) || getDefaultColumnLabel(itemId),
+                cell: (info) => info.getValue()?.value.formatted || '-',
+                footer: () =>
+                    totals[itemId]
+                        ? formatItemValue(item, totals[itemId])
+                        : null,
+                meta: {
+                    item,
+                },
+            },
+        );
+        return column;
+    });
     const dimensionsHeaderGroup = pivotDimensions
         .reverse()
         .reduce<TableColumn | undefined>((acc, pivotKey) => {
