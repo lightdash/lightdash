@@ -7,17 +7,22 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 
+export type PivotValueMap = {
+    [pivotKey: string]: Record<string, ResultRow[0]['value']>;
+};
+export type RowKeyMap = Record<string, FieldId | PivotReference>;
+
 export const getPivotedData = (
     rows: ApiQueryResults['rows'],
     pivotKeys: string[],
     keysToPivot: string[],
     keysToNotPivot: string[],
 ): {
-    pivotValuesMap: Record<string, ResultRow[0]['value']>;
+    pivotValuesMap: PivotValueMap;
     rowKeyMap: Record<string, FieldId | PivotReference>;
     rows: ApiQueryResults['rows'];
 } => {
-    const pivotValuesMap: Record<string, ResultRow[0]['value']> = {};
+    const pivotValuesMap: PivotValueMap = {};
     const rowKeyMap: Record<string, FieldId | PivotReference> = {};
     const pivotedRowMap = rows.reduce<Record<string, ResultRow>>((acc, row) => {
         const unpivotedKeysAndValues: string[] = [];
@@ -35,7 +40,10 @@ export const getPivotedData = (
                 const pivotedKeyHash: string =
                     hashFieldReference(pivotReference);
                 pivotKeys.forEach((pivotKey) => {
-                    pivotValuesMap[row[pivotKey].value.raw] =
+                    if (!pivotValuesMap[pivotKey]) {
+                        pivotValuesMap[pivotKey] = {};
+                    }
+                    pivotValuesMap[pivotKey][row[pivotKey].value.raw] =
                         row[pivotKey].value;
                 });
                 pivotedRow[pivotedKeyHash] = value;

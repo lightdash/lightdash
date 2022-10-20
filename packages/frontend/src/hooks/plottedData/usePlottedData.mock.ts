@@ -1,4 +1,5 @@
 import { ResultRow } from '@lightdash/common';
+import { PivotValueMap, RowKeyMap } from './usePlottedData';
 
 export const RESULTS_FOR_SIMPLE_PIVOT: ResultRow[] = [
     {
@@ -32,6 +33,41 @@ export const EXPECTED_SIMPLE_PIVOT_RESULTS: ResultRow[] = [
         'metric1.dim2.true': { value: { raw: 30, formatted: 30 } },
     },
 ];
+
+export const EXPECTED_SIMPLE_PIVOT_ROW_KEY_MAP: RowKeyMap = {
+    dim1: 'dim1',
+    'metric1.dim2.true': {
+        field: 'metric1',
+        pivotValues: [
+            {
+                field: 'dim2',
+                value: true,
+            },
+        ],
+    },
+    'metric1.dim2.false': {
+        field: 'metric1',
+        pivotValues: [
+            {
+                field: 'dim2',
+                value: false,
+            },
+        ],
+    },
+};
+
+export const EXPECTED_SIMPLE_PIVOT_VALUE_MAP: PivotValueMap = {
+    dim2: {
+        true: {
+            raw: true,
+            formatted: 'yes',
+        },
+        false: {
+            raw: false,
+            formatted: 'false',
+        },
+    },
+};
 
 export const RESULTS_FOR_PIVOT_WITH_MULTIPLE_DIMENSIONS: ResultRow[] = [
     {
@@ -180,3 +216,69 @@ export const EXPECTED_MULTIPLE_PIVOT_RESULTS: ResultRow[] = [
         'metric1.dim2.true.dim3.value1': { value: { raw: 30, formatted: 30 } },
     },
 ];
+
+export const EXPECTED_MULTIPLE_PIVOT_ROW_KEY_MAP: RowKeyMap = {
+    dim1: 'dim1',
+    'metric1.dim2.true.dim3.value1': {
+        field: 'metric1',
+        pivotValues: [
+            {
+                field: 'dim2',
+                value: true,
+            },
+            {
+                field: 'dim3',
+                value: 'value1',
+            },
+        ],
+    },
+    'metric1.dim2.true.dim3.value2': {
+        field: 'metric1',
+        pivotValues: [
+            {
+                field: 'dim2',
+                value: true,
+            },
+            {
+                field: 'dim3',
+                value: 'value2',
+            },
+        ],
+    },
+    'metric1.dim2.false.dim3.value2': {
+        field: 'metric1',
+        pivotValues: [
+            {
+                field: 'dim2',
+                value: false,
+            },
+            {
+                field: 'dim3',
+                value: 'value2',
+            },
+        ],
+    },
+};
+
+export const EXPECTED_MULTIPLE_PIVOT_VALUE_MAP: PivotValueMap = {
+    dim2: {
+        true: {
+            raw: true,
+            formatted: 'yes',
+        },
+        false: {
+            raw: false,
+            formatted: 'false',
+        },
+    },
+    dim3: {
+        value1: {
+            raw: 'value1',
+            formatted: 'value1',
+        },
+        value2: {
+            raw: 'value2',
+            formatted: 'value2',
+        },
+    },
+};
