@@ -98,28 +98,28 @@
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
-            "yarn workspace frontend fix-lint",
-            "yarn workspace frontend fix-format"
+            "yarn workspace frontend linter --fix",
+            "yarn workspace frontend formatter --write"
         ],
         "packages/backend/src/**/*.(ts|tsx|json)": [
-            "yarn workspace backend fix-lint",
-            "yarn workspace backend fix-format"
+            "yarn workspace backend linter --fix",
+            "yarn workspace backend formatter --write"
         ],
         "packages/common/src/**/*.(ts|tsx|json)": [
-            "yarn workspace @lightdash/common fix-lint",
-            "yarn workspace @lightdash/common fix-format"
+            "yarn workspace @lightdash/common linter --fix",
+            "yarn workspace @lightdash/common formatter --write"
         ],
         "packages/e2e/cypress/**/*.(ts|json)": [
-            "yarn workspace e2e fix-lint",
-            "yarn workspace e2e fix-format"
+            "yarn workspace e2e linter --fix",
+            "yarn workspace e2e formatter --write"
         ],
         "packages/cli/src/**/*.(ts|tsx|json)": [
-            "yarn workspace @lightdash/cli fix-lint",
-            "yarn workspace @lightdash/cli fix-format"
+            "yarn workspace @lightdash/cli linter --fix",
+            "yarn workspace @lightdash/cli formatter --write"
         ],
         "packages/warehouses/src/**/*.(ts|tsx|json)": [
-            "yarn workspace @lightdash/warehouses fix-lint",
-            "yarn workspace @lightdash/warehouses fix-format"
+            "yarn workspace @lightdash/warehouses linter --fix",
+            "yarn workspace @lightdash/warehouses formatter --write"
         ]
     }
 }
