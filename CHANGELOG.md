@@ -1,3 +1,10 @@
+# [0.293.0](https://github.com/lightdash/lightdash/compare/0.292.1...0.293.0) (2022-10-20)
+
+
+### Features
+
+* cli compile logs ([#3531](https://github.com/lightdash/lightdash/issues/3531)) ([d420277](https://github.com/lightdash/lightdash/commit/d420277e47a7986dca97b51e76cde3c6cf758be8))
+
 ## [0.292.1](https://github.com/lightdash/lightdash/compare/0.292.0...0.292.1) (2022-10-20)
 
 
