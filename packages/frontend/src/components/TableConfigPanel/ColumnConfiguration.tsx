@@ -17,7 +17,6 @@ export const ColumnConfiguration: React.FC = () => {
             isColumnVisible,
         },
     } = useVisualizationContext();
-    const pivotDimension = pivotDimensions?.[0];
     return (
         <ColumnConfigurationWrapper>
             {selectedItemIds?.map((fieldId) => {
@@ -35,20 +34,21 @@ export const ColumnConfiguration: React.FC = () => {
                             }}
                         />
 
-                        {fieldId !== pivotDimension && (
-                            <Button
-                                icon={
-                                    isColumnVisible(fieldId)
-                                        ? 'eye-off'
-                                        : 'eye-open'
-                                }
-                                onClick={() => {
-                                    updateColumnProperty(fieldId, {
-                                        visible: !isColumnVisible(fieldId),
-                                    });
-                                }}
-                            />
-                        )}
+                        {!pivotDimensions ||
+                            (!pivotDimensions.includes(fieldId) && (
+                                <Button
+                                    icon={
+                                        isColumnVisible(fieldId)
+                                            ? 'eye-off'
+                                            : 'eye-open'
+                                    }
+                                    onClick={() => {
+                                        updateColumnProperty(fieldId, {
+                                            visible: !isColumnVisible(fieldId),
+                                        });
+                                    }}
+                                />
+                            ))}
                     </ColumnWrapper>
                 );
             })}
