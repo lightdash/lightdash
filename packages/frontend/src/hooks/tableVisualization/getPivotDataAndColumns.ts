@@ -39,10 +39,10 @@ type Args = {
     getDefaultColumnLabel: (key: string) => string;
 };
 
-const getPivotValuesCount = (pivotValuesMap: PivotValueMap) =>
+const getPivottedColumnCount = (pivotValuesMap: PivotValueMap) =>
     Object.values(pivotValuesMap).reduce<number>(
-        (acc, values) => acc + Object.keys(values).length,
-        0,
+        (acc, values) => acc * Object.keys(values).length,
+        1,
     );
 
 const getPivotDataAndColumns = ({
@@ -73,11 +73,12 @@ const getPivotDataAndColumns = ({
         keysToNotPivot,
     );
 
-    if (getPivotValuesCount(pivotValuesMap) > 60) {
+    console.log('count', getPivottedColumnCount(pivotValuesMap));
+    if (getPivottedColumnCount(pivotValuesMap) > 60) {
         return {
             rows: [],
             columns: [],
-            error: 'Exceeded max amount of 60 pivot values',
+            error: 'Exceeded max amount of 60 columns from pivot values',
         };
     }
 
