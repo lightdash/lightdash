@@ -35,7 +35,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
                 }))}
                 value={utcMonthValue}
             />
-            <YearInput value={value} onChange={onChange} />
+            <YearInput disabled={disabled} value={value} onChange={onChange} />
         </>
     );
 };
