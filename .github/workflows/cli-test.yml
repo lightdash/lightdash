@@ -50,6 +50,7 @@ jobs:
         uses: cypress-io/github-action@v4
         with:
           browser: chrome
-          project: ./packages/cli
+          project: ./packages/e2e
+          spec: cypress/cli/*
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
 
