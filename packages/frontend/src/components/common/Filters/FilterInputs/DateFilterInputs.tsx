@@ -40,11 +40,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                 </span>
                                 <WeekPicker
                                     disabled={disabled}
-                                    value={
-                                        filterRule.values?.[0]
-                                            ? new Date(filterRule.values?.[0])
-                                            : new Date()
-                                    }
+                                    value={filterRule.values?.[0] || new Date()}
                                     popoverProps={popoverProps}
                                     onChange={(value: Date) => {
                                         onChange({
@@ -135,13 +131,14 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
+                    showTimezoneSelect={true}
                     value={
                         filterRule.values?.[0]
-                            ? new Date(filterRule.values?.[0]).toUTCString()
-                            : new Date().toUTCString()
+                            ? new Date(filterRule.values?.[0]).toString()
+                            : new Date().toString()
                     }
                     formatDate={(value: Date) =>
-                        formatDate(moment(value).utc(true))
+                        formatDate(value, undefined, true)
                     }
                     parseDate={parseDate}
                     defaultValue={new Date().toString()}
@@ -149,7 +146,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [moment(value).utc(true)],
+                                values: [moment(value)],
                             });
                         }
                     }}

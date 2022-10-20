@@ -74,8 +74,15 @@ type Props = {
 };
 
 const WeekPicker: FC<Props> = ({ value, onChange, popoverProps, disabled }) => {
+    const value = moment(dateValue).toDate();
+    //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
+    const formattedDate =
+        dateValue instanceof Date
+            ? formatDate(value)
+            : formatDate(dateValue, undefined, true);
     const [hoverRange, setHoverRange] = useState<WeekRange>();
     const selectedDays = getWeekDays(getWeekRange(value).from);
+
     const daysAreSelected = selectedDays.length > 0;
     const modifiers = {
         hoverRange,
@@ -103,7 +110,7 @@ const WeekPicker: FC<Props> = ({ value, onChange, popoverProps, disabled }) => {
                 disabled={disabled}
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}
-                value={value.toUTCString()}
+                value={formattedDate}
                 formatDate={formatDate}
                 parseDate={parseDate}
                 defaultValue={getWeekRange(new Date()).from.toString()}

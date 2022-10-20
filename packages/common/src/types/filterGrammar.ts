@@ -1,8 +1,7 @@
+import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UnexpectedServerError } from './errors';
 import { FilterOperator, FilterRule } from './filter';
-
-const peg = require('pegjs');
 
 export type ParsedFilter = {
     type: string;

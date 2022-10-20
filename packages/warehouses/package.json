@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.291.0",
+    "version": "0.292.1",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -8,34 +8,18 @@
         "dist/**/*"
     ],
     "dependencies": {
-        "@databricks/sql": "https://github.com/databricks/databricks-sql-nodejs.git#73874d4b14a0ffb5abeb9c46d338696a2b408671",
         "@google-cloud/bigquery": "^5.9.1",
-        "@lightdash/common": "^0.291.0",
+        "@lightdash/common": "^0.292.1",
+        "@lightdash/databricks-sql": "^0.1.8-beta.3",
         "pg": "^8.7.1",
         "snowflake-sdk": "^1.6.4"
     },
     "description": "Warehouse connectors for Lightdash",
-    "devDependencies": {
-        "@types/jest": "^27.0.3",
-        "@types/node": "^14.14.35",
-        "@typescript-eslint/eslint-plugin": "^5.22.0",
-        "@typescript-eslint/parser": "^5.22.0",
-        "eslint": "^8.7.0",
-        "eslint-config-airbnb-base": "^15.0.0",
-        "eslint-config-airbnb-typescript": "^16.1.0",
-        "eslint-config-prettier": "^8.3.0",
-        "eslint-plugin-import": "^2.25.4",
-        "eslint-plugin-json": "^3.0.0",
-        "jest": "^27.4.7",
-        "prettier": "^2.3.2",
-        "prettier-plugin-organize-imports": "^2.3.4",
-        "ts-jest": "^27.0.3",
-        "ts-node": "^9.1.1",
-        "typescript": "^4.2.3"
-    },
     "scripts": {
-        "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src",
+        "lint": "eslint -c .eslintrc.js ./src",
+        "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
+        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",
+        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./src",
         "test": "jest",
         "copy-files": "copyfiles -u 1 src/warehouseClients/amazon-trust-ca-bundle.crt dist/",
         "build": "tsc --build tsconfig.json && yarn copy-files",

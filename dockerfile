@@ -21,12 +21,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # dbt
 RUN python3 -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install \
-    "dbt-core==1.2.0" \
-    "dbt-postgres==1.2.0" \
-    "dbt-redshift==1.2.0" \
-    "dbt-snowflake==1.2.0" \
-    "dbt-bigquery==1.2.0" \
-    "dbt-databricks==1.2.0"
+    "dbt-core==1.3.0" \
+    "dbt-postgres==1.3.0" \
+    "dbt-redshift==1.3.0" \
+    "dbt-snowflake==1.3.0" \
+    "dbt-bigquery==1.3.0" \
+    "dbt-databricks==1.3.0"
 ENV PATH $PATH:/usr/local/venv/bin
 
 
@@ -50,6 +50,7 @@ FROM base AS prod-builder
 # Install development dependencies for all
 COPY package.json .
 COPY yarn.lock .
+COPY tsconfig.json .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/

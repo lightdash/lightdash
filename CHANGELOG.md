@@ -1,3 +1,31 @@
+## [0.292.1](https://github.com/lightdash/lightdash/compare/0.292.0...0.292.1) (2022-10-20)
+
+
+### Bug Fixes
+
+* filter dates from table and dimensions timezone issue ([#3523](https://github.com/lightdash/lightdash/issues/3523)) ([efea68c](https://github.com/lightdash/lightdash/commit/efea68cfe0636386ad24107146e7b2756c040d17))
+
+# [0.292.0](https://github.com/lightdash/lightdash/compare/0.291.2...0.292.0) (2022-10-20)
+
+
+### Features
+
+* support dbt 1.3.0 ([#3514](https://github.com/lightdash/lightdash/issues/3514)) ([b6f1bea](https://github.com/lightdash/lightdash/commit/b6f1beab64e998d27b12d9a0f9d7e63ec3251dea))
+
+## [0.291.2](https://github.com/lightdash/lightdash/compare/0.291.1...0.291.2) (2022-10-19)
+
+
+### Bug Fixes
+
+* databricks/odbc PR ([#3409](https://github.com/lightdash/lightdash/issues/3409)) breaking cli install  ([#3524](https://github.com/lightdash/lightdash/issues/3524)) ([cee90b6](https://github.com/lightdash/lightdash/commit/cee90b6dfda8c0987a9e9d1c607e7d019f6bf729)), closes [#3522](https://github.com/lightdash/lightdash/issues/3522)
+
+## [0.291.1](https://github.com/lightdash/lightdash/compare/0.291.0...0.291.1) (2022-10-19)
+
+
+### Bug Fixes
+
+* revert [#3409](https://github.com/lightdash/lightdash/issues/3409) - This reverts commit 31ee2ccb3049b19355434f60a7343e2964812387. ([#3522](https://github.com/lightdash/lightdash/issues/3522)) ([6b60a8b](https://github.com/lightdash/lightdash/commit/6b60a8b3f19fc7fa88dcc2d152e1d6d7bb6756b8))
+
 # [0.291.0](https://github.com/lightdash/lightdash/compare/0.290.1...0.291.0) (2022-10-18)
 
 

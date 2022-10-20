@@ -159,15 +159,15 @@ const convertDbtMetricToLightdashMetric = (
 ): Metric => {
     let sql: string;
     let type: MetricType;
-    if (metric.type === 'expression') {
+    if (metric.calculation_method === 'expression') {
         type = MetricType.NUMBER;
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
-        if (!metric.sql) {
+        if (!metric.expression) {
             throw new ParseError(
                 `dbt expression metric "${metric.name}" must have the sql field set`,
             );
         }
-        sql = metric.sql;
+        sql = metric.expression;
 
         referencedMetrics.forEach((ref) => {
             const re = new RegExp(ref, 'g');
@@ -176,19 +176,21 @@ const convertDbtMetricToLightdashMetric = (
         });
     } else {
         try {
-            type = parseMetricType(metric.type);
+            type = parseMetricType(metric.calculation_method);
         } catch (e) {
             throw new ParseError(
-                `Cannot parse metric '${metric.unique_id}: type ${metric.type} is not a valid Lightdash metric type`,
+                `Cannot parse metric '${metric.unique_id}: type ${metric.calculation_method} is not a valid Lightdash metric type`,
             );
         }
         sql = defaultSql(metric.name);
-        if (metric.sql) {
-            const isSingleColumnName = /^[a-zA-Z0-9_]+$/g.test(metric.sql);
+        if (metric.expression) {
+            const isSingleColumnName = /^[a-zA-Z0-9_]+$/g.test(
+                metric.expression,
+            );
             if (isSingleColumnName) {
-                sql = defaultSql(metric.sql);
+                sql = defaultSql(metric.expression);
             } else {
-                sql = metric.sql;
+                sql = metric.expression;
             }
         }
     }
@@ -331,6 +333,9 @@ export const convertTable = (
         throw new ParseError(`${message} ${duplicatedNames}`);
     }
 
+    if (!model.relation_name) {
+        throw new Error('Model has no table relation');
+    }
     return {
         name: model.name,
         label: tableLabel,
@@ -371,7 +376,7 @@ const modelCanUseMetric = (
     if (modelRef === modelName) {
         return true;
     }
-    if (metric.type === 'expression') {
+    if (metric.calculation_method === 'expression') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
         return referencedMetrics.every((m) =>
             modelCanUseMetric(m, modelName, metrics),
@@ -442,7 +447,7 @@ export const convertExplores = async (
             return compileExplore({
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
-                tags: model.tags,
+                tags: model.tags || [],
                 baseTable: model.name,
                 joinedTables: (meta?.joins || []).map((join) => ({
                     table: join.join,
