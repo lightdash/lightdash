@@ -84,7 +84,7 @@ const FieldAutoComplete: FC<Props> = ({
         <AutocompleteMaxHeight />
         <FieldSuggest
             fill
-            className="disabled-filter"
+            className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             inputProps={{
                 id,

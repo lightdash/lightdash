@@ -119,6 +119,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             const parsedValue = parseInt(filterRule.values?.[0], 10);
             return (
                 <NumericInput
+                    className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
                     value={isNaN(parsedValue) ? undefined : parsedValue}

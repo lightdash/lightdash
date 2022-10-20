@@ -24,7 +24,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => (
             options={months.map((label, index) => ({ value: index, label }))}
             value={moment(value).month()}
         />
-        <YearInput value={value} onChange={onChange} />
+        <YearInput disabled={disabled} value={value} onChange={onChange} />
     </>
 );
 
