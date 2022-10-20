@@ -7,7 +7,12 @@ import UpdateConnection from './assets/update-connection.jpg';
 
 # Create your first project in Lightdash
 
-<img src={Overview} width="1359" height="265" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={Overview}
+    width="1359"
+    height="265"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
 
@@ -34,7 +39,12 @@ Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.g
 
 Here's an example of our `Community stats daily` model we've defined in dbt. In Lightdash, we can see it in our list of available Tables to explore.
 
-<img src={TablesView} width="920" height="391" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={TablesView}
+    width="920"
+    height="391"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 Now that we know what tables are, let's add some and create our first project!
 
@@ -42,12 +52,38 @@ Now that we know what tables are, let's add some and create our first project!
 
 ## Step 1: Install the Lightdash CLI tool
 
-:::info
+<details>
+    <summary><b>Don't have NodeJS/NPM installed in your system?</b></summary>
 
-**Don't have NodeJS/NPM installed in your system?** [Head out to NodeJS's download page](https://nodejs.org/en/download/)
-before proceeding with installing the Lightdash CLI tool. Alternatively, you can [install NodeJS/NPM via package manager](https://nodejs.org/en/download/package-manager/).
+We recommend installing NodeJS/NPM using [NVM (Node Version Manager)](https://github.com/nvm-sh/nvm#install--update-script) which works for POSIX-compliant shells (sh, dash, ksh, zsh, bash on these platforms: unix, macOS, and windows WSL)
 
-:::
+Running the command below will install NVM (Node Version Manager) to your system.
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+# or
+wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+```
+
+Restart terminal and install NodeJS by running
+
+```bash
+nvm install --lts
+```
+
+Check that nodejs is installed by running
+
+```bash
+node -v
+```
+
+Running the command above should output something like `v16.18.0` which means you've succesfully installed NodeJS 🎉
+
+---
+
+Alternatively, you can [install NodeJS/NPM via your preferred package manager](https://nodejs.org/en/download/package-manager/).
+
+</details>
 
 The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
 easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
@@ -57,6 +93,10 @@ To install the Lightdash CLI, run the following on your command line.
 ```shell
 npm install -g @lightdash/cli
 ```
+
+:::danger
+If you get an `npm ERR! code EACCES` error while installing the Lightdash CLI, [follow this guide](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) to resolve it.
+:::
 
 ---
 
@@ -92,36 +132,47 @@ This will generate Tables and dimensions for your **_entire_** dbt project. It w
 
 For example, if we have a `projects.yml` file, we'd have a Table called `Projects` and it would have the dimensions: `Dashboards created num total` and `Days since project created`.
 
-<img src={ExampleTable} width="709" height="226" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={ExampleTable}
+    width="709"
+    height="226"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
 
 <details>
-  <summary>Error: Not a dbt project (or any of the parent directories). Missing dbt_project.yml file</summary>
-  Make sure that you're in your dbt project folder before you try doing `lightdash dbt run`! Otherwise, you'll run into this error.
+    <summary>
+        Error: Not a dbt project (or any of the parent directories). Missing
+        dbt_project.yml file
+    </summary>
+    Make sure that you're in your dbt project folder before you try doing `lightdash
+    dbt run`! Otherwise, you'll run into this error.
 </details>
 
 #### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
+
 <details>
   <summary>Generate Tables and dimensions for some of the models in my dbt project:</summary>
   There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
 
-  ```yaml
-  {{
-    config(
-      materialized='table',
-      tags=['lightdash']
-    )
-  }}
-  ```
+```yaml
+{{
+  config(
+    materialized='table',
+    tags=['lightdash']
+  )
+}}
+```
 
-  The `lightdash dbt run` command supports dbt model selection syntax to generate .yml files for a group of models. This means you can use tags or other model selection syntax to specify which models you want to generate dimensions for in your dbt project.
+The `lightdash dbt run` command supports dbt model selection syntax to generate .yml files for a group of models. This means you can use tags or other model selection syntax to specify which models you want to generate dimensions for in your dbt project.
 
-  ```shell
-  lightdash dbt run -s tag:lightdash # all models with the lightdash tag
-  lightdash dbt run -s payments  # just payments
-  lightdash dbt run -s payments+ # payments and all children
-  lightdash dbt run -s +payments # payments and all parents
-  lightdash dbt run -s payments+ +customers tag:lightdash # mix and match
-  ```
+```shell
+lightdash dbt run -s tag:lightdash # all models with the lightdash tag
+lightdash dbt run -s payments  # just payments
+lightdash dbt run -s payments+ # payments and all children
+lightdash dbt run -s +payments # payments and all parents
+lightdash dbt run -s payments+ +customers tag:lightdash # mix and match
+```
+
 </details>
 
 ---
@@ -145,4 +196,9 @@ We create your first project using your local dbt `profiles.yml` file. So, you m
 
 Check out details on [updating your connection settings here](/get-started/setup-lightdash/connect-project.mdx).
 
-<img src={UpdateConnection} width="1062" height="602" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img
+    src={UpdateConnection}
+    width="1062"
+    height="602"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
