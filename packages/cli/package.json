@@ -37,10 +37,12 @@
     "scripts": {
         "test": "jest",
         "build": "tsc --build tsconfig.json",
-        "lint": "eslint -c .eslintrc.js ./src",
-        "fix-lint": "eslint -c .eslintrc.js --fix ./src ",
-        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./src",
-        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./src",
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "lint": "yarn run linter ./src",
+        "fix-lint": "yarn run linter ./src --fix",
+        "format": "yarn run formatter ./src --check",
+        "fix-format": "yarn run formatter ./src --write",
         "preinstall": "bash track.sh started",
         "postinstall": "bash track.sh completed"
     }
