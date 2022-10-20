@@ -1,3 +1,10 @@
+## [0.292.1](https://github.com/lightdash/lightdash/compare/0.292.0...0.292.1) (2022-10-20)
+
+
+### Bug Fixes
+
+* filter dates from table and dimensions timezone issue ([#3523](https://github.com/lightdash/lightdash/issues/3523)) ([efea68c](https://github.com/lightdash/lightdash/commit/efea68cfe0636386ad24107146e7b2756c040d17))
+
 # [0.292.0](https://github.com/lightdash/lightdash/compare/0.291.2...0.292.0) (2022-10-20)
 
 
