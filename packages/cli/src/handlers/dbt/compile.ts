@@ -51,7 +51,11 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
 export const dbtCompile = async (options: DbtCompileOptions) => {
     try {
         const args = optionsToArgs(options);
-        await execa('dbt', ['compile', ...args]);
+        if (options.verbose)
+            console.error(`> Running: dbt compile ${args.join(' ')}`);
+        const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
+        console.error(stdout);
+        console.error(stderr);
     } catch (e: any) {
         throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
     }
