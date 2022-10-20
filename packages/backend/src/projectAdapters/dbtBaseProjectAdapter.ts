@@ -22,7 +22,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
 import Logger from '../logger';
-import dbtManifestSchema from '../manifestv6.json';
+import dbtManifestSchema from '../manifestv7.json';
 import lightdashDbtSchema from '../schema.json';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -31,7 +31,7 @@ addFormats(ajv);
 
 const getModelValidator = () => {
     const modelValidator = ajv.getSchema<DbtRawModelNode>(
-        'https://schemas.lightdash.com/dbt/manifest/v6.json#/definitions/LightdashCompiledModelNode',
+        'https://schemas.lightdash.com/dbt/manifest/v7.json#/definitions/LightdashCompiledModelNode',
     );
     if (modelValidator === undefined) {
         throw new ParseError('Could not parse Lightdash schema.');
@@ -41,7 +41,7 @@ const getModelValidator = () => {
 
 const getMetricValidator = () => {
     const metricValidator = ajv.getSchema<DbtMetric>(
-        'https://schemas.getdbt.com/dbt/manifest/v6.json#/definitions/ParsedMetric',
+        'https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric',
     );
     if (metricValidator === undefined) {
         throw new ParseError('Could not parse dbt schema.');

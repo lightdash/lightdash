@@ -161,7 +161,7 @@ const ProjectForm: FC<Props> = ({
                             target="_blank"
                             rel="noreferrer"
                         >
-                            dbt version <b>1.2.0</b>
+                            dbt version <b>1.3.0</b>
                         </a>
                     </p>
                 </div>

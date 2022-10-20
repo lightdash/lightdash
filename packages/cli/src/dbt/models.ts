@@ -302,7 +302,7 @@ const methodSelector = ({
         throw new ParseError(`Invalid value for tag selector "${value}"`);
     }
     return models
-        .filter((model) => model.tags.includes(value))
+        .filter((model) => model.tags?.includes(value))
         .map((model) => model.unique_id);
 };
 
