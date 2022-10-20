@@ -22,7 +22,7 @@ export const ColumnConfiguration: React.FC = () => {
         <ColumnConfigurationWrapper>
             {selectedItemIds?.map((fieldId) => {
                 return (
-                    <ColumnWrapper>
+                    <ColumnWrapper key={fieldId}>
                         <InputGroup
                             fill
                             disabled={!isColumnVisible(fieldId)}

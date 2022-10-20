@@ -127,6 +127,7 @@ const UrlMenuItems: FC<{
         <>
             {(urls || []).map((urlConfig) => (
                 <UrlMenuItem
+                    key={urlConfig.label}
                     urlConfig={urlConfig}
                     itemsMap={itemsMap}
                     itemIdsInRow={itemIdsInRow}
