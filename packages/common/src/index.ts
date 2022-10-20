@@ -305,27 +305,32 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 } else {
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
+
                     const defaultTimeIntervalValues: Record<string, Date> = {
-                        [TimeFrames.DAY]: new Date(),
+                        [TimeFrames.DAY]: moment().toDate(),
                         [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
                         )
                             .startOf('week')
                             .toDate(),
-                        [TimeFrames.MONTH]: moment().startOf('month').toDate(),
+                        [TimeFrames.MONTH]: moment(
+                            valueIsDate ? value : undefined,
+                        )
+                            .startOf('month')
+                            .toDate(),
                         [TimeFrames.YEAR]: moment(
                             valueIsDate ? value : undefined,
                         )
                             .startOf('year')
                             .toDate(),
                     };
+
                     const defaultDate =
                         isDimension(field) &&
                         field.timeInterval &&
                         defaultTimeIntervalValues[field.timeInterval]
                             ? defaultTimeIntervalValues[field.timeInterval]
-                            : new Date();
-
+                            : moment().toDate();
                     const dateValue = valueIsDate ? value : defaultDate;
                     filterRuleDefaults.values = [dateValue];
                 }
