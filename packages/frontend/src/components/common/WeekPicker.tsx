@@ -73,7 +73,12 @@ type Props = {
     disabled?: boolean;
 };
 
-const WeekPicker: FC<Props> = ({ value, onChange, popoverProps, disabled }) => {
+const WeekPicker: FC<Props> = ({
+    value: dateValue,
+    onChange,
+    popoverProps,
+    disabled,
+}) => {
     const value = moment(dateValue).toDate();
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
     const formattedDate =
