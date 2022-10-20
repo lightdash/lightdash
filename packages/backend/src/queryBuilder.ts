@@ -54,7 +54,8 @@ const renderStringFilterSql = (
                     `LOWER(${dimensionSql}) LIKE LOWER('%${filterVal}%')`,
             );
             return (
-                includesQuery?.join(' OR ') || `LOWER(${dimensionSql}) LIKE ''`
+                includesQuery?.join('\n  OR\n  ') ||
+                `LOWER(${dimensionSql}) LIKE ''`
             );
         case FilterOperator.NOT_INCLUDE:
             const notIncludeQuery = filter.values?.map(
@@ -62,7 +63,7 @@ const renderStringFilterSql = (
                     `LOWER(${dimensionSql}) NOT LIKE LOWER('%${filterVal}%')`,
             );
             return (
-                notIncludeQuery?.join(' AND ') ||
+                notIncludeQuery?.join('\n  AND\n  ') ||
                 `LOWER(${dimensionSql}) NOT LIKE ''`
             );
         case FilterOperator.NULL:
@@ -73,7 +74,10 @@ const renderStringFilterSql = (
             const startWithQuery = filter.values?.map(
                 (filterVal) => `(${dimensionSql}) LIKE '${filterVal}%'`,
             );
-            return startWithQuery?.join(' OR ') || `(${dimensionSql}) LIKE ''`;
+            return (
+                startWithQuery?.join('\n  OR\n  ') ||
+                `(${dimensionSql}) LIKE ''`
+            );
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
