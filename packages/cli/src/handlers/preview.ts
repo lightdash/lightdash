@@ -109,7 +109,11 @@ export const previewHandler = async (
         },
     });
     try {
-        await deploy({ ...options, projectUuid: project.projectUuid });
+        await deploy({
+            ...options,
+            projectUuid: project.projectUuid,
+            ignoreErrors: true,
+        });
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
                 project,
@@ -142,6 +146,7 @@ export const previewHandler = async (
                     await deploy({
                         ...options,
                         projectUuid: project.projectUuid,
+                        ignoreErrors: true,
                     });
                 }
 
@@ -219,7 +224,11 @@ export const startPreviewHandler = async (
 
         // Update
         console.error(`Updating project preview ${projectName}`);
-        await deploy({ ...options, projectUuid: previewProject.projectUuid });
+        await deploy({
+            ...options,
+            projectUuid: previewProject.projectUuid,
+            ignoreErrors: true,
+        });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
         if (process.env.CI === 'true') {
@@ -256,7 +265,11 @@ export const startPreviewHandler = async (
                 name: options.name,
             },
         });
-        await deploy({ ...options, projectUuid: project.projectUuid });
+        await deploy({
+            ...options,
+            projectUuid: project.projectUuid,
+            ignoreErrors: true,
+        });
         const url = await projectUrl(project);
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {

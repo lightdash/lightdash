@@ -103,7 +103,10 @@ type CliCompileStarted = BaseTrack & {
 };
 type CliCompileCompleted = BaseTrack & {
     event: 'compile.completed';
-    properties: {};
+    properties: {
+        explores: number;
+        errors: number;
+    };
 };
 type CliCompileError = BaseTrack & {
     event: 'compile.error';

@@ -368,6 +368,8 @@ program
     .option('--verbose', undefined, false)
 
     .option('--create', 'Create a new project on your organization', false)
+    .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+
     .action(deployHandler);
 
 program

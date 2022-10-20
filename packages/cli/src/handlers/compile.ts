@@ -2,6 +2,7 @@ import {
     attachTypesToModels,
     convertExplores,
     getSchemaStructureFromDbtModels,
+    isExploreError,
     isSupportedDbtAdapter,
     ParseError,
 } from '@lightdash/common';
@@ -35,6 +36,11 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
+    if (options.verbose) {
+        console.error(`> Compiling with project dir ${absoluteProjectPath}`);
+        console.error(`> Compiling with profiles dir ${absoluteProfilesPath}`);
+    }
+
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
     const profileName = options.profile || context.profileName;
     const { target } = await loadDbtTarget({
@@ -46,6 +52,13 @@ export const compile = async (options: GenerateHandlerOptions) => {
     const warehouseClient = warehouseClientFromCredentials(credentials);
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
+
+    if (options.verbose)
+        console.error(
+            `> Models from DBT manifest: ${models
+                .map((m) => m.name)
+                .join(', ')}`,
+        );
 
     // Ideally we'd skip this potentially expensive step
     const catalog = await warehouseClient.getCatalog(
@@ -64,23 +77,51 @@ export const compile = async (options: GenerateHandlerOptions) => {
             `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
         );
     }
+    if (options.verbose)
+        console.error(
+            `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
+        );
+
     const explores = await convertExplores(
         typedModels,
         false,
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
     );
+    console.error('');
+
+    explores.forEach((e) => {
+        const status = isExploreError(e)
+            ? styles.error('ERROR')
+            : styles.success('SUCCESS');
+        const errors = isExploreError(e)
+            ? `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`
+            : '';
+        console.error(`- ${status}> ${e.name} ${errors}`);
+    });
+    console.error('');
+    const errors = explores.filter((e) => isExploreError(e)).length;
+    console.error(
+        `Compiled ${explores.length} explores, SUCCESS=${
+            explores.length - errors
+        } ERRORS=${errors}`,
+    );
 
     await LightdashAnalytics.track({
         event: 'compile.completed',
-        properties: {},
+        properties: {
+            explores: explores.length,
+            errors,
+        },
     });
     return explores;
 };
 export const compileHandler = async (options: GenerateHandlerOptions) => {
     const explores = await compile(options);
-    console.error(`Compiled ${explores.length} explores`);
+    const errors = explores.filter((e) => isExploreError(e)).length;
     console.error('');
-    console.error(styles.success('Successfully compiled project'));
+    if (errors > 0)
+        console.error(styles.warning(`Compiled project with ${errors} errors`));
+    else console.error(styles.success('Successfully compiled project'));
     console.error('');
 };
