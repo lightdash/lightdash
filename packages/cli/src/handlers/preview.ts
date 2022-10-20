@@ -268,7 +268,7 @@ export const startPreviewHandler = async (
         await deploy({
             ...options,
             projectUuid: project.projectUuid,
-            ignoreErrors: false,
+            ignoreErrors: true,
         });
         const url = await projectUrl(project);
         console.error(`New project created on ${url}`);
