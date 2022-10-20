@@ -1,6 +1,7 @@
 import {
     AuthorizationError,
     friendlyName,
+    isExploreError,
     Project,
     ProjectType,
 } from '@lightdash/common';
@@ -25,6 +26,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     profile: string | undefined;
     create?: boolean;
     verbose: boolean;
+    ignoreErrors: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -32,6 +34,25 @@ type DeployArgs = DeployHandlerOptions & {
 };
 export const deploy = async (options: DeployArgs): Promise<void> => {
     const explores = await compile(options);
+
+    const errors = explores.filter((e) => isExploreError(e)).length;
+    if (errors > 0) {
+        if (options.ignoreErrors) {
+            console.error(
+                styles.warning(`\nDeploying project with ${errors} errors\n`),
+            );
+        } else {
+            console.error(
+                styles.error(
+                    `Can't deploy with errors. If you still want to deploy, add ${styles.bold(
+                        '--ignore-errors',
+                    )} flag`,
+                ),
+            );
+            process.exit(1);
+        }
+    }
+
     await lightdashApi<undefined>({
         method: 'PUT',
         url: `/api/v1/projects/${options.projectUuid}/explores`,

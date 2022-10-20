@@ -100,17 +100,25 @@ export const compile = async (options: GenerateHandlerOptions) => {
         console.error(`- ${status}> ${e.name} ${errors}`);
     });
     console.error('');
+    const errors = explores.filter((e) => isExploreError(e)).length;
+    console.error(
+        `Compiled ${explores.length} explores, SUCCESS=${
+            explores.length - errors
+        } ERRORS=${errors}`,
+    );
 
     await LightdashAnalytics.track({
         event: 'compile.completed',
-        properties: {},
+        properties: {
+            explores: explores.length,
+            errors,
+        },
     });
     return explores;
 };
 export const compileHandler = async (options: GenerateHandlerOptions) => {
     const explores = await compile(options);
     const errors = explores.filter((e) => isExploreError(e)).length;
-    console.error(`Compiled ${explores.length} explores`);
     console.error('');
     if (errors > 0)
         console.error(styles.warning(`Compiled project with ${errors} errors`));
