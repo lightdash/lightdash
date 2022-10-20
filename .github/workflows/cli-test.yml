@@ -37,15 +37,14 @@ jobs:
       ## DBT run
       - name: Run DBT
         run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
-        with: 
-          env:
-            PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
-            PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
-            PGHOST: ${{secrets.PGHOST}}
-            PGPASSWORD: ${{secrets.PGPASSWORD}}
-            PGPORT: 5432
-            PGUSER: postgres
-            PGDATABASE: postgres
+        env:
+          PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+          PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
       ## Install packages and lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
