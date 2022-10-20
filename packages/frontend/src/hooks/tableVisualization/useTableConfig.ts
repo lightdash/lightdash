@@ -97,19 +97,18 @@ const useTableConfig = (
         columns: Array<TableColumn | TableHeader>;
         error?: string;
     }>(() => {
-        const pivotDimension = pivotDimensions?.[0];
         if (!resultsData || !selectedItemIds) {
             return {
                 rows: [],
                 columns: [],
             };
         }
-        if (pivotDimension) {
+        if (pivotDimensions && pivotDimensions.length > 0) {
             return getPivotDataAndColumns({
                 columnOrder,
                 itemsMap,
                 resultsData,
-                pivotDimension,
+                pivotDimensions,
                 isColumnVisible,
                 getHeader,
                 getDefaultColumnLabel,

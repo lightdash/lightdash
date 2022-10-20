@@ -88,7 +88,7 @@ const usePlottedData = (
         ) {
             return getPivotedData(
                 rows,
-                pivotDimensions,
+                [pivotDimensions[0]],
                 pivotedKeys,
                 nonPivotedKeys,
             ).rows;

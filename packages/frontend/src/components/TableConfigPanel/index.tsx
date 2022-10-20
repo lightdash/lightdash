@@ -1,7 +1,7 @@
 import { Button, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { fieldId, getDimensions, getItemId } from '@lightdash/common';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     AxisFieldDropdown,
     DeleteFieldButton,
@@ -25,18 +25,26 @@ export const TableConfigPanel: React.FC = () => {
         setPivotDimensions,
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
-    const pivotDimension = pivotDimensions?.[0];
     const disabled = !resultsData;
+    const {
+        metricQuery: { dimensions },
+    } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
-    const availableDimensions = explore
-        ? getDimensions(explore).filter((field) =>
-              resultsData?.metricQuery.dimensions.includes(fieldId(field)),
-          )
-        : [];
-
-    // Group series logic
-    const groupSelectedField = availableDimensions.find(
-        (item) => getItemId(item) === pivotDimension,
+    const availableDimensions = useMemo(
+        () =>
+            explore
+                ? getDimensions(explore).filter((field) =>
+                      dimensions.includes(fieldId(field)),
+                  )
+                : [],
+        [explore, dimensions],
+    );
+    const availableGroupByDimensions = useMemo(
+        () =>
+            availableDimensions.filter(
+                (item) => !pivotDimensions?.includes(getItemId(item)),
+            ),
+        [availableDimensions, pivotDimensions],
     );
 
     return (
@@ -45,25 +53,72 @@ export const TableConfigPanel: React.FC = () => {
             content={
                 <ConfigWrapper>
                     <SectionTitle>Group</SectionTitle>
-                    <AxisFieldDropdown>
-                        <FieldAutoComplete
-                            fields={availableDimensions}
-                            placeholder="Select a field to group by"
-                            activeField={groupSelectedField}
-                            onChange={(item) => {
-                                setPivotDimensions([getItemId(item)]);
-                            }}
-                        />
-                        {groupSelectedField && (
-                            <DeleteFieldButton
-                                minimal
-                                icon="cross"
-                                onClick={() => {
-                                    setPivotDimensions([]);
-                                }}
-                            />
-                        )}
-                    </AxisFieldDropdown>
+                    {pivotDimensions &&
+                        pivotDimensions.map((pivotKey) => {
+                            // Group series logic
+                            const groupSelectedField = availableDimensions.find(
+                                (item) => getItemId(item) === pivotKey,
+                            );
+
+                            return (
+                                <AxisFieldDropdown>
+                                    <FieldAutoComplete
+                                        fields={
+                                            groupSelectedField
+                                                ? [
+                                                      groupSelectedField,
+                                                      ...availableGroupByDimensions,
+                                                  ]
+                                                : availableGroupByDimensions
+                                        }
+                                        placeholder="Select a field to group by"
+                                        activeField={groupSelectedField}
+                                        onChange={(item) => {
+                                            setPivotDimensions(
+                                                pivotDimensions
+                                                    ? pivotDimensions.map(
+                                                          (key) =>
+                                                              key !== pivotKey
+                                                                  ? key
+                                                                  : getItemId(
+                                                                        item,
+                                                                    ),
+                                                      )
+                                                    : [getItemId(item)],
+                                            );
+                                        }}
+                                    />
+                                    {groupSelectedField && (
+                                        <DeleteFieldButton
+                                            minimal
+                                            icon="cross"
+                                            onClick={() => {
+                                                setPivotDimensions(
+                                                    pivotDimensions.filter(
+                                                        (key) =>
+                                                            key !== pivotKey,
+                                                    ),
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </AxisFieldDropdown>
+                            );
+                        })}
+                    {availableGroupByDimensions.length > 0 && (
+                        <Button
+                            minimal
+                            intent="primary"
+                            onClick={() =>
+                                setPivotDimensions([
+                                    ...(pivotDimensions || []),
+                                    getItemId(availableGroupByDimensions[0]),
+                                ])
+                            }
+                        >
+                            + Add
+                        </Button>
+                    )}
                     <SectionTitle>Show column total</SectionTitle>
                     <Switch
                         large

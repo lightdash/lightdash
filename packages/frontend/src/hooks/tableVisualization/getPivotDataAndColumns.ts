@@ -11,7 +11,7 @@ import {
     TableColumn,
     TableHeader,
 } from '../../components/common/Table/types';
-import { getPivotedData } from '../plottedData/usePlottedData';
+import { getPivotedData, PivotValueMap } from '../plottedData/usePlottedData';
 import { getResultColumnTotals, isSummable } from '../useColumnTotals';
 
 const sortByRawValue = (a: any, b: any) => {
@@ -31,17 +31,23 @@ type Args = {
     columnOrder: string[];
     itemsMap: Record<string, Field | TableCalculation>;
     resultsData: ApiQueryResults;
-    pivotDimension: string;
+    pivotDimensions: string[];
     isColumnVisible: (key: string) => boolean;
     getHeader: (key: string) => string | undefined;
     getDefaultColumnLabel: (key: string) => string;
 };
 
+const getPivotValuesCount = (pivotValuesMap: PivotValueMap) =>
+    Object.values(pivotValuesMap).reduce<number>(
+        (acc, values) => acc + Object.keys(values).length,
+        0,
+    );
+
 const getPivotDataAndColumns = ({
     columnOrder,
     itemsMap,
     resultsData,
-    pivotDimension,
+    pivotDimensions,
     isColumnVisible,
     getHeader,
     getDefaultColumnLabel,
@@ -52,17 +58,18 @@ const getPivotDataAndColumns = ({
 } => {
     const { rows, pivotValuesMap, rowKeyMap } = getPivotedData(
         resultsData.rows,
-        [pivotDimension],
+        pivotDimensions,
         [
             ...resultsData.metricQuery.metrics,
             ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
         ].filter((itemId) => isColumnVisible(itemId)),
         resultsData.metricQuery.dimensions.filter(
-            (itemId) => isColumnVisible(itemId) && pivotDimension !== itemId,
+            (itemId) =>
+                isColumnVisible(itemId) && !pivotDimensions.includes(itemId),
         ),
     );
 
-    if (Object.keys(pivotValuesMap).length > 60) {
+    if (getPivotValuesCount(pivotValuesMap) > 60) {
         return {
             rows: [],
             columns: [],
@@ -104,72 +111,100 @@ const getPivotDataAndColumns = ({
         },
         [],
     );
-    const dimensionsHeaderGroup = columnHelper.group({
-        id: 'dimensions_header_group',
-        header:
-            getHeader(pivotDimension) || getDefaultColumnLabel(pivotDimension),
-        columns: dimensionHeaders,
-        meta: {
-            bgColor: Colors.GRAY4,
-            item: itemsMap[pivotDimension],
-        },
-    });
-
-    const pivotValueHeaderGroups = Object.values(pivotValuesMap)
-        .sort((a, b) => sortByRawValue(a.raw, b.raw))
-        .map(({ raw, formatted }) => {
+    const dimensionsHeaderGroup = pivotDimensions
+        .reverse()
+        .reduce<TableColumn | undefined>((acc, pivotKey) => {
             return columnHelper.group({
-                id: `pivot_header_group_${raw}`,
-                header: () => formatted,
+                id: `dimensions_header_group_${pivotKey}`,
+                header: getHeader(pivotKey) || getDefaultColumnLabel(pivotKey),
+                columns: acc ? [acc] : dimensionHeaders,
                 meta: {
                     bgColor: Colors.GRAY4,
+                    item: itemsMap[pivotKey],
                 },
-                columns: Object.entries(rowKeyMap)
-                    .filter(([_, ref]) => {
-                        return (
-                            typeof ref !== 'string' &&
-                            ref.pivotValues &&
-                            ref.pivotValues[0]?.value === raw
-                        );
-                    })
-                    .sort(([_, aRef], [__, bRef]) => {
-                        const a = typeof aRef === 'string' ? aRef : aRef.field;
-                        const b = typeof bRef === 'string' ? bRef : bRef.field;
-                        return (
-                            columnOrder.findIndex((id) => id === a) -
-                            columnOrder.findIndex((id) => id === b)
-                        );
-                    })
-                    .reduce<TableColumn[]>((acc, [key, ref]) => {
-                        if (typeof ref === 'string') {
-                            return acc;
-                        }
-                        const item = itemsMap[ref.field];
-                        const column: TableColumn = columnHelper.accessor(
-                            (row) => row[key],
-                            {
-                                id: key,
-                                header:
-                                    getHeader(ref.field) ||
-                                    getDefaultColumnLabel(ref.field),
-                                cell: (info) =>
-                                    info.getValue()?.value.formatted || '-',
-                                footer: () =>
-                                    totals[key]
-                                        ? formatItemValue(item, totals[key])
-                                        : null,
-                                meta: {
-                                    item,
-                                    pivotReference: ref,
-                                },
-                            },
-                        );
-                        return [...acc, column];
-                    }, []),
-            });
-        });
+            }) as TableColumn;
+        }, undefined);
 
-    const columns = [dimensionsHeaderGroup, ...pivotValueHeaderGroups];
+    const pivotValueHeaderGroups = pivotDimensions.reduce<TableColumn[]>(
+        (acc2, pivotKey) => {
+            return Object.values(pivotValuesMap[pivotKey])
+                .sort((a, b) => sortByRawValue(a.raw, b.raw))
+                .map(({ raw, formatted }) => {
+                    let innerColumns: TableColumn[];
+                    if (acc2.length > 0) {
+                        innerColumns = acc2;
+                    } else {
+                        innerColumns = Object.entries(rowKeyMap)
+                            .filter(([_, ref]) => {
+                                return (
+                                    typeof ref !== 'string' &&
+                                    ref.pivotValues &&
+                                    ref.pivotValues[0]?.value === raw
+                                );
+                            })
+                            .sort(([_, aRef], [__, bRef]) => {
+                                const a =
+                                    typeof aRef === 'string'
+                                        ? aRef
+                                        : aRef.field;
+                                const b =
+                                    typeof bRef === 'string'
+                                        ? bRef
+                                        : bRef.field;
+                                return (
+                                    columnOrder.findIndex((id) => id === a) -
+                                    columnOrder.findIndex((id) => id === b)
+                                );
+                            })
+                            .reduce<TableColumn[]>((acc, [key, ref]) => {
+                                if (typeof ref === 'string') {
+                                    return acc;
+                                }
+                                const item = itemsMap[ref.field];
+                                const column: TableColumn =
+                                    columnHelper.accessor((row) => row[key], {
+                                        id: key,
+                                        header:
+                                            getHeader(ref.field) ||
+                                            getDefaultColumnLabel(ref.field),
+                                        cell: (info) =>
+                                            info.getValue()?.value.formatted ||
+                                            '-',
+
+                                        footer: () =>
+                                            totals[key]
+                                                ? formatItemValue(
+                                                      item,
+                                                      totals[key],
+                                                  )
+                                                : null,
+                                        meta: {
+                                            item,
+                                            pivotReference: ref,
+                                        },
+                                    });
+                                return [...acc, column];
+                            }, []);
+                    }
+                    return columnHelper.group({
+                        id: `pivot_header_group_${pivotKey}_${raw}`,
+                        header: () => formatted,
+                        meta: {
+                            bgColor: Colors.GRAY4,
+                        },
+                        columns: innerColumns,
+                    }) as TableColumn;
+                });
+        },
+        [],
+    );
+
+    // reverse back
+    pivotDimensions.reverse();
+
+    const columns = dimensionsHeaderGroup
+        ? [dimensionsHeaderGroup, ...pivotValueHeaderGroups]
+        : pivotValueHeaderGroups;
     return {
         rows,
         columns,
