@@ -1,3 +1,10 @@
+# [0.292.0](https://github.com/lightdash/lightdash/compare/0.291.2...0.292.0) (2022-10-20)
+
+
+### Features
+
+* support dbt 1.3.0 ([#3514](https://github.com/lightdash/lightdash/issues/3514)) ([b6f1bea](https://github.com/lightdash/lightdash/commit/b6f1beab64e998d27b12d9a0f9d7e63ec3251dea))
+
 ## [0.291.2](https://github.com/lightdash/lightdash/compare/0.291.1...0.291.2) (2022-10-19)
 
 
