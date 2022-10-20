@@ -6,10 +6,12 @@
     "scripts": {
         "cypress:open": "cypress open",
         "cypress:run": "cypress run",
-        "lint": "eslint -c .eslintrc.js ./cypress",
-        "fix-lint": "eslint -c .eslintrc.js --fix ./cypress ",
-        "format": "prettier --config .prettierrc.js --check --ignore-unknown ./cypress",
-        "fix-format": "prettier --config .prettierrc.js --write --ignore-unknown ./cypress"
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "lint": "yarn run linter ./cypress",
+        "fix-lint": "yarn run linter ./cypress --fix",
+        "format": "yarn run formatter ./cypress --check",
+        "fix-format": "yarn run formatter ./cypress --write"
     },
     "devDependencies": {},
     "dependencies": {
