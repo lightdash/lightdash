@@ -54,7 +54,7 @@ module.exports = {
         'prefer-const': 'off',
         'prefer-spread': 'off',
         'react/display-name': 'off',
-        'react/jsx-key': 'off',
+        'react/jsx-key': 'error',
         'react/no-unescaped-entities': 'off',
         'react/react-in-jsx-scope': 'off',
         eqeqeq: 'off',

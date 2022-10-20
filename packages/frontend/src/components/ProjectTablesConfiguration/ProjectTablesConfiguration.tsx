@@ -184,7 +184,7 @@ const ProjectTablesConfiguration: FC<{
                     <Collapse isOpen={isListOpen}>
                         <ListWrapper className={Classes.ELEVATION_0}>
                             {modelsIncluded.map((name) => (
-                                <Text title={name} ellipsize>
+                                <Text key={name} title={name} ellipsize>
                                     {name}
                                 </Text>
                             ))}

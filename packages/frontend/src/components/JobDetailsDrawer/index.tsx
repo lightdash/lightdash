@@ -135,7 +135,7 @@ const JobDetailsDrawer: FC = () => {
         >
             <StepsWrapper>
                 {activeJob.steps?.map((step) => (
-                    <Step status={step.stepStatus}>
+                    <Step key={step.jobUuid} status={step.stepStatus}>
                         <StepIcon step={step} />
                         <StepInfo>
                             <StepName>{step.stepLabel}</StepName>
