@@ -6,10 +6,11 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { configFilePath, setContext, setDefaultUser } from '../config';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
-import { setProjectInteractively } from './setProject';
+import { setFirstProject, setProjectInteractively } from './setProject';
 
 type LoginOptions = {
     token?: string;
+    interactive?: boolean;
     verbose: boolean;
 };
 
@@ -134,7 +135,11 @@ export const login = async (url: string, options: LoginOptions) => {
     console.error(`\n  ✅️ Login successful\n`);
 
     try {
-        await setProjectInteractively({ verbose: options.verbose });
+        if (process.env.CI === 'true') {
+            await setFirstProject({ verbose: options.verbose });
+        } else {
+            await setProjectInteractively({ verbose: options.verbose });
+        }
     } catch (e: any) {
         if (options.verbose)
             console.error(

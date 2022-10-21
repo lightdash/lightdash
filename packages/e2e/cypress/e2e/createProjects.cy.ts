@@ -109,7 +109,11 @@ const testCompile = () => {
         .should('not.be.disabled')
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
-    cy.findByText('Welcome, David! ⚡'); // wait for page to load and avoid race conditions
+    cy.findByText('Welcome, David! ⚡');
+    cy.findByText('Shared');
+    cy.findByText('Spaces');
+    cy.findByText('No charts added yet');
+    cy.wait(1000);
 };
 
 const testRunQuery = () => {

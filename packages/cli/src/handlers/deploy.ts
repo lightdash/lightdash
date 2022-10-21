@@ -77,15 +77,17 @@ const createNewProject = async (
     });
     const dbtName = friendlyName(context.projectName);
 
-    const answers = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'name',
-            message: `Add a project name or press enter to use the default: [${dbtName}] `,
-        },
-    ]);
-    const projectName = answers.name ? answers.name : dbtName;
-
+    let projectName = dbtName;
+    if (process.env.CI !== 'true') {
+        const answers = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'name',
+                message: `Add a project name or press enter to use the default: [${dbtName}] `,
+            },
+        ]);
+        projectName = answers.name ? answers.name : dbtName;
+    }
     console.error('');
     const spinner = ora(
         `  Creating new project ${styles.bold(projectName)}`,
@@ -95,7 +97,7 @@ const createNewProject = async (
         event: 'create.started',
         properties: {
             projectName,
-            isDefaultName: !!answers.name,
+            isDefaultName: dbtName === projectName,
         },
     });
     try {
