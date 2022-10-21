@@ -47,6 +47,9 @@ export type LightdashConfig = {
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
+    query: {
+        maxLimit: number;
+    };
 };
 
 export type IntercomConfig = {
@@ -214,6 +217,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         siteUrl,
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
+        query: {
+            maxLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_MAX_LIMIT',
+                ) || 5000,
+        },
     };
 };
 

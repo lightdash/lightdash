@@ -1,9 +1,10 @@
-import { NumericInput, Position, Tag } from '@blueprintjs/core';
+import { Position } from '@blueprintjs/core';
 import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { FC, memo, useState } from 'react';
-import { ApplyButton, Label, PopupWrapper } from './LimitButton.styles';
+import React, { FC, memo } from 'react';
+import LimitForm from './LimitForm';
+import LimitTag from './LimitTag';
 
-type Props = {
+export type Props = {
     disabled?: boolean;
     limit: number;
     isEditMode: boolean;
@@ -12,56 +13,32 @@ type Props = {
 
 const LimitButton: FC<Props> = memo(
     ({ disabled, isEditMode, limit, onLimitChange }) => {
-        const [innerLimit, setInnerLimit] = useState<number>(limit);
-
-        const tag = (
-            <Tag
-                large
-                round
-                minimal
-                interactive={!disabled && isEditMode}
-                intent="none"
-                rightIcon={isEditMode ? 'caret-down' : undefined}
-            >
-                Limit: {limit}
-            </Tag>
-        );
-
         return isEditMode ? (
             <Popover2
                 content={
-                    <PopupWrapper>
-                        <Label label="Total rows:" inline>
-                            <NumericInput
-                                fill
-                                min={0}
-                                buttonPosition="none"
-                                value={innerLimit}
-                                onValueChange={setInnerLimit}
-                            />
-                        </Label>
-                        <ApplyButton
-                            className={Classes.POPOVER2_DISMISS}
-                            text="Apply"
-                            intent="primary"
-                            onClick={() => {
-                                onLimitChange(innerLimit);
-                            }}
-                        />
-                    </PopupWrapper>
+                    <LimitForm limit={limit} onLimitChange={onLimitChange} />
                 }
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 position={Position.BOTTOM}
                 disabled={disabled}
+                lazy
             >
-                {tag}
+                <LimitTag
+                    limit={limit}
+                    disabled={disabled}
+                    isEditMode={isEditMode}
+                />
             </Popover2>
         ) : (
             <Tooltip2
-                content="You must be in 'edit' or 'explore' mode to update limit"
+                content="You must be in 'edit' or 'explore' mode to update the limit"
                 position={Position.BOTTOM}
             >
-                {tag}
+                <LimitTag
+                    limit={limit}
+                    disabled={disabled}
+                    isEditMode={isEditMode}
+                />
             </Tooltip2>
         );
     },

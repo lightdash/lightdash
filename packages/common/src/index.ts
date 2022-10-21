@@ -751,6 +751,9 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
+    query: {
+        maxLimit: number;
+    };
 };
 
 export enum DBFieldTypes {
