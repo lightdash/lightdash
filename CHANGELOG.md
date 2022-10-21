@@ -1,3 +1,10 @@
+# [0.295.0](https://github.com/lightdash/lightdash/compare/0.294.0...0.295.0) (2022-10-21)
+
+
+### Features
+
+* cli delete old columns on generate ([#3534](https://github.com/lightdash/lightdash/issues/3534)) ([768f3e3](https://github.com/lightdash/lightdash/commit/768f3e3cd25f2f9abe9fb4474c609186b565a51f))
+
 # [0.294.0](https://github.com/lightdash/lightdash/compare/0.293.0...0.294.0) (2022-10-21)
 
 
