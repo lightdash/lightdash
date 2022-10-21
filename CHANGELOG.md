@@ -1,3 +1,10 @@
+# [0.294.0](https://github.com/lightdash/lightdash/compare/0.293.0...0.294.0) (2022-10-21)
+
+
+### Features
+
+* MultiAutoComplete add item on blur ([#3530](https://github.com/lightdash/lightdash/issues/3530)) ([12801d8](https://github.com/lightdash/lightdash/commit/12801d8252c965fdf2a7c0d64364053b9dff3341))
+
 # [0.293.0](https://github.com/lightdash/lightdash/compare/0.292.1...0.293.0) (2022-10-20)
 
 
