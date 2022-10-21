@@ -14,6 +14,7 @@ import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import * as path from 'path';
+import * as styles from '../styles';
 import { searchForModel, YamlSchema } from './schema';
 
 type CompiledModel = {
@@ -212,9 +213,36 @@ export const findAndUpdateModelYaml = async ({
         const newColumns = generatedModel.columns.filter(
             (c) => !existingColumnNames.includes(c.name),
         );
+        const deletedColumnNames = existingColumnNames.filter(
+            (c) => !generatedModel.columns.map((gc) => gc.name).includes(c),
+        );
+        let updatedColumns = [...existingColumnsUpdated, ...newColumns];
+        if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
+            spinner.stop();
+            console.error(`
+These columns in your model ${styles.bold(model.name)} on file ${styles.bold(
+                match.filename.split('/').slice(-1),
+            )} no longer exist in your warehouse:
+${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
+            `);
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `Would you like to remove them from your .yml file? `,
+                },
+            ]);
+            spinner.start();
+
+            if (answers.isConfirm) {
+                updatedColumns = updatedColumns.filter(
+                    (column) => !deletedColumnNames.includes(column.name),
+                );
+            }
+        }
         const updatedModel = {
             ...existingModel,
-            columns: [...existingColumnsUpdated, ...newColumns],
+            columns: updatedColumns,
         };
         const updatedYml: YamlSchema = {
             ...match.doc,
