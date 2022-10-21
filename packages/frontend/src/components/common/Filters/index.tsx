@@ -221,7 +221,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         onClick={toggleFieldInput}
                         disabled={fields.length <= 0}
                     >
-                        Add filter {isEditMode}
+                        Add filter
                     </Button>
                 )}
             </div>

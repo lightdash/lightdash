@@ -163,16 +163,14 @@ const FiltersCard: FC = memo(() => {
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
-                <Tooltip2 interactionKind="hover" placement={'bottom-start'}>
-                    <Button
-                        icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
-                        minimal
-                        disabled={!tableName}
-                        onClick={() =>
-                            toggleExpandedSection(ExplorerSection.FILTERS)
-                        }
-                    />
-                </Tooltip2>
+                <Button
+                    icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
+                    minimal
+                    disabled={!tableName || totalActiveFilters === 0}
+                    onClick={() =>
+                        toggleExpandedSection(ExplorerSection.FILTERS)
+                    }
+                />
                 <H5>Filters</H5>
                 {totalActiveFilters > 0 && !filterIsOpen ? (
                     <Tooltip2
