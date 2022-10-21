@@ -1,3 +1,10 @@
+## [0.295.1](https://github.com/lightdash/lightdash/compare/0.295.0...0.295.1) (2022-10-21)
+
+
+### Bug Fixes
+
+* CLI alias on DBT ([#3540](https://github.com/lightdash/lightdash/issues/3540)) ([d9071a7](https://github.com/lightdash/lightdash/commit/d9071a7b851ecc88d4b288c5648f75240a6343c1))
+
 # [0.295.0](https://github.com/lightdash/lightdash/compare/0.294.0...0.295.0) (2022-10-21)
 
 
