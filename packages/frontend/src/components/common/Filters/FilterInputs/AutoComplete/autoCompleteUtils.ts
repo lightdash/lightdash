@@ -2,17 +2,26 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import { useFieldValues } from '../../../../../hooks/useFieldValues';
 
-export function toggleValueFromArray<T>(array: T[], value: T) {
-    const copy = [...array];
-    const index = copy.indexOf(value);
+type Normalizer<T, Comparable = T> = (a: T) => Comparable;
 
-    if (index === -1) {
-        copy.push(value);
+export const comparator = <T>(normalizer: Normalizer<T> = (a) => a) => {
+    return (a: T, b: T): boolean => {
+        return normalizer(a) === normalizer(b);
+    };
+};
+
+export const toggleValueFromArray = <T>(
+    values: T[],
+    value: T,
+    normalizer: Normalizer<T> = (a) => a,
+): T[] => {
+    if (values.map(normalizer).includes(normalizer(value))) {
+        const itemComparator = comparator(normalizer);
+        return values.filter((v) => !itemComparator(v, value));
     } else {
-        copy.splice(index, 1);
+        return [...values, value];
     }
-    return copy;
-}
+};
 
 export function itemPredicate(
     query: string,
@@ -72,6 +81,7 @@ const useDebouncedSearch = (
         isSearching,
         isFetchingInitialData: !data && isLoading,
         items: cachedItems[fieldId],
+        searchQuery: search,
         setSearch,
     };
 };
@@ -92,8 +102,13 @@ export const useAutoComplete = (
         new Set([...suggestions, ...values]),
     );
 
-    const { items, isSearching, isFetchingInitialData, setSearch } =
-        useDebouncedSearch(projectUuid, fieldId, suggestions.length <= 0);
+    const {
+        items,
+        isSearching,
+        isFetchingInitialData,
+        searchQuery,
+        setSearch,
+    } = useDebouncedSearch(projectUuid, fieldId, suggestions.length <= 0);
 
     useEffect(() => {
         setOptions(new Set([...suggestions, ...values, ...(items || [])]));
@@ -101,6 +116,7 @@ export const useAutoComplete = (
 
     return {
         options,
+        searchQuery,
         setSearch,
         isSearching,
         isFetchingInitialData,

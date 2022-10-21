@@ -7,6 +7,7 @@ import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
 import {
+    comparator,
     itemPredicate,
     toggleValueFromArray,
     useAutoComplete,
@@ -22,6 +23,9 @@ type Props = {
 
 const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
 
+const normalize = (item: string) => item.toLowerCase();
+const itemComparator = comparator(normalize);
+
 const MultiAutoComplete: FC<Props> = ({
     values,
     field,
@@ -30,8 +34,13 @@ const MultiAutoComplete: FC<Props> = ({
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
-    const { options, setSearch, isSearching, isFetchingInitialData } =
-        useAutoComplete(values, suggestions, getItemId(field), projectUuid);
+    const {
+        options,
+        setSearch,
+        searchQuery,
+        isSearching,
+        isFetchingInitialData,
+    } = useAutoComplete(values, suggestions, getItemId(field), projectUuid);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -77,21 +86,41 @@ const MultiAutoComplete: FC<Props> = ({
             ),
         [isSearching],
     );
-    const onItemSelect = useCallback(
+
+    const handleItemSelect = useCallback(
         (value: string) => {
-            onChange(toggleValueFromArray(values, value));
+            onChange(toggleValueFromArray(values, value, normalize));
         },
         [onChange, values],
     );
-    const onRemove = useCallback(
+
+    const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
             onChange(values.filter((v: string) => v !== selectedValue));
         },
         [onChange, values],
     );
+
+    const handleBlur = useCallback(
+        (value?: string) => {
+            if (!value || value === '') return;
+
+            setSearch('');
+            if (!values.map(normalize).includes(normalize(value))) {
+                const existingOptionMatch = [...options].find((option) =>
+                    itemComparator(option, value),
+                );
+
+                handleItemSelect(existingOptionMatch || value);
+            }
+        },
+        [options, values, handleItemSelect, setSearch],
+    );
+
     return (
         <MultiSelect2
             fill
+            query={searchQuery}
             items={Array.from(options).sort()}
             noResults={
                 isFetchingInitialData ? (
@@ -100,19 +129,21 @@ const MultiAutoComplete: FC<Props> = ({
                     <MenuItem2 disabled text="No suggestions." />
                 )
             }
-            itemsEqual={(value, other) =>
-                value.toLowerCase() === other.toLowerCase()
-            }
+            itemsEqual={itemComparator}
             selectedItems={values}
             itemRenderer={renderItem}
             tagRenderer={(name) => name}
-            onItemSelect={onItemSelect}
+            onItemSelect={handleItemSelect}
             tagInputProps={{
                 placeholder: undefined,
+                addOnBlur: true,
+                inputProps: {
+                    onBlur: () => handleBlur(searchQuery),
+                },
                 tagProps: {
                     minimal: true,
                 },
-                onRemove,
+                onRemove: handleRemove,
             }}
             popoverProps={{
                 minimal: true,
