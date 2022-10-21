@@ -11,6 +11,8 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import ColumnConfiguration from './ColumnConfiguration';
 import { ConfigWrapper, SectionTitle } from './TableConfig.styles';
 
+const MAX_PIVOTS = 3;
+
 export const TableConfigPanel: React.FC = () => {
     const {
         explore,
@@ -45,6 +47,13 @@ export const TableConfigPanel: React.FC = () => {
                 (item) => !pivotDimensions?.includes(getItemId(item)),
             ),
         [availableDimensions, pivotDimensions],
+    );
+
+    const canAddPivot = useMemo(
+        () =>
+            availableGroupByDimensions.length > 0 &&
+            (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
+        [availableGroupByDimensions.length, pivotDimensions],
     );
 
     return (
@@ -105,7 +114,7 @@ export const TableConfigPanel: React.FC = () => {
                                 </AxisFieldDropdown>
                             );
                         })}
-                    {availableGroupByDimensions.length > 0 && (
+                    {canAddPivot && (
                         <Button
                             minimal
                             intent="primary"
