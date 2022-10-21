@@ -134,13 +134,14 @@ const getPivotDataAndColumns = ({
               })
             : [EmptyColumn];
 
-    function getDimensionHeaderGroup(depth: number = 0): TableColumn {
+    // Recursive function to add nested pivot and dimension names
+    function getNonPivotedHeaderGroup(depth: number = 0): TableColumn {
         const pivotKey = pivotDimensions[depth];
         return columnHelper.group({
             id: `dimensions_header_group_${pivotKey}`,
             header: getHeader(pivotKey) || getDefaultColumnLabel(pivotKey),
             columns: pivotDimensions[depth + 1]
-                ? [getDimensionHeaderGroup(depth + 1)]
+                ? [getNonPivotedHeaderGroup(depth + 1)]
                 : dimensionHeaders,
             meta: {
                 bgColor: getHeaderBgColor(pivotDimensions.length, depth),
@@ -149,6 +150,7 @@ const getPivotDataAndColumns = ({
         }) as TableColumn;
     }
 
+    // Recursive function to add nested pivot values and pivoted columns names
     function getPivotHeaderGroups(
         depth: number = 0,
         parentPivotValues: PivotReference['pivotValues'] = [],
@@ -227,11 +229,11 @@ const getPivotDataAndColumns = ({
             });
     }
 
-    const dimensionsHeaderGroup = getDimensionHeaderGroup();
-    const pivotValueHeaderGroups = getPivotHeaderGroups();
+    const nonPivotedHeaderGroup = getNonPivotedHeaderGroup();
+    const pivotValuesHeaderGroups = getPivotHeaderGroups();
     return {
         rows,
-        columns: [dimensionsHeaderGroup, ...pivotValueHeaderGroups],
+        columns: [nonPivotedHeaderGroup, ...pivotValuesHeaderGroups],
     };
 };
 
