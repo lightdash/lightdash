@@ -30,7 +30,7 @@ import moment from 'moment';
 const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ss');
 
-const renderStringFilterSql = (
+export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule,
 ): string => {
@@ -53,19 +53,13 @@ const renderStringFilterSql = (
                 (filterVal) =>
                     `LOWER(${dimensionSql}) LIKE LOWER('%${filterVal}%')`,
             );
-            return (
-                includesQuery?.join('\n  OR\n  ') ||
-                `LOWER(${dimensionSql}) LIKE ''`
-            );
+            return includesQuery?.join('\n  OR\n  ') || 'true';
         case FilterOperator.NOT_INCLUDE:
             const notIncludeQuery = filter.values?.map(
                 (filterVal) =>
                     `LOWER(${dimensionSql}) NOT LIKE LOWER('%${filterVal}%')`,
             );
-            return (
-                notIncludeQuery?.join('\n  AND\n  ') ||
-                `LOWER(${dimensionSql}) NOT LIKE ''`
-            );
+            return notIncludeQuery?.join('\n  AND\n  ') || 'true';
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
@@ -74,10 +68,7 @@ const renderStringFilterSql = (
             const startWithQuery = filter.values?.map(
                 (filterVal) => `(${dimensionSql}) LIKE '${filterVal}%'`,
             );
-            return (
-                startWithQuery?.join('\n  OR\n  ') ||
-                `(${dimensionSql}) LIKE ''`
-            );
+            return startWithQuery?.join('\n  OR\n  ') || 'true';
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
