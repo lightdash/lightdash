@@ -14,6 +14,7 @@ import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import * as path from 'path';
+import * as styles from '../styles';
 import { searchForModel, YamlSchema } from './schema';
 
 type CompiledModel = {
@@ -218,14 +219,17 @@ export const findAndUpdateModelYaml = async ({
         let updatedColumns = [...existingColumnsUpdated, ...newColumns];
         if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
             spinner.stop();
+            console.error(`
+These columns in your model ${styles.bold(model.name)} on file ${styles.bold(
+                match.filename.split('/').slice(-1),
+            )} no longer exist in your warehouse:
+${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
+            `);
             const answers = await inquirer.prompt([
                 {
                     type: 'confirm',
                     name: 'isConfirm',
-                    message: `
-These columns in your .yml file no longer exist in your warehouse:
-${deletedColumnNames.map((name) => `- ${name} \n`).join('')}
-Would you like to remove them from your .yml file? `,
+                    message: `Would you like to remove them from your .yml file? `,
                 },
             ]);
             spinner.start();
