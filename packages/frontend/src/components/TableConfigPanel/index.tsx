@@ -9,7 +9,11 @@ import {
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
-import { ConfigWrapper, SectionTitle } from './TableConfig.styles';
+import {
+    AddPivotButton,
+    ConfigWrapper,
+    SectionTitle,
+} from './TableConfig.styles';
 
 const MAX_PIVOTS = 3;
 
@@ -115,7 +119,7 @@ export const TableConfigPanel: React.FC = () => {
                             );
                         })}
                     {canAddPivot && (
-                        <Button
+                        <AddPivotButton
                             minimal
                             intent="primary"
                             onClick={() =>
@@ -126,7 +130,7 @@ export const TableConfigPanel: React.FC = () => {
                             }
                         >
                             + Add
-                        </Button>
+                        </AddPivotButton>
                     )}
                     <SectionTitle>Show column total</SectionTitle>
                     <Switch
