@@ -74,7 +74,7 @@ export const TableConfigPanel: React.FC = () => {
                             );
 
                             return (
-                                <AxisFieldDropdown>
+                                <AxisFieldDropdown key={pivotKey}>
                                     <FieldAutoComplete
                                         fields={
                                             groupSelectedField
