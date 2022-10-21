@@ -282,7 +282,7 @@ export const getModelsFromManifest = (
         )
         .map((model) =>
             normaliseModelDatabase(
-                { ...model, name: model.alias },
+                { ...model, name: model.alias || model.name },
                 adapterType,
             ),
         );
