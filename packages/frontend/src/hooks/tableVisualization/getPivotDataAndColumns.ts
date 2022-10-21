@@ -154,7 +154,10 @@ const getPivotDataAndColumns = ({
         parentPivotValues: PivotReference['pivotValues'] = [],
     ): TableColumn[] {
         const pivotKey = pivotDimensions[depth];
-        return Object.values(pivotValuesMap[pivotKey])
+        const values = pivotValuesMap[pivotKey]
+            ? Object.values(pivotValuesMap[pivotKey])
+            : [];
+        return values
             .sort((a, b) => sortByRawValue(a.raw, b.raw))
             .map(({ raw, formatted }) => {
                 const currentPivotValues = [
