@@ -1,3 +1,10 @@
+# [0.296.0](https://github.com/lightdash/lightdash/compare/0.295.1...0.296.0) (2022-10-24)
+
+
+### Features
+
+* sort results table columns by show_underlying_values ([#3556](https://github.com/lightdash/lightdash/issues/3556)) ([3afb3b2](https://github.com/lightdash/lightdash/commit/3afb3b25bd0c255e469da8c9a70aacd58f59d056))
+
 ## [0.295.1](https://github.com/lightdash/lightdash/compare/0.295.0...0.295.1) (2022-10-21)
 
 
