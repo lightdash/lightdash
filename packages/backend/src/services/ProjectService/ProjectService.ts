@@ -33,6 +33,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
     NotFoundError,
+    ParameterError,
     Project,
     ProjectCatalog,
     ProjectMemberProfile,
@@ -511,6 +512,12 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        if (metricQuery.limit > lightdashConfig.query.maxLimit) {
+            throw new ParameterError(
+                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+            );
+        }
+
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
             metricQuery,
@@ -609,6 +616,12 @@ export class ProjectService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (limit > lightdashConfig.query.maxLimit) {
+            throw new ParameterError(
+                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+            );
         }
 
         const explore = await this.getExploreByFieldId(
