@@ -71,6 +71,7 @@ type Props = {
     onChange: (value: UnitOfTimeOption) => void;
     onClosed?: () => void;
     popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
@@ -80,10 +81,13 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     onChange,
     onClosed,
     popoverProps,
+    disabled,
 }) => (
     <>
         <AutocompleteMaxHeight />
         <FieldSuggest
+            className={disabled ? 'disabled-filter' : ''}
+            disabled={disabled}
             items={UnitOfTimeOptions(isTimestamp)}
             itemsEqual={(value, other) =>
                 value.unitOfTime === other.unitOfTime &&
@@ -117,6 +121,8 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
             }}
         >
             <Button
+                className={disabled ? 'disabled-filter' : ''}
+                disabled={disabled}
                 rightIcon="caret-down"
                 text={completed ? `completed ${unitOfTime}` : unitOfTime}
                 fill

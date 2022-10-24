@@ -33,7 +33,12 @@ import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from '../../common/Filters/FiltersProvider';
-import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
+import {
+    CardHeader,
+    DisabledFilterHeader,
+    FilterValues,
+    Tooltip,
+} from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -159,15 +164,21 @@ const FiltersCard: FC = memo(() => {
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
                 <Tooltip2
-                    content={`You must be in 'edit' or 'explore' mode to view this panel`}
                     interactionKind="hover"
                     placement={'bottom-start'}
-                    disabled={isEditMode}
+                    content={
+                        totalActiveFilters === 0 && !isEditMode
+                            ? 'This chart has no filters'
+                            : ''
+                    }
                 >
                     <Button
                         icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
                         minimal
-                        disabled={!isEditMode || !tableName}
+                        disabled={
+                            !tableName ||
+                            (totalActiveFilters === 0 && !isEditMode)
+                        }
                         onClick={() =>
                             toggleExpandedSection(ExplorerSection.FILTERS)
                         }
@@ -186,13 +197,23 @@ const FiltersCard: FC = memo(() => {
                         </Tag>
                     </Tooltip2>
                 ) : null}
+                {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
+                    <DisabledFilterHeader>
+                        You must be in 'edit' or 'explore' mode to change the
+                        filters
+                    </DisabledFilterHeader>
+                ) : null}
             </CardHeader>
-            <Collapse isOpen={isEditMode && filterIsOpen}>
+            <Collapse isOpen={filterIsOpen}>
                 <FiltersProvider
                     projectUuid={projectUuid}
                     fieldsMap={fieldsWithSuggestions}
                 >
-                    <FiltersForm filters={filters} setFilters={setFilters} />
+                    <FiltersForm
+                        isEditMode={isEditMode}
+                        filters={filters}
+                        setFilters={setFilters}
+                    />
                 </FiltersProvider>
             </Collapse>
         </Card>

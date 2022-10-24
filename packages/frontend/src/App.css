@@ -43,3 +43,21 @@
     flex-direction: column;
     overflow: hidden;
 }
+
+.disabled-filter input,
+.disabled-filter > .bp4-input,
+.disabled-filter.bp4-input {
+    background: none !important;
+    color: #1c2127 !important;
+}
+
+.disabled-filter > select,
+.disabled-filter > button {
+    background-color: #f6f7f9 !important;
+    color: #1c2127 !important;
+}
+.disabled-filter > .bp4-icon-caret-down,
+.disabled-filter > .bp4-icon-double-caret-vertical,
+.disabled-filter > .bp4-button-group {
+    display: none; /* Remove select arrow */
+}

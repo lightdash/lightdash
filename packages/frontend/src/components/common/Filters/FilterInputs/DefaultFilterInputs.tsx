@@ -17,6 +17,7 @@ export type FilterInputsProps<T extends FilterRule = FilterRule> = {
     filterRule: T;
     onChange: (value: FilterRule) => void;
     popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
 const DefaultFilterInputs: FC<FilterInputsProps> = ({
@@ -24,6 +25,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
     filterType,
     filterRule,
     popoverProps,
+    disabled,
     onChange,
 }) => {
     const { getField } = useFiltersContext();
@@ -38,6 +40,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             if (filterType === FilterType.STRING) {
                 return (
                     <MultiAutoComplete
+                        disabled={disabled}
                         field={field}
                         values={filterRule.values || []}
                         suggestions={suggestions || []}
@@ -53,7 +56,9 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             }
             return (
                 <TagInput
+                    className={disabled ? 'disabled-filter' : ''}
                     fill
+                    disabled={disabled}
                     addOnBlur
                     inputProps={{
                         type:
@@ -79,6 +84,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             if (filterType === FilterType.STRING) {
                 return (
                     <AutoComplete
+                        disabled={disabled}
                         field={field}
                         value={filterRule.values?.[0] || ''}
                         suggestions={suggestions || []}
@@ -112,6 +118,8 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
             const parsedValue = parseInt(filterRule.values?.[0], 10);
             return (
                 <NumericInput
+                    className={disabled ? 'disabled-filter' : ''}
+                    disabled={disabled}
                     fill
                     value={isNaN(parsedValue) ? undefined : parsedValue}
                     min={0}
