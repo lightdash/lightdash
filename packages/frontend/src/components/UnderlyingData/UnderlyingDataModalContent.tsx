@@ -1,6 +1,7 @@
 import { AnchorButton } from '@blueprintjs/core';
 import {
     ChartType,
+    CompiledDimension,
     CreateSavedChartVersion,
     Field,
     fieldId as getFieldId,
@@ -15,12 +16,13 @@ import {
     Metric,
     MetricQuery,
 } from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
+import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { HeaderRightContent } from './UnderlyingDataModal.styles';
 import { useUnderlyingDataContext } from './UnderlyingDataProvider';
@@ -68,6 +70,31 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             ? config?.meta.item.showUnderlyingValues
             : undefined;
     }, [config?.meta]);
+
+    const sortByUnderlyingValues = useCallback(
+        (columnA: TableColumn, columnB: TableColumn) => {
+            if (showUnderlyingValues === undefined) return 0;
+
+            const indexOfUnderlyingValue = (column: TableColumn): number => {
+                const columnDimension = allDimensions.find(
+                    (dimension) => getFieldId(dimension) === column.id,
+                );
+                if (columnDimension === undefined) return -1;
+                return showUnderlyingValues?.indexOf(columnDimension.name) !==
+                    -1
+                    ? showUnderlyingValues?.indexOf(columnDimension.name)
+                    : showUnderlyingValues?.indexOf(
+                          `${columnDimension.table}.${columnDimension.name}`,
+                      );
+            };
+
+            return (
+                indexOfUnderlyingValue(columnA) -
+                indexOfUnderlyingValue(columnB)
+            );
+        },
+        [showUnderlyingValues, allDimensions],
+    );
 
     const metricQuery = useMemo<MetricQuery>(() => {
         if (!config) return defaultMetricQuery;
@@ -177,7 +204,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 and: combinedFilters,
             },
         };
-
         const showUnderlyingTable: string | undefined = isField(meta?.item)
             ? meta.item.table
             : undefined;
@@ -277,6 +303,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 resultsData={resultsData}
                 fieldsMap={fieldsMap}
                 hasJoins={joinedTables.length > 0}
+                sortByUnderlyingValues={sortByUnderlyingValues}
             />
         </>
     );
