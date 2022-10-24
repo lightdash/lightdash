@@ -7,10 +7,12 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
+    ParameterError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

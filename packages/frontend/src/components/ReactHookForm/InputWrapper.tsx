@@ -15,6 +15,7 @@ interface InputProps {
 
 export interface InputWrapperProps {
     name: string;
+    inline?: boolean;
     label?: string;
     disabled?: boolean;
     placeholder?: string;
@@ -32,6 +33,7 @@ export interface InputWrapperProps {
 }
 
 const InputWrapper: FC<InputWrapperProps> = ({
+    inline,
     name,
     defaultValue,
     documentationUrl,
@@ -53,6 +55,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
 
     return (
         <FormGroup
+            inline={inline}
             className={`input-wrapper ${className}`}
             label={label}
             labelFor={id}

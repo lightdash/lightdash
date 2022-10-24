@@ -45,3 +45,8 @@ export const isValidEmailDomain: FieldValidator<string[]> =
                 : undefined;
         }
     };
+
+export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
+    !value || value.match(/\D/)
+        ? `${fieldName} should only contain numbers`
+        : undefined;
