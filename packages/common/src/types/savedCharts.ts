@@ -50,6 +50,11 @@ export type PivotReference = {
     pivotValues?: { field: string; value: any }[];
 };
 
+export const isPivotReferenceWithValues = (
+    value: PivotReference,
+): value is Required<PivotReference> =>
+    !!value.pivotValues && value.pivotValues.length > 0;
+
 export type Series = {
     encode: {
         xRef: PivotReference;

@@ -53,7 +53,11 @@ export const getDataFromChartClick = (
 ): UnderlyingDataConfig => {
     const withPivot =
         pivot !== undefined
-            ? { field: pivot, value: series[e.seriesIndex].pivotRawValue }
+            ? {
+                  field: pivot,
+                  value: series[e.seriesIndex].pivotReference?.pivotValues?.[0]
+                      .value,
+              }
             : undefined;
 
     const selectedFields = Object.values(itemsMap).filter((item) => {

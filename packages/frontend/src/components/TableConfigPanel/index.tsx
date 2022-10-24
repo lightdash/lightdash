@@ -15,7 +15,7 @@ import {
     SectionTitle,
 } from './TableConfig.styles';
 
-const MAX_PIVOTS = 3;
+export const MAX_PIVOTS = 3;
 
 export const TableConfigPanel: React.FC = () => {
     const {

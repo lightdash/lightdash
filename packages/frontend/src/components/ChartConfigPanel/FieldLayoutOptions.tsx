@@ -10,6 +10,8 @@ import React, { FC, useCallback, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { MAX_PIVOTS } from '../TableConfigPanel';
+import { AddPivotButton } from '../TableConfigPanel/TableConfig.styles';
 import {
     AxisFieldDropdown,
     AxisGroup,
@@ -44,8 +46,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
         setPivotDimensions,
     } = useVisualizationContext();
 
-    const pivotDimension = pivotDimensions?.[0];
-
     const cartesianType = cartesianConfig.dirtyChartType;
 
     const canBeStacked =
@@ -75,10 +75,6 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
     }, [dirtyLayout, items]);
 
     // Group series logic
-    const groupSelectedField = items.find(
-        (item) => getItemId(item) === pivotDimension,
-    );
-
     const availableDimensions = useMemo(() => {
         return items.filter((item) => isDimension(item));
     }, [items]);
@@ -96,6 +92,26 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             (item) => !isDimension(item) && yField.includes(getItemId(item)),
         );
     }, [validCartesianConfig, items]);
+
+    const availableGroupByDimensions = useMemo(
+        () =>
+            availableDimensions.filter(
+                (item) => !pivotDimensions?.includes(getItemId(item)),
+            ),
+        [availableDimensions, pivotDimensions],
+    );
+
+    const canAddPivot = useMemo(
+        () =>
+            chartHasMetricOrTableCalc &&
+            availableGroupByDimensions.length > 0 &&
+            (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
+        [
+            availableGroupByDimensions.length,
+            pivotDimensions,
+            chartHasMetricOrTableCalc,
+        ],
+    );
 
     return (
         <>
@@ -173,33 +189,80 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
             >
                 <AxisGroup>
                     <AxisTitle>Group</AxisTitle>
-                    <AxisFieldDropdown>
-                        <FieldAutoComplete
-                            fields={availableDimensions}
-                            placeholder="Select a field to group by"
-                            activeField={
-                                chartHasMetricOrTableCalc
-                                    ? groupSelectedField
-                                    : undefined
+                    {pivotDimensions &&
+                        pivotDimensions.map((pivotKey) => {
+                            // Group series logic
+                            const groupSelectedField = availableDimensions.find(
+                                (item) => getItemId(item) === pivotKey,
+                            );
+
+                            return (
+                                <AxisFieldDropdown key={pivotKey}>
+                                    <FieldAutoComplete
+                                        fields={
+                                            groupSelectedField
+                                                ? [
+                                                      groupSelectedField,
+                                                      ...availableGroupByDimensions,
+                                                  ]
+                                                : availableGroupByDimensions
+                                        }
+                                        placeholder="Select a field to group by"
+                                        activeField={
+                                            chartHasMetricOrTableCalc
+                                                ? groupSelectedField
+                                                : undefined
+                                        }
+                                        onChange={(item) => {
+                                            setPivotDimensions(
+                                                pivotDimensions
+                                                    ? pivotDimensions.map(
+                                                          (key) =>
+                                                              key !== pivotKey
+                                                                  ? key
+                                                                  : getItemId(
+                                                                        item,
+                                                                    ),
+                                                      )
+                                                    : [getItemId(item)],
+                                            );
+                                        }}
+                                        disabled={!chartHasMetricOrTableCalc}
+                                    />
+                                    {groupSelectedField && (
+                                        <DeleteFieldButton
+                                            minimal
+                                            icon="cross"
+                                            onClick={() => {
+                                                setPivotDimensions(
+                                                    pivotDimensions.filter(
+                                                        (key) =>
+                                                            key !== pivotKey,
+                                                    ),
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </AxisFieldDropdown>
+                            );
+                        })}
+                    {canAddPivot && (
+                        <AddPivotButton
+                            minimal
+                            intent="primary"
+                            onClick={() =>
+                                setPivotDimensions([
+                                    ...(pivotDimensions || []),
+                                    getItemId(availableGroupByDimensions[0]),
+                                ])
                             }
-                            onChange={(item) => {
-                                setPivotDimensions([getItemId(item)]);
-                            }}
-                            disabled={!chartHasMetricOrTableCalc}
-                        />
-                        {groupSelectedField && (
-                            <DeleteFieldButton
-                                minimal
-                                icon="cross"
-                                onClick={() => {
-                                    setPivotDimensions([]);
-                                }}
-                            />
-                        )}
-                    </AxisFieldDropdown>
+                        >
+                            + Add
+                        </AddPivotButton>
+                    )}
                 </AxisGroup>
             </BlockTooltip>
-            {pivotDimension && canBeStacked && (
+            {pivotDimensions && pivotDimensions.length > 0 && canBeStacked && (
                 <AxisGroup>
                     <GridLabel>Stacking</GridLabel>
                     <StackingWrapper fill>
