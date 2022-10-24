@@ -1,6 +1,6 @@
 import { Intent } from '@blueprintjs/core';
 import { Classes } from '@blueprintjs/popover2';
-import React, { FC, useCallback, useEffect } from 'react';
+import React, { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
 import { isOnlyNumbers } from '../../utils/fieldValidators';
@@ -15,19 +15,16 @@ const LimitForm: FC<Pick<Props, 'limit' | 'onLimitChange'>> = ({
     const { health } = useApp();
     const methods = useForm<{ limit: string }>({
         mode: 'onChange',
+        defaultValues: {
+            limit: limit?.toString(),
+        },
     });
     const {
-        setValue,
         formState: { isValid },
     } = methods;
 
-    useEffect(() => {
-        setValue('limit', limit?.toString());
-    }, [limit, setValue]);
-
     const handleSubmit = useCallback(
         (data: { limit: string }) => {
-            console.log('handleSubmit');
             onLimitChange(parseInt(data.limit));
         },
         [onLimitChange],
