@@ -767,6 +767,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "IstvanM",
+      "name": "Istvan Meszaros",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4189234?v=4",
+      "profile": "http://www.whispy.me",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,
