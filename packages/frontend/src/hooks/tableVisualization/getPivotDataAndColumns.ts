@@ -3,6 +3,8 @@ import {
     ApiQueryResults,
     Field,
     formatItemValue,
+    hashFieldReference,
+    PivotReference,
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
@@ -11,7 +13,7 @@ import {
     TableColumn,
     TableHeader,
 } from '../../components/common/Table/types';
-import { getPivotedData } from '../plottedData/usePlottedData';
+import { getPivotedData, PivotValueMap } from '../plottedData/usePlottedData';
 import { getResultColumnTotals, isSummable } from '../useColumnTotals';
 
 const sortByRawValue = (a: any, b: any) => {
@@ -31,17 +33,41 @@ type Args = {
     columnOrder: string[];
     itemsMap: Record<string, Field | TableCalculation>;
     resultsData: ApiQueryResults;
-    pivotDimension: string;
+    pivotDimensions: string[];
     isColumnVisible: (key: string) => boolean;
     getHeader: (key: string) => string | undefined;
     getDefaultColumnLabel: (key: string) => string;
 };
 
+const getPivottedColumnCount = (pivotValuesMap: PivotValueMap) =>
+    Object.values(pivotValuesMap).reduce<number>(
+        (acc, values) => acc * Object.keys(values).length,
+        1,
+    );
+
+const getHeaderBgColor = (pivotsLength: number, pivotIndex: number) => {
+    const colorPalette = [
+        Colors.GRAY4,
+        Colors.GRAY3,
+        Colors.GRAY2,
+        Colors.GRAY1,
+    ];
+    const maxIndex = pivotsLength - 1;
+    return colorPalette[maxIndex - pivotIndex];
+};
+
+const EmptyColumn = columnHelper.accessor('empty-column', {
+    id: 'empty-column',
+    header: '',
+    cell: () => '',
+    footer: () => null,
+});
+
 const getPivotDataAndColumns = ({
     columnOrder,
     itemsMap,
     resultsData,
-    pivotDimension,
+    pivotDimensions,
     isColumnVisible,
     getHeader,
     getDefaultColumnLabel,
@@ -50,23 +76,26 @@ const getPivotDataAndColumns = ({
     columns: Array<TableHeader | TableColumn>;
     error?: string;
 } => {
+    const keysToPivot = [
+        ...resultsData.metricQuery.metrics,
+        ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
+    ].filter((itemId) => isColumnVisible(itemId));
+    const keysToNotPivot = resultsData.metricQuery.dimensions.filter(
+        (itemId) =>
+            isColumnVisible(itemId) && !pivotDimensions.includes(itemId),
+    );
     const { rows, pivotValuesMap, rowKeyMap } = getPivotedData(
         resultsData.rows,
-        pivotDimension,
-        [
-            ...resultsData.metricQuery.metrics,
-            ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
-        ].filter((itemId) => isColumnVisible(itemId)),
-        resultsData.metricQuery.dimensions.filter(
-            (itemId) => isColumnVisible(itemId) && pivotDimension !== itemId,
-        ),
+        pivotDimensions,
+        keysToPivot,
+        keysToNotPivot,
     );
 
-    if (Object.keys(pivotValuesMap).length > 60) {
+    if (getPivottedColumnCount(pivotValuesMap) > 60) {
         return {
             rows: [],
             columns: [],
-            error: 'Exceeded max amount of 60 pivot values',
+            error: 'Exceeded max amount of 60 columns from pivot values',
         };
     }
 
@@ -79,100 +108,132 @@ const getPivotDataAndColumns = ({
         }, []),
     );
 
-    const dimensionHeaders = Object.values(rowKeyMap).reduce<TableColumn[]>(
-        (acc, ref) => {
-            if (typeof ref === 'string') {
-                const item = itemsMap[ref];
-                const column: TableColumn = columnHelper.accessor(
-                    (row) => row[ref],
+    const dimensionHeaders =
+        keysToNotPivot.length > 0
+            ? keysToNotPivot.map((itemId) => {
+                  const item = itemsMap[itemId];
+                  const column: TableColumn = columnHelper.accessor(
+                      (row) => row[itemId],
+                      {
+                          id: itemId,
+                          header:
+                              getHeader(itemId) ||
+                              getDefaultColumnLabel(itemId),
+                          cell: (info) =>
+                              info.getValue()?.value.formatted || '-',
+                          footer: () =>
+                              totals[itemId]
+                                  ? formatItemValue(item, totals[itemId])
+                                  : null,
+                          meta: {
+                              item,
+                          },
+                      },
+                  );
+                  return column;
+              })
+            : [EmptyColumn];
+
+    // Recursive function to add nested pivot and dimension names
+    function getNonPivotedHeaderGroup(depth: number = 0): TableColumn {
+        const pivotKey = pivotDimensions[depth];
+        return columnHelper.group({
+            id: `dimensions_header_group_${pivotKey}`,
+            header: getHeader(pivotKey) || getDefaultColumnLabel(pivotKey),
+            columns: pivotDimensions[depth + 1]
+                ? [getNonPivotedHeaderGroup(depth + 1)]
+                : dimensionHeaders,
+            meta: {
+                bgColor: getHeaderBgColor(pivotDimensions.length, depth),
+                item: itemsMap[pivotKey],
+            },
+        }) as TableColumn;
+    }
+
+    // Recursive function to add nested pivot values and pivoted columns names
+    function getPivotHeaderGroups(
+        depth: number = 0,
+        parentPivotValues: PivotReference['pivotValues'] = [],
+    ): TableColumn[] {
+        const pivotKey = pivotDimensions[depth];
+        const values = pivotValuesMap[pivotKey]
+            ? Object.values(pivotValuesMap[pivotKey])
+            : [];
+        return values
+            .sort((a, b) => sortByRawValue(a.raw, b.raw))
+            .map(({ raw, formatted }) => {
+                const currentPivotValues = [
+                    ...parentPivotValues,
                     {
-                        id: ref,
-                        header: getHeader(ref) || getDefaultColumnLabel(ref),
-                        cell: (info) => info.getValue()?.value.formatted || '-',
-                        footer: () =>
-                            totals[ref]
-                                ? formatItemValue(item, totals[ref])
-                                : null,
-                        meta: {
-                            item,
-                        },
+                        field: pivotKey,
+                        value: raw,
                     },
-                );
-                return [...acc, column];
-            }
-            return acc;
-        },
-        [],
-    );
-    const dimensionsHeaderGroup = columnHelper.group({
-        id: 'dimensions_header_group',
-        header:
-            getHeader(pivotDimension) || getDefaultColumnLabel(pivotDimension),
-        columns: dimensionHeaders,
-        meta: {
-            bgColor: Colors.GRAY4,
-            item: itemsMap[pivotDimension],
-        },
-    });
+                ];
+                let innerColumns: TableColumn[];
+                if (pivotDimensions[depth + 1]) {
+                    innerColumns = getPivotHeaderGroups(
+                        depth + 1,
+                        currentPivotValues,
+                    );
+                } else {
+                    innerColumns = keysToPivot
+                        .sort((a, b) => {
+                            return (
+                                columnOrder.findIndex((id) => id === a) -
+                                columnOrder.findIndex((id) => id === b)
+                            );
+                        })
+                        .reduce<TableColumn[]>((acc, itemId) => {
+                            const item = itemsMap[itemId];
+                            const pivotReference: PivotReference = {
+                                field: itemId,
+                                pivotValues: currentPivotValues,
+                            };
+                            const key = hashFieldReference(pivotReference);
+                            const column: TableColumn = columnHelper.accessor(
+                                (row) => row[key],
+                                {
+                                    id: key,
+                                    header:
+                                        getHeader(itemId) ||
+                                        getDefaultColumnLabel(itemId),
+                                    cell: (info) =>
+                                        info.getValue()?.value.formatted || '-',
 
-    const pivotValueHeaderGroups = Object.values(pivotValuesMap)
-        .sort((a, b) => sortByRawValue(a.raw, b.raw))
-        .map(({ raw, formatted }) => {
-            return columnHelper.group({
-                id: `pivot_header_group_${raw}`,
-                header: () => formatted,
-                meta: {
-                    bgColor: Colors.GRAY4,
-                },
-                columns: Object.entries(rowKeyMap)
-                    .filter(([_, ref]) => {
-                        return (
-                            typeof ref !== 'string' &&
-                            ref.pivotValues &&
-                            ref.pivotValues[0]?.value === raw
-                        );
-                    })
-                    .sort(([_, aRef], [__, bRef]) => {
-                        const a = typeof aRef === 'string' ? aRef : aRef.field;
-                        const b = typeof bRef === 'string' ? bRef : bRef.field;
-                        return (
-                            columnOrder.findIndex((id) => id === a) -
-                            columnOrder.findIndex((id) => id === b)
-                        );
-                    })
-                    .reduce<TableColumn[]>((acc, [key, ref]) => {
-                        if (typeof ref === 'string') {
-                            return acc;
-                        }
-                        const item = itemsMap[ref.field];
-                        const column: TableColumn = columnHelper.accessor(
-                            (row) => row[key],
-                            {
-                                id: key,
-                                header:
-                                    getHeader(ref.field) ||
-                                    getDefaultColumnLabel(ref.field),
-                                cell: (info) =>
-                                    info.getValue()?.value.formatted || '-',
-                                footer: () =>
-                                    totals[key]
-                                        ? formatItemValue(item, totals[key])
-                                        : null,
-                                meta: {
-                                    item,
-                                    pivotReference: ref,
+                                    footer: () =>
+                                        totals[key]
+                                            ? formatItemValue(item, totals[key])
+                                            : null,
+                                    meta: {
+                                        item,
+                                        pivotReference,
+                                    },
                                 },
-                            },
-                        );
-                        return [...acc, column];
-                    }, []),
+                            );
+                            return [...acc, column];
+                        }, []);
+                }
+                return columnHelper.group({
+                    id: `pivot_header_group${currentPivotValues.map(
+                        ({ field, value }) => `_${field}_${value}`,
+                    )}`,
+                    header: () => formatted,
+                    meta: {
+                        bgColor: getHeaderBgColor(
+                            pivotDimensions.length,
+                            depth,
+                        ),
+                    },
+                    columns: innerColumns,
+                }) as TableColumn;
             });
-        });
+    }
 
-    const columns = [dimensionsHeaderGroup, ...pivotValueHeaderGroups];
+    const nonPivotedHeaderGroup = getNonPivotedHeaderGroup();
+    const pivotValuesHeaderGroups = getPivotHeaderGroups();
     return {
         rows,
-        columns,
+        columns: [nonPivotedHeaderGroup, ...pivotValuesHeaderGroups],
     };
 };
 

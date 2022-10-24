@@ -1,4 +1,4 @@
-import { Colors, FormGroup } from '@blueprintjs/core';
+import { Button, Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ConfigWrapper = styled(FormGroup)`
@@ -17,5 +17,9 @@ export const ConfigWrapper = styled(FormGroup)`
 export const SectionTitle = styled.p`
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
+    margin-bottom: 0.286em;
+`;
+
+export const AddPivotButton = styled(Button)`
     margin-bottom: 0.286em;
 `;
