@@ -62,6 +62,9 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     allowMultiOrgs: false,
     maxPayloadSize: '5mb',
+    query: {
+        maxLimit: 5000,
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
