@@ -51,6 +51,7 @@ FROM base AS prod-builder
 COPY package.json .
 COPY yarn.lock .
 COPY tsconfig.json .
+COPY eslintrc.js .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
