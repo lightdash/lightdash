@@ -1,3 +1,11 @@
+# [0.297.0](https://github.com/lightdash/lightdash/compare/0.296.0...0.297.0) (2022-10-24)
+
+
+### Features
+
+* add max row limit ([#3546](https://github.com/lightdash/lightdash/issues/3546)) ([012d702](https://github.com/lightdash/lightdash/commit/012d70267a85317f492f3fe96039fdf55526d87c))
+* support multiple pivots in table visualisations  ([#3537](https://github.com/lightdash/lightdash/issues/3537)) ([eecc880](https://github.com/lightdash/lightdash/commit/eecc8800f9d34764bf09dfe96efda70240e201e8))
+
 # [0.296.0](https://github.com/lightdash/lightdash/compare/0.295.1...0.296.0) (2022-10-24)
 
 
