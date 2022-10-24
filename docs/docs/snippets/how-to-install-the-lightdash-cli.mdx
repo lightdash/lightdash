@@ -1,3 +1,15 @@
+The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
+easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
+
+Before installing Lightdash CLI, you need to have NodeJS/NPM installed on your machine. To check that, run the following command in your terminal:
+
+```shell
+node -v; npm -v;
+# it should print something like:
+# v16.17.0
+# 8.15.0
+```
+
 <details>
   <summary><b>Don't have NodeJS/NPM installed in your system?</b></summary>
 
@@ -5,7 +17,7 @@ We recommend installing NodeJS/NPM using [NVM (Node Version Manager)](https://gi
 
 Open your terminal and run the command below to install NVM (Node Version Manager) to your system.
 
-```bash
+```shell
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 # or
 wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
@@ -13,13 +25,13 @@ wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 
 Restart terminal and install NodeJS by running
 
-```bash
+```shell
 nvm install --lts
 ```
 
 Check that NodeJS is installed by running
 
-```bash
+```shell
 node -v
 ```
 
@@ -31,10 +43,7 @@ Alternatively, you can [install NodeJS/NPM via your preferred package manager](h
 
 </details>
 
-The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
-easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
-
-To install the Lightdash CLI, run the following on your command line.
+Run the following on your terminal to install the Lightdash CLI.
 
 ```shell
 npm install -g @lightdash/cli
