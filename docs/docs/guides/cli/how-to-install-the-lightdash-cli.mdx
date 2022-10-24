@@ -1,50 +1,8 @@
+import HowToInstallTheLightdashCli from './../../snippets/how-to-install-the-lightdash-cli.mdx';
+
 # How to install the Lightdash CLI
 
-<details>
-  <summary><b>Don't have NodeJS/NPM installed in your system?</b></summary>
-
-We recommend installing NodeJS/NPM using [NVM (Node Version Manager)](https://github.com/nvm-sh/nvm#install--update-script) which works for POSIX-compliant shells (sh, dash, ksh, zsh, bash on these platforms: unix, macOS, and windows WSL)
-
-Open your terminal and run the command below to install NVM (Node Version Manager) to your system.
-
-```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-# or
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-```
-
-Restart terminal and install NodeJS by running
-
-```bash
-nvm install --lts
-```
-
-Check that NodeJS is installed by running
-
-```bash
-node -v
-```
-
-Running the command above should output something like `v16.18.0` which means you've succesfully installed NodeJS/NPM 🎉
-
----
-
-Alternatively, you can [install NodeJS/NPM via your preferred package manager](https://nodejs.org/en/download/package-manager/).
-
-</details>
-
-The Lightdash CLI is the recommended way to develop your dbt + Lightdash project. It makes development faster and
-easier, as well as giving you options for building more powerful automation to manage your Lightdash instance.
-
-To install the Lightdash CLI, run the following on your command line.
-
-```shell
-npm install -g @lightdash/cli
-```
-
-:::danger
-If you get an `npm ERR! code EACCES` error while installing the Lightdash CLI, [follow this guide](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) to resolve it.
-:::
+<HowToInstallTheLightdashCli />
 
 ## Once you've installed the CLI tool, [you'll want to authenticate it](/guides/cli/cli-authentication)
 
