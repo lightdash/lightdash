@@ -1,3 +1,10 @@
+# [0.298.0](https://github.com/lightdash/lightdash/compare/0.297.0...0.298.0) (2022-10-24)
+
+
+### Features
+
+* view mode chart filters ([#3515](https://github.com/lightdash/lightdash/issues/3515)) ([091c948](https://github.com/lightdash/lightdash/commit/091c94884ac943a60e567ce7fc86896b3066f472))
+
 # [0.297.0](https://github.com/lightdash/lightdash/compare/0.296.0...0.297.0) (2022-10-24)
 
 
