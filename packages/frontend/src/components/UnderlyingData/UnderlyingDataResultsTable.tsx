@@ -10,6 +10,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
+import { TableColumn } from '../common/Table/types';
 import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 import CellContextMenu from './CellContextMenu';
 import { LoadingPanel } from './UnderlyingDataModal.styles';
@@ -19,7 +20,17 @@ const UnderlyingDataResultsTable: FC<{
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     hasJoins?: boolean;
-}> = ({ fieldsMap, resultsData, isLoading, hasJoins }) => {
+    sortByUnderlyingValues: (
+        columnA: TableColumn,
+        columnB: TableColumn,
+    ) => number;
+}> = ({
+    fieldsMap,
+    resultsData,
+    isLoading,
+    hasJoins,
+    sortByUnderlyingValues,
+}) => {
     const columnHeader = useCallback(
         (dimension: Field) => (
             <TableHeaderLabelContainer>
