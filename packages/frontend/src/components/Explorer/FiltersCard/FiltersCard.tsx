@@ -163,14 +163,27 @@ const FiltersCard: FC = memo(() => {
     return (
         <Card style={{ padding: 5 }} elevation={1}>
             <CardHeader>
-                <Button
-                    icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
-                    minimal
-                    disabled={!tableName || totalActiveFilters === 0}
-                    onClick={() =>
-                        toggleExpandedSection(ExplorerSection.FILTERS)
+                <Tooltip2
+                    interactionKind="hover"
+                    placement={'bottom-start'}
+                    content={
+                        totalActiveFilters === 0 && !isEditMode
+                            ? 'This chart has no filters'
+                            : ''
                     }
-                />
+                >
+                    <Button
+                        icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
+                        minimal
+                        disabled={
+                            !tableName ||
+                            (totalActiveFilters === 0 && !isEditMode)
+                        }
+                        onClick={() =>
+                            toggleExpandedSection(ExplorerSection.FILTERS)
+                        }
+                    />
+                </Tooltip2>
                 <H5>Filters</H5>
                 {totalActiveFilters > 0 && !filterIsOpen ? (
                     <Tooltip2
