@@ -69,7 +69,7 @@ const UnderlyingDataResultsTable: FC<{
                 <Table
                     status={'success'}
                     data={resultsData?.rows || []}
-                    columns={columns}
+                    columns={columns.sort(sortByUnderlyingValues)}
                     pagination={{
                         show: true,
                         defaultScroll: true,
