@@ -776,6 +776,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "rifkiamil",
+      "name": "Rif",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1672403?v=4",
+      "profile": "https://rifkiamil.medium.com/",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
