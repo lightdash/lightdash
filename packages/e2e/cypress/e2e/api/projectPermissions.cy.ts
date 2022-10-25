@@ -784,13 +784,15 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         });
     });
 
-    it('Should get 404 from GET /org/projects', () => {
+    it('Should get an empty project list (200) from GET /org/projects', () => {
         cy.request({
             url: `${apiUrl}/org/projects`,
             headers: { 'Content-type': 'application/json' },
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(404);
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+            expect(resp.body.results).to.have.length(0);
         });
     });
 

@@ -165,7 +165,8 @@ describe('Lightdash API organization permission tests', () => {
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body).to.eq([]);
+            expect(resp.body).to.have.property('status', 'ok');
+            expect(resp.body.results).to.have.length(0);
         });
     });
 
