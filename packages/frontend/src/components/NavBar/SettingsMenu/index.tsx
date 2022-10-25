@@ -3,10 +3,22 @@ import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../../hooks/useProject';
+import { useApp } from '../../../providers/AppProvider';
 
 const SettingsMenu: FC = () => {
+    const { user } = useApp();
     const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
+
+    const userCanManageProjects = user.data?.ability?.can('manage', 'Project');
+    const userCanManageOrganization = user.data?.ability?.can(
+        'manage',
+        'Organization',
+    );
+
+    if (!userCanManageProjects && !userCanManageOrganization) {
+        return null;
+    }
 
     return (
         <Popover2
@@ -14,7 +26,7 @@ const SettingsMenu: FC = () => {
             position={PopoverPosition.BOTTOM_RIGHT}
             content={
                 <Menu>
-                    {activeProjectUuid && (
+                    {activeProjectUuid && userCanManageProjects && (
                         <MenuItem2
                             icon="database"
                             text="Project settings"
@@ -25,13 +37,16 @@ const SettingsMenu: FC = () => {
                             }}
                         />
                     )}
-                    <MenuItem2
-                        icon="office"
-                        text="Organization settings"
-                        onClick={() => {
-                            history.push(`/generalSettings/organization`);
-                        }}
-                    />
+
+                    {userCanManageOrganization && (
+                        <MenuItem2
+                            icon="office"
+                            text="Organization settings"
+                            onClick={() => {
+                                history.push(`/generalSettings/organization`);
+                            }}
+                        />
+                    )}
                 </Menu>
             }
         >
