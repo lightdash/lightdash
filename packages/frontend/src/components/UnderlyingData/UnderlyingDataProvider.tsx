@@ -47,26 +47,18 @@ type UnderlyingDataContext = {
 
 export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
-    pivot: string | undefined,
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
 ): UnderlyingDataConfig => {
-    const withPivot =
-        pivot !== undefined
-            ? {
-                  field: pivot,
-                  value: series[e.seriesIndex].pivotReference?.pivotValues?.[0]
-                      .value,
-              }
-            : undefined;
-
+    const pivotReference = series[e.seriesIndex].pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
-        if (!isDimension(item) && withPivot) {
+        if (
+            !isDimension(item) &&
+            pivotReference &&
+            pivotReference.field === getItemId(item)
+        ) {
             return e.dimensionNames.includes(
-                hashFieldReference({
-                    field: getItemId(item),
-                    pivotValues: [withPivot],
-                }),
+                hashFieldReference(pivotReference),
             );
         }
         return e.dimensionNames.includes(getItemId(item));
@@ -92,10 +84,7 @@ export const getDataFromChartClick = (
         meta: { item: selectedField },
         value: { raw: selectedValue, formatted: selectedValue },
         row,
-        pivotReference: {
-            field: getItemId(selectedField),
-            pivotValues: withPivot ? [withPivot] : undefined,
-        },
+        pivotReference,
     };
 };
 const Context = createContext<UnderlyingDataContext | undefined>(undefined);

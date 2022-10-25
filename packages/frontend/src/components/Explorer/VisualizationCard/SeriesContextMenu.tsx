@@ -19,9 +19,8 @@ import {
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
     dimensions: string[] | undefined;
-    pivot: string | undefined;
     series: EChartSeries[] | undefined;
-}> = memo(({ echartSeriesClickEvent, dimensions, pivot, series }) => {
+}> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -59,7 +58,6 @@ export const SeriesContextMenu: FC<{
 
             const underlyingData = getDataFromChartClick(
                 echartSeriesClickEvent,
-                pivot,
                 allItemsMap,
                 series || [],
             );
@@ -76,7 +74,6 @@ export const SeriesContextMenu: FC<{
         explore,
         echartSeriesClickEvent,
         metricQuery,
-        pivot,
         series,
         viewData,
         dimensions,

@@ -13,7 +13,6 @@ import { VisualizationCardContentWrapper } from './VisualizationCard.styles';
 export type EchartsClickEvent = {
     event: EchartSeriesClickEvent;
     dimensions: string[];
-    pivot: string | undefined;
     series: EChartSeries[];
 };
 
@@ -36,7 +35,6 @@ const VisualizationCardBody: FC<{
                 <SeriesContextMenu
                     echartSeriesClickEvent={echartsClickEvent?.event}
                     dimensions={echartsClickEvent?.dimensions}
-                    pivot={echartsClickEvent?.pivot}
                     series={echartsClickEvent?.series}
                 />
             </VisualizationCardContentWrapper>
