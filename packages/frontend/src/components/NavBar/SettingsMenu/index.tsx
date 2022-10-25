@@ -14,15 +14,17 @@ const SettingsMenu: FC = () => {
             position={PopoverPosition.BOTTOM_RIGHT}
             content={
                 <Menu>
-                    <MenuItem2
-                        icon="database"
-                        text="Project settings"
-                        onClick={() => {
-                            history.push(
-                                `/projects/${activeProjectUuid}/settings`,
-                            );
-                        }}
-                    />
+                    {activeProjectUuid && (
+                        <MenuItem2
+                            icon="database"
+                            text="Project settings"
+                            onClick={() => {
+                                history.push(
+                                    `/projects/${activeProjectUuid}/settings`,
+                                );
+                            }}
+                        />
+                    )}
                     <MenuItem2
                         icon="office"
                         text="Organization settings"
