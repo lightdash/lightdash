@@ -27,7 +27,7 @@ const SettingsMenu: FC = () => {
                         icon="office"
                         text="Organization settings"
                         onClick={() => {
-                            history.push(`/generalSettings`);
+                            history.push(`/generalSettings/organization`);
                         }}
                     />
                 </Menu>
