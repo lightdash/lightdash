@@ -235,11 +235,20 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             )}
             <GroupSeriesWrapper>
                 {seriesGroup?.map((singleSeries) => {
-                    const formattedValue = getFormatterValue(
-                        singleSeries.encode.yRef.pivotValues![0].value,
-                        singleSeries.encode.yRef.pivotValues![0].field,
-                        items,
-                    );
+                    const pivotLabel =
+                        singleSeries.encode.yRef.pivotValues!.reduce(
+                            (acc, { field, value }) => {
+                                const formattedValue = getFormatterValue(
+                                    value,
+                                    field,
+                                    items,
+                                );
+                                return acc
+                                    ? `${acc} - ${formattedValue}`
+                                    : formattedValue;
+                            },
+                            '',
+                        );
                     return (
                         <GroupedSeriesConfigWrapper
                             key={getSeriesId(singleSeries)}
@@ -250,10 +259,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 series={singleSeries}
                                 seriesLabel={
                                     layout?.yField && layout.yField.length > 1
-                                        ? `[${formattedValue}] ${getItemLabel(
+                                        ? `[${pivotLabel}] ${getItemLabel(
                                               item,
                                           )}`
-                                        : formattedValue
+                                        : pivotLabel
                                 }
                                 fallbackColor={getSeriesColor(
                                     getSeriesId(singleSeries),
