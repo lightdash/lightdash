@@ -78,6 +78,7 @@ COPY packages/frontend ./packages/frontend
 RUN yarn --cwd ./packages/frontend/ build
 
 # Cleanup development dependencies
+RUN rm -rf node_modules
 RUN rm -rf packages/*/node_modules
 
 # Install production dependencies
