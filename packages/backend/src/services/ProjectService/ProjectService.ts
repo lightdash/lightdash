@@ -499,6 +499,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
+        fetchAll: boolean,
     ): Promise<ApiQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -512,7 +513,7 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        if (metricQuery.limit > lightdashConfig.query.maxLimit) {
+        if (!fetchAll && metricQuery.limit > lightdashConfig.query.maxLimit) {
             throw new ParameterError(
                 `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
             );

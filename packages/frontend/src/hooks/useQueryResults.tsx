@@ -12,6 +12,23 @@ import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
+export const getAllQueryResults = async ({
+    projectUuid,
+    tableId,
+    query,
+}: {
+    projectUuid: string;
+    tableId: string;
+    query: MetricQuery;
+}) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runQueryAll`,
+        method: 'POST',
+        body: JSON.stringify(timezoneFixQuery),
+    });
+};
+
 export const getQueryResults = async ({
     projectUuid,
     tableId,

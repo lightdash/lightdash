@@ -21,7 +21,10 @@ import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
+import {
+    getAllQueryResults,
+    useUnderlyingDataResults,
+} from '../../hooks/useQueryResults';
 import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { HeaderRightContent } from './UnderlyingDataModal.styles';
