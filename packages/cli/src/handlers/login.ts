@@ -138,25 +138,23 @@ export const login = async (url: string, options: LoginOptions) => {
         if (process.env.CI === 'true') {
             await setFirstProject({ verbose: options.verbose });
         } else {
-            await setProjectInteractively({ verbose: options.verbose });
+            const project = await setProjectInteractively({
+                verbose: options.verbose,
+            });
+
+            if (!project) {
+                console.error(
+                    'Now you can add your first project to lightdash by doing: ',
+                );
+                console.error(
+                    `\n  ${styles.bold(`⚡️ lightdash deploy --create`)}\n`,
+                );
+            }
         }
-    } catch (e: any) {
-        if (options.verbose)
-            console.error(
-                `> Set project returned response: ${JSON.stringify(e)}`,
-            );
-        if (e !== undefined && e.statusCode === 404) {
-            console.error(
-                'Now you can add your first project to lightdash by doing: ',
-            );
-            console.error(
-                `\n  ${styles.bold(`⚡️ lightdash deploy --create`)}\n`,
-            );
-        } else {
-            console.error('Unable to select projects, try with: ');
-            console.error(
-                `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,
-            );
-        }
+    } catch {
+        console.error('Unable to select projects, try with: ');
+        console.error(
+            `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,
+        );
     }
 };

@@ -63,7 +63,6 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     useProjects({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
-        retry: false,
         onSuccess: async (newProjects) => {
             if (!initialProjectFetch.current) {
                 existingProjects.current = newProjects;
@@ -88,12 +87,6 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 history.replace(
                     `/createProject/cli?projectUuid=${newProjectUuid}`,
                 );
-            }
-        },
-        onError: ({ error }) => {
-            if (error.statusCode === 404) {
-                existingProjects.current = [];
-                initialProjectFetch.current = true;
             }
         },
     });

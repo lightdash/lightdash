@@ -16,28 +16,13 @@ const getProjectsQuery = async () =>
     });
 
 export const useProjects = (
-    useQueryOptions: UseQueryOptions<OrganizationProject[], ApiError> = {
-        retry: false,
-    },
+    useQueryOptions?: UseQueryOptions<OrganizationProject[], ApiError>,
 ) => {
-    const queryClient = useQueryClient();
-
-    const query = useQuery<OrganizationProject[], ApiError>({
+    return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
         ...useQueryOptions,
-        onError: (e) => {
-            if (e.error.statusCode === 404) {
-                queryClient.setQueryData<OrganizationProject[]>(
-                    ['projects'],
-                    [],
-                );
-            }
-            useQueryOptions.onError?.(e);
-        },
     });
-
-    return query;
 };
 
 const LAST_PROJECT_KEY = 'lastProject';

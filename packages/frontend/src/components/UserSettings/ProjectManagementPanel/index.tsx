@@ -9,7 +9,7 @@ import {
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
 import React, { FC, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Redirect, useHistory } from 'react-router-dom';
 import {
     deleteLastProject,
     getLastProject,
@@ -128,14 +128,7 @@ const ProjectListItem: FC<{
 
 const ProjectManagementPanel: FC = () => {
     const history = useHistory();
-    const { data, isError, isLoading } = useProjects({
-        retry: false,
-        onError: ({ error }) => {
-            if (error.statusCode === 404) {
-                history.push('/createProject');
-            }
-        },
-    });
+    const { data, isLoading } = useProjects();
     const lastProjectUuid = getLastProject();
 
     const lastProject = data?.find(
@@ -143,6 +136,10 @@ const ProjectManagementPanel: FC = () => {
     );
 
     if (isLoading || !data) return null;
+
+    if (data.length === 0) {
+        return <Redirect to="/createProject" />;
+    }
 
     return (
         <ProjectManagementPanelWrapper>
@@ -157,17 +154,15 @@ const ProjectManagementPanel: FC = () => {
                 </Can>
             </HeaderActions>
 
-            {!isError &&
-                data.length > 0 &&
-                data.map((project) => (
-                    <ProjectListItem
-                        key={project.projectUuid}
-                        isCurrentProject={
-                            lastProject?.projectUuid === project.projectUuid
-                        }
-                        project={project}
-                    />
-                ))}
+            {data.map((project) => (
+                <ProjectListItem
+                    key={project.projectUuid}
+                    isCurrentProject={
+                        lastProject?.projectUuid === project.projectUuid
+                    }
+                    project={project}
+                />
+            ))}
         </ProjectManagementPanelWrapper>
     );
 };
