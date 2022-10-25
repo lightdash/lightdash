@@ -1,6 +1,5 @@
 import {
     Alignment,
-    Button,
     Classes,
     Menu,
     NavbarGroup,
@@ -11,15 +10,11 @@ import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { ProjectType } from '@lightdash/common';
 import { memo } from 'react';
 import { useMutation } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
-import {
-    getLastProject,
-    setLastProject,
-    useDefaultProject,
-    useProjects,
-} from '../../hooks/useProjects';
+import { useActiveProjectUuid } from '../../hooks/useProject';
+import { setLastProject, useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { UserAvatar } from '../Avatar';
@@ -36,6 +31,7 @@ import {
     NavBarWrapper,
     ProjectDropdown,
 } from './NavBar.styles';
+import SettingsMenu from './SettingsMenu';
 
 const logoutQuery = async () =>
     lightdashApi({
@@ -48,19 +44,8 @@ const NavBar = memo(() => {
     const { user } = useApp();
     const { errorLogs, setErrorLogsVisible } = useErrorLogs();
     const { showToastSuccess } = useToaster();
-    const { data: defaultProject } = useDefaultProject();
     const { isLoading, data: projects } = useProjects();
-    const params = useParams<{ projectUuid: string | undefined }>();
-
-    const lastProjectUuid = getLastProject();
-    const lastProject = projects?.find(
-        (project) => project.projectUuid === lastProjectUuid,
-    );
-
-    const selectedProjectUuid =
-        params.projectUuid ||
-        lastProject?.projectUuid ||
-        defaultProject?.projectUuid;
+    const activeProjectUuid = useActiveProjectUuid();
 
     const history = useHistory();
     const { mutate } = useMutation(logoutQuery, {
@@ -70,8 +55,8 @@ const NavBar = memo(() => {
         },
     });
 
-    const homeUrl = selectedProjectUuid
-        ? `/projects/${selectedProjectUuid}/home`
+    const homeUrl = activeProjectUuid
+        ? `/projects/${activeProjectUuid}/home`
         : '/';
 
     return (
@@ -84,11 +69,11 @@ const NavBar = memo(() => {
                     >
                         <LogoContainer title="Home" />
                     </NavLink>
-                    {!!selectedProjectUuid && (
+                    {!!activeProjectUuid && (
                         <>
-                            <ExploreMenu projectUuid={selectedProjectUuid} />
-                            <BrowseMenu projectUuid={selectedProjectUuid} />
-                            <GlobalSearch projectUuid={selectedProjectUuid} />
+                            <ExploreMenu projectUuid={activeProjectUuid} />
+                            <BrowseMenu projectUuid={activeProjectUuid} />
+                            <GlobalSearch projectUuid={activeProjectUuid} />
                         </>
                     )}
                 </NavbarGroup>
@@ -97,17 +82,10 @@ const NavBar = memo(() => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <Button
-                        minimal
-                        icon="cog"
-                        data-cy="settings-button"
-                        onClick={() => {
-                            history.push(`/generalSettings`);
-                        }}
-                    />
+                    <SettingsMenu />
                     <HelpMenu />
                     <Divider />
-                    {selectedProjectUuid && (
+                    {activeProjectUuid && (
                         <ProjectDropdown
                             disabled={isLoading || (projects || []).length <= 0}
                             options={projects?.map((item) => ({
@@ -119,7 +97,7 @@ const NavBar = memo(() => {
                                 }${item.name}`,
                             }))}
                             fill
-                            value={selectedProjectUuid}
+                            value={activeProjectUuid}
                             onChange={(e) => {
                                 setLastProject(e.target.value);
                                 showToastSuccess({
