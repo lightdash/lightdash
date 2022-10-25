@@ -1,3 +1,10 @@
+## [0.298.1](https://github.com/lightdash/lightdash/compare/0.298.0...0.298.1) (2022-10-25)
+
+
+### Bug Fixes
+
+* projects 404 ([#3572](https://github.com/lightdash/lightdash/issues/3572)) ([f30d30d](https://github.com/lightdash/lightdash/commit/f30d30d4d3b00e753182e18f4b2aca24c18efb10))
+
 # [0.298.0](https://github.com/lightdash/lightdash/compare/0.297.0...0.298.0) (2022-10-24)
 
 
