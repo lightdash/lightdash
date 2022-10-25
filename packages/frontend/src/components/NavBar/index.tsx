@@ -1,23 +1,11 @@
-import {
-    Alignment,
-    Classes,
-    Menu,
-    NavbarGroup,
-    PopoverInteractionKind,
-    Position,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Alignment, Classes, NavbarGroup } from '@blueprintjs/core';
 import { ProjectType } from '@lightdash/common';
 import { memo } from 'react';
-import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
-import { lightdashApi } from '../../api';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../hooks/useProject';
 import { setLastProject, useProjects } from '../../hooks/useProjects';
-import { useApp } from '../../providers/AppProvider';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
-import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
 import NavLink from '../NavLink';
 import { ShowErrorsButton } from '../ShowErrorsButton';
@@ -32,28 +20,15 @@ import {
     ProjectDropdown,
 } from './NavBar.styles';
 import SettingsMenu from './SettingsMenu';
-
-const logoutQuery = async () =>
-    lightdashApi({
-        url: `/logout`,
-        method: 'GET',
-        body: undefined,
-    });
+import UserMenu from './UserMenu';
 
 const NavBar = memo(() => {
-    const { user } = useApp();
     const { errorLogs, setErrorLogsVisible } = useErrorLogs();
     const { showToastSuccess } = useToaster();
     const { isLoading, data: projects } = useProjects();
     const activeProjectUuid = useActiveProjectUuid();
 
     const history = useHistory();
-    const { mutate } = useMutation(logoutQuery, {
-        mutationKey: ['logout'],
-        onSuccess: () => {
-            window.location.href = '/login';
-        },
-    });
 
     const homeUrl = activeProjectUuid
         ? `/projects/${activeProjectUuid}/home`
@@ -115,31 +90,7 @@ const NavBar = memo(() => {
                             }}
                         />
                     )}
-                    <Popover2
-                        interactionKind={PopoverInteractionKind.CLICK}
-                        content={
-                            <Menu>
-                                {user.data?.ability?.can(
-                                    'create',
-                                    'InviteLink',
-                                ) ? (
-                                    <MenuItem2
-                                        href={`/generalSettings/userManagement?to=invite`}
-                                        icon="new-person"
-                                        text="Invite user"
-                                    />
-                                ) : null}
-                                <MenuItem2
-                                    icon="log-out"
-                                    text="Logout"
-                                    onClick={() => mutate()}
-                                />
-                            </Menu>
-                        }
-                        position={Position.BOTTOM_LEFT}
-                    >
-                        <UserAvatar />
-                    </Popover2>
+                    <UserMenu />
                 </NavbarGroup>
             </NavBarWrapper>
 
