@@ -5,26 +5,13 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
-import { useMutation } from 'react-query';
-import { lightdashApi } from '../../../api';
+import useLogoutMutation from '../../../hooks/user/useUserLogoutMutation';
 import { useApp } from '../../../providers/AppProvider';
 import { UserAvatar } from '../../Avatar';
 
-const logoutQuery = async () =>
-    lightdashApi({
-        url: `/logout`,
-        method: 'GET',
-        body: undefined,
-    });
-
 const UserMenu: FC = () => {
     const { user } = useApp();
-    const { mutate } = useMutation(logoutQuery, {
-        mutationKey: ['logout'],
-        onSuccess: () => {
-            window.location.href = '/login';
-        },
-    });
+    const { mutate } = useLogoutMutation();
 
     return (
         <Popover2
