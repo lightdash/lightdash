@@ -158,7 +158,7 @@ describe('Lightdash API organization permission tests', () => {
         );
     });
 
-    it('Should get an empty list from GET /org/projects', () => {
+    it('Should get an empty project list (200) from GET /org/projects', () => {
         cy.request({
             url: `${apiUrl}/org/projects`,
             headers: { 'Content-type': 'application/json' },
