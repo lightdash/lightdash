@@ -13,12 +13,6 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-    const pivot = meta?.pivotReference?.pivotValues?.[0]
-        ? {
-              fieldId: meta?.pivotReference?.pivotValues?.[0].field,
-              value: meta?.pivotReference?.pivotValues?.[0].value,
-          }
-        : undefined;
 
     return (
         <Menu>
@@ -35,7 +29,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                         meta,
                         cell.row.original || {},
                         undefined,
-                        pivot,
+                        meta?.pivotReference,
                     );
                 }}
             />

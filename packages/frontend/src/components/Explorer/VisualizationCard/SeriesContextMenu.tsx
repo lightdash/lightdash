@@ -69,7 +69,7 @@ export const SeriesContextMenu: FC<{
                 underlyingData.meta,
                 underlyingData.row,
                 dimensions,
-                underlyingData.pivot,
+                underlyingData.pivotReference,
             );
         }
     }, [
