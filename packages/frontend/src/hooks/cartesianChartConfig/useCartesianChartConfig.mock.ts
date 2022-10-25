@@ -75,7 +75,7 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
             { dimension_x: { value: { raw: 'b', formatted: 'b' } } },
         ],
     },
-    pivotKey: undefined,
+    pivotKeys: undefined,
     yFields: ['my_metric', 'my_second_metric'],
     xField: 'my_dimension',
     availableDimensions: ['my_dimension', 'dimension_x'],
@@ -112,7 +112,7 @@ export const expectedSimpleSeriesMap: Record<string, Series> = {
 
 export const pivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
     ...simpleSeriesMapArgs,
-    pivotKey: 'dimension_x',
+    pivotKeys: ['dimension_x'],
 };
 
 export const expectedPivotedSeriesMap: Record<string, Series> = {
