@@ -125,7 +125,7 @@ export class OrganizationService {
             organizationUuid,
         );
 
-        const filteredProjects = projects.filter((project) =>
+        return projects.filter((project) =>
             user.ability.can(
                 'view',
                 subject('Project', {
@@ -134,12 +134,6 @@ export class OrganizationService {
                 }),
             ),
         );
-
-        // If there are no projects to list after doing permission filtering, we return 404
-        if (filteredProjects.length === 0)
-            throw new NotExistsError('No project exists');
-
-        return filteredProjects;
     }
 
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {
