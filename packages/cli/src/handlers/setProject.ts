@@ -15,16 +15,26 @@ export const setProjectInteractively = async (options: SetProjectOptions) => {
         body: undefined,
         verbose: options.verbose,
     });
+
+    if (options.verbose) {
+        console.error(
+            `> Set project returned response: ${JSON.stringify(projects)}`,
+        );
+    }
+
+    if (projects.length === 0) return null;
+
     const answers = await inquirer.prompt([
         {
             type: 'list',
             name: 'project',
-            choices: (projects || []).map((project) => ({
+            choices: projects.map((project) => ({
                 name: project.name,
                 value: project.projectUuid,
             })),
         },
     ]);
+
     await setProjectUuid(answers.project);
     const config = await getConfig();
     const projectUrl =
@@ -33,6 +43,8 @@ export const setProjectInteractively = async (options: SetProjectOptions) => {
     console.error(
         `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
     );
+
+    return answers.project;
 };
 
 export const setFirstProject = async (options: SetProjectOptions) => {
