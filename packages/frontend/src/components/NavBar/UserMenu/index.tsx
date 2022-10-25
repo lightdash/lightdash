@@ -5,6 +5,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import useLogoutMutation from '../../../hooks/user/useUserLogoutMutation';
 import { useApp } from '../../../providers/AppProvider';
 import { UserAvatar } from '../../Avatar';
@@ -12,15 +13,27 @@ import { UserAvatar } from '../../Avatar';
 const UserMenu: FC = () => {
     const { user } = useApp();
     const { mutate } = useLogoutMutation();
+    const history = useHistory();
 
     return (
         <Popover2
             interactionKind={PopoverInteractionKind.CLICK}
             content={
                 <Menu>
+                    <MenuItem2
+                        onClick={() => {
+                            history.push('/generalSettings');
+                        }}
+                        icon="settings"
+                        text="User settings"
+                    />
                     {user.data?.ability?.can('create', 'InviteLink') ? (
                         <MenuItem2
-                            href={`/generalSettings/userManagement?to=invite`}
+                            onClick={() => {
+                                history.push(
+                                    '/generalSettings/userManagement?to=invite',
+                                );
+                            }}
                             icon="new-person"
                             text="Invite user"
                         />
