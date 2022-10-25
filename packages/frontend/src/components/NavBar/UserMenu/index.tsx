@@ -21,6 +21,7 @@ const UserMenu: FC = () => {
             content={
                 <Menu>
                     <MenuItem2
+                        role="menuitem"
                         onClick={() => {
                             history.push('/generalSettings');
                         }}
@@ -29,6 +30,7 @@ const UserMenu: FC = () => {
                     />
                     {user.data?.ability?.can('create', 'InviteLink') ? (
                         <MenuItem2
+                            role="menuitem"
                             onClick={() => {
                                 history.push(
                                     '/generalSettings/userManagement?to=invite',
@@ -39,6 +41,7 @@ const UserMenu: FC = () => {
                         />
                     ) : null}
                     <MenuItem2
+                        role="menuitem"
                         icon="log-out"
                         text="Logout"
                         onClick={() => mutate()}

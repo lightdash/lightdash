@@ -28,6 +28,7 @@ const SettingsMenu: FC = () => {
                 <Menu>
                     {activeProjectUuid && userCanManageProjects && (
                         <MenuItem2
+                            role="menuitem"
                             icon="database"
                             text="Project settings"
                             onClick={() => {
@@ -40,6 +41,7 @@ const SettingsMenu: FC = () => {
 
                     {userCanManageOrganization && (
                         <MenuItem2
+                            role="menuitem"
                             icon="office"
                             text="Organization settings"
                             onClick={() => {
@@ -50,7 +52,7 @@ const SettingsMenu: FC = () => {
                 </Menu>
             }
         >
-            <Button minimal icon="cog" data-cy="settings-button" />
+            <Button minimal icon="cog" data-testid="settings-menu" />
         </Popover2>
     );
 };
