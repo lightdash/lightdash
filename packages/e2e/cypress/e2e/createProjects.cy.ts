@@ -213,7 +213,8 @@ describe('Create projects', () => {
     it('Should be able to create new project from settings', () => {
         cy.visit(`/`);
 
-        cy.get('[data-cy="settings-button"]').click();
+        cy.findAllByTestId('settings-menu').click();
+        cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
         cy.findByText('Project management').click();
         cy.findByText('Create new').click();

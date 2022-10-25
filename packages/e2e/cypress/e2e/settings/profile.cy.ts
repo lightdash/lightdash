@@ -24,7 +24,8 @@ describe('Settings - Profile', () => {
 
     it('Should change name and email', () => {
         cy.visit('/');
-        cy.get('[data-cy="settings-button"]').click();
+        cy.findByTestId('user-avatar').click();
+        cy.findByRole('menuitem', { name: 'User settings' }).click();
         cy.get('[data-cy="first-name-input"]').clear().type('Kevin');
         cy.get('[data-cy="last-name-input"]').clear().type('Space');
         cy.get('[data-cy="email-input"]').clear().type('kspace@lightdash.com');
@@ -33,6 +34,6 @@ describe('Settings - Profile', () => {
             'be.visible',
         );
         cy.visit('/');
-        cy.get('[data-cy="user-avatar"]').should('contain', 'KS');
+        cy.findByTestId('user-avatar').should('contain', 'KS');
     });
 });
