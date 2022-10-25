@@ -431,6 +431,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         row,
                                                         dimensions,
                                                         pivot,
+                                                        dashboardFilters,
                                                     );
                                                 }
                                             }}
