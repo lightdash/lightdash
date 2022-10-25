@@ -28,7 +28,6 @@ const CellContextMenu: FC<
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-
     return (
         <Menu>
             {!!value.raw && isField(item) && (
