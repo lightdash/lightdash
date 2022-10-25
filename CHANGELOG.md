@@ -1,3 +1,15 @@
+# [0.299.0](https://github.com/lightdash/lightdash/compare/0.298.1...0.299.0) (2022-10-25)
+
+
+### Bug Fixes
+
+* fix filter for underlying data on dashboard ([#3561](https://github.com/lightdash/lightdash/issues/3561)) ([26e9a32](https://github.com/lightdash/lightdash/commit/26e9a32aab107a46978f26fa36b71a9ac01c1528))
+
+
+### Features
+
+* add filter to dashboard on dashboard tables ([#3568](https://github.com/lightdash/lightdash/issues/3568)) ([9550c92](https://github.com/lightdash/lightdash/commit/9550c92fbf9263802895a818490ded85333af17e))
+
 ## [0.298.1](https://github.com/lightdash/lightdash/compare/0.298.0...0.298.1) (2022-10-25)
 
 
