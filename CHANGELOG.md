@@ -1,3 +1,10 @@
+# [0.301.0](https://github.com/lightdash/lightdash/compare/0.300.0...0.301.0) (2022-10-26)
+
+
+### Features
+
+* new download csv popup with limit ([#3575](https://github.com/lightdash/lightdash/issues/3575)) ([7f6edac](https://github.com/lightdash/lightdash/commit/7f6edac53d1be0d9786f58b1d2d284d13f1f50a5))
+
 # [0.300.0](https://github.com/lightdash/lightdash/compare/0.299.0...0.300.0) (2022-10-26)
 
 
