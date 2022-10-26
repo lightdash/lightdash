@@ -1,3 +1,10 @@
+## [0.301.1](https://github.com/lightdash/lightdash/compare/0.301.0...0.301.1) (2022-10-26)
+
+
+### Bug Fixes
+
+* underlying data of multi pivot table ([#3569](https://github.com/lightdash/lightdash/issues/3569)) ([c83dd13](https://github.com/lightdash/lightdash/commit/c83dd13e6b4f8a087216c3d3efee2686ef98c4bd))
+
 # [0.301.0](https://github.com/lightdash/lightdash/compare/0.300.0...0.301.0) (2022-10-26)
 
 
