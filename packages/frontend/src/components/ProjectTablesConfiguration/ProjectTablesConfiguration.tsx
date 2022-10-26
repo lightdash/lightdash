@@ -259,6 +259,7 @@ const ProjectTablesConfiguration: FC<{
                     </RadioGroup>
                 </RightPanel>
             </CardWrapper>
+
             {canUpdateTableConfiguration && (
                 <SaveButton
                     type="submit"

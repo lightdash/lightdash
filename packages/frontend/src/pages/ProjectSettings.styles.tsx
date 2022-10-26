@@ -12,6 +12,7 @@ export const Header = styled.div`
     flex-direction: row;
     align-items: center;
 `;
+
 export const TitleWrapper = styled.div`
     display: flex;
     flex-direction: row;
@@ -47,4 +48,8 @@ export const ButtonsWrapper = styled.div`
 
 export const SaveButton = styled(BigButton)`
     width: 170px;
+`;
+
+export const TabsWrapper = styled.div`
+    margin: 30px 0 20px 0;
 `;

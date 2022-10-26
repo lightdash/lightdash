@@ -13,6 +13,7 @@ import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
+import { TabsWrapper } from './ProjectSettings.styles';
 
 enum Integrations {
     DBT_CLOUD = 'dbt-cloud',
@@ -80,15 +81,20 @@ const ProjectSettings: FC = () => {
                 ]}
             />
 
-            <Tabs id="TabsExample" selectedTabId={tab} onChange={changeTab}>
-                <Tab id={SettingsTabs.SETTINGS} title="Project Settings" />
-                <Tab
-                    id={SettingsTabs.TABLES_CONFIGURATION}
-                    title="Tables Configuration"
-                />
-                <Tab id={SettingsTabs.PROJECT_ACCESS} title="Project Access" />
-                <Tab id={Integrations.DBT_CLOUD} title="dbt Cloud" />
-            </Tabs>
+            <TabsWrapper>
+                <Tabs id="TabsExample" selectedTabId={tab} onChange={changeTab}>
+                    <Tab id={SettingsTabs.SETTINGS} title="Project Settings" />
+                    <Tab
+                        id={SettingsTabs.TABLES_CONFIGURATION}
+                        title="Tables Configuration"
+                    />
+                    <Tab
+                        id={SettingsTabs.PROJECT_ACCESS}
+                        title="Project Access"
+                    />
+                    <Tab id={Integrations.DBT_CLOUD} title="dbt Cloud" />
+                </Tabs>
+            </TabsWrapper>
 
             <Switch>
                 <Route exact path={`${basePath}/${SettingsTabs.SETTINGS}`}>

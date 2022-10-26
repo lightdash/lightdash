@@ -20,7 +20,9 @@ export const FormWrapper = styled.div`
     margin: 0 auto;
 `;
 
-export const CompileProjectButton = styled(Button)``;
+export const CompileProjectButton = styled(Button)`
+    align-self: flex-end;
+`;
 
 export const AdvancedButtonWrapper = styled.div`
     display: flex;
