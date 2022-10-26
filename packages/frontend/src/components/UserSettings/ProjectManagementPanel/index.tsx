@@ -62,7 +62,7 @@ const ProjectListItem: FC<{
                         icon="cog"
                         outlined
                         text="Settings"
-                        href={`/projects/${projectUuid}/settings`}
+                        href={`/generalSettings/projectManagement/${projectUuid}/settings`}
                     />
                     <Can
                         I="delete"

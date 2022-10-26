@@ -1,18 +1,7 @@
-import {
-    Colors,
-    Divider,
-    H3,
-    Menu,
-    MenuDivider,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
-import React, { FC, useMemo } from 'react';
+import { Colors, Divider, H3, NonIdealState, Spinner } from '@blueprintjs/core';
+import { FC } from 'react';
 import { Redirect, Route, Switch, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
-import PageWithSidebar from '../components/common/Page/PageWithSidebar';
-import Sidebar from '../components/common/Page/Sidebar';
-import RouterMenuItem from '../components/common/RouterMenuItem';
 import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -29,10 +18,7 @@ import {
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data, error } = useProject(projectUuid);
-    const basePath = useMemo(
-        () => `/projects/${projectUuid}/settings`,
-        [projectUuid],
-    );
+    const basePath = `/generalSettings/projectManagement/${projectUuid}`;
 
     if (error) {
         return (
@@ -52,14 +38,14 @@ const ProjectSettings: FC = () => {
             </div>
         );
     }
-    return (
-        <PageWithSidebar>
-            <Sidebar title="Project settings" noMargin>
+
+    {
+        /* <Sidebar title="Project settings" noMargin>
                 <Menu>
                     <RouterMenuItem
                         text="Project connections"
                         exact
-                        to={basePath}
+                        to={`${basePath}/settings`}
                     />
                     <MenuDivider />
                     <RouterMenuItem
@@ -80,66 +66,57 @@ const ProjectSettings: FC = () => {
                         to={`${basePath}/integration/dbt-cloud`}
                     />
                 </Menu>
-            </Sidebar>
+            </Sidebar> */
+    }
 
-            <Switch>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/settings/tablesConfiguration"
-                >
-                    <Content>
-                        <ContentContainer>
-                            <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                                Your project has connected successfully! 🎉
-                            </H3>
-                            <Divider style={{ margin: '20px 0' }} />
-                            <p
-                                style={{
-                                    marginBottom: 20,
-                                    color: Colors.GRAY1,
-                                }}
-                            >
-                                Before you start exploring your data, pick the
-                                dbt models you want to appear as tables in
-                                Lightdash. You can always adjust this in your
-                                project settings later.
-                            </p>
-                            <ProjectTablesConfiguration
-                                projectUuid={projectUuid}
-                            />
-                        </ContentContainer>
-                    </Content>
-                </Route>
+    return (
+        <Switch>
+            <Route exact path={`${basePath}/tablesConfiguration}`}>
+                <Content>
+                    <ContentContainer>
+                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
+                            Your project has connected successfully! 🎉
+                        </H3>
+                        <Divider style={{ margin: '20px 0' }} />
+                        <p
+                            style={{
+                                marginBottom: 20,
+                                color: Colors.GRAY1,
+                            }}
+                        >
+                            Before you start exploring your data, pick the dbt
+                            models you want to appear as tables in Lightdash.
+                            You can always adjust this in your project settings
+                            later.
+                        </p>
+                        <ProjectTablesConfiguration projectUuid={projectUuid} />
+                    </ContentContainer>
+                </Content>
+            </Route>
 
-                <Route exact path="/projects/:projectUuid/settings">
-                    <ProjectConnectionContainer>
-                        <UpdateProjectWrapper>
-                            <UpdateHeaderWrapper>
-                                <Title marginBottom>
-                                    Edit your project connection
-                                </Title>
-                            </UpdateHeaderWrapper>
-                            <UpdateProjectConnection
-                                projectUuid={projectUuid}
-                            />
-                        </UpdateProjectWrapper>
-                    </ProjectConnectionContainer>
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/settings/projectAccess"
-                >
-                    <ProjectUserAccess />
-                </Route>
-                <Route
-                    exact
-                    path="/projects/:projectUuid/settings/integration/dbt-cloud"
-                >
-                    <DbtCloudSettings />
-                </Route>
-                <Redirect to={basePath} />
-            </Switch>
-        </PageWithSidebar>
+            <Route exact path={`${basePath}/settings`}>
+                <ProjectConnectionContainer>
+                    <UpdateProjectWrapper>
+                        <UpdateHeaderWrapper>
+                            <Title marginBottom>
+                                Edit your project connection
+                            </Title>
+                        </UpdateHeaderWrapper>
+                        <UpdateProjectConnection projectUuid={projectUuid} />
+                    </UpdateProjectWrapper>
+                </ProjectConnectionContainer>
+            </Route>
+
+            <Route exact path={`${basePath}/projectAccess`}>
+                <ProjectUserAccess />
+            </Route>
+
+            <Route exact path={`${basePath}/integration/dbt-cloud`}>
+                <DbtCloudSettings />
+            </Route>
+
+            <Redirect to={basePath} />
+        </Switch>
     );
 };
 

@@ -15,31 +15,6 @@ export const WarehouseLogo = styled.img`
     width: 30px;
 `;
 
-export const CompileProjectWrapper = styled.div<{ fixedButton?: boolean }>`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    position: sticky;
-    background: ${Colors.WHITE};
-    border-top: 1px solid ${Colors.LIGHT_GRAY1};
-    bottom: 0;
-    margin-top: auto;
-    padding: 20px 0;
-    ${({ fixedButton }) =>
-        fixedButton &&
-        `
-            position: fixed;
-            z-index: 1;
-        `}
-`;
-
-export const CompileProjectFixedWidthContainer = styled.div`
-    width: 800px;
-    display: flex;
-    justify-content: flex-end;
-`;
-
 export const FormWrapper = styled.div`
     width: 800px;
     margin: 0 auto;

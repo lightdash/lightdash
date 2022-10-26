@@ -183,16 +183,6 @@ const App = () => (
                                                     <Switch>
                                                         <ProjectRoute path="/projects/:projectUuid">
                                                             <Switch>
-                                                                <Route path="/projects/:projectUuid/settings/:tab?">
-                                                                    <NavBar />
-                                                                    <TrackPage
-                                                                        name={
-                                                                            PageName.PROJECT_SETTINGS
-                                                                        }
-                                                                    >
-                                                                        <ProjectSettings />
-                                                                    </TrackPage>
-                                                                </Route>
                                                                 <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                                                     <NavBar />
                                                                     <TrackPage
