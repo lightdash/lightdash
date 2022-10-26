@@ -1,3 +1,10 @@
+# [0.300.0](https://github.com/lightdash/lightdash/compare/0.299.0...0.300.0) (2022-10-26)
+
+
+### Features
+
+* support multiple values on filters: includes, not includes and starts with ([#3528](https://github.com/lightdash/lightdash/issues/3528)) ([68c0a64](https://github.com/lightdash/lightdash/commit/68c0a649684d891ee1f440342561bb60b14e2262))
+
 # [0.299.0](https://github.com/lightdash/lightdash/compare/0.298.1...0.299.0) (2022-10-25)
 
 
