@@ -199,7 +199,7 @@ const Settings: FC = () => {
                             exact
                             path={[
                                 '/generalSettings/projectManagement/:projectUuid/:tab?',
-                                '/generalSettings/projectManagement/:projectUuid/integration/:tab',
+                                '/generalSettings/projectManagement/:projectUuid/integrations/:tab',
                             ]}
                         >
                             <TrackPage name={PageName.PROJECT_SETTINGS}>

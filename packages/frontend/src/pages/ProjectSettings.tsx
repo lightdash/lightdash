@@ -37,7 +37,7 @@ const ProjectSettings: FC = () => {
 
     const changeTab = (newTab: SettingsTabs | Integrations) => {
         if (newTab === Integrations.DBT_CLOUD) {
-            history.push(`${basePath}/integration/${newTab}`);
+            history.push(`${basePath}/integrations/${newTab}`);
         } else {
             history.push(`${basePath}/${newTab}`);
         }
@@ -117,7 +117,7 @@ const ProjectSettings: FC = () => {
 
                 <Route
                     exact
-                    path={`${basePath}/integration/${Integrations.DBT_CLOUD}`}
+                    path={`${basePath}/integrations/${Integrations.DBT_CLOUD}`}
                 >
                     <DbtCloudSettings projectUuid={projectUuid} />
                 </Route>
