@@ -73,10 +73,8 @@ const ProjectSettings: FC = () => {
                 items={[
                     {
                         text: 'All projects',
-                        className: 'home-breadcrumb',
-                        onClick: (e) => {
-                            history.push('/generalSettings/projectManagement');
-                        },
+                        onClick: () =>
+                            history.push('/generalSettings/projectManagement'),
                     },
                     {
                         text: project.name,
