@@ -15,8 +15,7 @@ const get = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useProjectDbtCloud = () => {
-    const { projectUuid } = useParams<{ projectUuid?: string }>();
+export const useProjectDbtCloud = (projectUuid: string) => {
     if (projectUuid === undefined) {
         throw new Error(
             'Must use useProjectDbtCloud hook under react-router path with projectUuid available',
@@ -35,8 +34,7 @@ const post = async (projectUuid: string, data: CreateDbtCloudIntegration) =>
         body: JSON.stringify(data),
     });
 
-export const useProjectDbtCloudUpdateMutation = () => {
-    const { projectUuid } = useParams<{ projectUuid?: string }>();
+export const useProjectDbtCloudUpdateMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     if (projectUuid === undefined) {

@@ -106,14 +106,14 @@ const ProjectSettings: FC = () => {
                     exact
                     path={`${basePath}/${SettingsTabs.PROJECT_ACCESS}`}
                 >
-                    <ProjectUserAccess />
+                    <ProjectUserAccess projectUuid={projectUuid} />
                 </Route>
 
                 <Route
                     exact
                     path={`${basePath}/integration/${Integrations.DBT_CLOUD}`}
                 >
-                    <DbtCloudSettings />
+                    <DbtCloudSettings projectUuid={projectUuid} />
                 </Route>
 
                 <Redirect to={basePath} />

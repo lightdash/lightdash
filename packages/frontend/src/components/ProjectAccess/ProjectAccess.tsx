@@ -16,8 +16,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
     useProjectAccess,
@@ -156,10 +155,13 @@ const relevantOrgRolesForProjectRole: Record<
     [ProjectMemberRole.ADMIN]: [],
 };
 
-const ProjectAccess: FC = () => {
+interface ProjectAccessProps {
+    projectUuid: string;
+}
+
+const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
     const { user } = useApp();
     const ability = useAbilityContext();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutate: revokeAccess } =
         useRevokeProjectAccessMutation(projectUuid);
     const { mutate: updateAccess } =
