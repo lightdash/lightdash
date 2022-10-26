@@ -1,4 +1,5 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { PivotReference } from '@lightdash/common';
 import { Opts } from 'echarts-for-react/lib/types';
 import React, { FC, memo, useCallback, useEffect, useMemo } from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
@@ -30,7 +31,7 @@ type EchartBaseClickEvent = {
     // color of the shape, works when componentType is 'series'.
     color: string;
     event: { event: MouseEvent };
-    pivotRawValue: any;
+    pivotReference?: PivotReference;
 };
 
 export type EchartSeriesClickEvent = EchartBaseClickEvent & {
@@ -38,7 +39,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
     data: Record<string, any>;
     seriesIndex: number;
     dimensionNames: string[];
-    pivotRawValue: any;
+    pivotReference?: PivotReference;
 };
 
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;

@@ -126,6 +126,13 @@ export const toggleArrayValue = <T = string>(
     return array;
 };
 
+export const replaceStringInArray = (
+    arrayToUpdate: string[],
+    valueToReplace: string,
+    newValue: string,
+) =>
+    arrayToUpdate.map((value) => (value === valueToReplace ? newValue : value));
+
 export type SqlResultsRow = { [columnName: string]: any };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {

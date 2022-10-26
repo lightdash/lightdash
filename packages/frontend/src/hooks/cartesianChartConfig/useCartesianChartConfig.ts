@@ -21,7 +21,7 @@ import {
 type Args = {
     chartType: ChartType;
     initialChartConfig: CartesianChart | undefined;
-    pivotKey: string | undefined;
+    pivotKeys: string[] | undefined;
     resultsData: ApiQueryResults | undefined;
     setPivotDimensions: React.Dispatch<
         React.SetStateAction<string[] | undefined>
@@ -33,7 +33,7 @@ type Args = {
 const useCartesianChartConfig = ({
     chartType,
     initialChartConfig,
-    pivotKey,
+    pivotKeys,
     resultsData,
     setPivotDimensions,
     columnOrder,
@@ -263,18 +263,19 @@ const useCartesianChartConfig = ({
     const setStacking = useCallback(
         (stack: boolean) => {
             const yFields = dirtyLayout?.yField || [];
+            const isPivoted = pivotKeys && pivotKeys.length > 0;
             setIsStacked(stack);
             yFields.forEach((yField) => {
                 updateAllGroupedSeries(yField, {
                     stack: stack
-                        ? pivotKey
+                        ? isPivoted
                             ? yField
                             : 'stack-all-series'
                         : undefined,
                 });
             });
         },
-        [dirtyLayout?.yField, updateAllGroupedSeries, pivotKey],
+        [dirtyLayout?.yField, updateAllGroupedSeries, pivotKeys],
     );
 
     const sortedDimensions = useMemo(() => {
@@ -437,7 +438,6 @@ const useCartesianChartConfig = ({
         }
     }, [
         chartType,
-        pivotKey,
         availableFields,
         availableDimensions,
         availableMetrics,
@@ -463,7 +463,7 @@ const useCartesianChartConfig = ({
                     defaultCartesianType,
                     availableDimensions,
                     isStacked,
-                    pivotKey,
+                    pivotKeys,
                     resultsData,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
@@ -478,7 +478,7 @@ const useCartesianChartConfig = ({
                 };
             });
         }
-    }, [dirtyLayout, pivotKey, resultsData, availableDimensions, isStacked]);
+    }, [dirtyLayout, pivotKeys, resultsData, availableDimensions, isStacked]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(
         () =>

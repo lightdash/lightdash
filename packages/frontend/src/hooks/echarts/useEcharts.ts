@@ -23,9 +23,11 @@ import {
     isCompleteLayout,
     isDimension,
     isField,
+    isPivotReferenceWithValues,
     isTimeInterval,
     Metric,
     MetricType,
+    PivotReference,
     Series,
     TableCalculation,
     timeFrameConfigs,
@@ -198,7 +200,7 @@ export type EChartSeries = {
         focus?: string;
     };
     areaStyle?: any;
-    pivotRawValue?: any;
+    pivotReference?: PivotReference;
 };
 
 const getFormattedValue = (
@@ -239,14 +241,12 @@ type GetPivotSeriesArg = {
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
-    pivotKey: string;
-    pivotField: { value: string };
+    pivotReference: Required<PivotReference>;
 };
 
 const getPivotSeries = ({
     series,
-    pivotKey,
-    pivotField,
+    pivotReference,
     items,
     xFieldHash,
     yFieldHash,
@@ -254,8 +254,13 @@ const getPivotSeries = ({
     formats,
     cartesianChart,
 }: GetPivotSeriesArg) => {
-    const value = getFormattedValue(pivotField.value, pivotKey, items);
-
+    const pivotLabel = pivotReference.pivotValues.reduce(
+        (acc, { field, value }) => {
+            const formattedValue = getFormattedValue(value, field, items);
+            return acc ? `${acc} - ${formattedValue}` : formattedValue;
+        },
+        '',
+    );
     return {
         ...series,
         emphasis: {
@@ -270,7 +275,7 @@ const getPivotSeries = ({
             tooltip: [yFieldHash],
             seriesName: yFieldHash,
         },
-        pivotRawValue: pivotField.value,
+        pivotReference,
         dimensions: [
             {
                 name: xFieldHash,
@@ -281,11 +286,11 @@ const getPivotSeries = ({
                 displayName:
                     cartesianChart.layout.yField &&
                     cartesianChart.layout.yField.length > 1
-                        ? `[${value}] ${getLabelFromField(
+                        ? `[${pivotLabel}] ${getLabelFromField(
                               items,
                               series.encode.yRef.field,
                           )}`
-                        : value,
+                        : pivotLabel,
             },
         ],
         tooltip: {
@@ -385,7 +390,7 @@ export const getEchartsSeries = (
     items: Array<Field | TableCalculation>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
-    pivotKey: string | undefined,
+    pivotKeys: string[] | undefined,
     formats:
         | Record<string, Pick<CompiledField, 'format' | 'round'>>
         | undefined,
@@ -396,17 +401,12 @@ export const getEchartsSeries = (
             const { flipAxes } = cartesianChart.layout;
             const xFieldHash = hashFieldReference(series.encode.xRef);
             const yFieldHash = hashFieldReference(series.encode.yRef);
-            const pivotField = series.encode.yRef.pivotValues?.find(
-                ({ field }) => field === pivotKey,
-            );
-
-            if (pivotKey && pivotField) {
+            if (pivotKeys && isPivotReferenceWithValues(series.encode.yRef)) {
                 return getPivotSeries({
                     series,
                     items,
                     cartesianChart,
-                    pivotKey,
-                    pivotField,
+                    pivotReference: series.encode.yRef,
                     formats,
                     flipAxes,
                     xFieldHash,
@@ -751,7 +751,7 @@ const useEcharts = () => {
     } = context;
     const { data: organisationData } = useOrganisation();
 
-    const plotData = usePlottedData(
+    const { rows } = usePlottedData(
         resultsData?.rows,
         pivotDimensions,
         validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
@@ -805,7 +805,7 @@ const useEcharts = () => {
             items,
             originalData,
             validCartesianConfig,
-            pivotDimensions?.[0],
+            pivotDimensions,
             formats,
         );
     }, [
@@ -876,7 +876,7 @@ const useEcharts = () => {
             },
             dataset: {
                 id: 'lightdashResults',
-                source: getResultValues(plotData, true),
+                source: getResultValues(rows, true),
             },
             tooltip: {
                 show: true,
@@ -895,13 +895,13 @@ const useEcharts = () => {
             },
             color: colors,
         }),
-        [axis, colors, plotData, series, stackedSeries, validCartesianConfig],
+        [axis, colors, rows, series, stackedSeries, validCartesianConfig],
     );
 
     if (
         !explore ||
         series.length <= 0 ||
-        plotData.length <= 0 ||
+        rows.length <= 0 ||
         !validCartesianConfig
     ) {
         return undefined;

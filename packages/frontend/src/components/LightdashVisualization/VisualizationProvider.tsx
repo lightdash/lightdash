@@ -150,7 +150,7 @@ export const VisualizationProvider: FC<Props> = ({
             initialChartConfig?.type === ChartType.CARTESIAN
                 ? initialChartConfig.config
                 : undefined,
-        pivotKey: validPivotDimensions?.[0],
+        pivotKeys: validPivotDimensions,
         resultsData: lastValidResultsData,
         setPivotDimensions,
         columnOrder: isSqlRunner ? [] : defaultColumnOrder,
