@@ -61,7 +61,12 @@ import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
-import { formatItemValue } from './utils/formatting';
+import {
+    formatDate,
+    formatItemValue,
+    formatTimestamp,
+} from './utils/formatting';
+import { isTimeInterval } from './utils/timeFrames';
 
 export * from './authorization/index';
 export * from './authorization/types';
@@ -291,6 +296,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     ) {
         switch (filterType) {
             case FilterType.DATE: {
+                const isTimestamp = field.type === DimensionType.TIMESTAMP;
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
                     const numberValue =
                         value === undefined || typeof value !== 'number'
@@ -302,27 +308,33 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         unitOfTime: UnitOfTime.days,
                         completed: false,
                     } as DateFilterRule['settings'];
+                } else if (isTimestamp) {
+                    const valueIsDate =
+                        value !== undefined && typeof value !== 'number';
+
+                    const timestampValue = valueIsDate
+                        ? moment(value).format('YYYY-MM-DDTHH:mm:ssZ')
+                        : moment().utc(true).format('YYYY-MM-DDTHH:mm:ssZ');
+
+                    filterRuleDefaults.values = [timestampValue];
                 } else {
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
 
-                    const defaultTimeIntervalValues: Record<string, Date> = {
-                        [TimeFrames.DAY]: moment().toDate(),
+                    const defaultTimeIntervalValues: Record<
+                        string,
+                        moment.Moment
+                    > = {
+                        [TimeFrames.DAY]: moment(),
                         [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
-                        )
-                            .startOf('week')
-                            .toDate(),
+                        ).startOf('week'),
                         [TimeFrames.MONTH]: moment(
                             valueIsDate ? value : undefined,
-                        )
-                            .startOf('month')
-                            .toDate(),
+                        ).startOf('month'),
                         [TimeFrames.YEAR]: moment(
                             valueIsDate ? value : undefined,
-                        )
-                            .startOf('year')
-                            .toDate(),
+                        ).startOf('year'),
                     };
 
                     const defaultDate =
@@ -330,8 +342,11 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         field.timeInterval &&
                         defaultTimeIntervalValues[field.timeInterval]
                             ? defaultTimeIntervalValues[field.timeInterval]
-                            : moment().toDate();
-                    const dateValue = valueIsDate ? value : defaultDate;
+                            : moment();
+                    const dateValue = valueIsDate
+                        ? formatDate(value, undefined, true)
+                        : formatDate(defaultDate, undefined, false);
+
                     filterRuleDefaults.values = [dateValue];
                 }
                 break;

@@ -131,14 +131,17 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
-                    showTimezoneSelect={true}
                     value={
                         filterRule.values?.[0]
-                            ? new Date(filterRule.values?.[0]).toString()
+                            ? formatDate(
+                                  filterRule.values?.[0],
+                                  undefined,
+                                  false,
+                              )
                             : new Date().toString()
                     }
                     formatDate={(value: Date) =>
-                        formatDate(value, undefined, true)
+                        formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
                     defaultValue={new Date().toString()}
@@ -146,7 +149,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [moment(value)],
+                                values: [formatDate(value, undefined, false)],
                             });
                         }
                     }}
