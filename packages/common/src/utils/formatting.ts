@@ -55,7 +55,7 @@ const getTimeFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
     let timeFormat: string;
-    switch (timeInterval.toUpperCase()) {
+    switch (timeInterval) {
         case TimeFrames.HOUR:
             timeFormat = 'HH';
             break;

@@ -61,7 +61,12 @@ import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
-import { formatDate, formatItemValue } from './utils/formatting';
+import {
+    formatDate,
+    formatItemValue,
+    formatTimestamp,
+} from './utils/formatting';
+import { isTimeInterval } from './utils/timeFrames';
 
 export * from './authorization/index';
 export * from './authorization/types';
@@ -291,6 +296,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     ) {
         switch (filterType) {
             case FilterType.DATE: {
+                const isTimestamp = field.type === DimensionType.TIMESTAMP;
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
                     const numberValue =
                         value === undefined || typeof value !== 'number'
@@ -302,6 +308,15 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         unitOfTime: UnitOfTime.days,
                         completed: false,
                     } as DateFilterRule['settings'];
+                } else if (isTimestamp) {
+                    const valueIsDate =
+                        value !== undefined && typeof value !== 'number';
+
+                    const timestampValue = valueIsDate
+                        ? moment(value).format('YYYY-MM-DDTHH:mm:ssZ')
+                        : moment().utc(true).format('YYYY-MM-DDTHH:mm:ssZ');
+
+                    filterRuleDefaults.values = [timestampValue];
                 } else {
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
