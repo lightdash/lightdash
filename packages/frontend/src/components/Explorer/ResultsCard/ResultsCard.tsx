@@ -1,12 +1,18 @@
 import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+    getAllQueryResults,
+    getQueryResults,
+} from '../../../hooks/useQueryResults';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import DownloadCsvButton from '../../DownloadCsvButton';
+import DownloadCsvPopup from '../../DownloadCsvPopup';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import UnderlyingDataModal from '../../UnderlyingData/UnderlyingDataModal';
@@ -47,6 +53,19 @@ const ResultsCard: FC = memo(() => {
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
+    const metricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const getCsvResults = (csvLimit: number | null) => {
+        return getQueryResults({
+            projectUuid,
+            tableId: tableName,
+            query: metricQuery,
+            csvLimit,
+        }).then((results) => getResultValues(results.rows));
+    };
 
     const resultsIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.RESULTS),
@@ -86,9 +105,10 @@ const ResultsCard: FC = memo(() => {
                 {resultsIsOpen && tableName && (
                     <CardHeaderRightContent>
                         {isEditMode && <AddColumnButton />}
-                        <DownloadCsvButton
+                        <DownloadCsvPopup
                             fileName={tableName}
                             rows={formattedRows}
+                            getCsvResults={getCsvResults}
                         />
                     </CardHeaderRightContent>
                 )}

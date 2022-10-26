@@ -474,6 +474,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
+        allResults?: boolean,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -491,7 +492,7 @@ export class ProjectService {
             explore,
             metricQuery,
         });
-        return buildQuery({ explore, compiledMetricQuery });
+        return buildQuery({ explore, compiledMetricQuery, allResults });
     }
 
     async runQuery(
@@ -499,6 +500,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
+        csvLimit: number | undefined,
     ): Promise<ApiQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -512,7 +514,10 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        if (metricQuery.limit > lightdashConfig.query.maxLimit) {
+        if (
+            csvLimit === undefined &&
+            metricQuery.limit > lightdashConfig.query.maxLimit
+        ) {
             throw new ParameterError(
                 `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
             );
@@ -520,9 +525,12 @@ export class ProjectService {
 
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
-            metricQuery,
+            csvLimit !== undefined && csvLimit !== null
+                ? { ...metricQuery, limit: csvLimit }
+                : metricQuery,
             projectUuid,
             exploreName,
+            csvLimit === null,
         );
 
         const onboardingRecord =

@@ -1144,6 +1144,16 @@ GROUP BY 1
 ORDER BY "table1_metric_with_sql" DESC
 LIMIT 10`;
 
+export const METRIC_QUERY_SQL_FILTER_METRIC1_ALL_RESULTS = `SELECT
+  "table1".dim1 AS "table1_dim1",
+MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+ORDER BY "table1_metric1" DESC
+`;
+
 const stringSingleValueFilter = {
     id: '701b6520-1b19-4051-a553-7615aee0b03d',
     target: { fieldId: 'customers_first_name' },
