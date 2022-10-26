@@ -1,16 +1,14 @@
-import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
+import { Card, Intent } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     CreateProjectMember,
-    formatTimestamp,
     InviteLink,
     OrganizationMemberRole,
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -19,14 +17,13 @@ import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useCreateProjectAccessMutation } from '../../../hooks/useProjectAccess';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import InviteSuccess from '../../UserSettings/UserManagementPanel/InviteSuccess';
 import {
     BackButton,
     EmailForm,
-    InviteFormGroup,
     Panel,
     ProjectAccessForm,
     RoleSelectButton,
-    ShareLinkCallout,
     SubmitButton,
 } from './ProjectAccessCreation';
 
@@ -229,42 +226,7 @@ const ProjectAccessCreation: FC<{
                 </ProjectAccessForm>
             </Card>
 
-            {inviteLink && (
-                <InviteFormGroup
-                    label={
-                        <span>
-                            <b>{inviteLink.email}</b> has been added
-                        </span>
-                    }
-                    labelFor="invite-link-input"
-                >
-                    <InputGroup
-                        id="invite-link-input"
-                        className="cohere-block"
-                        type="text"
-                        readOnly
-                        value={inviteLink.inviteUrl}
-                        rightElement={
-                            <CopyToClipboard
-                                text={inviteLink.inviteUrl}
-                                options={{ message: 'Copied' }}
-                                onCopy={() =>
-                                    showToastSuccess({
-                                        title: 'Invite link copied',
-                                    })
-                                }
-                            >
-                                <Button minimal icon="clipboard" />
-                            </CopyToClipboard>
-                        }
-                    />
-                    <ShareLinkCallout intent="primary">
-                        Share this link with {inviteLink.email} and they can
-                        join your organization. This link will expire at{' '}
-                        <b>{formatTimestamp(inviteLink.expiresAt)}</b>
-                    </ShareLinkCallout>
-                </InviteFormGroup>
-            )}
+            {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
         </Panel>
     );
 };
