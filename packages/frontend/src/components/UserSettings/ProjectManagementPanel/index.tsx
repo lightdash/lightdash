@@ -3,7 +3,6 @@ import {
     ButtonGroup,
     Classes,
     Dialog,
-    H5,
     Intent,
 } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
@@ -19,6 +18,7 @@ import {
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import LinkButton from '../../common/LinkButton';
+import { PanelTitle } from '../AccessTokensPanel/AccessTokens.styles';
 import {
     HeaderActions,
     ItemContent,
@@ -144,7 +144,7 @@ const ProjectManagementPanel: FC = () => {
     return (
         <ProjectManagementPanelWrapper>
             <HeaderActions>
-                <H5>Project management settings</H5>
+                <PanelTitle>Project management settings</PanelTitle>
                 <Can I="create" a="Project">
                     <Button
                         intent="primary"

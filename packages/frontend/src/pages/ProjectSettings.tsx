@@ -1,4 +1,5 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
+import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import {
     Redirect,
@@ -12,7 +13,6 @@ import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
-import { Title } from './ProjectSettings.styles';
 
 enum Integrations {
     DBT_CLOUD = 'dbt-cloud',
@@ -31,7 +31,7 @@ const ProjectSettings: FC = () => {
         tab?: SettingsTabs | Integrations;
     }>();
 
-    const { isLoading, data, error } = useProject(projectUuid);
+    const { isLoading, data: project, error } = useProject(projectUuid);
     const basePath = `/generalSettings/projectManagement/${projectUuid}`;
 
     const changeTab = (newTab: SettingsTabs | Integrations) => {
@@ -59,7 +59,7 @@ const ProjectSettings: FC = () => {
         return <Redirect to={`${basePath}/settings`} />;
     }
 
-    if (isLoading || !data) {
+    if (isLoading || !project) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <NonIdealState title="Loading project" icon={<Spinner />} />
@@ -69,6 +69,21 @@ const ProjectSettings: FC = () => {
 
     return (
         <>
+            <Breadcrumbs2
+                items={[
+                    {
+                        text: 'All projects',
+                        className: 'home-breadcrumb',
+                        onClick: (e) => {
+                            history.push('/generalSettings/projectManagement');
+                        },
+                    },
+                    {
+                        text: project.name,
+                    },
+                ]}
+            />
+
             <Tabs id="TabsExample" selectedTabId={tab} onChange={changeTab}>
                 <Tab id={SettingsTabs.SETTINGS} title="Project Settings" />
                 <Tab
