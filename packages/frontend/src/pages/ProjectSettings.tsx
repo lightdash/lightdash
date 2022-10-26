@@ -7,29 +7,42 @@ import {
     useHistory,
     useParams,
 } from 'react-router-dom';
-import Content from '../components/common/Page/Content';
 import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import { useProject } from '../hooks/useProject';
-import {
-    ContentContainer,
-    ProjectConnectionContainer,
-    Title,
-    UpdateHeaderWrapper,
-    UpdateProjectWrapper,
-} from './ProjectSettings.styles';
+import { Title } from './ProjectSettings.styles';
+
+enum Integrations {
+    DBT_CLOUD = 'dbt-cloud',
+}
+
+enum SettingsTabs {
+    SETTINGS = 'settings',
+    TABLES_CONFIGURATION = 'tablesConfiguration',
+    PROJECT_ACCESS = 'projectAccess',
+}
 
 const ProjectSettings: FC = () => {
     const history = useHistory();
     const { projectUuid, tab } = useParams<{
         projectUuid: string;
-        tab?: string;
+        tab?: SettingsTabs | Integrations;
     }>();
 
     const { isLoading, data, error } = useProject(projectUuid);
     const basePath = `/generalSettings/projectManagement/${projectUuid}`;
+
+    const changeTab = (newTab: SettingsTabs | Integrations) => {
+        if (newTab === Integrations.DBT_CLOUD) {
+            history.push(`${basePath}/integration/${newTab}`);
+        } else {
+            history.push(`${basePath}/${newTab}`);
+        }
+    };
+
+    console.log(projectUuid, tab);
 
     if (error) {
         return (
@@ -41,8 +54,6 @@ const ProjectSettings: FC = () => {
             </div>
         );
     }
-
-    console.log({ tab });
 
     if (!tab) {
         return <Redirect to={`${basePath}/settings`} />;
@@ -58,45 +69,39 @@ const ProjectSettings: FC = () => {
 
     return (
         <>
-            <Tabs
-                id="TabsExample"
-                selectedTabId={tab}
-                onChange={(newTab) => {
-                    history.push(`${basePath}/${newTab}`);
-                }}
-            >
-                <Tab id="settings" title="Project Settings" />
-                <Tab id="tablesConfiguration" title="Tables Configuration" />
-                <Tab id="projectAccess" title="Project Access" />
-                <Tab id="integrations/dbt-cloud" title="dbt Cloud" />
+            <Tabs id="TabsExample" selectedTabId={tab} onChange={changeTab}>
+                <Tab id={SettingsTabs.SETTINGS} title="Project Settings" />
+                <Tab
+                    id={SettingsTabs.TABLES_CONFIGURATION}
+                    title="Tables Configuration"
+                />
+                <Tab id={SettingsTabs.PROJECT_ACCESS} title="Project Access" />
+                <Tab id={Integrations.DBT_CLOUD} title="dbt Cloud" />
             </Tabs>
 
             <Switch>
-                <Route exact path={`${basePath}/settings`}>
-                    <ProjectConnectionContainer>
-                        <UpdateProjectWrapper>
-                            <UpdateProjectConnection
-                                projectUuid={projectUuid}
-                            />
-                        </UpdateProjectWrapper>
-                    </ProjectConnectionContainer>
+                <Route exact path={`${basePath}/${SettingsTabs.SETTINGS}`}>
+                    <UpdateProjectConnection projectUuid={projectUuid} />
                 </Route>
 
-                <Route exact path={`${basePath}/tablesConfiguration}`}>
-                    <Content>
-                        <ContentContainer>
-                            <ProjectTablesConfiguration
-                                projectUuid={projectUuid}
-                            />
-                        </ContentContainer>
-                    </Content>
+                <Route
+                    exact
+                    path={`${basePath}/${SettingsTabs.TABLES_CONFIGURATION}`}
+                >
+                    <ProjectTablesConfiguration projectUuid={projectUuid} />
                 </Route>
 
-                <Route exact path={`${basePath}/projectAccess`}>
+                <Route
+                    exact
+                    path={`${basePath}/${SettingsTabs.PROJECT_ACCESS}`}
+                >
                     <ProjectUserAccess />
                 </Route>
 
-                <Route exact path={`${basePath}/integration/dbt-cloud`}>
+                <Route
+                    exact
+                    path={`${basePath}/integration/${Integrations.DBT_CLOUD}`}
+                >
                     <DbtCloudSettings />
                 </Route>
 

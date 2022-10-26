@@ -7,18 +7,6 @@ export const ContentContainer = styled.div`
     margin: 0 auto;
 `;
 
-export const UpdateProjectWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow-y: scroll;
-`;
-
-export const UpdateHeaderWrapper = styled.div`
-    width: 800px;
-    margin: 40px auto 0;
-`;
-
 export const Header = styled.div`
     display: flex;
     flex-direction: row;
