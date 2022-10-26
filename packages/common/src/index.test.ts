@@ -228,15 +228,15 @@ describe('Common index', () => {
     describe('default values on filter rule', () => {
         // TODO mock some timezones
         test('should return right default day value', async () => {
-            const date = getFilterRuleWithDefaultValue(
-                dateDayDimension,
-                emptyValueFilter,
-                undefined,
-            ).values?.[0];
+            const date = moment().format('YYYY-MM-DD');
 
-            expect(date.toISOString().split('T')[0]).toEqual(
-                new Date().toISOString().split('T')[0],
-            );
+            expect(
+                getFilterRuleWithDefaultValue(
+                    dateDayDimension,
+                    emptyValueFilter,
+                    undefined,
+                ).values,
+            ).toEqual([date]);
         });
 
         test('should return right default month value', async () => {
@@ -248,7 +248,7 @@ describe('Common index', () => {
                     emptyValueFilter,
                     undefined,
                 ).values,
-            ).toEqual([new Date(`${date}T00:00:00.000Z`)]);
+            ).toEqual([date]);
         });
 
         test('should return right default year value', async () => {
@@ -260,7 +260,7 @@ describe('Common index', () => {
                     emptyValueFilter,
                     undefined,
                 ).values,
-            ).toEqual([new Date(`${date}T00:00:00.000Z`)]);
+            ).toEqual([date]);
         });
     });
 });
