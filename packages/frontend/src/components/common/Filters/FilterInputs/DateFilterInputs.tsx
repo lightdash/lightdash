@@ -138,7 +138,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                             : new Date().toString()
                     }
                     formatDate={(value: Date) =>
-                        formatDate(value, undefined, true)
+                        formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
                     defaultValue={new Date().toString()}
