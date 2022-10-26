@@ -21,6 +21,7 @@ import {
     getResultValues,
     getVisibleFields,
     isFilterableField,
+    PivotReference,
     ResultRow,
     SavedChart,
 } from '@lightdash/common';
@@ -188,7 +189,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         meta: TableColumn['meta'];
         row: ResultRow;
         dimensions: string[];
-        pivot?: { fieldId: string; value: any };
+        pivotReference?: PivotReference;
     }>();
     const { user } = useApp();
 
@@ -423,14 +424,14 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         meta,
                                                         row,
                                                         dimensions,
-                                                        pivot,
+                                                        pivotReference,
                                                     } = viewUnderlyingDataOptions;
                                                     viewData(
                                                         value,
                                                         meta,
                                                         row,
                                                         dimensions,
-                                                        pivot,
+                                                        pivotReference,
                                                         dashboardFilters,
                                                     );
                                                 }

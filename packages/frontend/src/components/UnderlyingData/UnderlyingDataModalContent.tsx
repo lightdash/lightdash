@@ -1,7 +1,6 @@
 import { AnchorButton } from '@blueprintjs/core';
 import {
     ChartType,
-    CompiledDimension,
     CreateSavedChartVersion,
     Field,
     fieldId as getFieldId,
@@ -98,12 +97,15 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const metricQuery = useMemo<MetricQuery>(() => {
         if (!config) return defaultMetricQuery;
-        const { meta, row, pivot, dimensions, value } = config;
+        const { meta, row, pivotReference, dimensions, value } = config;
         if (meta?.item === undefined) return defaultMetricQuery;
 
         // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-        const rowFieldIds = pivot
-            ? [pivot.fieldId, ...Object.keys(row)]
+        const rowFieldIds = pivotReference?.pivotValues
+            ? [
+                  ...pivotReference.pivotValues.map(({ field }) => field),
+                  ...Object.keys(row),
+              ]
             : Object.keys(row);
 
         // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
@@ -161,18 +163,16 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                   },
               ];
 
-        const pivotFilter: FilterRule[] = pivot
-            ? [
-                  {
-                      id: uuidv4(),
-                      target: {
-                          fieldId: pivot.fieldId,
-                      },
-                      operator: FilterOperator.EQUALS,
-                      values: [pivot.value],
-                  },
-              ]
-            : [];
+        const pivotFilter: FilterRule[] = (
+            pivotReference?.pivotValues || []
+        ).map((pivot) => ({
+            id: uuidv4(),
+            target: {
+                fieldId: pivot.field,
+            },
+            operator: FilterOperator.EQUALS,
+            values: [pivot.value],
+        }));
 
         // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
