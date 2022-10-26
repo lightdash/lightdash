@@ -5,7 +5,7 @@ describe('Project Permissions', () => {
         cy.login();
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.get('[data-cy="settings-button"]').should('exist');
+        cy.findByTestId('settings-menu').should('exist');
         cy.contains('Explore');
         cy.contains('Welcome, David');
     });
@@ -26,7 +26,7 @@ describe('Project Permissions', () => {
         ]);
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.get('[data-cy="settings-button"]').should('exist');
+        cy.findByTestId('settings-menu').should('not.exist');
         cy.contains('Explore');
         cy.contains('Welcome, test');
     });
@@ -34,7 +34,7 @@ describe('Project Permissions', () => {
         cy.loginWithPermissions('editor', []);
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.get('[data-cy="settings-button"]').should('exist');
+        cy.findByTestId('settings-menu').should('not.exist');
         cy.contains('Explore');
         cy.contains('Welcome, test');
     });
@@ -43,7 +43,7 @@ describe('Project Permissions', () => {
         cy.loginWithPermissions('admin', []);
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.get('[data-cy="settings-button"]').should('exist');
+        cy.findByTestId('settings-menu').should('exist');
         cy.contains('Explore');
         cy.contains('Welcome, test');
     });
