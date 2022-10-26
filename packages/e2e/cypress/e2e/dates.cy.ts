@@ -24,9 +24,12 @@ describe('Explore', () => {
             case 'America/New_York':
                 expect(offset, errorMessage).to.be.equal(240);
                 break;
+            case 'Asia/Tokyo':
+                expect(offset, errorMessage).to.be.equal(-540);
+                break;
             default:
                 throw new Error(
-                    'Invalid timezone to test, please add CYPRESS_TZ to your env with a valid timezone',
+                    `Invalid timezone (${timezone}) to test, please add CYPRESS_TZ to your env with a valid timezone`,
                 );
         }
     });

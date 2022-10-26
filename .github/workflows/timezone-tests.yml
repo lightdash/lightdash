@@ -59,6 +59,16 @@ jobs:
         env:
           TZ: 'Europe/Madrid'
           CYPRESS_TZ: 'Europe/Madrid' # For tests
+      - name: Cypress run with Asia/Tokyo
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'Asia/Tokyo'
+          CYPRESS_TZ: 'Asia/Tokyo' # For tests
 
       # After the test run completes
       # store videos and any screenshots
