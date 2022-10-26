@@ -54,7 +54,7 @@ const ProjectSettings: FC = () => {
     }
 
     if (!tab) {
-        return <Redirect to={`${basePath}/settings`} />;
+        return <Redirect to={`${basePath}/${SettingsTabs.SETTINGS}`} />;
     }
 
     if (isLoading || !project) {
