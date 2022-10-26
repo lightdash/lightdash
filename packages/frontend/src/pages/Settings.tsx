@@ -195,7 +195,13 @@ const Settings: FC = () => {
                 {orgData &&
                     !orgData.needsProject &&
                     user.data?.ability?.can('manage', 'Project') && (
-                        <Route path="/generalSettings/projectManagement/:projectUuid/settings/:tab?">
+                        <Route
+                            exact
+                            path={[
+                                '/generalSettings/projectManagement/:projectUuid/:tab?',
+                                '/generalSettings/projectManagement/:projectUuid/:tab/:integration',
+                            ]}
+                        >
                             <TrackPage name={PageName.PROJECT_SETTINGS}>
                                 <Content>
                                     <ContentWrapper>

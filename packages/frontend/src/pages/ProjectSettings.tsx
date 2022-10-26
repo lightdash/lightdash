@@ -1,6 +1,12 @@
-import { Colors, Divider, H3, NonIdealState, Spinner } from '@blueprintjs/core';
+import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
 import { FC } from 'react';
-import { Redirect, Route, Switch, useParams } from 'react-router-dom';
+import {
+    Redirect,
+    Route,
+    Switch,
+    useHistory,
+    useParams,
+} from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
@@ -16,7 +22,12 @@ import {
 } from './ProjectSettings.styles';
 
 const ProjectSettings: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const history = useHistory();
+    const { projectUuid, tab } = useParams<{
+        projectUuid: string;
+        tab?: string;
+    }>();
+
     const { isLoading, data, error } = useProject(projectUuid);
     const basePath = `/generalSettings/projectManagement/${projectUuid}`;
 
@@ -31,6 +42,12 @@ const ProjectSettings: FC = () => {
         );
     }
 
+    console.log({ tab });
+
+    if (!tab) {
+        return <Redirect to={`${basePath}/settings`} />;
+    }
+
     if (isLoading || !data) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -39,84 +56,53 @@ const ProjectSettings: FC = () => {
         );
     }
 
-    {
-        /* <Sidebar title="Project settings" noMargin>
-                <Menu>
-                    <RouterMenuItem
-                        text="Project connections"
-                        exact
-                        to={`${basePath}/settings`}
-                    />
-                    <MenuDivider />
-                    <RouterMenuItem
-                        text="Tables configuration"
-                        exact
-                        to={`${basePath}/tablesConfiguration`}
-                    />
-                    <MenuDivider />
-                    <RouterMenuItem
-                        text="Project access"
-                        exact
-                        to={`${basePath}/projectAccess`}
-                    />
-                    <MenuDivider />
-                    <RouterMenuItem
-                        text="dbt Cloud"
-                        exact
-                        to={`${basePath}/integration/dbt-cloud`}
-                    />
-                </Menu>
-            </Sidebar> */
-    }
-
     return (
-        <Switch>
-            <Route exact path={`${basePath}/tablesConfiguration}`}>
-                <Content>
-                    <ContentContainer>
-                        <H3 style={{ marginTop: 10, marginBottom: 0 }}>
-                            Your project has connected successfully! 🎉
-                        </H3>
-                        <Divider style={{ margin: '20px 0' }} />
-                        <p
-                            style={{
-                                marginBottom: 20,
-                                color: Colors.GRAY1,
-                            }}
-                        >
-                            Before you start exploring your data, pick the dbt
-                            models you want to appear as tables in Lightdash.
-                            You can always adjust this in your project settings
-                            later.
-                        </p>
-                        <ProjectTablesConfiguration projectUuid={projectUuid} />
-                    </ContentContainer>
-                </Content>
-            </Route>
+        <>
+            <Tabs
+                id="TabsExample"
+                selectedTabId={tab}
+                onChange={(newTab) => {
+                    history.push(`${basePath}/${newTab}`);
+                }}
+            >
+                <Tab id="settings" title="Project Settings" />
+                <Tab id="tablesConfiguration" title="Tables Configuration" />
+                <Tab id="projectAccess" title="Project Access" />
+                <Tab id="integrations/dbt-cloud" title="dbt Cloud" />
+            </Tabs>
 
-            <Route exact path={`${basePath}/settings`}>
-                <ProjectConnectionContainer>
-                    <UpdateProjectWrapper>
-                        <UpdateHeaderWrapper>
-                            <Title marginBottom>
-                                Edit your project connection
-                            </Title>
-                        </UpdateHeaderWrapper>
-                        <UpdateProjectConnection projectUuid={projectUuid} />
-                    </UpdateProjectWrapper>
-                </ProjectConnectionContainer>
-            </Route>
+            <Switch>
+                <Route exact path={`${basePath}/settings`}>
+                    <ProjectConnectionContainer>
+                        <UpdateProjectWrapper>
+                            <UpdateProjectConnection
+                                projectUuid={projectUuid}
+                            />
+                        </UpdateProjectWrapper>
+                    </ProjectConnectionContainer>
+                </Route>
 
-            <Route exact path={`${basePath}/projectAccess`}>
-                <ProjectUserAccess />
-            </Route>
+                <Route exact path={`${basePath}/tablesConfiguration}`}>
+                    <Content>
+                        <ContentContainer>
+                            <ProjectTablesConfiguration
+                                projectUuid={projectUuid}
+                            />
+                        </ContentContainer>
+                    </Content>
+                </Route>
 
-            <Route exact path={`${basePath}/integration/dbt-cloud`}>
-                <DbtCloudSettings />
-            </Route>
+                <Route exact path={`${basePath}/projectAccess`}>
+                    <ProjectUserAccess />
+                </Route>
 
-            <Redirect to={basePath} />
-        </Switch>
+                <Route exact path={`${basePath}/integration/dbt-cloud`}>
+                    <DbtCloudSettings />
+                </Route>
+
+                <Redirect to={basePath} />
+            </Switch>
+        </>
     );
 };
 
