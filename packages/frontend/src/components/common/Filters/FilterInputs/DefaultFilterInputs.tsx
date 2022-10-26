@@ -1,4 +1,4 @@
-import { InputGroup, NumericInput, TagInput } from '@blueprintjs/core';
+import { NumericInput, TagInput } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     FilterableField,
@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useFiltersContext } from '../FiltersProvider';
-import AutoComplete from './AutoComplete/AutoComplete';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
 
 export type FilterInputsProps<T extends FilterRule = FilterRule> = {
@@ -35,6 +34,9 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
             return <span style={{ width: '100%' }} />;
+        case FilterOperator.STARTS_WITH:
+        case FilterOperator.INCLUDE:
+        case FilterOperator.NOT_INCLUDE:
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS: {
             if (filterType === FilterType.STRING) {
@@ -77,39 +79,6 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                 />
             );
         }
-
-        case FilterOperator.STARTS_WITH:
-        case FilterOperator.INCLUDE:
-        case FilterOperator.NOT_INCLUDE:
-            if (filterType === FilterType.STRING) {
-                return (
-                    <AutoComplete
-                        disabled={disabled}
-                        field={field}
-                        value={filterRule.values?.[0] || ''}
-                        suggestions={suggestions || []}
-                        popoverProps={popoverProps}
-                        onChange={(value) =>
-                            onChange({
-                                ...filterRule,
-                                values: [value],
-                            })
-                        }
-                    />
-                );
-            }
-            return (
-                <InputGroup
-                    fill
-                    value={filterRule.values?.[0] || ''}
-                    onChange={(e) =>
-                        onChange({
-                            ...filterRule,
-                            values: [e.currentTarget.value],
-                        })
-                    }
-                />
-            );
         case FilterOperator.GREATER_THAN:
         case FilterOperator.GREATER_THAN_OR_EQUAL:
         case FilterOperator.LESS_THAN:

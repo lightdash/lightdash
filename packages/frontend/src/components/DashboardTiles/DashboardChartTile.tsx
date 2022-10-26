@@ -93,7 +93,7 @@ const ValidDashboardChartTile: FC<{
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
         >
-            <LightdashVisualization />
+            <LightdashVisualization isDashboard />
         </VisualizationProvider>
     );
 };
@@ -431,6 +431,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         row,
                                                         dimensions,
                                                         pivot,
+                                                        dashboardFilters,
                                                     );
                                                 }
                                             }}

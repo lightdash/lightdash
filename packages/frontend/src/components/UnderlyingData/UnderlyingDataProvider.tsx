@@ -1,4 +1,5 @@
 import {
+    DashboardFilters,
     Field,
     Filters,
     getItemId,
@@ -24,6 +25,7 @@ type UnderlyingDataConfig = {
     row: ResultRow;
     dimensions?: string[];
     pivot?: { fieldId: string; value: any };
+    dashboardFilters?: DashboardFilters;
 };
 
 type UnderlyingDataContext = {
@@ -37,6 +39,7 @@ type UnderlyingDataContext = {
         row: ResultRow,
         dimensions?: string[],
         pivot?: { fieldId: string; value: any },
+        dashboardFilters?: DashboardFilters,
     ) => void;
     closeModal: () => void;
 };
@@ -114,6 +117,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
             row: ResultRow,
             dimensions?: string[],
             pivot?: { fieldId: string; value: any },
+            dashboardFilters?: DashboardFilters,
         ) => {
             setConfig({
                 value,
@@ -121,6 +125,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 row,
                 dimensions,
                 pivot,
+                dashboardFilters,
             });
         },
         [setConfig],

@@ -191,11 +191,16 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             }) || [];
         const exploreFilters =
             filters?.dimensions !== undefined ? [filters?.dimensions] : [];
+
+        const dashboardFilters = config.dashboardFilters
+            ? config.dashboardFilters.dimensions
+            : [];
         const combinedFilters = [
             ...exploreFilters,
             ...dimensionFilters,
             ...pivotFilter,
             ...metricFilters,
+            ...dashboardFilters,
         ];
 
         const allFilters = {

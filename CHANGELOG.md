@@ -1,3 +1,22 @@
+# [0.300.0](https://github.com/lightdash/lightdash/compare/0.299.0...0.300.0) (2022-10-26)
+
+
+### Features
+
+* support multiple values on filters: includes, not includes and starts with ([#3528](https://github.com/lightdash/lightdash/issues/3528)) ([68c0a64](https://github.com/lightdash/lightdash/commit/68c0a649684d891ee1f440342561bb60b14e2262))
+
+# [0.299.0](https://github.com/lightdash/lightdash/compare/0.298.1...0.299.0) (2022-10-25)
+
+
+### Bug Fixes
+
+* fix filter for underlying data on dashboard ([#3561](https://github.com/lightdash/lightdash/issues/3561)) ([26e9a32](https://github.com/lightdash/lightdash/commit/26e9a32aab107a46978f26fa36b71a9ac01c1528))
+
+
+### Features
+
+* add filter to dashboard on dashboard tables ([#3568](https://github.com/lightdash/lightdash/issues/3568)) ([9550c92](https://github.com/lightdash/lightdash/commit/9550c92fbf9263802895a818490ded85333af17e))
+
 ## [0.298.1](https://github.com/lightdash/lightdash/compare/0.298.0...0.298.1) (2022-10-25)
 
 

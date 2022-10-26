@@ -4,14 +4,16 @@ import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
+import DashboardCellContextMenu from './DashboardCellContextMenu';
 import { TableWrapper } from './SimpleTable.styles';
 
-const SimpleTable: FC = () => {
+const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
     const {
         isLoading,
         columnOrder,
         tableConfig: { rows, error, columns, showColumnCalculation },
         isSqlRunner,
+        explore,
     } = useVisualizationContext();
 
     if (isLoading) return <LoadingChart />;
@@ -38,6 +40,13 @@ const SimpleTable: FC = () => {
                 }}
                 cellContextMenu={(props) => {
                     if (isSqlRunner) return <>{props.children}</>;
+                    if (isDashboard)
+                        return (
+                            <DashboardCellContextMenu
+                                {...props}
+                                explore={explore}
+                            />
+                        );
                     return <CellContextMenu {...props} />;
                 }}
             />

@@ -1,5 +1,9 @@
 import moment from 'moment';
-import { buildQuery, renderDateFilterSql } from './queryBuilder';
+import {
+    buildQuery,
+    renderDateFilterSql,
+    renderStringFilterSql,
+} from './queryBuilder';
 import {
     DimensionSqlMock,
     EXPLORE,
@@ -60,6 +64,8 @@ import {
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    stringFilterDimension,
+    stringFilterRuleMocks,
 } from './queryBuilder.mock';
 
 const formatTimestamp = (date: Date): string =>
@@ -250,6 +256,87 @@ describe('Filter SQL', () => {
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
+    });
+
+    test('should return single value in includes filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.includeFilterWithSingleVal,
+            ),
+        ).toBe(stringFilterRuleMocks.includeFilterWithSingleValSQL);
+    });
+
+    test('should return multiple values joined by OR in includes filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.includeFilterWithMultiVal,
+            ),
+        ).toBe(stringFilterRuleMocks.includeFilterWithMultiValSQL);
+    });
+
+    test('should return true in includes filter sql for empty filter', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.includeFilterWithNoVal,
+            ),
+        ).toBe(stringFilterRuleMocks.includeFilterWithNoValSQL);
+    });
+
+    test('should return single value in notIncludes filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+            ),
+        ).toBe(stringFilterRuleMocks.notIncludeFilterWithSingleValSQL);
+    });
+
+    test('should return multiple values joined by AND in notIncludes filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notIncludeFilterWithMultiVal,
+            ),
+        ).toBe(stringFilterRuleMocks.notIncludeFilterWithMultiValSQL);
+    });
+
+    test('should return true in notIncludes filter sql for empty filter', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.notIncludeFilterWithNoVal,
+            ),
+        ).toBe(stringFilterRuleMocks.notIncludeFilterWithNoValSQL);
+    });
+
+    test('should return single value in startsWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.startsWithFilterWithSingleVal,
+            ),
+        ).toBe(stringFilterRuleMocks.startsWithFilterWithSingleValSQL);
+    });
+
+    test('should return multiple values joined by OR in startsWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.startsWithFilterWithMultiVal,
+            ),
+        ).toBe(stringFilterRuleMocks.startsWithFilterWithMultiValSQL);
+    });
+
+    test('should return true in startsWith filter sql for empty filter', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.startsWithFilterWithNoVal,
+            ),
+        ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
 });
 

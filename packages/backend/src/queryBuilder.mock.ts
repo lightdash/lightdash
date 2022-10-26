@@ -1153,3 +1153,71 @@ FROM "db"."schema"."table1" AS "table1"
 GROUP BY 1
 ORDER BY "table1_metric1" DESC
 `;
+
+const stringSingleValueFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: ['Bob'],
+};
+
+const stringMultiValueFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: ['Tom', 'Jerry'],
+};
+
+const noValueFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: [],
+};
+
+export const stringFilterDimension = '"customers".first_name';
+
+export const stringFilterRuleMocks = {
+    includeFilterWithSingleVal: {
+        ...stringSingleValueFilter,
+        operator: FilterOperator.INCLUDE,
+    },
+    includeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) LIKE LOWER('%Bob%')`,
+    includeFilterWithMultiVal: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.INCLUDE,
+    },
+    includeFilterWithMultiValSQL: `LOWER(${stringFilterDimension}) LIKE LOWER('%Tom%')\n  OR\n  LOWER(${stringFilterDimension}) LIKE LOWER('%Jerry%')`,
+    includeFilterWithNoVal: {
+        ...noValueFilter,
+        operator: FilterOperator.INCLUDE,
+    },
+    includeFilterWithNoValSQL: 'true',
+    notIncludeFilterWithSingleVal: {
+        ...stringSingleValueFilter,
+        operator: FilterOperator.NOT_INCLUDE,
+    },
+    notIncludeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Bob%')`,
+    notIncludeFilterWithMultiVal: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.NOT_INCLUDE,
+    },
+    notIncludeFilterWithMultiValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Tom%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Jerry%')`,
+    notIncludeFilterWithNoVal: {
+        ...noValueFilter,
+        operator: FilterOperator.NOT_INCLUDE,
+    },
+    notIncludeFilterWithNoValSQL: 'true',
+    startsWithFilterWithSingleVal: {
+        ...stringSingleValueFilter,
+        operator: FilterOperator.STARTS_WITH,
+    },
+    startsWithFilterWithSingleValSQL: `(${stringFilterDimension}) LIKE 'Bob%'`,
+    startsWithFilterWithMultiVal: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.STARTS_WITH,
+    },
+    startsWithFilterWithMultiValSQL: `(${stringFilterDimension}) LIKE 'Tom%'\n  OR\n  (${stringFilterDimension}) LIKE 'Jerry%'`,
+    startsWithFilterWithNoVal: {
+        ...noValueFilter,
+        operator: FilterOperator.STARTS_WITH,
+    },
+    startsWithFilterWithNoValSQL: 'true',
+};
