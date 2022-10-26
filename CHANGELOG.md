@@ -1,3 +1,10 @@
+# [0.302.0](https://github.com/lightdash/lightdash/compare/0.301.1...0.302.0) (2022-10-26)
+
+
+### Features
+
+* settings menu ([#3574](https://github.com/lightdash/lightdash/issues/3574)) ([e4f4ab4](https://github.com/lightdash/lightdash/commit/e4f4ab4965fc76d73511d266d734214e39d34544))
+
 ## [0.301.1](https://github.com/lightdash/lightdash/compare/0.301.0...0.301.1) (2022-10-26)
 
 
