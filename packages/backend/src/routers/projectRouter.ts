@@ -168,6 +168,7 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const { body } = req;
+            const { csvLimit } = body;
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -182,39 +183,7 @@ projectRouter.post(
                 metricQuery,
                 req.params.projectUuid,
                 req.params.exploreId,
-                false,
-            );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-projectRouter.post(
-    '/explores/:exploreId/runQueryAll',
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const { body } = req;
-            const metricQuery: MetricQuery = {
-                dimensions: body.dimensions,
-                metrics: body.metrics,
-                filters: body.filters,
-                sorts: body.sorts,
-                limit: 1000000,
-                tableCalculations: body.tableCalculations,
-                additionalMetrics: body.additionalMetrics,
-            };
-            const results: ApiQueryResults = await projectService.runQuery(
-                req.user!,
-                metricQuery,
-                req.params.projectUuid,
-                req.params.exploreId,
-                true,
+                csvLimit,
             );
             res.json({
                 status: 'ok',

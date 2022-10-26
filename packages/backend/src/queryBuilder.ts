@@ -265,10 +265,12 @@ const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
+    allResults?: boolean;
 };
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
+    allResults,
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
@@ -457,7 +459,7 @@ export const buildQuery = ({
         },
     );
 
-    const sqlLimit = `LIMIT ${limit}`;
+    const sqlLimit = allResults ? `` : `LIMIT ${limit}`;
 
     if (
         compiledMetricQuery.compiledTableCalculations.length > 0 ||

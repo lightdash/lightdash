@@ -58,11 +58,12 @@ const ResultsCard: FC = memo(() => {
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const getAllResults = () => {
-        return getAllQueryResults({
+    const getCsvResults = (csvLimit: number | null) => {
+        return getQueryResults({
             projectUuid,
             tableId: tableName,
             query: metricQuery,
+            csvLimit,
         }).then((results) => getResultValues(results.rows));
     };
 
@@ -107,7 +108,7 @@ const ResultsCard: FC = memo(() => {
                         <DownloadCsvPopup
                             fileName={tableName}
                             rows={formattedRows}
-                            getAllResults={getAllResults}
+                            getCsvResults={getCsvResults}
                         />
                     </CardHeaderRightContent>
                 )}

@@ -5,6 +5,7 @@ import {
     MetricQuery,
     SavedChart,
 } from '@lightdash/common';
+import { number } from 'echarts';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
@@ -12,37 +13,22 @@ import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
-export const getAllQueryResults = async ({
-    projectUuid,
-    tableId,
-    query,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-}) => {
-    const timezoneFixQuery = convertDateFilters(query);
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runQueryAll`,
-        method: 'POST',
-        body: JSON.stringify(timezoneFixQuery),
-    });
-};
-
 export const getQueryResults = async ({
     projectUuid,
     tableId,
     query,
+    csvLimit,
 }: {
     projectUuid: string;
     tableId: string;
     query: MetricQuery;
+    csvLimit?: number | null; //giving null returns all results (no limit)
 }) => {
     const timezoneFixQuery = convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
-        body: JSON.stringify(timezoneFixQuery),
+        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
     });
 };
 

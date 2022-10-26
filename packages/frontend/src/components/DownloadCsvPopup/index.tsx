@@ -5,6 +5,7 @@ import {
     Icon,
     Intent,
     Menu,
+    NumericInput,
     PopoverPosition,
     Radio,
     RadioGroup,
@@ -24,23 +25,25 @@ import React, {
     useState,
 } from 'react';
 import { CSVLink } from 'react-csv';
-import { Title } from './DownloadCsvPopup.styles';
+import { InputWrapper, Title } from './DownloadCsvPopup.styles';
 
 type Props = {
     fileName: string | undefined;
     rows: object[] | undefined;
-    getAllResults: () => Promise<object[]>;
+    getCsvResults: (limit: number | undefined) => Promise<object[]>;
 };
 
 export enum Limit {
     TABLE = 'table',
     ALL = 'all',
+    CUSTOM = 'custom',
 }
 
 const DownloadCsvPopup: FC<Props> = memo(
-    ({ fileName, rows, getAllResults }) => {
+    ({ fileName, rows, getCsvResults }) => {
         const [isOpen, setIsOpen] = useState<boolean>(false);
         const [limit, setLimit] = useState<string>(Limit.TABLE);
+        const [customLimit, setCustomLimit] = useState<number>(1);
 
         const [csvRows, setCsvRows] = useState<object[]>([]);
         const csvRef = useRef<
@@ -75,7 +78,20 @@ const DownloadCsvPopup: FC<Props> = memo(
                                 value={Limit.TABLE}
                             />
                             <Radio label="All Results" value={Limit.ALL} />
+                            <Radio label="Custom..." value={Limit.CUSTOM} />
                         </RadioGroup>
+                        {limit === Limit.CUSTOM && (
+                            <InputWrapper>
+                                <NumericInput
+                                    value={customLimit}
+                                    min={1}
+                                    fill
+                                    onValueChange={(value: any) =>
+                                        setCustomLimit(value)
+                                    }
+                                />
+                            </InputWrapper>
+                        )}
 
                         <CSVLink
                             data={csvRows}
@@ -90,7 +106,11 @@ const DownloadCsvPopup: FC<Props> = memo(
                                 if (limit === Limit.TABLE) {
                                     setCsvRows(rows);
                                 } else {
-                                    getAllResults().then((allRows) => {
+                                    getCsvResults(
+                                        limit === Limit.CUSTOM
+                                            ? customLimit
+                                            : null,
+                                    ).then((allRows) => {
                                         setCsvRows(allRows);
                                     });
                                 }
