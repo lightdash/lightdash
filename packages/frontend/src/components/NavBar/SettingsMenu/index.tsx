@@ -43,7 +43,7 @@ const SettingsMenu: FC = () => {
                             text="Project settings"
                             onClick={() => {
                                 history.push(
-                                    `/projects/${activeProjectUuid}/settings`,
+                                    `/generalSettings/projectManagement/${activeProjectUuid}`,
                                 );
                             }}
                         />
