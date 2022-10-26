@@ -1,3 +1,10 @@
+## [0.302.1](https://github.com/lightdash/lightdash/compare/0.302.0...0.302.1) (2022-10-26)
+
+
+### Bug Fixes
+
+* select filter date (again) ([#3584](https://github.com/lightdash/lightdash/issues/3584)) ([9d7396e](https://github.com/lightdash/lightdash/commit/9d7396e5f8cf2a95dbd320a63fecc1e0ed947a97))
+
 # [0.302.0](https://github.com/lightdash/lightdash/compare/0.301.1...0.302.0) (2022-10-26)
 
 
