@@ -385,16 +385,16 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
                     />
+
+                    <CompileProjectButton
+                        large
+                        type="submit"
+                        intent={Intent.PRIMARY}
+                        text="Test &amp; compile project"
+                        loading={isSaving || activeJobIsRunning}
+                    />
                 </FormWrapper>
             </ProjectFormProvider>
-
-            <CompileProjectButton
-                large
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Test &amp; compile project"
-                loading={isSaving || activeJobIsRunning}
-            />
         </FormContainer>
     );
 };

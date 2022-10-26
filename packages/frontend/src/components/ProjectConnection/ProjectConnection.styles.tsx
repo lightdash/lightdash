@@ -16,6 +16,8 @@ export const WarehouseLogo = styled.img`
 `;
 
 export const FormWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
     width: 800px;
     margin: 0 auto;
 `;
