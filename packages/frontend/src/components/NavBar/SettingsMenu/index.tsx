@@ -1,5 +1,6 @@
 import { Button, Menu, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../../hooks/useProject';
@@ -10,13 +11,22 @@ const SettingsMenu: FC = () => {
     const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
 
-    const userCanManageProjects = user.data?.ability?.can('manage', 'Project');
     const userCanManageOrganization = user.data?.ability?.can(
         'manage',
-        'Organization',
+        subject('Organization', {
+            organizationUuid: user.data?.organizationUuid,
+        }),
     );
 
-    if (!userCanManageProjects && !userCanManageOrganization) {
+    const userCanManageCurrentProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: activeProjectUuid,
+        }),
+    );
+
+    if (!userCanManageOrganization && !userCanManageCurrentProject) {
         return null;
     }
 
@@ -26,7 +36,7 @@ const SettingsMenu: FC = () => {
             position={PopoverPosition.BOTTOM_RIGHT}
             content={
                 <Menu>
-                    {activeProjectUuid && userCanManageProjects && (
+                    {activeProjectUuid && userCanManageCurrentProject && (
                         <MenuItem2
                             role="menuitem"
                             icon="database"
