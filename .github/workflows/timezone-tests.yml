@@ -1,4 +1,4 @@
-name: End-to-end tests
+name: Timezone tests
 on: [ deployment_status ]
 jobs:
   cypress-run:
@@ -27,34 +27,48 @@ jobs:
         run: yarn workspace @lightdash/common install
       - name: Build packages/common module
         run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
-      - name: create-json
-        id: create-json
-        uses: jsdaniell/create-json@1.1.2
-        with:
-          name: "credentials.json"
-          json: ${{ secrets.GCP_CREDENTIALS }}
-          dir: "./packages/e2e/cypress/fixtures/"
-      - name: Cypress run
+
+      - name: Cypress run with UTC
         uses: cypress-io/github-action@v4
         with:
           browser: chrome
           project: ./packages/e2e
-          spec: packages/e2e/cypress/e2e/**/*
-          # Set the PR deployment url
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
         env:
-          CYPRESS_PGHOST: ${{secrets.PGHOST}}
-          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
-          CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
-          CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
-          CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
-          CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
-          CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
-          CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
           TZ: 'UTC'
-          CYPRESS_TZ: 'UTC'
+          CYPRESS_TZ: 'UTC' # For tests
+      - name: Cypress run with America/New_York
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'America/New_York'
+          CYPRESS_TZ: 'America/New_York' # For tests
+
+      - name: Cypress run with Europe/Madrid
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'Europe/Madrid'
+          CYPRESS_TZ: 'Europe/Madrid' # For tests
+      - name: Cypress run with Asia/Tokyo
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'Asia/Tokyo'
+          CYPRESS_TZ: 'Asia/Tokyo' # For tests
 
       # After the test run completes
       # store videos and any screenshots
