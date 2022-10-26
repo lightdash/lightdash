@@ -4,6 +4,7 @@ import {
     Field,
     getItemId,
     isDimension,
+    replaceStringInArray,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -216,13 +217,10 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                                         onChange={(item) => {
                                             setPivotDimensions(
                                                 pivotDimensions
-                                                    ? pivotDimensions.map(
-                                                          (key) =>
-                                                              key !== pivotKey
-                                                                  ? key
-                                                                  : getItemId(
-                                                                        item,
-                                                                    ),
+                                                    ? replaceStringInArray(
+                                                          pivotDimensions,
+                                                          pivotKey,
+                                                          getItemId(item),
                                                       )
                                                     : [getItemId(item)],
                                             );
