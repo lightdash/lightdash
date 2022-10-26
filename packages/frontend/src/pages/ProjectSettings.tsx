@@ -42,8 +42,6 @@ const ProjectSettings: FC = () => {
         }
     };
 
-    console.log(projectUuid, tab);
-
     if (error) {
         return (
             <div style={{ marginTop: '20px' }}>

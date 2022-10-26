@@ -42,7 +42,8 @@ const ProjectTablesConfiguration: FC<{
     const ability = useAbilityContext();
     const [isListOpen, toggleList] = useToggle(false);
 
-    const { data: explores, isLoading: isLoadingExplores } = useExplores();
+    const { data: explores, isLoading: isLoadingExplores } =
+        useExplores(projectUuid);
     const { data, isLoading } = useProjectTablesConfiguration(projectUuid);
     const {
         mutate: update,
