@@ -42,6 +42,7 @@ describe('CLI', () => {
                 failOnNonZeroExit: false,
                 env: {
                     CI: true,
+                    NODE_ENV: 'development',
                     PGHOST: Cypress.env('PGHOST') || 'localhost',
                     PGPORT: 5432,
                     PGUSER: 'postgres',
@@ -61,6 +62,7 @@ describe('CLI', () => {
                 failOnNonZeroExit: false,
                 env: {
                     CI: true,
+                    NODE_ENV: 'development',
                     PGHOST: Cypress.env('PGHOST') || 'localhost',
                     PGPORT: 5432,
                     PGUSER: 'postgres',
@@ -78,6 +80,7 @@ describe('CLI', () => {
             cy.exec(`${cliCommand} login ${lightdashUrl} --token ${apiToken}`, {
                 failOnNonZeroExit: false,
                 env: {
+                    NODE_ENV: 'development',
                     CI: true,
                 },
             })
@@ -95,6 +98,7 @@ describe('CLI', () => {
                     failOnNonZeroExit: false,
                     env: {
                         CI: true,
+                        NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
                         PGHOST: Cypress.env('PGHOST') || 'localhost',
@@ -119,6 +123,7 @@ describe('CLI', () => {
                     failOnNonZeroExit: false,
                     env: {
                         CI: true,
+                        NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
                         PGHOST: Cypress.env('PGHOST') || 'localhost',
@@ -140,6 +145,7 @@ describe('CLI', () => {
             cy.exec(`${cliCommand} stop-preview --name "${previewName}"`, {
                 failOnNonZeroExit: false,
                 env: {
+                    NODE_ENV: 'development',
                     LIGHTDASH_API_KEY: apiToken,
                     LIGHTDASH_URL: lightdashUrl,
                 },
