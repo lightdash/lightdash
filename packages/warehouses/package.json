@@ -8,9 +8,9 @@
         "dist/**/*"
     ],
     "dependencies": {
+        "@databricks/sql": "1.0.0",
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.303.0",
-        "@lightdash/databricks-sql": "^0.1.8-beta.3",
         "pg": "^8.7.1",
         "snowflake-sdk": "^1.6.4"
     },
