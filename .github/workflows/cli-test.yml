@@ -1,6 +1,8 @@
 name: CLI tests
 on: [ deployment_status ]
 
+env: 
+  NODE_ENV: 'development'
 jobs:
   cli-run:
     # Only trigger for correct environment and status
