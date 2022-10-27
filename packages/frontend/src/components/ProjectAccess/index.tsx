@@ -2,14 +2,12 @@ import { Colors, Icon } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { FC, useState } from 'react';
 import {
-    ContentContainer,
     Header,
     Title,
     TitleWrapper,
 } from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
-import Content from '../common/Page/Content';
 import ProjectAccess from './ProjectAccess';
 import { AddUserButton } from './ProjectAccess.styles';
 import ProjectAccessCreation from './ProjectAccessCreation';
