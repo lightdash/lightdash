@@ -1,7 +1,6 @@
 import {
     Button,
     ButtonGroup,
-    Callout,
     Classes,
     Colors,
     Dialog,
@@ -14,9 +13,7 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
 import { useLocation } from 'react-router-dom';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteUserMutation,
@@ -32,11 +29,10 @@ import {
     PageType,
 } from '../../../types/Events';
 import InvitesPanel from '../InvitesPanel';
+import InviteSuccess from './InviteSuccess';
 import {
     AddUserButton,
     HeaderWrapper,
-    InviteInput,
-    InviteSuccess,
     ItemContent,
     NewLinkButton,
     PanelTitle,
@@ -72,7 +68,6 @@ const UserListItem: FC<{
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
     const { user, health } = useApp();
-    const { showToastSuccess } = useToaster();
     const updateUser = useUpdateUserMutation(userUuid);
     const handleDelete = () => mutate(userUuid);
 
@@ -151,35 +146,7 @@ const UserListItem: FC<{
                         </ButtonGroup>
                     )}
                 </SectionWrapper>
-                {inviteLink.data && (
-                    <InviteSuccess>
-                        {health.data?.hasEmailClient && (
-                            <Callout intent="success">
-                                {inviteLink.data.email} has been invited.
-                            </Callout>
-                        )}
-                        <InviteInput
-                            id="invite-link-input"
-                            className="cohere-block"
-                            type="text"
-                            readOnly
-                            value={inviteLink.data.inviteUrl}
-                            rightElement={
-                                <CopyToClipboard
-                                    text={inviteLink.data.inviteUrl}
-                                    options={{ message: 'Copied' }}
-                                    onCopy={() =>
-                                        showToastSuccess({
-                                            title: 'Invite link copied',
-                                        })
-                                    }
-                                >
-                                    <Button minimal icon="clipboard" />
-                                </CopyToClipboard>
-                            }
-                        />
-                    </InviteSuccess>
-                )}
+                {inviteLink.data && <InviteSuccess invite={inviteLink.data} />}
             </ItemContent>
             <Dialog
                 isOpen={isDeleteDialogOpen}
