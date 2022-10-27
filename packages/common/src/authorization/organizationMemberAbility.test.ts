@@ -69,6 +69,9 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(false);
         });
+        it('can create Project', () => {
+            expect(ability.can('create', 'Project')).toEqual(true);
+        });
     });
 
     describe('when user is an editor', () => {
@@ -108,6 +111,9 @@ describe('Organization member permissions', () => {
         it('can run SQL Queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(true);
         });
+        it('can create Project', () => {
+            expect(ability.can('create', 'Project')).toEqual(false);
+        });
     });
     describe('when user is a member', () => {
         beforeEach(() => {
@@ -127,6 +133,9 @@ describe('Organization member permissions', () => {
         it('cannot view charts', () => {
             expect(ability.can('view', 'SavedChart')).toEqual(false);
         });
+        it('can create Project', () => {
+            expect(ability.can('create', 'Project')).toEqual(false);
+        });
     });
     describe('when user is a viewer', () => {
         beforeEach(() => {
@@ -141,7 +150,7 @@ describe('Organization member permissions', () => {
             expect(ability.can('create', 'InviteLink')).toEqual(true);
         });
         it('can create Project', () => {
-            expect(ability.can('create', 'Project')).toEqual(true);
+            expect(ability.can('create', 'Project')).toEqual(false);
         });
         it('cannot create any resource', () => {
             expect(ability.can('create', 'Space')).toEqual(false);
@@ -242,6 +251,9 @@ describe('Organization member permissions', () => {
                     subject('Job', { userUuid: 'another-user-uuid' }),
                 ),
             ).toEqual(false);
+        });
+        it('can create Project', () => {
+            expect(ability.can('create', 'Project')).toEqual(false);
         });
     });
 });
