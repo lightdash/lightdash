@@ -88,6 +88,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
         selectors: select,
         manifest,
     });
+
     if (options.verbose)
         console.error(`> Compiled models: ${compiledModels.length}`);
 

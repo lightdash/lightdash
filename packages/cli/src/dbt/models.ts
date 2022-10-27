@@ -24,6 +24,7 @@ type CompiledModel = {
     rootPath: string;
     originalFilePath: string;
     patchPath: string | null | undefined;
+    label: string | undefined;
 };
 
 type GetDatabaseTableForModelArgs = {
@@ -73,6 +74,7 @@ const generateModelYml = ({
     includeMeta,
 }: GenerateModelYamlArgs) => ({
     name: model.name,
+    label: model.label,
     columns: Object.entries(table).map(([columnName, dimensionType]) => ({
         name: columnName,
         description: '',
@@ -152,6 +154,7 @@ export const findAndUpdateModelYaml = async ({
         table,
         includeMeta,
     });
+
     const filenames = [];
     const { patchPath } = model;
     if (patchPath) {
@@ -242,6 +245,7 @@ ${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
         }
         const updatedModel = {
             ...existingModel,
+            label: model.label,
             columns: updatedColumns,
         };
         const updatedYml: YamlSchema = {
@@ -310,7 +314,7 @@ export const getModelsFromManifest = (
         )
         .map((model) =>
             normaliseModelDatabase(
-                { ...model, name: model.alias || model.name },
+                { ...model, meta: { ...model.meta, label: model.alias } },
                 adapterType,
             ),
         );
@@ -442,5 +446,6 @@ export const getCompiledModelsFromManifest = ({
         rootPath: modelLookup[nodeId].root_path,
         originalFilePath: modelLookup[nodeId].original_file_path,
         patchPath: modelLookup[nodeId].patch_path,
+        label: modelLookup[nodeId].meta.label,
     }));
 };
