@@ -1,11 +1,4 @@
-import {
-    Button,
-    Card,
-    H5,
-    HTMLSelect,
-    InputGroup,
-    Tag,
-} from '@blueprintjs/core';
+import { Button, Card, H5, HTMLSelect, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../../common/SimpleButton';
 
@@ -73,17 +66,6 @@ export const NewLinkButton = styled(SimpleButton)`
     padding-left: 0;
     font-size: 12px;
     margin-left: 10px;
-`;
-
-export const InviteSuccess = styled.div`
-    margin-top: 10px;
-    width: 100%;
-`;
-
-export const InviteInput = styled(InputGroup)`
-    margin-top: 10px;
-    margin-bottom: 0;
-    width: 100%;
 `;
 
 export const HeaderWrapper = styled.div`

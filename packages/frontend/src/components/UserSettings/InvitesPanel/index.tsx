@@ -1,27 +1,19 @@
-import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
-import {
-    CreateInviteLink,
-    formatTimestamp,
-    OrganizationMemberRole,
-} from '@lightdash/common';
+import { Card, Intent } from '@blueprintjs/core';
+import { CreateInviteLink, OrganizationMemberRole } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { isValidEmail } from '../../../utils/fieldValidators';
+import InviteSuccess from '../UserManagementPanel/InviteSuccess';
 import {
     BackButton,
     EmailInput,
-    InvitedCallout,
     InviteForm,
-    InviteFormGroup,
     Panel,
     RoleSelectButton,
-    ShareLinkCallout,
     SubmitButton,
 } from './InvitesPanel.styles';
 
@@ -30,7 +22,6 @@ const InvitePanel: FC<{
 }> = ({ onBackClick }) => {
     const { track } = useTracking();
     const { health, user } = useApp();
-    const { showToastSuccess } = useToaster();
     const { data, mutate, isError, isLoading, isSuccess } =
         useCreateInviteLinkMutation();
     const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
@@ -66,7 +57,7 @@ const InvitePanel: FC<{
             />
             <Card>
                 <InviteForm
-                    name="add_saved_charts_to_dashboard"
+                    name="invite-form"
                     methods={methods}
                     onSubmit={handleSubmit}
                 >
@@ -109,49 +100,7 @@ const InvitePanel: FC<{
                     />
                 </InviteForm>
             </Card>
-            {data && (
-                <InviteFormGroup
-                    label={
-                        health.data?.hasEmailClient ? undefined : (
-                            <span>
-                                <b>{data.email}</b> has been added
-                            </span>
-                        )
-                    }
-                    labelFor="invite-link-input"
-                >
-                    {health.data?.hasEmailClient && (
-                        <InvitedCallout intent="success">
-                            {data.email} has been invited.
-                        </InvitedCallout>
-                    )}
-                    <InputGroup
-                        id="invite-link-input"
-                        className="cohere-block"
-                        type="text"
-                        readOnly
-                        value={data.inviteUrl}
-                        rightElement={
-                            <CopyToClipboard
-                                text={data.inviteUrl}
-                                options={{ message: 'Copied' }}
-                                onCopy={() =>
-                                    showToastSuccess({
-                                        title: 'Invite link copied',
-                                    })
-                                }
-                            >
-                                <Button minimal icon="clipboard" />
-                            </CopyToClipboard>
-                        }
-                    />
-                    <ShareLinkCallout intent="primary">
-                        Share this link with {data.email} and they can join your
-                        organization. This link will expire at{' '}
-                        <b>{formatTimestamp(data.expiresAt)}</b>
-                    </ShareLinkCallout>
-                </InviteFormGroup>
-            )}
+            {data && <InviteSuccess invite={data} hasMarginTop />}
         </Panel>
     );
 };
