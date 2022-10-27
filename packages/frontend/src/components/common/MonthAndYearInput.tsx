@@ -12,11 +12,7 @@ type Props = {
 const months = moment.months();
 
 const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
-    //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
-    const utcMonthValue =
-        value instanceof Date
-            ? moment(value).month()
-            : moment(value).utc().month();
+    const utcMonthValue = moment(value).month();
     return (
         <>
             <HTMLSelect
