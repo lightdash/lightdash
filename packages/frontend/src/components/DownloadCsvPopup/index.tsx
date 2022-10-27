@@ -27,9 +27,9 @@ export enum Limit {
     ALL = 'all',
     CUSTOM = 'custom',
 }
-export enum Format {
+export enum Values {
     FORMATTED = 'formatted',
-    UNFORMATTED = 'Unformatted',
+    RAW = 'raw',
 }
 
 const DownloadCsvPopup: FC<Props> = memo(
@@ -37,7 +37,7 @@ const DownloadCsvPopup: FC<Props> = memo(
         const [isOpen, setIsOpen] = useState<boolean>(false);
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
-        const [format, setFormat] = useState<string>(Format.FORMATTED);
+        const [format, setFormat] = useState<string>(Values.FORMATTED);
 
         const [csvRows, setCsvRows] = useState<object[]>([]);
         const csvRef = useRef<
@@ -63,15 +63,12 @@ const DownloadCsvPopup: FC<Props> = memo(
                 content={
                     <Card>
                         <RadioGroup
-                            label={<Title>Format</Title>}
+                            label={<Title>Values</Title>}
                             onChange={(e) => setFormat(e.currentTarget.value)}
                             selectedValue={format}
                         >
-                            <Radio label="Formatted" value={Format.FORMATTED} />
-                            <Radio
-                                label="Unformatted"
-                                value={Format.UNFORMATTED}
-                            />
+                            <Radio label="Formatted" value={Values.FORMATTED} />
+                            <Radio label="Raw" value={Values.RAW} />
                         </RadioGroup>
 
                         <RadioGroup
@@ -113,7 +110,7 @@ const DownloadCsvPopup: FC<Props> = memo(
                                     setCsvRows(
                                         getResultValues(
                                             rows,
-                                            format === Format.UNFORMATTED,
+                                            format === Values.RAW,
                                         ),
                                     );
                                 } else {
@@ -121,7 +118,7 @@ const DownloadCsvPopup: FC<Props> = memo(
                                         limit === Limit.CUSTOM
                                             ? customLimit
                                             : null,
-                                        format === Format.UNFORMATTED,
+                                        format === Values.RAW,
                                     ).then((allRows) => {
                                         setCsvRows(allRows);
                                     });
