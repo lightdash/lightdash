@@ -58,13 +58,13 @@ const ResultsCard: FC = memo(() => {
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const getCsvResults = (csvLimit: number | null) => {
+    const getCsvResults = (csvLimit: number | null, onlyRaw: boolean) => {
         return getQueryResults({
             projectUuid,
             tableId: tableName,
             query: metricQuery,
             csvLimit,
-        }).then((results) => getResultValues(results.rows));
+        }).then((results) => getResultValues(results.rows, onlyRaw));
     };
 
     const resultsIsOpen = useMemo(
@@ -75,7 +75,6 @@ const ResultsCard: FC = memo(() => {
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],
     );
-    const formattedRows = useMemo(() => rows && getResultValues(rows), [rows]);
     return (
         <CardWrapper elevation={1}>
             <CardHeader>
@@ -107,7 +106,7 @@ const ResultsCard: FC = memo(() => {
                         {isEditMode && <AddColumnButton />}
                         <DownloadCsvPopup
                             fileName={tableName}
-                            rows={formattedRows}
+                            rows={rows}
                             getCsvResults={getCsvResults}
                         />
                     </CardHeaderRightContent>

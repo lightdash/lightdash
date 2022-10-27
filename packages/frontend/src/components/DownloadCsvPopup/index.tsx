@@ -1,36 +1,25 @@
 import {
     Button,
     Card,
-    Classes,
-    Icon,
     Intent,
-    Menu,
     NumericInput,
     PopoverPosition,
     Radio,
     RadioGroup,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import {
-    ApiQueryResults,
-    getResultValues,
-    TableSelectionType,
-} from '@lightdash/common';
-import React, {
-    FC,
-    memo,
-    useCallback,
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
+import { Popover2 } from '@blueprintjs/popover2';
+import { getResultValues, ResultRow } from '@lightdash/common';
+import { FC, memo, useEffect, useRef, useState } from 'react';
 import { CSVLink } from 'react-csv';
 import { InputWrapper, Title } from './DownloadCsvPopup.styles';
 
 type Props = {
     fileName: string | undefined;
-    rows: object[] | undefined;
-    getCsvResults: (limit: number | undefined) => Promise<object[]>;
+    rows: ResultRow[] | undefined;
+    getCsvResults: (
+        limit: number | null,
+        onlyRaw: boolean,
+    ) => Promise<object[]>;
 };
 
 export enum Limit {
@@ -38,12 +27,17 @@ export enum Limit {
     ALL = 'all',
     CUSTOM = 'custom',
 }
+export enum Format {
+    FORMATTED = 'formatted',
+    UNFORMATTED = 'Unformatted',
+}
 
 const DownloadCsvPopup: FC<Props> = memo(
     ({ fileName, rows, getCsvResults }) => {
         const [isOpen, setIsOpen] = useState<boolean>(false);
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
+        const [format, setFormat] = useState<string>(Format.FORMATTED);
 
         const [csvRows, setCsvRows] = useState<object[]>([]);
         const csvRef = useRef<
@@ -68,6 +62,18 @@ const DownloadCsvPopup: FC<Props> = memo(
             <Popover2
                 content={
                     <Card>
+                        <RadioGroup
+                            label={<Title>Format</Title>}
+                            onChange={(e) => setFormat(e.currentTarget.value)}
+                            selectedValue={format}
+                        >
+                            <Radio label="Formatted" value={Format.FORMATTED} />
+                            <Radio
+                                label="Unformatted"
+                                value={Format.UNFORMATTED}
+                            />
+                        </RadioGroup>
+
                         <RadioGroup
                             label={<Title>Limit</Title>}
                             onChange={(e) => setLimit(e.currentTarget.value)}
@@ -104,12 +110,18 @@ const DownloadCsvPopup: FC<Props> = memo(
                             intent={Intent.PRIMARY}
                             onClick={() => {
                                 if (limit === Limit.TABLE) {
-                                    setCsvRows(rows);
+                                    setCsvRows(
+                                        getResultValues(
+                                            rows,
+                                            format === Format.UNFORMATTED,
+                                        ),
+                                    );
                                 } else {
                                     getCsvResults(
                                         limit === Limit.CUSTOM
                                             ? customLimit
                                             : null,
+                                        format === Format.UNFORMATTED,
                                     ).then((allRows) => {
                                         setCsvRows(allRows);
                                     });
