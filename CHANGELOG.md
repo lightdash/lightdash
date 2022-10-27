@@ -1,3 +1,10 @@
+## [0.303.3](https://github.com/lightdash/lightdash/compare/0.303.2...0.303.3) (2022-10-27)
+
+
+### Bug Fixes
+
+* timezone e2e tests ([#3598](https://github.com/lightdash/lightdash/issues/3598)) ([90f5403](https://github.com/lightdash/lightdash/commit/90f5403bd5446cb452b7c2b2f1f98008fee44339))
+
 ## [0.303.2](https://github.com/lightdash/lightdash/compare/0.303.1...0.303.2) (2022-10-27)
 
 
