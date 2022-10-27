@@ -1,4 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
+import moment = require('moment');
 
 describe('Explore', () => {
     before(() => {
@@ -103,7 +104,7 @@ describe('Explore', () => {
         cy.get('[icon="cross"]').click({ multiple: true });
     });
 
-    it.only('Should filter by datetimes on results table', () => {
+    it('Should filter by datetimes on results table', () => {
         const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"dimensions"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]%2C"metrics"%3A[]%2C"filters"%3A{}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A1%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_timestamp_tz_millisecond"]}%2C"eChartsConfig"%3A{"series"%3A[{"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_timestamp_tz_millisecond"}}%2C"type"%3A"bar"}]}}}}`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
@@ -177,7 +178,6 @@ describe('Explore', () => {
             return `0${date.getMonth() + 1}`.slice(-2);
         }
         const now = new Date();
-        // TODO change timezone ?
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
@@ -247,6 +247,95 @@ describe('Explore', () => {
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('DAY', "orders".order_date)) = ('${todayDate}')`,
         );
+        cy.get('[icon="cross"]').click({ multiple: true });
+    });
+
+    it('Should filter by datetime on dimension', () => {
+        const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"dimensions"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]%2C"metrics"%3A[]%2C"filters"%3A{}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A1%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_timestamp_tz_millisecond"]}%2C"eChartsConfig"%3A{"series"%3A[{"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_timestamp_tz_millisecond"}}%2C"type"%3A"bar"}]}}}}`;
+        cy.visit(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
+        );
+
+        cy.findByText('Filters').prev().click();
+        cy.findByText('SQL').prev().click();
+
+        cy.findAllByText('Loading chart').should('have.length', 0);
+
+        const checkDatetime = ($value, sqlFilter) => {
+            const now = moment();
+            const aSecondBefore = moment().subtract(1, 'seconds'); // Fix millisecond race condition
+            const dateString = $value?.val();
+            const inputDatetimeFormat = 'YYYY-MM-DD, HH:mm:ss:000';
+            const expectedDatetimes = [
+                now.format(inputDatetimeFormat),
+                aSecondBefore.format(inputDatetimeFormat),
+            ];
+            expect(dateString).to.be.oneOf(expectedDatetimes);
+            cy.get('.bp4-code').contains(
+                `(${sqlFilter}) = ('${moment(dateString).format(
+                    'YYYY-MM-DD HH:mm:ss',
+                )}')`,
+            );
+        };
+
+        // Filter by raw
+        cy.get('span:contains("Raw") ~ div').click();
+        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.get('.bp4-date-input input')
+            .should('be.visible')
+            .then(($value) => checkDatetime($value, '"events".timestamp_tz'));
+        cy.get('[icon="cross"]').click({ multiple: true });
+
+        // Filter by millisecond
+        cy.get('span:contains("Millisecond") ~ div').click();
+        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.get('.bp4-date-input input')
+            .should('be.visible')
+            .then(($value) =>
+                checkDatetime(
+                    $value,
+                    `DATE_TRUNC('MILLISECOND', "events".timestamp_tz)`,
+                ),
+            );
+        cy.get('[icon="cross"]').click({ multiple: true });
+
+        // Filter by second
+        cy.get('span:contains("Second") ~ div').click();
+        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.get('.bp4-date-input input')
+            .should('be.visible')
+            .then(($value) =>
+                checkDatetime(
+                    $value,
+                    `DATE_TRUNC('SECOND', "events".timestamp_tz)`,
+                ),
+            );
+        cy.get('[icon="cross"]').click({ multiple: true });
+
+        // Filter by minute
+        cy.get('span:contains("Minute") ~ div').click();
+        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.get('.bp4-date-input input')
+            .should('be.visible')
+            .then(($value) =>
+                checkDatetime(
+                    $value,
+                    `DATE_TRUNC('MINUTE', "events".timestamp_tz)`,
+                ),
+            );
+        cy.get('[icon="cross"]').click({ multiple: true });
+
+        // Filter by hour
+        cy.get('span:contains("Hour") ~ div').click();
+        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.get('.bp4-date-input input')
+            .should('be.visible')
+            .then(($value) =>
+                checkDatetime(
+                    $value,
+                    `DATE_TRUNC('HOUR', "events".timestamp_tz)`,
+                ),
+            );
         cy.get('[icon="cross"]').click({ multiple: true });
     });
 });
