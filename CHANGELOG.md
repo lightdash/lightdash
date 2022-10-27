@@ -1,3 +1,10 @@
+# [0.304.0](https://github.com/lightdash/lightdash/compare/0.303.3...0.304.0) (2022-10-27)
+
+
+### Features
+
+* unformatted csv download option on popup ([#3603](https://github.com/lightdash/lightdash/issues/3603)) ([2f0c885](https://github.com/lightdash/lightdash/commit/2f0c885ce269205ec57d78c05af032071f268010))
+
 ## [0.303.3](https://github.com/lightdash/lightdash/compare/0.303.2...0.303.3) (2022-10-27)
 
 
