@@ -9,6 +9,7 @@ export interface LightdashUser {
     lastName: string;
     organizationUuid: string;
     organizationName: string;
+    organizationCreatedAt: Date;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;

@@ -18,6 +18,7 @@ export const user: SessionUser = {
     lastName: 'lastName',
     organizationUuid: 'organizationUuid',
     organizationName: 'organizationName',
+    organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
     isSetupComplete: true,

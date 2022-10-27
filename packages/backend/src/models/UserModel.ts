@@ -56,6 +56,7 @@ export type DbUserDetails = {
     email: string | undefined;
     organization_uuid: string;
     organization_name: string;
+    organization_created_at: Date;
     is_setup_complete: boolean;
     role: OrganizationMemberRole;
     is_active: boolean;
@@ -79,6 +80,7 @@ export const mapDbUserDetailsToLightdashUser = (
         lastName: user.last_name,
         organizationUuid: user.organization_uuid,
         organizationName: user.organization_name,
+        organizationCreatedAt: user.organization_created_at,
         isTrackingAnonymized: user.is_tracking_anonymized,
         isMarketingOptedIn: user.is_marketing_opted_in,
         isSetupComplete: user.is_setup_complete,
@@ -179,7 +181,7 @@ export class UserModel {
     async getUserDetailsByUuid(userUuid: string): Promise<LightdashUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
-            .select('*');
+            .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
@@ -189,7 +191,7 @@ export class UserModel {
     async getUserDetailsById(userId: number): Promise<LightdashUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_id', userId)
-            .select('*');
+            .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError('Cannot find user');
         }
@@ -207,7 +209,10 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('email', email)
-            .select<(DbUserDetails & { password_hash: string })[]>('*');
+            .select<(DbUserDetails & { password_hash: string })[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with email ${email} and password`,
@@ -240,7 +245,10 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('users.user_uuid', userUuid)
-            .select<(DbUserDetails & { password_hash: string })[]>('*');
+            .select<(DbUserDetails & { password_hash: string })[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with uuid ${userUuid} and password`,
@@ -339,7 +347,10 @@ export class UserModel {
             )
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
-            .select<DbUserDetails[]>('*');
+            .select<DbUserDetails[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (user === undefined) {
             return user;
         }
@@ -476,7 +487,7 @@ export class UserModel {
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
-            .select('*');
+            .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
@@ -497,7 +508,7 @@ export class UserModel {
     async findSessionUserByPrimaryEmail(email: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
-            .select('*');
+            .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${email}`);
         }
@@ -524,10 +535,9 @@ export class UserModel {
     }
 
     async findUserByEmail(email: string): Promise<LightdashUser | undefined> {
-        const [user] = await userDetailsQueryBuilder(this.database).where(
-            'email',
-            email,
-        );
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('email', email)
+            .select('*', 'organizations.created_at as organization_created_at');
         return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
     }
 
@@ -559,7 +569,10 @@ export class UserModel {
                 'users.user_id',
             )
             .where('token_hash', tokenHash)
-            .select<(DbUserDetails & DbPersonalAccessToken)[]>('*');
+            .select<(DbUserDetails & DbPersonalAccessToken)[]>(
+                '*',
+                'organizations.created_at as organization_created_at',
+            );
         if (row === undefined) {
             return undefined;
         }
