@@ -27,6 +27,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
         <>
             {showProjectAccessCreate ? (
                 <ProjectAccessCreation
+                    projectUuid={projectUuid}
                     onBackClick={() => {
                         setShowProjectAccessCreate(false);
                     }}
