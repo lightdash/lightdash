@@ -1150,6 +1150,17 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
+"@databricks/sql@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.0.0.tgz#aa12de5a364c1d15584de9807949e5ac957cef2d"
+  integrity sha512-73NVxH0tAVV/u2ns0T3tYpOvvAQ5kTFoQZATHpSlBBQRwTPKmzvHsq+jbpex/wqescoQ6TW9ZRf7W8sO4w2z4g==
+  dependencies:
+    commander "^9.3.0"
+    node-int64 "^0.4.0"
+    thrift "^0.16.0"
+    uuid "^9.0.0"
+    winston "^3.8.2"
+
 "@emotion/is-prop-valid@^0.8.8":
   version "0.8.8"
   resolved "https://registry.npmjs.org/@emotion/is-prop-valid/-/is-prop-valid-0.8.8.tgz"
@@ -1591,15 +1602,6 @@
   version "1.1.1"
   resolved "https://registry.npmjs.org/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz"
   integrity sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==
-
-"@lightdash/databricks-sql@^0.1.8-beta.3":
-  version "0.1.8-beta.3"
-  resolved "https://registry.yarnpkg.com/@lightdash/databricks-sql/-/databricks-sql-0.1.8-beta.3.tgz#b5407108e0ecdf14035afd1638a0bcf7cf4eb7d8"
-  integrity sha512-4XLRBVzFnhh9LdeYYhDCGtYcTfYflLLT6rbCwxeSP/cHWyVnGEwydJpWx5nMWI0GTVblTiEF0BTv5xASOc8rsw==
-  dependencies:
-    commander "^9.3.0"
-    node-int64 "^0.4.0"
-    thrift "^0.16.0"
 
 "@mapbox/node-pre-gyp@^1.0.0":
   version "1.0.5"
@@ -14364,6 +14366,11 @@ uuid@^8.0.0, uuid@^8.3.0, uuid@^8.3.2:
   resolved "https://registry.npmjs.org/uuid/-/uuid-8.3.2.tgz"
   integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==
 
+uuid@^9.0.0:
+  version "9.0.0"
+  resolved "https://registry.yarnpkg.com/uuid/-/uuid-9.0.0.tgz#592f550650024a38ceb0c562f2f6aa435761efb5"
+  integrity sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==
+
 uvu@^0.5.0:
   version "0.5.2"
   resolved "https://registry.npmjs.org/uvu/-/uvu-0.5.2.tgz"
@@ -14659,6 +14666,23 @@ winston@^3.6.0:
   resolved "https://registry.npmjs.org/winston/-/winston-3.8.1.tgz"
   integrity sha512-r+6YAiCR4uI3N8eQNOg8k3P3PqwAm20cLKlzVD9E66Ch39+LZC+VH1UKf9JemQj2B3QoUHfKD7Poewn0Pr3Y1w==
   dependencies:
+    "@dabh/diagnostics" "^2.0.2"
+    async "^3.2.3"
+    is-stream "^2.0.0"
+    logform "^2.4.0"
+    one-time "^1.0.0"
+    readable-stream "^3.4.0"
+    safe-stable-stringify "^2.3.1"
+    stack-trace "0.0.x"
+    triple-beam "^1.3.0"
+    winston-transport "^4.5.0"
+
+winston@^3.8.2:
+  version "3.8.2"
+  resolved "https://registry.yarnpkg.com/winston/-/winston-3.8.2.tgz#56e16b34022eb4cff2638196d9646d7430fdad50"
+  integrity sha512-MsE1gRx1m5jdTTO9Ld/vND4krP2To+lgDoMEHGGa4HIlAUyXJtfc7CxQcGXVyz2IBpw5hbFkj2b/AtUdQwyRew==
+  dependencies:
+    "@colors/colors" "1.5.0"
     "@dabh/diagnostics" "^2.0.2"
     async "^3.2.3"
     is-stream "^2.0.0"
