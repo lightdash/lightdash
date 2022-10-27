@@ -8,9 +8,8 @@ import {
     ProjectMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useParams } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -42,11 +41,16 @@ const renderItem: ItemRenderer<string> = (item, { modifiers, handleClick }) => {
     );
 };
 
-const ProjectAccessCreation: FC<{
+interface ProjectAccessCreationProps {
+    projectUuid: string;
     onBackClick: () => void;
-}> = ({ onBackClick }) => {
+}
+
+const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
+    onBackClick,
+    projectUuid,
+}) => {
     const { track } = useTracking();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { showToastSuccess } = useToaster();
     const {
@@ -219,7 +223,7 @@ const ProjectAccessCreation: FC<{
 
                     <SubmitButton
                         intent={Intent.PRIMARY}
-                        text={'Give access'}
+                        text="Give access"
                         type="submit"
                         disabled={isLoading || isInvitationLoading}
                     />

@@ -30,8 +30,6 @@ import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
-    CompileProjectFixedWidthContainer,
-    CompileProjectWrapper,
     FormContainer,
     FormWrapper,
     WarehouseLogo,
@@ -306,18 +304,14 @@ export const UpdateProjectConnection: FC<{
                     mutation={updateMutation}
                 />
             )}
-            <CompileProjectWrapper>
-                <CompileProjectFixedWidthContainer>
-                    <CompileProjectButton
-                        large
-                        type="submit"
-                        intent={Intent.PRIMARY}
-                        text="Test &amp; compile project"
-                        loading={isSaving}
-                        disabled={isDisabled}
-                    />
-                </CompileProjectFixedWidthContainer>
-            </CompileProjectWrapper>
+            <CompileProjectButton
+                large
+                type="submit"
+                intent={Intent.PRIMARY}
+                text="Test &amp; compile project"
+                loading={isSaving}
+                disabled={isDisabled}
+            />
         </FormContainer>
     );
 };
@@ -391,10 +385,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
                     />
-                </FormWrapper>
-            </ProjectFormProvider>
-            <CompileProjectWrapper fixedButton>
-                <CompileProjectFixedWidthContainer>
+
                     <CompileProjectButton
                         large
                         type="submit"
@@ -402,8 +393,8 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         text="Test &amp; compile project"
                         loading={isSaving || activeJobIsRunning}
                     />
-                </CompileProjectFixedWidthContainer>
-            </CompileProjectWrapper>
+                </FormWrapper>
+            </ProjectFormProvider>
         </FormContainer>
     );
 };

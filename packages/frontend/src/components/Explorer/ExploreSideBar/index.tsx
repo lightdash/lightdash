@@ -40,7 +40,7 @@ const BasePanel = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const errorLogs = useErrorLogs();
     const [search, setSearch] = useState<string>('');
-    const exploresResult = useExplores(true);
+    const exploresResult = useExplores(projectUuid, true);
 
     const filteredTables = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';

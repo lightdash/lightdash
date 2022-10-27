@@ -1,5 +1,5 @@
 import { Collapse } from '@blueprintjs/core';
-import React, { FC, useMemo, useState } from 'react';
+import { FC, useState } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
@@ -16,7 +16,10 @@ import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
+import { TrackPage } from '../providers/TrackingProvider';
+import { PageName } from '../types/Events';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
+import ProjectSettings from './ProjectSettings';
 import {
     CardContainer,
     CollapseTrigger,
@@ -55,7 +58,7 @@ const Settings: FC = () => {
         !health.data?.auth.disablePasswordAuthentication;
     const { data: orgData, isLoading } = useOrganisation();
 
-    const basePath = useMemo(() => `/generalSettings`, []);
+    const basePath = `/generalSettings`;
 
     if (isLoading) {
         return <PageSpinner />;
@@ -113,7 +116,6 @@ const Settings: FC = () => {
                             user.data?.ability?.can('view', 'Project') && (
                                 <RouterMenuItem
                                     text="Project management"
-                                    exact
                                     to={`${basePath}/projectManagement`}
                                 />
                             )}
@@ -187,6 +189,26 @@ const Settings: FC = () => {
                                     <ProjectManagementPanel />
                                 </ContentWrapper>
                             </Content>
+                        </Route>
+                    )}
+
+                {orgData &&
+                    !orgData.needsProject &&
+                    user.data?.ability?.can('manage', 'Project') && (
+                        <Route
+                            exact
+                            path={[
+                                '/generalSettings/projectManagement/:projectUuid/:tab?',
+                                '/generalSettings/projectManagement/:projectUuid/integrations/:tab',
+                            ]}
+                        >
+                            <TrackPage name={PageName.PROJECT_SETTINGS}>
+                                <Content>
+                                    <ContentWrapper>
+                                        <ProjectSettings />
+                                    </ContentWrapper>
+                                </Content>
+                            </TrackPage>
                         </Route>
                     )}
 
