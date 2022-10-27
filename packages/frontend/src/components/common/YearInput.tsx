@@ -9,11 +9,7 @@ type Props = {
 };
 
 const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
-    //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
-    const utcYearValue =
-        value instanceof Date
-            ? moment(value).year()
-            : moment(value).utc().year();
+    const utcYearValue = moment(value).year();
     return (
         <NumericInput
             className={disabled ? 'disabled-filter' : ''}
