@@ -20,6 +20,10 @@
         "organizationName": {
             "type": "string"
         },
+        "organizationCreatedAt": {
+            "type": "string",
+            "format": "date-time"
+        },
         "isTrackingAnonymized": {
             "type": "boolean"
         },

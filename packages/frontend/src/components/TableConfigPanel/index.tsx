@@ -1,6 +1,11 @@
 import { Button, Switch } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { fieldId, getDimensions, getItemId } from '@lightdash/common';
+import {
+    fieldId,
+    getDimensions,
+    getItemId,
+    replaceStringInArray,
+} from '@lightdash/common';
 import React, { useMemo, useState } from 'react';
 import {
     AxisFieldDropdown,
@@ -15,7 +20,7 @@ import {
     SectionTitle,
 } from './TableConfig.styles';
 
-const MAX_PIVOTS = 3;
+export const MAX_PIVOTS = 3;
 
 export const TableConfigPanel: React.FC = () => {
     const {
@@ -89,13 +94,10 @@ export const TableConfigPanel: React.FC = () => {
                                         onChange={(item) => {
                                             setPivotDimensions(
                                                 pivotDimensions
-                                                    ? pivotDimensions.map(
-                                                          (key) =>
-                                                              key !== pivotKey
-                                                                  ? key
-                                                                  : getItemId(
-                                                                        item,
-                                                                    ),
+                                                    ? replaceStringInArray(
+                                                          pivotDimensions,
+                                                          pivotKey,
+                                                          getItemId(item),
                                                       )
                                                     : [getItemId(item)],
                                             );

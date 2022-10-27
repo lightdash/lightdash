@@ -1,11 +1,13 @@
 import {
     existingMixedSeries,
     expectedMixedSeriesMap,
+    expectedMultiPivotedSeriesMap,
     expectedPivotedSeriesMap,
     expectedSimpleSeriesMap,
     explore,
     groupedMixedSeries,
     mergedMixedSeries,
+    multiPivotSeriesMapArgs,
     pivotSeriesMapArgs,
     simpleSeriesMapArgs,
 } from './useCartesianChartConfig.mock';
@@ -125,6 +127,11 @@ describe('getExpectedSeriesMap', () => {
     test('should return series with pivot', () => {
         expect(getExpectedSeriesMap(pivotSeriesMapArgs)).toStrictEqual(
             expectedPivotedSeriesMap,
+        );
+    });
+    test('should return series with multi pivot', () => {
+        expect(getExpectedSeriesMap(multiPivotSeriesMapArgs)).toStrictEqual(
+            expectedMultiPivotedSeriesMap,
         );
     });
 });

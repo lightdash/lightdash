@@ -81,10 +81,7 @@ const WeekPicker: FC<Props> = ({
 }) => {
     const value = moment(dateValue).toDate();
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
-    const formattedDate =
-        dateValue instanceof Date
-            ? formatDate(value)
-            : formatDate(dateValue, undefined, true);
+    const formattedDate = formatDate(value);
     const [hoverRange, setHoverRange] = useState<WeekRange>();
     const selectedDays = getWeekDays(getWeekRange(value).from);
 

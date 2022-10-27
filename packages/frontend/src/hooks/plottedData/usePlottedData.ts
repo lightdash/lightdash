@@ -75,10 +75,14 @@ const usePlottedData = (
     pivotDimensions: string[] | undefined,
     pivotedKeys: string[] | undefined,
     nonPivotedKeys: string[] | undefined,
-): ApiQueryResults['rows'] => {
+): {
+    pivotValuesMap: PivotValueMap;
+    rowKeyMap: Record<string, FieldId | PivotReference>;
+    rows: ApiQueryResults['rows'];
+} => {
     return useMemo(() => {
         if (!rows) {
-            return [];
+            return { pivotValuesMap: {}, rowKeyMap: {}, rows: [] };
         }
         if (
             pivotDimensions &&
@@ -88,12 +92,12 @@ const usePlottedData = (
         ) {
             return getPivotedData(
                 rows,
-                [pivotDimensions[0]],
+                pivotDimensions,
                 pivotedKeys,
                 nonPivotedKeys,
-            ).rows;
+            );
         }
-        return rows;
+        return { pivotValuesMap: {}, rowKeyMap: {}, rows };
     }, [rows, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 };
 

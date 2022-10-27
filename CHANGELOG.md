@@ -1,3 +1,17 @@
+## [0.303.1](https://github.com/lightdash/lightdash/compare/0.303.0...0.303.1) (2022-10-27)
+
+
+### Bug Fixes
+
+* invite success message ([#3595](https://github.com/lightdash/lightdash/issues/3595)) ([676f076](https://github.com/lightdash/lightdash/commit/676f076a1400bbb547dfe67ba5a57083ea5e7e2d))
+
+# [0.303.0](https://github.com/lightdash/lightdash/compare/0.302.1...0.303.0) (2022-10-26)
+
+
+### Features
+
+* multi pivot chart ([#3565](https://github.com/lightdash/lightdash/issues/3565)) ([04468c0](https://github.com/lightdash/lightdash/commit/04468c036fc0dd8a0720dad6c54e645f6f6aceec))
+
 ## [0.302.1](https://github.com/lightdash/lightdash/compare/0.302.0...0.302.1) (2022-10-26)
 
 

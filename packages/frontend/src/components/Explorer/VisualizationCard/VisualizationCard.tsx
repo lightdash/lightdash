@@ -41,12 +41,9 @@ const VisualizationCard: FC = memo(() => {
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
-            const pivot = unsavedChartVersion?.pivotConfig?.columns?.[0];
-
             setEchartsClickEvent({
                 event: e,
                 dimensions: unsavedChartVersion.metricQuery.dimensions,
-                pivot,
                 series,
             });
         },
