@@ -50,7 +50,7 @@ export const getDataFromChartClick = (
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
 ): UnderlyingDataConfig => {
-    const pivotReference = series[e.seriesIndex].pivotReference;
+    const pivotReference = series[e.seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
             !isDimension(item) &&
