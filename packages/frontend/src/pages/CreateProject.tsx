@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { getDateFormat, TimeFrames } from '@lightdash/common';
 import moment from 'moment';
 import { FC, useEffect, useState } from 'react';
@@ -25,11 +26,12 @@ enum ConnectMethod {
 
 const CreateProject: FC = () => {
     const history = useHistory();
-    const { isLoading: isLoadingOrganisation, data: organisation } =
+    const { isLoading: isLoadingOrganization, data: organization } =
         useOrganisation();
 
     const {
         health: { data: health, isLoading: isLoadingHealth },
+        user: { data: user, isLoading: isLoadingUser },
     } = useApp();
 
     const {
@@ -62,14 +64,27 @@ const CreateProject: FC = () => {
     if (
         isLoadingHealth ||
         !health ||
-        isLoadingOrganisation ||
-        !organisation ||
+        isLoadingUser ||
+        !user ||
+        isLoadingOrganization ||
+        !organization ||
         isTokenCreating
     ) {
         return <PageSpinner />;
     }
 
-    const isCreatingFirstProject = !!organisation.needsProject;
+    const canUserCreateProject = user.ability.can(
+        'create',
+        subject('Project', {
+            organizationUuid: organization.organizationUuid,
+        }),
+    );
+
+    if (!canUserCreateProject) {
+        return <Redirect to="/" />;
+    }
+
+    const isCreatingFirstProject = !!organization.needsProject;
 
     return (
         <ProjectFormProvider>
