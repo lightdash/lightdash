@@ -1,4 +1,4 @@
-import { Button, Callout, FormGroup } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../../common/SimpleButton';
 import Form from '../../ReactHookForm/Form';
@@ -41,20 +41,7 @@ export const SubmitButton = styled(Button)`
     margin-left: 7px;
 `;
 
-export const InviteFormGroup = styled(FormGroup)`
-    margin-top: 20px;
-    margin-bottom: 0;
-`;
-
-export const ShareLinkCallout = styled(Callout)`
-    margin-top: 10px;
-`;
-
 export const RoleSelectButton = styled(Select)`
     margin-top: 20px;
     margin-left: 7px;
-`;
-
-export const InvitedCallout = styled(Callout)`
-    margin-bottom: 10px;
 `;

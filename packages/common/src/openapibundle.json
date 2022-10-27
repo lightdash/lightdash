@@ -1578,6 +1578,10 @@
                     "organizationName": {
                         "type": "string"
                     },
+                    "organizationCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "isTrackingAnonymized": {
                         "type": "boolean"
                     },
@@ -1918,6 +1922,22 @@
                     }
                 ]
             },
+            "UpdatedByUser": {
+                "type": "object",
+                "properties": {
+                    "userUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"]
+            },
             "Dashboard": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1963,8 +1983,7 @@
                     "updatedAt",
                     "filters",
                     "spaceUuid",
-                    "spaceName",
-                    "updatedByUser"
+                    "spaceName"
                 ]
             },
             "ProjectTablesConfiguration": {
@@ -2048,22 +2067,6 @@
                         "required": ["columns"]
                     }
                 }
-            },
-            "UpdatedByUser": {
-                "type": "object",
-                "properties": {
-                    "userUuid": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["userUuid", "firstName", "lastName"]
             },
             "SavedChart": {
                 "type": "object",

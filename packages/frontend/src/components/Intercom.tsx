@@ -38,6 +38,8 @@ export const Intercom: React.FC = () => {
                           company: {
                               companyId: user.data.organizationUuid,
                               name: user.data.organizationName,
+                              createdAt:
+                                  user.data.organizationCreatedAt.toString(),
                           },
                           customAttributes: {
                               role: user.data.role,
