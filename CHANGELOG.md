@@ -1,3 +1,10 @@
+## [0.303.2](https://github.com/lightdash/lightdash/compare/0.303.1...0.303.2) (2022-10-27)
+
+
+### Bug Fixes
+
+* cannot read pivotReference from undefined ([#3605](https://github.com/lightdash/lightdash/issues/3605)) ([3ef57b7](https://github.com/lightdash/lightdash/commit/3ef57b7db1ca785213fbaf58872650ec32bf509e))
+
 ## [0.303.1](https://github.com/lightdash/lightdash/compare/0.303.0...0.303.1) (2022-10-27)
 
 
