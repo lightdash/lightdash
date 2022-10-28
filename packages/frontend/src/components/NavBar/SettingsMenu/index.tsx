@@ -11,8 +11,8 @@ const SettingsMenu: FC = () => {
     const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
 
-    const userCanManageOrganization = user.data?.ability?.can(
-        'manage',
+    const userCanViewOrganization = user.data?.ability?.can(
+        'view',
         subject('Organization', {
             organizationUuid: user.data?.organizationUuid,
         }),
@@ -26,7 +26,7 @@ const SettingsMenu: FC = () => {
         }),
     );
 
-    if (!userCanManageOrganization && !userCanManageCurrentProject) {
+    if (!userCanViewOrganization && !userCanManageCurrentProject) {
         return null;
     }
 
@@ -49,7 +49,7 @@ const SettingsMenu: FC = () => {
                         />
                     )}
 
-                    {userCanManageOrganization && (
+                    {userCanViewOrganization && (
                         <MenuItem2
                             role="menuitem"
                             icon="office"
