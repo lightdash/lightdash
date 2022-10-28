@@ -7,21 +7,25 @@ import { useActiveProjectUuid } from '../../../hooks/useProject';
 import { useApp } from '../../../providers/AppProvider';
 
 const SettingsMenu: FC = () => {
-    const { user } = useApp();
+    const {
+        user: { data: user },
+    } = useApp();
     const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
 
-    const userCanViewOrganization = user.data?.ability?.can(
+    if (!user) return null;
+
+    const userCanViewOrganization = user.ability.can(
         'view',
         subject('Organization', {
-            organizationUuid: user.data?.organizationUuid,
+            organizationUuid: user.organizationUuid,
         }),
     );
 
-    const userCanViewCurrentProject = user.data?.ability?.can(
+    const userCanViewCurrentProject = user.ability.can(
         'view',
         subject('Project', {
-            organizationUuid: user.data?.organizationUuid,
+            organizationUuid: user.organizationUuid,
             projectUuid: activeProjectUuid,
         }),
     );
