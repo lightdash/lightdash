@@ -18,15 +18,15 @@ const SettingsMenu: FC = () => {
         }),
     );
 
-    const userCanManageCurrentProject = user.data?.ability?.can(
-        'manage',
+    const userCanViewCurrentProject = user.data?.ability?.can(
+        'view',
         subject('Project', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid: activeProjectUuid,
         }),
     );
 
-    if (!userCanViewOrganization && !userCanManageCurrentProject) {
+    if (!userCanViewOrganization && !userCanViewCurrentProject) {
         return null;
     }
 
@@ -36,7 +36,7 @@ const SettingsMenu: FC = () => {
             position={PopoverPosition.BOTTOM_RIGHT}
             content={
                 <Menu>
-                    {activeProjectUuid && userCanManageCurrentProject && (
+                    {activeProjectUuid && userCanViewCurrentProject && (
                         <MenuItem2
                             role="menuitem"
                             icon="database"
