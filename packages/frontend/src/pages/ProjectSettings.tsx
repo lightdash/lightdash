@@ -15,28 +15,28 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import { useProject } from '../hooks/useProject';
 import { TabsWrapper } from './ProjectSettings.styles';
 
-enum Integrations {
-    DBT_CLOUD = 'dbt-cloud',
-}
-
 enum SettingsTabs {
     SETTINGS = 'settings',
     TABLES_CONFIGURATION = 'tablesConfiguration',
     PROJECT_ACCESS = 'projectAccess',
 }
 
+enum IntegrationsTabs {
+    DBT_CLOUD = 'dbt-cloud',
+}
+
 const ProjectSettings: FC = () => {
     const history = useHistory();
     const { projectUuid, tab } = useParams<{
         projectUuid: string;
-        tab?: SettingsTabs | Integrations;
+        tab?: SettingsTabs | IntegrationsTabs;
     }>();
 
     const { isLoading, data: project, error } = useProject(projectUuid);
     const basePath = `/generalSettings/projectManagement/${projectUuid}`;
 
-    const changeTab = (newTab: SettingsTabs | Integrations) => {
-        if (newTab === Integrations.DBT_CLOUD) {
+    const changeTab = (newTab: SettingsTabs | IntegrationsTabs) => {
+        if (newTab === IntegrationsTabs.DBT_CLOUD) {
             history.push(`${basePath}/integrations/${newTab}`);
         } else {
             history.push(`${basePath}/${newTab}`);
@@ -92,7 +92,7 @@ const ProjectSettings: FC = () => {
                         id={SettingsTabs.PROJECT_ACCESS}
                         title="Project Access"
                     />
-                    <Tab id={Integrations.DBT_CLOUD} title="dbt Cloud" />
+                    <Tab id={IntegrationsTabs.DBT_CLOUD} title="dbt Cloud" />
                 </Tabs>
             </TabsWrapper>
 
@@ -117,7 +117,7 @@ const ProjectSettings: FC = () => {
 
                 <Route
                     exact
-                    path={`${basePath}/integrations/${Integrations.DBT_CLOUD}`}
+                    path={`${basePath}/integrations/${IntegrationsTabs.DBT_CLOUD}`}
                 >
                     <DbtCloudSettings projectUuid={projectUuid} />
                 </Route>
