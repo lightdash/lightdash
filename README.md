@@ -292,6 +292,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center"><a href="http://www.whispy.me"><img src="https://avatars.githubusercontent.com/u/4189234?v=4?s=100" width="100px;" alt="Istvan Meszaros"/><br /><sub><b>Istvan Meszaros</b></sub></a><br /><a href="#ideas-IstvanM" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center"><a href="https://rifkiamil.medium.com/"><img src="https://avatars.githubusercontent.com/u/1672403?v=4?s=100" width="100px;" alt="Rif"/><br /><sub><b>Rif</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rifkiamil" title="Documentation">📖</a></td>
       <td align="center"><a href="https://github.com/phillipwilhelm"><img src="https://avatars.githubusercontent.com/u/5200312?v=4?s=100" width="100px;" alt="Phillip W."/><br /><sub><b>Phillip W.</b></sub></a><br /><a href="#ideas-phillipwilhelm" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center"><a href="https://github.com/XiaozhouWang85"><img src="https://avatars.githubusercontent.com/u/42941066?v=4?s=100" width="100px;" alt="XiaozhouWang85"/><br /><sub><b>XiaozhouWang85</b></sub></a><br /><a href="#ideas-XiaozhouWang85" title="Ideas, Planning, & Feedback">🤔</a></td>
     </tr>
   </tbody>
 </table>
