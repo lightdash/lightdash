@@ -7,26 +7,30 @@ import { useActiveProjectUuid } from '../../../hooks/useProject';
 import { useApp } from '../../../providers/AppProvider';
 
 const SettingsMenu: FC = () => {
-    const { user } = useApp();
+    const {
+        user: { data: user },
+    } = useApp();
     const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
 
-    const userCanManageOrganization = user.data?.ability?.can(
-        'manage',
+    if (!user) return null;
+
+    const userCanViewOrganization = user.ability.can(
+        'view',
         subject('Organization', {
-            organizationUuid: user.data?.organizationUuid,
+            organizationUuid: user.organizationUuid,
         }),
     );
 
-    const userCanManageCurrentProject = user.data?.ability?.can(
-        'manage',
+    const userCanViewCurrentProject = user.ability.can(
+        'view',
         subject('Project', {
-            organizationUuid: user.data?.organizationUuid,
+            organizationUuid: user.organizationUuid,
             projectUuid: activeProjectUuid,
         }),
     );
 
-    if (!userCanManageOrganization && !userCanManageCurrentProject) {
+    if (!userCanViewOrganization && !userCanViewCurrentProject) {
         return null;
     }
 
@@ -36,7 +40,7 @@ const SettingsMenu: FC = () => {
             position={PopoverPosition.BOTTOM_RIGHT}
             content={
                 <Menu>
-                    {activeProjectUuid && userCanManageCurrentProject && (
+                    {activeProjectUuid && userCanViewCurrentProject && (
                         <MenuItem2
                             role="menuitem"
                             icon="database"
@@ -49,7 +53,7 @@ const SettingsMenu: FC = () => {
                         />
                     )}
 
-                    {userCanManageOrganization && (
+                    {userCanViewOrganization && (
                         <MenuItem2
                             role="menuitem"
                             icon="office"
