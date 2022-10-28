@@ -20,7 +20,7 @@ import {
     exploreTableSelfReferenceCompiled,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
-    tablesMap,
+    tablesWithMetricsWithFilters,
 } from './exploreCompiler.mock';
 
 test('Should compile empty table', () => {
@@ -105,17 +105,46 @@ describe('Default field labels render for', () => {
     });
 });
 
-describe('Compile metrics', () => {
-    test('should compile sql with filters', () => {
+describe('Compile metrics with filters', () => {
+    beforeAll(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+    });
+    afterAll(() => {
+        jest.useFakeTimers();
+    });
+    test('should show filters as columns metric1', () => {
         expect(
-            compileMetric(tablesMap.a.metrics.m1, tablesMap, '"').compiledSql,
-        ).toEqual(
-            'SUM(CASE WHEN (("a".dim1) IN (example) AND ("b".dim1) NOT IN (example)) THEN (("a".dim1)) ELSE NULL END)',
+            compileMetric(
+                tablesWithMetricsWithFilters.table1.metrics.metric1,
+                tablesWithMetricsWithFilters,
+                '"',
+            ).compiledSql,
+        ).toStrictEqual(
+            `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END)`,
         );
+    });
+    test('should show filters as columns metric2', () => {
         expect(
-            compileMetric(tablesMap.a.metrics.m2, tablesMap, '"').compiledSql,
-        ).toEqual(
-            '2 + (SUM(CASE WHEN (("a".dim1) IN (example) AND ("b".dim1) NOT IN (example)) THEN (("a".dim1)) ELSE NULL END))',
+            compileMetric(
+                tablesWithMetricsWithFilters.table2.metrics.metric2,
+                tablesWithMetricsWithFilters,
+                '"',
+            ).compiledSql,
+        ).toStrictEqual(
+            `MAX(CASE WHEN (("table2".dim2) < (10) AND ("table2".dim2) > (5)) THEN ("table2".number_column) ELSE NULL END)`,
+        );
+    });
+
+    test('should show filters as columns metric with sql', () => {
+        expect(
+            compileMetric(
+                tablesWithMetricsWithFilters.table1.metrics.metric_with_sql,
+                tablesWithMetricsWithFilters,
+                '"',
+            ).compiledSql,
+        ).toStrictEqual(
+            `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
         );
     });
 });

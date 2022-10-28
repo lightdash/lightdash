@@ -51,6 +51,14 @@ const getParsedReference = (ref: string, currentTable: string): Reference => {
     return { refTable, refName };
 };
 
+export const parseAllReferences = (
+    raw: string,
+    currentTable: string,
+): Reference[] =>
+    (raw.match(lightdashVariablePattern) || []).map((value) =>
+        getParsedReference(value.slice(2), currentTable),
+    );
+
 export const compileDimensionSql = (
     dimension: Dimension,
     tables: Record<string, Table>,
