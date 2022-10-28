@@ -1,6 +1,6 @@
 import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
-import { compileExplore } from './exploreCompiler';
+import { compileExplore, compileMetric } from './exploreCompiler';
 import {
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
@@ -20,6 +20,7 @@ import {
     exploreTableSelfReferenceCompiled,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    tablesMap,
 } from './exploreCompiler.mock';
 
 test('Should compile empty table', () => {
@@ -101,5 +102,20 @@ describe('Default field labels render for', () => {
     });
     test('names with numbers in the middle', () => {
         expect(friendlyName('my_1field_id')).toEqual('My 1field id');
+    });
+});
+
+describe('Compile metrics', () => {
+    test('should compile sql with filters', () => {
+        expect(
+            compileMetric(tablesMap.a.metrics.m1, tablesMap, '"').compiledSql,
+        ).toEqual(
+            'SUM(CASE WHEN (("a".dim1) IN (example) AND ("b".dim1) NOT IN (example)) THEN (("a".dim1)) ELSE NULL END)',
+        );
+        expect(
+            compileMetric(tablesMap.a.metrics.m2, tablesMap, '"').compiledSql,
+        ).toEqual(
+            '2 + (SUM(CASE WHEN (("a".dim1) IN (example) AND ("b".dim1) NOT IN (example)) THEN (("a".dim1)) ELSE NULL END))',
+        );
     });
 });

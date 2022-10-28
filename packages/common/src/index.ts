@@ -61,16 +61,12 @@ import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
-import {
-    formatDate,
-    formatItemValue,
-    formatTimestamp,
-} from './utils/formatting';
-import { isTimeInterval } from './utils/timeFrames';
+import { formatDate, formatItemValue } from './utils/formatting';
 
 export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
+export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
