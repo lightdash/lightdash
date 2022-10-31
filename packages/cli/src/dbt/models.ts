@@ -312,12 +312,13 @@ export const getModelsFromManifest = (
                 model.config?.materialized &&
                 model.config.materialized !== 'ephemeral',
         )
-        .map((model) =>
-            normaliseModelDatabase(
-                { ...model, meta: { ...model.meta, label: model.alias } },
+        .map((model) => {
+            const label = model.alias === model.name ? model.alias : undefined;
+            return normaliseModelDatabase(
+                { ...model, meta: { ...model.meta, label } },
                 adapterType,
-            ),
-        );
+            );
+        });
 };
 
 type MethodSelectorArgs = {
