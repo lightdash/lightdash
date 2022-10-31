@@ -213,6 +213,7 @@ type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
     properties: {
+        requestMethod: RequestMethod;
         projectId: string;
         projectName: string;
         projectType: DbtProjectType;
@@ -231,6 +232,7 @@ type ProjectErrorEvent = BaseTrack & {
     event: 'project.error';
     userId?: string;
     properties: {
+        requestMethod: RequestMethod;
         projectId: string;
         name: string;
         statusCode: number;

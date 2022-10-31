@@ -97,6 +97,26 @@ type CliPreviewError = BaseTrack & {
     };
 };
 
+type CliRefreshStarted = BaseTrack & {
+    event: 'refresh.started';
+    properties: {
+        projectId: string;
+    };
+};
+type CliRefreshCompleted = BaseTrack & {
+    event: 'refresh.completed';
+    properties: {
+        projectId: string;
+    };
+};
+type CliRefreshError = BaseTrack & {
+    event: 'refresh.error';
+    properties: {
+        projectId: string;
+        error: string;
+    };
+};
+
 type CliCompileStarted = BaseTrack & {
     event: 'compile.started';
     properties: {};
@@ -179,6 +199,9 @@ type Track =
     | CliPreviewStarted
     | CliPreviewCompleted
     | CliPreviewError
+    | CliRefreshStarted
+    | CliRefreshCompleted
+    | CliRefreshError
     | CliCompileStarted
     | CliCompileCompleted
     | CliCompileError

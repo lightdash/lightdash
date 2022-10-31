@@ -4,6 +4,7 @@ import {
     DbtProjectType,
     LightdashMode,
     OrganizationMemberRole,
+    RequestMethod,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_ORG_1_ADMIN_EMAIL,
@@ -172,6 +173,7 @@ export async function seed(knex: Knex): Promise<void> {
     const explores = await projectService.refreshAllTables(
         { userUuid: SEED_ORG_1_ADMIN.user_uuid },
         SEED_PROJECT.project_uuid,
+        RequestMethod.UNKNOWN,
     );
     await projectModel.saveExploresToCache(SEED_PROJECT.project_uuid, explores);
 }
