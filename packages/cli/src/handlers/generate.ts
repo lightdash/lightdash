@@ -17,6 +17,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
+import { getFileHeadComments } from '../dbt/schema';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
@@ -112,9 +113,17 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                 },
             );
             try {
+                const existingHeadComments = await getFileHeadComments(
+                    outputFilePath,
+                );
+                const ymlString = yaml.dump(updatedYml, {
+                    quotingType: '"',
+                });
                 await fs.writeFile(
                     outputFilePath,
-                    yaml.dump(updatedYml, { quotingType: '"' }),
+                    existingHeadComments
+                        ? `${existingHeadComments}\n${ymlString}`
+                        : ymlString,
                 );
             } catch (e) {
                 throw new ParseError(
