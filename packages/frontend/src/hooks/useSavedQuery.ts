@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
+import useSearchParams from './useSearchParams';
 
 const createSavedQuery = async (
     projectUuid: string,
@@ -307,6 +308,8 @@ export const useDuplicateMutation = (
 export const useAddVersionMutation = () => {
     const history = useHistory();
     const queryClient = useQueryClient();
+    const dashboardUuid = useSearchParams('fromDashboard');
+
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         SavedChart,
@@ -321,9 +324,14 @@ export const useAddVersionMutation = () => {
             showToastSuccess({
                 title: `Success! Chart was updated.`,
             });
-            history.push({
-                pathname: `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
-            });
+            if (dashboardUuid)
+                history.push({
+                    pathname: `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                });
+            else
+                history.push({
+                    pathname: `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
+                });
         },
         onError: (error) => {
             showToastError({

@@ -1,5 +1,7 @@
 import React, { FC, useState } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
+import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
 import { SaveButton } from './SaveChartButton.styles';
