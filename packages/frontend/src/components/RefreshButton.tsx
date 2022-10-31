@@ -29,22 +29,22 @@ export const RefreshButton = memo(() => {
 
     const isButtonDisabled = isLoading || !isValidQuery || !hasUnfetchedChanges;
 
-    const hotkeys = useMemo<HotkeyConfig[]>(() => {
-        const runQueryHotkey: Omit<HotkeyConfig, 'combo'> = {
-            group: 'Explorer',
-            label: 'Run query',
-            allowInInput: true,
-            onKeyDown: onClick,
-            global: true,
-            preventDefault: true,
-            stopPropagation: true,
-            disabled: isButtonDisabled,
-        };
-        return [
-            { ...runQueryHotkey, combo: 'ctrl+enter' },
-            { ...runQueryHotkey, combo: 'cmd+enter' },
-        ];
-    }, [onClick, isButtonDisabled]);
+    const hotkeys = useMemo<HotkeyConfig[]>(
+        () => [
+            {
+                combo: 'mod+enter',
+                group: 'Explorer',
+                label: 'Run query',
+                allowInInput: true,
+                onKeyDown: onClick,
+                global: true,
+                preventDefault: true,
+                stopPropagation: true,
+                disabled: isButtonDisabled,
+            },
+        ],
+        [onClick, isButtonDisabled],
+    );
 
     useHotkeys(hotkeys);
 
@@ -54,7 +54,7 @@ export const RefreshButton = memo(() => {
                 !hasUnfetchedChanges ? (
                     'You need to make some changes before running a query'
                 ) : (
-                    <KeyCombo combo="cmd+enter" />
+                    <KeyCombo combo="mod+enter" />
                 )
             }
             position="bottom"
