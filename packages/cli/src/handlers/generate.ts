@@ -3,7 +3,6 @@ import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
-import ora from 'ora';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
@@ -94,10 +93,9 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
 
     console.log(styles.info(`Generated .yml files:`));
     for await (const compiledModel of compiledModels) {
-        const spinner = ora(
+        const spinner = GlobalState.startSpinner(
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
-        ).start();
-        GlobalState.setActiveSpinner(spinner);
+        );
         try {
             const table = await getWarehouseTableForModel({
                 model: compiledModel,
@@ -109,7 +107,6 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     table,
                     docs: manifest.docs,
                     includeMeta: !options.excludeMeta,
-                    spinner,
                 },
             );
             try {

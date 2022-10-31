@@ -6,7 +6,6 @@ import {
     ProjectType,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import path from 'path';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -89,10 +88,9 @@ const createNewProject = async (
         projectName = answers.name ? answers.name : dbtName;
     }
     console.error('');
-    const spinner = ora(
+    const spinner = GlobalState.startSpinner(
         `  Creating new project ${styles.bold(projectName)}`,
-    ).start();
-    GlobalState.setActiveSpinner(spinner);
+    );
     await LightdashAnalytics.track({
         event: 'create.started',
         properties: {

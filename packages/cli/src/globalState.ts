@@ -7,8 +7,10 @@ class GlobalState {
         return this.activeSpinner;
     }
 
-    setActiveSpinner(value: ora.Ora | undefined) {
-        this.activeSpinner = value;
+    startSpinner(options?: ora.Options | string): ora.Ora {
+        this.activeSpinner = ora(options);
+        this.activeSpinner.start();
+        return this.activeSpinner;
     }
 }
 
