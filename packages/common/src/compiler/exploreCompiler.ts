@@ -15,6 +15,7 @@ import {
     Metric,
     MetricType,
 } from '../types/field';
+import assertUnreachable from '../utils/assertUnreachable';
 import { renderFilterRuleSql } from './filtersCompiler';
 
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
@@ -200,11 +201,11 @@ export const renderSqlType = (sql: string, type: MetricType): string => {
         case MetricType.BOOLEAN:
             break;
         default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = type;
-            throw new CompileError(
-                `No SQL render function implemented for metric with type "${type}"`,
-                {},
+            return assertUnreachable(
+                type,
+                new CompileError(
+                    `No SQL render function implemented for metric with type "${type}"`,
+                ),
             );
     }
     return sql;
