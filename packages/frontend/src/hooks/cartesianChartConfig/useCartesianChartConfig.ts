@@ -235,6 +235,35 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    const updateSeriesSorting = useCallback(
+        (updatedSeries: Series[]) =>
+            setDirtyEchartsConfig((prevState) => {
+                const updatedSeriesIds = updatedSeries.map(getSeriesId);
+                const allSeries = prevState?.series || [];
+                const allSerieIds = allSeries.map(getSeriesId);
+
+                const sortedSeries = allSeries.sort((a, b) => {
+                    const aId = getSeriesId(a);
+                    const bId = getSeriesId(b);
+                    const aIndex = updatedSeriesIds.includes(aId)
+                        ? updatedSeriesIds.indexOf(aId)
+                        : allSerieIds.indexOf(aId);
+                    const bIndex = updatedSeriesIds.includes(bId)
+                        ? updatedSeriesIds.indexOf(bId)
+                        : allSerieIds.indexOf(bId);
+                    return aIndex - bIndex;
+                });
+
+                return (
+                    prevState && {
+                        ...prevState,
+                        series: sortedSeries,
+                    }
+                );
+            }),
+        [],
+    );
+
     const updateSingleSeries = useCallback((updatedSeries: Series) => {
         setDirtyEchartsConfig((prev) => {
             return {
@@ -530,6 +559,7 @@ const useCartesianChartConfig = ({
         setShowGridY,
         setInverseX,
         updateSeries,
+        updateSeriesSorting,
     };
 };
 

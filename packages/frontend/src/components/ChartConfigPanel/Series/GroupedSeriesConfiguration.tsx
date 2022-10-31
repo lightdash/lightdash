@@ -89,7 +89,7 @@ type GroupedSeriesConfigurationProps = {
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     updateSingleSeries: (series: Series) => void;
-    updateSeries: (series: Series[]) => void;
+    updateSeriesSorting: (series: Series[]) => void;
 };
 
 const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
@@ -101,7 +101,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSingleSeries,
     updateAllGroupedSeries,
     dragHandleProps,
-    updateSeries,
+    updateSeriesSorting,
 }) => {
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
@@ -128,11 +128,12 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const onDragEnd = useCallback(
         (result: DropResult) => {
             const seriesGroupWithColor: Series[] = seriesGroup.map(
-                (series, i) => ({
+                (series) => ({
                     ...series,
-                    color: series.color || getDefaultSeriesColor(i),
+                    color: series.color || getSeriesColor(getSeriesId(series)),
                 }),
             );
+
             const serie = seriesGroupWithColor.find(
                 (series) => getSeriesId(series) === result.draggableId,
             );
@@ -146,9 +147,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             );
             reorderedSeriesGroups.splice(result.destination.index, 0, serie);
 
-            updateSeries(reorderedSeriesGroups);
+            updateSeriesSorting(reorderedSeriesGroups);
         },
-        [seriesGroup, updateSeries],
+        [seriesGroup, updateSeriesSorting],
     );
 
     return (

@@ -48,6 +48,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
             updateSingleSeries,
             updateAllGroupedSeries,
             updateSeries,
+            updateSeriesSorting,
         },
     } = useVisualizationContext();
     const { data: orgData } = useOrganisation({ refetchOnMount: false });
@@ -178,8 +179,8 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                         dragHandleProps={
                                                             dragHandleProps
                                                         }
-                                                        updateSeries={
-                                                            updateSeries
+                                                        updateSeriesSorting={
+                                                            updateSeriesSorting
                                                         }
                                                     />
                                                 ) : (
