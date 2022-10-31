@@ -1,5 +1,6 @@
 import reactPlugin from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import eslintPlugin from 'vite-plugin-eslint';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPathsPlugin from 'vite-tsconfig-paths';
 
@@ -12,8 +13,20 @@ const mapManualChunks = (mapping: Record<string, string>) => (id: string) => {
 };
 
 export default defineConfig({
-    // TODO: add ESLINT plugin
-    plugins: [reactPlugin(), svgrPlugin(), tsconfigPathsPlugin()],
+    plugins: [
+        reactPlugin(),
+        svgrPlugin(),
+        tsconfigPathsPlugin(),
+        {
+            // do not fail on serve (i.e. local development)
+            ...eslintPlugin({
+                failOnWarning: false,
+                failOnError: false,
+            }),
+            apply: 'serve',
+            enforce: 'post',
+        },
+    ],
     // css: {
     //     devSourcemap: true,
     // },

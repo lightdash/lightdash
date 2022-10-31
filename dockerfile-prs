@@ -45,6 +45,7 @@ FROM base AS prod-builder
 COPY package.json .
 COPY yarn.lock .
 COPY tsconfig.json .
+COPY .eslintrc.js .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
@@ -71,6 +72,7 @@ COPY packages/frontend ./packages/frontend
 RUN yarn --cwd ./packages/frontend/ build
 
 # Cleanup development dependencies
+RUN rm -rf node_modules
 RUN rm -rf packages/*/node_modules
 
 # Install production dependencies
