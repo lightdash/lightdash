@@ -1,3 +1,15 @@
+# [0.306.0](https://github.com/lightdash/lightdash/compare/0.305.2...0.306.0) (2022-10-31)
+
+
+### Bug Fixes
+
+* metric reference with filters ([#3614](https://github.com/lightdash/lightdash/issues/3614)) ([5ca37ff](https://github.com/lightdash/lightdash/commit/5ca37ffda9a75854d4c1400d449c5094fd0ea74d))
+
+
+### Features
+
+* keep head comments on generate command ([#3617](https://github.com/lightdash/lightdash/issues/3617)) ([5b3ae55](https://github.com/lightdash/lightdash/commit/5b3ae55f47241bc59cb3b2b14043a9ff1a33b844))
+
 ## [0.305.2](https://github.com/lightdash/lightdash/compare/0.305.1...0.305.2) (2022-10-31)
 
 
