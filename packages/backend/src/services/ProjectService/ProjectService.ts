@@ -708,6 +708,7 @@ export class ProjectService {
     async refreshAllTables(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
+        requestMethod: RequestMethod,
     ): Promise<(Explore | ExploreError)[]> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -722,6 +723,7 @@ export class ProjectService {
                 event: 'project.compiled',
                 userId: user.userUuid,
                 properties: {
+                    requestMethod,
                     projectId: projectUuid,
                     projectName: project.name,
                     projectType: project.dbtConnection.type,
@@ -808,6 +810,7 @@ export class ProjectService {
                 event: 'project.error',
                 userId: user.userUuid,
                 properties: {
+                    requestMethod,
                     projectId: projectUuid,
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
@@ -845,6 +848,7 @@ export class ProjectService {
     async compileProject(
         user: SessionUser,
         projectUuid: string,
+        requestMethod: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (
@@ -884,7 +888,12 @@ export class ProjectService {
                     const explores = await this.jobModel.tryJobStep(
                         job.jobUuid,
                         JobStepType.COMPILING,
-                        async () => this.refreshAllTables(user, projectUuid),
+                        async () =>
+                            this.refreshAllTables(
+                                user,
+                                projectUuid,
+                                requestMethod,
+                            ),
                     );
                     await this.projectModel.saveExploresToCache(
                         projectUuid,

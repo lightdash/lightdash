@@ -4,6 +4,7 @@ import { program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
 import { compileHandler } from './handlers/compile';
+import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
@@ -371,6 +372,19 @@ program
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
 
     .action(deployHandler);
+
+program
+    .command('refresh')
+    .description('Refresh Lightdash project with remote repository')
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold('refresh')}
+`,
+    )
+    .option('--verbose', undefined, false)
+    .action(refreshHandler);
 
 program
     .command('generate')

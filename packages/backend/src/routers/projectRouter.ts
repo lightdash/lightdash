@@ -7,12 +7,10 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
-    ParameterError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -29,19 +27,24 @@ import { integrationsRouter } from './integrations/intergrationsRouter';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get('/', isAuthenticated, async (req, res, next) => {
-    try {
-        res.json({
-            status: 'ok',
-            results: await projectService.getProject(
-                req.params.projectUuid,
-                req.user!,
-            ),
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.get(
+    '/',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await projectService.getProject(
+                    req.params.projectUuid,
+                    req.user!,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
 projectRouter.patch(
     '/',
@@ -228,6 +231,7 @@ projectRouter.get(
 
 projectRouter.post(
     '/refresh',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -235,6 +239,7 @@ projectRouter.post(
             const results = await projectService.compileProject(
                 req.user!,
                 req.params.projectUuid,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
             );
             res.json({
                 status: 'ok',

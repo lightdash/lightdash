@@ -36,7 +36,10 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     const headers = {
         'Content-Type': 'application/json',
         Authorization: `ApiKey ${config.context.apiKey}`,
-        [LightdashRequestMethodHeader]: RequestMethod.CLI,
+        [LightdashRequestMethodHeader]:
+            process.env.CI === 'true'
+                ? RequestMethod.CLI_CI
+                : RequestMethod.CLI,
     };
     const fullUrl = new URL(url, config.context.serverUrl).href;
     if (verbose) console.error(`> Making HTTP query to: ${fullUrl}`);
