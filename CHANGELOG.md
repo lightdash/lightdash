@@ -1,3 +1,10 @@
+# [0.308.0](https://github.com/lightdash/lightdash/compare/0.307.1...0.308.0) (2022-10-31)
+
+
+### Features
+
+* disable run query button if query does not contain any changes ([#3624](https://github.com/lightdash/lightdash/issues/3624)) ([9b87607](https://github.com/lightdash/lightdash/commit/9b87607705cbe64f853e022dc9f8bccb853a87e0))
+
 ## [0.307.1](https://github.com/lightdash/lightdash/compare/0.307.0...0.307.1) (2022-10-31)
 
 
