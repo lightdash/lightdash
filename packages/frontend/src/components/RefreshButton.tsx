@@ -1,4 +1,4 @@
-import { HotkeyConfig, KeyCombo, useHotkeys } from '@blueprintjs/core';
+import { Classes, HotkeyConfig, KeyCombo, useHotkeys } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { memo, useCallback, useMemo } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
@@ -27,6 +27,8 @@ export const RefreshButton = memo(() => {
         track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
     }, [fetchResults, track]);
 
+    const isButtonDisabled = isLoading || !isValidQuery || !hasUnfetchedChanges;
+
     const hotkeys = useMemo<HotkeyConfig[]>(() => {
         const runQueryHotkey: Omit<HotkeyConfig, 'combo'> = {
             group: 'Explorer',
@@ -36,29 +38,36 @@ export const RefreshButton = memo(() => {
             global: true,
             preventDefault: true,
             stopPropagation: true,
-            disabled: !hasUnfetchedChanges,
+            disabled: isButtonDisabled,
         };
         return [
             { ...runQueryHotkey, combo: 'ctrl+enter' },
             { ...runQueryHotkey, combo: 'cmd+enter' },
         ];
-    }, [onClick, hasUnfetchedChanges]);
+    }, [onClick, isButtonDisabled]);
 
     useHotkeys(hotkeys);
 
     return (
         <Tooltip2
-            content={<KeyCombo combo="cmd+enter" />}
+            content={
+                !hasUnfetchedChanges ? (
+                    'You need to make some changes before running a query'
+                ) : (
+                    <KeyCombo combo="cmd+enter" />
+                )
+            }
             position="bottom"
-            disabled={isLoading || !isValidQuery || !hasUnfetchedChanges}
+            disabled={isLoading || !isValidQuery}
         >
             <BigButton
+                style={{ width: 150 }}
                 icon="play"
                 intent="primary"
-                style={{ width: 150 }}
-                onClick={onClick}
-                disabled={!isValidQuery || !hasUnfetchedChanges}
                 loading={isLoading}
+                // disabled button captures hover events
+                onClick={isButtonDisabled ? undefined : onClick}
+                className={isButtonDisabled ? Classes.DISABLED : undefined}
             >
                 Run query
             </BigButton>
