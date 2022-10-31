@@ -5,7 +5,6 @@ import {
     MetricQuery,
     SavedChart,
 } from '@lightdash/common';
-import { number } from 'echarts';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
@@ -53,11 +52,11 @@ export const useQueryResults = (
             [setErrorResponse],
         ),
     });
-    const { mutate } = mutation;
+    const { mutateAsync } = mutation;
 
-    const mutateOverride = useCallback(() => {
+    const mutateAsyncOverride = useCallback(() => {
         if (!!unsavedChartVersion.tableName && isValidQuery) {
-            mutate({
+            return mutateAsync({
                 projectUuid,
                 tableId: unsavedChartVersion.tableName,
                 query: unsavedChartVersion.metricQuery,
@@ -68,12 +67,13 @@ export const useQueryResults = (
                 unsavedChartVersion.tableName,
                 isValidQuery,
             );
+            return Promise.reject();
         }
-    }, [mutate, projectUuid, isValidQuery, unsavedChartVersion]);
+    }, [mutateAsync, projectUuid, isValidQuery, unsavedChartVersion]);
 
     return useMemo(
-        () => ({ ...mutation, mutate: mutateOverride }),
-        [mutateOverride, mutation],
+        () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
+        [mutation, mutateAsyncOverride],
     );
 };
 
