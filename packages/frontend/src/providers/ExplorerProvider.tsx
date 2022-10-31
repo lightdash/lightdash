@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    assertUnreachable,
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
@@ -17,6 +18,8 @@ import {
     toggleArrayValue,
 } from '@lightdash/common';
 import produce from 'immer';
+import cloneDeep from 'lodash-es/cloneDeep';
+import isEqual from 'lodash-es/isEqual';
 import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
 import {
     createContext,
@@ -56,6 +59,7 @@ export enum ActionType {
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
     SET_FETCH_RESULTS_FALSE,
+    SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
     SET_MAGIC_METRICS,
     REMOVE_ADDITIONAL_METRIC,
@@ -68,6 +72,10 @@ export enum ActionType {
 type Action =
     | { type: ActionType.RESET; payload: ExplorerReduceState }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
+    | {
+          type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
+          payload: CreateSavedChartVersion;
+      }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
     | {
@@ -147,6 +155,7 @@ export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
+    previouslyFetchedState?: CreateSavedChartVersion;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -160,6 +169,7 @@ export interface ExplorerState extends ExplorerReduceState {
 export interface ExplorerContext {
     state: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
+    hasUnfetchedChanges: boolean;
     actions: {
         clear: () => void;
         reset: () => void;
@@ -203,6 +213,7 @@ const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
+    previouslyFetchedState: undefined,
     expandedSections: [ExplorerSection.RESULTS],
     unsavedChartVersion: {
         tableName: '',
@@ -304,6 +315,12 @@ function reducer(
         }
         case ActionType.SET_FETCH_RESULTS_FALSE: {
             return { ...state, shouldFetchResults: false };
+        }
+        case ActionType.SET_PREVIOUSLY_FETCHED_STATE: {
+            return {
+                ...state,
+                previouslyFetchedState: action.payload,
+            };
         }
         case ActionType.TOGGLE_EXPANDED_SECTION: {
             return {
@@ -775,7 +792,7 @@ function reducer(
             };
         }
         default: {
-            throw new Error(`Unhandled action type`);
+            return assertUnreachable(action);
         }
     }
 }
@@ -1069,15 +1086,40 @@ export const ExplorerProvider: FC<{
     );
 
     // Fetch query results after state update
-    const { mutate, reset: resetQueryResults } = queryResults;
+    const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
+        queryResults;
+
+    const mutateAsync = useCallback(async () => {
+        try {
+            const result = await mutateAsyncQuery();
+
+            dispatch({
+                type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
+                payload: cloneDeep(state.unsavedChartVersion),
+            });
+
+            return result;
+        } catch (e) {
+            console.error(e);
+        }
+    }, [mutateAsyncQuery, state.unsavedChartVersion]);
+
+    const hasUnfetchedChanges = useMemo(() => {
+        return !isEqual(
+            state.unsavedChartVersion,
+            state.previouslyFetchedState,
+        );
+    }, [state.unsavedChartVersion, state.previouslyFetchedState]);
+
     useEffect(() => {
-        if (state.shouldFetchResults) {
-            mutate();
+        if (!state.shouldFetchResults) return;
+
+        mutateAsync().then(() => {
             dispatch({
                 type: ActionType.SET_FETCH_RESULTS_FALSE,
             });
-        }
-    }, [mutate, state]);
+        });
+    }, [mutateAsync, state.shouldFetchResults]);
 
     const clear = useCallback(async () => {
         dispatch({
@@ -1093,9 +1135,9 @@ export const ExplorerProvider: FC<{
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
-            mutate();
+            mutateAsync();
         }
-    }, [defaultSort, mutate, unsavedChartVersion, setSortFields]);
+    }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
 
     const actions = useMemo(
         () => ({
@@ -1156,9 +1198,10 @@ export const ExplorerProvider: FC<{
         () => ({
             state,
             queryResults,
+            hasUnfetchedChanges,
             actions,
         }),
-        [actions, queryResults, state],
+        [actions, queryResults, state, hasUnfetchedChanges],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

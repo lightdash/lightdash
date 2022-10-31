@@ -30,6 +30,7 @@
         "http-proxy-middleware": "^2.0.3",
         "immer": "^9.0.15",
         "jspdf": "^2.5.1",
+        "lodash-es": "^4.17.21",
         "moment": "^2.29.4",
         "react": "^17.0.2",
         "react-ace": "^9.5.0",
@@ -67,6 +68,7 @@
     "devDependencies": {
         "@tanstack/react-query-devtools": "^4.3.5",
         "@types/dagre": "^0.7.47",
+        "@types/lodash-es": "^4.17.6",
         "@types/react": "^17.0.2        ",
         "@types/react-beautiful-dnd": "^13.1.2",
         "@types/react-color": "^3.0.6",
