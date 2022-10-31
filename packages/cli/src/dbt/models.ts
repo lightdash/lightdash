@@ -308,12 +308,7 @@ export const getModelsFromManifest = (
                 model.config?.materialized &&
                 model.config.materialized !== 'ephemeral',
         )
-        .map((model) =>
-            normaliseModelDatabase(
-                { ...model, name: model.alias || model.name },
-                adapterType,
-            ),
-        );
+        .map((model) => normaliseModelDatabase(model, adapterType));
 };
 
 type MethodSelectorArgs = {
