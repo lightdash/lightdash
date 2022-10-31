@@ -232,10 +232,6 @@ const SavedChartsHeader: FC = () => {
                             </>
                         )}
 
-                        <ShareLinkButton
-                            url={`${window.location.origin}/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`}
-                        />
-
                         <Popover2
                             placement="bottom"
                             disabled={!unsavedChartVersion.tableName}
