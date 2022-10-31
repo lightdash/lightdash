@@ -1,3 +1,10 @@
+## [0.307.1](https://github.com/lightdash/lightdash/compare/0.307.0...0.307.1) (2022-10-31)
+
+
+### Bug Fixes
+
+* Revert previous alias on CLI and fix error ([#3620](https://github.com/lightdash/lightdash/issues/3620)) ([e341374](https://github.com/lightdash/lightdash/commit/e34137448fd1fddc3b1d240caeea541733489867)), closes [#3540](https://github.com/lightdash/lightdash/issues/3540)
+
 # [0.307.0](https://github.com/lightdash/lightdash/compare/0.306.0...0.307.0) (2022-10-31)
 
 
