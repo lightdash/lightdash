@@ -1,3 +1,10 @@
+# [0.307.0](https://github.com/lightdash/lightdash/compare/0.306.0...0.307.0) (2022-10-31)
+
+
+### Features
+
+* refresh command ([#3627](https://github.com/lightdash/lightdash/issues/3627)) ([b83d08d](https://github.com/lightdash/lightdash/commit/b83d08d5d127b9d34b011151221713754c4f12ea))
+
 # [0.306.0](https://github.com/lightdash/lightdash/compare/0.305.2...0.306.0) (2022-10-31)
 
 
