@@ -1,11 +1,13 @@
-import { Button, InputGroup, Switch } from '@blueprintjs/core';
+import { Button, Icon, InputGroup, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
     Series,
 } from '@lightdash/common';
 import React, { FC } from 'react';
+import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import {
+    DragIcon,
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
     SeriesExtraSelect,
@@ -26,6 +28,7 @@ type Props = {
     updateSingleSeries: (updatedSeries: Series) => void;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
+    dragHandleProps?: DraggableProvidedDragHandleProps;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -39,6 +42,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isSingle,
     isOpen,
     toggleIsOpen,
+    dragHandleProps,
 }) => {
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
@@ -47,6 +51,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
     return (
         <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
+                {isGrouped && (
+                    <DragIcon
+                        tagName="div"
+                        icon="drag-handle-vertical"
+                        {...dragHandleProps}
+                    />
+                )}
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
                     onChange={(color) => {

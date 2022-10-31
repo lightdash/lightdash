@@ -139,8 +139,8 @@ const SeriesTab: FC<Props> = ({ items }) => {
 
                             return (
                                 <Draggable
-                                    key={getSeriesId(seriesEntry)}
-                                    draggableId={getSeriesId(seriesEntry)}
+                                    key={seriesEntry.encode.yRef.field}
+                                    draggableId={seriesEntry.encode.yRef.field}
                                     index={i}
                                 >
                                     {(
@@ -177,6 +177,9 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                         }
                                                         dragHandleProps={
                                                             dragHandleProps
+                                                        }
+                                                        updateSeries={
+                                                            updateSeries
                                                         }
                                                     />
                                                 ) : (
