@@ -111,7 +111,9 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
     const project = await getProject(projectUuid, options.verbose);
 
     if (project.dbtConnection.type === DbtProjectType.NONE) {
-        throw new ParameterError('Project is not connected to a repository');
+        throw new ParameterError(
+            'Lightdash project must be connected to a remote repository. eg: GitHub, Gitlab, etc',
+        );
     }
 
     const spinner = ora(`  Refreshing dbt project`).start();
