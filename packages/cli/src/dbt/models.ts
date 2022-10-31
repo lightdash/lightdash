@@ -24,6 +24,7 @@ type CompiledModel = {
     rootPath: string;
     originalFilePath: string;
     patchPath: string | null | undefined;
+    alias?: string;
 };
 
 type GetDatabaseTableForModelArgs = {
@@ -37,9 +38,10 @@ export const getWarehouseTableForModel = async ({
     const tableRef = {
         database: model.database,
         schema: model.schema,
-        table: model.name,
+        table: model.alias || model.name,
     };
     const catalog = await warehouseClient.getCatalog([tableRef]);
+
     const table =
         catalog[tableRef.database]?.[tableRef.schema]?.[tableRef.table];
     if (!table) {
@@ -308,12 +310,7 @@ export const getModelsFromManifest = (
                 model.config?.materialized &&
                 model.config.materialized !== 'ephemeral',
         )
-        .map((model) =>
-            normaliseModelDatabase(
-                { ...model, name: model.alias || model.name },
-                adapterType,
-            ),
-        );
+        .map((model) => normaliseModelDatabase(model, adapterType));
 };
 
 type MethodSelectorArgs = {
@@ -442,5 +439,6 @@ export const getCompiledModelsFromManifest = ({
         rootPath: modelLookup[nodeId].root_path,
         originalFilePath: modelLookup[nodeId].original_file_path,
         patchPath: modelLookup[nodeId].patch_path,
+        alias: modelLookup[nodeId].alias,
     }));
 };
