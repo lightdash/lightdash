@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 0: install dependencies
 # -----------------------------
-FROM node:14-bullseye AS base
+FROM node:16-bullseye AS base
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -87,7 +87,7 @@ RUN yarn install --pure-lockfile --non-interactive --production
 # Stage 3: execution environment for backend
 # -----------------------------
 
-FROM node:14-bullseye as prod
+FROM node:16-bullseye as prod
 WORKDIR /usr/app
 
 ENV NODE_ENV production

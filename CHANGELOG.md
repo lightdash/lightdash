@@ -1,3 +1,17 @@
+## [0.305.1](https://github.com/lightdash/lightdash/compare/0.305.0...0.305.1) (2022-10-28)
+
+
+### Bug Fixes
+
+* view project permissions in the UI ([#3611](https://github.com/lightdash/lightdash/issues/3611)) ([a99a854](https://github.com/lightdash/lightdash/commit/a99a85468599eee2b8b4fb3d88f9af688ecda44b))
+
+# [0.305.0](https://github.com/lightdash/lightdash/compare/0.304.0...0.305.0) (2022-10-28)
+
+
+### Features
+
+* project settings breadcrumbs ([#3596](https://github.com/lightdash/lightdash/issues/3596)) ([5dde791](https://github.com/lightdash/lightdash/commit/5dde7913ffd680d65dbc6e16b800fc81d65ee8f6))
+
 # [0.304.0](https://github.com/lightdash/lightdash/compare/0.303.3...0.304.0) (2022-10-27)
 
 

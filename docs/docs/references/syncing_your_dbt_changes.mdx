@@ -1,6 +1,4 @@
----
-sidebar_position: 6
----
+import AutomaticallyDeployChangesGithub from './../snippets/automatically-deploy-your-changes-using-github-action.mdx';
 
 # Syncing your dbt changes
 
@@ -25,3 +23,7 @@ To read more about how to use `lightdash deploy`, [check out our docs](/guides/c
 ## Note: If you've made any changes to the underlying data, you need to run dbt first
 
 If you've made any changes to the underlying data (for example, adding a new column in your `model.sql` file or changing the SQL logic of an existing dimension),  then you need to run: `dbt run -m yourmodel` before you click `refresh dbt` in Lightdash.
+
+## 3. Automatically deploy your changes to Lightdash using a GitHub action
+
+<AutomaticallyDeployChangesGithub />

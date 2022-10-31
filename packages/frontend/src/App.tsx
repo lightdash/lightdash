@@ -5,7 +5,6 @@ import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
 import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/select/lib/css/blueprint-select.css';
 import '@blueprintjs/table/lib/css/table.css';
-import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import {
@@ -34,7 +33,6 @@ import Login from './pages/Login';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import { Projects } from './pages/Projects';
-import ProjectSettings from './pages/ProjectSettings';
 import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
@@ -183,16 +181,6 @@ const App = () => (
                                                     <Switch>
                                                         <ProjectRoute path="/projects/:projectUuid">
                                                             <Switch>
-                                                                <Route path="/projects/:projectUuid/settings/:tab?">
-                                                                    <NavBar />
-                                                                    <TrackPage
-                                                                        name={
-                                                                            PageName.PROJECT_SETTINGS
-                                                                        }
-                                                                    >
-                                                                        <ProjectSettings />
-                                                                    </TrackPage>
-                                                                </Route>
                                                                 <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                                                     <NavBar />
                                                                     <TrackPage
