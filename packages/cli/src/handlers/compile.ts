@@ -16,6 +16,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
 
@@ -36,10 +37,9 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
-    if (options.verbose) {
-        console.error(`> Compiling with project dir ${absoluteProjectPath}`);
-        console.error(`> Compiling with profiles dir ${absoluteProfilesPath}`);
-    }
+
+    GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
+    GlobalState.debug(`> Compiling with profiles dir ${absoluteProfilesPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
     const profileName = options.profile || context.profileName;
@@ -53,12 +53,9 @@ export const compile = async (options: GenerateHandlerOptions) => {
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
 
-    if (options.verbose)
-        console.error(
-            `> Models from DBT manifest: ${models
-                .map((m) => m.name)
-                .join(', ')}`,
-        );
+    GlobalState.debug(
+        `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
+    );
 
     // Ideally we'd skip this potentially expensive step
     const catalog = await warehouseClient.getCatalog(
@@ -77,10 +74,10 @@ export const compile = async (options: GenerateHandlerOptions) => {
             `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
         );
     }
-    if (options.verbose)
-        console.error(
-            `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
-        );
+
+    GlobalState.debug(
+        `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
+    );
 
     const explores = await convertExplores(
         typedModels,
@@ -117,6 +114,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
     return explores;
 };
 export const compileHandler = async (options: GenerateHandlerOptions) => {
+    GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errors = explores.filter((e) => isExploreError(e)).length;
     console.error('');

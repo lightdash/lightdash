@@ -47,12 +47,11 @@ const projectUrl = async (project: Project): Promise<URL> => {
     );
 };
 
-const getPreviewProject = async (name: string, verbose?: boolean) => {
+const getPreviewProject = async (name: string) => {
     const projects = await lightdashApi<Project[]>({
         method: 'GET',
         url: `/api/v1/org/projects/`,
         body: undefined,
-        verbose,
     });
     return projects.find(
         (project) =>
@@ -62,6 +61,7 @@ const getPreviewProject = async (name: string, verbose?: boolean) => {
 export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
     const name = uniqueNamesGenerator({
         length: 2,
@@ -80,7 +80,7 @@ export const previewHandler = async (
             type: ProjectType.PREVIEW,
         });
     } catch (e) {
-        if (options.verbose) console.error(`> Unable to create project: ${e}`);
+        GlobalState.debug(`> Unable to create project: ${e}`);
         spinner.fail();
         throw e;
     }
@@ -200,6 +200,7 @@ export const previewHandler = async (
 export const startPreviewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     if (!options.name) {
@@ -209,10 +210,7 @@ export const startPreviewHandler = async (
 
     const projectName = options.name;
 
-    const previewProject = await getPreviewProject(
-        projectName,
-        options.verbose,
-    );
+    const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
         await LightdashAnalytics.track({
             event: 'start_preview.update',
@@ -281,6 +279,7 @@ export const startPreviewHandler = async (
 export const stopPreviewHandler = async (
     options: StopPreviewHandlerOptions,
 ): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     if (!options.name) {
@@ -290,10 +289,7 @@ export const stopPreviewHandler = async (
 
     const projectName = options.name;
 
-    const previewProject = await getPreviewProject(
-        projectName,
-        options.verbose,
-    );
+    const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
         await LightdashAnalytics.track({
             event: 'stop_preview.delete',

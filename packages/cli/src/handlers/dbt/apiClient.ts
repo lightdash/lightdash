@@ -10,6 +10,7 @@ import {
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
+import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 
 const { version: VERSION } = require('../../../package.json');
@@ -18,13 +19,11 @@ type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | undefined;
-    verbose?: boolean;
 };
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
-    verbose,
 }: LightdashApiProps): Promise<T> => {
     const config = await getConfig();
     if (!(config.context?.apiKey && config.context.serverUrl)) {
@@ -42,12 +41,11 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 : RequestMethod.CLI,
     };
     const fullUrl = new URL(url, config.context.serverUrl).href;
-    if (verbose) console.error(`> Making HTTP query to: ${fullUrl}`);
+    GlobalState.debug(`> Making HTTP query to: ${fullUrl}`);
 
     return fetch(fullUrl, { method, headers, body })
         .then((r) => {
-            if (verbose)
-                console.error(`> HTTP request returned status: ${r.status}`);
+            GlobalState.debug(`> HTTP request returned status: ${r.status}`);
 
             if (!r.ok)
                 return r.json().then((d) => {
@@ -57,8 +55,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         })
         .then((r) => r.json())
         .then((d: ApiResponse | ApiError) => {
-            if (verbose)
-                console.error(`> HTTP request returned status: ${d.status}`);
+            GlobalState.debug(`> HTTP request returned status: ${d.status}`);
 
             switch (d.status) {
                 case 'ok':

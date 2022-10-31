@@ -16,28 +16,25 @@ import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { checkLightdashVersion, lightdashApi } from './apiClient';
 
-const getProject = async (projectUuid: string, verbose: boolean) =>
+const getProject = async (projectUuid: string) =>
     lightdashApi<Project>({
         method: 'GET',
         url: `/api/v1/projects/${projectUuid}`,
         body: undefined,
-        verbose,
     });
 
-const refreshProject = async (projectUuid: string, verbose: boolean) =>
+const refreshProject = async (projectUuid: string) =>
     lightdashApi<ApiRefreshResults>({
         method: 'POST',
         url: `/api/v1/projects/${projectUuid}/refresh`,
         body: undefined,
-        verbose,
     });
 
-const getJobState = async (jobUuid: string, verbose: boolean) =>
+const getJobState = async (jobUuid: string) =>
     lightdashApi<Job>({
         method: 'GET',
         url: `/api/v1/jobs/${jobUuid}`,
         body: undefined,
-        verbose,
     });
 
 function delay(ms: number) {
@@ -72,11 +69,8 @@ export const getErrorStepsMessage = (steps: JobStep[]): string => {
 
 const REFETCH_JOB_INTERVAL = 3000;
 
-const getFinalJobState = async (
-    jobUuid: string,
-    verbose: boolean,
-): Promise<Job> => {
-    const job = await getJobState(jobUuid, verbose);
+const getFinalJobState = async (jobUuid: string): Promise<Job> => {
+    const job = await getJobState(jobUuid);
 
     if (job.jobStatus === JobStatusType.DONE) {
         return job;
@@ -88,9 +82,7 @@ const getFinalJobState = async (
     spinner?.start(
         `  Refreshing dbt project, ${getRunningStepsMessage(job.steps)}`,
     );
-    return delay(REFETCH_JOB_INTERVAL).then(() =>
-        getFinalJobState(jobUuid, verbose),
-    );
+    return delay(REFETCH_JOB_INTERVAL).then(() => getFinalJobState(jobUuid));
 };
 
 type RefreshHandlerOptions = {
@@ -98,6 +90,7 @@ type RefreshHandlerOptions = {
 };
 
 export const refreshHandler = async (options: RefreshHandlerOptions) => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     const config = await getConfig();
@@ -108,7 +101,7 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
     }
     const projectUuid = config.context.project;
 
-    const project = await getProject(projectUuid, options.verbose);
+    const project = await getProject(projectUuid);
 
     if (project.dbtConnection.type === DbtProjectType.NONE) {
         throw new ParameterError(
@@ -125,12 +118,9 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
                 projectId: projectUuid,
             },
         });
-        const refreshResults = await refreshProject(
-            projectUuid,
-            options.verbose,
-        );
+        const refreshResults = await refreshProject(projectUuid);
 
-        await getFinalJobState(refreshResults.jobUuid, options.verbose);
+        await getFinalJobState(refreshResults.jobUuid);
 
         await LightdashAnalytics.track({
             event: 'refresh.completed',

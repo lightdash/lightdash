@@ -7,3 +7,4 @@ export const { bold } = chalk;
 export const secondary = chalk.dim;
 export const success = chalk.bold.green;
 export const warning = chalk.yellow;
+export const debug = chalk.grey;

@@ -14,7 +14,7 @@ import {
     startPreviewHandler,
     stopPreviewHandler,
 } from './handlers/preview';
-import { setProjectInteractively } from './handlers/setProject';
+import { setProjectInteractivelyHandler } from './handlers/setProject';
 import * as styles from './styles';
 
 const { version: VERSION } = require('../package.json');
@@ -139,7 +139,7 @@ configProgram
     .description('Interactively choose project')
     .option('--verbose', undefined, false)
 
-    .action(setProjectInteractively);
+    .action(setProjectInteractivelyHandler);
 
 const dbtProgram = program.command('dbt').description('runs dbt commands');
 
