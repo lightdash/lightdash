@@ -18,11 +18,6 @@ export default defineConfig({
         svgrPlugin(),
         tsconfigPathsPlugin(),
         {
-            // default settings on build (i.e. fail on error)
-            ...eslintPlugin(),
-            apply: 'build',
-        },
-        {
             // do not fail on serve (i.e. local development)
             ...eslintPlugin({
                 failOnWarning: false,
