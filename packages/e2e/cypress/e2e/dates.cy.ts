@@ -11,7 +11,7 @@ describe('Explore', () => {
     });
 
     it('Check current timezone', () => {
-        const now = new Date();
+        const now = new Date('1 January, 2000'); // set specific date to avoid daylight savings
         const timezone = Cypress.env('TZ');
         const offset = now.getTimezoneOffset();
         const errorMessage = `Timezone offset ${offset} doesn't match timezone ${timezone}. Are both env variables TZ and CYPRESS_TZ set ?`;
@@ -20,10 +20,10 @@ describe('Explore', () => {
                 expect(offset, errorMessage).to.be.equal(0);
                 break;
             case 'Europe/Madrid':
-                expect(offset, errorMessage).to.be.equal(-120);
+                expect(offset, errorMessage).to.be.equal(-60);
                 break;
             case 'America/New_York':
-                expect(offset, errorMessage).to.be.equal(240);
+                expect(offset, errorMessage).to.be.equal(300);
                 break;
             case 'Asia/Tokyo':
                 expect(offset, errorMessage).to.be.equal(-540);
