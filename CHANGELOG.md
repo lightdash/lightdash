@@ -1,3 +1,10 @@
+## [0.305.2](https://github.com/lightdash/lightdash/compare/0.305.1...0.305.2) (2022-10-31)
+
+
+### Bug Fixes
+
+* check for env variable in reset-db script ([#3623](https://github.com/lightdash/lightdash/issues/3623)) ([6011ffd](https://github.com/lightdash/lightdash/commit/6011ffd3be0d16871f4ec34aaa0fe01224ffce25))
+
 ## [0.305.1](https://github.com/lightdash/lightdash/compare/0.305.0...0.305.1) (2022-10-28)
 
 
