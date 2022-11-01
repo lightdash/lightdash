@@ -141,10 +141,14 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
 
-            const previousGroupedItem = seriesGroup[result.destination.index];
-            const destinationIndex = allSerieIds.indexOf(
-                getSeriesId(previousGroupedItem),
-            );
+            const previousGroupedItem =
+                result.destination.index < seriesGroup.length
+                    ? seriesGroup[result.destination.index]
+                    : undefined;
+            const destinationIndex =
+                previousGroupedItem !== undefined
+                    ? allSerieIds.indexOf(getSeriesId(previousGroupedItem))
+                    : 0;
 
             const sortedSeries = seriesWithColor.filter(
                 (s) => getSeriesId(s) !== result.draggableId,
