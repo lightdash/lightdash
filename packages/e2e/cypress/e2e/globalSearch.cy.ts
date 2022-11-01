@@ -65,13 +65,13 @@ describe('Global search', () => {
         search('First order');
         cy.get('.bp4-omnibar')
             .findByRole('menuitem', {
-                name: 'Customers - First order Dimension • Date of the customers first order',
+                name: 'Payments - Orders - Date of first order Metric • Min of Order date',
                 exact: false,
             })
             .click();
         cy.url().should(
             'include',
-            `/projects/${SEED_PROJECT.project_uuid}/tables/customers?create_saved_chart_version`,
+            `/projects/${SEED_PROJECT.project_uuid}/tables/payments?create_saved_chart_version`,
         );
     });
 });
