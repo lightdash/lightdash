@@ -73,7 +73,6 @@ const createNewProject = async (
     const absoluteProjectPath = path.resolve(options.projectDir);
     const context = await getDbtContext({
         projectDir: absoluteProjectPath,
-        verbose: options.verbose,
     });
     const dbtName = friendlyName(context.projectName);
 
@@ -135,6 +134,7 @@ const createNewProject = async (
 };
 
 export const deployHandler = async (options: DeployHandlerOptions) => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     const config = await getConfig();

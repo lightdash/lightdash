@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { configFilePath, setContext, setDefaultUser } from '../config';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
 import { setFirstProject, setProjectInteractively } from './setProject';
@@ -90,9 +91,10 @@ const loginWithPassword = async (url: string) => {
 };
 
 export const login = async (url: string, options: LoginOptions) => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
-    if (options.verbose) console.error(`> Login URL: ${url}`);
+    GlobalState.debug(`> Login URL: ${url}`);
 
     await LightdashAnalytics.track({
         event: 'login.started',
@@ -116,8 +118,7 @@ export const login = async (url: string, options: LoginOptions) => {
         ? await loginWithToken(url, options.token)
         : await loginWithPassword(url);
 
-    if (options.verbose)
-        console.error(`> Logged in with userUuid: ${userUuid}`);
+    GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);
 
     await LightdashAnalytics.track({
         event: 'login.completed',
@@ -128,7 +129,8 @@ export const login = async (url: string, options: LoginOptions) => {
         },
     });
     await setContext({ serverUrl: url, apiKey: token });
-    if (options.verbose) console.error(`> Saved config on: ${configFilePath}`);
+
+    GlobalState.debug(`> Saved config on: ${configFilePath}`);
 
     await setDefaultUser(userUuid);
 
@@ -136,11 +138,9 @@ export const login = async (url: string, options: LoginOptions) => {
 
     try {
         if (process.env.CI === 'true') {
-            await setFirstProject({ verbose: options.verbose });
+            await setFirstProject();
         } else {
-            const project = await setProjectInteractively({
-                verbose: options.verbose,
-            });
+            const project = await setProjectInteractively();
 
             if (!project) {
                 console.error(

@@ -2,25 +2,23 @@ import { OrganizationProject } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
 import { getConfig, setProjectUuid } from '../config';
+import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 
 type SetProjectOptions = {
     verbose: boolean;
 };
 
-export const setProjectInteractively = async (options: SetProjectOptions) => {
+export const setProjectInteractively = async () => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
         body: undefined,
-        verbose: options.verbose,
     });
 
-    if (options.verbose) {
-        console.error(
-            `> Set project returned response: ${JSON.stringify(projects)}`,
-        );
-    }
+    GlobalState.debug(
+        `> Set project returned response: ${JSON.stringify(projects)}`,
+    );
 
     if (projects.length === 0) return null;
 
@@ -47,12 +45,11 @@ export const setProjectInteractively = async (options: SetProjectOptions) => {
     return answers.project;
 };
 
-export const setFirstProject = async (options: SetProjectOptions) => {
+export const setFirstProject = async () => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
         body: undefined,
-        verbose: options.verbose,
     });
     const firstProject = projects[0];
 
@@ -67,4 +64,11 @@ export const setFirstProject = async (options: SetProjectOptions) => {
     console.error(
         `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
     );
+};
+
+export const setProjectInteractivelyHandler = async (
+    options: SetProjectOptions,
+) => {
+    GlobalState.setVerbose(options.verbose);
+    return setProjectInteractively();
 };
