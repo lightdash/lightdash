@@ -1,3 +1,10 @@
+# [0.309.0](https://github.com/lightdash/lightdash/compare/0.308.0...0.309.0) (2022-11-01)
+
+
+### Features
+
+* leave only one share button for explore and charts ([#3634](https://github.com/lightdash/lightdash/issues/3634)) ([a600994](https://github.com/lightdash/lightdash/commit/a600994ebc99b8743fa444b5ce0744120c064259))
+
 # [0.308.0](https://github.com/lightdash/lightdash/compare/0.307.1...0.308.0) (2022-10-31)
 
 
