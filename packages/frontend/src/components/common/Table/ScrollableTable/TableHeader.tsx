@@ -31,16 +31,17 @@ const TableHeader = () => {
                     <HeaderDroppable headerGroup={headerGroup}>
                         {headerGroup.headers.map((header) => {
                             const meta = header.column.columnDef.meta;
-
                             return (
                                 <Th
                                     key={header.id}
                                     colSpan={header.colSpan}
                                     style={{
+                                        ...meta?.style,
                                         width: meta?.width,
                                         backgroundColor:
                                             meta?.bgColor ?? Colors.GRAY5,
                                     }}
+                                    className={meta?.className}
                                 >
                                     <Draggable
                                         draggableId={header.id}

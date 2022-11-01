@@ -1,5 +1,6 @@
 import { ResultRow } from '@lightdash/common';
 import {
+    ColumnDef,
     ColumnOrderState,
     getCoreRowModel,
     getPaginationRowModel,
@@ -13,6 +14,7 @@ import React, {
     useEffect,
     useState,
 } from 'react';
+import { createGlobalStyle } from 'styled-components';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -52,8 +54,30 @@ const rowColumn: TableColumn = {
     footer: 'Total',
     meta: {
         width: 30,
+        className: 'sticky-column',
     },
 };
+
+const StickyColumnStyle = createGlobalStyle`
+  
+.sticky-column {
+    position: sticky !important;
+    left: 1px;
+    z-index: 1;
+    background-color: white;
+}
+th.sticky-column {
+    z-index: 1; 
+}
+td.sticky-column {
+    top: 100px; /* so it doesn't overlap header */ /*TODO make dynamic*/
+}
+.last-sticky-column { /*FIXME :last-of-type doesnt' work*/
+    border-right: 2px solid darkgray;
+
+}
+  
+`;
 
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
@@ -67,13 +91,38 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
+    //TODO calculate left for each sticky column
+    //TODO configure sticky column
+    //TODO set last-sticky-column :last-type-of doesn't work
+    //TODO should row-number always be fixed ? maybe only if 1 or more columns are fixed
+    //TODO fix weird borderless cell
+    const stickyColumns: (TableColumn | TableHeader)[] = columns
+        .slice(0, 1)
+        .map((col) => ({
+            ...col,
+            meta: {
+                ...col.meta,
+                className: 'sticky-column last-sticky-column',
+                style: { left: 30 + 10 },
+            },
+        }));
+
+    const otherColumns = columns.slice(2);
+    const cols = [rowColumn, ...stickyColumns, ...otherColumns];
     const table = useReactTable({
         data,
-        columns: [rowColumn, ...columns],
+        columns: cols,
         state: {
             columnVisibility,
             columnOrder: tempColumnOrder,
+            columnPinning: {
+                left: [
+                    ROW_NUMBER_COLUMN_ID,
+                    ...stickyColumns.map((c) => c.id || ''),
+                ],
+            },
         },
+        enablePinning: true,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
@@ -93,6 +142,7 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
 
     return (
         <Context.Provider value={{ table, ...rest }}>
+            <StickyColumnStyle />
             {children}
         </Context.Provider>
     );
