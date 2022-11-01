@@ -25,6 +25,7 @@ const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
             });
         }
     }, [newShareUrl, showToastSuccess]);
+
     return (
         <ShareLink
             onClick={() => {
