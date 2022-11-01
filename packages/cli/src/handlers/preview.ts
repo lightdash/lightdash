@@ -1,7 +1,6 @@
 import { Project, ProjectType } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import path from 'path';
 import {
     adjectives,
@@ -69,8 +68,9 @@ export const previewHandler = async (
         dictionaries: [adjectives, animals],
     });
     console.error('');
-    const spinner = ora(`  Setting up preview environment`).start();
-    GlobalState.setActiveSpinner(spinner);
+    const spinner = GlobalState.startSpinner(
+        `  Setting up preview environment`,
+    );
     let project: Project | undefined;
 
     try {
@@ -126,9 +126,9 @@ export const previewHandler = async (
         });
         const manifestFilePath = path.join(context.targetDir, 'manifest.json');
 
-        const pressToShutdown = ora(
+        const pressToShutdown = GlobalState.startSpinner(
             `  Press [ENTER] to shutdown preview...`,
-        ).start();
+        );
 
         const watcher = chokidar
             .watch(manifestFilePath)
@@ -181,8 +181,7 @@ export const previewHandler = async (
         });
         throw e;
     }
-    const teardownSpinner = ora(`  Cleaning up`).start();
-    GlobalState.setActiveSpinner(spinner);
+    const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
     await lightdashApi({
         method: 'DELETE',
         url: `/api/v1/org/projects/${project.projectUuid}`,

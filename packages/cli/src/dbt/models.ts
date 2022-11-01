@@ -12,8 +12,8 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import * as path from 'path';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { searchForModel, YamlSchema } from './schema';
 
@@ -111,7 +111,6 @@ const askOverwriteDescription = async (
     columnName: string,
     existingDescription: string | undefined,
     newDescription: string | undefined,
-    spinner: ora.Ora,
 ): Promise<string> => {
     if (!existingDescription) return newDescription || '';
     if (!newDescription) return existingDescription;
@@ -125,9 +124,10 @@ const askOverwriteDescription = async (
         existingDescription.length > 20 ? '...' : ''
     }`;
     const overwriteMessage = `Do you want to overwrite the existing column "${columnName}" description (${shortDescription}) with a doc block?`;
-    spinner.stop();
+    const spinner = GlobalState.getActiveSpinner();
+    spinner?.stop();
     const overwrite = await askOverwrite(overwriteMessage);
-    spinner.start();
+    spinner?.start();
     if (overwrite) return newDescription;
     return existingDescription;
 };
@@ -137,14 +137,12 @@ type FindAndUpdateModelYamlArgs = {
     table: WarehouseTableSchema;
     docs: Record<string, DbtDoc>;
     includeMeta: boolean;
-    spinner: ora.Ora;
 };
 export const findAndUpdateModelYaml = async ({
     model,
     table,
     docs,
     includeMeta,
-    spinner,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
@@ -202,7 +200,6 @@ export const findAndUpdateModelYaml = async ({
                         column.name,
                         existingDescription,
                         newDescription,
-                        spinner,
                     ),
                     ...(meta !== undefined ? { meta } : {}),
                 };
@@ -220,7 +217,8 @@ export const findAndUpdateModelYaml = async ({
         );
         let updatedColumns = [...existingColumnsUpdated, ...newColumns];
         if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
-            spinner.stop();
+            const spinner = GlobalState.getActiveSpinner();
+            spinner?.stop();
             console.error(`
 These columns in your model ${styles.bold(model.name)} on file ${styles.bold(
                 match.filename.split('/').slice(-1),
@@ -234,7 +232,7 @@ ${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
                     message: `Would you like to remove them from your .yml file? `,
                 },
             ]);
-            spinner.start();
+            spinner?.start();
 
             if (answers.isConfirm) {
                 updatedColumns = updatedColumns.filter(

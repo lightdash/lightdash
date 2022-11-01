@@ -9,7 +9,6 @@ import {
     ParameterError,
     Project,
 } from '@lightdash/common';
-import ora from 'ora';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
@@ -108,9 +107,7 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
             'Lightdash project must be connected to a remote repository. eg: GitHub, Gitlab, etc',
         );
     }
-
-    const spinner = ora(`  Refreshing dbt project`).start();
-    GlobalState.setActiveSpinner(spinner);
+    const spinner = GlobalState.startSpinner(`  Refreshing dbt project`);
     try {
         await LightdashAnalytics.track({
             event: 'refresh.started',
