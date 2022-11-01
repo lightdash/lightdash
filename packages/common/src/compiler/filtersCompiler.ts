@@ -12,6 +12,7 @@ import {
     UnitOfTime,
     unitOfTimeFormat,
 } from '../types/filter';
+import assertUnreachable from '../utils/assertUnreachable';
 import { formatDate } from '../utils/formatting';
 
 const formatTimestamp = (date: Date): string =>
@@ -214,9 +215,8 @@ export const renderFilterRuleSql = (
             return renderBooleanFilterSql(fieldSql, filterRule);
         }
         default: {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const nope: never = field;
-            throw Error(
+            return assertUnreachable(
+                field,
                 `No function implemented to render sql for filter group type ${fieldType}`,
             );
         }
