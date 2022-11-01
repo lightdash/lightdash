@@ -127,6 +127,7 @@ const convertDimension = (
         hidden: !!column.meta.dimension?.hidden,
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
+        compact: column.meta.dimension?.compact,
         groupLabel: column.meta.dimension?.group_label,
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }
@@ -220,6 +221,7 @@ const convertDbtMetricToLightdashMetric = (
         source: undefined,
         hidden: !!metric.meta?.hidden,
         round: metric.meta?.round,
+        compact: metric.meta?.compact,
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
         showUnderlyingValues: metric.meta?.show_underlying_values,

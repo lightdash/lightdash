@@ -5,13 +5,13 @@ import {
     isDimension,
     isField,
     MetricType,
+    NumberStyle,
 } from '../types/field';
 import {
     AdditionalMetric,
     isAdditionalMetric,
     TableCalculation,
 } from '../types/metricQuery';
-import { NumberStyle } from '../types/savedCharts';
 import { TimeFrames } from '../types/timeFrames';
 
 export const formatBoolean = <T>(v: T) =>
@@ -137,6 +137,7 @@ function styleNumber(
         return `${value}`;
     }
     switch (numberStyle) {
+        case NumberStyle.THOUSANDS_ALIAS:
         case NumberStyle.THOUSANDS:
             return `${roundNumber(
                 Number(value) / 1000,
@@ -144,6 +145,7 @@ function styleNumber(
                 format,
                 numberStyle,
             )}K`;
+        case NumberStyle.MILLIONS_ALIAS:
         case NumberStyle.MILLIONS:
             return `${roundNumber(
                 Number(value) / 1000000,
@@ -151,6 +153,7 @@ function styleNumber(
                 format,
                 numberStyle,
             )}M`;
+        case NumberStyle.BILLIONS_ALIAS:
         case NumberStyle.BILLIONS:
             return `${roundNumber(
                 Number(value) / 1000000000,
@@ -167,7 +170,7 @@ export function formatValue(
     format: string | undefined,
     round: number | undefined,
     value: any,
-    numberStyle?: NumberStyle, // for bigNumbers
+    numberStyle?: NumberStyle,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -211,7 +214,7 @@ export function formatFieldValue(
     if (!field) {
         return `${value}`;
     }
-    const { type, round, format } = field;
+    const { type, round, format, compact } = field;
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -222,7 +225,7 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-            return formatValue(format, round, value);
+            return formatValue(format, round, value, compact);
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return formatBoolean(value);
@@ -248,7 +251,7 @@ export function formatFieldValue(
                     convertToUTC,
                 );
             }
-            return formatValue(format, round, value);
+            return formatValue(format, round, value, compact);
         }
         default: {
             return `${value}`;
@@ -265,5 +268,5 @@ export function formatItemValue(
     if (value === undefined) return '-';
     return isField(item) || isAdditionalMetric(item)
         ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(undefined, undefined, value);
+        : formatValue(undefined, undefined, value, undefined);
 }

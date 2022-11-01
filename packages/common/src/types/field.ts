@@ -1,6 +1,15 @@
 import { FilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
 
+export enum NumberStyle {
+    THOUSANDS_ALIAS = 'k',
+    THOUSANDS = 'thousands',
+    MILLIONS_ALIAS = 'M',
+    MILLIONS = 'millions',
+    BILLIONS_ALIAS = 'B',
+    BILLIONS = 'billions',
+}
+
 export enum FieldType {
     METRIC = 'metric',
     DIMENSION = 'dimension',
@@ -23,6 +32,7 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
+    compact?: NumberStyle;
     round?: number;
     format?: string;
     groupLabel?: string;

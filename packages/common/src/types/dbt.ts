@@ -9,6 +9,7 @@ import {
     friendlyName,
     Metric,
     MetricType,
+    NumberStyle,
     Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
@@ -70,6 +71,7 @@ type DbtColumnLightdashDimension = {
     time_intervals?: 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
+    compact?: NumberStyle;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
@@ -82,6 +84,7 @@ export type DbtColumnLightdashMetric = {
     sql?: string;
     hidden?: boolean;
     round?: number;
+    compact?: NumberStyle;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
@@ -351,6 +354,7 @@ export const convertMetric = ({
     source,
     hidden: !!metric.hidden,
     round: metric.round,
+    compact: metric.compact,
     format: metric.format,
     groupLabel: metric.group_label,
     showUnderlyingValues: metric.show_underlying_values,

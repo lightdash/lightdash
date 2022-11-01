@@ -1,3 +1,4 @@
+import { NumberStyle } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
 
@@ -5,12 +6,6 @@ export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
-}
-
-export enum NumberStyle {
-    THOUSANDS = 'thousands',
-    MILLIONS = 'millions',
-    BILLIONS = 'billions',
 }
 export type BigNumber = {
     label?: string;

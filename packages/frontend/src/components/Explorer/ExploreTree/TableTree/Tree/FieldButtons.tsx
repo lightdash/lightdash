@@ -65,6 +65,10 @@ const FieldButtons: FC<{
                 MetricType.MIN,
                 MetricType.MAX,
             ].includes(type);
+            const compact =
+                shouldCopyFormatting && dimension.compact
+                    ? { compact: dimension.compact }
+                    : {};
             const format =
                 shouldCopyFormatting && dimension.format
                     ? { format: dimension.format }
@@ -88,6 +92,7 @@ const FieldButtons: FC<{
                 type,
                 ...format,
                 ...round,
+                ...compact,
             });
         },
         [addAdditionalMetric],
