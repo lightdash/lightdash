@@ -1,3 +1,10 @@
+## [0.309.1](https://github.com/lightdash/lightdash/compare/0.309.0...0.309.1) (2022-11-01)
+
+
+### Bug Fixes
+
+* error on negative round ([#3618](https://github.com/lightdash/lightdash/issues/3618)) ([701cffb](https://github.com/lightdash/lightdash/commit/701cffb1f589390932d197c1e3b8481a2402cca9))
+
 # [0.309.0](https://github.com/lightdash/lightdash/compare/0.308.0...0.309.0) (2022-11-01)
 
 
