@@ -186,6 +186,7 @@ export const getSeriesGroupedByField = (series: Series[]) => {
             [obj.encode.yRef.field]: { index, value: [obj] },
         };
     }, {});
+
     return Object.values(seriesGroupMap).sort((a, b) => a.index - b.index);
 };
 

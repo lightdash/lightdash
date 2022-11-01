@@ -89,7 +89,8 @@ type GroupedSeriesConfigurationProps = {
     getSeriesColor: (key: string) => string | undefined;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     updateSingleSeries: (series: Series) => void;
-    updateSeriesSorting: (series: Series[]) => void;
+    updateSeries: (series: Series[]) => void;
+    series: Series[];
 };
 
 const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
@@ -101,7 +102,8 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSingleSeries,
     updateAllGroupedSeries,
     dragHandleProps,
-    updateSeriesSorting,
+    updateSeries,
+    series,
 }) => {
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
@@ -127,29 +129,31 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
     const onDragEnd = useCallback(
         (result: DropResult) => {
-            const seriesGroupWithColor: Series[] = seriesGroup.map(
-                (series) => ({
-                    ...series,
-                    color: series.color || getSeriesColor(getSeriesId(series)),
-                }),
+            const allSerieIds = series.map(getSeriesId);
+            const seriesWithColor: Series[] = series.map((s) => ({
+                ...s,
+                color: s.color || getSeriesColor(getSeriesId(s)),
+            }));
+            const serie = seriesWithColor.find(
+                (s) => getSeriesId(s) === result.draggableId,
             );
-
-            const serie = seriesGroupWithColor.find(
-                (series) => getSeriesId(series) === result.draggableId,
-            );
-
             if (!serie) return;
             if (!result.destination) return;
             if (result.destination.index === result.source.index) return;
 
-            const reorderedSeriesGroups = seriesGroupWithColor.filter(
-                (series) => getSeriesId(series) !== result.draggableId,
+            const previousGroupedItem = seriesGroup[result.destination.index];
+            const destinationIndex = allSerieIds.indexOf(
+                getSeriesId(previousGroupedItem),
             );
-            reorderedSeriesGroups.splice(result.destination.index, 0, serie);
 
-            updateSeriesSorting(reorderedSeriesGroups);
+            const sortedSeries = seriesWithColor.filter(
+                (s) => getSeriesId(s) !== result.draggableId,
+            );
+            sortedSeries.splice(destinationIndex, 0, serie);
+
+            updateSeries(sortedSeries);
         },
-        [seriesGroup, updateSeriesSorting],
+        [seriesGroup, updateSeries, series],
     );
 
     return (

@@ -2,6 +2,7 @@ import { Button, Icon, InputGroup, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
+    getSeriesId,
     Series,
 } from '@lightdash/common';
 import React, { FC } from 'react';
