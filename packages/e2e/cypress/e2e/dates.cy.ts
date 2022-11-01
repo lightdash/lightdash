@@ -173,7 +173,7 @@ describe('Explore', () => {
         cy.get('[icon="cross"]').click({ multiple: true });
     });
 
-    it.only('Should filter by date on dimension', () => {
+    it('Should filter by date on dimension', () => {
         function leadingZero(value: string | number) {
             return `0${value}`.slice(-2);
         }
