@@ -139,8 +139,8 @@ const SeriesTab: FC<Props> = ({ items }) => {
 
                             return (
                                 <Draggable
-                                    key={seriesEntry.encode.yRef.field}
-                                    draggableId={seriesEntry.encode.yRef.field}
+                                    key={getSeriesId(seriesEntry)}
+                                    draggableId={getSeriesId(seriesEntry)}
                                     index={i}
                                 >
                                     {(
