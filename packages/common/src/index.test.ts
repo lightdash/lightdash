@@ -108,14 +108,12 @@ describe('Common index', () => {
             const T = NumberStyle.THOUSANDS;
             const M = NumberStyle.MILLIONS;
             const B = NumberStyle.BILLIONS;
-            expect(formatValue(undefined, undefined, 5, T)).toEqual('0.005K');
-            expect(formatValue(undefined, undefined, 5, M)).toEqual(
-                '0.000005M',
-            );
+            expect(formatValue(undefined, undefined, 5, T)).toEqual('0.01K');
+            expect(formatValue(undefined, undefined, 5, M)).toEqual('0.00M');
             expect(formatValue(undefined, undefined, 500000, B)).toEqual(
-                '0.0005B',
+                '0.00B',
             );
-            expect(formatValue(undefined, undefined, 5, B)).toEqual('5e-9B');
+            expect(formatValue(undefined, undefined, 5, B)).toEqual('0.00B');
             expect(formatValue(undefined, 2, 5, M)).toEqual('0.00M');
 
             expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');

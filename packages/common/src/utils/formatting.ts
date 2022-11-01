@@ -136,12 +136,14 @@ function styleNumber(
     if (valueIsNaN(value)) {
         return `${value}`;
     }
+    const numberStyleRound =
+        numberStyle && round === undefined && format === undefined ? 2 : round;
     switch (numberStyle) {
         case NumberStyle.THOUSANDS_ALIAS:
         case NumberStyle.THOUSANDS:
             return `${roundNumber(
                 Number(value) / 1000,
-                round,
+                numberStyleRound,
                 format,
                 numberStyle,
             )}K`;
@@ -149,7 +151,7 @@ function styleNumber(
         case NumberStyle.MILLIONS:
             return `${roundNumber(
                 Number(value) / 1000000,
-                round,
+                numberStyleRound,
                 format,
                 numberStyle,
             )}M`;
@@ -157,7 +159,7 @@ function styleNumber(
         case NumberStyle.BILLIONS:
             return `${roundNumber(
                 Number(value) / 1000000000,
-                round,
+                numberStyleRound,
                 format,
                 numberStyle,
             )}B`;
