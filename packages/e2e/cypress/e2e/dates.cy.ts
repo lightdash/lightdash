@@ -173,9 +173,17 @@ describe('Explore', () => {
         cy.get('[icon="cross"]').click({ multiple: true });
     });
 
-    it('Should filter by date on dimension', () => {
+    it.only('Should filter by date on dimension', () => {
+        function leadingZero(value: string | number) {
+            return `0${value}`.slice(-2);
+        }
         function getFullMonth(date: Date) {
-            return `0${date.getMonth() + 1}`.slice(-2);
+            return leadingZero(date.getMonth() + 1);
+        }
+        function getLocalISOString(date: Date) {
+            return `${date.getFullYear()}-${getFullMonth(date)}-${leadingZero(
+                date.getDate(),
+            )}`;
         }
         const now = new Date();
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;
@@ -222,8 +230,7 @@ describe('Explore', () => {
             const curr = new Date();
             const first = curr.getDate() - curr.getDay();
             const firstday = new Date(curr.setDate(first));
-            cy.log('first day', firstday, firstday.toUTCString());
-            return firstday.toISOString().split('T')[0];
+            return getLocalISOString(firstday);
         }
 
         const weekDate = startOfTheWeek();
@@ -241,7 +248,7 @@ describe('Explore', () => {
         cy.get('span:contains("Day") ~ div').click();
         cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
 
-        const todayDate = now.toISOString().split('T')[0];
+        const todayDate = getLocalISOString(now);
 
         cy.get('.bp4-date-input input').should('have.value', todayDate);
         cy.get('.bp4-code').contains(
