@@ -47,6 +47,25 @@ type TableContext = Props & {
 
 const Context = createContext<TableContext | undefined>(undefined);
 
+const StickyColumnStyle = createGlobalStyle`
+  
+.sticky-column {
+    position: sticky !important;
+    left: 1px;
+    z-index: 1;
+    background-color: white;
+}
+thead {
+    z-index: 2; 
+}
+
+.last-sticky-column { /*FIXME :last-of-type doesnt' work*/
+    border-right: 2px solid darkgray;
+
+}
+  
+`;
+
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     header: '#',
@@ -57,27 +76,6 @@ const rowColumn: TableColumn = {
         className: 'sticky-column',
     },
 };
-
-const StickyColumnStyle = createGlobalStyle`
-  
-.sticky-column {
-    position: sticky !important;
-    left: 1px;
-    z-index: 1;
-    background-color: white;
-}
-th.sticky-column {
-    z-index: 1; 
-}
-td.sticky-column {
-    top: 100px; /* so it doesn't overlap header */ /*TODO make dynamic*/
-}
-.last-sticky-column { /*FIXME :last-of-type doesnt' work*/
-    border-right: 2px solid darkgray;
-
-}
-  
-`;
 
 export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     const { data, columns, columnOrder, pagination } = rest;
@@ -92,10 +90,12 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     }, [columnOrder]);
 
     //TODO calculate left for each sticky column
-    //TODO configure sticky column
+    //TODO configure sticky column on chart options
     //TODO set last-sticky-column :last-type-of doesn't work
+    //DONE replace sticky top with a proper fix to avoid overlapping the header
     //TODO should row-number always be fixed ? maybe only if 1 or more columns are fixed
     //TODO fix weird borderless cell
+    //TODO pivots ?
     const stickyColumns: (TableColumn | TableHeader)[] = columns
         .slice(0, 1)
         .map((col) => ({
