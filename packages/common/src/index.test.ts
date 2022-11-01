@@ -37,6 +37,13 @@ describe('Common index', () => {
 
             expect(formatValue('', undefined, 5)).toEqual('5');
             expect(formatValue(undefined, undefined, 5)).toEqual('5');
+
+            // Intl.NumberFormat rounds up after 3 decimals
+            expect(formatValue(undefined, undefined, 5.9)).toEqual('5.9');
+            expect(formatValue(undefined, undefined, 5.99)).toEqual('5.99');
+            expect(formatValue(undefined, undefined, 5.999)).toEqual('5.999');
+            expect(formatValue(undefined, undefined, 5.9999)).toEqual('6');
+            expect(formatValue(undefined, undefined, 5.99999)).toEqual('6');
         });
         test('formatValue should return the right round', async () => {
             expect(formatValue(undefined, 0, 1)).toEqual('1');
