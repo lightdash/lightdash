@@ -6,7 +6,7 @@ export const PageContainer = styled.div`
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: stretch;
-    align-items: flex-start;
+    align-items: stretch;
 `;
 
 export const SideBar = styled.div`
