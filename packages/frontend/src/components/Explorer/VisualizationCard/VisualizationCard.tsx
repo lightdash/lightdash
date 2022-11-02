@@ -2,14 +2,14 @@ import { Button, H5 } from '@blueprintjs/core';
 import { FC, memo, useCallback, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import {
+    ExplorerSection,
+    useExplorerContext,
+} from '../../../providers/ExplorerProvider';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
-import {
-    CardHeader,
-    CardHeaderTitle,
-    MainCard,
-} from './VisualizationCard.styles';
+import { ExploreCard } from '../Explorer.styles';
+import { CardHeader, CardHeaderTitle } from './VisualizationCard.styles';
 import VisualizationCardBody, {
     EchartsClickEvent,
 } from './VisualizationCardBody';
@@ -34,6 +34,9 @@ const VisualizationCard: FC = memo(() => {
     const setChartConfig = useExplorerContext(
         (context) => context.actions.setChartConfig,
     );
+    const expandedSections = useExplorerContext(
+        (context) => context.state.expandedSections,
+    );
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
@@ -52,19 +55,26 @@ const VisualizationCard: FC = memo(() => {
 
     if (!unsavedChartVersion.tableName) {
         return (
-            <MainCard elevation={1}>
+            <ExploreCard elevation={1}>
                 <CardHeader>
                     <CardHeaderTitle>
                         <Button icon={'chevron-right'} minimal disabled />
                         <H5>Charts</H5>
                     </CardHeaderTitle>
                 </CardHeader>
-            </MainCard>
+            </ExploreCard>
         );
     }
 
+    const isOnlyExpandedCard =
+        expandedSections.length === 1 &&
+        expandedSections.includes(ExplorerSection.VISUALIZATION);
+
     return (
-        <MainCard elevation={1}>
+        <ExploreCard
+            elevation={1}
+            $flexGrow={isOnlyExpandedCard ? 1 : undefined}
+        >
             <VisualizationProvider
                 initialChartConfig={unsavedChartVersion.chartConfig}
                 chartType={unsavedChartVersion.chartConfig.type}
@@ -83,7 +93,7 @@ const VisualizationCard: FC = memo(() => {
                 <VisualizationCardHeader />
                 <VisualizationCardBody echartsClickEvent={echartsClickEvent} />
             </VisualizationProvider>
-        </MainCard>
+        </ExploreCard>
     );
 });
 
