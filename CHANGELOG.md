@@ -1,3 +1,10 @@
+# [0.310.0](https://github.com/lightdash/lightdash/compare/0.309.1...0.310.0) (2022-11-02)
+
+
+### Features
+
+* sort grouped series ([#3626](https://github.com/lightdash/lightdash/issues/3626)) ([d05317d](https://github.com/lightdash/lightdash/commit/d05317d072ee41f4e118b5db75b62cf7d28f0a2e))
+
 ## [0.309.1](https://github.com/lightdash/lightdash/compare/0.309.0...0.309.1) (2022-11-01)
 
 
