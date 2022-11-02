@@ -189,8 +189,8 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
     cy.get('button').contains('Run query').click();
 
     // wait for query to finish
-    cy.findByText('Loading chart').should('not.exist');
-    cy.findByText('Loading results').should('not.exist', { timeout: 30000 });
+    cy.findByText('Loading chart').should('not.exist', { timeout: 30000 });
+    cy.findByText('Loading results').should('not.exist');
 
     // check first row values
     rowValues.forEach((value, index) => {
