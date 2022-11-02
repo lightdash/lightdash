@@ -36,9 +36,12 @@ export const ColumnConfiguration: React.FC = () => {
                         />
                         {pivotDimensions === undefined && (
                             <Button
-                                icon={
-                                    isColumnFrozen(fieldId) ? 'unlock' : 'lock'
-                                }
+                                icon={'lock'}
+                                style={{
+                                    opacity: isColumnFrozen(fieldId)
+                                        ? 1
+                                        : '0.4',
+                                }}
                                 onClick={() => {
                                     updateColumnProperty(fieldId, {
                                         frozen: !isColumnFrozen(fieldId),
