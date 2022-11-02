@@ -10,7 +10,9 @@ import {
     SimpleStatisticsWrapper,
 } from './SimpleStatistics.styles';
 
-const SimpleStatistic: FC = () => {
+type SimpleStatisticsProps = React.HTMLAttributes<HTMLDivElement>;
+
+const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     const {
         resultsData,
         isLoading,
@@ -22,46 +24,34 @@ const SimpleStatistic: FC = () => {
 
     if (isLoading) return <LoadingChart />;
 
-    return (
-        <>
-            {validData ? (
-                <SimpleStatisticsWrapper>
-                    <BigNumberContainer>
-                        {isSqlRunner ? (
-                            <BigNumber>{bigNumber}</BigNumber>
-                        ) : (
-                            <BigNumberContextMenu
-                                renderTarget={({
-                                    ref,
-                                    isOpen: _isOpen,
-                                    onClick,
-                                }) => (
-                                    <BigNumber
-                                        $interactive
-                                        ref={ref}
-                                        onClick={onClick}
-                                    >
-                                        {bigNumber}
-                                    </BigNumber>
-                                )}
-                            />
+    return validData ? (
+        <SimpleStatisticsWrapper {...wrapperProps}>
+            <BigNumberContainer>
+                {isSqlRunner ? (
+                    <BigNumber>{bigNumber}</BigNumber>
+                ) : (
+                    <BigNumberContextMenu
+                        renderTarget={({ ref, isOpen: _isOpen, onClick }) => (
+                            <BigNumber $interactive ref={ref} onClick={onClick}>
+                                {bigNumber}
+                            </BigNumber>
                         )}
-
-                        <BigNumberLabel>
-                            {bigNumberLabel || defaultLabel}
-                        </BigNumberLabel>
-                    </BigNumberContainer>
-                </SimpleStatisticsWrapper>
-            ) : (
-                <div style={{ padding: '50px 0' }}>
-                    <NonIdealState
-                        title="No data available"
-                        description="Query metrics and dimensions with results."
-                        icon="chart"
                     />
-                </div>
-            )}
-        </>
+                )}
+
+                <BigNumberLabel>
+                    {bigNumberLabel || defaultLabel}
+                </BigNumberLabel>
+            </BigNumberContainer>
+        </SimpleStatisticsWrapper>
+    ) : (
+        <div style={{ padding: '50px 0' }} {...wrapperProps}>
+            <NonIdealState
+                title="No data available"
+                description="Query metrics and dimensions with results."
+                icon="chart"
+            />
+        </div>
     );
 };
 

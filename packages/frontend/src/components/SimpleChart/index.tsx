@@ -1,10 +1,10 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { PivotReference } from '@lightdash/common';
-import { Opts } from 'echarts-for-react/lib/types';
-import React, { FC, memo, useCallback, useEffect, useMemo } from 'react';
+import EChartsReact from 'echarts-for-react';
+import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
+import { FC, memo, useCallback, useEffect, useMemo } from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { Chart, ChartWrapper } from './SimpleChart.styles';
 
 type EchartBaseClickEvent = {
     // The component name clicked,
@@ -62,7 +62,9 @@ export const LoadingChart = () => (
 const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
 
-const SimpleChart: FC = memo(() => {
+type SimpleChartProps = Omit<EChartsReactProps, 'option'>;
+
+const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
@@ -106,15 +108,15 @@ const SimpleChart: FC = memo(() => {
     if (!eChartsOptions) return <EmptyChart />;
 
     return (
-        <ChartWrapper>
-            <Chart
-                ref={chartRef}
-                option={eChartsOptions}
-                notMerge
-                opts={opts}
-                onEvents={onEvents}
-            />
-        </ChartWrapper>
+        <EChartsReact
+            style={{ height: '100%', width: '100%' }}
+            ref={chartRef}
+            option={eChartsOptions}
+            notMerge
+            opts={opts}
+            onEvents={onEvents}
+            {...props}
+        />
     );
 });
 

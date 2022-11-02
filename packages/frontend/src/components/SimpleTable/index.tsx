@@ -7,7 +7,14 @@ import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import { TableWrapper } from './SimpleTable.styles';
 
-const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
+type SimpleTableProps = {
+    isDashboard: boolean;
+} & React.HTMLAttributes<HTMLDivElement>;
+
+const SimpleTable: FC<SimpleTableProps> = ({
+    isDashboard,
+    ...wrapperProps
+}) => {
     const {
         isLoading,
         columnOrder,
@@ -35,9 +42,9 @@ const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
     }
 
     return (
-        <TableWrapper>
+        <TableWrapper {...wrapperProps}>
             <Table
-                status={'success'}
+                status="success"
                 data={rows}
                 columns={columns}
                 columnOrder={columnOrder}
