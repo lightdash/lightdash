@@ -22,12 +22,3 @@ export const CardHeaderButtons = styled.div`
     gap: 10px;
     margin-right: 10px;
 `;
-
-export const MainCard = styled(Card)`
-    padding: 5px;
-    overflow-y: hidden;
-`;
-
-export const VisualizationCardContentWrapper = styled.div`
-    height: 300px;
-`;
