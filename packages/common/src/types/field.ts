@@ -13,7 +13,7 @@ const NumberStyleAlias = [
     'thousand',
     'M',
     'million',
-    'G',
+    'B',
     'billion',
     'T',
     'trillion',
@@ -46,7 +46,7 @@ export const NumberStyleConfigMap: Record<NumberStyle, NumberStyleConfig> = {
     },
     [NumberStyle.BILLIONS]: {
         numberStyle: NumberStyle.BILLIONS,
-        alias: ['G', 'billion'],
+        alias: ['B', 'billion'],
         convertFn: (value: number) => value / 1000000000,
         label: 'billions (B)',
         suffix: 'B',
