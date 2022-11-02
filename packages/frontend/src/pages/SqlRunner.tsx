@@ -1,20 +1,13 @@
-import {
-    Button,
-    Collapse,
-    H5,
-    Menu,
-    Tab,
-    Tabs,
-    useHotkeys,
-} from '@blueprintjs/core';
+import { HotkeyConfig, Menu, Tab, Tabs, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { DbtCloudMetric, TableBase } from '@lightdash/common';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useMount } from 'react-use';
-import styled from 'styled-components';
 import { ChartDownloadMenu } from '../components/ChartDownload';
-import { CollapsableCard } from '../components/common/CollapsableCard';
+import CollapsableCard, {
+    CardDivider,
+} from '../components/common/CollapsableCard';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
@@ -47,16 +40,7 @@ import {
     MissingTablesInfo,
     SideBarWrapper,
     SqlCallout,
-    VisualizationCard,
-    VisualizationCardButtons,
-    VisualizationCardContentWrapper,
-    VisualizationCardHeader,
-    VisualizationCardTitle,
 } from './SqlRunner.styles';
-
-const CardDivider = styled('div')`
-    padding-top: 10px;
-`;
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
@@ -79,17 +63,39 @@ FROM {{ metrics.calculate(
 LIMIT 500`;
 };
 
+enum SqlRunnerCards {
+    CHART = 'CHART',
+    SQL = 'SQL',
+    RESULTS = 'RESULTS',
+}
+
 const SqlRunnerPage = () => {
     const [activeTabId, setActiveTabId] = useState<string | number>(
         'warehouse-schema',
     );
+    const { user } = useApp();
     const initialState = useSqlRunnerUrlState();
-    const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
-    const [lastSqlRan, setLastSqlRan] = useState<string>();
-    const { isLoading: isCatalogLoading, data: catalogData } =
-        useProjectCatalog();
     const metrics = useProjectDbtCloudMetrics();
     const sqlQueryMutation = useSqlQueryMutation();
+    const { isLoading: isCatalogLoading, data: catalogData } =
+        useProjectCatalog();
+
+    const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
+    const [lastSqlRan, setLastSqlRan] = useState<string>();
+    const [expandedCards, setExpandedCards] = useState<
+        Map<SqlRunnerCards, boolean>
+    >(
+        new Map([
+            [SqlRunnerCards.CHART, false],
+            [SqlRunnerCards.SQL, true],
+            [SqlRunnerCards.RESULTS, true],
+        ]),
+    );
+
+    const handleCardExpand = (card: SqlRunnerCards, value: boolean) => {
+        setExpandedCards((prev) => new Map(prev).set(card, value));
+    };
+
     const { isLoading, mutate } = sqlQueryMutation;
     const {
         initialChartConfig,
@@ -107,6 +113,7 @@ const SqlRunnerPage = () => {
         initialState: initialState?.createSavedChart,
         sqlQueryMutation,
     });
+
     const sqlRunnerState = useMemo(
         () => ({
             createSavedChart,
@@ -114,10 +121,12 @@ const SqlRunnerPage = () => {
         }),
         [createSavedChart, lastSqlRan],
     );
+
     useSqlRunnerRoute(sqlRunnerState);
     const [vizIsOpen, setVizIsOpen] = useState(
         !!initialState?.createSavedChart,
     );
+
     const onSubmit = useCallback(() => {
         if (sql) {
             mutate(sql);
@@ -132,29 +141,27 @@ const SqlRunnerPage = () => {
         }
     });
 
-    const hotkeys = useMemo(() => {
-        const runQueryHotkey = {
-            combo: 'ctrl+enter',
-            group: 'SQL runner',
-            label: 'Run SQL query',
-            allowInInput: true,
-            onKeyDown: onSubmit,
-            global: true,
-            preventDefault: true,
-            stopPropagation: true,
-        };
-        return [
-            runQueryHotkey,
+    const hotkeys: HotkeyConfig[] = useMemo(
+        () => [
             {
-                ...runQueryHotkey,
-                combo: 'cmd+enter',
+                combo: 'mod+enter',
+                group: 'SQL runner',
+                label: 'Run SQL query',
+                allowInInput: true,
+                onKeyDown: onSubmit,
+                global: true,
+                preventDefault: true,
+                stopPropagation: true,
             },
-        ];
-    }, [onSubmit]);
+        ],
+        [onSubmit],
+    );
+
     useHotkeys(hotkeys);
+
     const catalogTree = useProjectCatalogTree(catalogData);
 
-    const handleNodeClick = React.useCallback(
+    const handleNodeClick = useCallback(
         (node: TreeNodeInfo) => {
             if (node.nodeData) {
                 setSql(
@@ -167,10 +174,10 @@ const SqlRunnerPage = () => {
         [setSql],
     );
 
-    const { user } = useApp();
     if (user.data?.ability?.cannot('view', 'Project')) {
         return <ForbiddenPanel />;
     }
+
     return (
         <PageWithSidebar>
             <Sidebar title="SQL runner">
@@ -223,6 +230,7 @@ const SqlRunnerPage = () => {
                         )}
                 </SideBarWrapper>
             </Sidebar>
+
             <ContentContainer>
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <ButtonsWrapper>
@@ -238,52 +246,48 @@ const SqlRunnerPage = () => {
                         </div>
                     </ButtonsWrapper>
                 </TrackSection>
+
                 <CardDivider />
-                <VisualizationCard elevation={1}>
-                    <VisualizationProvider
-                        initialChartConfig={initialChartConfig}
-                        chartType={chartType}
-                        initialPivotDimensions={initialPivotDimensions}
-                        resultsData={resultsData}
-                        isLoading={isLoading}
-                        onChartConfigChange={setChartConfig}
-                        onChartTypeChange={setChartType}
-                        onPivotDimensionsChange={setPivotFields}
-                        columnOrder={columnOrder}
-                        explore={explore}
+
+                <VisualizationProvider
+                    initialChartConfig={initialChartConfig}
+                    chartType={chartType}
+                    initialPivotDimensions={initialPivotDimensions}
+                    resultsData={resultsData}
+                    isLoading={isLoading}
+                    onChartConfigChange={setChartConfig}
+                    onChartTypeChange={setChartType}
+                    onPivotDimensionsChange={setPivotFields}
+                    columnOrder={columnOrder}
+                    explore={explore}
+                >
+                    <CollapsableCard
+                        title="Charts"
+                        headerActions={
+                            <>
+                                <VisualizationCardOptions />
+                                <ConfigPanel chartType={chartType} />
+                                <ChartDownloadMenu />
+                            </>
+                        }
+                        isOpen={expandedCards.get(SqlRunnerCards.CHART)}
+                        onToggle={(value) =>
+                            handleCardExpand(SqlRunnerCards.CHART, value)
+                        }
                     >
-                        <VisualizationCardHeader>
-                            <VisualizationCardTitle>
-                                <Button
-                                    icon={
-                                        vizIsOpen
-                                            ? 'chevron-down'
-                                            : 'chevron-right'
-                                    }
-                                    minimal
-                                    onClick={() =>
-                                        setVizIsOpen((value) => !value)
-                                    }
-                                />
-                                <H5>Charts</H5>
-                            </VisualizationCardTitle>
-                            {vizIsOpen && (
-                                <VisualizationCardButtons>
-                                    <VisualizationCardOptions />
-                                    <ConfigPanel chartType={chartType} />
-                                    <ChartDownloadMenu />
-                                </VisualizationCardButtons>
-                            )}
-                        </VisualizationCardHeader>
-                        <Collapse isOpen={vizIsOpen}>
-                            <VisualizationCardContentWrapper className="cohere-block">
-                                <LightdashVisualization />
-                            </VisualizationCardContentWrapper>
-                        </Collapse>
-                    </VisualizationProvider>
-                </VisualizationCard>
+                        <LightdashVisualization className="cohere-block" />
+                    </CollapsableCard>
+                </VisualizationProvider>
+
                 <CardDivider />
-                <CollapsableCard title="SQL" isOpenByDefault>
+
+                <CollapsableCard
+                    title="SQL"
+                    isOpen={expandedCards.get(SqlRunnerCards.SQL)}
+                    onToggle={(value) =>
+                        handleCardExpand(SqlRunnerCards.SQL, value)
+                    }
+                >
                     <SqlRunnerInput
                         sql={sql}
                         onChange={setSql}
@@ -291,8 +295,16 @@ const SqlRunnerPage = () => {
                         isDisabled={isLoading}
                     />
                 </CollapsableCard>
+
                 <CardDivider />
-                <CollapsableCard title="Results" isOpenByDefault>
+
+                <CollapsableCard
+                    title="Results"
+                    isOpen={expandedCards.get(SqlRunnerCards.RESULTS)}
+                    onToggle={(value) =>
+                        handleCardExpand(SqlRunnerCards.RESULTS, value)
+                    }
+                >
                     <SqlRunnerResultsTable
                         onSubmit={onSubmit}
                         resultsData={resultsData}

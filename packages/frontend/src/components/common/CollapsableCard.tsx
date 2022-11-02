@@ -9,6 +9,8 @@ import {
     StyledCollapse,
 } from './CollapsableCard.style';
 
+export { StyledCardDivider as CardDivider } from './CollapsableCard.style';
+
 type CollapsableCardProps = {
     headerActions?: React.ReactNode;
     isExpanded?: boolean;
@@ -16,7 +18,7 @@ type CollapsableCardProps = {
 } & Pick<CollapseProps, 'children' | 'isOpen'> &
     Pick<CardProps, 'title'>;
 
-export const CollapsableCard: FC<CollapsableCardProps> = ({
+const CollapsableCard: FC<CollapsableCardProps> = ({
     title,
     children,
     headerActions,
@@ -54,3 +56,5 @@ export const CollapsableCard: FC<CollapsableCardProps> = ({
         </StyledCard>
     );
 };
+
+export default CollapsableCard;
