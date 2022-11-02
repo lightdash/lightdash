@@ -2,10 +2,11 @@ import moment, { MomentInput } from 'moment';
 import {
     DimensionType,
     Field,
+    findNumberStyleConfig,
     isDimension,
     isField,
     MetricType,
-    NumberStyle,
+    NumberStyleOrAlias,
 } from '../types/field';
 import {
     AdditionalMetric,
@@ -129,50 +130,36 @@ function roundNumber(
 
 function styleNumber(
     value: any,
-    numberStyle: NumberStyle | undefined,
+    numberStyle: NumberStyleOrAlias | undefined,
     round: number | undefined,
     format: string | undefined,
 ): string {
     if (valueIsNaN(value)) {
         return `${value}`;
     }
-    const numberStyleRound =
-        numberStyle && round === undefined && format === undefined ? 2 : round;
-    switch (numberStyle) {
-        case NumberStyle.THOUSANDS_ALIAS:
-        case NumberStyle.THOUSANDS:
+    if (numberStyle) {
+        const numberStyleRound =
+            numberStyle && round === undefined && format === undefined
+                ? 2
+                : round;
+        const numberStyleConfig = findNumberStyleConfig(numberStyle);
+        if (numberStyleConfig) {
             return `${roundNumber(
-                Number(value) / 1000,
+                numberStyleConfig.convertFn(Number(value)),
                 numberStyleRound,
                 format,
                 numberStyle,
-            )}K`;
-        case NumberStyle.MILLIONS_ALIAS:
-        case NumberStyle.MILLIONS:
-            return `${roundNumber(
-                Number(value) / 1000000,
-                numberStyleRound,
-                format,
-                numberStyle,
-            )}M`;
-        case NumberStyle.BILLIONS_ALIAS:
-        case NumberStyle.BILLIONS:
-            return `${roundNumber(
-                Number(value) / 1000000000,
-                numberStyleRound,
-                format,
-                numberStyle,
-            )}B`;
-        default:
-            return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
+            )}${numberStyleConfig.suffix}`;
+        }
     }
+    return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
 }
 
 export function formatValue(
     format: string | undefined,
     round: number | undefined,
     value: any,
-    numberStyle?: NumberStyle,
+    numberStyle?: NumberStyleOrAlias,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';

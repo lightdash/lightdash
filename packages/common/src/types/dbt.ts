@@ -9,7 +9,7 @@ import {
     friendlyName,
     Metric,
     MetricType,
-    NumberStyle,
+    NumberStyleOrAlias,
     Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
@@ -71,7 +71,7 @@ type DbtColumnLightdashDimension = {
     time_intervals?: 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyle;
+    compact?: NumberStyleOrAlias;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
@@ -84,7 +84,7 @@ export type DbtColumnLightdashMetric = {
     sql?: string;
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyle;
+    compact?: NumberStyleOrAlias;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];

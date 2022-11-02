@@ -1,4 +1,8 @@
-import { ChartConfig, DBFieldTypes, NumberStyle } from '@lightdash/common';
+import {
+    ChartConfig,
+    DBFieldTypes,
+    NumberStyleOrAlias,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SavedChartsTableName = 'saved_queries';
@@ -120,7 +124,7 @@ export type DbSavedChartAdditionalMetric = {
     sql?: string;
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyle;
+    compact?: NumberStyleOrAlias;
     format?: string;
     saved_queries_version_id: number;
 };

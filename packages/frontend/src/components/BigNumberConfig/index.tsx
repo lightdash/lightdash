@@ -1,6 +1,10 @@
 import { Button, FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { getItemId, NumberStyle } from '@lightdash/common';
+import {
+    getItemId,
+    NumberStyleConfigMap,
+    NumberStyleOrAlias,
+} from '@lightdash/common';
 import React, { useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -8,9 +12,10 @@ import { InputWrapper } from './BigNumberConfig.styles';
 
 const StyleOptions = [
     { value: '', label: 'none' },
-    { value: NumberStyle.THOUSANDS, label: 'thousands (K)' },
-    { value: NumberStyle.MILLIONS, label: 'millions (M)' },
-    { value: NumberStyle.BILLIONS, label: 'billions (B)' },
+    ...Object.values(NumberStyleConfigMap).map(({ numberStyle, label }) => ({
+        value: numberStyle,
+        label,
+    })),
 ];
 
 export const BigNumberConfigPanel: React.FC = () => {
@@ -74,7 +79,8 @@ export const BigNumberConfigPanel: React.FC = () => {
                                         setBigNumberStyle(undefined);
                                     } else {
                                         setBigNumberStyle(
-                                            e.target.value as NumberStyle,
+                                            e.target
+                                                .value as NumberStyleOrAlias,
                                         );
                                     }
                                 }}

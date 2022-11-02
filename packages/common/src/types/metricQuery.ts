@@ -3,7 +3,7 @@ import {
     FieldId,
     friendlyName,
     MetricType,
-    NumberStyle,
+    NumberStyleOrAlias,
 } from './field';
 import { Filters } from './filter';
 
@@ -24,7 +24,7 @@ export interface AdditionalMetric {
     sql: string;
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyle;
+    compact?: NumberStyleOrAlias;
     format?: string;
     table: string;
     name: string;
