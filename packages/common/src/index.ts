@@ -61,6 +61,7 @@ import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
+import assertUnreachable from './utils/assertUnreachable';
 import { formatDate, formatItemValue } from './utils/formatting';
 
 export * from './authorization/index';
@@ -277,9 +278,10 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
         case MetricType.BOOLEAN:
             return FilterType.BOOLEAN;
         default: {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = field;
-            throw Error(`No filter type found for field type: ${fieldType}`);
+            return assertUnreachable(
+                field,
+                `No filter type found for field type: ${fieldType}`,
+            );
         }
     }
 };

@@ -1,3 +1,24 @@
+# [0.310.0](https://github.com/lightdash/lightdash/compare/0.309.1...0.310.0) (2022-11-02)
+
+
+### Features
+
+* sort grouped series ([#3626](https://github.com/lightdash/lightdash/issues/3626)) ([d05317d](https://github.com/lightdash/lightdash/commit/d05317d072ee41f4e118b5db75b62cf7d28f0a2e))
+
+## [0.309.1](https://github.com/lightdash/lightdash/compare/0.309.0...0.309.1) (2022-11-01)
+
+
+### Bug Fixes
+
+* error on negative round ([#3618](https://github.com/lightdash/lightdash/issues/3618)) ([701cffb](https://github.com/lightdash/lightdash/commit/701cffb1f589390932d197c1e3b8481a2402cca9))
+
+# [0.309.0](https://github.com/lightdash/lightdash/compare/0.308.0...0.309.0) (2022-11-01)
+
+
+### Features
+
+* leave only one share button for explore and charts ([#3634](https://github.com/lightdash/lightdash/issues/3634)) ([a600994](https://github.com/lightdash/lightdash/commit/a600994ebc99b8743fa444b5ce0744120c064259))
+
 # [0.308.0](https://github.com/lightdash/lightdash/compare/0.307.1...0.308.0) (2022-10-31)
 
 

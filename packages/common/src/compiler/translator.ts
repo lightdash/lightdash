@@ -26,6 +26,7 @@ import {
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
 import { TimeFrames } from '../types/timeFrames';
+import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
     timeFrameConfigs,
@@ -63,9 +64,10 @@ const convertTimezone = (
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
         default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = adapterType;
-            throw new ParseError(`Cannot recognise warehouse ${adapterType}`);
+            return assertUnreachable(
+                adapterType,
+                new ParseError(`Cannot recognise warehouse ${adapterType}`),
+            );
     }
 };
 

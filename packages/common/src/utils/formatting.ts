@@ -110,19 +110,21 @@ function roundNumber(
     const isValidFormat =
         !!format && format !== 'km' && format !== 'mi' && format !== 'percent';
 
+    const validFractionDigits = invalidRound
+        ? {}
+        : { maximumFractionDigits: round, minimumFractionDigits: round };
+
     if (isValidFormat) {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: format?.toUpperCase(),
-            maximumFractionDigits: round || 0,
-            minimumFractionDigits: round || 0,
+            ...validFractionDigits,
         }).format(Number(value));
     }
 
-    return new Intl.NumberFormat('en-US', {
-        maximumFractionDigits: round || 0,
-        minimumFractionDigits: round || 0,
-    }).format(Number(value));
+    return new Intl.NumberFormat('en-US', validFractionDigits).format(
+        Number(value),
+    );
 }
 
 function styleNumber(
@@ -186,8 +188,10 @@ export function formatValue(
                 return `${value}`;
             }
 
+            const invalidRound = round === undefined || round < 0;
+            const roundBy = invalidRound ? 0 : round;
             // Fix rounding issue
-            return `${(Number(value) * 100).toFixed(round)}%`;
+            return `${(Number(value) * 100).toFixed(roundBy)}%`;
 
         case '': // no format
             return styledValue;

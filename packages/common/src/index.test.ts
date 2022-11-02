@@ -25,9 +25,9 @@ describe('Common index', () => {
             expect(formatValue('km', undefined, '5')).toEqual('5 km');
 
             expect(formatValue('mi', undefined, 5)).toEqual('5 mi');
-            expect(formatValue('usd', undefined, 5)).toEqual('$5');
-            expect(formatValue('gbp', undefined, 5)).toEqual('£5');
-            expect(formatValue('eur', undefined, 5)).toEqual('€5');
+            expect(formatValue('usd', undefined, 5)).toEqual('$5.00');
+            expect(formatValue('gbp', undefined, 5)).toEqual('£5.00');
+            expect(formatValue('eur', undefined, 5)).toEqual('€5.00');
             expect(formatValue('percent', undefined, 5)).toEqual('500%');
             expect(formatValue('percent', undefined, 0.05)).toEqual('5%');
             expect(formatValue('percent', undefined, '5')).toEqual('500%');
@@ -71,12 +71,20 @@ describe('Common index', () => {
 
         test('formatValue should return the right format and round', async () => {
             expect(formatValue('km', 2, 5)).toEqual('5.00 km');
+            expect(formatValue('km', -2, 5)).toEqual('5 km');
             expect(formatValue('mi', 4, 5)).toEqual('5.0000 mi');
+            expect(formatValue('mi', -4, 5)).toEqual('5 mi');
             expect(formatValue('usd', 2, 5)).toEqual('$5.00');
             expect(formatValue('usd', 0, 5.0)).toEqual('$5');
+            expect(formatValue('usd', -2, 5)).toEqual('$5.00');
+            expect(formatValue('usd', -1, 5.25)).toEqual('$5.25');
             expect(formatValue('usd', 2, '5.0000')).toEqual('$5.00');
             expect(formatValue('gbp', 2, 5)).toEqual('£5.00');
+            expect(formatValue('gbp', -2, 5)).toEqual('£5.00');
+            expect(formatValue('gbp', -2, 5.25)).toEqual('£5.25');
             expect(formatValue('eur', 2, 5)).toEqual('€5.00');
+            expect(formatValue('eur', -2, 5)).toEqual('€5.00');
+            expect(formatValue('eur', -2, 5.25)).toEqual('€5.25');
             expect(formatValue('percent', 2, 5)).toEqual('500.00%');
             expect(formatValue('percent', 2, 0.05)).toEqual('5.00%');
             expect(formatValue('percent', 2, '5')).toEqual('500.00%');
@@ -84,6 +92,8 @@ describe('Common index', () => {
             expect(formatValue('percent', 4, 0.0511)).toEqual('5.1100%');
             expect(formatValue('percent', 2, 'foo')).toEqual('foo');
             expect(formatValue('percent', 2, false)).toEqual('false');
+            expect(formatValue('percent', -2, 0.05)).toEqual('5%');
+            expect(formatValue('percent', -2, '5')).toEqual('500%');
             expect(formatValue('', 2, 5)).toEqual('5.00');
         });
 

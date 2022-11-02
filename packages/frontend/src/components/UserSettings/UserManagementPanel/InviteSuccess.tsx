@@ -35,7 +35,7 @@ const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
                 your organization. This link will expire in {days} days.
             </>
         );
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!show) {
         return null;

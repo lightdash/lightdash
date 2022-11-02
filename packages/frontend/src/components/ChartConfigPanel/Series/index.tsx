@@ -178,6 +178,10 @@ const SeriesTab: FC<Props> = ({ items }) => {
                                                         dragHandleProps={
                                                             dragHandleProps
                                                         }
+                                                        updateSeries={
+                                                            updateSeries
+                                                        }
+                                                        series={series || []}
                                                     />
                                                 ) : (
                                                     <BasicSeriesConfiguration
