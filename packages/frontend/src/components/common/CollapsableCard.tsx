@@ -1,38 +1,56 @@
-import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import { useToggle } from 'react-use';
+import { Button, CardProps, CollapseProps } from '@blueprintjs/core';
+import { FC, useCallback } from 'react';
+import {
+    StyledCard,
+    StyledCardActionsWrpper,
+    StyledCardHeader,
+    StyledCardTitle,
+    StyledCardTitleWrapper,
+    StyledCollapse,
+} from './CollapsableCard.style';
 
-type Props = {
-    isOpenByDefault: boolean;
-    title: string;
-};
+type CollapsableCardProps = {
+    headerActions?: React.ReactNode;
+    isExpanded?: boolean;
+    onToggle?: (isOpen: boolean) => void;
+} & Pick<CollapseProps, 'children' | 'isOpen'> &
+    Pick<CardProps, 'title'>;
 
-export const CollapsableCard: FC<Props> = ({
-    isOpenByDefault,
+export const CollapsableCard: FC<CollapsableCardProps> = ({
     title,
     children,
+    headerActions,
+    onToggle,
+    isOpen,
+    isExpanded = false,
 }) => {
-    const [isOpen, toggle] = useToggle(isOpenByDefault);
+    const handleToggle = useCallback(
+        (value: boolean) => onToggle?.(value),
+        [onToggle],
+    );
+
     return (
-        <Card
-            style={{ padding: 5, height: isOpen ? '100%' : 'auto' }}
-            elevation={1}
-        >
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                }}
-            >
-                <Button
-                    icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                    minimal
-                    onClick={toggle}
-                />
-                <H5 style={{ margin: 0, padding: 0 }}>{title}</H5>
-            </div>
-            <Collapse isOpen={isOpen}>{children}</Collapse>
-        </Card>
+        <StyledCard elevation={1}>
+            <StyledCardHeader>
+                <StyledCardTitleWrapper>
+                    <Button
+                        minimal
+                        icon={isOpen ? 'chevron-down' : 'chevron-right'}
+                        onClick={() => handleToggle(!isOpen)}
+                    />
+                    <StyledCardTitle>{title}</StyledCardTitle>
+                </StyledCardTitleWrapper>
+
+                {isOpen && (
+                    <StyledCardActionsWrpper>
+                        {headerActions}
+                    </StyledCardActionsWrpper>
+                )}
+            </StyledCardHeader>
+
+            <StyledCollapse isOpen={isOpen} $isExpanded={isExpanded}>
+                {children}
+            </StyledCollapse>
+        </StyledCard>
     );
 };
