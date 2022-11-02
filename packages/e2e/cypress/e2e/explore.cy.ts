@@ -206,7 +206,8 @@ describe('Explore', () => {
                     cy.get('[role="menuitem"]').contains('Table').click();
 
                     // check that chart table headers are correct
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization-card-body')
+                        .get('th')
                         .contains('Customers - First name')
                         .should('exist');
 
@@ -218,10 +219,12 @@ describe('Explore', () => {
                         .click();
 
                     // check that chart table headers are correct
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization-card-body')
+                        .get('th')
                         .contains('Customers - First name')
                         .should('not.exist');
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization-card-body')
+                        .get('th')
                         .contains('First name')
                         .should('exist');
                 });
@@ -248,7 +251,8 @@ describe('Explore', () => {
                     cy.get('[role="menuitem"]').contains('Table').click();
 
                     // check that chart table headers are correct
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization-card-body')
+                        .get('th')
                         .eq(1)
                         .contains('Customers - First name')
                         .should('exist');
@@ -261,7 +265,8 @@ describe('Explore', () => {
                         .blur();
 
                     // check that chart table headers are overridden
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization-card-body')
+                        .get('th')
                         .eq(1)
                         .contains('Overridden header')
                         .should('exist');
