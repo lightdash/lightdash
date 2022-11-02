@@ -25,7 +25,6 @@ export const StyledCollapse = styled(Collapse)<StyledCollapseProps>`
 export const ExploreCard = styled(Card)<{ $flexGrow?: number }>`
     flex-grow: ${({ $flexGrow }) => $flexGrow || 'unset'};
     padding: 5px;
-    overflow-y: hidden;
     display: flex;
     flex-direction: column;
 `;
