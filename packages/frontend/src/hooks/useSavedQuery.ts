@@ -321,17 +321,27 @@ export const useAddVersionMutation = () => {
             await queryClient.invalidateQueries('spaces');
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
-            showToastSuccess({
-                title: `Success! Chart was updated.`,
-            });
+
             if (dashboardUuid)
-                history.push({
-                    pathname: `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                showToastSuccess({
+                    title: `Success! Chart was updated.`,
+                    action: {
+                        text: 'Open dashboard',
+                        icon: 'arrow-right',
+                        onClick: () =>
+                            history.push(
+                                `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                            ),
+                    },
                 });
-            else
+            else {
+                showToastSuccess({
+                    title: `Success! Chart was updated.`,
+                });
                 history.push({
                     pathname: `/projects/${data.projectUuid}/saved/${data.uuid}/view`,
                 });
+            }
         },
         onError: (error) => {
             showToastError({
