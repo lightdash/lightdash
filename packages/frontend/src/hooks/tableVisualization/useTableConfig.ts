@@ -84,7 +84,10 @@ const useTableConfig = (
         (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
         [columnProperties],
     );
-
+    const isColumnFrozen = useCallback(
+        (fieldId: string) => columnProperties[fieldId]?.frozen === true,
+        [columnProperties],
+    );
     const getHeader = useCallback(
         (fieldId: string) => {
             return columnProperties[fieldId]?.name;
@@ -121,6 +124,7 @@ const useTableConfig = (
                 isColumnVisible,
                 showTableNames,
                 getHeader,
+                isColumnFrozen,
             });
         }
     }, [
@@ -189,6 +193,7 @@ const useTableConfig = (
         getHeader,
         getDefaultColumnLabel,
         isColumnVisible,
+        isColumnFrozen,
     };
 };
 

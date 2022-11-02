@@ -15,6 +15,7 @@ export const ColumnConfiguration: React.FC = () => {
             getHeader,
             getDefaultColumnLabel,
             isColumnVisible,
+            isColumnFrozen,
         },
     } = useVisualizationContext();
     return (
@@ -33,7 +34,14 @@ export const ColumnConfiguration: React.FC = () => {
                                 });
                             }}
                         />
-
+                        <Button
+                            icon={isColumnFrozen(fieldId) ? 'unlock' : 'lock'}
+                            onClick={() => {
+                                updateColumnProperty(fieldId, {
+                                    frozen: !isColumnFrozen(fieldId),
+                                });
+                            }}
+                        />
                         {!pivotDimensions ||
                             (!pivotDimensions.includes(fieldId) && (
                                 <Button

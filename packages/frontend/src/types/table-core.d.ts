@@ -14,6 +14,7 @@ declare module '@tanstack/table-core' {
         sort?: Sort;
         className?: string;
         style?: CSSProperties;
+        frozen?: boolean;
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
     }
 }

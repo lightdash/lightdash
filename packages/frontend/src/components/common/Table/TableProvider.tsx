@@ -15,6 +15,7 @@ import React, {
     useState,
 } from 'react';
 import { createGlobalStyle } from 'styled-components';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -73,7 +74,6 @@ const rowColumn: TableColumn = {
     footer: 'Total',
     meta: {
         width: 30,
-        className: 'sticky-column',
     },
 };
 
@@ -89,26 +89,39 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
-    //TODO calculate left for each sticky column
-    //TODO configure sticky column on chart options
-    //TODO set last-sticky-column :last-type-of doesn't work
-    //DONE replace sticky top with a proper fix to avoid overlapping the header
-    //TODO should row-number always be fixed ? maybe only if 1 or more columns are fixed
     //TODO fix weird borderless cell
     //TODO pivots ?
-    const stickyColumns: (TableColumn | TableHeader)[] = columns
-        .slice(0, 1)
-        .map((col) => ({
-            ...col,
-            meta: {
-                ...col.meta,
-                className: 'sticky-column last-sticky-column',
-                style: { left: 30 + 10 },
-            },
-        }));
+    const rowColumnWidth = (rowColumn.meta?.width || 30) + 10;
+    const frozenColumns = columns.filter((col) => col.meta?.frozen);
+    const frozenColumnWidth = 90; // TODO this should be dynamic
+    const stickyColumns = frozenColumns.map((col, i) => ({
+        ...col,
+        meta: {
+            ...col.meta,
+            width: frozenColumnWidth,
 
-    const otherColumns = columns.slice(2);
-    const cols = [rowColumn, ...stickyColumns, ...otherColumns];
+            className: `sticky-column ${
+                i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
+            }`,
+            style: {
+                minWidth: frozenColumnWidth,
+                maxWidth: frozenColumnWidth,
+                left: rowColumnWidth + i * frozenColumnWidth,
+            },
+        },
+    }));
+    const otherColumns = columns.filter((col) => !col.meta?.frozen);
+    const stickyRowColumn =
+        stickyColumns.length > 0
+            ? {
+                  ...rowColumn,
+                  meta: {
+                      ...rowColumn.meta,
+                      className: 'sticky-column',
+                  },
+              }
+            : rowColumn;
+    const cols = [stickyRowColumn, ...stickyColumns, ...otherColumns];
     const table = useReactTable({
         data,
         columns: cols,
