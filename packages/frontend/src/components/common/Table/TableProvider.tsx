@@ -90,22 +90,19 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
     }, [columnOrder]);
 
     //TODO fix weird borderless cell
-    //TODO pivots ?
     const rowColumnWidth = (rowColumn.meta?.width || 30) + 10;
     const frozenColumns = columns.filter((col) => col.meta?.frozen);
-    const frozenColumnWidth = 90; // TODO this should be dynamic
+    const frozenColumnWidth = 100; // TODO this should be dynamic
     const stickyColumns = frozenColumns.map((col, i) => ({
         ...col,
         meta: {
             ...col.meta,
-            width: frozenColumnWidth,
-
             className: `sticky-column ${
                 i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
             }`,
             style: {
-                minWidth: frozenColumnWidth,
                 maxWidth: frozenColumnWidth,
+                minWidth: frozenColumnWidth,
                 left: rowColumnWidth + i * frozenColumnWidth,
             },
         },

@@ -34,14 +34,18 @@ export const ColumnConfiguration: React.FC = () => {
                                 });
                             }}
                         />
-                        <Button
-                            icon={isColumnFrozen(fieldId) ? 'unlock' : 'lock'}
-                            onClick={() => {
-                                updateColumnProperty(fieldId, {
-                                    frozen: !isColumnFrozen(fieldId),
-                                });
-                            }}
-                        />
+                        {pivotDimensions === undefined && (
+                            <Button
+                                icon={
+                                    isColumnFrozen(fieldId) ? 'unlock' : 'lock'
+                                }
+                                onClick={() => {
+                                    updateColumnProperty(fieldId, {
+                                        frozen: !isColumnFrozen(fieldId),
+                                    });
+                                }}
+                            />
+                        )}
                         {!pivotDimensions ||
                             (!pivotDimensions.includes(fieldId) && (
                                 <Button
