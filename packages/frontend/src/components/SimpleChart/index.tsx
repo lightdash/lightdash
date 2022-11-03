@@ -45,7 +45,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
 const EmptyChart = () => (
-    <div style={{ padding: '50px 0' }}>
+    <div style={{ height: '100%', display: 'flex', alignContent: 'center' }}>
         <NonIdealState
             title="No data available"
             description="Query metrics and dimensions with results."

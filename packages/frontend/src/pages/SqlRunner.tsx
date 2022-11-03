@@ -13,7 +13,7 @@ import Sidebar from '../components/common/Page/Sidebar';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
-import { ConfigPanel } from '../components/Explorer/VisualizationCard/VisualizationCardHeader';
+import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -266,7 +266,9 @@ const SqlRunnerPage = () => {
                         headerActions={
                             <>
                                 <VisualizationCardOptions />
-                                <ConfigPanel chartType={chartType} />
+                                <VisualizationConfigPanel
+                                    chartType={chartType}
+                                />
                                 <ChartDownloadMenu />
                             </>
                         }
