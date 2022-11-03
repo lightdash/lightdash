@@ -51,7 +51,7 @@ export const StyledCardTitleWrapper = styled.div`
 `;
 
 export const StyledCardActionsWrpper = styled.div`
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-left: 10px;
