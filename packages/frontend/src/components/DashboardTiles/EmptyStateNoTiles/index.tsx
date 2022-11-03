@@ -1,5 +1,5 @@
 import { Intent, NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { TrackSection } from '../../../providers/TrackingProvider';

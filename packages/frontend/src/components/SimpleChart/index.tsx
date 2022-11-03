@@ -44,7 +44,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
-const EmptyChart = () => (
+export const EmptyChart = () => (
     <div
         style={{
             height: '100%',

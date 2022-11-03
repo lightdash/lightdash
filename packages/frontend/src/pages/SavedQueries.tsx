@@ -1,4 +1,4 @@
-import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
@@ -16,6 +16,7 @@ import {
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
+import { LoadingChart } from '../components/SimpleChart';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
@@ -38,20 +39,7 @@ const SavedQueries: FC = () => {
     );
 
     if (isLoading && !cannotView) {
-        return (
-            <div
-                style={{
-                    display: 'flex',
-                    flexGrow: 1,
-                    height: '100%',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '50px 0',
-                }}
-            >
-                <NonIdealState title="Loading charts" icon={<Spinner />} />
-            </div>
-        );
+        return <LoadingChart />;
     }
 
     const handleCreateChart = () => {

@@ -1,7 +1,6 @@
-import { NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { LoadingChart } from '../SimpleChart';
+import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
 import {
     BigNumber,
@@ -45,13 +44,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
             </BigNumberContainer>
         </SimpleStatisticsWrapper>
     ) : (
-        <div style={{ padding: '50px 0' }} {...wrapperProps}>
-            <NonIdealState
-                title="No data available"
-                description="Query metrics and dimensions with results."
-                icon="chart"
-            />
-        </div>
+        <EmptyChart />
     );
 };
 
