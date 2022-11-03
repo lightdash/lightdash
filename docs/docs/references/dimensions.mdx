@@ -192,6 +192,24 @@ The `${ value.formatted }` will be replaced with the value of the company name i
 The `${ row.company.company_id.raw }` will be replaced with the value of the company id in the Lightdash UI at query run time.
 The action will be disabled if the column "company_id" from table "company" is not part of the query.
 
+### You can reference values from other columns in your URLs
+
+You can reference another dimension from your table in your URL. For these URLs to work, the other column you've referenced needs to be included in your results table.
+For example, say I’ve added a URL to `company_name` and it uses the field `customer_id`:
+
+```
+columns:
+  - name: company_name
+    label: Registered trading name of the company
+    meta:
+      dimension:
+        urls:
+          - label: "Open company"
+            url: "https://example.com/company/${row.customers.customer_id.raw | url_encode }"
+```
+
+This URL will only work if I have `customer_id` included in my results table.
+
 ### Liquid Templating
 
 Use templates to configure the url values depending on the query, this allows your urls to depend on the results of queries.
