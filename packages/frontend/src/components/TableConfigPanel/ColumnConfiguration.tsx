@@ -37,7 +37,9 @@ export const ColumnConfiguration: React.FC = () => {
                         />
                         {pivotDimensions === undefined && (
                             <FrozenIcon
-                                icon={'lock'}
+                                icon={
+                                    isColumnFrozen(fieldId) ? 'lock' : 'unlock'
+                                }
                                 color={
                                     isColumnFrozen(fieldId)
                                         ? 'black'
