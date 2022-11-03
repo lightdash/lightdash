@@ -1,8 +1,37 @@
-import { Card, Collapse, H5 } from '@blueprintjs/core';
+import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const StyledCard = styled(Card)`
+interface ExpandableProps {
+    isOpen?: boolean;
+    $shouldExpand?: boolean;
+}
+
+export const TRANSITION_DURATION = 200;
+
+export const StyledCollapse = styled(Collapse)<ExpandableProps>`
+    ${({ isOpen, $shouldExpand }) =>
+        isOpen && $shouldExpand
+            ? `
+                flex-grow: 1;
+                min-height: 300px;
+
+                .bp4-collapse-body {
+                    height: 100%;
+                }
+            `
+            : ''}
+`;
+
+export const StyledCard = styled(Card)<ExpandableProps>`
     padding: 5px;
+    transition: all ${TRANSITION_DURATION}ms linear;
+
+    ${({ isOpen, $shouldExpand }) =>
+        isOpen && $shouldExpand
+            ? `
+                flex-grow: 1;
+            `
+            : ''}
 `;
 
 export const StyledCardDivider = styled.div`
@@ -33,21 +62,6 @@ export const StyledCardTitle = styled(H5)`
     padding: 0;
 `;
 
-interface StyledCollapseProps {
-    isOpen?: boolean;
-    $isExpanded?: boolean;
-}
-
-export const StyledCollapse = styled(Collapse)<StyledCollapseProps>`
-    ${({ isOpen, $isExpanded }) =>
-        isOpen && $isExpanded
-            ? `
-                flex-grow: 1;
-                min-height: 300px;
-
-                .bp4-collapse-body {
-                    height: 100%;
-                }
-            `
-            : ''}
+export const StyledButton = styled(Button)`
+    margin-right: 5px;
 `;
