@@ -1,4 +1,3 @@
-import { ChartType } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
@@ -105,21 +104,23 @@ const VisualizationCard: FC = memo(() => {
                 isOpen={isOpen}
                 shouldExpand={isOnlyExpandedCard}
                 onToggle={toggleSection}
-                headerActions={
-                    <>
-                        {isEditMode && (
-                            <>
-                                <VisualizationCardOptions />
-                                <VisualizationConfigPanel
-                                    chartType={chartType}
-                                />
-                            </>
-                        )}
-                        {!isEditMode && chartType === 'table' && (
-                            <ShowTotalsToggle />
-                        )}
-                        <ChartDownloadMenu />
-                    </>
+                rightHeaderElement={
+                    isOpen && (
+                        <>
+                            {isEditMode && (
+                                <>
+                                    <VisualizationCardOptions />
+                                    <VisualizationConfigPanel
+                                        chartType={chartType}
+                                    />
+                                </>
+                            )}
+                            {!isEditMode && chartType === 'table' && (
+                                <ShowTotalsToggle />
+                            )}
+                            <ChartDownloadMenu />
+                        </>
+                    )
                 }
             >
                 <LightdashVisualization

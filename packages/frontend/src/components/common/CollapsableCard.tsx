@@ -1,4 +1,4 @@
-import { CardProps, CollapseProps } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { FC, useCallback } from 'react';
 import {
     StyledButton,
@@ -13,22 +13,27 @@ import {
 
 export { StyledCardDivider as CardDivider } from './CollapsableCard.style';
 
-type CollapsableCardProps = {
-    disabled?: boolean;
-    headerActions?: React.ReactNode;
-    shouldExpand?: boolean;
+interface CollapsableCardProps {
     onToggle?: (isOpen: boolean) => void;
-} & Pick<CollapseProps, 'children' | 'isOpen'> &
-    Pick<CardProps, 'title'>;
+    isOpen?: boolean;
+    disabled?: boolean;
+    shouldExpand?: boolean;
+    toggleTooltip?: string;
+    title: string;
+    headerElement?: JSX.Element;
+    rightHeaderElement?: React.ReactNode;
+}
 
 const CollapsableCard: FC<CollapsableCardProps> = ({
-    title,
     children,
-    headerActions,
     onToggle,
-    isOpen,
+    isOpen = false,
+    toggleTooltip,
     shouldExpand = false,
     disabled = false,
+    title,
+    headerElement,
+    rightHeaderElement,
 }) => {
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
@@ -36,21 +41,35 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
     );
 
     return (
-        <StyledCard elevation={1} isOpen={isOpen} $shouldExpand={shouldExpand}>
+        <StyledCard elevation={1} $isOpen={isOpen} $shouldExpand={shouldExpand}>
             <StyledCardHeader>
                 <StyledCardTitleWrapper>
-                    <StyledButton
-                        minimal
-                        disabled={disabled}
-                        icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                        onClick={() => handleToggle(!isOpen)}
-                    />
+                    <Tooltip2
+                        interactionKind="hover"
+                        placement="bottom-start"
+                        disabled={!!toggleTooltip}
+                        content={toggleTooltip}
+                    >
+                        <StyledButton
+                            minimal
+                            disabled={disabled}
+                            icon={isOpen ? 'chevron-down' : 'chevron-right'}
+                            onClick={() => handleToggle(!isOpen)}
+                        />
+                    </Tooltip2>
+
                     <StyledCardTitle>{title}</StyledCardTitle>
+
+                    {headerElement && (
+                        <StyledCardActionsWrpper>
+                            {headerElement}
+                        </StyledCardActionsWrpper>
+                    )}
                 </StyledCardTitleWrapper>
 
-                {isOpen && (
+                {rightHeaderElement && (
                     <StyledCardActionsWrpper>
-                        {headerActions}
+                        {rightHeaderElement}
                     </StyledCardActionsWrpper>
                 )}
             </StyledCardHeader>
