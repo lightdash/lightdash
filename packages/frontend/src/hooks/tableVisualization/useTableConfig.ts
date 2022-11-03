@@ -30,6 +30,13 @@ const useTableConfig = (
             ? true
             : tableChartConfig.showTableNames,
     );
+
+    const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
+        tableChartConfig?.hideRowNumbers === undefined
+            ? false
+            : tableChartConfig.hideRowNumbers,
+    );
+
     useEffect(() => {
         if (
             tableChartConfig?.showTableNames === undefined &&
@@ -168,8 +175,14 @@ const useTableConfig = (
             showColumnCalculation,
             showTableNames,
             columns: columnProperties,
+            hideRowNumbers,
         }),
-        [showColumnCalculation, showTableNames, columnProperties],
+        [
+            showColumnCalculation,
+            hideRowNumbers,
+            showTableNames,
+            columnProperties,
+        ],
     );
 
     return {
@@ -180,6 +193,8 @@ const useTableConfig = (
         setShowColumnCalculation,
         showTableNames,
         setShowTableName,
+        hideRowNumbers,
+        setHideRowNumbers,
         rows,
         error,
         columns,
