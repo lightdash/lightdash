@@ -15,7 +15,7 @@ import {
     EmptyStateNoTableData,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
-import { TableContainer } from './ResultsCard.styles';
+import { TableMaxHeightContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = memo(() => {
     const columns = useColumns();
@@ -120,7 +120,7 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
+            <TableMaxHeightContainer>
                 <Table
                     status={status}
                     data={resultsData?.rows || []}
@@ -135,7 +135,7 @@ export const ExplorerResults = memo(() => {
                     pagination={pagination}
                     footer={footer}
                 />
-            </TableContainer>
+            </TableMaxHeightContainer>
         </TrackSection>
     );
 });
