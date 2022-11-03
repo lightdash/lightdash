@@ -66,3 +66,7 @@ export const ColumnNameWrapper = styled.div`
 export const StretchSpacer = styled.div`
     flex: 2 1 10px;
 `;
+
+export const Spacer = styled.div<{ $width: number }>`
+    flex: 0 0 ${(props) => props.$width}px;
+`;
