@@ -103,22 +103,6 @@ const MultiAutoComplete: FC<Props> = ({
         [onChange, values],
     );
 
-    const handleBlur = useCallback(
-        (value?: string) => {
-            if (!value || value === '') return;
-
-            setSearch('');
-            if (!values.map(normalize).includes(normalize(value))) {
-                const existingOptionMatch = [...options].find((option) =>
-                    itemComparator(option, value),
-                );
-
-                handleItemSelect(existingOptionMatch || value);
-            }
-        },
-        [options, values, handleItemSelect, setSearch],
-    );
-
     return (
         <MultiSelect2
             className={disabled ? 'disabled-filter' : ''}
@@ -140,10 +124,7 @@ const MultiAutoComplete: FC<Props> = ({
             onItemSelect={handleItemSelect}
             tagInputProps={{
                 placeholder: undefined,
-                addOnBlur: true,
-                inputProps: {
-                    onBlur: () => handleBlur(searchQuery),
-                },
+                addOnBlur: false,
                 tagProps: {
                     minimal: true,
                 },
@@ -151,6 +132,9 @@ const MultiAutoComplete: FC<Props> = ({
             }}
             popoverProps={{
                 minimal: true,
+                onClosing: () => {
+                    setSearch('');
+                },
                 ...popoverProps,
             }}
             resetOnSelect
