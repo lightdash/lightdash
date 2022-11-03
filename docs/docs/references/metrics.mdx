@@ -461,46 +461,19 @@ The order that the fields are listed in `show_underlying_values` is the order th
 
 Filters are applied to metrics any time that metric is used in Lightdash. These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
 
-### Here are the different filter types we support:
+### Here are the filter types we support
 
-#### Is equal to
-
-  - User name is equal to katie -  `user_name: katie`
-  - Number of orders is equal to 4 - `num_orders: 4`
-  - Weekly active user is equal to true - `is_7d_active: true`
-
-#### Is not equal to
-
-  - User name is not equal to katie - `user_name: !katie`
-  - Number of orders is not equal to 4 - `num_orders: !4`
-
-#### Contains
-
-  - User name contains katie - `user_name: %katie%`
-
-#### Does not contain
-
-  - User name does not contain katie - `user_name: !%katie%`
-
-#### Starts with
-
-  - User name starts with katie - `user_name: katie%`
-
-#### Is greater than
-
-  - Number of orders is greater than 4 - `num_orders: > 4`
-
-#### Is greater than or equal to
-
-  - Number of orders is greater than or equal to 4 - `num_orders: >= 4`
-
-#### Is less than
-
-  - Number of orders is less than 4 - `num_orders: < 4`
-
-#### Is less than or equal to
-
-  - Number of orders is less than or equal to 4 - `num_orders: <= 4`
+|       Type                  | Example (in English)                           | Example (as code)     |
+|:---------------------------:| ---------------------------------------------- | --------------------- |
+| is equal to                 | User name is equal to katie                    | `user_name: katie`    |
+| is not equal to             | User name is not equal to katie                | `user_name: !katie`   |
+| contains                    | User name contains katie                       | `user_name: %katie%`  |
+| does not contain            | User name does not contain katie               | `user_name: !%katie%` |
+| starts with                 | User name starts with katie                    | `user_name: katie%`   |
+| is greater than             | Number of orders is greater than 4             | `num_orders: > 4`     |
+| is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: >= 4`    |
+| is less than                | Number of orders is less than 4                | `num_orders: < 4`     |
+| is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: <= 4`    |
 
 ### If you have many filters in your list, they will be joined using `AND`. 
 
