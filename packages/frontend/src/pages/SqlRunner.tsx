@@ -123,9 +123,6 @@ const SqlRunnerPage = () => {
     );
 
     useSqlRunnerRoute(sqlRunnerState);
-    const [vizIsOpen, setVizIsOpen] = useState(
-        !!initialState?.createSavedChart,
-    );
 
     const onSubmit = useCallback(() => {
         if (sql) {
@@ -177,6 +174,11 @@ const SqlRunnerPage = () => {
     if (user.data?.ability?.cannot('view', 'Project')) {
         return <ForbiddenPanel />;
     }
+
+    const onlyVizIsExpanded =
+        expandedCards.get(SqlRunnerCards.CHART) === true &&
+        expandedCards.get(SqlRunnerCards.SQL) === false &&
+        expandedCards.get(SqlRunnerCards.RESULTS) === false;
 
     return (
         <PageWithSidebar>
@@ -263,7 +265,7 @@ const SqlRunnerPage = () => {
                 >
                     <CollapsableCard
                         title="Charts"
-                        headerActions={
+                        rightHeaderElement={
                             <>
                                 <VisualizationCardOptions />
                                 <VisualizationConfigPanel
@@ -273,11 +275,15 @@ const SqlRunnerPage = () => {
                             </>
                         }
                         isOpen={expandedCards.get(SqlRunnerCards.CHART)}
+                        shouldExpand={onlyVizIsExpanded}
                         onToggle={(value) =>
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
-                        <LightdashVisualization className="cohere-block" />
+                        <LightdashVisualization
+                            className="cohere-block"
+                            $shouldExpand={onlyVizIsExpanded}
+                        />
                     </CollapsableCard>
                 </VisualizationProvider>
 
