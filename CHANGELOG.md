@@ -1,3 +1,10 @@
+## [0.312.2](https://github.com/lightdash/lightdash/compare/0.312.1...0.312.2) (2022-11-03)
+
+
+### Bug Fixes
+
+* missing FROM clause from metric filter reference ([#3665](https://github.com/lightdash/lightdash/issues/3665)) ([66adf04](https://github.com/lightdash/lightdash/commit/66adf04aaee5560db509c5b5514ef8a5b1507ac9))
+
 ## [0.312.1](https://github.com/lightdash/lightdash/compare/0.312.0...0.312.1) (2022-11-03)
 
 
