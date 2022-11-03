@@ -1,3 +1,10 @@
+## [0.312.1](https://github.com/lightdash/lightdash/compare/0.312.0...0.312.1) (2022-11-03)
+
+
+### Bug Fixes
+
+* dashboard chart underlying data ([#3663](https://github.com/lightdash/lightdash/issues/3663)) ([b4cb73b](https://github.com/lightdash/lightdash/commit/b4cb73ba8c0a9708fddc2c8f13373e8e5cd86b19))
+
 # [0.312.0](https://github.com/lightdash/lightdash/compare/0.311.0...0.312.0) (2022-11-03)
 
 
