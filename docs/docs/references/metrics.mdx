@@ -459,7 +459,30 @@ The order that the fields are listed in `show_underlying_values` is the order th
 
 ## Filters
 
-Filters are applied to metrics any time that metric is used in Lightdash. These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
+Filters are applied to metrics any time that metric is used in Lightdash. 
+
+For example, we could add a filter to our users count to make sure it didn't include user IDs with closed accounts, like this:
+
+```yaml
+version: 2
+
+models:
+  - name: sales_stats
+    columns:
+      - name: user_id
+        description: "Unique ID for users."
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_users:
+              type: count_distinct
+              filters:
+                - is_closed_account: false
+...
+```
+
+These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
 
 ### Here are the filter types we support
 
