@@ -6,30 +6,19 @@ interface ExpandableProps {
     $shouldExpand?: boolean;
 }
 
-export const TRANSITION_DURATION = 200;
-
-export const StyledCollapse = styled(Collapse)<ExpandableProps>`
-    ${({ isOpen, $shouldExpand }) =>
-        isOpen && $shouldExpand
-            ? `
-                flex-grow: 1;
-                min-height: 300px;
-
-                .bp4-collapse-body {
-                    height: 100%;
-                }
-            `
-            : ''}
+export const StyledCollapse = styled.div<ExpandableProps>`
+    flex: 1;
 `;
 
 export const StyledCard = styled(Card)<ExpandableProps>`
     padding: 5px;
-    transition: all ${TRANSITION_DURATION}ms linear;
+    display: flex;
+    flex-direction: column;
 
     ${({ isOpen, $shouldExpand }) =>
         isOpen && $shouldExpand
             ? `
-                flex-grow: 1;
+                flex: 1;
             `
             : ''}
 `;

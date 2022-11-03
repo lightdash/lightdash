@@ -41,7 +41,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
     );
 
     return (
-        <StyledCard elevation={1} $isOpen={isOpen} $shouldExpand={shouldExpand}>
+        <StyledCard elevation={1} isOpen={isOpen} $shouldExpand={shouldExpand}>
             <StyledCardHeader>
                 <StyledCardTitleWrapper>
                     <Tooltip2
@@ -74,13 +74,11 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
                 )}
             </StyledCardHeader>
 
-            <StyledCollapse
-                transitionDuration={TRANSITION_DURATION}
-                isOpen={isOpen}
-                $shouldExpand={shouldExpand}
-            >
-                {children}
-            </StyledCollapse>
+            {isOpen && (
+                <StyledCollapse $shouldExpand={shouldExpand}>
+                    {children}
+                </StyledCollapse>
+            )}
         </StyledCard>
     );
 };

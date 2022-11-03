@@ -109,7 +109,11 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     return (
         <EChartsReact
-            style={{ height: '100%', width: '100%' }}
+            style={{
+                height: '100%',
+                minHeight: '300px',
+                width: '100%',
+            }}
             ref={chartRef}
             option={eChartsOptions}
             notMerge
