@@ -125,6 +125,7 @@ const VisualizationCard: FC = memo(() => {
             >
                 <LightdashVisualization
                     className="cohere-block"
+                    $shouldExpand={isOnlyExpandedCard}
                     data-testid="visualization-card-body"
                 />
 

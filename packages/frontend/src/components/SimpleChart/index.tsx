@@ -45,7 +45,14 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
 const EmptyChart = () => (
-    <div style={{ height: '100%', display: 'flex', alignContent: 'center' }}>
+    <div
+        style={{
+            padding: '50px 0',
+            height: '100%',
+            display: 'flex',
+            alignContent: 'center',
+        }}
+    >
         <NonIdealState
             title="No data available"
             description="Query metrics and dimensions with results."
@@ -62,7 +69,9 @@ export const LoadingChart = () => (
 const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
 
-type SimpleChartProps = Omit<EChartsReactProps, 'option'>;
+type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
+    $shouldExpand?: boolean;
+};
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { chartRef, isLoading, onSeriesContextMenu } =
@@ -109,11 +118,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     return (
         <EChartsReact
-            style={{
-                height: '100%',
-                minHeight: '300px',
-                width: '100%',
-            }}
+            style={props.$shouldExpand ? { height: '100%' } : {}}
             ref={chartRef}
             option={eChartsOptions}
             notMerge

@@ -8,10 +8,11 @@ import { useVisualizationContext } from './VisualizationProvider';
 interface LightdashVisualizationProps {
     isDashboard?: boolean;
     className?: string;
+    $shouldExpand?: boolean;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard, className }) => {
+    ({ isDashboard, className, $shouldExpand }) => {
         const { chartType } = useVisualizationContext();
 
         switch (chartType) {
@@ -25,7 +26,12 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     />
                 );
             case ChartType.CARTESIAN:
-                return <SimpleChart className={className} />;
+                return (
+                    <SimpleChart
+                        className={className}
+                        $shouldExpand={$shouldExpand}
+                    />
+                );
             default:
                 return null;
         }
