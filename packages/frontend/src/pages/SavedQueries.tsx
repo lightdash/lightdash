@@ -39,7 +39,16 @@ const SavedQueries: FC = () => {
 
     if (isLoading && !cannotView) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <div
+                style={{
+                    display: 'flex',
+                    flexGrow: 1,
+                    height: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '50px 0',
+                }}
+            >
                 <NonIdealState title="Loading charts" icon={<Spinner />} />
             </div>
         );

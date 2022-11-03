@@ -47,10 +47,10 @@ type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 const EmptyChart = () => (
     <div
         style={{
-            padding: '50px 0',
             height: '100%',
             display: 'flex',
-            alignContent: 'center',
+            alignItems: 'center',
+            padding: '50px 0',
         }}
     >
         <NonIdealState
@@ -60,8 +60,16 @@ const EmptyChart = () => (
         />
     </div>
 );
+
 export const LoadingChart = () => (
-    <div style={{ padding: '50px 0' }}>
+    <div
+        style={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '50px 0',
+        }}
+    >
         <NonIdealState title="Loading chart" icon={<Spinner />} />
     </div>
 );
