@@ -54,7 +54,6 @@ const getDataAndColumns = ({
             if (!isColumnVisible(itemId)) {
                 return acc;
             }
-
             const headerOverride = getHeader(itemId);
 
             const column: TableHeader | TableColumn = columnHelper.accessor(

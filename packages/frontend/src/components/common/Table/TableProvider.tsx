@@ -35,6 +35,7 @@ type Props = {
         show?: boolean;
         defaultScroll?: boolean;
     };
+    hideRowNumbers?: boolean;
     footer?: {
         show?: boolean;
     };
@@ -48,25 +49,6 @@ type TableContext = Props & {
 
 const Context = createContext<TableContext | undefined>(undefined);
 
-const StickyColumnStyle = createGlobalStyle`
-  
-.sticky-column {
-    position: sticky !important;
-    left: 1px;
-    z-index: 1;
-    background-color: white;
-}
-thead {
-    z-index: 2; 
-}
-
-.last-sticky-column { /*FIXME :last-of-type doesnt' work*/
-    border-right: 2px solid darkgray;
-
-}
-  
-`;
-
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
     header: '#',
@@ -77,7 +59,11 @@ const rowColumn: TableColumn = {
     },
 };
 
-export const TableProvider: FC<Props> = ({ children, ...rest }) => {
+export const TableProvider: FC<Props> = ({
+    hideRowNumbers,
+    children,
+    ...rest
+}) => {
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
@@ -118,10 +104,14 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
                   },
               }
             : rowColumn;
-    const cols = [stickyRowColumn, ...stickyColumns, ...otherColumns];
+
+    const visibleColumns = hideRowNumbers
+        ? [...stickyColumns, ...otherColumns]
+        : [stickyRowColumn, ...stickyColumns, ...otherColumns];
+
     const table = useReactTable({
         data,
-        columns: cols,
+        columns: visibleColumns,
         state: {
             columnVisibility,
             columnOrder: tempColumnOrder,
@@ -152,7 +142,6 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
 
     return (
         <Context.Provider value={{ table, ...rest }}>
-            <StickyColumnStyle />
             {children}
         </Context.Provider>
     );

@@ -10,6 +10,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     loadingState?: FC;
     idleState?: FC;
     emptyState?: FC;
+    hideRowNumbers?: boolean;
 };
 
 const ResultsTable: FC<Props> = ({
@@ -17,6 +18,7 @@ const ResultsTable: FC<Props> = ({
     loadingState,
     idleState,
     emptyState,
+    hideRowNumbers,
     ...rest
 }) => {
     const LoadingState = loadingState || States.LoadingState;
@@ -24,7 +26,7 @@ const ResultsTable: FC<Props> = ({
     const EmptyState = emptyState || States.EmptyState;
 
     return (
-        <TableProvider {...rest}>
+        <TableProvider hideRowNumbers={hideRowNumbers} {...rest}>
             <TableContainer className="cohere-block">
                 <ScrollableTable />
                 {status === 'loading' && <LoadingState />}

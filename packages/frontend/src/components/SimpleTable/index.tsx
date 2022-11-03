@@ -11,7 +11,13 @@ const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
     const {
         isLoading,
         columnOrder,
-        tableConfig: { rows, error, columns, showColumnCalculation },
+        tableConfig: {
+            rows,
+            error,
+            columns,
+            showColumnCalculation,
+            hideRowNumbers,
+        },
         isSqlRunner,
         explore,
     } = useVisualizationContext();
@@ -35,6 +41,7 @@ const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
                 data={rows}
                 columns={columns}
                 columnOrder={columnOrder}
+                hideRowNumbers={hideRowNumbers}
                 footer={{
                     show: showColumnCalculation,
                 }}

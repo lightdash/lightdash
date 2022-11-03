@@ -31,6 +31,7 @@ export type ColumnProperties = {
 export type TableChart = {
     showColumnCalculation?: boolean;
     showTableNames?: boolean;
+    hideRowNumbers?: boolean;
     columns?: Record<string, ColumnProperties>;
 };
 

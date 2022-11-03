@@ -24,6 +24,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         !showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
 
     thead {
+        z-index: 2;
         position: sticky;
         top: 0;
         inset-block-start: 0; /* "top" */
@@ -67,6 +68,16 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
             box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd,
                 inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
         }
+    }
+
+    .sticky-column {
+        position: sticky !important;
+        left: 1px;
+        z-index: 1;
+        background-color: white;
+    }
+    .last-sticky-column {
+        border-right: 2px solid darkgray;
     }
 `;
 
