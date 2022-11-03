@@ -254,7 +254,6 @@ const DashboardChartTile: FC<Props> = (props) => {
 
             const underlyingData = getDataFromChartClick(
                 e,
-                pivot,
                 allItemsMap,
                 series,
             );
