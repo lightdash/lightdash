@@ -210,7 +210,7 @@ describe('Explore', () => {
 
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
-                        .get('th')
+                        .find('th')
                         .contains('Customers - First name')
                         .should('exist');
 
@@ -223,11 +223,11 @@ describe('Explore', () => {
 
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
-                        .get('th')
+                        .find('th')
                         .contains('Customers - First name')
                         .should('not.exist');
                     cy.findByTestId('visualization')
-                        .get('th')
+                        .find('th')
                         .contains('First name')
                         .should('exist');
                 });
@@ -258,7 +258,7 @@ describe('Explore', () => {
 
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
-                        .get('th')
+                        .find('th')
                         .eq(1)
                         .contains('Customers - First name')
                         .should('exist');
@@ -272,7 +272,7 @@ describe('Explore', () => {
 
                     // check that chart table headers are overridden
                     cy.findByTestId('visualization')
-                        .get('th')
+                        .find('th')
                         .eq(1)
                         .contains('Overridden header')
                         .should('exist');
