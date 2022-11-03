@@ -14,6 +14,7 @@ import {
     useDuplicateMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
+import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -40,6 +41,8 @@ import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const dashboardUuid = useSearchParams('fromDashboard');
+
     const history = useHistory();
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
@@ -97,6 +100,9 @@ const SavedChartsHeader: FC = () => {
                 isEditMode &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
+                ) &&
+                !prompt.pathname.includes(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                 )
             ) {
                 setBlockedNavigationLocation(prompt.pathname);
@@ -222,9 +228,14 @@ const SavedChartsHeader: FC = () => {
                                 <Button
                                     onClick={() => {
                                         reset();
-                                        history.push({
-                                            pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
-                                        });
+                                        if (dashboardUuid) {
+                                            history.push({
+                                                pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+                                            });
+                                        } else
+                                            history.push({
+                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+                                            });
                                     }}
                                 >
                                     Cancel
