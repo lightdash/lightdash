@@ -1,3 +1,10 @@
+# [0.311.0](https://github.com/lightdash/lightdash/compare/0.310.0...0.311.0) (2022-11-03)
+
+
+### Features
+
+* edit chart redirect back to dashboard ([#3628](https://github.com/lightdash/lightdash/issues/3628)) ([20c8809](https://github.com/lightdash/lightdash/commit/20c88095bb18c8e9a3627fdb54e935654987cc24))
+
 # [0.310.0](https://github.com/lightdash/lightdash/compare/0.309.1...0.310.0) (2022-11-02)
 
 
