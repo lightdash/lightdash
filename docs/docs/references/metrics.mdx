@@ -92,18 +92,15 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
       columns:
         - name: customer_id
           meta:
-          metrics:
-            customer_count:
-              type: count
+            metrics:
+              customer_count:
+                type: count
   ```
 
   The second metric has the same name `customer_count` on the same model `customers` but the first uses type: count_distinct and the second uses type: count. Because the second metric is defined on the column `meta:` tag, it'll take priority over the first.
 
 - The `type` must be [one of the Lightdash types](#metric-types).
-
 - `timestamp`, `time_grains`, and `dimensions` are all ignored because metrics get all dimensions of the model.
-- `label` is ignored - but should be implemented soon!
-- `filters` are not supported - again this should be implemented soon for all metrics!
 
 ## Metric Categories
 
@@ -151,22 +148,25 @@ models:
                 - revenue
                 - forecast_date
                 - web_sessions.session_id # field from joined table
+              filters:
+                - is_adjusted: true
 ```
 
 Here are all of the properties you can customize:
 
-| Property                                                          | Required | Value                    |  Description                                                                                                                                                                                                                                                                        |
-|-------------------------------------------------------------------|----------|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| label                                                             | No       | string                   | Custom label. This is what you'll see in Lightdash instead of the metric name.                                                                                                                                                                                                      |
-| [type](#metric-types)                                             | Yes      | metric type              | Metrics must be one of the supported types.                                                                                                                                                                                                                                         |
-| [description](#adding-your-own-metric-descriptions)               | No       | string                   | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                                                                                                                                           |
-| [sql](#using-custom-sql-in-aggregate-metrics)                     | No       | string                   | Custom SQL used to define the metric.                                                                                                                                                                                                                                               |
-| hidden                                                            | No       | boolean                  | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                       |
-| round                                                             | No       | number                   | Rounds a number to a specified number of digits                                                                                                                                                                                                                                     |
-| format                                                            | No       | string                   | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent']`                                                                                                                       |
-| group_label                                                       | No       | string                   | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                             |
-| [urls](./dimensions.mdx#urls)                                     | No       | Array of { url, label }  | Adding urls to a metric allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                |
-| [show_underlying_values](#show-underlying-values)                 | No       | Array of dimension names | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                          |
+| Property                                                          | Required | Value                          |  Description                                                                                                                                                                                                                                                                        |
+|-------------------------------------------------------------------|----------|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| label                                                             | No       | string                         | Custom label. This is what you'll see in Lightdash instead of the metric name.                                                                                                                                                                                                      |
+| [type](#metric-types)                                             | Yes      | metric type                    | Metrics must be one of the supported types.                                                                                                                                                                                                                                         |
+| [description](#adding-your-own-metric-descriptions)               | No       | string                         | Description of the metric that appears in Lightdash. A default description is created by Lightdash if this isn't included                                                                                                                                                           |
+| [sql](#using-custom-sql-in-aggregate-metrics)                     | No       | string                         | Custom SQL used to define the metric.                                                                                                                                                                                                                                               |
+| hidden                                                            | No       | boolean                        | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                                                       |
+| round                                                             | No       | number                         | Rounds a number to a specified number of digits                                                                                                                                                                                                                                     |
+| format                                                            | No       | string                         | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent']`                                                                                                                |
+| group_label                                                       | No       | string                         | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                                             |
+| [urls](./dimensions.mdx#urls)                                     | No       | Array of { url, label }        | Adding urls to a metric allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension.                                |
+| [show_underlying_values](#show-underlying-values)                 | No       | Array of dimension names       | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                                                           |
+| [filters](#filters)                                               | No       | Array of {filter field: value} | You can add filter logic to limit the values included in the metric calculation. You can add many filters. See which filter types are supported [here](#filters).                                                                                                                               |
 
 ## Metric types
 
@@ -454,4 +454,59 @@ models:
 ```
 
 The list of fields must be made of dimension names (no metrics) from the base table or from any joined tables. To reference a field from a joined table, you just need to prefix the dimension name with the joined table name, like this: `my_joined_table_name.my_dimension`.
+
+The order that the fields are listed in `show_underlying_values` is the order that they'll appear in on the `view underlying data` table.
+
+## Filters
+
+Filters are applied to metrics any time that metric is used in Lightdash. These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
+
+These are the option you have for filter logic using the `filters` configuration:
+
+- **is equal to**. 
+  - User name is equal to katie -  `user_name: katie`
+  - Number of orders is equal to 4 - `num_orders: 4`
+  - Weekly active user is equal to true - `is_7d_active: true`
+- **is not equal to**. 
+  - User name is not equal to katie - `user_name: !katie`
+  - Number of orders is not equal to 4 - `num_orders: !4`
+- **contains**. 
+  - User name contains katie - `user_name: %katie%`
+- **does not contain**. 
+  - User name does not contain katie - `user_name: !%katie%`
+- **is greater than**.
+  - Number of orders is greater than 4 - `num_orders: > 4`
+- **is greater than or equal to**
+  - Number of orders is greater than or equal to 4 - `num_orders: >= 4`
+- **is less than**
+  - Number of orders is less than 4 - `num_orders: < 4`
+- **is less than or equal to**
+  - Number of orders is less than or equal to 4 - `num_orders: <= 4`
+
+
+You can filter using fields from either the base model, or any joined models. To filter using a field from a joined model, just use the syntax `model_name.field`, like this:
+
+```yaml
+version: 2
+
+models:
+  - name: sales_stats
+    meta:
+      joins:
+        - join: web_sessions
+          sql_on: ${web_sessions.date} = ${sales_stats.date}
+    columns:
+      - name: user_id
+        description: "Unique ID for users."
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count_users:
+              type: count_distinct
+              filters:
+                - is_closed_account: false
+                - web_sessions.is_bot_user: false
+...
+```
 
