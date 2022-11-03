@@ -1,4 +1,4 @@
-import { Button, Card, Collapse, H5 } from '@blueprintjs/core';
+import { Button, Card, H5 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 interface ExpandableProps {
@@ -16,11 +16,7 @@ export const StyledCard = styled(Card)<ExpandableProps>`
     flex-direction: column;
 
     ${({ isOpen, $shouldExpand }) =>
-        isOpen && $shouldExpand
-            ? `
-                flex: 1;
-            `
-            : ''}
+        isOpen && $shouldExpand ? `flex: 1;` : ''}
 `;
 
 export const StyledCardDivider = styled.div`

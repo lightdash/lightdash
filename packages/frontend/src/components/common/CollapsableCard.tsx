@@ -8,7 +8,6 @@ import {
     StyledCardTitle,
     StyledCardTitleWrapper,
     StyledCollapse,
-    TRANSITION_DURATION,
 } from './CollapsableCard.style';
 
 export { StyledCardDivider as CardDivider } from './CollapsableCard.style';
