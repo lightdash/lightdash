@@ -1,19 +1,26 @@
-import { Button, H5 } from '@blueprintjs/core';
-import { FC, memo, useCallback, useState } from 'react';
+import { ChartType } from '@lightdash/common';
+import { FC, memo, useCallback, useMemo, useState } from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
+import { ChartDownloadMenu } from '../../ChartDownload';
+import CollapsableCard from '../../common/CollapsableCard';
+import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
-import { ExploreCard } from '../Explorer.styles';
-import { CardHeader, CardHeaderTitle } from './VisualizationCard.styles';
-import VisualizationCardBody, {
-    EchartsClickEvent,
-} from './VisualizationCardBody';
-import VisualizationCardHeader from './VisualizationCardHeader';
+import VisualizationCardOptions from '../VisualizationCardOptions';
+import { SeriesContextMenu } from './SeriesContextMenu';
+import ShowTotalsToggle from './ShowTotalsToggle';
+import VisualizationConfigPanel from './VisualizationConfigPanel';
+
+export type EchartsClickEvent = {
+    event: EchartSeriesClickEvent;
+    dimensions: string[];
+    series: EChartSeries[];
+};
 
 const VisualizationCard: FC = memo(() => {
     const unsavedChartVersion = useExplorerContext(
@@ -37,6 +44,24 @@ const VisualizationCard: FC = memo(() => {
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,
     );
+    const isEditMode = useExplorerContext(
+        (context) => context.state.isEditMode,
+    );
+    const toggleExpandedSection = useExplorerContext(
+        (context) => context.actions.toggleExpandedSection,
+    );
+    const chartType = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.chartConfig.type,
+    );
+    const isOpen = useMemo(
+        () => expandedSections.includes(ExplorerSection.VISUALIZATION),
+        [expandedSections],
+    );
+    const toggleSection = useCallback(
+        () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
+        [toggleExpandedSection],
+    );
+
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
@@ -54,16 +79,7 @@ const VisualizationCard: FC = memo(() => {
     );
 
     if (!unsavedChartVersion.tableName) {
-        return (
-            <ExploreCard elevation={1}>
-                <CardHeader>
-                    <CardHeaderTitle>
-                        <Button icon={'chevron-right'} minimal disabled />
-                        <H5>Charts</H5>
-                    </CardHeaderTitle>
-                </CardHeader>
-            </ExploreCard>
-        );
+        return <CollapsableCard title="Charts" disabled />;
     }
 
     const isOnlyExpandedCard =
@@ -71,29 +87,53 @@ const VisualizationCard: FC = memo(() => {
         expandedSections.includes(ExplorerSection.VISUALIZATION);
 
     return (
-        <ExploreCard
-            elevation={1}
-            $flexGrow={isOnlyExpandedCard ? 1 : undefined}
+        <VisualizationProvider
+            initialChartConfig={unsavedChartVersion.chartConfig}
+            chartType={unsavedChartVersion.chartConfig.type}
+            initialPivotDimensions={unsavedChartVersion.pivotConfig?.columns}
+            explore={explore}
+            resultsData={queryResults}
+            isLoading={isLoadingQueryResults}
+            onChartConfigChange={setChartConfig}
+            onChartTypeChange={setChartType}
+            onPivotDimensionsChange={setPivotFields}
+            columnOrder={unsavedChartVersion.tableConfig.columnOrder}
+            onSeriesContextMenu={onSeriesContextMenu}
         >
-            <VisualizationProvider
-                initialChartConfig={unsavedChartVersion.chartConfig}
-                chartType={unsavedChartVersion.chartConfig.type}
-                initialPivotDimensions={
-                    unsavedChartVersion.pivotConfig?.columns
+            <CollapsableCard
+                title="Charts"
+                isOpen={isOpen}
+                shouldExpand={isOnlyExpandedCard}
+                onToggle={toggleSection}
+                headerActions={
+                    <>
+                        {isEditMode && (
+                            <>
+                                <VisualizationCardOptions />
+                                <VisualizationConfigPanel
+                                    chartType={chartType}
+                                />
+                            </>
+                        )}
+                        {!isEditMode && chartType === 'table' && (
+                            <ShowTotalsToggle />
+                        )}
+                        <ChartDownloadMenu />
+                    </>
                 }
-                explore={explore}
-                resultsData={queryResults}
-                isLoading={isLoadingQueryResults}
-                onChartConfigChange={setChartConfig}
-                onChartTypeChange={setChartType}
-                onPivotDimensionsChange={setPivotFields}
-                columnOrder={unsavedChartVersion.tableConfig.columnOrder}
-                onSeriesContextMenu={onSeriesContextMenu}
             >
-                <VisualizationCardHeader />
-                <VisualizationCardBody echartsClickEvent={echartsClickEvent} />
-            </VisualizationProvider>
-        </ExploreCard>
+                <LightdashVisualization
+                    className="cohere-block"
+                    data-testid="visualization-card-body"
+                />
+
+                <SeriesContextMenu
+                    echartSeriesClickEvent={echartsClickEvent?.event}
+                    dimensions={echartsClickEvent?.dimensions}
+                    series={echartsClickEvent?.series}
+                />
+            </CollapsableCard>
+        </VisualizationProvider>
     );
 });
 
