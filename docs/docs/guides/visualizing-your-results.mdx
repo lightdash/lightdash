@@ -81,9 +81,11 @@ By default, we attach the table name to your field name (just in case you've got
 
 **To pivot by a column, just add a `group` in your configurations**
 
-To pivot by a column in your table, just add the column you want to pivot by to the `group` option in the config panel. This will rotate the rows from this dimension into columns.
+To pivot by a column in your table, just add the column you want to pivot by to the `group` option in the config panel. This will rotate the rows from this dimension into columns. You can pivot by up to 3 columns in your table.
 
 <img src={PivotTable} width="648" height="844" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Note that pivoted tables have a limit of 60 columns that can be displayed.
 
 ### Bar chart
 
@@ -186,6 +188,8 @@ These chart types have very similar configuration options, so we thought it woul
 #### Layout
 
 This is where you can pick the columns from your results table that you want to plot on your x and y axes or that you want to group by.
+
+You can group by up to 3 fields in your chart.
 
 For bar charts, this is also where you have the option to stack your bars, or leave them unstacked (grouped).
 
