@@ -12,17 +12,18 @@ interface LightdashVisualizationProps {
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard, className, $shouldExpand }) => {
+    ({ isDashboard, className, $shouldExpand, ...props }) => {
         const { chartType } = useVisualizationContext();
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
-                return <SimpleStatistic className={className} />;
+                return <SimpleStatistic className={className} {...props} />;
             case ChartType.TABLE:
                 return (
                     <SimpleTable
                         isDashboard={!!isDashboard}
                         className={className}
+                        {...props}
                     />
                 );
             case ChartType.CARTESIAN:
@@ -30,6 +31,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     <SimpleChart
                         className={className}
                         $shouldExpand={$shouldExpand}
+                        {...props}
                     />
                 );
             default:
