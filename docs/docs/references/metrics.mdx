@@ -461,30 +461,63 @@ The order that the fields are listed in `show_underlying_values` is the order th
 
 Filters are applied to metrics any time that metric is used in Lightdash. These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
 
-These are the option you have for filter logic using the `filters` configuration:
+### Here are the different filter types we support:
 
-- **is equal to**. 
+#### Is equal to
+
   - User name is equal to katie -  `user_name: katie`
   - Number of orders is equal to 4 - `num_orders: 4`
   - Weekly active user is equal to true - `is_7d_active: true`
-- **is not equal to**. 
+
+#### Is not equal to
+
   - User name is not equal to katie - `user_name: !katie`
   - Number of orders is not equal to 4 - `num_orders: !4`
-- **contains**. 
+
+#### Contains
+
   - User name contains katie - `user_name: %katie%`
-- **does not contain**. 
+
+#### Does not contain
+
   - User name does not contain katie - `user_name: !%katie%`
-- **is greater than**.
+
+#### Starts with
+
+  - User name starts with katie - `user_name: katie%`
+
+#### Is greater than
+
   - Number of orders is greater than 4 - `num_orders: > 4`
-- **is greater than or equal to**
+
+#### Is greater than or equal to
+
   - Number of orders is greater than or equal to 4 - `num_orders: >= 4`
-- **is less than**
+
+#### Is less than
+
   - Number of orders is less than 4 - `num_orders: < 4`
-- **is less than or equal to**
+
+#### Is less than or equal to
+
   - Number of orders is less than or equal to 4 - `num_orders: <= 4`
 
+### If you have many filters in your list, they will be joined using `AND`. 
 
-You can filter using fields from either the base model, or any joined models. To filter using a field from a joined model, just use the syntax `model_name.field`, like this:
+For example:
+
+```yaml
+filters:
+  - is_closed_account: false
+  - is_7d_active: true
+...
+```
+
+Would give you logic like `is_closed_account = TRUE AND is_7d_active = FALSE`.
+
+### You can filter using fields from either the base model, or any joined models. 
+
+To filter using a field from a joined model, just use the syntax `model_name.field`, like this:
 
 ```yaml
 version: 2
@@ -509,4 +542,3 @@ models:
                 - web_sessions.is_bot_user: false
 ...
 ```
-
