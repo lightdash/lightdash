@@ -30,8 +30,10 @@ export const TableConfigPanel: React.FC = () => {
         tableConfig: {
             showColumnCalculation,
             showTableNames,
+            hideRowNumbers,
             setShowTableName,
             setShowColumnCalculation,
+            setHideRowNumbers,
         },
         setPivotDimensions,
     } = useVisualizationContext();
@@ -152,6 +154,16 @@ export const TableConfigPanel: React.FC = () => {
                         checked={showTableNames}
                         onChange={(e) => {
                             setShowTableName(!showTableNames);
+                        }}
+                    />
+                    <SectionTitle>Hide row numbers</SectionTitle>
+                    <Switch
+                        large
+                        innerLabelChecked="Yes"
+                        innerLabel="No"
+                        checked={hideRowNumbers}
+                        onChange={(e) => {
+                            setHideRowNumbers(!hideRowNumbers);
                         }}
                     />
                     <SectionTitle>Columns</SectionTitle>

@@ -32,6 +32,7 @@ type Props = {
         show?: boolean;
         defaultScroll?: boolean;
     };
+    hideRowNumbers?: boolean;
     footer?: {
         show?: boolean;
     };
@@ -55,7 +56,11 @@ const rowColumn: TableColumn = {
     },
 };
 
-export const TableProvider: FC<Props> = ({ children, ...rest }) => {
+export const TableProvider: FC<Props> = ({
+    hideRowNumbers,
+    children,
+    ...rest
+}) => {
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
@@ -63,13 +68,14 @@ export const TableProvider: FC<Props> = ({ children, ...rest }) => {
         ...(columnOrder || []),
     ]);
 
+    const visibleColumns = hideRowNumbers ? columns : [rowColumn, ...columns];
     useEffect(() => {
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
     const table = useReactTable({
         data,
-        columns: [rowColumn, ...columns],
+        columns: visibleColumns,
         state: {
             columnVisibility,
             columnOrder: tempColumnOrder,
