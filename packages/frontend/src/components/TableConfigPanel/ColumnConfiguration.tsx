@@ -1,9 +1,10 @@
-import { Button, InputGroup } from '@blueprintjs/core';
+import { Button, Colors, Icon, InputGroup } from '@blueprintjs/core';
 import React from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     ColumnConfigurationWrapper,
     ColumnWrapper,
+    FrozenIcon,
 } from './ColumnConfiguration.styles';
 
 export const ColumnConfiguration: React.FC = () => {
@@ -35,13 +36,13 @@ export const ColumnConfiguration: React.FC = () => {
                             }}
                         />
                         {pivotDimensions === undefined && (
-                            <Button
+                            <FrozenIcon
                                 icon={'lock'}
-                                style={{
-                                    opacity: isColumnFrozen(fieldId)
-                                        ? 1
-                                        : '0.4',
-                                }}
+                                color={
+                                    isColumnFrozen(fieldId)
+                                        ? 'black'
+                                        : Colors.GRAY5
+                                }
                                 onClick={() => {
                                     updateColumnProperty(fieldId, {
                                         frozen: !isColumnFrozen(fieldId),
