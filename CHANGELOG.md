@@ -1,3 +1,10 @@
+# [0.312.0](https://github.com/lightdash/lightdash/compare/0.311.0...0.312.0) (2022-11-03)
+
+
+### Features
+
+* hide row numbers ([#3652](https://github.com/lightdash/lightdash/issues/3652)) ([c80271c](https://github.com/lightdash/lightdash/commit/c80271c454e1be8a954e624e8cf981197be2e1cb))
+
 # [0.311.0](https://github.com/lightdash/lightdash/compare/0.310.0...0.311.0) (2022-11-03)
 
 
