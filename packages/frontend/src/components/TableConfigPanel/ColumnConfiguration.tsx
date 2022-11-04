@@ -4,6 +4,7 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import {
     ColumnConfigurationWrapper,
     ColumnWrapper,
+    EyeButton,
     FrozenIcon,
 } from './ColumnConfiguration.styles';
 
@@ -38,7 +39,7 @@ export const ColumnConfiguration: React.FC = () => {
 
                         {(!pivotDimensions ||
                             !pivotDimensions.includes(fieldId)) && (
-                            <Button
+                            <EyeButton
                                 icon={
                                     isColumnVisible(fieldId)
                                         ? 'eye-off'
