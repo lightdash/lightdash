@@ -19,7 +19,15 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
-    const userCanManageCharts = user.data?.ability?.can(
+    const userCanViewCharts = user.data?.ability.can(
+        'view',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageCharts = user.data?.ability.can(
         'manage',
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
@@ -51,7 +59,7 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
                         minimal
                         href="https://docs.lightdash.com/get-started/exploring-data/sharing-insights"
                     />
-                ) : userCanManageCharts && !isDemo ? (
+                ) : userCanViewCharts ? (
                     <LinkButton
                         text={`View all ${savedCharts.length}`}
                         minimal

@@ -46,7 +46,15 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
         );
     }
 
-    const userCanManageDashboards = user.data?.ability?.can(
+    const userCanViewDashboards = user.data?.ability.can(
+        'view',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageDashboards = user.data?.ability.can(
         'manage',
         subject('Dashboard', {
             organizationUuid: user.data?.organizationUuid,
@@ -83,7 +91,7 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
                         target="_blank"
                         href="https://docs.lightdash.com/get-started/exploring-data/dashboards/"
                     />
-                ) : userCanManageDashboards && !isDemo ? (
+                ) : userCanViewDashboards ? (
                     <LinkButton
                         text={`View all ${dashboards.length}`}
                         minimal
