@@ -103,6 +103,21 @@ const MultiAutoComplete: FC<Props> = ({
         [onChange, values],
     );
 
+    const handleOnClose = useCallback(
+        (value?: string) => {
+            if (!value || value === '') return;
+
+            setSearch('');
+            if (!values.map(normalize).includes(normalize(value))) {
+                const existingOptionMatch = [...options].find((option) =>
+                    itemComparator(option, value),
+                );
+                if (existingOptionMatch) handleItemSelect(existingOptionMatch);
+            }
+        },
+        [options, values, handleItemSelect, setSearch],
+    );
+
     return (
         <MultiSelect2
             className={disabled ? 'disabled-filter' : ''}
@@ -133,7 +148,7 @@ const MultiAutoComplete: FC<Props> = ({
             popoverProps={{
                 minimal: true,
                 onClosing: () => {
-                    setSearch('');
+                    handleOnClose(searchQuery);
                 },
                 ...popoverProps,
             }}
