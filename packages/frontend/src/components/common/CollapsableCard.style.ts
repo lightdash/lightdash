@@ -24,6 +24,7 @@ export const StyledCardDivider = styled.div`
 `;
 
 export const StyledCardHeader = styled.div`
+    flex-grow: 0;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -41,6 +42,7 @@ export const StyledCardActionsWrpper = styled.div`
     gap: 10px;
     margin-left: 10px;
     margin-right: 10px;
+    align-items: center;
 `;
 
 export const StyledCardTitle = styled(H5)`
