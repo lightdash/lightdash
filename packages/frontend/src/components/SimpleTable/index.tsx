@@ -9,9 +9,14 @@ import DashboardCellContextMenu from './DashboardCellContextMenu';
 type SimpleTableProps = {
     isDashboard: boolean;
     className?: string;
+    $shouldExpand?: boolean;
 };
 
-const SimpleTable: FC<SimpleTableProps> = ({ isDashboard, className }) => {
+const SimpleTable: FC<SimpleTableProps> = ({
+    isDashboard,
+    className,
+    $shouldExpand,
+}) => {
     const {
         isLoading,
         columnOrder,
@@ -40,6 +45,7 @@ const SimpleTable: FC<SimpleTableProps> = ({ isDashboard, className }) => {
 
     return (
         <Table
+            $shouldExpand={$shouldExpand}
             status="success"
             data={rows}
             columns={columns}

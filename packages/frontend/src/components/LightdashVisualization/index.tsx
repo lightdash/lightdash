@@ -22,6 +22,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleTable
                         isDashboard={!!isDashboard}
+                        $shouldExpand={$shouldExpand}
                         className={className}
                         {...props}
                     />

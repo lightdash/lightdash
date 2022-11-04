@@ -126,7 +126,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
 
     return (
         <EChartsReact
-            style={props.$shouldExpand ? { height: '100%' } : {}}
+            style={props.$shouldExpand ? { height: '100%' } : undefined}
             ref={chartRef}
             option={eChartsOptions}
             notMerge
