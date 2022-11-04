@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
 import React, { FC } from 'react';
+import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
@@ -23,8 +24,9 @@ const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & { explore: Explore | undefined }
 > = ({ cell, explore }) => {
     const { viewData } = useUnderlyingDataContext();
-    const { dashboardFilters, addDimensionDashboardFilter } =
-        useDashboardContext();
+    const { addDimensionDashboardFilter } = useDashboardContext();
+    const dashboardFiltersThatApplyToChart =
+        useDashboardFiltersForExplore(explore);
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -84,7 +86,7 @@ const DashboardCellContextMenu: FC<
                         cell.row.original || {},
                         undefined,
                         meta?.pivotReference,
-                        dashboardFilters,
+                        dashboardFiltersThatApplyToChart,
                     );
                 }}
             />
