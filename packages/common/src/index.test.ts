@@ -37,6 +37,13 @@ describe('Common index', () => {
 
             expect(formatValue('', undefined, 5)).toEqual('5');
             expect(formatValue(undefined, undefined, 5)).toEqual('5');
+
+            // Intl.NumberFormat rounds up after 3 decimals
+            expect(formatValue(undefined, undefined, 5.9)).toEqual('5.9');
+            expect(formatValue(undefined, undefined, 5.99)).toEqual('5.99');
+            expect(formatValue(undefined, undefined, 5.999)).toEqual('5.999');
+            expect(formatValue(undefined, undefined, 5.9999)).toEqual('6');
+            expect(formatValue(undefined, undefined, 5.99999)).toEqual('6');
         });
         test('formatValue should return the right round', async () => {
             expect(formatValue(undefined, 0, 1)).toEqual('1');
@@ -101,14 +108,12 @@ describe('Common index', () => {
             const T = NumberStyle.THOUSANDS;
             const M = NumberStyle.MILLIONS;
             const B = NumberStyle.BILLIONS;
-            expect(formatValue(undefined, undefined, 5, T)).toEqual('0.005K');
-            expect(formatValue(undefined, undefined, 5, M)).toEqual(
-                '0.000005M',
-            );
+            expect(formatValue(undefined, undefined, 5, T)).toEqual('0.01K');
+            expect(formatValue(undefined, undefined, 5, M)).toEqual('0.00M');
             expect(formatValue(undefined, undefined, 500000, B)).toEqual(
-                '0.0005B',
+                '0.00B',
             );
-            expect(formatValue(undefined, undefined, 5, B)).toEqual('5e-9B');
+            expect(formatValue(undefined, undefined, 5, B)).toEqual('0.00B');
             expect(formatValue(undefined, 2, 5, M)).toEqual('0.00M');
 
             expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');
