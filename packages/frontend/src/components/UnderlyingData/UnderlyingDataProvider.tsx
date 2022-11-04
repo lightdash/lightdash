@@ -100,9 +100,10 @@ export const UnderlyingDataProvider: FC<Props> = ({
     children,
 }) => {
     const [config, setConfig] = useState<UnderlyingDataConfig>();
+    const [isModalOpen, setModalOpen] = useState<boolean>(false);
 
     const closeModal = useCallback(() => {
-        setConfig(undefined);
+        setModalOpen(false);
     }, []);
 
     const viewData = useCallback(
@@ -122,6 +123,8 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 pivotReference,
                 dashboardFilters,
             });
+
+            setModalOpen(true);
         },
         [setConfig],
     );
@@ -133,7 +136,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 filters,
                 config,
                 viewData,
-                isModalOpen: !!config,
+                isModalOpen,
                 closeModal,
             }}
         >
