@@ -17,7 +17,7 @@ export const TableContainer = styled.div<ExpandableProps>`
 export const TableScrollableWrapper = styled.div<ExpandableProps>`
     position: relative;
     overflow: auto;
-    min-height: 90px;
+    min-height: 250px;
     ${({ $shouldExpand }) => ($shouldExpand ? `flex: 1 1 300px;` : '')}
 `;
 
@@ -130,6 +130,7 @@ export const PaginationWrapper = styled.div`
 
 export const PageCount = styled.span`
     color: ${Colors.GRAY1};
+    height: 20px;
 `;
 
 export const Th = styled.th``;
