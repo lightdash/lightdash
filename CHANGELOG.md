@@ -1,3 +1,12 @@
+## [0.313.2](https://github.com/lightdash/lightdash/compare/0.313.1...0.313.2) (2022-11-04)
+
+
+### Bug Fixes
+
+* display 5 most recent charts instead of all ([#3682](https://github.com/lightdash/lightdash/issues/3682)) ([8eaf348](https://github.com/lightdash/lightdash/commit/8eaf348f190661ab11c2faf4e4fac478992908c0))
+* underlying data query on close ([#3677](https://github.com/lightdash/lightdash/issues/3677)) ([9b52167](https://github.com/lightdash/lightdash/commit/9b521670c1ccd9353b24ecba690f75e2e9f229fd))
+* view permision for view all button for recent dashboards/charts ([#3684](https://github.com/lightdash/lightdash/issues/3684)) ([0511835](https://github.com/lightdash/lightdash/commit/0511835fd40aa6079768f2bd204269a83c9a7081))
+
 ## [0.313.1](https://github.com/lightdash/lightdash/compare/0.313.0...0.313.1) (2022-11-04)
 
 
