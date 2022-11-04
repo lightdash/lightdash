@@ -77,7 +77,6 @@ export const TableProvider: FC<Props> = ({
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
-    //TODO fix left weird borderless cell
     const withTotals = showColumnCalculation ? 60 : 0;
     const rowColumnWidth = Math.max(
         withTotals,
@@ -112,6 +111,8 @@ export const TableProvider: FC<Props> = ({
                       style: {
                           maxWidth: rowColumnWidth,
                           minWidth: rowColumnWidth,
+                          boxShadow:
+                              '-1px 0px 0px 0px lightgray, 0px 1px 0px 0px lightgray inset',
                       },
                   },
               }
