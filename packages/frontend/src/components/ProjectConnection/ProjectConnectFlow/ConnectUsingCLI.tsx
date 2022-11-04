@@ -6,7 +6,7 @@ import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
-import { BackButton } from '../../../pages/CreateProject.styles';
+import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
@@ -93,7 +93,11 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
 
     return (
         <Wrapper>
-            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
+            <FloatingBackButton
+                icon="chevron-left"
+                text="Back"
+                onClick={onBack}
+            />
             <ConnectWarehouseWrapper>
                 <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 

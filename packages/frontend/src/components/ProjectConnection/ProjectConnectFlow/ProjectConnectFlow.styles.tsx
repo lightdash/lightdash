@@ -13,9 +13,9 @@ export const Wrapper = styled.div`
     width: 400px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     flex: 1;
-    margin: 50px auto 0;
+    margin: 80px auto 0;
+    position: relative;
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`

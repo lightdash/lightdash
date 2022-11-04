@@ -1,7 +1,7 @@
 import { AnchorButton, Button, Intent, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
-import { BackButton } from '../../../../pages/CreateProject.styles';
+import { FloatingBackButton } from '../../../../pages/CreateProject.styles';
 import ConnectTitle from '../ConnectTitle';
 import InviteExpertFooter from '../InviteExpertFooter';
 import {
@@ -32,7 +32,11 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
 }) => {
     return (
         <Wrapper>
-            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
+            <FloatingBackButton
+                icon="chevron-left"
+                text="Back"
+                onClick={onBack}
+            />
 
             <ConnectWarehouseWrapper>
                 <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
