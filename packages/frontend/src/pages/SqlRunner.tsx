@@ -266,13 +266,15 @@ const SqlRunnerPage = () => {
                     <CollapsableCard
                         title="Charts"
                         rightHeaderElement={
-                            <>
-                                <VisualizationCardOptions />
-                                <VisualizationConfigPanel
-                                    chartType={chartType}
-                                />
-                                <ChartDownloadMenu />
-                            </>
+                            expandedCards.get(SqlRunnerCards.CHART) && (
+                                <>
+                                    <VisualizationCardOptions />
+                                    <VisualizationConfigPanel
+                                        chartType={chartType}
+                                    />
+                                    <ChartDownloadMenu />
+                                </>
+                            )
                         }
                         isOpen={expandedCards.get(SqlRunnerCards.CHART)}
                         shouldExpand={onlyVizIsExpanded}
