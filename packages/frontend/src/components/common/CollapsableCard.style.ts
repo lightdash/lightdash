@@ -20,7 +20,7 @@ export const StyledCard = styled(Card)<ExpandableProps>`
         isOpen && $shouldExpand
             ? `
                 flex: 1;
-                max-height: 800px;
+                max-height: 600px;
             `
             : ''}
 `;
