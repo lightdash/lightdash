@@ -35,6 +35,11 @@ export const BackButton = styled(SimpleButton)`
     margin-bottom: 10px;
 `;
 
+export const FloatingBackButton = styled(BackButton)`
+    position: absolute;
+    top: -40px;
+`;
+
 export const ExternalLink = styled.a`
     color: ${Colors.BLUE3};
 `;
