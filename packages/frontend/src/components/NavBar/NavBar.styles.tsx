@@ -3,9 +3,12 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 
+export const NAVBAR_HEIGHT = 50;
+
 export const NavBarWrapper = styled(Navbar)`
     position: sticky;
     top: 0;
+    height: ${NAVBAR_HEIGHT}px;
 `;
 
 export const ProjectDropdown = styled(HTMLSelect)`

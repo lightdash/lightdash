@@ -1,5 +1,7 @@
 import { Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import { PAGE_HEADER_HEIGHT } from '../components/common/PageHeader';
+import { NAVBAR_HEIGHT } from '../components/NavBar/NavBar.styles';
 
 export const PageWrapper = styled.div`
     display: flex;
@@ -20,9 +22,9 @@ export const MainContent = styled.div`
 `;
 
 export const StickySidebar = styled.div`
-    height: calc(100vh - 50px);
+    height: calc(100vh - ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px);
     position: sticky;
-    top: 50px;
+    top: ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px;
 `;
 
 export const CardContent = styled.div`
