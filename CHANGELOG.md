@@ -1,3 +1,10 @@
+# [0.313.0](https://github.com/lightdash/lightdash/compare/0.312.2...0.313.0) (2022-11-04)
+
+
+### Features
+
+* compact numbers ([#3647](https://github.com/lightdash/lightdash/issues/3647)) ([d06ca67](https://github.com/lightdash/lightdash/commit/d06ca671f3fb94d3c01acdef052fb67ee066f900))
+
 ## [0.312.2](https://github.com/lightdash/lightdash/compare/0.312.1...0.312.2) (2022-11-03)
 
 
