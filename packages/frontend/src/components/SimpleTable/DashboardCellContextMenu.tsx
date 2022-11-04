@@ -5,38 +5,30 @@ import {
     Explore,
     fieldId,
     FilterOperator,
-    FilterRule,
     friendlyName,
     getFields,
+    getItemId,
     isDimension,
     isField,
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
-import React, { FC, useMemo } from 'react';
-import { track } from 'rudder-sdk-js';
+import React, { FC } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
-import { EventName } from '../../types/Events';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
-import CellContextMenu from './CellContextMenu';
 
 const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & { explore: Explore | undefined }
 > = ({ cell, explore }) => {
     const { viewData } = useUnderlyingDataContext();
-    const { addDimensionDashboardFilter } = useDashboardContext();
+    const { dashboardFilters, addDimensionDashboardFilter } =
+        useDashboardContext();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-    const pivot = meta?.pivotReference?.pivotValues?.[0]
-        ? {
-              fieldId: meta?.pivotReference?.pivotValues?.[0].field,
-              value: meta?.pivotReference?.pivotValues?.[0].value,
-          }
-        : undefined;
 
     const filterField =
         isDimension(item) && !item.hidden
@@ -54,24 +46,27 @@ const DashboardCellContextMenu: FC<
             : [];
 
     const fields = explore && getFields(explore);
-    const pivotField = fields?.find(
-        (field) => `${field.table}_${field.name}` === pivot?.fieldId,
-    );
 
-    const filterPivot = pivot
-        ? [
-              {
-                  id: uuid4(),
-                  target: {
-                      fieldId: pivot.fieldId,
-                      tableName: pivotField?.table || '',
-                  },
-                  operator: FilterOperator.EQUALS,
-                  values: [pivot.value],
-              },
-          ]
-        : [];
-    const filters: DashboardFilterRule[] = [...filterField, ...filterPivot];
+    const possiblePivotFilters = (
+        meta?.pivotReference?.pivotValues || []
+    ).map<DashboardFilterRule>((pivot) => {
+        const pivotField = fields?.find(
+            (field) => getItemId(field) === pivot?.field,
+        );
+        return {
+            id: uuid4(),
+            target: {
+                fieldId: pivot.field,
+                tableName: pivotField?.table || '',
+            },
+            operator: FilterOperator.EQUALS,
+            values: [pivot.value],
+        };
+    });
+    const filters: DashboardFilterRule[] = [
+        ...filterField,
+        ...possiblePivotFilters,
+    ];
 
     return (
         <Menu>
@@ -88,7 +83,8 @@ const DashboardCellContextMenu: FC<
                         meta,
                         cell.row.original || {},
                         undefined,
-                        pivot,
+                        meta?.pivotReference,
+                        dashboardFilters,
                     );
                 }}
             />
