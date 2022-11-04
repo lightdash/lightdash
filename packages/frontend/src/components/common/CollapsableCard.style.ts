@@ -8,6 +8,7 @@ interface ExpandableProps {
 
 export const StyledCollapse = styled.div<ExpandableProps>`
     flex: 1;
+    height: 100%;
 `;
 
 export const StyledCard = styled(Card)<ExpandableProps>`
@@ -16,7 +17,12 @@ export const StyledCard = styled(Card)<ExpandableProps>`
     flex-direction: column;
 
     ${({ isOpen, $shouldExpand }) =>
-        isOpen && $shouldExpand ? `flex: 1;` : ''}
+        isOpen && $shouldExpand
+            ? `
+                flex: 1;
+                max-height: 800px;
+            `
+            : ''}
 `;
 
 export const StyledCardDivider = styled.div`
