@@ -9,4 +9,5 @@ export const ColumnWrapper = styled.div`
 `;
 export const FrozenIcon = styled(Icon)`
     padding: 7px;
+    cursor: pointer;
 `;
