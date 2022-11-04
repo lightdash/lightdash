@@ -6,7 +6,7 @@ import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import Table from '../common/Table';
-import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
+import { TableMaxHeightContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
@@ -56,7 +56,7 @@ const SqlRunnerResultsTable: FC<{
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
+            <TableMaxHeightContainer>
                 <Table
                     status={status}
                     data={resultsData?.rows || []}
@@ -69,7 +69,7 @@ const SqlRunnerResultsTable: FC<{
                         show: true,
                     }}
                 />
-            </TableContainer>
+            </TableMaxHeightContainer>
         </TrackSection>
     );
 };

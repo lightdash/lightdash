@@ -11,7 +11,7 @@ import {
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
 import { TableColumn } from '../common/Table/types';
-import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
+import { TableMaxHeightContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 import CellContextMenu from './CellContextMenu';
 import { LoadingPanel } from './UnderlyingDataModal.styles';
 
@@ -65,7 +65,7 @@ const UnderlyingDataResultsTable: FC<{
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
+            <TableMaxHeightContainer>
                 <Table
                     status={'success'}
                     data={resultsData?.rows || []}
@@ -79,7 +79,7 @@ const UnderlyingDataResultsTable: FC<{
                     }}
                     cellContextMenu={CellContextMenu}
                 />
-            </TableContainer>
+            </TableMaxHeightContainer>
         </TrackSection>
     );
 };
