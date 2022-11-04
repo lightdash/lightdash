@@ -1,7 +1,7 @@
 import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -31,11 +31,22 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
         history.push(`/projects/${projectUuid}/tables`);
     };
 
+    const featuredCharts = useMemo(() => {
+        return savedCharts
+            .sort((a, b) => {
+                return (
+                    new Date(b.updatedAt).getTime() -
+                    new Date(a.updatedAt).getTime()
+                );
+            })
+            .slice(0, 5);
+    }, [savedCharts]);
+
     return (
         <ResourceList
             resourceIcon="chart"
             resourceType="chart"
-            resourceList={savedCharts}
+            resourceList={featuredCharts}
             enableSorting={false}
             defaultSort={{
                 updatedAt: SortDirection.DESC,
