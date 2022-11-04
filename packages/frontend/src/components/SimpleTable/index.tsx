@@ -42,6 +42,7 @@ const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
                 columns={columns}
                 columnOrder={columnOrder}
                 hideRowNumbers={hideRowNumbers}
+                showColumnCalculation={showColumnCalculation}
                 footer={{
                     show: showColumnCalculation,
                 }}

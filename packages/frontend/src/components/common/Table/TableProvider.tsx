@@ -36,6 +36,7 @@ type Props = {
         defaultScroll?: boolean;
     };
     hideRowNumbers?: boolean;
+    showColumnCalculation?: boolean;
     footer?: {
         show?: boolean;
     };
@@ -61,6 +62,7 @@ const rowColumn: TableColumn = {
 
 export const TableProvider: FC<Props> = ({
     hideRowNumbers,
+    showColumnCalculation,
     children,
     ...rest
 }) => {
@@ -75,8 +77,12 @@ export const TableProvider: FC<Props> = ({
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
 
-    //TODO fix weird borderless cell
-    const rowColumnWidth = (rowColumn.meta?.width || 30) + 10;
+    //TODO fix left weird borderless cell
+    const withTotals = showColumnCalculation ? 60 : 0;
+    const rowColumnWidth = Math.max(
+        withTotals,
+        `${data.length}`.length * 10 + 20,
+    );
     const frozenColumns = columns.filter((col) => col.meta?.frozen);
     const frozenColumnWidth = 100; // TODO this should be dynamic
     const stickyColumns = frozenColumns.map((col, i) => ({
@@ -89,10 +95,11 @@ export const TableProvider: FC<Props> = ({
             style: {
                 maxWidth: frozenColumnWidth,
                 minWidth: frozenColumnWidth,
-                left: rowColumnWidth + i * frozenColumnWidth,
+                left: rowColumnWidth + 1 + i * frozenColumnWidth,
             },
         },
     }));
+
     const otherColumns = columns.filter((col) => !col.meta?.frozen);
     const stickyRowColumn =
         stickyColumns.length > 0
@@ -101,6 +108,11 @@ export const TableProvider: FC<Props> = ({
                   meta: {
                       ...rowColumn.meta,
                       className: 'sticky-column',
+                      width: rowColumnWidth,
+                      style: {
+                          maxWidth: rowColumnWidth,
+                          minWidth: rowColumnWidth,
+                      },
                   },
               }
             : rowColumn;

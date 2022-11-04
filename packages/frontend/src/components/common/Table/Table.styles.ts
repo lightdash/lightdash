@@ -53,6 +53,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
 
     tfoot {
         position: sticky;
+        z-index: 3;
         bottom: 0;
         inset-block-end: 0; /* "bottom" */
 
