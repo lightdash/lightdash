@@ -1,3 +1,10 @@
+## [0.313.1](https://github.com/lightdash/lightdash/compare/0.313.0...0.313.1) (2022-11-04)
+
+
+### Bug Fixes
+
+* exclude hidden tables and fields from global search ([#3640](https://github.com/lightdash/lightdash/issues/3640)) ([5334b91](https://github.com/lightdash/lightdash/commit/5334b9125f1e474d9c042c308e7792411f50f41d))
+
 # [0.313.0](https://github.com/lightdash/lightdash/compare/0.312.2...0.313.0) (2022-11-04)
 
 
