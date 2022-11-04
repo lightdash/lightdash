@@ -11,7 +11,7 @@ export const EmptyStateWrapper = styled.div<EmptyStateWrapperProps>`
 
 export const EmptyStateIcon = styled(Icon)`
     path {
-        fill: ${Colors.GRAY3};
+        fill: ${Colors.LIGHT_GRAY1};
     }
 `;
 
