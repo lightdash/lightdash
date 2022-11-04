@@ -100,7 +100,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
     children,
 }) => {
     const [config, setConfig] = useState<UnderlyingDataConfig>();
-    const [isModalOpen, setModalOpen] = useState<boolean>(true);
+    const [isModalOpen, setModalOpen] = useState<boolean>(false);
 
     const closeModal = useCallback(() => {
         setModalOpen(false);
