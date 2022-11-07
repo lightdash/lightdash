@@ -61,31 +61,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
     );
-    const setMagicMetrics = useExplorerContext(
-        (context) => context.actions.setMagicMetrics,
-    );
 
     const { data, status } = useExplore(activeTableName);
-
-    useEffect(() => {
-        if (data) {
-            setMagicMetrics(
-                Object.values(data.tables).reduce<AdditionalMetric[]>(
-                    (sum, table) => {
-                        const hasMetrics =
-                            Object.values(table.metrics).length > 0;
-                        return hasMetrics
-                            ? [...sum]
-                            : [
-                                  ...sum,
-                                  ...Object.values(getTableMagicMetrics(table)),
-                              ];
-                    },
-                    [],
-                ),
-            );
-        }
-    }, [data, setMagicMetrics]);
 
     if (status === 'loading') {
         return <SideBarLoadingState />;
