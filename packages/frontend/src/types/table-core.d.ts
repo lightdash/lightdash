@@ -12,6 +12,9 @@ declare module '@tanstack/table-core' {
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
+        className?: string;
+        style?: CSSProperties;
+        frozen?: boolean;
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
     }
 }

@@ -24,6 +24,7 @@ type Args = {
     selectedItemIds: string[];
     resultsData: ApiQueryResults;
     isColumnVisible: (key: string) => boolean;
+    isColumnFrozen: (key: string) => boolean;
     showTableNames: boolean;
     getHeader: (key: string) => string | undefined;
 };
@@ -33,6 +34,7 @@ const getDataAndColumns = ({
     selectedItemIds,
     resultsData,
     isColumnVisible,
+    isColumnFrozen,
     showTableNames,
     getHeader,
 }: Args): {
@@ -94,6 +96,7 @@ const getDataAndColumns = ({
                             : null,
                     meta: {
                         item,
+                        frozen: isColumnFrozen(itemId),
                     },
                 },
             );

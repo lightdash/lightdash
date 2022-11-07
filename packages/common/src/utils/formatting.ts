@@ -38,6 +38,7 @@ export const getDateFormat = (
     }
     return dateForm;
 };
+
 export function formatDate(
     date: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
@@ -87,20 +88,24 @@ export const parseTimestamp = (
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
-export function valueIsNaN(value: any) {
+export function valueIsNaN(value: unknown) {
     if (typeof value === 'boolean') return true;
     return Number.isNaN(Number(value));
 }
 
+export function isNumber(value: unknown): value is number {
+    return !valueIsNaN(value);
+}
+
 function roundNumber(
-    value: any,
-    round: number | undefined,
-    format: string | undefined,
-    numberStyle?: string | undefined,
+    value: number,
+    options?: {
+        format?: string;
+        round?: number;
+        numberStyle?: NumberStyleOrAlias;
+    },
 ): string {
-    if (valueIsNaN(value)) {
-        return `${value}`;
-    }
+    const { format, round, numberStyle } = options || {};
 
     const invalidRound = round === undefined || round < 0;
     if (invalidRound && !format) {
@@ -129,14 +134,14 @@ function roundNumber(
 }
 
 function styleNumber(
-    value: any,
-    numberStyle: NumberStyleOrAlias | undefined,
-    round: number | undefined,
-    format: string | undefined,
+    value: number,
+    options?: {
+        format?: string;
+        round?: number;
+        numberStyle?: NumberStyleOrAlias;
+    },
 ): string {
-    if (valueIsNaN(value)) {
-        return `${value}`;
-    }
+    const { format, round, numberStyle } = options || {};
     if (numberStyle) {
         const numberStyleRound =
             numberStyle && round === undefined && format === undefined
@@ -144,29 +149,34 @@ function styleNumber(
                 : round;
         const numberStyleConfig = findNumberStyleConfig(numberStyle);
         if (numberStyleConfig) {
-            return `${roundNumber(
-                numberStyleConfig.convertFn(Number(value)),
-                numberStyleRound,
+            return `${roundNumber(numberStyleConfig.convertFn(Number(value)), {
                 format,
+                round: numberStyleRound,
                 numberStyle,
-            )}${numberStyleConfig.suffix}`;
+            })}${numberStyleConfig.suffix}`;
         }
     }
     return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
 }
 
 export function formatValue(
-    format: string | undefined,
-    round: number | undefined,
-    value: any,
-    numberStyle?: NumberStyleOrAlias,
+    value: unknown,
+    options?: {
+        format?: string;
+        round?: number;
+        numberStyle?: NumberStyleOrAlias;
+    },
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
+    if (!isNumber(value)) {
+        return `${value}`;
+    }
+    const { format, round, numberStyle } = options || {};
 
     const styledValue = numberStyle
-        ? styleNumber(value, numberStyle, round, format)
-        : roundNumber(value, round, format);
+        ? styleNumber(value, options)
+        : roundNumber(value, { round, format });
     switch (format) {
         case 'km':
         case 'mi':
@@ -195,7 +205,7 @@ export function formatValue(
 
 export function formatFieldValue(
     field: Field | AdditionalMetric | undefined,
-    value: any,
+    value: unknown,
     convertToUTC?: boolean,
 ): string {
     if (value === null) return '∅';
@@ -214,7 +224,7 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-            return formatValue(format, round, value, compact);
+            return formatValue(value, { format, round, numberStyle: compact });
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return formatBoolean(value);
@@ -240,7 +250,7 @@ export function formatFieldValue(
                     convertToUTC,
                 );
             }
-            return formatValue(format, round, value, compact);
+            return formatValue(value, { format, round, numberStyle: compact });
         }
         default: {
             return `${value}`;
@@ -250,12 +260,12 @@ export function formatFieldValue(
 
 export function formatItemValue(
     item: Field | AdditionalMetric | TableCalculation | undefined,
-    value: any,
+    value: unknown,
     convertToUTC?: boolean,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
     return isField(item) || isAdditionalMetric(item)
         ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(undefined, undefined, value, undefined);
+        : formatValue(value);
 }

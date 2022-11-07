@@ -61,7 +61,6 @@ export enum ActionType {
     SET_FETCH_RESULTS_FALSE,
     SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
-    SET_MAGIC_METRICS,
     REMOVE_ADDITIONAL_METRIC,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
@@ -131,10 +130,6 @@ type Action =
           payload: AdditionalMetric;
       }
     | {
-          type: ActionType.SET_MAGIC_METRICS;
-          payload: AdditionalMetric[];
-      }
-    | {
           type: ActionType.REMOVE_ADDITIONAL_METRIC;
           payload: FieldId;
       }
@@ -190,7 +185,6 @@ export interface ExplorerContext {
             syncPristineState: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
-        setMagicMetrics: (metrics: AdditionalMetric[]) => void;
         removeAdditionalMetric: (key: FieldId) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
@@ -583,25 +577,7 @@ function reducer(
                 },
             };
         }
-        case ActionType.SET_MAGIC_METRICS: {
-            return {
-                ...state,
-                unsavedChartVersion: {
-                    ...state.unsavedChartVersion,
-                    metricQuery: {
-                        ...state.unsavedChartVersion.metricQuery,
-                        additionalMetrics:
-                            state.unsavedChartVersion.metricQuery
-                                .additionalMetrics &&
-                            state.unsavedChartVersion.metricQuery
-                                .additionalMetrics.length > 0
-                                ? state.unsavedChartVersion.metricQuery
-                                      .additionalMetrics
-                                : action.payload,
-                    },
-                },
-            };
-        }
+
         case ActionType.REMOVE_ADDITIONAL_METRIC: {
             return {
                 ...state,
@@ -981,13 +957,6 @@ export const ExplorerProvider: FC<{
         [],
     );
 
-    const setMagicMetrics = useCallback((payload: AdditionalMetric[]) => {
-        dispatch({
-            type: ActionType.SET_MAGIC_METRICS,
-            payload,
-        });
-    }, []);
-
     const removeAdditionalMetric = useCallback((key: FieldId) => {
         dispatch({
             type: ActionType.REMOVE_ADDITIONAL_METRIC,
@@ -1155,7 +1124,6 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
-            setMagicMetrics,
             removeAdditionalMetric,
             addTableCalculation,
             deleteTableCalculation,
@@ -1181,7 +1149,6 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
-            setMagicMetrics,
             removeAdditionalMetric,
             addTableCalculation,
             deleteTableCalculation,

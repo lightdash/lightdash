@@ -22,6 +22,8 @@ const TableFooter = () => {
                             const meta = header.column.columnDef.meta;
                             return (
                                 <FooterCell
+                                    style={meta?.style}
+                                    className={meta?.className}
                                     key={header.id}
                                     colSpan={header.colSpan}
                                     $isNaN={

@@ -145,6 +145,7 @@ export const useColumns = (): TableColumn[] => {
                     meta: {
                         item,
                         draggable: true,
+                        frozen: false,
                         bgColor: getItemBgColor(item),
                         sort: isFieldSorted
                             ? {

@@ -11,6 +11,7 @@ import {
     createColumnHelper,
     Header,
 } from '@tanstack/react-table';
+import { CSSProperties } from 'styled-components';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
@@ -35,6 +36,9 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         pivotReference?: PivotReference;
         bgColor?: string;
         sort?: Sort;
+        className?: string;
+        style?: CSSProperties;
+        frozen?: boolean;
     };
 };
 

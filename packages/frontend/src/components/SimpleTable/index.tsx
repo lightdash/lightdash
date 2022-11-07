@@ -46,15 +46,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
     return (
         <Table
             $shouldExpand={$shouldExpand}
+            className={className}
             status="success"
             data={rows}
             columns={columns}
             columnOrder={columnOrder}
             hideRowNumbers={hideRowNumbers}
+            showColumnCalculation={showColumnCalculation}
             footer={{
                 show: showColumnCalculation,
             }}
-            className={className}
             cellContextMenu={(props) => {
                 if (isSqlRunner) return <>{props.children}</>;
                 if (isDashboard)
