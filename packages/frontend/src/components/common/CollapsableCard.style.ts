@@ -2,31 +2,28 @@ import { Button, Card, H5 } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 interface ExpandableProps {
-    isOpen?: boolean;
     $shouldExpand?: boolean;
+    $minHeight?: number;
 }
-
-export const StyledCollapse = styled.div<ExpandableProps>`
-    flex: 1;
-    height: 100%;
-`;
 
 export const StyledCard = styled(Card)<ExpandableProps>`
     padding: 5px;
     display: flex;
     flex-direction: column;
 
-    ${({ isOpen, $shouldExpand }) =>
-        isOpen && $shouldExpand
-            ? `
-                flex: 1;
-                max-height: 600px;
-            `
-            : ''}
+    ${({ $shouldExpand }) => ($shouldExpand ? `flex: 1;` : '')}
 `;
 
-export const StyledCardDivider = styled.div`
-    flex: 0 0 10px;
+export const StyledCollapse = styled.div<ExpandableProps>`
+    display: flex;
+    flex-direction: column;
+
+    ${({ $shouldExpand, $minHeight }) =>
+        $shouldExpand
+            ? `
+                min-height: ${$minHeight}px;
+                flex: 1;`
+            : ''};
 `;
 
 export const StyledCardHeader = styled.div`

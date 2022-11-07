@@ -10,13 +10,12 @@ import {
     StyledCollapse,
 } from './CollapsableCard.style';
 
-export { StyledCardDivider as CardDivider } from './CollapsableCard.style';
-
 interface CollapsableCardProps {
     onToggle?: (isOpen: boolean) => void;
     isOpen?: boolean;
     disabled?: boolean;
     shouldExpand?: boolean;
+    minHeight?: number;
     toggleTooltip?: string;
     title: string;
     headerElement?: JSX.Element;
@@ -33,6 +32,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
     title,
     headerElement,
     rightHeaderElement,
+    minHeight = 300,
 }) => {
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
@@ -40,7 +40,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
     );
 
     return (
-        <StyledCard elevation={1} isOpen={isOpen} $shouldExpand={shouldExpand}>
+        <StyledCard elevation={1} $shouldExpand={isOpen && shouldExpand}>
             <StyledCardHeader>
                 <StyledCardTitleWrapper>
                     <Tooltip2
@@ -74,8 +74,34 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
             </StyledCardHeader>
 
             {isOpen && (
-                <StyledCollapse $shouldExpand={shouldExpand}>
-                    {children}
+                <StyledCollapse
+                    $shouldExpand={isOpen && shouldExpand}
+                    $minHeight={minHeight}
+                >
+                    {shouldExpand ? (
+                        <div
+                            style={{
+                                position: 'relative',
+                                width: '100%',
+                                height: '100%',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {children}
+                            </div>
+                        </div>
+                    ) : (
+                        children
+                    )}
                 </StyledCollapse>
             )}
         </StyledCard>

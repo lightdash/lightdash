@@ -15,7 +15,6 @@ import {
     EmptyStateNoTableData,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
-import { TableMaxHeightContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = memo(() => {
     const columns = useColumns();
@@ -120,22 +119,20 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableMaxHeightContainer>
-                <Table
-                    status={status}
-                    data={resultsData?.rows || []}
-                    columns={columns}
-                    columnOrder={explorerColumnOrder}
-                    onColumnOrderChange={setColumnOrder}
-                    cellContextMenu={cellContextMenu}
-                    headerContextMenu={
-                        isEditMode ? ColumnHeaderContextMenu : undefined
-                    }
-                    idleState={IdleState}
-                    pagination={pagination}
-                    footer={footer}
-                />
-            </TableMaxHeightContainer>
+            <Table
+                status={status}
+                data={resultsData?.rows || []}
+                columns={columns}
+                columnOrder={explorerColumnOrder}
+                onColumnOrderChange={setColumnOrder}
+                cellContextMenu={cellContextMenu}
+                headerContextMenu={
+                    isEditMode ? ColumnHeaderContextMenu : undefined
+                }
+                idleState={IdleState}
+                pagination={pagination}
+                footer={footer}
+            />
         </TrackSection>
     );
 });

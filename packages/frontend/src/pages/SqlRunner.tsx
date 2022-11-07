@@ -5,9 +5,7 @@ import { DbtCloudMetric, TableBase } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { useMount } from 'react-use';
 import { ChartDownloadMenu } from '../components/ChartDownload';
-import CollapsableCard, {
-    CardDivider,
-} from '../components/common/CollapsableCard';
+import CollapsableCard from '../components/common/CollapsableCard';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
 import Sidebar from '../components/common/Page/Sidebar';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
@@ -175,11 +173,6 @@ const SqlRunnerPage = () => {
         return <ForbiddenPanel />;
     }
 
-    const onlyVizIsExpanded =
-        expandedCards.get(SqlRunnerCards.CHART) === true &&
-        expandedCards.get(SqlRunnerCards.SQL) === false &&
-        expandedCards.get(SqlRunnerCards.RESULTS) === false;
-
     return (
         <PageWithSidebar>
             <Sidebar title="SQL runner">
@@ -249,8 +242,6 @@ const SqlRunnerPage = () => {
                     </ButtonsWrapper>
                 </TrackSection>
 
-                <CardDivider />
-
                 <VisualizationProvider
                     initialChartConfig={initialChartConfig}
                     chartType={chartType}
@@ -277,19 +268,17 @@ const SqlRunnerPage = () => {
                             )
                         }
                         isOpen={expandedCards.get(SqlRunnerCards.CHART)}
-                        shouldExpand={onlyVizIsExpanded}
+                        shouldExpand
                         onToggle={(value) =>
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
                         <LightdashVisualization
                             className="cohere-block"
-                            $shouldExpand={onlyVizIsExpanded}
+                            $shouldExpand
                         />
                     </CollapsableCard>
                 </VisualizationProvider>
-
-                <CardDivider />
 
                 <CollapsableCard
                     title="SQL"
@@ -305,8 +294,6 @@ const SqlRunnerPage = () => {
                         isDisabled={isLoading}
                     />
                 </CollapsableCard>
-
-                <CardDivider />
 
                 <CollapsableCard
                     title="Results"

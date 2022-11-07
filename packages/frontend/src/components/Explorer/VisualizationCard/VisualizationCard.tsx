@@ -81,10 +81,6 @@ const VisualizationCard: FC = memo(() => {
         return <CollapsableCard title="Charts" disabled />;
     }
 
-    const isOnlyExpandedCard =
-        expandedSections.length === 1 &&
-        expandedSections.includes(ExplorerSection.VISUALIZATION);
-
     return (
         <VisualizationProvider
             initialChartConfig={unsavedChartVersion.chartConfig}
@@ -102,7 +98,7 @@ const VisualizationCard: FC = memo(() => {
             <CollapsableCard
                 title="Charts"
                 isOpen={isOpen}
-                shouldExpand={isOnlyExpandedCard}
+                shouldExpand
                 onToggle={toggleSection}
                 rightHeaderElement={
                     isOpen && (
@@ -125,7 +121,7 @@ const VisualizationCard: FC = memo(() => {
             >
                 <LightdashVisualization
                     className="cohere-block"
-                    $shouldExpand={isOnlyExpandedCard}
+                    $shouldExpand
                     data-testid="visualization"
                 />
 

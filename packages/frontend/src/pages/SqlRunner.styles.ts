@@ -15,6 +15,7 @@ export const ContentContainer = styled.div`
     display: flex;
     flex-direction: column;
     width: 100vw;
+    gap: 10px;
 `;
 
 export const MissingTablesInfo = styled(Tooltip2)`

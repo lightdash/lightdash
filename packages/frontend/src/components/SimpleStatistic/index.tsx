@@ -6,7 +6,6 @@ import {
     BigNumber,
     BigNumberContainer,
     BigNumberLabel,
-    SimpleStatisticsWrapper,
 } from './SimpleStatistics.styles';
 
 type SimpleStatisticsProps = React.HTMLAttributes<HTMLDivElement>;
@@ -24,25 +23,21 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <SimpleStatisticsWrapper {...wrapperProps}>
-            <BigNumberContainer>
-                {isSqlRunner ? (
-                    <BigNumber>{bigNumber}</BigNumber>
-                ) : (
-                    <BigNumberContextMenu
-                        renderTarget={({ ref, isOpen: _isOpen, onClick }) => (
-                            <BigNumber $interactive ref={ref} onClick={onClick}>
-                                {bigNumber}
-                            </BigNumber>
-                        )}
-                    />
-                )}
+        <BigNumberContainer {...wrapperProps}>
+            {isSqlRunner ? (
+                <BigNumber>{bigNumber}</BigNumber>
+            ) : (
+                <BigNumberContextMenu
+                    renderTarget={({ ref, isOpen: _isOpen, onClick }) => (
+                        <BigNumber $interactive ref={ref} onClick={onClick}>
+                            {bigNumber}
+                        </BigNumber>
+                    )}
+                />
+            )}
 
-                <BigNumberLabel>
-                    {bigNumberLabel || defaultLabel}
-                </BigNumberLabel>
-            </BigNumberContainer>
-        </SimpleStatisticsWrapper>
+            <BigNumberLabel>{bigNumberLabel || defaultLabel}</BigNumberLabel>
+        </BigNumberContainer>
     ) : (
         <EmptyChart />
     );

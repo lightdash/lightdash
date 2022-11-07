@@ -56,20 +56,18 @@ const SqlRunnerResultsTable: FC<{
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableMaxHeightContainer>
-                <Table
-                    status={status}
-                    data={resultsData?.rows || []}
-                    columns={columns}
-                    idleState={IdleState}
-                    pagination={{
-                        show: true,
-                    }}
-                    footer={{
-                        show: true,
-                    }}
-                />
-            </TableMaxHeightContainer>
+            <Table
+                status={status}
+                data={resultsData?.rows || []}
+                columns={columns}
+                idleState={IdleState}
+                pagination={{
+                    show: true,
+                }}
+                footer={{
+                    show: true,
+                }}
+            />
         </TrackSection>
     );
 };

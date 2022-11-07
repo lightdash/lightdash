@@ -4,6 +4,7 @@ import styled from 'styled-components';
 
 const NonIdealStateWithPadding = styled(NonIdealState)`
     padding-top: 20px;
+    flex: 1;
 `;
 
 export const IdleState = () => (

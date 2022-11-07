@@ -1,19 +1,13 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const SimpleStatisticsWrapper = styled.div`
-    width: 100%;
-    height: 100%;
-    min-height: 300px;
-    position: relative;
-`;
-
 export const BigNumberContainer = styled.div`
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    text-align: center;
-    transform: translate(-50%, -50%);
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 `;
 
 interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {
