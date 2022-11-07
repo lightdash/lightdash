@@ -1,4 +1,4 @@
-import { Callout, Card, Colors, H5, Intent } from '@blueprintjs/core';
+import { Callout, H5, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
@@ -27,12 +27,17 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
+import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
 import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     FormContainer,
     FormWrapper,
-    WarehouseLogo,
+    LeftPanel,
+    LeftPanelMessage,
+    LeftPanelTitle,
+    ProjectConnectionCard,
+    RightPanel,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -59,32 +64,17 @@ const ProjectForm: FC<Props> = ({
     selectedWarehouse,
     isProjectUpdate,
 }) => {
+    const { health } = useApp();
     const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
 
     return (
         <>
             {showGeneralSettings && (
-                <Card
-                    style={{
-                        marginBottom: '20px',
-                        display: 'flex',
-                        flexDirection: 'row',
-                        gap: 20,
-                    }}
-                    elevation={1}
-                >
-                    <div style={{ flex: 1 }}>
-                        <div
-                            style={{
-                                marginBottom: 15,
-                            }}
-                        >
-                            <H5 style={{ display: 'inline', marginRight: 5 }}>
-                                General settings
-                            </H5>
-                        </div>
-                    </div>
-                    <div style={{ flex: 1 }}>
+                <ProjectConnectionCard elevation={1}>
+                    <LeftPanel>
+                        <H5>General settings</H5>
+                    </LeftPanel>
+                    <RightPanel>
                         <Input
                             name="name"
                             label="Project name"
@@ -93,66 +83,42 @@ const ProjectForm: FC<Props> = ({
                             }}
                             disabled={disabled}
                         />
-                    </div>
-                </Card>
+                    </RightPanel>
+                </ProjectConnectionCard>
             )}
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1 }}>
+            <ProjectConnectionCard elevation={1}>
+                <LeftPanel>
                     {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
-
-                    <div>
-                        <H5 style={{ display: 'inline', marginRight: 5 }}>
-                            Warehouse connection
-                        </H5>
+                    <LeftPanelTitle>
+                        <H5>Warehouse connection</H5>
                         <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                    </div>
-                </div>
-                <div style={{ flex: 1 }}>
+                    </LeftPanelTitle>
+
+                    {health.data?.ip && (
+                        <LeftPanelMessage>
+                            If you need to add our IP address to your database's
+                            allow-list, use <b>{health.data?.ip}</b>
+                        </LeftPanelMessage>
+                    )}
+                </LeftPanel>
+                <RightPanel>
                     <WarehouseSettingsForm
                         disabled={disabled}
                         setSelectedWarehouse={setHasWarehouse}
                         selectedWarehouse={hasWarehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
-                </div>
-            </Card>
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: 20,
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1 }}>
-                    <div
-                        style={{
-                            marginBottom: 15,
-                        }}
-                    >
-                        <WarehouseLogo src={DbtLogo} alt="dbt icon" />
-                        <div>
-                            <H5
-                                style={{
-                                    display: 'inline',
-                                    marginRight: 5,
-                                }}
-                            >
-                                dbt connection
-                            </H5>
-                            <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                        </div>
-                    </div>
+                </RightPanel>
+            </ProjectConnectionCard>
+            <ProjectConnectionCard elevation={1}>
+                <LeftPanel>
+                    <WarehouseIcon src={DbtLogo} alt="dbt icon" />
+                    <LeftPanelTitle>
+                        <H5>dbt connection</H5>
+                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    </LeftPanelTitle>
 
-                    <p style={{ color: Colors.GRAY1 }}>
+                    <LeftPanelMessage>
                         Your dbt project must be compatible with{' '}
                         <a
                             href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
@@ -161,16 +127,16 @@ const ProjectForm: FC<Props> = ({
                         >
                             dbt version <b>1.3.0</b>
                         </a>
-                    </p>
-                </div>
-                <div style={{ flex: 1 }}>
+                    </LeftPanelMessage>
+                </LeftPanel>
+                <RightPanel>
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
                         selectedWarehouse={hasWarehouse}
                     />
-                </div>
-            </Card>
+                </RightPanel>
+            </ProjectConnectionCard>
         </>
     );
 };

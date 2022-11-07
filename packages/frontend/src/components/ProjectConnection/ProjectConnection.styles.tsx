@@ -1,4 +1,4 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Button, Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
@@ -8,11 +8,6 @@ export const FormContainer = styled(Form)`
     height: 100%;
     display: flex;
     flex-direction: column;
-`;
-
-export const WarehouseLogo = styled.img`
-    margin-bottom: 10px;
-    width: 30px;
 `;
 
 export const FormWrapper = styled.div`
@@ -33,4 +28,33 @@ export const AdvancedButtonWrapper = styled.div`
 
 export const AdvancedButton = styled(SimpleButton)`
     padding-right: 2px;
+`;
+
+export const ProjectConnectionCard = styled(Card)`
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+`;
+
+export const LeftPanel = styled.div`
+    flex: 1;
+`;
+
+export const RightPanel = styled.div`
+    flex: 1;
+`;
+
+export const LeftPanelTitle = styled.div`
+    margin-bottom: 15px;
+    margin-top: 15px;
+
+    h5 {
+        display: inline;
+        margin-right: 5px;
+    }
+`;
+
+export const LeftPanelMessage = styled.p`
+    color: ${Colors.GRAY1};
 `;
