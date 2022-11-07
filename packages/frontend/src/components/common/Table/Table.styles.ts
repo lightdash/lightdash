@@ -12,12 +12,15 @@ export const TableScrollableWrapper = styled.div<ExpandableProps>`
     position: relative;
     overflow: auto;
     height: 100%;
+    min-width: 100%;
 `;
 
 export const TableContainer = styled.div<ExpandableProps>`
     display: flex;
     flex-direction: column;
     padding: 10px;
+    min-width: 100%;
+    overflow: hidden;
 
     ${({ $shouldExpand }) =>
         $shouldExpand
