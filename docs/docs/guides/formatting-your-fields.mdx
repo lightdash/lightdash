@@ -5,7 +5,7 @@ import Description from './assets/description-on-hover.png';
 
 Sometimes the format of things in your dbt project is different to how you want it to look in Lightdash. That's okay! We've built a bunch of features to help you to format the fields in your dbt project so that the data in your Lightdash project looks exactly like you want it to 🥸
 
-## You can find all of the possible configurations for [metrics](/references/metrics#metric-configuration) and [dimensions](/references/dimensions#dimension-configuration) in the reference docs 
+## You can find all of the possible configurations for [metrics](/references/metrics#metric-configuration) and [dimensions](/references/dimensions#dimension-configuration) in the reference docs
 
 We're going to go through formatting your fields in more detail below, but you can see a list of these configurations and all of the other properties you can customize for your fields in the [dimensions reference doc](/references/dimensions#dimension-configuration) and [metrics reference doc](/references/metrics#metric-configuration).
 
@@ -59,7 +59,7 @@ models:
     - name: user_id
     - name: logins_num_total
       meta:
-        dimension: 
+        dimension:
           group_label: 'Product activity'
     - name: query_executed_num_total
       meta:
@@ -99,7 +99,7 @@ You can see the descriptions of your dimensions when you hover over the fields i
 
 <img src={Description} width="368" height="366" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-### Custom descriptions for metrics 
+### Custom descriptions for metrics
 
 If you don't add a custom description for your metric, Lightdash will show a description for you in the app, by default. To override this default description, you can use the `description` property.
 
@@ -121,11 +121,11 @@ Check out [this doc](https://docs.lightdash.com/references/metrics#metric-config
 
 ## Changing the name of your fields in Lightdash
 
-Sometimes, the labels we use for the fields in our dbt project aren't very user friendly. We might want to change these in Lightdash, and we can! 
+Sometimes, the labels we use for the fields in our dbt project aren't very user friendly. We might want to change these in Lightdash, and we can!
 
 To change the name you'll see for your field in Lightdash, you just use the `label` property.
 
-So, if I had a field `user_id_sha64`, I could relabel it to `User ID`. 
+So, if I had a field `user_id_sha64`, I could relabel it to `User ID`.
 
 ```yaml
 version: 2
@@ -206,6 +206,44 @@ models:
           total_revenue:
           type: sum
           round: 2
+```
+
+Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
+
+## Compacting big numbers
+
+### To compact your dimensions, you just need to add `compact` to their properties
+
+Like this:
+
+```yaml
+version: 2
+models:
+- name: sales
+  columns:
+    - name: revenue
+      meta:
+        dimension:
+          compact: millions
+```
+
+Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
+
+### To compact your metrics, you just need to add `compact` to their properties
+
+Like this:
+
+```yaml
+version: 2
+models:
+- name: sales
+  columns:
+    - name: revenue
+      meta:
+        metrics:
+          total_revenue:
+          type: sum
+          compact: billions
 ```
 
 Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
