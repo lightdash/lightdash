@@ -24,6 +24,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         !showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
 
     thead {
+        z-index: 2;
         position: sticky;
         top: 0;
         inset-block-start: 0; /* "top" */
@@ -52,13 +53,13 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
 
     tfoot {
         position: sticky;
+        z-index: 3;
         bottom: 0;
         inset-block-end: 0; /* "bottom" */
 
         th:first-child {
             border-top: none !important;
             border-bottom: none !important;
-            box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd !important;
         }
 
         th {
@@ -67,6 +68,20 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
             box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd,
                 inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
         }
+    }
+
+    .sticky-column {
+        position: sticky !important;
+        left: 1px;
+        z-index: 1;
+        background-color: white;
+        word-break: break-word;
+    }
+    .first-sticky-column {
+        box-shadow: lightgray -1px 0px 0px 0px, lightgray 0px 1px 0px 0px inset !important;
+    }
+    .last-sticky-column {
+        border-right: 2px solid darkgray;
     }
 `;
 

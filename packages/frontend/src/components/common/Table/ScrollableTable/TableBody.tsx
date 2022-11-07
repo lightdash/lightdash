@@ -16,6 +16,8 @@ const TableBody: FC = () => {
 
                         return (
                             <BodyCell
+                                style={meta?.style}
+                                className={meta?.className}
                                 key={cell.id}
                                 rowIndex={rowIndex}
                                 cell={cell}

@@ -1,5 +1,6 @@
 import { ResultRow } from '@lightdash/common';
 import {
+    ColumnDef,
     ColumnOrderState,
     getCoreRowModel,
     getPaginationRowModel,
@@ -13,6 +14,8 @@ import React, {
     useEffect,
     useState,
 } from 'react';
+import { createGlobalStyle } from 'styled-components';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -33,6 +36,7 @@ type Props = {
         defaultScroll?: boolean;
     };
     hideRowNumbers?: boolean;
+    showColumnCalculation?: boolean;
     footer?: {
         show?: boolean;
     };
@@ -58,6 +62,7 @@ const rowColumn: TableColumn = {
 
 export const TableProvider: FC<Props> = ({
     hideRowNumbers,
+    showColumnCalculation,
     children,
     ...rest
 }) => {
@@ -68,10 +73,51 @@ export const TableProvider: FC<Props> = ({
         ...(columnOrder || []),
     ]);
 
-    const visibleColumns = hideRowNumbers ? columns : [rowColumn, ...columns];
     useEffect(() => {
         setTempColumnOrder([ROW_NUMBER_COLUMN_ID, ...(columnOrder || [])]);
     }, [columnOrder]);
+
+    const withTotals = showColumnCalculation ? 60 : 0;
+    const rowColumnWidth = hideRowNumbers
+        ? 0
+        : Math.max(withTotals, `${data.length}`.length * 10 + 20);
+    const frozenColumns = columns.filter((col) => col.meta?.frozen);
+    const frozenColumnWidth = 100; // TODO this should be dynamic
+    const stickyColumns = frozenColumns.map((col, i) => ({
+        ...col,
+        meta: {
+            ...col.meta,
+            className: `sticky-column ${
+                i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
+            } ${hideRowNumbers ? 'first-sticky-column' : ''}`,
+            style: {
+                maxWidth: frozenColumnWidth,
+                minWidth: frozenColumnWidth,
+                left: rowColumnWidth + 1 + i * frozenColumnWidth,
+            },
+        },
+    }));
+
+    const otherColumns = columns.filter((col) => !col.meta?.frozen);
+    const stickyRowColumn =
+        stickyColumns.length > 0
+            ? {
+                  ...rowColumn,
+                  meta: {
+                      ...rowColumn.meta,
+                      className: 'sticky-column first-sticky-column',
+                      width: rowColumnWidth,
+                      style: {
+                          maxWidth: rowColumnWidth,
+                          minWidth: rowColumnWidth,
+                      },
+                  },
+              }
+            : rowColumn;
+
+    const visibleColumns = hideRowNumbers
+        ? [...stickyColumns, ...otherColumns]
+        : [stickyRowColumn, ...stickyColumns, ...otherColumns];
 
     const table = useReactTable({
         data,
@@ -79,7 +125,14 @@ export const TableProvider: FC<Props> = ({
         state: {
             columnVisibility,
             columnOrder: tempColumnOrder,
+            columnPinning: {
+                left: [
+                    ROW_NUMBER_COLUMN_ID,
+                    ...stickyColumns.map((c) => c.id || ''),
+                ],
+            },
         },
+        enablePinning: true,
         onColumnVisibilityChange: setColumnVisibility,
         onColumnOrderChange: setTempColumnOrder,
         getCoreRowModel: getCoreRowModel(),
