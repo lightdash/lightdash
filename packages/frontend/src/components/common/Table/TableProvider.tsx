@@ -78,10 +78,9 @@ export const TableProvider: FC<Props> = ({
     }, [columnOrder]);
 
     const withTotals = showColumnCalculation ? 60 : 0;
-    const rowColumnWidth = Math.max(
-        withTotals,
-        `${data.length}`.length * 10 + 20,
-    );
+    const rowColumnWidth = hideRowNumbers
+        ? 0
+        : Math.max(withTotals, `${data.length}`.length * 10 + 20);
     const frozenColumns = columns.filter((col) => col.meta?.frozen);
     const frozenColumnWidth = 100; // TODO this should be dynamic
     const stickyColumns = frozenColumns.map((col, i) => ({
