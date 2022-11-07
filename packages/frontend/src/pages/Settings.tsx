@@ -22,35 +22,12 @@ import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 import ProjectSettings from './ProjectSettings';
 import {
     CardContainer,
-    CollapseTrigger,
     ContentWrapper,
-    ExpandableWrapper,
-    SettingsItems,
+    MenuHeader,
+    MenuWrapper,
     SidebarMenu,
     Title,
 } from './Settings.styles';
-
-interface ExpandableSectionProps {
-    label: string;
-}
-
-const ExpandableSection: FC<ExpandableSectionProps> = ({ label, children }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(true);
-
-    return (
-        <ExpandableWrapper>
-            <CollapseTrigger
-                icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                text={label}
-                minimal
-                onClick={() => setIsOpen((prev) => !prev)}
-            />
-            <Collapse isOpen={isOpen}>
-                <SettingsItems>{children}</SettingsItems>
-            </Collapse>
-        </ExpandableWrapper>
-    );
-};
 
 const Settings: FC = () => {
     const {
@@ -99,9 +76,12 @@ const Settings: FC = () => {
     return (
         <PageWithSidebar>
             <Sidebar title="Settings" noMargin>
-                <SidebarMenu>
-                    <ExpandableSection label="User settings">
+                <MenuWrapper>
+                    <MenuHeader>User settings</MenuHeader>
+
+                    <SidebarMenu>
                         <RouterMenuItem text="Profile" exact to={basePath} />
+
                         {allowPasswordAuthentication && (
                             <RouterMenuItem
                                 text="Password"
@@ -109,6 +89,7 @@ const Settings: FC = () => {
                                 to={`${basePath}/password`}
                             />
                         )}
+
                         {(health.auth.google.oauth2ClientId ||
                             health.auth.okta.enabled) && (
                             <RouterMenuItem
@@ -117,13 +98,19 @@ const Settings: FC = () => {
                                 to={`${basePath}/socialLogins`}
                             />
                         )}
+
                         <RouterMenuItem
                             text="Personal access tokens"
                             exact
                             to={`${basePath}/personalAccessTokens`}
                         />
-                    </ExpandableSection>
-                    <ExpandableSection label="Organization settings">
+                    </SidebarMenu>
+                </MenuWrapper>
+
+                <MenuWrapper>
+                    <MenuHeader>Organization settings</MenuHeader>
+
+                    <SidebarMenu>
                         {user.ability.can('manage', 'Organization') && (
                             <RouterMenuItem
                                 text="Organization"
@@ -131,6 +118,7 @@ const Settings: FC = () => {
                                 to={`${basePath}/organization`}
                             />
                         )}
+
                         {user.ability.can(
                             'view',
                             'OrganizationMemberProfile',
@@ -155,8 +143,8 @@ const Settings: FC = () => {
                             exact
                             to={`${basePath}/appearance`}
                         />
-                    </ExpandableSection>
-                </SidebarMenu>
+                    </SidebarMenu>
+                </MenuWrapper>
             </Sidebar>
 
             <Switch>
