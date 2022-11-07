@@ -112,7 +112,7 @@ const MultiAutoComplete: FC<Props> = ({
                 const existingOptionMatch = [...options].find((option) =>
                     itemComparator(option, value),
                 );
-                if (existingOptionMatch) handleItemSelect(existingOptionMatch);
+                handleItemSelect(existingOptionMatch || value);
             }
         },
         [options, values, handleItemSelect, setSearch],
