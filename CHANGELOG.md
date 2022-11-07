@@ -1,3 +1,10 @@
+# [0.315.0](https://github.com/lightdash/lightdash/compare/0.314.0...0.315.0) (2022-11-07)
+
+
+### Features
+
+* freeze table columns ([#3645](https://github.com/lightdash/lightdash/issues/3645)) ([2217c32](https://github.com/lightdash/lightdash/commit/2217c32aa3c2cedc93953a96ff0faecbc7df8bec))
+
 # [0.314.0](https://github.com/lightdash/lightdash/compare/0.313.4...0.314.0) (2022-11-07)
 
 
