@@ -135,12 +135,12 @@ const AddResourceToSpaceModal: FC<Props> = ({
     }
     const selectItems = allItems.map(
         ({ uuid: itemUuid, name, spaceUuid: itemSpaceUuid }) => {
-            const alreadyAddedChart = spaceUuid === itemSpaceUuid;
+            const disabled = spaceUuid === itemSpaceUuid;
             const spaceName = spaces?.find(
                 (sp) => sp.uuid === itemSpaceUuid,
             )?.name;
             const subLabel = (
-                <SpaceLabel>
+                <SpaceLabel disabled={disabled}>
                     <Icon size={12} icon="folder-close" />
                     {spaceName}
                 </SpaceLabel>
@@ -148,8 +148,8 @@ const AddResourceToSpaceModal: FC<Props> = ({
             return {
                 value: itemUuid,
                 label: name,
-                disabled: alreadyAddedChart,
-                title: alreadyAddedChart
+                disabled: disabled,
+                title: disabled
                     ? `${getResourceTypeLabel(
                           resourceType,
                       )} already added on this space ${spaceName}`
