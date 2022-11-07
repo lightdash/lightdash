@@ -1,36 +1,12 @@
 import { MenuDivider } from '@blueprintjs/core';
 import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
-import {
-    AdditionalMetric,
-    CompiledTable,
-    extractEntityNameFromIdColumn,
-    MetricType,
-} from '@lightdash/common';
-import React, { FC, memo, useEffect } from 'react';
+
+import React, { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
 import ExploreTree from '../ExploreTree';
 import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
-
-const getTableMagicMetrics = (
-    table: CompiledTable,
-): Record<string, AdditionalMetric> =>
-    Object.values(table.dimensions).reduce((previous, dimension) => {
-        const entityName = extractEntityNameFromIdColumn(dimension.name);
-        if (entityName === null) {
-            return previous;
-        }
-        const magicMetric: AdditionalMetric = {
-            name: `${dimension.name}_count_distinct`,
-            label: `Count distinct of ${dimension.label}`,
-            description: `Count distinct of ${dimension.label} on the table ${dimension.tableLabel}. Lightdash has created this metric automatically.`,
-            table: dimension.table,
-            sql: dimension.sql,
-            type: MetricType.COUNT_DISTINCT,
-        };
-        return { ...previous, [magicMetric.name]: magicMetric };
-    }, {});
 
 const SideBarLoadingState = () => (
     <LoadingStateWrapper large>
