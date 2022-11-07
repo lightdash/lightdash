@@ -76,6 +76,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         left: 1px;
         z-index: 1;
         background-color: white;
+        word-break: break-word;
     }
     .last-sticky-column {
         border-right: 2px solid darkgray;
