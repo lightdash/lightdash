@@ -138,12 +138,15 @@ const useBigNumberConfig = (
     const bigNumber = !isNumber
         ? selectedField &&
           resultsData?.rows?.[0]?.[selectedField]?.value.formatted
-        : formatValue(
-              isField(item) ? item.format : undefined,
-              bigNumberStyle ? 2 : isField(item) ? item.round : undefined,
-              bigNumberRaw,
-              bigNumberStyle,
-          );
+        : formatValue(bigNumberRaw, {
+              format: isField(item) ? item.format : undefined,
+              round: bigNumberStyle
+                  ? 2
+                  : isField(item)
+                  ? item.round
+                  : undefined,
+              numberStyle: bigNumberStyle,
+          });
 
     const showStyle = isNumber && (!isField(item) || item.format !== 'percent');
 
