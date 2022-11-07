@@ -235,7 +235,7 @@ type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
     formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
         | undefined;
     cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
@@ -306,6 +306,7 @@ const getPivotSeries = ({
                                 formats[series.encode.yRef.field].format,
                                 formats[series.encode.yRef.field].round,
                                 val?.value?.[yFieldHash],
+                                formats[series.encode.yRef.field].compact,
                             ),
                     }),
             },
@@ -322,7 +323,7 @@ type GetSimpleSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
     formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
         | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
@@ -375,6 +376,7 @@ const getSimpleSeries = ({
                             formats[yFieldHash].format,
                             formats[yFieldHash].round,
                             value?.value?.[yFieldHash],
+                            formats[yFieldHash].compact,
                         ),
                 }),
         },
@@ -510,15 +512,15 @@ const getEchartAxis = ({
             axisItem &&
             getItemId(axisItem) &&
             items.find((item) => getItemId(axisItem) === getItemId(item));
-        const hasFormatOrRound =
-            isField(field) && (field.format || field.round);
+        const hasFormattingConfig =
+            isField(field) && (field.format || field.round || field.compact);
         const axisMinInterval =
             isDimension(field) &&
             field.timeInterval &&
             isTimeInterval(field.timeInterval) &&
             timeFrameConfigs[field.timeInterval].getAxisMinInterval();
         const axisConfig: Record<string, any> = {};
-        if (field && (hasFormatOrRound || axisMinInterval)) {
+        if (field && (hasFormattingConfig || axisMinInterval)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(field, value, true);

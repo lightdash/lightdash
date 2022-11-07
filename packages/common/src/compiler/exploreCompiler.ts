@@ -264,6 +264,12 @@ export const compileMetricSql = (
                 tables,
                 quoteChar,
             );
+            if (compiledDimension.tablesReferences) {
+                tablesReferences = new Set([
+                    ...tablesReferences,
+                    ...compiledDimension.tablesReferences,
+                ]);
+            }
             return renderFilterRuleSql(filter, compiledDimension, quoteChar);
         });
         renderedSql = `CASE WHEN (${conditions.join(

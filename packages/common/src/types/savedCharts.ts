@@ -1,3 +1,4 @@
+import { NumberStyleOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
 
@@ -6,15 +7,9 @@ export enum ChartType {
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
-
-export enum NumberStyle {
-    THOUSANDS = 'thousands',
-    MILLIONS = 'millions',
-    BILLIONS = 'billions',
-}
 export type BigNumber = {
     label?: string;
-    style?: NumberStyle;
+    style?: NumberStyleOrAlias;
     selectedField?: string;
 };
 

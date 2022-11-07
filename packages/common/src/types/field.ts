@@ -1,6 +1,75 @@
 import { FilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
 
+export enum NumberStyle {
+    THOUSANDS = 'thousands',
+    MILLIONS = 'millions',
+    BILLIONS = 'billions',
+    TRILLIONS = 'trillions',
+}
+
+const NumberStyleAlias = [
+    'K',
+    'thousand',
+    'M',
+    'million',
+    'B',
+    'billion',
+    'T',
+    'trillion',
+] as const;
+
+type NumberStyleConfig = {
+    numberStyle: NumberStyle;
+    alias: Array<typeof NumberStyleAlias[number]>;
+    convertFn: (value: number) => number;
+    label: string;
+    suffix: string;
+};
+
+export type NumberStyleOrAlias = NumberStyle | typeof NumberStyleAlias[number];
+
+export const NumberStyleConfigMap: Record<NumberStyle, NumberStyleConfig> = {
+    [NumberStyle.THOUSANDS]: {
+        numberStyle: NumberStyle.THOUSANDS,
+        alias: ['K', 'thousand'],
+        convertFn: (value: number) => value / 1000,
+        label: 'thousands (K)',
+        suffix: 'K',
+    },
+    [NumberStyle.MILLIONS]: {
+        numberStyle: NumberStyle.MILLIONS,
+        alias: ['M', 'million'],
+        convertFn: (value: number) => value / 1000000,
+        label: 'millions (M)',
+        suffix: 'M',
+    },
+    [NumberStyle.BILLIONS]: {
+        numberStyle: NumberStyle.BILLIONS,
+        alias: ['B', 'billion'],
+        convertFn: (value: number) => value / 1000000000,
+        label: 'billions (B)',
+        suffix: 'B',
+    },
+    [NumberStyle.TRILLIONS]: {
+        numberStyle: NumberStyle.TRILLIONS,
+        alias: ['T', 'trillion'],
+        convertFn: (value: number) => value / 1000000000000,
+        label: 'trillions (T)',
+        suffix: 'T',
+    },
+};
+
+export function findNumberStyleConfig(
+    numberStyleOrAlias: NumberStyleOrAlias,
+): NumberStyleConfig | undefined {
+    return Object.values(NumberStyleConfigMap).find(
+        ({ numberStyle, alias }) =>
+            numberStyle === numberStyleOrAlias ||
+            alias.includes(numberStyleOrAlias as any),
+    );
+}
+
 export enum FieldType {
     METRIC = 'metric',
     DIMENSION = 'dimension',
@@ -23,6 +92,7 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
+    compact?: NumberStyleOrAlias;
     round?: number;
     format?: string;
     groupLabel?: string;

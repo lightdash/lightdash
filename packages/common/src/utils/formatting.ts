@@ -2,16 +2,17 @@ import moment, { MomentInput } from 'moment';
 import {
     DimensionType,
     Field,
+    findNumberStyleConfig,
     isDimension,
     isField,
     MetricType,
+    NumberStyleOrAlias,
 } from '../types/field';
 import {
     AdditionalMetric,
     isAdditionalMetric,
     TableCalculation,
 } from '../types/metricQuery';
-import { NumberStyle } from '../types/savedCharts';
 import { TimeFrames } from '../types/timeFrames';
 
 export const formatBoolean = <T>(v: T) =>
@@ -129,45 +130,36 @@ function roundNumber(
 
 function styleNumber(
     value: any,
-    numberStyle: NumberStyle | undefined,
+    numberStyle: NumberStyleOrAlias | undefined,
     round: number | undefined,
     format: string | undefined,
 ): string {
     if (valueIsNaN(value)) {
         return `${value}`;
     }
-    switch (numberStyle) {
-        case NumberStyle.THOUSANDS:
+    if (numberStyle) {
+        const numberStyleRound =
+            numberStyle && round === undefined && format === undefined
+                ? 2
+                : round;
+        const numberStyleConfig = findNumberStyleConfig(numberStyle);
+        if (numberStyleConfig) {
             return `${roundNumber(
-                Number(value) / 1000,
-                round,
+                numberStyleConfig.convertFn(Number(value)),
+                numberStyleRound,
                 format,
                 numberStyle,
-            )}K`;
-        case NumberStyle.MILLIONS:
-            return `${roundNumber(
-                Number(value) / 1000000,
-                round,
-                format,
-                numberStyle,
-            )}M`;
-        case NumberStyle.BILLIONS:
-            return `${roundNumber(
-                Number(value) / 1000000000,
-                round,
-                format,
-                numberStyle,
-            )}B`;
-        default:
-            return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
+            )}${numberStyleConfig.suffix}`;
+        }
     }
+    return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
 }
 
 export function formatValue(
     format: string | undefined,
     round: number | undefined,
     value: any,
-    numberStyle?: NumberStyle, // for bigNumbers
+    numberStyle?: NumberStyleOrAlias,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -211,7 +203,7 @@ export function formatFieldValue(
     if (!field) {
         return `${value}`;
     }
-    const { type, round, format } = field;
+    const { type, round, format, compact } = field;
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -222,7 +214,7 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-            return formatValue(format, round, value);
+            return formatValue(format, round, value, compact);
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return formatBoolean(value);
@@ -248,7 +240,7 @@ export function formatFieldValue(
                     convertToUTC,
                 );
             }
-            return formatValue(format, round, value);
+            return formatValue(format, round, value, compact);
         }
         default: {
             return `${value}`;
@@ -265,5 +257,5 @@ export function formatItemValue(
     if (value === undefined) return '-';
     return isField(item) || isAdditionalMetric(item)
         ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(undefined, undefined, value);
+        : formatValue(undefined, undefined, value, undefined);
 }

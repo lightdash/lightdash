@@ -1,6 +1,6 @@
 import { H6, Intent, NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
-import { BackButton } from '../../../pages/CreateProject.styles';
+import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
 import InviteExpertFooter from './InviteExpertFooter';
@@ -13,7 +13,11 @@ interface UnsupportedWarehouseProps {
 const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
     return (
         <Wrapper>
-            <BackButton icon="chevron-left" text="Back" onClick={onBack} />
+            <FloatingBackButton
+                icon="chevron-left"
+                text="Back"
+                onClick={onBack}
+            />
 
             <ConnectWarehouseWrapper>
                 <NonIdealState

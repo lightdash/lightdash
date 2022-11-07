@@ -9,7 +9,6 @@ import {
     ChartType,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
-    DashboardFilters,
     Field,
     fieldId,
     FilterGroup,
@@ -29,6 +28,7 @@ import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { CSVLink } from 'react-csv';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
@@ -154,11 +154,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         id: savedChartUuid || undefined,
     });
     const { data: explore } = useExplore(savedQuery?.tableName);
-    const {
-        dashboardFilters,
-        dashboardTemporaryFilters,
-        addDimensionDashboardFilter,
-    } = useDashboardContext();
+    const { addDimensionDashboardFilter } = useDashboardContext();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -254,7 +250,6 @@ const DashboardChartTile: FC<Props> = (props) => {
 
             const underlyingData = getDataFromChartClick(
                 e,
-                pivot,
                 allItemsMap,
                 series,
             );
@@ -270,19 +265,8 @@ const DashboardChartTile: FC<Props> = (props) => {
     // TODO: move this logic out of component
     let savedQueryWithDashboardFilters: SavedChart | undefined;
 
-    const dashboardFiltersThatApplyToChart: DashboardFilters = useMemo(() => {
-        const tables = explore ? Object.keys(explore.tables) : [];
-        return {
-            dimensions: [
-                ...dashboardFilters.dimensions,
-                ...dashboardTemporaryFilters.dimensions,
-            ].filter((filter) => tables.includes(filter.target.tableName)),
-            metrics: [
-                ...dashboardFilters.metrics,
-                ...dashboardTemporaryFilters.metrics,
-            ].filter((filter) => tables.includes(filter.target.tableName)),
-        };
-    }, [explore, dashboardFilters, dashboardTemporaryFilters]);
+    const dashboardFiltersThatApplyToChart =
+        useDashboardFiltersForExplore(explore);
 
     if (savedQuery) {
         const dimensionFilters: FilterGroup = {
@@ -432,7 +416,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         row,
                                                         dimensions,
                                                         pivotReference,
-                                                        dashboardFilters,
+                                                        dashboardFiltersThatApplyToChart,
                                                     );
                                                 }
                                             }}

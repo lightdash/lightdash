@@ -1,3 +1,50 @@
+## [0.313.3](https://github.com/lightdash/lightdash/compare/0.313.2...0.313.3) (2022-11-07)
+
+
+### Bug Fixes
+
+* dashboard table cell context menu options ([#3686](https://github.com/lightdash/lightdash/issues/3686)) ([31c28c4](https://github.com/lightdash/lightdash/commit/31c28c48a4265ac571a9c34f03afc9c1b49cb451))
+* popover position for metrics/dimensions ([#3694](https://github.com/lightdash/lightdash/issues/3694)) ([a6a55cc](https://github.com/lightdash/lightdash/commit/a6a55cca97023bb0c86d330f2631f1f74ec11668))
+* table column hide button ([#3697](https://github.com/lightdash/lightdash/issues/3697)) ([e0d4635](https://github.com/lightdash/lightdash/commit/e0d4635c8f7721a189fa7d098cde86d63cee1416))
+* underlying data with unsaved dashboard filter ([#3687](https://github.com/lightdash/lightdash/issues/3687)) ([d2dc8c0](https://github.com/lightdash/lightdash/commit/d2dc8c06fc07a9f57764e0ea0d62977415a7a5f4))
+
+## [0.313.2](https://github.com/lightdash/lightdash/compare/0.313.1...0.313.2) (2022-11-04)
+
+
+### Bug Fixes
+
+* display 5 most recent charts instead of all ([#3682](https://github.com/lightdash/lightdash/issues/3682)) ([8eaf348](https://github.com/lightdash/lightdash/commit/8eaf348f190661ab11c2faf4e4fac478992908c0))
+* underlying data query on close ([#3677](https://github.com/lightdash/lightdash/issues/3677)) ([9b52167](https://github.com/lightdash/lightdash/commit/9b521670c1ccd9353b24ecba690f75e2e9f229fd))
+* view permision for view all button for recent dashboards/charts ([#3684](https://github.com/lightdash/lightdash/issues/3684)) ([0511835](https://github.com/lightdash/lightdash/commit/0511835fd40aa6079768f2bd204269a83c9a7081))
+
+## [0.313.1](https://github.com/lightdash/lightdash/compare/0.313.0...0.313.1) (2022-11-04)
+
+
+### Bug Fixes
+
+* exclude hidden tables and fields from global search ([#3640](https://github.com/lightdash/lightdash/issues/3640)) ([5334b91](https://github.com/lightdash/lightdash/commit/5334b9125f1e474d9c042c308e7792411f50f41d))
+
+# [0.313.0](https://github.com/lightdash/lightdash/compare/0.312.2...0.313.0) (2022-11-04)
+
+
+### Features
+
+* compact numbers ([#3647](https://github.com/lightdash/lightdash/issues/3647)) ([d06ca67](https://github.com/lightdash/lightdash/commit/d06ca671f3fb94d3c01acdef052fb67ee066f900))
+
+## [0.312.2](https://github.com/lightdash/lightdash/compare/0.312.1...0.312.2) (2022-11-03)
+
+
+### Bug Fixes
+
+* missing FROM clause from metric filter reference ([#3665](https://github.com/lightdash/lightdash/issues/3665)) ([66adf04](https://github.com/lightdash/lightdash/commit/66adf04aaee5560db509c5b5514ef8a5b1507ac9))
+
+## [0.312.1](https://github.com/lightdash/lightdash/compare/0.312.0...0.312.1) (2022-11-03)
+
+
+### Bug Fixes
+
+* dashboard chart underlying data ([#3663](https://github.com/lightdash/lightdash/issues/3663)) ([b4cb73b](https://github.com/lightdash/lightdash/commit/b4cb73ba8c0a9708fddc2c8f13373e8e5cd86b19))
+
 # [0.312.0](https://github.com/lightdash/lightdash/compare/0.311.0...0.312.0) (2022-11-03)
 
 

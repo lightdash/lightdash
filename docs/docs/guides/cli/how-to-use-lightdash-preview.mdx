@@ -1,4 +1,5 @@
 import GithubSecrets from './assets/github-secrets.jpg';
+import PersonalAccessToken from './assets/personal-access-token.png';
 
 # Lightdash Preview
 
@@ -42,10 +43,22 @@ Now click on the `New repository secret`
 We need the following credentials, you can find them on the app, 
 or in your `~/.config/lightdash/config.yaml` file on your machine if you have used the Lightdash CLI already.
 
-- `LIGHTDASH_API_KEY`: Your personal access token on Lightdash. [See these instructions](https://docs.lightdash.com/guides/cli/cli-authentication#:~:text=First%2C%20you%27ll%20need%20to%20create%20a%20new%20personal%20access%20token%20in%20the%20UI%20by%20going%20to%20Settings%20%3E%20Personal%20Access%20Tokens.%20You%20can%27t%20use%20an%20existing%20personal%20access%20token!%20You%20have%20to%20create%20a%20new%20one%20just%20for%20yourself.) for creating a personal access token in the app.
-- `LIGHTDASH_PROJECT`: The UUID for your project. For example, if your URL looks like `https://eu1.lightdash.cloud/projects/3538ab33-dc90-aabb-bc00-e50bba3a5f69/tables`, then `3538ab33-dc90-45f0-aabb-e50bba3a5f69` is your `LIGHTDASH_PROJECT`  
-- `LIGHTDASH_URL`: (like https://eu1.lightdash.cloud or https://app.lightdash.cloud)
-- `DBT_PROFILES`: Copy your full profiles.yml file into this secret, like:
+#### `LIGHTDASH_API_KEY`
+
+Create a new personal access token, by going to `Settings` > `Personal Access Tokens`. This is the token you'll put in for `LIGHTDASH_API_KEY`.  
+
+  <img src={PersonalAccessToken} width="1304" height="517" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### `LIGHTDASH_PROJECT`
+The UUID for your project. For example, if your URL looks like `https://eu1.lightdash.cloud/projects/3538ab33-dc90-aabb-bc00-e50bba3a5f69/tables`, then `3538ab33-dc90-45f0-aabb-e50bba3a5f69` is your `LIGHTDASH_PROJECT`  
+
+#### `LIGHTDASH_URL`
+
+This is either `https://eu1.lightdash.cloud` or `https://app.lightdash.cloud` (check the URL to your Lightdash project)
+
+#### `DBT_PROFILES`
+
+Copy your full profiles.yml file into this secret, like:
 
 ```
 jaffle_shop:
