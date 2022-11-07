@@ -1,3 +1,10 @@
+## [0.313.4](https://github.com/lightdash/lightdash/compare/0.313.3...0.313.4) (2022-11-07)
+
+
+### Bug Fixes
+
+* filter autocomplete click bug ([#3675](https://github.com/lightdash/lightdash/issues/3675)) ([2859534](https://github.com/lightdash/lightdash/commit/285953429c6887d526426e84d40b8bfec5f2ddb9))
+
 ## [0.313.3](https://github.com/lightdash/lightdash/compare/0.313.2...0.313.3) (2022-11-07)
 
 
