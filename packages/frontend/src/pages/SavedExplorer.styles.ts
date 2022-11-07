@@ -24,7 +24,7 @@ export const MainContent = styled.div`
 export const StickySidebar = styled.div`
     height: calc(100vh - ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px);
     position: sticky;
-    top: ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px;
+    top: ${NAVBAR_HEIGHT}px;
 `;
 
 export const CardContent = styled.div`

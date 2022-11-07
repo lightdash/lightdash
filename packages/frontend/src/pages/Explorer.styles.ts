@@ -12,6 +12,7 @@ export const SideBar = styled.div`
     display: flex;
     flex-direction: row;
     position: sticky;
+    align-self: flex-start;
     top: ${NAVBAR_HEIGHT}px;
 `;
 
