@@ -126,8 +126,6 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
-    console.log(props);
-
     return (
         <EChartsReact
             data-testid={props['data-testid']}
@@ -139,7 +137,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                           width: '100%',
                       }
                     : {
-                          //   height is set to 300px to prevent the chart from
+                          // height is set to 300px to prevent the chart from
                           width: '100%',
                       }
             }

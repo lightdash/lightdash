@@ -273,10 +273,7 @@ const SqlRunnerPage = () => {
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
-                        <LightdashVisualization
-                            className="cohere-block"
-                            $shouldExpand
-                        />
+                        <LightdashVisualization className="cohere-block" />
                     </CollapsableCard>
                 </VisualizationProvider>
 

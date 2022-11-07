@@ -8,12 +8,11 @@ import { useVisualizationContext } from './VisualizationProvider';
 interface LightdashVisualizationProps {
     isDashboard?: boolean;
     className?: string;
-    $shouldExpand?: boolean;
     'data-testid'?: string;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard, className, $shouldExpand, ...props }) => {
+    ({ isDashboard, className, ...props }) => {
         const { chartType } = useVisualizationContext();
 
         switch (chartType) {
@@ -29,8 +28,8 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleTable
                         isDashboard={!!isDashboard}
-                        $shouldExpand={$shouldExpand}
                         className={className}
+                        $shouldExpand
                         data-testid={props['data-testid']}
                         {...props}
                     />
@@ -39,7 +38,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleChart
                         className={className}
-                        $shouldExpand={$shouldExpand}
+                        $shouldExpand
                         data-testid={props['data-testid']}
                         {...props}
                     />
