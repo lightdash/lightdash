@@ -1,4 +1,4 @@
-import { NumberStyleOrAlias } from './field';
+import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
 
@@ -9,7 +9,7 @@ export enum ChartType {
 }
 export type BigNumber = {
     label?: string;
-    style?: NumberStyleOrAlias;
+    style?: CompactOrAlias;
     selectedField?: string;
 };
 

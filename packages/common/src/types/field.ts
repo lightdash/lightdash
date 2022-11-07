@@ -1,14 +1,14 @@
 import { FilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
 
-export enum NumberStyle {
+export enum Compact {
     THOUSANDS = 'thousands',
     MILLIONS = 'millions',
     BILLIONS = 'billions',
     TRILLIONS = 'trillions',
 }
 
-const NumberStyleAlias = [
+const CompactAlias = [
     'K',
     'thousand',
     'M',
@@ -19,40 +19,40 @@ const NumberStyleAlias = [
     'trillion',
 ] as const;
 
-type NumberStyleConfig = {
-    numberStyle: NumberStyle;
-    alias: Array<typeof NumberStyleAlias[number]>;
+type CompactConfig = {
+    compact: Compact;
+    alias: Array<typeof CompactAlias[number]>;
     convertFn: (value: number) => number;
     label: string;
     suffix: string;
 };
 
-export type NumberStyleOrAlias = NumberStyle | typeof NumberStyleAlias[number];
+export type CompactOrAlias = Compact | typeof CompactAlias[number];
 
-export const NumberStyleConfigMap: Record<NumberStyle, NumberStyleConfig> = {
-    [NumberStyle.THOUSANDS]: {
-        numberStyle: NumberStyle.THOUSANDS,
+export const CompactConfigMap: Record<Compact, CompactConfig> = {
+    [Compact.THOUSANDS]: {
+        compact: Compact.THOUSANDS,
         alias: ['K', 'thousand'],
         convertFn: (value: number) => value / 1000,
         label: 'thousands (K)',
         suffix: 'K',
     },
-    [NumberStyle.MILLIONS]: {
-        numberStyle: NumberStyle.MILLIONS,
+    [Compact.MILLIONS]: {
+        compact: Compact.MILLIONS,
         alias: ['M', 'million'],
         convertFn: (value: number) => value / 1000000,
         label: 'millions (M)',
         suffix: 'M',
     },
-    [NumberStyle.BILLIONS]: {
-        numberStyle: NumberStyle.BILLIONS,
+    [Compact.BILLIONS]: {
+        compact: Compact.BILLIONS,
         alias: ['B', 'billion'],
         convertFn: (value: number) => value / 1000000000,
         label: 'billions (B)',
         suffix: 'B',
     },
-    [NumberStyle.TRILLIONS]: {
-        numberStyle: NumberStyle.TRILLIONS,
+    [Compact.TRILLIONS]: {
+        compact: Compact.TRILLIONS,
         alias: ['T', 'trillion'],
         convertFn: (value: number) => value / 1000000000000,
         label: 'trillions (T)',
@@ -60,13 +60,12 @@ export const NumberStyleConfigMap: Record<NumberStyle, NumberStyleConfig> = {
     },
 };
 
-export function findNumberStyleConfig(
-    numberStyleOrAlias: NumberStyleOrAlias,
-): NumberStyleConfig | undefined {
-    return Object.values(NumberStyleConfigMap).find(
-        ({ numberStyle, alias }) =>
-            numberStyle === numberStyleOrAlias ||
-            alias.includes(numberStyleOrAlias as any),
+export function findCompactConfig(
+    compactOrAlias: CompactOrAlias,
+): CompactConfig | undefined {
+    return Object.values(CompactConfigMap).find(
+        ({ compact, alias }) =>
+            compact === compactOrAlias || alias.includes(compactOrAlias as any),
     );
 }
 
@@ -92,7 +91,7 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
-    compact?: NumberStyleOrAlias;
+    compact?: CompactOrAlias;
     round?: number;
     format?: string;
     groupLabel?: string;

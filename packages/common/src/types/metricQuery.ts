@@ -1,9 +1,9 @@
 import {
+    CompactOrAlias,
     CompiledMetric,
     FieldId,
     friendlyName,
     MetricType,
-    NumberStyleOrAlias,
 } from './field';
 import { Filters } from './filter';
 
@@ -24,7 +24,7 @@ export interface AdditionalMetric {
     sql: string;
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyleOrAlias;
+    compact?: CompactOrAlias;
     format?: string;
     table: string;
     name: string;

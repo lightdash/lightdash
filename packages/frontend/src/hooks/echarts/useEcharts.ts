@@ -306,7 +306,7 @@ const getPivotSeries = ({
                                 format: formats[series.encode.yRef.field]
                                     .format,
                                 round: formats[series.encode.yRef.field].round,
-                                numberStyle:
+                                compact:
                                     formats[series.encode.yRef.field].compact,
                             }),
                     }),
@@ -376,7 +376,7 @@ const getSimpleSeries = ({
                         formatValue(value?.value?.[yFieldHash], {
                             format: formats[yFieldHash].format,
                             round: formats[yFieldHash].round,
-                            numberStyle: formats[yFieldHash].compact,
+                            compact: formats[yFieldHash].compact,
                         }),
                 }),
         },
