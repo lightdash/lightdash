@@ -16,6 +16,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     isDashboard,
     className,
     $shouldExpand,
+    ...rest
 }) => {
     const {
         isLoading,
@@ -67,6 +68,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     );
                 return <CellContextMenu {...props} />;
             }}
+            {...rest}
         />
     );
 };

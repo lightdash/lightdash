@@ -13,6 +13,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     hideRowNumbers?: boolean;
     className?: string;
     $shouldExpand?: boolean;
+    'data-testid'?: string;
 };
 
 const ResultsTable: FC<Props> = ({
@@ -24,6 +25,7 @@ const ResultsTable: FC<Props> = ({
     hideRowNumbers,
     className,
     showColumnCalculation,
+    'data-testid': dataTestId,
     ...rest
 }) => {
     const LoadingState = loadingState || States.LoadingState;
@@ -39,6 +41,7 @@ const ResultsTable: FC<Props> = ({
             <TableContainer
                 className={`cohere-block${className ? ` ${className}` : ''}`}
                 $shouldExpand={$shouldExpand}
+                data-testid={dataTestId}
             >
                 <ScrollableTable $shouldExpand={$shouldExpand} />
                 {status === 'loading' && <LoadingState />}

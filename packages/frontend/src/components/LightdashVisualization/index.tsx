@@ -9,6 +9,7 @@ interface LightdashVisualizationProps {
     isDashboard?: boolean;
     className?: string;
     $shouldExpand?: boolean;
+    'data-testid'?: string;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
@@ -17,13 +18,20 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
-                return <SimpleStatistic className={className} {...props} />;
+                return (
+                    <SimpleStatistic
+                        className={className}
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             case ChartType.TABLE:
                 return (
                     <SimpleTable
                         isDashboard={!!isDashboard}
                         $shouldExpand={$shouldExpand}
                         className={className}
+                        data-testid={props['data-testid']}
                         {...props}
                     />
                 );
@@ -32,6 +40,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     <SimpleChart
                         className={className}
                         $shouldExpand={$shouldExpand}
+                        data-testid={props['data-testid']}
                         {...props}
                     />
                 );

@@ -79,6 +79,8 @@ const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
 
 type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
     $shouldExpand?: boolean;
+    className?: string;
+    'data-testid'?: string;
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo((props) => {
@@ -124,8 +126,12 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     if (isLoading) return <LoadingChart />;
     if (!eChartsOptions) return <EmptyChart />;
 
+    console.log(props);
+
     return (
         <EChartsReact
+            data-testid={props['data-testid']}
+            className={props.className}
             style={
                 props.$shouldExpand
                     ? {
