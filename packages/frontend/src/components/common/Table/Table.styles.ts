@@ -60,7 +60,6 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         th:first-child {
             border-top: none !important;
             border-bottom: none !important;
-            box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd !important;
         }
 
         th {
@@ -77,6 +76,9 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         z-index: 1;
         background-color: white;
         word-break: break-word;
+    }
+    .first-sticky-column {
+        box-shadow: lightgray -1px 0px 0px 0px, lightgray 0px 1px 0px 0px inset !important;
     }
     .last-sticky-column {
         border-right: 2px solid darkgray;

@@ -89,7 +89,7 @@ export const TableProvider: FC<Props> = ({
             ...col.meta,
             className: `sticky-column ${
                 i === frozenColumns.length - 1 ? 'last-sticky-column' : ''
-            }`,
+            } ${hideRowNumbers ? 'first-sticky-column' : ''}`,
             style: {
                 maxWidth: frozenColumnWidth,
                 minWidth: frozenColumnWidth,
@@ -105,13 +105,11 @@ export const TableProvider: FC<Props> = ({
                   ...rowColumn,
                   meta: {
                       ...rowColumn.meta,
-                      className: 'sticky-column',
+                      className: 'sticky-column first-sticky-column',
                       width: rowColumnWidth,
                       style: {
                           maxWidth: rowColumnWidth,
                           minWidth: rowColumnWidth,
-                          boxShadow:
-                              '-1px 0px 0px 0px lightgray, 0px 1px 0px 0px lightgray inset',
                       },
                   },
               }
