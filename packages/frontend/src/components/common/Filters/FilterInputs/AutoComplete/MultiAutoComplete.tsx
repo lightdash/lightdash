@@ -103,7 +103,7 @@ const MultiAutoComplete: FC<Props> = ({
         [onChange, values],
     );
 
-    const handleBlur = useCallback(
+    const handleOnClose = useCallback(
         (value?: string) => {
             if (!value || value === '') return;
 
@@ -112,7 +112,6 @@ const MultiAutoComplete: FC<Props> = ({
                 const existingOptionMatch = [...options].find((option) =>
                     itemComparator(option, value),
                 );
-
                 handleItemSelect(existingOptionMatch || value);
             }
         },
@@ -140,10 +139,7 @@ const MultiAutoComplete: FC<Props> = ({
             onItemSelect={handleItemSelect}
             tagInputProps={{
                 placeholder: undefined,
-                addOnBlur: true,
-                inputProps: {
-                    onBlur: () => handleBlur(searchQuery),
-                },
+                addOnBlur: false,
                 tagProps: {
                     minimal: true,
                 },
@@ -151,6 +147,9 @@ const MultiAutoComplete: FC<Props> = ({
             }}
             popoverProps={{
                 minimal: true,
+                onClosing: () => {
+                    handleOnClose(searchQuery);
+                },
                 ...popoverProps,
             }}
             resetOnSelect
