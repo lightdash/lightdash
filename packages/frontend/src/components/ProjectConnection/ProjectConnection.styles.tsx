@@ -46,8 +46,8 @@ export const RightPanel = styled.div`
 `;
 
 export const LeftPanelTitle = styled.div`
-    margin-bottom: 15px;
-    margin-top: 15px;
+    margin-bottom: 10px;
+    margin-top: 10px;
 
     h5 {
         display: inline;

@@ -771,7 +771,7 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
-    ip: string;
+    staticIp: string;
     query: {
         maxLimit: number;
     };

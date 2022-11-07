@@ -55,7 +55,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     smtp: undefined,
     siteUrl: '',
-    ip: '',
+    staticIp: '',
     database: {
         connectionUri: undefined,
         maxConnections: undefined,

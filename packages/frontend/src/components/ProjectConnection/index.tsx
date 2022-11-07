@@ -94,10 +94,10 @@ const ProjectForm: FC<Props> = ({
                         <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
                     </LeftPanelTitle>
 
-                    {health.data?.ip && (
+                    {health.data?.staticIp && (
                         <LeftPanelMessage>
                             If you need to add our IP address to your database's
-                            allow-list, use <b>{health.data?.ip}</b>
+                            allow-list, use <b>{health.data?.staticIp}</b>
                         </LeftPanelMessage>
                     )}
                 </LeftPanel>

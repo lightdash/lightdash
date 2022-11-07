@@ -59,7 +59,7 @@ export class HealthService {
             intercom: this.lightdashConfig.intercom,
             cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,
-            ip: this.lightdashConfig.ip,
+            staticIp: this.lightdashConfig.staticIp,
             query: this.lightdashConfig.query,
             auth: {
                 disablePasswordAuthentication:
