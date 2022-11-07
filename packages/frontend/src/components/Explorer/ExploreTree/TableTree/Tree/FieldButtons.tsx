@@ -176,7 +176,7 @@ const FieldButtons: FC<{
                 <Popover2
                     content={<Menu>{menuItems}</Menu>}
                     autoFocus={false}
-                    position={PopoverPosition.BOTTOM_LEFT}
+                    position={PopoverPosition.BOTTOM_RIGHT}
                     minimal
                     lazy
                     interactionKind="click"
