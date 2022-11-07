@@ -302,12 +302,13 @@ const getPivotSeries = ({
                 ...(formats &&
                     formats[series.encode.yRef.field] && {
                         formatter: (val: any) =>
-                            formatValue(
-                                formats[series.encode.yRef.field].format,
-                                formats[series.encode.yRef.field].round,
-                                val?.value?.[yFieldHash],
-                                formats[series.encode.yRef.field].compact,
-                            ),
+                            formatValue(val?.value?.[yFieldHash], {
+                                format: formats[series.encode.yRef.field]
+                                    .format,
+                                round: formats[series.encode.yRef.field].round,
+                                numberStyle:
+                                    formats[series.encode.yRef.field].compact,
+                            }),
                     }),
             },
             labelLayout: function (params: any) {
@@ -372,12 +373,11 @@ const getSimpleSeries = ({
             ...(formats &&
                 formats[yFieldHash] && {
                     formatter: (value: any) =>
-                        formatValue(
-                            formats[yFieldHash].format,
-                            formats[yFieldHash].round,
-                            value?.value?.[yFieldHash],
-                            formats[yFieldHash].compact,
-                        ),
+                        formatValue(value?.value?.[yFieldHash], {
+                            format: formats[yFieldHash].format,
+                            round: formats[yFieldHash].round,
+                            numberStyle: formats[yFieldHash].compact,
+                        }),
                 }),
         },
         labelLayout: function (params: any) {

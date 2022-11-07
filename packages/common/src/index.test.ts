@@ -21,120 +21,359 @@ import {
 describe('Common index', () => {
     describe('format and round', () => {
         test('formatValue should return the right format', async () => {
-            expect(formatValue('km', undefined, 5)).toEqual('5 km');
-            expect(formatValue('km', undefined, '5')).toEqual('5 km');
+            const kilometerOptions = {
+                format: 'km',
+            };
+            expect(formatValue(5, kilometerOptions)).toEqual('5 km');
+            expect(formatValue('5', kilometerOptions)).toEqual('5 km');
+            expect(
+                formatValue(5, {
+                    format: 'mi',
+                }),
+            ).toEqual('5 mi');
+            expect(formatValue(5, { format: 'usd' })).toEqual('$5.00');
+            expect(formatValue(5, { format: 'gbp' })).toEqual('£5.00');
+            expect(formatValue(5, { format: 'eur' })).toEqual('€5.00');
 
-            expect(formatValue('mi', undefined, 5)).toEqual('5 mi');
-            expect(formatValue('usd', undefined, 5)).toEqual('$5.00');
-            expect(formatValue('gbp', undefined, 5)).toEqual('£5.00');
-            expect(formatValue('eur', undefined, 5)).toEqual('€5.00');
-            expect(formatValue('percent', undefined, 5)).toEqual('500%');
-            expect(formatValue('percent', undefined, 0.05)).toEqual('5%');
-            expect(formatValue('percent', undefined, '5')).toEqual('500%');
-            expect(formatValue('percent', undefined, 'foo')).toEqual('foo');
-            expect(formatValue('percent', undefined, false)).toEqual('false');
-            expect(formatValue(undefined, undefined, 1103)).toEqual('1,103');
+            const percentageOptions = {
+                format: 'percent',
+            };
+            expect(formatValue(5, percentageOptions)).toEqual('500%');
+            expect(formatValue(0.05, percentageOptions)).toEqual('5%');
+            expect(formatValue('5', percentageOptions)).toEqual('500%');
+            expect(formatValue('foo', percentageOptions)).toEqual('foo');
+            expect(formatValue(false, percentageOptions)).toEqual('false');
+            expect(formatValue(1103)).toEqual('1,103');
 
-            expect(formatValue('', undefined, 5)).toEqual('5');
-            expect(formatValue(undefined, undefined, 5)).toEqual('5');
+            expect(formatValue(5, { format: '' })).toEqual('5');
+            expect(formatValue(5)).toEqual('5');
 
             // Intl.NumberFormat rounds up after 3 decimals
-            expect(formatValue(undefined, undefined, 5.9)).toEqual('5.9');
-            expect(formatValue(undefined, undefined, 5.99)).toEqual('5.99');
-            expect(formatValue(undefined, undefined, 5.999)).toEqual('5.999');
-            expect(formatValue(undefined, undefined, 5.9999)).toEqual('6');
-            expect(formatValue(undefined, undefined, 5.99999)).toEqual('6');
+            expect(formatValue(5.9)).toEqual('5.9');
+            expect(formatValue(5.99)).toEqual('5.99');
+            expect(formatValue(5.999)).toEqual('5.999');
+            expect(formatValue(5.9999)).toEqual('6');
+            expect(formatValue(5.99999)).toEqual('6');
         });
         test('formatValue should return the right round', async () => {
-            expect(formatValue(undefined, 0, 1)).toEqual('1');
-            expect(formatValue(undefined, 0, 10)).toEqual('10');
-            expect(formatValue(undefined, 0, 100)).toEqual('100');
-            expect(formatValue(undefined, 0, 1000)).toEqual('1,000');
-            expect(formatValue(undefined, 0, 10000)).toEqual('10,000');
-            expect(formatValue(undefined, 0, 100000)).toEqual('100,000');
-            expect(formatValue(undefined, 0, 1000000)).toEqual('1,000,000');
-            expect(formatValue(undefined, 2, 5)).toEqual('5.00');
-            expect(formatValue(undefined, 2, 5.001)).toEqual('5.00');
-            expect(formatValue(undefined, 2, 5.555)).toEqual('5.56');
-            expect(formatValue(undefined, 2, 5.5555)).toEqual('5.56');
-            expect(formatValue(undefined, 2, 5.9999999)).toEqual('6.00');
+            const roundZeroOptions = {
+                round: 0,
+            };
+            expect(formatValue(1, roundZeroOptions)).toEqual('1');
+            expect(formatValue(10, roundZeroOptions)).toEqual('10');
+            expect(formatValue(100, roundZeroOptions)).toEqual('100');
+            expect(formatValue(1000, roundZeroOptions)).toEqual('1,000');
+            expect(formatValue(10000, roundZeroOptions)).toEqual('10,000');
+            expect(formatValue(100000, roundZeroOptions)).toEqual('100,000');
+            expect(formatValue(1000000, roundZeroOptions)).toEqual('1,000,000');
+            expect(formatValue(5, roundZeroOptions)).toEqual('5');
+            expect(formatValue(5.001, roundZeroOptions)).toEqual('5');
+            expect(formatValue(5.9999999, roundZeroOptions)).toEqual('6');
 
-            expect(formatValue(undefined, 0, 5)).toEqual('5');
-            expect(formatValue(undefined, 0, 5.001)).toEqual('5');
-            expect(formatValue(undefined, 0, 5.9999999)).toEqual('6');
+            const roundTwoOptions = {
+                round: 2,
+            };
+            expect(formatValue(5, roundTwoOptions)).toEqual('5.00');
+            expect(formatValue(5.001, roundTwoOptions)).toEqual('5.00');
+            expect(formatValue(5.555, roundTwoOptions)).toEqual('5.56');
+            expect(formatValue(5.5555, roundTwoOptions)).toEqual('5.56');
+            expect(formatValue(5.9999999, roundTwoOptions)).toEqual('6.00');
+            expect(formatValue('foo', roundTwoOptions)).toEqual('foo');
+            expect(formatValue(false, roundTwoOptions)).toEqual('false');
 
-            // negative rounding not supported
-            expect(formatValue(undefined, -1, 5)).toEqual('5');
-
-            expect(formatValue(undefined, 2, 'foo')).toEqual('foo');
-            expect(formatValue(undefined, 2, false)).toEqual('false');
-
-            expect(formatValue(undefined, 10, 5)).toEqual('5.0000000000');
-            expect(formatValue(undefined, 10, 5.001)).toEqual('5.0010000000');
-            expect(formatValue(undefined, 10, 5.9999999)).toEqual(
+            const roundTenOptions = {
+                round: 10,
+            };
+            expect(formatValue(5, roundTenOptions)).toEqual('5.0000000000');
+            expect(formatValue(5.001, roundTenOptions)).toEqual('5.0010000000');
+            expect(formatValue(5.9999999, roundTenOptions)).toEqual(
                 '5.9999999000',
             );
+
+            // negative rounding not supported
+            expect(
+                formatValue(5, {
+                    round: -1,
+                }),
+            ).toEqual('5');
         });
 
         test('formatValue should return the right format and round', async () => {
-            expect(formatValue('km', 2, 5)).toEqual('5.00 km');
-            expect(formatValue('km', -2, 5)).toEqual('5 km');
-            expect(formatValue('mi', 4, 5)).toEqual('5.0000 mi');
-            expect(formatValue('mi', -4, 5)).toEqual('5 mi');
-            expect(formatValue('usd', 2, 5)).toEqual('$5.00');
-            expect(formatValue('usd', 0, 5.0)).toEqual('$5');
-            expect(formatValue('usd', -2, 5)).toEqual('$5.00');
-            expect(formatValue('usd', -1, 5.25)).toEqual('$5.25');
-            expect(formatValue('usd', 2, '5.0000')).toEqual('$5.00');
-            expect(formatValue('gbp', 2, 5)).toEqual('£5.00');
-            expect(formatValue('gbp', -2, 5)).toEqual('£5.00');
-            expect(formatValue('gbp', -2, 5.25)).toEqual('£5.25');
-            expect(formatValue('eur', 2, 5)).toEqual('€5.00');
-            expect(formatValue('eur', -2, 5)).toEqual('€5.00');
-            expect(formatValue('eur', -2, 5.25)).toEqual('€5.25');
-            expect(formatValue('percent', 2, 5)).toEqual('500.00%');
-            expect(formatValue('percent', 2, 0.05)).toEqual('5.00%');
-            expect(formatValue('percent', 2, '5')).toEqual('500.00%');
-            expect(formatValue('percent', 2, 0.0511)).toEqual('5.11%');
-            expect(formatValue('percent', 4, 0.0511)).toEqual('5.1100%');
-            expect(formatValue('percent', 2, 'foo')).toEqual('foo');
-            expect(formatValue('percent', 2, false)).toEqual('false');
-            expect(formatValue('percent', -2, 0.05)).toEqual('5%');
-            expect(formatValue('percent', -2, '5')).toEqual('500%');
-            expect(formatValue('', 2, 5)).toEqual('5.00');
+            expect(
+                formatValue(5, {
+                    format: 'km',
+                    round: 2,
+                }),
+            ).toEqual('5.00 km');
+            expect(
+                formatValue(5, {
+                    format: 'km',
+                    round: -2,
+                }),
+            ).toEqual('5 km');
+            expect(
+                formatValue(5, {
+                    format: 'mi',
+                    round: 4,
+                }),
+            ).toEqual('5.0000 mi');
+            expect(
+                formatValue(5, {
+                    format: 'mi',
+                    round: -4,
+                }),
+            ).toEqual('5 mi');
+            expect(
+                formatValue(5, {
+                    format: 'usd',
+                    round: 2,
+                }),
+            ).toEqual('$5.00');
+            expect(
+                formatValue(5.0, {
+                    format: 'usd',
+                    round: 0,
+                }),
+            ).toEqual('$5');
+            expect(
+                formatValue(5, {
+                    format: 'usd',
+                    round: -2,
+                }),
+            ).toEqual('$5.00');
+            expect(
+                formatValue(5.25, {
+                    format: 'usd',
+                    round: -1,
+                }),
+            ).toEqual('$5.25');
+            expect(
+                formatValue('5.0000', {
+                    format: 'usd',
+                    round: 2,
+                }),
+            ).toEqual('$5.00');
+            expect(
+                formatValue(5, {
+                    format: 'gbp',
+                    round: 2,
+                }),
+            ).toEqual('£5.00');
+            expect(
+                formatValue(5, {
+                    format: 'gbp',
+                    round: -2,
+                }),
+            ).toEqual('£5.00');
+            expect(
+                formatValue(5.25, {
+                    format: 'gbp',
+                    round: -2,
+                }),
+            ).toEqual('£5.25');
+            expect(
+                formatValue(5, {
+                    format: 'eur',
+                    round: 2,
+                }),
+            ).toEqual('€5.00');
+            expect(
+                formatValue(5, {
+                    format: 'eur',
+                    round: -2,
+                }),
+            ).toEqual('€5.00');
+            expect(
+                formatValue(5.25, {
+                    format: 'eur',
+                    round: -2,
+                }),
+            ).toEqual('€5.25');
+            expect(
+                formatValue(5, {
+                    format: 'percent',
+                    round: 2,
+                }),
+            ).toEqual('500.00%');
+            expect(
+                formatValue(0.05, {
+                    format: 'percent',
+                    round: 2,
+                }),
+            ).toEqual('5.00%');
+            expect(
+                formatValue('5', {
+                    format: 'percent',
+                    round: 2,
+                }),
+            ).toEqual('500.00%');
+            expect(
+                formatValue(0.0511, {
+                    format: 'percent',
+                    round: 2,
+                }),
+            ).toEqual('5.11%');
+            expect(
+                formatValue(0.0511, {
+                    format: 'percent',
+                    round: 4,
+                }),
+            ).toEqual('5.1100%');
+            expect(
+                formatValue('foo', {
+                    format: 'percent',
+                    round: 2,
+                }),
+            ).toEqual('foo');
+            expect(
+                formatValue(false, {
+                    format: 'percent',
+                    round: 2,
+                }),
+            ).toEqual('false');
+            expect(
+                formatValue(0.05, {
+                    format: 'percent',
+                    round: -2,
+                }),
+            ).toEqual('5%');
+            expect(
+                formatValue('5', {
+                    format: 'percent',
+                    round: -2,
+                }),
+            ).toEqual('500%');
+            expect(
+                formatValue(5, {
+                    format: '',
+                    round: 2,
+                }),
+            ).toEqual('5.00');
         });
 
         test('formatValue should return the right style', async () => {
             const T = NumberStyle.THOUSANDS;
             const M = NumberStyle.MILLIONS;
             const B = NumberStyle.BILLIONS;
-            expect(formatValue(undefined, undefined, 5, T)).toEqual('0.01K');
-            expect(formatValue(undefined, undefined, 5, M)).toEqual('0.00M');
-            expect(formatValue(undefined, undefined, 500000, B)).toEqual(
-                '0.00B',
+            expect(formatValue(5, { numberStyle: T })).toEqual('0.01K');
+            expect(formatValue(5, { numberStyle: M })).toEqual('0.00M');
+            expect(formatValue(500000, { numberStyle: B })).toEqual('0.00B');
+            expect(formatValue(5, { numberStyle: B })).toEqual('0.00B');
+            expect(formatValue(5, { numberStyle: M, round: 2 })).toEqual(
+                '0.00M',
             );
-            expect(formatValue(undefined, undefined, 5, B)).toEqual('0.00B');
-            expect(formatValue(undefined, 2, 5, M)).toEqual('0.00M');
 
-            expect(formatValue('km', 2, 5000, T)).toEqual('5.00K km');
-            expect(formatValue('mi', 4, 50000, T)).toEqual('50.0000K mi');
-            expect(formatValue('usd', 2, 5000, T)).toEqual('$5.00K');
-            expect(formatValue('usd', 2, 5000000, T)).toEqual('$5,000.00K');
-            expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
+            expect(
+                formatValue(5000, { numberStyle: T, round: 2, format: 'km' }),
+            ).toEqual('5.00K km');
+            expect(
+                formatValue(50000, {
+                    numberStyle: T,
+                    round: 4,
+                    format: 'mi',
+                }),
+            ).toEqual('50.0000K mi');
+            expect(
+                formatValue(5000, {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5.00K');
+            expect(
+                formatValue(5000000, {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5,000.00K');
+            expect(
+                formatValue(5000000, {
+                    numberStyle: M,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5.00M');
 
-            expect(formatValue('usd', 2, 4, T)).toEqual('$0.00K');
-            expect(formatValue('usd', 3, 4, T)).toEqual('$0.004K');
+            expect(
+                formatValue(4, {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$0.00K');
+            expect(
+                formatValue(4, {
+                    numberStyle: T,
+                    round: 3,
+                    format: 'usd',
+                }),
+            ).toEqual('$0.004K');
 
-            expect(formatValue('usd', 2, 5000000, M)).toEqual('$5.00M');
-            expect(formatValue('usd', 2, 5000000000, M)).toEqual('$5,000.00M');
-            expect(formatValue('usd', 2, 5000000000, B)).toEqual('$5.00B');
+            expect(
+                formatValue(5000000, {
+                    numberStyle: M,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5.00M');
+            expect(
+                formatValue(5000000000, {
+                    numberStyle: M,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5,000.00M');
+            expect(
+                formatValue(5000000000, {
+                    numberStyle: B,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5.00B');
 
-            expect(formatValue('usd', 0, 5000.0, T)).toEqual('$5K');
-            expect(formatValue('usd', 2, '5000', T)).toEqual('$5.00K');
-            expect(formatValue('gbp', 2, 5000, T)).toEqual('£5.00K');
-            expect(formatValue('eur', 2, 5000, T)).toEqual('€5.00K');
-            expect(formatValue('percent', 2, 0.05, T)).toEqual('5.00%'); // No affects percent
-            expect(formatValue('', 2, 5000, T)).toEqual('5.00K');
+            expect(
+                formatValue(5000.0, {
+                    numberStyle: T,
+                    round: 0,
+                    format: 'usd',
+                }),
+            ).toEqual('$5K');
+            expect(
+                formatValue('5000', {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'usd',
+                }),
+            ).toEqual('$5.00K');
+            expect(
+                formatValue(5000, {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'gbp',
+                }),
+            ).toEqual('£5.00K');
+            expect(
+                formatValue(5000, {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'eur',
+                }),
+            ).toEqual('€5.00K');
+            expect(
+                formatValue(0.05, {
+                    numberStyle: T,
+                    round: 2,
+                    format: 'percent',
+                }),
+            ).toEqual('5.00%'); // No affects percent
+            expect(
+                formatValue(5000, {
+                    numberStyle: T,
+                    round: 2,
+                    format: '',
+                }),
+            ).toEqual('5.00K');
         });
     });
     describe('format field value', () => {
