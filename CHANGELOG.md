@@ -1,3 +1,13 @@
+## [0.313.3](https://github.com/lightdash/lightdash/compare/0.313.2...0.313.3) (2022-11-07)
+
+
+### Bug Fixes
+
+* dashboard table cell context menu options ([#3686](https://github.com/lightdash/lightdash/issues/3686)) ([31c28c4](https://github.com/lightdash/lightdash/commit/31c28c48a4265ac571a9c34f03afc9c1b49cb451))
+* popover position for metrics/dimensions ([#3694](https://github.com/lightdash/lightdash/issues/3694)) ([a6a55cc](https://github.com/lightdash/lightdash/commit/a6a55cca97023bb0c86d330f2631f1f74ec11668))
+* table column hide button ([#3697](https://github.com/lightdash/lightdash/issues/3697)) ([e0d4635](https://github.com/lightdash/lightdash/commit/e0d4635c8f7721a189fa7d098cde86d63cee1416))
+* underlying data with unsaved dashboard filter ([#3687](https://github.com/lightdash/lightdash/issues/3687)) ([d2dc8c0](https://github.com/lightdash/lightdash/commit/d2dc8c06fc07a9f57764e0ea0d62977415a7a5f4))
+
 ## [0.313.2](https://github.com/lightdash/lightdash/compare/0.313.1...0.313.2) (2022-11-04)
 
 
