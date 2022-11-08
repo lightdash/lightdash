@@ -515,4 +515,34 @@ describe('Common index', () => {
             ).toEqual([date]);
         });
     });
+
+    describe('filter rule with default values', () => {
+        test('should return with undefined values', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [])
+                    .values,
+            ).toEqual([]);
+        });
+        test('should return with empty values', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [])
+                    .values,
+            ).toEqual([]);
+        });
+        test('should return single value', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [
+                    'test',
+                ]).values,
+            ).toEqual(['test']);
+        });
+        test('should return multiple values', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [
+                    'test',
+                    'test2',
+                ]).values,
+            ).toEqual(['test', 'test2']);
+        });
+    });
 });

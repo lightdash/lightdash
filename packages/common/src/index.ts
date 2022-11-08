@@ -389,7 +389,7 @@ export const createFilterRuleFromField = (
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
-        value,
+        value ? [value] : [],
     );
 
 export const createDashboardFilterRuleFromField = (
