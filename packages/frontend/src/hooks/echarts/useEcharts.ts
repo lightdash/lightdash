@@ -31,6 +31,7 @@ import {
     Series,
     TableCalculation,
     timeFrameConfigs,
+    TimeFrames,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
@@ -524,6 +525,18 @@ const getEchartAxis = ({
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(field, value, true);
+                },
+            };
+        } else if (
+            isDimension(field) &&
+            field.timeInterval &&
+            isTimeInterval(field.timeInterval) &&
+            (field.timeInterval === TimeFrames.WEEK ||
+                field.timeInterval === TimeFrames.DAY)
+        ) {
+            axisConfig.axisLabel = {
+                formatter: {
+                    hour: '',
                 },
             };
         }

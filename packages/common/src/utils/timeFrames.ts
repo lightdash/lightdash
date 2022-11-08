@@ -280,13 +280,13 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getLabel: () => 'Day',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
-        getAxisMinInterval: () => 86400000,
+        getAxisMinInterval: () => null,
     },
     WEEK: {
         getLabel: () => 'Week',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
-        getAxisMinInterval: () => 86400000,
+        getAxisMinInterval: () => null,
     },
     MONTH: {
         getLabel: () => 'Month',
