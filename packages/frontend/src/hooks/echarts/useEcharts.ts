@@ -520,24 +520,22 @@ const getEchartAxis = ({
             field.timeInterval &&
             isTimeInterval(field.timeInterval) &&
             timeFrameConfigs[field.timeInterval].getAxisMinInterval();
+        const axisLabelFormatter =
+            isDimension(field) &&
+            field.timeInterval &&
+            isTimeInterval(field.timeInterval) &&
+            timeFrameConfigs[field.timeInterval].getAxisLabelFormatter();
         const axisConfig: Record<string, any> = {};
+
         if (field && (hasFormattingConfig || axisMinInterval)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(field, value, true);
                 },
             };
-        } else if (
-            isDimension(field) &&
-            (field.timeInterval === TimeFrames.WEEK ||
-                field.timeInterval === TimeFrames.DAY)
-        ) {
-            // If timeInterval is WEEK or DAY, we don't show time on the axis
-            // We don't use axisMinInterval becuase that breaks the dynamic format on dates
+        } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
-                formatter: {
-                    hour: '',
-                },
+                formatter: axisLabelFormatter,
             };
         }
         if (axisMinInterval) {
