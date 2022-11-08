@@ -5,6 +5,7 @@ import {
     dateMonthDimension,
     dateYearDimension,
     emptyValueFilter,
+    stringDimension,
 } from './index.mock';
 
 describe('Common index', () => {
@@ -44,6 +45,45 @@ describe('Common index', () => {
                     undefined,
                 ).values,
             ).toEqual([date]);
+        });
+    });
+
+    describe('filter rule with default values', () => {
+        test('should return with undefined values', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    undefined,
+                ).values,
+            ).toEqual([]);
+        });
+        test('should return with empty values', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    [],
+                ).values,
+            ).toEqual([]);
+        });
+        test('should return single value', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    ['test'],
+                ).values,
+            ).toEqual(['test']);
+        });
+        test('should return multiple values', async () => {
+            expect(
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    ['test1', 'test2'],
+                ).values,
+            ).toEqual(['test1', 'test2']);
         });
     });
 });

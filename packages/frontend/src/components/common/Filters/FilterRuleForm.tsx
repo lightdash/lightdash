@@ -96,9 +96,9 @@ const FilterRuleForm: FC<Props> = ({
                                         operator: e.currentTarget
                                             .value as FilterRule['operator'],
                                     },
-                                    filterRule.values
-                                        ? filterRule.values[0]
-                                        : 1,
+                                    (filterRule.values?.length || 0) > 0
+                                        ? filterRule.values
+                                        : [1],
                                 ),
                             );
                         }}
