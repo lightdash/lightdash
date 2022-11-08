@@ -1,3 +1,11 @@
+# [0.316.0](https://github.com/lightdash/lightdash/compare/0.315.1...0.316.0) (2022-11-08)
+
+
+### Features
+
+* remove collapsable menus in settings ([#3715](https://github.com/lightdash/lightdash/issues/3715)) ([774cc23](https://github.com/lightdash/lightdash/commit/774cc237e35a1ec2060d3767dcd2fdba5c692881))
+* show static IP ([#3712](https://github.com/lightdash/lightdash/issues/3712)) ([a66a35c](https://github.com/lightdash/lightdash/commit/a66a35c262f27fd69bd99b8ac1e9a1b7ab6b5a5f))
+
 ## [0.315.1](https://github.com/lightdash/lightdash/compare/0.315.0...0.315.1) (2022-11-08)
 
 
