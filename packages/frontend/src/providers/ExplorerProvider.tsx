@@ -768,7 +768,10 @@ function reducer(
             };
         }
         default: {
-            return assertUnreachable(action);
+            return assertUnreachable(
+                action,
+                'Unexpected action in explore reducer',
+            );
         }
     }
 }

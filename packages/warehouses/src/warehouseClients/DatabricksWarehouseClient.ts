@@ -6,7 +6,6 @@ import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
-    assertUnreachable,
     CreateDatabricksCredentials,
     DimensionType,
     ParseError,
@@ -74,7 +73,7 @@ const convertDataTypeToDimensionType = (
         case DatabricksDataTypes.VARCHAR_TYPE:
             return DimensionType.STRING;
         default:
-            return assertUnreachable(type);
+            return DimensionType.STRING;
     }
 };
 
@@ -153,7 +152,7 @@ const mapFieldType = (type: string): DimensionType => {
         case DatabricksTypes.TIMESTAMP:
             return DimensionType.TIMESTAMP;
         default:
-            return assertUnreachable(normalizedType);
+            return DimensionType.STRING;
     }
 };
 
