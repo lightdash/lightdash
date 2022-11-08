@@ -529,11 +529,11 @@ const getEchartAxis = ({
             };
         } else if (
             isDimension(field) &&
-            field.timeInterval &&
-            isTimeInterval(field.timeInterval) &&
             (field.timeInterval === TimeFrames.WEEK ||
                 field.timeInterval === TimeFrames.DAY)
         ) {
+            // If timeInterval is WEEK or DAY, we don't show time on the axis
+            // We don't use axisMinInterval becuase that breaks the dynamic format on dates
             axisConfig.axisLabel = {
                 formatter: {
                     hour: '',
