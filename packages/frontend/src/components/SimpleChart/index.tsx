@@ -45,7 +45,7 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
 export const EmptyChart = () => (
-    <div style={{ height: '100%', padding: '50px 0' }}>
+    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState
             title="No data available"
             description="Query metrics and dimensions with results."
@@ -55,7 +55,7 @@ export const EmptyChart = () => (
 );
 
 export const LoadingChart = () => (
-    <div style={{ height: '100%', padding: '50px 0' }}>
+    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState title="Loading chart" icon={<Spinner />} />
     </div>
 );
