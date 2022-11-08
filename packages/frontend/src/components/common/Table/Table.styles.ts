@@ -11,7 +11,6 @@ export const TableScrollableWrapper = styled.div<ExpandableProps>`
 
     position: relative;
     overflow: auto;
-    height: 100%;
     min-width: 100%;
 `;
 
