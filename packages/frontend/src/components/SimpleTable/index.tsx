@@ -1,13 +1,23 @@
 import { NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
-import { TableWrapper } from './SimpleTable.styles';
 
-const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
+type SimpleTableProps = {
+    isDashboard: boolean;
+    className?: string;
+    $shouldExpand?: boolean;
+};
+
+const SimpleTable: FC<SimpleTableProps> = ({
+    isDashboard,
+    className,
+    $shouldExpand,
+    ...rest
+}) => {
     const {
         isLoading,
         columnOrder,
@@ -35,30 +45,31 @@ const SimpleTable: FC<{ isDashboard: boolean }> = ({ isDashboard }) => {
     }
 
     return (
-        <TableWrapper>
-            <Table
-                status={'success'}
-                data={rows}
-                columns={columns}
-                columnOrder={columnOrder}
-                hideRowNumbers={hideRowNumbers}
-                showColumnCalculation={showColumnCalculation}
-                footer={{
-                    show: showColumnCalculation,
-                }}
-                cellContextMenu={(props) => {
-                    if (isSqlRunner) return <>{props.children}</>;
-                    if (isDashboard)
-                        return (
-                            <DashboardCellContextMenu
-                                {...props}
-                                explore={explore}
-                            />
-                        );
-                    return <CellContextMenu {...props} />;
-                }}
-            />
-        </TableWrapper>
+        <Table
+            $shouldExpand={$shouldExpand}
+            className={className}
+            status="success"
+            data={rows}
+            columns={columns}
+            columnOrder={columnOrder}
+            hideRowNumbers={hideRowNumbers}
+            showColumnCalculation={showColumnCalculation}
+            footer={{
+                show: showColumnCalculation,
+            }}
+            cellContextMenu={(props) => {
+                if (isSqlRunner) return <>{props.children}</>;
+                if (isDashboard)
+                    return (
+                        <DashboardCellContextMenu
+                            {...props}
+                            explore={explore}
+                        />
+                    );
+                return <CellContextMenu {...props} />;
+            }}
+            {...rest}
+        />
     );
 };
 

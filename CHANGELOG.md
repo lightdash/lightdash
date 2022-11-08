@@ -1,3 +1,10 @@
+# [0.317.0](https://github.com/lightdash/lightdash/compare/0.316.0...0.317.0) (2022-11-08)
+
+
+### Features
+
+* chart panel should take the most space ([#3649](https://github.com/lightdash/lightdash/issues/3649)) ([4852f05](https://github.com/lightdash/lightdash/commit/4852f0582e3aaaa20b4a72c235045e15d24e6043))
+
 # [0.316.0](https://github.com/lightdash/lightdash/compare/0.315.1...0.316.0) (2022-11-08)
 
 

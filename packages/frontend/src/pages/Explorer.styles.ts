@@ -1,23 +1,23 @@
 import { Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import { NAVBAR_HEIGHT } from '../components/NavBar/NavBar.styles';
 
 export const PageContainer = styled.div`
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    justify-content: stretch;
-    align-items: flex-start;
 `;
 
 export const SideBar = styled.div`
     display: flex;
     flex-direction: row;
     position: sticky;
-    top: 50px;
+    align-self: flex-start;
+    top: ${NAVBAR_HEIGHT}px;
 `;
 
 export const SideBarCard = styled(Card)`
-    height: calc(100vh - 50px);
+    height: calc(100vh - ${NAVBAR_HEIGHT}px);
     overflow: hidden;
 `;
 

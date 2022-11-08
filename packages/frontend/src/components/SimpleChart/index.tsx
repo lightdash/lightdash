@@ -1,10 +1,10 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { PivotReference } from '@lightdash/common';
-import { Opts } from 'echarts-for-react/lib/types';
-import React, { FC, memo, useCallback, useEffect, useMemo } from 'react';
+import EChartsReact from 'echarts-for-react';
+import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
+import { FC, memo, useCallback, useEffect, useMemo } from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { Chart, ChartWrapper } from './SimpleChart.styles';
 
 type EchartBaseClickEvent = {
     // The component name clicked,
@@ -44,8 +44,8 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
-const EmptyChart = () => (
-    <div style={{ padding: '50px 0' }}>
+export const EmptyChart = () => (
+    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState
             title="No data available"
             description="Query metrics and dimensions with results."
@@ -53,8 +53,9 @@ const EmptyChart = () => (
         />
     </div>
 );
+
 export const LoadingChart = () => (
-    <div style={{ padding: '50px 0' }}>
+    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState title="Loading chart" icon={<Spinner />} />
     </div>
 );
@@ -62,7 +63,13 @@ export const LoadingChart = () => (
 const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
 
-const SimpleChart: FC = memo(() => {
+type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
+    $shouldExpand?: boolean;
+    className?: string;
+    'data-testid'?: string;
+};
+
+const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
@@ -106,15 +113,27 @@ const SimpleChart: FC = memo(() => {
     if (!eChartsOptions) return <EmptyChart />;
 
     return (
-        <ChartWrapper>
-            <Chart
-                ref={chartRef}
-                option={eChartsOptions}
-                notMerge
-                opts={opts}
-                onEvents={onEvents}
-            />
-        </ChartWrapper>
+        <EChartsReact
+            data-testid={props['data-testid']}
+            className={props.className}
+            style={
+                props.$shouldExpand
+                    ? {
+                          height: '100%',
+                          width: '100%',
+                      }
+                    : {
+                          // height defaults to 300px
+                          width: '100%',
+                      }
+            }
+            ref={chartRef}
+            option={eChartsOptions}
+            notMerge
+            opts={opts}
+            onEvents={onEvents}
+            {...props}
+        />
     );
 });
 

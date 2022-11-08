@@ -5,17 +5,44 @@ import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
 
-const LightdashVisualization: FC<{ isDashboard?: boolean }> = memo(
-    ({ isDashboard }) => {
+interface LightdashVisualizationProps {
+    isDashboard?: boolean;
+    className?: string;
+    'data-testid'?: string;
+}
+
+const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
+    ({ isDashboard, className, ...props }) => {
         const { chartType } = useVisualizationContext();
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
-                return <SimpleStatistic />;
+                return (
+                    <SimpleStatistic
+                        className={className}
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             case ChartType.TABLE:
-                return <SimpleTable isDashboard={!!isDashboard} />;
+                return (
+                    <SimpleTable
+                        isDashboard={!!isDashboard}
+                        className={className}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             case ChartType.CARTESIAN:
-                return <SimpleChart />;
+                return (
+                    <SimpleChart
+                        className={className}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             default:
                 return null;
         }

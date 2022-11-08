@@ -50,7 +50,7 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
-        cy.findByText('Charts').prev().click(); // open chart
+        cy.findByText('Charts').parent().findByRole('button').click();
 
         cy.findByText('Save chart').click();
         cy.get('input#chart-name').type('My chart');
@@ -89,7 +89,7 @@ describe('Explore', () => {
         cy.get('button').contains('Run query').click();
 
         // open chart
-        cy.findByText('Charts').prev('button').click();
+        cy.findByText('Charts').parent().findByRole('button').click();
 
         // wait for the chart to finish loading
         cy.findByText('Loading chart').should('not.exist');
@@ -129,7 +129,7 @@ describe('Explore', () => {
         // run query
         cy.get('button').contains('Run query').click();
 
-        cy.findByText('Charts').prev().click(); // open chart
+        cy.findByText('Charts').parent().findByRole('button').click();
 
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
 
@@ -196,7 +196,10 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // open chart
-                    cy.findByText('Charts').prev('button').click();
+                    cy.findByText('Charts')
+                        .parent()
+                        .findByRole('button')
+                        .click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
@@ -206,7 +209,8 @@ describe('Explore', () => {
                     cy.get('[role="menuitem"]').contains('Table').click();
 
                     // check that chart table headers are correct
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization')
+                        .find('th')
                         .contains('Customers - First name')
                         .should('exist');
 
@@ -218,10 +222,12 @@ describe('Explore', () => {
                         .click();
 
                     // check that chart table headers are correct
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization')
+                        .find('th')
                         .contains('Customers - First name')
                         .should('not.exist');
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization')
+                        .find('th')
                         .contains('First name')
                         .should('exist');
                 });
@@ -238,7 +244,10 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // open chart
-                    cy.findByText('Charts').prev('button').click();
+                    cy.findByText('Charts')
+                        .parent()
+                        .findByRole('button')
+                        .click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
@@ -248,7 +257,8 @@ describe('Explore', () => {
                     cy.get('[role="menuitem"]').contains('Table').click();
 
                     // check that chart table headers are correct
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization')
+                        .find('th')
                         .eq(1)
                         .contains('Customers - First name')
                         .should('exist');
@@ -261,7 +271,8 @@ describe('Explore', () => {
                         .blur();
 
                     // check that chart table headers are overridden
-                    cy.get('.explorer-chart th')
+                    cy.findByTestId('visualization')
+                        .find('th')
                         .eq(1)
                         .contains('Overridden header')
                         .should('exist');

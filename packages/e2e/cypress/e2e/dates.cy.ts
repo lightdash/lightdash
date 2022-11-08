@@ -40,12 +40,12 @@ describe('Explore', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').prev().click();
+        cy.findByText('Filters').parent().findByRole('button').click();
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.findByDisplayValue('2022-07-11, 14:23:11:000');
         cy.get('svg g text').contains('2017-02-11, 03:00:00:000 (+00:00)');
         cy.get('tbody td').contains('2017-02-11, 03:00:00:000 (+00:00)');
-        cy.findByText('SQL').prev().click();
+        cy.findByText('SQL').parent().findByRole('button').click();
         cy.get('code')
             .invoke('text')
             .should(
@@ -60,8 +60,8 @@ describe('Explore', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').prev().click();
-        cy.findByText('SQL').prev().click();
+        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByText('SQL').parent().findByRole('button').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by year
@@ -110,8 +110,8 @@ describe('Explore', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').prev().click();
-        cy.findByText('SQL').prev().click();
+        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByText('SQL').parent().findByRole('button').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by raw
@@ -191,8 +191,8 @@ describe('Explore', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').prev().click();
-        cy.findByText('SQL').prev().click();
+        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByText('SQL').parent().findByRole('button').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by year
@@ -263,8 +263,8 @@ describe('Explore', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').prev().click();
-        cy.findByText('SQL').prev().click();
+        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByText('SQL').parent().findByRole('button').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
 
