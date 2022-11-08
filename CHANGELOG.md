@@ -1,3 +1,10 @@
+## [0.317.2](https://github.com/lightdash/lightdash/compare/0.317.1...0.317.2) (2022-11-08)
+
+
+### Bug Fixes
+
+* databricks column type fallback ([#3732](https://github.com/lightdash/lightdash/issues/3732)) ([7612842](https://github.com/lightdash/lightdash/commit/7612842c04c08a08e6d0146599023a281c7217ba))
+
 ## [0.317.1](https://github.com/lightdash/lightdash/compare/0.317.0...0.317.1) (2022-11-08)
 
 
