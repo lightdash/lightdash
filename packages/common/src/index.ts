@@ -289,7 +289,7 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
-    value?: any,
+    values?: any[],
 ): T => {
     const filterType = getFilterTypeFromField(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -301,6 +301,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     ) {
         switch (filterType) {
             case FilterType.DATE: {
+                const value = values ? values[0] : undefined;
+
                 const isTimestamp = field.type === DimensionType.TIMESTAMP;
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
                     const numberValue =
@@ -358,7 +360,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             }
             case FilterType.BOOLEAN: {
                 filterRuleDefaults.values =
-                    value !== undefined ? [value] : [false];
+                    values !== undefined ? values : [false];
                 break;
             }
             default:
@@ -367,7 +369,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     }
     return {
         ...filterRule,
-        values: value !== undefined && value !== null ? [value] : [],
+        values: values !== undefined && values !== null ? values : [],
         settings: undefined,
         ...filterRuleDefaults,
     };
