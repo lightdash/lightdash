@@ -1,3 +1,10 @@
+## [0.315.1](https://github.com/lightdash/lightdash/compare/0.315.0...0.315.1) (2022-11-08)
+
+
+### Bug Fixes
+
+* add proper disabled styles for add to space item ([#3714](https://github.com/lightdash/lightdash/issues/3714)) ([4582cb8](https://github.com/lightdash/lightdash/commit/4582cb8bc12ce370e379763280bde40539972824))
+
 # [0.315.0](https://github.com/lightdash/lightdash/compare/0.314.0...0.315.0) (2022-11-07)
 
 
