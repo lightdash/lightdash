@@ -519,7 +519,7 @@ describe('Common index', () => {
     describe('filter rule with default values', () => {
         test('should return with undefined values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [])
+                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, undefined)
                     .values,
             ).toEqual([]);
         });
