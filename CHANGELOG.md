@@ -1,3 +1,10 @@
+## [0.317.1](https://github.com/lightdash/lightdash/compare/0.317.0...0.317.1) (2022-11-08)
+
+
+### Bug Fixes
+
+* keep values when changing operator on filter ([#3725](https://github.com/lightdash/lightdash/issues/3725)) ([91f7f12](https://github.com/lightdash/lightdash/commit/91f7f12e0ceed8f46f8a7f00131e389dad1af49c))
+
 # [0.317.0](https://github.com/lightdash/lightdash/compare/0.316.0...0.317.0) (2022-11-08)
 
 
