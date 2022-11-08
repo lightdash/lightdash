@@ -1,9 +1,9 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import React from 'react';
 import styled from 'styled-components';
 
 const NonIdealStateWithPadding = styled(NonIdealState)`
-    padding-top: 20px;
+    padding-top: 50px;
+    padding-bottom: 30px;
     flex: 1;
 `;
 

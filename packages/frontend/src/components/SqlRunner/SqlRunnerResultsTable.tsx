@@ -6,7 +6,6 @@ import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
 import { TrackSection } from '../../providers/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import Table from '../common/Table';
-import { TableMaxHeightContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 import RunSqlQueryButton from './RunSqlQueryButton';
 
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (

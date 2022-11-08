@@ -7,8 +7,6 @@ export const PageWrapper = styled.div`
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    justify-content: stretch;
-    align-items: stretch;
 `;
 
 export const MainContent = styled.div`
