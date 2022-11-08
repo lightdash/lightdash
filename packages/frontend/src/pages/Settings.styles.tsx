@@ -20,8 +20,6 @@ export const Title = styled(H5)`
     tex-align: left;
 `;
 
-export const SidebarMenu = styled(Menu)``;
-
 export const MenuWrapper = styled.div`
     margin-top: 15px;
 `;

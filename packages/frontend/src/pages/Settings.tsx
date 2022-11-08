@@ -1,5 +1,5 @@
-import { Collapse, NonIdealState } from '@blueprintjs/core';
-import { FC, useState } from 'react';
+import { Menu, NonIdealState } from '@blueprintjs/core';
+import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import PageWithSidebar from '../components/common/Page/PageWithSidebar';
@@ -25,7 +25,6 @@ import {
     ContentWrapper,
     MenuHeader,
     MenuWrapper,
-    SidebarMenu,
     Title,
 } from './Settings.styles';
 
@@ -79,7 +78,7 @@ const Settings: FC = () => {
                 <MenuWrapper>
                     <MenuHeader>User settings</MenuHeader>
 
-                    <SidebarMenu>
+                    <Menu>
                         <RouterMenuItem text="Profile" exact to={basePath} />
 
                         {allowPasswordAuthentication && (
@@ -104,13 +103,13 @@ const Settings: FC = () => {
                             exact
                             to={`${basePath}/personalAccessTokens`}
                         />
-                    </SidebarMenu>
+                    </Menu>
                 </MenuWrapper>
 
                 <MenuWrapper>
                     <MenuHeader>Organization settings</MenuHeader>
 
-                    <SidebarMenu>
+                    <Menu>
                         {user.ability.can('manage', 'Organization') && (
                             <RouterMenuItem
                                 text="Organization"
@@ -143,7 +142,7 @@ const Settings: FC = () => {
                             exact
                             to={`${basePath}/appearance`}
                         />
-                    </SidebarMenu>
+                    </Menu>
                 </MenuWrapper>
             </Sidebar>
 
