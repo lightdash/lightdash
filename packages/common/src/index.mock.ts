@@ -34,3 +34,14 @@ export const emptyValueFilter: FilterRule = {
     settings: undefined,
     values: [],
 };
+
+export const stringDimension: Dimension = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'name',
+    label: 'label',
+    table: 'table',
+    tableLabel: 'tableLabel',
+    sql: 'sql',
+    hidden: false,
+};

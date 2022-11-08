@@ -5,6 +5,7 @@ import {
     dateMonthDimension,
     dateYearDimension,
     emptyValueFilter,
+    stringDimension,
 } from './index.mock';
 
 describe('Common index', () => {
@@ -51,7 +52,7 @@ describe('Common index', () => {
         test('should return with undefined values', async () => {
             expect(
                 getFilterRuleWithDefaultValue(
-                    dimension,
+                    stringDimension,
                     emptyValueFilter,
                     undefined,
                 ).values,
@@ -59,23 +60,29 @@ describe('Common index', () => {
         });
         test('should return with empty values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [])
-                    .values,
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    [],
+                ).values,
             ).toEqual([]);
         });
         test('should return single value', async () => {
             expect(
-                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [
-                    'test',
-                ]).values,
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    ['test'],
+                ).values,
             ).toEqual(['test']);
         });
         test('should return multiple values', async () => {
             expect(
-                getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [
-                    'test1',
-                    'test2',
-                ]).values,
+                getFilterRuleWithDefaultValue(
+                    stringDimension,
+                    emptyValueFilter,
+                    ['test1', 'test2'],
+                ).values,
             ).toEqual(['test1', 'test2']);
         });
     });
