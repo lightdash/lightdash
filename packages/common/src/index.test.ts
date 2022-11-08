@@ -542,10 +542,10 @@ describe('Common index', () => {
         test('should return multiple values', async () => {
             expect(
                 getFilterRuleWithDefaultValue(dimension, emptyValueFilter, [
-                    'test',
+                    'test1',
                     'test2',
                 ]).values,
-            ).toEqual(['test', 'test2']);
+            ).toEqual(['test1', 'test2']);
         });
     });
 });
