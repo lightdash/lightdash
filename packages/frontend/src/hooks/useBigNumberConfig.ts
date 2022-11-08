@@ -145,7 +145,7 @@ const useBigNumberConfig = (
                   : isField(item)
                   ? item.round
                   : undefined,
-              numberStyle: bigNumberStyle,
+              compact: bigNumberStyle,
           });
 
     const showStyle = isNumber && (!isField(item) || item.format !== 'percent');

@@ -3,13 +3,13 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { ColumnInfo, CompiledModelNode, ParsedMetric } from './dbtFromSchema';
 import { DbtError, ParseError } from './errors';
 import {
+    CompactOrAlias,
     DimensionType,
     FieldType,
     FieldUrl,
     friendlyName,
     Metric,
     MetricType,
-    NumberStyleOrAlias,
     Source,
 } from './field';
 import { parseFilters } from './filterGrammar';
@@ -71,7 +71,7 @@ type DbtColumnLightdashDimension = {
     time_intervals?: 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyleOrAlias;
+    compact?: CompactOrAlias;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
@@ -84,7 +84,7 @@ export type DbtColumnLightdashMetric = {
     sql?: string;
     hidden?: boolean;
     round?: number;
-    compact?: NumberStyleOrAlias;
+    compact?: CompactOrAlias;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];

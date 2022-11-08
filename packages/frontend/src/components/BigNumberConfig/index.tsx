@@ -1,10 +1,6 @@
 import { Button, FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import {
-    getItemId,
-    NumberStyleConfigMap,
-    NumberStyleOrAlias,
-} from '@lightdash/common';
+import { CompactConfigMap, CompactOrAlias, getItemId } from '@lightdash/common';
 import React, { useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -12,8 +8,8 @@ import { InputWrapper } from './BigNumberConfig.styles';
 
 const StyleOptions = [
     { value: '', label: 'none' },
-    ...Object.values(NumberStyleConfigMap).map(({ numberStyle, label }) => ({
-        value: numberStyle,
+    ...Object.values(CompactConfigMap).map(({ compact, label }) => ({
+        value: compact,
         label,
     })),
 ];
@@ -79,8 +75,7 @@ export const BigNumberConfigPanel: React.FC = () => {
                                         setBigNumberStyle(undefined);
                                     } else {
                                         setBigNumberStyle(
-                                            e.target
-                                                .value as NumberStyleOrAlias,
+                                            e.target.value as CompactOrAlias,
                                         );
                                     }
                                 }}

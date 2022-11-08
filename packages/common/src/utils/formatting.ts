@@ -1,12 +1,12 @@
 import moment, { MomentInput } from 'moment';
 import {
+    CompactOrAlias,
     DimensionType,
     Field,
-    findNumberStyleConfig,
+    findCompactConfig,
     isDimension,
     isField,
     MetricType,
-    NumberStyleOrAlias,
 } from '../types/field';
 import {
     AdditionalMetric,
@@ -102,14 +102,14 @@ function roundNumber(
     options?: {
         format?: string;
         round?: number;
-        numberStyle?: NumberStyleOrAlias;
+        compact?: CompactOrAlias;
     },
 ): string {
-    const { format, round, numberStyle } = options || {};
+    const { format, round, compact } = options || {};
 
     const invalidRound = round === undefined || round < 0;
     if (invalidRound && !format) {
-        return numberStyle && !Number.isInteger(value)
+        return compact && !Number.isInteger(value)
             ? `${value}`
             : new Intl.NumberFormat('en-US').format(Number(value));
     }
@@ -138,22 +138,20 @@ function styleNumber(
     options?: {
         format?: string;
         round?: number;
-        numberStyle?: NumberStyleOrAlias;
+        compact?: CompactOrAlias;
     },
 ): string {
-    const { format, round, numberStyle } = options || {};
-    if (numberStyle) {
-        const numberStyleRound =
-            numberStyle && round === undefined && format === undefined
-                ? 2
-                : round;
-        const numberStyleConfig = findNumberStyleConfig(numberStyle);
-        if (numberStyleConfig) {
-            return `${roundNumber(numberStyleConfig.convertFn(Number(value)), {
+    const { format, round, compact } = options || {};
+    if (compact) {
+        const compactRound =
+            compact && round === undefined && format === undefined ? 2 : round;
+        const compactConfig = findCompactConfig(compact);
+        if (compactConfig) {
+            return `${roundNumber(compactConfig.convertFn(Number(value)), {
                 format,
-                round: numberStyleRound,
-                numberStyle,
-            })}${numberStyleConfig.suffix}`;
+                round: compactRound,
+                compact,
+            })}${compactConfig.suffix}`;
         }
     }
     return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
@@ -164,7 +162,7 @@ export function formatValue(
     options?: {
         format?: string;
         round?: number;
-        numberStyle?: NumberStyleOrAlias;
+        compact?: CompactOrAlias;
     },
 ): string {
     if (value === null) return '∅';
@@ -172,9 +170,9 @@ export function formatValue(
     if (!isNumber(value)) {
         return `${value}`;
     }
-    const { format, round, numberStyle } = options || {};
+    const { format, round, compact } = options || {};
 
-    const styledValue = numberStyle
+    const styledValue = compact
         ? styleNumber(value, options)
         : roundNumber(value, { round, format });
     switch (format) {
@@ -224,7 +222,7 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-            return formatValue(value, { format, round, numberStyle: compact });
+            return formatValue(value, { format, round, compact });
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return formatBoolean(value);
@@ -250,7 +248,7 @@ export function formatFieldValue(
                     convertToUTC,
                 );
             }
-            return formatValue(value, { format, round, numberStyle: compact });
+            return formatValue(value, { format, round, compact });
         }
         default: {
             return `${value}`;

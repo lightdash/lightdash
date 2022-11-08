@@ -1,12 +1,12 @@
 import moment from 'moment';
 import {
+    Compact,
     DimensionType,
     formatFieldValue,
     formatItemValue,
     formatValue,
     getFilterRuleWithDefaultValue,
     MetricType,
-    NumberStyle,
 } from '.';
 import {
     dateDayDimension,
@@ -252,44 +252,42 @@ describe('Common index', () => {
         });
 
         test('formatValue should return the right style', async () => {
-            const T = NumberStyle.THOUSANDS;
-            const M = NumberStyle.MILLIONS;
-            const B = NumberStyle.BILLIONS;
-            expect(formatValue(5, { numberStyle: T })).toEqual('0.01K');
-            expect(formatValue(5, { numberStyle: M })).toEqual('0.00M');
-            expect(formatValue(500000, { numberStyle: B })).toEqual('0.00B');
-            expect(formatValue(5, { numberStyle: B })).toEqual('0.00B');
-            expect(formatValue(5, { numberStyle: M, round: 2 })).toEqual(
-                '0.00M',
-            );
+            const T = Compact.THOUSANDS;
+            const M = Compact.MILLIONS;
+            const B = Compact.BILLIONS;
+            expect(formatValue(5, { compact: T })).toEqual('0.01K');
+            expect(formatValue(5, { compact: M })).toEqual('0.00M');
+            expect(formatValue(500000, { compact: B })).toEqual('0.00B');
+            expect(formatValue(5, { compact: B })).toEqual('0.00B');
+            expect(formatValue(5, { compact: M, round: 2 })).toEqual('0.00M');
 
             expect(
-                formatValue(5000, { numberStyle: T, round: 2, format: 'km' }),
+                formatValue(5000, { compact: T, round: 2, format: 'km' }),
             ).toEqual('5.00K km');
             expect(
                 formatValue(50000, {
-                    numberStyle: T,
+                    compact: T,
                     round: 4,
                     format: 'mi',
                 }),
             ).toEqual('50.0000K mi');
             expect(
                 formatValue(5000, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'usd',
                 }),
             ).toEqual('$5.00K');
             expect(
                 formatValue(5000000, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'usd',
                 }),
             ).toEqual('$5,000.00K');
             expect(
                 formatValue(5000000, {
-                    numberStyle: M,
+                    compact: M,
                     round: 2,
                     format: 'usd',
                 }),
@@ -297,14 +295,14 @@ describe('Common index', () => {
 
             expect(
                 formatValue(4, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'usd',
                 }),
             ).toEqual('$0.00K');
             expect(
                 formatValue(4, {
-                    numberStyle: T,
+                    compact: T,
                     round: 3,
                     format: 'usd',
                 }),
@@ -312,21 +310,21 @@ describe('Common index', () => {
 
             expect(
                 formatValue(5000000, {
-                    numberStyle: M,
+                    compact: M,
                     round: 2,
                     format: 'usd',
                 }),
             ).toEqual('$5.00M');
             expect(
                 formatValue(5000000000, {
-                    numberStyle: M,
+                    compact: M,
                     round: 2,
                     format: 'usd',
                 }),
             ).toEqual('$5,000.00M');
             expect(
                 formatValue(5000000000, {
-                    numberStyle: B,
+                    compact: B,
                     round: 2,
                     format: 'usd',
                 }),
@@ -334,42 +332,42 @@ describe('Common index', () => {
 
             expect(
                 formatValue(5000.0, {
-                    numberStyle: T,
+                    compact: T,
                     round: 0,
                     format: 'usd',
                 }),
             ).toEqual('$5K');
             expect(
                 formatValue('5000', {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'usd',
                 }),
             ).toEqual('$5.00K');
             expect(
                 formatValue(5000, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'gbp',
                 }),
             ).toEqual('£5.00K');
             expect(
                 formatValue(5000, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'eur',
                 }),
             ).toEqual('€5.00K');
             expect(
                 formatValue(0.05, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: 'percent',
                 }),
             ).toEqual('5.00%'); // No affects percent
             expect(
                 formatValue(5000, {
-                    numberStyle: T,
+                    compact: T,
                     round: 2,
                     format: '',
                 }),
