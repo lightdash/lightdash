@@ -753,6 +753,37 @@ const getEchartAxis = ({
     };
 };
 
+const getValidStack = (series: EChartSeries | undefined) => {
+    return series && (series.type === 'bar' || !!series.areaStyle)
+        ? series.stack
+        : undefined;
+};
+
+const stackTotalLabelFormatter = (stack: string, series: EChartSeries[]) => {
+    return (param: { seriesIndex: number; data: Record<string, unknown> }) => {
+        console.log('stack', stack);
+        console.log('series', series);
+        console.log('params', param);
+        if (stack) {
+            let sum = 0;
+            series.forEach((serie) => {
+                if (stack === getValidStack(serie)) {
+                    console.log(
+                        'add',
+                        serie.encode,
+                        param.data[serie.encode.y],
+                    );
+                    if (param.data[serie.encode.y]) {
+                        sum += Number(param.data[serie.encode.y]);
+                    }
+                }
+            });
+            return sum;
+        }
+        return null;
+    };
+};
+
 const useEcharts = () => {
     const context = useVisualizationContext();
     const {
@@ -845,17 +876,35 @@ const useEcharts = () => {
     }, [items, series, validCartesianConfig, resultsData]);
 
     //Remove stacking from invalid series
-    const stackedSeries = useMemo(
-        () =>
-            series.map((serie) => ({
+    const stackedSeries = useMemo(() => {
+        const uniqueStacks = series.reduce<string[]>((acc, serie) => {
+            const stack = getValidStack(serie);
+            return !stack || acc.includes(stack) ? acc : [...acc, stack];
+        }, []);
+        const stackTotalsSeries = uniqueStacks.map((stack) => ({
+            stack: stack,
+            type: 'bar',
+            encode: {
+                x: 'orders_order_date_month',
+                y: 'fake',
+                seriesName: `${stack}_stack_total`,
+            },
+            label: {
+                show: true,
+                formatter: stackTotalLabelFormatter(stack, series),
+                fontSize: 20,
+                color: 'black',
+                position: 'top',
+            },
+        }));
+        return [
+            ...series.map((serie, index) => ({
                 ...serie,
-                stack:
-                    serie.type === 'bar' || !!serie.areaStyle
-                        ? serie.stack
-                        : undefined,
+                stack: getValidStack(serie),
             })),
-        [series],
-    );
+            ...stackTotalsSeries,
+        ];
+    }, [series]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =
