@@ -224,10 +224,12 @@ models:
     - name: revenue
       meta:
         dimension:
-          compact: millions
+          compact: thousands
 ```
 
-Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
+As an example, this option will compact the number value from 1,500 to 1.50K.
+
+Check out [this doc](https://docs.lightdash.com/references/dimensions#compact-values) to see all the other compact values.
 
 ### To compact your metrics, you just need to add `compact` to their properties
 
@@ -246,7 +248,9 @@ models:
             compact: billions
 ```
 
-Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
+As an example, this option will compact the number value from 1,500,000,000 to 1.50B.
+
+Check out [this doc](https://docs.lightdash.com/references/metrics#compact-values) to see all the other compact values.
 
 ## Using the `format` label to add units to your values
 

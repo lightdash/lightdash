@@ -91,11 +91,24 @@ All the properties you can customize:
 | hidden                            | No       | boolean                                                                                                                                           | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                           |
 | round                             | No       | number                                                                                                                                            | Rounds a number to a specified number of digits                                                                                                                                                                                                            |
 | format                            | No       | string                                                                                                                                            | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent']`                                                                                       |
-| [compact](#compact)               | No       | string                                                                                                                                            | This option will compact the number value on the result table and CSV export. Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                |
+| [compact](#compact-values)        | No       | string                                                                                                                                            | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                             |
 | group_label                       | No       | string                                                                                                                                            | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
 | [urls](#urls)                     | No       | Array of { url, label }                                                                                                                           | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
 
 ## Compact values
+
+You can compact values in your YAML. For example, if I wanted all of my revenue values to be shown in thousands (e.g. `1,500` appears as `1.50K`), then I would write something like this in my .yml:
+
+```yaml
+	version: 2
+	models:
+	- name: sales
+	  columns:
+	    - name: revenue
+	      meta:
+	        dimension:
+	            compact: thousands # You can also use 'K'
+```
 
 | Value     | Alias              | Example output |
 |-----------|--------------------|----------------|
