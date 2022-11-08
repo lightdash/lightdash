@@ -43,7 +43,10 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
                     spaceUuid,
                 });
             default:
-                return assertUnreachable(resourceType);
+                return assertUnreachable(
+                    resourceType,
+                    'Unexpected resource type during create',
+                );
         }
     }, [history, resourceType, createDashboard, projectUuid, spaceUuid]);
 

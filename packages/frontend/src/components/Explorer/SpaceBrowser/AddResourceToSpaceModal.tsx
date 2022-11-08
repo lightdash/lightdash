@@ -32,7 +32,10 @@ const getResourceTypeLabel = (resourceType: AddToSpaceResources) => {
         case AddToSpaceResources.CHART:
             return 'Chart';
         default:
-            return assertUnreachable(resourceType);
+            return assertUnreachable(
+                resourceType,
+                'Unexpected resource type when getting label',
+            );
     }
 };
 
