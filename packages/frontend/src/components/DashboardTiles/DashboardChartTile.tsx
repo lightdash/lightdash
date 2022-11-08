@@ -49,7 +49,6 @@ import {
     getDataFromChartClick,
     useUnderlyingDataContext,
 } from '../UnderlyingData/UnderlyingDataProvider';
-import { VisualizationWrapper } from './DashboardChartTile.styles';
 import TileBase from './TileBase/index';
 import { FilterLabel } from './TileBase/TileBase.styles';
 
@@ -388,127 +387,121 @@ const DashboardChartTile: FC<Props> = (props) => {
             }
             {...props}
         >
-            <VisualizationWrapper>
-                {savedQueryWithDashboardFilters ? (
-                    <>
-                        <Popover2
-                            content={
-                                <div onContextMenu={cancelContextMenu}>
-                                    <Menu>
-                                        <MenuItem2
-                                            text={`View underlying data`}
-                                            icon={'layers'}
-                                            onClick={(e) => {
-                                                if (
-                                                    viewUnderlyingDataOptions !==
-                                                    undefined
-                                                ) {
-                                                    const {
-                                                        value,
-                                                        meta,
-                                                        row,
-                                                        dimensions,
-                                                        pivotReference,
-                                                    } = viewUnderlyingDataOptions;
-                                                    viewData(
-                                                        value,
-                                                        meta,
-                                                        row,
-                                                        dimensions,
-                                                        pivotReference,
-                                                        dashboardFiltersThatApplyToChart,
-                                                    );
-                                                }
-                                            }}
-                                        />
+            {savedQueryWithDashboardFilters ? (
+                <>
+                    <Popover2
+                        content={
+                            <div onContextMenu={cancelContextMenu}>
+                                <Menu>
+                                    <MenuItem2
+                                        text={`View underlying data`}
+                                        icon={'layers'}
+                                        onClick={(e) => {
+                                            if (
+                                                viewUnderlyingDataOptions !==
+                                                undefined
+                                            ) {
+                                                const {
+                                                    value,
+                                                    meta,
+                                                    row,
+                                                    dimensions,
+                                                    pivotReference,
+                                                } = viewUnderlyingDataOptions;
+                                                viewData(
+                                                    value,
+                                                    meta,
+                                                    row,
+                                                    dimensions,
+                                                    pivotReference,
+                                                    dashboardFiltersThatApplyToChart,
+                                                );
+                                            }
+                                        }}
+                                    />
 
-                                        <MenuItem2
-                                            icon="filter"
-                                            text="Filter dashboard to..."
-                                        >
-                                            {dashboardTileFilterOptions.map(
-                                                (filter) => (
-                                                    <MenuItem2
-                                                        key={filter.id}
-                                                        text={`${friendlyName(
-                                                            filter.target
-                                                                .fieldId,
-                                                        )} is ${
-                                                            filter.values &&
-                                                            filter.values[0]
-                                                        }`}
-                                                        onClick={() => {
-                                                            track({
-                                                                name: EventName.ADD_FILTER_CLICKED,
-                                                                properties: {
-                                                                    mode: isEditMode
-                                                                        ? 'edit'
-                                                                        : 'viewer',
-                                                                },
-                                                            });
+                                    <MenuItem2
+                                        icon="filter"
+                                        text="Filter dashboard to..."
+                                    >
+                                        {dashboardTileFilterOptions.map(
+                                            (filter) => (
+                                                <MenuItem2
+                                                    key={filter.id}
+                                                    text={`${friendlyName(
+                                                        filter.target.fieldId,
+                                                    )} is ${
+                                                        filter.values &&
+                                                        filter.values[0]
+                                                    }`}
+                                                    onClick={() => {
+                                                        track({
+                                                            name: EventName.ADD_FILTER_CLICKED,
+                                                            properties: {
+                                                                mode: isEditMode
+                                                                    ? 'edit'
+                                                                    : 'viewer',
+                                                            },
+                                                        });
 
-                                                            const fields =
-                                                                explore
-                                                                    ? getFields(
-                                                                          explore,
-                                                                      )
-                                                                    : [];
-                                                            const field =
-                                                                fields.find(
-                                                                    (f) =>
-                                                                        fieldId(
-                                                                            f,
-                                                                        ) ===
-                                                                        filter
-                                                                            .target
-                                                                            .fieldId,
-                                                                );
-
-                                                            track({
-                                                                name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
-                                                                properties: {
-                                                                    fieldType:
-                                                                        field?.type,
-                                                                    projectId:
-                                                                        projectUuid,
-                                                                    dashboardId:
-                                                                        dashboardUuid,
-                                                                },
-                                                            });
-
-                                                            addDimensionDashboardFilter(
-                                                                filter,
-                                                                !isEditMode,
+                                                        const fields = explore
+                                                            ? getFields(explore)
+                                                            : [];
+                                                        const field =
+                                                            fields.find(
+                                                                (f) =>
+                                                                    fieldId(
+                                                                        f,
+                                                                    ) ===
+                                                                    filter
+                                                                        .target
+                                                                        .fieldId,
                                                             );
-                                                        }}
-                                                    />
-                                                ),
-                                            )}
-                                        </MenuItem2>
-                                    </Menu>
-                                </div>
-                            }
-                            enforceFocus={false}
-                            hasBackdrop={true}
-                            isOpen={contextMenuIsOpen}
-                            minimal={true}
-                            onClose={() => setContextMenuIsOpen(false)}
-                            placement="right-start"
-                            positioningStrategy="fixed"
-                            rootBoundary={'viewport'}
-                            renderTarget={contextMenuRenderTarget}
-                            transitionDuration={100}
-                        />
-                        <ValidDashboardChartTile
-                            data={savedQueryWithDashboardFilters}
-                            project={projectUuid}
-                            onSeriesContextMenu={onSeriesContextMenu}
-                        />
-                    </>
-                ) : (
-                    <InvalidDashboardChartTile />
-                )}
-            </VisualizationWrapper>
+
+                                                        track({
+                                                            name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                                                            properties: {
+                                                                fieldType:
+                                                                    field?.type,
+                                                                projectId:
+                                                                    projectUuid,
+                                                                dashboardId:
+                                                                    dashboardUuid,
+                                                            },
+                                                        });
+
+                                                        addDimensionDashboardFilter(
+                                                            filter,
+                                                            !isEditMode,
+                                                        );
+                                                    }}
+                                                />
+                                            ),
+                                        )}
+                                    </MenuItem2>
+                                </Menu>
+                            </div>
+                        }
+                        enforceFocus={false}
+                        hasBackdrop={true}
+                        isOpen={contextMenuIsOpen}
+                        minimal={true}
+                        onClose={() => setContextMenuIsOpen(false)}
+                        placement="right-start"
+                        positioningStrategy="fixed"
+                        rootBoundary={'viewport'}
+                        renderTarget={contextMenuRenderTarget}
+                        transitionDuration={100}
+                    />
+                    <ValidDashboardChartTile
+                        data={savedQueryWithDashboardFilters}
+                        project={projectUuid}
+                        onSeriesContextMenu={onSeriesContextMenu}
+                    />
+                </>
+            ) : (
+                <InvalidDashboardChartTile />
+            )}
         </TileBase>
     );
 };

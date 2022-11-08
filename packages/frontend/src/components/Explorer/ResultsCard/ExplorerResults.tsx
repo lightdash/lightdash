@@ -15,7 +15,6 @@ import {
     EmptyStateNoTableData,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
-import { TableContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = memo(() => {
     const columns = useColumns();
@@ -120,22 +119,20 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
-                <Table
-                    status={status}
-                    data={resultsData?.rows || []}
-                    columns={columns}
-                    columnOrder={explorerColumnOrder}
-                    onColumnOrderChange={setColumnOrder}
-                    cellContextMenu={cellContextMenu}
-                    headerContextMenu={
-                        isEditMode ? ColumnHeaderContextMenu : undefined
-                    }
-                    idleState={IdleState}
-                    pagination={pagination}
-                    footer={footer}
-                />
-            </TableContainer>
+            <Table
+                status={status}
+                data={resultsData?.rows || []}
+                columns={columns}
+                columnOrder={explorerColumnOrder}
+                onColumnOrderChange={setColumnOrder}
+                cellContextMenu={cellContextMenu}
+                headerContextMenu={
+                    isEditMode ? ColumnHeaderContextMenu : undefined
+                }
+                idleState={IdleState}
+                pagination={pagination}
+                footer={footer}
+            />
         </TrackSection>
     );
 });

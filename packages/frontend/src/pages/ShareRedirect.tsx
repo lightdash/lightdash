@@ -8,7 +8,6 @@ export const SharePanel = styled.div`
     margin-top: 50px;
 `;
 
-<div style={{ padding: '50px 0' }}></div>;
 const ShareRedirect: FC = () => {
     const { shareNanoid } = useParams<{ shareNanoid: string }>();
     const { data, error } = useGetShare(shareNanoid);

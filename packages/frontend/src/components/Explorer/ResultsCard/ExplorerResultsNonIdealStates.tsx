@@ -64,6 +64,7 @@ const Questions = styled('p')`
 
 const ExploreNonIdealState = styled(NonIdealState)`
     padding: 50px 0;
+    flex: 1;
 
     & > * {
         max-width: 456px;

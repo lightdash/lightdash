@@ -1,18 +1,34 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
-export const TableContainer = styled.div`
-    flex: 1;
-    padding: 10px;
-    overflow: hidden;
+interface ExpandableProps {
+    $shouldExpand?: boolean;
+}
+
+export const TableScrollableWrapper = styled.div<ExpandableProps>`
     display: flex;
     flex-direction: column;
-`;
 
-export const TableScrollableWrapper = styled.div`
     position: relative;
     overflow: auto;
-    min-height: 90px;
+    min-width: 100%;
+`;
+
+export const TableContainer = styled.div<ExpandableProps>`
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    min-width: 100%;
+    overflow: hidden;
+
+    ${({ $shouldExpand }) =>
+        $shouldExpand
+            ? `
+                height: 100%;
+            `
+            : `
+                max-height: 800px;
+            `}
 `;
 
 export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
@@ -139,6 +155,7 @@ export const PaginationWrapper = styled.div`
 
 export const PageCount = styled.span`
     color: ${Colors.GRAY1};
+    height: 20px;
 `;
 
 export const Th = styled.th``;

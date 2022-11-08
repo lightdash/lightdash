@@ -11,7 +11,6 @@ import {
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
 import { TableColumn } from '../common/Table/types';
-import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
 import CellContextMenu from './CellContextMenu';
 import { LoadingPanel } from './UnderlyingDataModal.styles';
 
@@ -65,21 +64,19 @@ const UnderlyingDataResultsTable: FC<{
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
-                <Table
-                    status={'success'}
-                    data={resultsData?.rows || []}
-                    columns={columns.sort(sortByUnderlyingValues)}
-                    pagination={{
-                        show: true,
-                        defaultScroll: true,
-                    }}
-                    footer={{
-                        show: true,
-                    }}
-                    cellContextMenu={CellContextMenu}
-                />
-            </TableContainer>
+            <Table
+                status={'success'}
+                data={resultsData?.rows || []}
+                columns={columns.sort(sortByUnderlyingValues)}
+                pagination={{
+                    show: true,
+                    defaultScroll: true,
+                }}
+                footer={{
+                    show: true,
+                }}
+                cellContextMenu={CellContextMenu}
+            />
         </TrackSection>
     );
 };
