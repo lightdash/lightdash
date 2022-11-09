@@ -25,12 +25,12 @@ describe('Explore', () => {
 
         // open column menu
         cy.get('th')
-            .contains('Customers - First name')
+            .contains('Customers First name')
             .closest('th')
             .find('button')
             .click();
 
-        // sort `Customers - First-Name` by ascending
+        // sort `Customers First-Name` by ascending
         cy.findByRole('option', { name: 'Sort A-Z' }).click();
 
         // wait for query to finish
@@ -82,8 +82,8 @@ describe('Explore', () => {
         cy.findByText('Unique order count').click();
 
         // check that selected fields are in the table headers
-        cy.get('th').contains('Customers - First name').should('exist');
-        cy.get('th').contains('Orders - Unique order count').should('exist');
+        cy.get('th').contains('Customers First name').should('exist');
+        cy.get('th').contains('Orders Unique order count').should('exist');
 
         // run query
         cy.get('button').contains('Run query').click();
@@ -157,21 +157,21 @@ describe('Explore', () => {
 
             // open column menu
             cy.get('th')
-                .contains('Orders - Unique order count')
+                .contains('Orders Unique order count')
                 .closest('th')
                 .find('button')
                 .click();
-            // sort `Orders - Unique order count` by ascending
+            // sort `Orders Unique order count` by ascending
             cy.findByRole('option', { name: 'Sort 1-9' }).click();
 
             cy.get('span').contains('Sorted by 1 field').should('exist');
 
             cy.get('th')
-                .contains('Customers - First name')
+                .contains('Customers First name')
                 .closest('th')
                 .find('button')
                 .click();
-            // sort `Customers - First name` by ascending
+            // sort `Customers First name` by ascending
             cy.findByRole('option', { name: 'Sort Z-A' }).click();
 
             cy.get('span').contains('Sorted by 2 fields').should('exist');
@@ -211,7 +211,7 @@ describe('Explore', () => {
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
                         .find('th')
-                        .contains('Customers - First name')
+                        .contains('Customers First name')
                         .should('exist');
 
                     // open configuration and flip Show table names in the config
@@ -224,7 +224,7 @@ describe('Explore', () => {
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
                         .find('th')
-                        .contains('Customers - First name')
+                        .contains('Customers First name')
                         .should('not.exist');
                     cy.findByTestId('visualization')
                         .find('th')
@@ -260,7 +260,7 @@ describe('Explore', () => {
                     cy.findByTestId('visualization')
                         .find('th')
                         .eq(1)
-                        .contains('Customers - First name')
+                        .contains('Customers First name')
                         .should('exist');
 
                     // open configuration and flip Show table names in the config

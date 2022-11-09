@@ -121,7 +121,7 @@ export const useColumns = (): TableColumn[] => {
                                 <>
                                     {hasJoins && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel} -{' '}
+                                            {item.tableLabel}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 

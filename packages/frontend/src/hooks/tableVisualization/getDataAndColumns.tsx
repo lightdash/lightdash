@@ -70,7 +70,7 @@ const getDataAndColumns = ({
                                 <>
                                     {showTableNames && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel} -{' '}
+                                            {item.tableLabel}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 
