@@ -266,18 +266,20 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         }}
                     />
                 </SeriesExtraInputWrapper>
-                <SeriesExtraInputWrapper label="Total">
-                    <Switch
-                        checked={seriesGroup[0].stackLabel?.show}
-                        onChange={() => {
-                            updateAllGroupedSeries(fieldKey, {
-                                stackLabel: {
-                                    show: !seriesGroup[0].stackLabel?.show,
-                                },
-                            });
-                        }}
-                    />
-                </SeriesExtraInputWrapper>
+                {seriesGroup[0].stack && (
+                    <SeriesExtraInputWrapper label="Total">
+                        <Switch
+                            checked={seriesGroup[0].stackLabel?.show}
+                            onChange={() => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    stackLabel: {
+                                        show: !seriesGroup[0].stackLabel?.show,
+                                    },
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
+                )}
             </GroupSeriesInputs>
             {(chartValue === CartesianSeriesType.LINE ||
                 chartValue === CartesianSeriesType.AREA) && (
