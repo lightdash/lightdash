@@ -15,6 +15,10 @@ type Dependencies = {
     spaceModel: SpaceModel;
 };
 
+const hasSpaceAccess = (space: Space, userUuid: string): boolean => true;
+// TODO enable this once UI for space access is done
+// return space.access.find(userAccess => userAccess.userUuid === userUuid) !== undefined
+
 export class SpaceService {
     private readonly projectModel: ProjectModel;
 
@@ -31,14 +35,15 @@ export class SpaceService {
     ): Promise<Space[]> {
         const spaces = await this.spaceModel.getAllSpaces(projectUuid);
 
-        return spaces.filter((space) =>
-            user.ability.can(
-                'view',
-                subject('SavedChart', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid,
-                }),
-            ),
+        return spaces.filter(
+            (space) =>
+                user.ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                    }),
+                ) && hasSpaceAccess(space, user.userUuid),
         );
     }
 
@@ -47,9 +52,7 @@ export class SpaceService {
         user: SessionUser,
         spaceUuid: string,
     ): Promise<Space> {
-        const space = await this.spaceModel.getWithQueriesAndDashboards(
-            spaceUuid,
-        );
+        const space = await this.spaceModel.getFullSpace(spaceUuid);
 
         if (
             user.ability.cannot(
@@ -58,10 +61,12 @@ export class SpaceService {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }
+
         return space;
     }
 
@@ -83,6 +88,8 @@ export class SpaceService {
             projectUuid,
             space.name,
         );
+
+        this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
         analytics.track({
             event: 'space.created',
             userId: user.userUuid,
@@ -100,7 +107,7 @@ export class SpaceService {
         spaceUuid: string,
         updateSpace: UpdateSpace,
     ): Promise<Space> {
-        const space = await this.spaceModel.get(spaceUuid);
+        const space = await this.spaceModel.getFullSpace(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -108,7 +115,8 @@ export class SpaceService {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }
@@ -129,7 +137,7 @@ export class SpaceService {
     }
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
-        const space = await this.spaceModel.get(spaceUuid);
+        const space = await this.spaceModel.getFullSpace(spaceUuid);
         if (
             user.ability.cannot(
                 'delete',
@@ -137,7 +145,8 @@ export class SpaceService {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }

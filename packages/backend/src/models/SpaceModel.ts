@@ -317,7 +317,7 @@ export class SpaceModel {
         );
     }
 
-    async getWithQueriesAndDashboards(spaceUuid: string): Promise<Space> {
+    async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
         return {
             organizationUuid: space.organizationUuid,
@@ -339,6 +339,7 @@ export class SpaceModel {
         const [space] = await this.database(SpaceTableName)
             .insert({
                 project_id: project.project_id,
+                is_private: true,
                 name,
             })
             .returning('*');
@@ -347,7 +348,7 @@ export class SpaceModel {
             organizationUuid: space.organization_uuid,
             name: space.name,
             queries: [],
-            isPrivate: true,
+            isPrivate: space.is_private,
             uuid: space.space_uuid,
             projectUuid,
             dashboards: [],
@@ -365,7 +366,7 @@ export class SpaceModel {
         await this.database(SpaceTableName)
             .update<UpdateSpace>(space)
             .where('space_uuid', spaceUuid);
-        return this.getWithQueriesAndDashboards(spaceUuid);
+        return this.getFullSpace(spaceUuid);
     }
 
     async addSpaceAccess(spaceUuid: string, userUuid: string): Promise<void> {

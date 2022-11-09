@@ -12,7 +12,7 @@ export type DbSpace = {
     organization_uuid: string;
 };
 
-type CreateDbSpace = Pick<DbSpace, 'name' | 'project_id'>;
+type CreateDbSpace = Pick<DbSpace, 'name' | 'project_id' | 'is_private'>;
 
 export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;
 export const SpaceTableName = 'spaces';

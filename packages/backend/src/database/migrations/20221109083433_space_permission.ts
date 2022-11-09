@@ -6,7 +6,7 @@ const isPrivateColumnName = 'is_private';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.table(SHARE_TABLE, (table) => {
-        table.boolean(isPrivateColumnName).defaultTo(true);
+        table.boolean(isPrivateColumnName).defaultTo(false);
     });
 
     await knex.schema.createTable(SPACE_SHARE_TABLE, (tableBuilder) => {
