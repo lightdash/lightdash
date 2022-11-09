@@ -1,6 +1,9 @@
 import {
     DashboardBasicDetails,
+    inheritedProjectRoleFromOrgRole,
     NotFoundError,
+    OrganizationMemberRole,
+    ProjectMemberRole,
     Space,
     SpaceQuery,
     SpaceShare,
@@ -11,6 +14,10 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import {
+    DbOrganizationMembership,
+    OrganizationMembershipsTableName,
+} from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
     OrganizationTableName,
@@ -50,9 +57,8 @@ export class SpaceModel {
             )
             .where('space_uuid', spaceUuid)
             .select<(DbSpace & DbProject & DbOrganization)[]>([
-                'spaces.space_uuid',
-                'spaces.name',
-                'spaces.created_at',
+                'spaces.*',
+
                 'projects.project_uuid',
                 'organizations.organization_uuid',
             ]);
@@ -170,20 +176,54 @@ export class SpaceModel {
                 `${SpaceTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
             .leftJoin(
                 ProjectMembershipsTableName,
                 `${UserTableName}.user_id`,
                 `${ProjectMembershipsTableName}.user_id`,
             )
-            .select<(DbUser & DbProjectMembership)[]>('*')
+            // .select<(DbUser & DbProjectMembership & DbOrganizationMembership)[]>(['user.user_uuid', 'user.first_name'])
+            .select<
+                {
+                    user_uuid: string;
+                    first_name: string;
+                    last_name: string;
+
+                    project_role: ProjectMemberRole;
+                    organization_role: OrganizationMemberRole;
+                }[]
+            >([
+                `users.user_uuid`,
+                `users.first_name`,
+                `users.last_name`,
+
+                `${ProjectMembershipsTableName}.role as project_role`,
+                `${OrganizationMembershipsTableName}.role as organization_role`,
+            ])
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
-        return access.map(({ user_uuid, first_name, last_name, role }) => ({
-            userUuid: user_uuid,
-            firstName: first_name,
-            lastName: last_name,
-            role,
-        }));
+        return access.map(
+            ({
+                user_uuid,
+                first_name,
+                last_name,
+                project_role,
+                organization_role,
+            }) => {
+                const projectRoleFromOrg =
+                    inheritedProjectRoleFromOrgRole(organization_role);
+                return {
+                    userUuid: user_uuid,
+                    firstName: first_name,
+                    lastName: last_name,
+                    role: project_role || projectRoleFromOrg, // if user has not project role, it inherits rol from org
+                };
+            },
+        );
     }
 
     async getSpaceQueries(spaceUuid: string): Promise<SpaceQuery[]> {
@@ -259,9 +299,7 @@ export class SpaceModel {
             )
             .where('project_uuid', projectUuid)
             .select<(DbSpace & DbProject & DbOrganization)[]>([
-                'spaces.space_uuid',
-                'spaces.name',
-                'spaces.created_at',
+                'spaces.*',
                 'projects.project_uuid',
                 'organizations.organization_uuid',
             ]);
