@@ -15,9 +15,11 @@ type Dependencies = {
     spaceModel: SpaceModel;
 };
 
-const hasSpaceAccess = (space: Space, userUuid: string): boolean => true;
-// TODO enable this once UI for space access is done
-// return space.access.find(userAccess => userAccess.userUuid === userUuid) !== undefined
+const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
+    // TODO enable this once UI for space access is done
+    // return !space.isPrivate || space.access.find(userAccess => userAccess.userUuid === userUuid) !== undefined
+
+    true;
 
 export class SpaceService {
     private readonly projectModel: ProjectModel;
