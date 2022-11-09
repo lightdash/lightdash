@@ -93,7 +93,7 @@ const ValidDashboardChartTile: FC<{
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
         >
-            <LightdashVisualization isDashboard />
+            <LightdashVisualization isDashboard $padding={0} />
         </VisualizationProvider>
     );
 };
