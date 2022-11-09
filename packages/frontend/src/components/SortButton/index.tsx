@@ -137,7 +137,6 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                 position={Position.BOTTOM}
             >
                 <Tag
-                    large
                     round
                     minimal
                     intent="primary"

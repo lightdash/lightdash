@@ -8,7 +8,6 @@ const LimitTag: FC<Omit<Props, 'onLimitChange'>> = ({
     limit,
 }) => (
     <Tag
-        large
         round
         minimal
         interactive={!disabled && isEditMode}
