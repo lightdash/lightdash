@@ -73,7 +73,7 @@ const Settings: FC = () => {
         health.auth.google.oauth2ClientId || health.auth.okta.enabled;
 
     return (
-        <PageWithSidebar>
+        <PageWithSidebar alignItems="flex-start">
             <Sidebar title="Settings" noMargin>
                 <MenuWrapper>
                     <MenuHeader>User settings</MenuHeader>
