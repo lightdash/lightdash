@@ -35,7 +35,7 @@ const UnderlyingDataResultsTable: FC<{
             <TableHeaderLabelContainer>
                 {hasJoins === true && (
                     <TableHeaderRegularLabel>
-                        {dimension.tableLabel} -{' '}
+                        {dimension.tableLabel}{' '}
                     </TableHeaderRegularLabel>
                 )}
 
