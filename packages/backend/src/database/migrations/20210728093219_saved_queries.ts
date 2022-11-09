@@ -211,6 +211,7 @@ export async function up(knex: Knex): Promise<void> {
             .insert({
                 name: orgs[0].organization_name,
                 project_id: project.project_id,
+                is_private: false,
             })
             .returning('*');
     }

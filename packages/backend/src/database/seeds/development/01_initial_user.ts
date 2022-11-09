@@ -168,7 +168,11 @@ export async function seed(knex: Knex): Promise<void> {
         warehouse_type: 'postgres',
     });
 
-    await knex('spaces').insert({ ...SEED_SPACE, project_id: projectId });
+    await knex('spaces').insert({
+        ...SEED_SPACE,
+        is_private: false,
+        project_id: projectId,
+    });
 
     const explores = await projectService.refreshAllTables(
         { userUuid: SEED_ORG_1_ADMIN.user_uuid },
