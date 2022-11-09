@@ -13,11 +13,13 @@ type Props = ComponentProps<typeof TableProvider> & {
     hideRowNumbers?: boolean;
     className?: string;
     $shouldExpand?: boolean;
+    $padding?: number;
     'data-testid'?: string;
 };
 
-const ResultsTable: FC<Props> = ({
+const Table: FC<Props> = ({
     $shouldExpand,
+    $padding,
     status,
     loadingState,
     idleState,
@@ -41,6 +43,7 @@ const ResultsTable: FC<Props> = ({
             <TableContainer
                 className={`cohere-block${className ? ` ${className}` : ''}`}
                 $shouldExpand={$shouldExpand}
+                $padding={$padding}
                 data-testid={dataTestId}
             >
                 <ScrollableTable $shouldExpand={$shouldExpand} />
@@ -55,4 +58,4 @@ const ResultsTable: FC<Props> = ({
     );
 };
 
-export default ResultsTable;
+export default Table;
