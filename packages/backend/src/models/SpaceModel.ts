@@ -186,7 +186,6 @@ export class SpaceModel {
                 `${UserTableName}.user_id`,
                 `${ProjectMembershipsTableName}.user_id`,
             )
-            // .select<(DbUser & DbProjectMembership & DbOrganizationMembership)[]>(['user.user_uuid', 'user.first_name'])
             .select<
                 {
                     user_uuid: string;
