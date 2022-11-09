@@ -31,6 +31,7 @@ import {
     Series,
     TableCalculation,
     timeFrameConfigs,
+    TimeFrames,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
@@ -519,12 +520,22 @@ const getEchartAxis = ({
             field.timeInterval &&
             isTimeInterval(field.timeInterval) &&
             timeFrameConfigs[field.timeInterval].getAxisMinInterval();
+        const axisLabelFormatter =
+            isDimension(field) &&
+            field.timeInterval &&
+            isTimeInterval(field.timeInterval) &&
+            timeFrameConfigs[field.timeInterval].getAxisLabelFormatter();
         const axisConfig: Record<string, any> = {};
+
         if (field && (hasFormattingConfig || axisMinInterval)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(field, value, true);
                 },
+            };
+        } else if (axisLabelFormatter) {
+            axisConfig.axisLabel = {
+                formatter: axisLabelFormatter,
             };
         }
         if (axisMinInterval) {
