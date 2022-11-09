@@ -28,11 +28,12 @@ import {
     Metric,
     MetricType,
     PivotReference,
+    ResultRow,
     Series,
     TableCalculation,
     timeFrameConfigs,
-    TimeFrames,
 } from '@lightdash/common';
+import groupBy from 'lodash-es/groupBy';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -186,6 +187,9 @@ export type EChartSeries = {
     type: Series['type'];
     connectNulls: boolean;
     stack?: string;
+    stackLabel?: {
+        show?: boolean;
+    };
     name?: string;
     color?: string;
     yAxisIndex?: number;
@@ -202,6 +206,12 @@ export type EChartSeries = {
     };
     areaStyle?: any;
     pivotReference?: PivotReference;
+    label?: {
+        show?: boolean;
+        fontSize?: number;
+        fontWeight?: string;
+        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+    };
 };
 
 const getFormattedValue = (
@@ -312,7 +322,7 @@ const getPivotSeries = ({
                             }),
                     }),
             },
-            labelLayout: function (params: any) {
+            labelLayout: function () {
                 return {
                     hideOverlap: true,
                 };
@@ -381,7 +391,7 @@ const getSimpleSeries = ({
                         }),
                 }),
         },
-        labelLayout: function (params: any) {
+        labelLayout: function () {
             return {
                 hideOverlap: true,
             };
@@ -759,29 +769,62 @@ const getValidStack = (series: EChartSeries | undefined) => {
         : undefined;
 };
 
-const stackTotalLabelFormatter = (stack: string, series: EChartSeries[]) => {
-    return (param: { seriesIndex: number; data: Record<string, unknown> }) => {
-        console.log('stack', stack);
-        console.log('series', series);
-        console.log('params', param);
-        if (stack) {
-            let sum = 0;
-            series.forEach((serie) => {
-                if (stack === getValidStack(serie)) {
-                    console.log(
-                        'add',
-                        serie.encode,
-                        param.data[serie.encode.y],
-                    );
-                    if (param.data[serie.encode.y]) {
-                        sum += Number(param.data[serie.encode.y]);
-                    }
-                }
-            });
-            return sum;
+const calculateStackTotal = (
+    row: ResultRow,
+    series: EChartSeries[],
+    flipAxis: boolean | undefined,
+) => {
+    return series.reduce<number>((acc, s) => {
+        const hash = flipAxis ? s.encode.x : s.encode.y;
+        if (row[hash]?.value.raw) {
+            acc += Number(row[hash]?.value.raw);
         }
-        return null;
-    };
+        return acc;
+    }, 0);
+};
+
+const getStackTotalRows = (
+    rows: ResultRow[],
+    series: EChartSeries[],
+    flipAxis: boolean | undefined,
+): [unknown, 0, number][] => {
+    return rows.map((row) => {
+        const total = calculateStackTotal(row, series, flipAxis);
+        return flipAxis
+            ? [0, row[series[0].encode.y]?.value.raw, total]
+            : [row[series[0].encode.x]?.value.raw, 0, total];
+    });
+};
+
+// To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
+const getStackTotalSeries = (
+    rows: ResultRow[],
+    seriesWithStack: EChartSeries[],
+    items: Array<Field | TableCalculation>,
+    flipAxis: boolean | undefined,
+) => {
+    const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
+    return Object.entries(seriesGroupedByStack).map(([stack, series]) => {
+        return {
+            type: 'bar',
+            stack: stack,
+            label: {
+                show: series[0].stackLabel?.show,
+                formatter: (param: { data: Record<string, unknown> }) =>
+                    getFormattedValue(
+                        param.data[2],
+                        series[0].pivotReference?.field || '',
+                        items,
+                    ),
+                fontWeight: 'bold',
+                position: flipAxis ? 'right' : 'top',
+            },
+            tooltip: {
+                show: false,
+            },
+            data: getStackTotalRows(rows, series, flipAxis),
+        };
+    });
 };
 
 const useEcharts = () => {
@@ -875,36 +918,21 @@ const useEcharts = () => {
         });
     }, [items, series, validCartesianConfig, resultsData]);
 
-    //Remove stacking from invalid series
     const stackedSeries = useMemo(() => {
-        const uniqueStacks = series.reduce<string[]>((acc, serie) => {
-            const stack = getValidStack(serie);
-            return !stack || acc.includes(stack) ? acc : [...acc, stack];
-        }, []);
-        const stackTotalsSeries = uniqueStacks.map((stack) => ({
-            stack: stack,
-            type: 'bar',
-            encode: {
-                x: 'orders_order_date_month',
-                y: 'fake',
-                seriesName: `${stack}_stack_total`,
-            },
-            label: {
-                show: true,
-                formatter: stackTotalLabelFormatter(stack, series),
-                fontSize: 20,
-                color: 'black',
-                position: 'top',
-            },
+        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
+            ...serie,
+            stack: getValidStack(serie),
         }));
         return [
-            ...series.map((serie, index) => ({
-                ...serie,
-                stack: getValidStack(serie),
-            })),
-            ...stackTotalsSeries,
+            ...seriesWithValidStack,
+            ...getStackTotalSeries(
+                rows,
+                seriesWithValidStack,
+                items,
+                validCartesianConfig?.layout.flipAxes,
+            ),
         ];
-    }, [series]);
+    }, [series, rows, items, validCartesianConfig?.layout.flipAxes]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =

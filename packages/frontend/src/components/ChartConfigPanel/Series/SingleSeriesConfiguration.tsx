@@ -179,6 +179,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 { value: 'bottom', label: 'Bottom' },
                                 { value: 'left', label: 'Left' },
                                 { value: 'right', label: 'Right' },
+                                { value: 'inside', label: 'Inside' },
                             ]}
                             onChange={(e) => {
                                 const option = e.target.value;
