@@ -164,4 +164,56 @@ export class SpaceService {
             },
         });
     }
+
+    async addSpaceShare(
+        user: SessionUser,
+        spaceUuid: string,
+        shareWithUserUuid: string,
+    ): Promise<void> {
+        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Space', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid: space.projectUuid,
+                }),
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.spaceModel.addSpaceAccess(spaceUuid, shareWithUserUuid);
+    }
+
+    async removeSpaceShare(
+        user: SessionUser,
+        spaceUuid: string,
+        shareWithUserUuid: string,
+    ): Promise<void> {
+        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Space', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid: space.projectUuid,
+                }),
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            space.access.filter(
+                (userAccess) => userAccess.userUuid !== shareWithUserUuid,
+            ).length === 0
+        ) {
+            throw new Error('There must be at least 1 user in this space');
+        }
+
+        await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
+    }
 }
