@@ -212,11 +212,11 @@ const DashboardChartTile: FC<Props> = (props) => {
             const pivotField = fields.find(
                 (field) => `${field.table}_${field.name}` === pivot,
             );
-            const seriesName = serie.encode.seriesName;
+            const seriesName = serie.encode?.seriesName;
 
             const pivotValue =
-                pivot && seriesName.includes(`.${pivot}.`)
-                    ? seriesName.split(`.${pivot}.`)[1]
+                pivot && seriesName?.includes(`.${pivot}.`)
+                    ? seriesName?.split(`.${pivot}.`)[1]
                     : undefined;
 
             const pivotOptions =

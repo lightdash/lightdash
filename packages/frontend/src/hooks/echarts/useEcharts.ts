@@ -194,13 +194,13 @@ export type EChartSeries = {
     color?: string;
     yAxisIndex?: number;
     xAxisIndex?: number;
-    encode: {
+    encode?: {
         x: string;
         y: string;
         tooltip: string[];
         seriesName: string;
     };
-    dimensions: Array<{ name: string; displayName: string }>;
+    dimensions?: Array<{ name: string; displayName: string }>;
     emphasis?: {
         focus?: string;
     };
@@ -211,7 +211,13 @@ export type EChartSeries = {
         fontSize?: number;
         fontWeight?: string;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        formatter?: (param: { data: Record<string, unknown> }) => string;
     };
+    tooltip?: {
+        show?: boolean;
+        valueFormatter?: (value: unknown) => string;
+    };
+    data?: unknown[];
 };
 
 const getFormattedValue = (
@@ -264,7 +270,7 @@ const getPivotSeries = ({
     flipAxes,
     formats,
     cartesianChart,
-}: GetPivotSeriesArg) => {
+}: GetPivotSeriesArg): EChartSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
             const formattedValue = getFormattedValue(value, field, items);
@@ -775,8 +781,8 @@ const calculateStackTotal = (
     flipAxis: boolean | undefined,
 ) => {
     return series.reduce<number>((acc, s) => {
-        const hash = flipAxis ? s.encode.x : s.encode.y;
-        if (row[hash]?.value.raw) {
+        const hash = flipAxis ? s.encode?.x : s.encode?.y;
+        if (hash && row[hash]?.value.raw) {
             acc += Number(row[hash]?.value.raw);
         }
         return acc;
@@ -787,12 +793,16 @@ const getStackTotalRows = (
     rows: ResultRow[],
     series: EChartSeries[],
     flipAxis: boolean | undefined,
-): [unknown, 0, number][] => {
+): [unknown, unknown, number][] => {
     return rows.map((row) => {
         const total = calculateStackTotal(row, series, flipAxis);
+        const hash = flipAxis ? series[0].encode?.x : series[0].encode?.y;
+        if (!hash) {
+            return [null, null, 0];
+        }
         return flipAxis
-            ? [0, row[series[0].encode.y]?.value.raw, total]
-            : [row[series[0].encode.x]?.value.raw, 0, total];
+            ? [0, row[hash]?.value.raw, total]
+            : [row[hash]?.value.raw, 0, total];
     });
 };
 
@@ -804,27 +814,35 @@ const getStackTotalSeries = (
     flipAxis: boolean | undefined,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
-    return Object.entries(seriesGroupedByStack).map(([stack, series]) => {
-        return {
-            type: 'bar',
-            stack: stack,
-            label: {
-                show: series[0].stackLabel?.show,
-                formatter: (param: { data: Record<string, unknown> }) =>
-                    getFormattedValue(
-                        param.data[2],
-                        series[0].pivotReference?.field || '',
-                        items,
-                    ),
-                fontWeight: 'bold',
-                position: flipAxis ? 'right' : 'top',
-            },
-            tooltip: {
-                show: false,
-            },
-            data: getStackTotalRows(rows, series, flipAxis),
-        };
-    });
+    return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
+        (acc, [stack, series]) => {
+            if (!stack || !series[0].stackLabel?.show) {
+                return acc;
+            }
+            const stackSeries: EChartSeries = {
+                type: CartesianSeriesType.BAR,
+                connectNulls: true,
+                stack: stack,
+                label: {
+                    show: series[0].stackLabel?.show,
+                    formatter: (param) =>
+                        getFormattedValue(
+                            param.data[2],
+                            series[0].pivotReference?.field || '',
+                            items,
+                        ),
+                    fontWeight: 'bold',
+                    position: flipAxis ? 'right' : 'top',
+                },
+                tooltip: {
+                    show: false,
+                },
+                data: getStackTotalRows(rows, series, flipAxis),
+            };
+            return [...acc, stackSeries];
+        },
+        [],
+    );
 };
 
 const useEcharts = () => {
