@@ -1,6 +1,5 @@
 import {
     DashboardBasicDetails,
-    inheritedProjectRoleFromOrgRole,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -10,29 +9,24 @@ import {
     UpdateSpace,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
-import {
-    DbOrganizationMembership,
-    OrganizationMembershipsTableName,
-} from '../database/entities/organizationMemberships';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
-import {
-    DbProjectMembership,
-    ProjectMembershipsTableName,
-} from '../database/entities/projectMemberships';
+import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
 import {
     DbSpace,
     SpaceShareTableName,
     SpaceTableName,
 } from '../database/entities/spaces';
-import { DbUser, UserTable, UserTableName } from '../database/entities/users';
+import { UserTableName } from '../database/entities/users';
 import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type Dependencies = {
@@ -212,16 +206,15 @@ export class SpaceModel {
                 last_name,
                 project_role,
                 organization_role,
-            }) => {
-                const projectRoleFromOrg =
-                    inheritedProjectRoleFromOrgRole(organization_role);
-                return {
-                    userUuid: user_uuid,
-                    firstName: first_name,
-                    lastName: last_name,
-                    role: project_role || projectRoleFromOrg, // if user has not project role, it inherits rol from org
-                };
-            },
+            }) => ({
+                userUuid: user_uuid,
+                firstName: first_name,
+                lastName: last_name,
+                role: getProjectRoleOrInheritedFromOrganization(
+                    project_role,
+                    organization_role,
+                ),
+            }),
         );
     }
 
