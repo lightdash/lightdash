@@ -5,3 +5,4 @@ export * from './warehouseClients/DatabricksWarehouseClient';
 export * from './warehouseClients/PostgresWarehouseClient';
 export * from './warehouseClients/RedshiftWarehouseClient';
 export * from './warehouseClients/SnowflakeWarehouseClient';
+export * from './warehouseClients/TrinoWarehouseClient';

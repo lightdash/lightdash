@@ -43,7 +43,7 @@ services:
       - HEADLESS_BROWSER_PORT=3000
     volumes:
       - "../:/usr/app"
-      - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
+      - "../examples/trino-demo/dbt:/usr/app/dbt"
       - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
     ports:
       - "${PORT}:8080"

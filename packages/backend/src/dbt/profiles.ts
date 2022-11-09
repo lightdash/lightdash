@@ -93,6 +93,24 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
+        case WarehouseTypes.TRINO:
+            return {
+                target: {
+                    type: credentials.type,
+                    host: credentials.host,
+                    method: 'ldap',
+                    user: credentials.user,
+                    password: credentials.password,
+                    port: credentials.port,
+                    database: credentials.dbname,
+                    schema: credentials.schema,
+                    http_scheme: 'https',
+                },
+                environment: {
+                    [envVar('user')]: credentials.user,
+                    [envVar('password')]: credentials.password,
+                },
+            };
         case WarehouseTypes.SNOWFLAKE: {
             const result: CredentialsTarget = {
                 target: {
@@ -168,6 +186,7 @@ export const profileFromCredentials = (
         credentials,
         profilesDir,
     );
+
     const profile = yaml.dump({
         config: {
             partial_parse: false,
@@ -180,6 +199,10 @@ export const profileFromCredentials = (
             },
         },
     });
+
+    console.log(credentials.type);
+    console.log(profile);
+
     return {
         profile,
         environment,

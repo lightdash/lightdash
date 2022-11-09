@@ -9,6 +9,7 @@
     ],
     "dependencies": {
         "@databricks/sql": "1.0.0",
+        "trino-client": "^0.2.0",
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.371.1",
         "pg": "^8.7.1",

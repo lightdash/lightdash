@@ -27,6 +27,7 @@ import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
 import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
 import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
+import { TrinoSchemaInput } from './WarehouseForms/TrinoForm';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
@@ -134,6 +135,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return <BigQuerySchemaInput disabled={disabled} />;
             case WarehouseTypes.POSTGRES:
                 return <PostgresSchemaInput disabled={disabled} />;
+            case WarehouseTypes.TRINO:
+                return <TrinoSchemaInput disabled={disabled} />;
             case WarehouseTypes.REDSHIFT:
                 return <RedshiftSchemaInput disabled={disabled} />;
             case WarehouseTypes.SNOWFLAKE:
