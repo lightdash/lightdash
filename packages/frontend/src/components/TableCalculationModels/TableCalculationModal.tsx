@@ -71,6 +71,25 @@ const TableCalculationModal: FC<Props> = ({
         },
     });
 
+    const getUniqueTableCalculationName = (name: string): string => {
+        const snakeName = snakeCaseName(name);
+        const suffixes = Array.from(Array(100).keys());
+        const getCalcName = (suffix: number) =>
+            suffix === 0 ? snakeName : `${snakeName}_${suffix}`;
+
+        const validSuffix = suffixes.find(
+            (suffix) =>
+                tableCalculations.findIndex(
+                    ({ name: tableCalcName }) =>
+                        tableCalcName === getCalcName(suffix),
+                ) === -1,
+        );
+        if (validSuffix === undefined) {
+            throw new Error(`Table calculation ID "${name}" already exists.`);
+        }
+        return getCalcName(validSuffix);
+    };
+
     return (
         <TableCalculationDialog
             isOpen={isOpen}
@@ -99,7 +118,7 @@ const TableCalculationModal: FC<Props> = ({
                     const { name, sql } = data;
                     try {
                         onSave({
-                            name: snakeCaseName(name),
+                            name: getUniqueTableCalculationName(name),
                             displayName: name,
                             sql,
                         });
