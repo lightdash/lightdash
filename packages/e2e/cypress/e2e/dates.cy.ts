@@ -173,6 +173,48 @@ describe('Explore', () => {
         cy.get('[icon="cross"]').click({ multiple: true });
     });
 
+    it('Should change dates on filters', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
+
+        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByText('SQL').parent().findByRole('button').click();
+
+        cy.findAllByText('Loading chart').should('have.length', 0);
+        // Filter by year
+        cy.contains('Add filter').click();
+        cy.contains('Customers Created year').click();
+
+        cy.get('.bp4-numeric-input input').clear().type('2017');
+        cy.get('.bp4-numeric-input input').should('have.value', '2017');
+        cy.get('.bp4-code').contains(
+            `(DATE_TRUNC('YEAR', "customers".created)) = ('2017-01-01')`,
+        );
+        cy.get('[icon="chevron-up"]').click({ multiple: true });
+        cy.get('.bp4-numeric-input input').should('have.value', '2018');
+        cy.get('.bp4-code').contains(
+            `(DATE_TRUNC('YEAR', "customers".created)) = ('2018-01-01')`,
+        );
+
+        cy.get('[icon="cross"]').click({ multiple: true });
+
+        // Filter by month
+        cy.contains('Add filter').click();
+        cy.contains('Customers Created month').click();
+
+        cy.get('.bp4-numeric-input input').clear().type('2017');
+        cy.get('.bp4-numeric-input input').should('have.value', '2017');
+        cy.get('.bp4-code').contains(
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2017`,
+        );
+        cy.get('[icon="chevron-up"]').click({ multiple: true });
+        cy.get('.bp4-numeric-input input').should('have.value', '2018');
+        cy.get('.bp4-code').contains(
+            `(DATE_TRUNC('MONTH', "customers".created)) = ('2018`,
+        );
+
+        cy.get('[icon="cross"]').click({ multiple: true });
+    });
+
     it('Should filter by date on dimension', () => {
         function leadingZero(value: string | number) {
             return `0${value}`.slice(-2);
