@@ -1,3 +1,10 @@
+## [0.320.1](https://github.com/lightdash/lightdash/compare/0.320.0...0.320.1) (2022-11-10)
+
+
+### Bug Fixes
+
+* validate filter string values ([#3758](https://github.com/lightdash/lightdash/issues/3758)) ([413375a](https://github.com/lightdash/lightdash/commit/413375a923fc5bae4f2e9dacffbb03d9afdb6610))
+
 # [0.320.0](https://github.com/lightdash/lightdash/compare/0.319.1...0.320.0) (2022-11-10)
 
 
