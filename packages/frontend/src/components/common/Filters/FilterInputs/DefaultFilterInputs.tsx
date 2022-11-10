@@ -6,6 +6,7 @@ import {
     FilterRule,
     FilterType,
 } from '@lightdash/common';
+import { isString } from 'lodash-es';
 import React, { FC } from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
@@ -44,7 +45,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
                     <MultiAutoComplete
                         disabled={disabled}
                         field={field}
-                        values={filterRule.values || []}
+                        values={(filterRule.values || []).filter(isString)}
                         suggestions={suggestions || []}
                         popoverProps={popoverProps}
                         onChange={(values) =>
