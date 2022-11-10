@@ -1,3 +1,10 @@
+# [0.319.0](https://github.com/lightdash/lightdash/compare/0.318.0...0.319.0) (2022-11-10)
+
+
+### Features
+
+* special characters table calc ([#3748](https://github.com/lightdash/lightdash/issues/3748)) ([1b8f5a1](https://github.com/lightdash/lightdash/commit/1b8f5a17e3c7cc95ed91439fc3283c3fcf6b5d0a))
+
 # [0.318.0](https://github.com/lightdash/lightdash/compare/0.317.3...0.318.0) (2022-11-09)
 
 
