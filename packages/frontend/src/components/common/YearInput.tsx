@@ -10,6 +10,7 @@ type Props = {
 
 const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
     const utcYearValue = moment(value).year();
+
     return (
         <NumericInput
             className={disabled ? 'disabled-filter' : ''}
@@ -22,7 +23,7 @@ const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
             defaultValue={utcYearValue}
             onValueChange={(year) => {
                 if (year > 1000 && year < 9999) {
-                    onChange(moment(value).utc().year(year).toDate());
+                    onChange(moment(value).year(year).toDate());
                 }
             }}
             onBlur={(e) => {
@@ -32,7 +33,7 @@ const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
                 } else if (year > 9999) {
                     year = 9999;
                 }
-                onChange(moment(value).utc().year(year).toDate());
+                onChange(moment(value).year(year).toDate());
             }}
         />
     );
