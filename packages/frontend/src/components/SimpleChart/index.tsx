@@ -93,7 +93,12 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                 }
                 e.event.event.preventDefault();
                 if (isSeriesClickEvent(e)) {
-                    onSeriesContextMenu(e, eChartsOptions?.series || []);
+                    const series = (eChartsOptions?.series || [])[
+                        e.seriesIndex
+                    ];
+                    if (series && series.encode) {
+                        onSeriesContextMenu(e, eChartsOptions?.series || []);
+                    }
                 }
             }
         },
