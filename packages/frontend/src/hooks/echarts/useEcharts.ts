@@ -34,6 +34,7 @@ import {
     timeFrameConfigs,
 } from '@lightdash/common';
 import groupBy from 'lodash-es/groupBy';
+import toNumber from 'lodash-es/toNumber';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -782,8 +783,9 @@ const calculateStackTotal = (
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        if (hash && row[hash]?.value.raw) {
-            acc += Number(row[hash]?.value.raw);
+        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        if (!Number.isNaN(numberValue)) {
+            acc += numberValue;
         }
         return acc;
     }, 0);
