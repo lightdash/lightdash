@@ -214,6 +214,9 @@ export type EChartSeries = {
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
         formatter?: (param: { data: Record<string, unknown> }) => string;
     };
+    labelLayout?: {
+        hideOverlap?: boolean;
+    };
     tooltip?: {
         show?: boolean;
         valueFormatter?: (value: unknown) => string;
@@ -329,10 +332,8 @@ const getPivotSeries = ({
                             }),
                     }),
             },
-            labelLayout: function () {
-                return {
-                    hideOverlap: true,
-                };
+            labelLayout: {
+                hideOverlap: true,
             },
         }),
     };
@@ -398,10 +399,8 @@ const getSimpleSeries = ({
                         }),
                 }),
         },
-        labelLayout: function () {
-            return {
-                hideOverlap: true,
-            };
+        labelLayout: {
+            hideOverlap: true,
         },
     }),
 });
@@ -823,11 +822,11 @@ const getStackTotalSeries = (
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
         (acc, [stack, series]) => {
-            if (!stack || !series[0].stackLabel?.show) {
+            if (!stack || !series[0] || !series[0].stackLabel?.show) {
                 return acc;
             }
             const stackSeries: EChartSeries = {
-                type: CartesianSeriesType.BAR,
+                type: series[0].type,
                 connectNulls: true,
                 stack: stack,
                 label: {
@@ -846,6 +845,9 @@ const getStackTotalSeries = (
                     },
                     fontWeight: 'bold',
                     position: flipAxis ? 'right' : 'top',
+                },
+                labelLayout: {
+                    hideOverlap: true,
                 },
                 tooltip: {
                     show: false,
