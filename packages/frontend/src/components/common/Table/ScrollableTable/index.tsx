@@ -13,7 +13,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({ $shouldExpand }) => {
     const { footer } = useTableContext();
 
     return (
-        <TableScrollableWrapper $shouldExpand={$shouldExpand}>
+        <TableScrollableWrapper>
             <Table bordered condensed showFooter={!!footer?.show}>
                 <TableHeader />
                 <TableBody />

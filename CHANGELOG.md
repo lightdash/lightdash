@@ -1,3 +1,23 @@
+# [0.318.0](https://github.com/lightdash/lightdash/compare/0.317.3...0.318.0) (2022-11-09)
+
+
+### Bug Fixes
+
+* dashboard table padding ([#3734](https://github.com/lightdash/lightdash/issues/3734)) ([c351ed7](https://github.com/lightdash/lightdash/commit/c351ed7bdcc6ce72556cfe86b4d4599600a26bc9))
+* settings page style ([#3743](https://github.com/lightdash/lightdash/issues/3743)) ([1b3405c](https://github.com/lightdash/lightdash/commit/1b3405cec4979d2915f574768821c77cb0c4398c))
+
+
+### Features
+
+* remove dash from table header label ([#3741](https://github.com/lightdash/lightdash/issues/3741)) ([f4ff355](https://github.com/lightdash/lightdash/commit/f4ff355c257fccb09680a503989808456c5ca469))
+
+## [0.317.3](https://github.com/lightdash/lightdash/compare/0.317.2...0.317.3) (2022-11-09)
+
+
+### Bug Fixes
+
+* remove time from date intervals ([#3718](https://github.com/lightdash/lightdash/issues/3718)) ([248be3e](https://github.com/lightdash/lightdash/commit/248be3e45fb385a93abe2d73ef1cbab0577da02b))
+
 ## [0.317.2](https://github.com/lightdash/lightdash/compare/0.317.1...0.317.2) (2022-11-08)
 
 

@@ -9,6 +9,7 @@ import DashboardCellContextMenu from './DashboardCellContextMenu';
 type SimpleTableProps = {
     isDashboard: boolean;
     className?: string;
+    $padding?: number;
     $shouldExpand?: boolean;
 };
 
@@ -16,6 +17,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     isDashboard,
     className,
     $shouldExpand,
+    $padding,
     ...rest
 }) => {
     const {
@@ -47,6 +49,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     return (
         <Table
             $shouldExpand={$shouldExpand}
+            $padding={$padding}
             className={className}
             status="success"
             data={rows}

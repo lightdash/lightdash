@@ -1,11 +1,7 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
-interface ExpandableProps {
-    $shouldExpand?: boolean;
-}
-
-export const TableScrollableWrapper = styled.div<ExpandableProps>`
+export const TableScrollableWrapper = styled.div`
     display: flex;
     flex-direction: column;
 
@@ -14,10 +10,15 @@ export const TableScrollableWrapper = styled.div<ExpandableProps>`
     min-width: 100%;
 `;
 
-export const TableContainer = styled.div<ExpandableProps>`
+interface TableContainerProps {
+    $shouldExpand?: boolean;
+    $padding?: number;
+}
+
+export const TableContainer = styled.div<TableContainerProps>`
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: ${({ $padding = 10 }) => `${$padding}px`};
     min-width: 100%;
     overflow: hidden;
 
