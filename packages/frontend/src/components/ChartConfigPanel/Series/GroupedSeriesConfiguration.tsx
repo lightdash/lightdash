@@ -40,6 +40,7 @@ const VALUE_LABELS_OPTIONS = [
     { value: 'bottom', label: 'Bottom' },
     { value: 'left', label: 'Left' },
     { value: 'right', label: 'Right' },
+    { value: 'inside', label: 'Inside' },
 ];
 
 const AXIS_OPTIONS = [
@@ -265,6 +266,20 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         }}
                     />
                 </SeriesExtraInputWrapper>
+                {seriesGroup[0].stack && (
+                    <SeriesExtraInputWrapper label="Total">
+                        <Switch
+                            checked={seriesGroup[0].stackLabel?.show}
+                            onChange={() => {
+                                updateAllGroupedSeries(fieldKey, {
+                                    stackLabel: {
+                                        show: !seriesGroup[0].stackLabel?.show,
+                                    },
+                                });
+                            }}
+                        />
+                    </SeriesExtraInputWrapper>
+                )}
             </GroupSeriesInputs>
             {(chartValue === CartesianSeriesType.LINE ||
                 chartValue === CartesianSeriesType.AREA) && (

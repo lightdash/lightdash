@@ -61,12 +61,15 @@ export type Series = {
     };
     type: CartesianSeriesType;
     stack?: string;
+    stackLabel?: {
+        show?: boolean;
+    };
     name?: string;
     color?: string;
     yAxisIndex?: number;
     label?: {
         show?: boolean;
-        position?: 'left' | 'top' | 'right' | 'bottom';
+        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
     };
     hidden?: boolean;
     areaStyle?: {};

@@ -35,9 +35,12 @@ const config: Config = {
         '<rootDir>/**/*.{spec,test}.{js,jsx,ts,tsx}',
     ],
 
-    moduleNameMapper: pathsToModuleNameMapper(tsConfig.compilerOptions.paths, {
-        prefix: '<rootDir>/',
-    }),
+    moduleNameMapper: {
+        ...pathsToModuleNameMapper(tsConfig.compilerOptions.paths, {
+            prefix: '<rootDir>/',
+        }),
+        'lodash-es': 'lodash',
+    },
 
     setupFilesAfterEnv: ['./setupJest.ts'],
 

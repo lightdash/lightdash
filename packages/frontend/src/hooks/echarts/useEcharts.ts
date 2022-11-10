@@ -28,11 +28,13 @@ import {
     Metric,
     MetricType,
     PivotReference,
+    ResultRow,
     Series,
     TableCalculation,
     timeFrameConfigs,
-    TimeFrames,
 } from '@lightdash/common';
+import groupBy from 'lodash-es/groupBy';
+import toNumber from 'lodash-es/toNumber';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -186,22 +188,40 @@ export type EChartSeries = {
     type: Series['type'];
     connectNulls: boolean;
     stack?: string;
+    stackLabel?: {
+        show?: boolean;
+    };
     name?: string;
     color?: string;
     yAxisIndex?: number;
     xAxisIndex?: number;
-    encode: {
+    encode?: {
         x: string;
         y: string;
         tooltip: string[];
         seriesName: string;
     };
-    dimensions: Array<{ name: string; displayName: string }>;
+    dimensions?: Array<{ name: string; displayName: string }>;
     emphasis?: {
         focus?: string;
     };
     areaStyle?: any;
     pivotReference?: PivotReference;
+    label?: {
+        show?: boolean;
+        fontSize?: number;
+        fontWeight?: string;
+        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        formatter?: (param: { data: Record<string, unknown> }) => string;
+    };
+    labelLayout?: {
+        hideOverlap?: boolean;
+    };
+    tooltip?: {
+        show?: boolean;
+        valueFormatter?: (value: unknown) => string;
+    };
+    data?: unknown[];
 };
 
 const getFormattedValue = (
@@ -254,7 +274,7 @@ const getPivotSeries = ({
     flipAxes,
     formats,
     cartesianChart,
-}: GetPivotSeriesArg) => {
+}: GetPivotSeriesArg): EChartSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
             const formattedValue = getFormattedValue(value, field, items);
@@ -312,10 +332,8 @@ const getPivotSeries = ({
                             }),
                     }),
             },
-            labelLayout: function (params: any) {
-                return {
-                    hideOverlap: true,
-                };
+            labelLayout: {
+                hideOverlap: true,
             },
         }),
     };
@@ -381,10 +399,8 @@ const getSimpleSeries = ({
                         }),
                 }),
         },
-        labelLayout: function (params: any) {
-            return {
-                hideOverlap: true,
-            };
+        labelLayout: {
+            hideOverlap: true,
         },
     }),
 });
@@ -753,6 +769,97 @@ const getEchartAxis = ({
     };
 };
 
+const getValidStack = (series: EChartSeries | undefined) => {
+    return series && (series.type === 'bar' || !!series.areaStyle)
+        ? series.stack
+        : undefined;
+};
+
+const calculateStackTotal = (
+    row: ResultRow,
+    series: EChartSeries[],
+    flipAxis: boolean | undefined,
+) => {
+    return series.reduce<number>((acc, s) => {
+        const hash = flipAxis ? s.encode?.x : s.encode?.y;
+        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        if (!Number.isNaN(numberValue)) {
+            acc += numberValue;
+        }
+        return acc;
+    }, 0);
+};
+
+// Stack total row contains:
+// - x/y axis value
+// - the value 0 to be stacked (hack)
+// - the total of that stack to be used in the label
+// The x/axis value and the "0" need to flip position if the axis are flipped
+const getStackTotalRows = (
+    rows: ResultRow[],
+    series: EChartSeries[],
+    flipAxis: boolean | undefined,
+): [unknown, unknown, number][] => {
+    return rows.map((row) => {
+        const total = calculateStackTotal(row, series, flipAxis);
+        const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
+        if (!hash) {
+            return [null, null, 0];
+        }
+        return flipAxis
+            ? [0, row[hash]?.value.raw, total]
+            : [row[hash]?.value.raw, 0, total];
+    });
+};
+
+// To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
+const getStackTotalSeries = (
+    rows: ResultRow[],
+    seriesWithStack: EChartSeries[],
+    items: Array<Field | TableCalculation>,
+    flipAxis: boolean | undefined,
+) => {
+    const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
+    return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
+        (acc, [stack, series]) => {
+            if (!stack || !series[0] || !series[0].stackLabel?.show) {
+                return acc;
+            }
+            const stackSeries: EChartSeries = {
+                type: series[0].type,
+                connectNulls: true,
+                stack: stack,
+                label: {
+                    show: series[0].stackLabel?.show,
+                    formatter: (param) => {
+                        const stackTotal = param.data[2];
+                        const fieldId = series[0].pivotReference?.field;
+                        if (fieldId) {
+                            return getFormattedValue(
+                                stackTotal,
+                                fieldId,
+                                items,
+                            );
+                        }
+                        return '';
+                    },
+                    fontWeight: 'bold',
+                    position: flipAxis ? 'right' : 'top',
+                },
+                labelLayout: {
+                    hideOverlap: true,
+                },
+                tooltip: {
+                    show: false,
+                },
+                data: getStackTotalRows(rows, series, flipAxis),
+            };
+            return [...acc, stackSeries];
+        },
+        [],
+    );
+};
+
 const useEcharts = () => {
     const context = useVisualizationContext();
     const {
@@ -844,18 +951,21 @@ const useEcharts = () => {
         });
     }, [items, series, validCartesianConfig, resultsData]);
 
-    //Remove stacking from invalid series
-    const stackedSeries = useMemo(
-        () =>
-            series.map((serie) => ({
-                ...serie,
-                stack:
-                    serie.type === 'bar' || !!serie.areaStyle
-                        ? serie.stack
-                        : undefined,
-            })),
-        [series],
-    );
+    const stackedSeries = useMemo(() => {
+        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
+            ...serie,
+            stack: getValidStack(serie),
+        }));
+        return [
+            ...seriesWithValidStack,
+            ...getStackTotalSeries(
+                rows,
+                seriesWithValidStack,
+                items,
+                validCartesianConfig?.layout.flipAxes,
+            ),
+        ];
+    }, [series, rows, items, validCartesianConfig?.layout.flipAxes]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =
