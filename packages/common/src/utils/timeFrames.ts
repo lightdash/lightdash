@@ -226,12 +226,41 @@ const databricksConfig: WarehouseConfig = {
     },
 };
 
+const trinoConfig: WarehouseConfig = {
+    getSqlForTruncatedDate: (timeFrame: TimeFrames, originalSql: string) =>
+        `DATE_TRUNC('${timeFrame}', ${originalSql})`,
+    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+        const datePart = timeFrameToDatePartMap[timeFrame];
+        if (!datePart) {
+            throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
+        }
+        return `DATE_PART('${datePart}', ${originalSql})`;
+    },
+    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+        // https://docs.databricks.com/spark/latest/spark-sql/language-manual/functions/date_format.html
+        const timeFrameExpressions: Record<TimeFrames, string | null> = {
+            ...nullTimeFrameMap,
+            [TimeFrames.DAY_OF_WEEK_NAME]: 'EEEE',
+            [TimeFrames.MONTH_NAME]: 'MMMM',
+            [TimeFrames.QUARTER_NAME]: 'QQQ',
+        };
+        const formatExpression = timeFrameExpressions[timeFrame];
+        if (!formatExpression) {
+            throw new ParseError(
+                `Cannot recognise format expression for ${timeFrame}`,
+            );
+        }
+        return `DATE_FORMAT(${originalSql}, '${formatExpression}')`;
+    },
+};
+
 const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.BIGQUERY]: bigqueryConfig,
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
     [SupportedDbtAdapter.REDSHIFT]: postgresConfig,
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
+    [SupportedDbtAdapter.TRINO]: trinoConfig,
 };
 
 const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (

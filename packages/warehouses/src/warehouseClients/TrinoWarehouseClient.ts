@@ -8,17 +8,13 @@ import {
     Trino,
 } from 'trino-client';
 
-import IOperation from '@databricks/sql/dist/contracts/IOperation';
 import {
     CreateTrinoCredentials,
     DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import { Column } from 'snowflake-sdk';
 import { WarehouseCatalog, WarehouseClient } from '../types';
-import { columns } from './PostgresWarehouseClient.mock';
-import { mapFieldType } from './SnowflakeWarehouseClient';
 
 export enum TrinoTypes {
     INTEGER = 'integer',
@@ -146,11 +142,8 @@ export class TrinoWarehouseClient implements WarehouseClient {
         this.connectionOptions = {
             auth: new BasicAuth(user, password),
             catalog: dbname,
-            // extraCredential: null,
             schema,
             server: `https://${host}:${port}`,
-            // session: null,
-            // source: dbname,
         };
     }
 
@@ -178,23 +171,25 @@ export class TrinoWarehouseClient implements WarehouseClient {
         try {
             query = await session.query(sql);
 
-            const result: QueryData[] = await query
-                .map((r) => r.data ?? [])
-                .fold<QueryData[]>([], (row, acc) => [...acc, ...row]);
+            const result: QueryData = (await query.next()).value.data;
+            const schema: Columns = (await query.next()).value.columns;
 
-            const schema: Columns[] = await query
-                .map((r) => r.columns ?? [])
-                .fold<Columns[]>([], (row, acc) => acc.concat(row));
+            const fields = schema.reduce(
+                (acc, column) => ({
+                    ...acc,
+                    [column.name]: {
+                        // TODO fazer tratamento de tipos aqui
+                        type: column.type,
+                    },
+                }),
+                {},
+            );
+
             console.log('****=================================****');
-            console.log(query);
-            console.log(query.map((re) => re.columns ?? []));
+            console.log(result);
             console.log('=================================');
-            console.log(schema);
+            console.log(fields);
             console.log('=================================');
-
-            const fields: Record<string, { type: DimensionType }> = {
-                col_name: { type: DimensionType.BOOLEAN },
-            };
 
             return { fields, rows: result };
         } catch (e: any) {
