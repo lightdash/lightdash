@@ -119,9 +119,6 @@ const TableCalculationModal: FC<Props> = ({
                         rules={{
                             required: true,
                             validate: {
-                                special_character: (columnName) =>
-                                    !hasSpecialCharacters(columnName) ||
-                                    'Please remove any special characters from the column name',
                                 unique_column_name: (columnName) =>
                                     !dimensions
                                         .concat(metrics)
