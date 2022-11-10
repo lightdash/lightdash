@@ -1,3 +1,10 @@
+# [0.320.0](https://github.com/lightdash/lightdash/compare/0.319.1...0.320.0) (2022-11-10)
+
+
+### Features
+
+* stack totals ([#3744](https://github.com/lightdash/lightdash/issues/3744)) ([422863b](https://github.com/lightdash/lightdash/commit/422863b93c0c25fccc39271604178fd04f080a03))
+
 ## [0.319.1](https://github.com/lightdash/lightdash/compare/0.319.0...0.319.1) (2022-11-10)
 
 
