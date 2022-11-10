@@ -1,3 +1,10 @@
+## [0.319.1](https://github.com/lightdash/lightdash/compare/0.319.0...0.319.1) (2022-11-10)
+
+
+### Bug Fixes
+
+* fix wrong year on year input change ([#3754](https://github.com/lightdash/lightdash/issues/3754)) ([134dc5a](https://github.com/lightdash/lightdash/commit/134dc5a4695bd7f7bd1abfd133b10a470ad40658))
+
 # [0.319.0](https://github.com/lightdash/lightdash/compare/0.318.0...0.319.0) (2022-11-10)
 
 
