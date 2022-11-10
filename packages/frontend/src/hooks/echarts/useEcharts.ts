@@ -789,6 +789,11 @@ const calculateStackTotal = (
     }, 0);
 };
 
+// Stack total row contains:
+// - x/y axis value
+// - the value 0 to be stacked (hack)
+// - the total of that stack to be used in the label
+// The x/axis value and the "0" need to flip position if the axis are flipped
 const getStackTotalRows = (
     rows: ResultRow[],
     series: EChartSeries[],
@@ -796,7 +801,7 @@ const getStackTotalRows = (
 ): [unknown, unknown, number][] => {
     return rows.map((row) => {
         const total = calculateStackTotal(row, series, flipAxis);
-        const hash = flipAxis ? series[0].encode?.x : series[0].encode?.y;
+        const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
         if (!hash) {
             return [null, null, 0];
         }
@@ -825,12 +830,18 @@ const getStackTotalSeries = (
                 stack: stack,
                 label: {
                     show: series[0].stackLabel?.show,
-                    formatter: (param) =>
-                        getFormattedValue(
-                            param.data[2],
-                            series[0].pivotReference?.field || '',
-                            items,
-                        ),
+                    formatter: (param) => {
+                        const stackTotal = param.data[2];
+                        const fieldId = series[0].pivotReference?.field;
+                        if (fieldId) {
+                            return getFormattedValue(
+                                stackTotal,
+                                fieldId,
+                                items,
+                            );
+                        }
+                        return '';
+                    },
                     fontWeight: 'bold',
                     position: flipAxis ? 'right' : 'top',
                 },
