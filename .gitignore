@@ -55,3 +55,5 @@ package-lock.json
 
 # credentials
 credentials.json
+
+examples/trino-demo/profiles/profiles.yml

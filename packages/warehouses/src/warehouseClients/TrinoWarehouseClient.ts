@@ -185,12 +185,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
                 {},
             );
 
-            console.log('****=================================****');
-            console.log(result);
-            console.log('=================================');
-            console.log(fields);
-            console.log('=================================');
-
             return { fields, rows: result };
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
