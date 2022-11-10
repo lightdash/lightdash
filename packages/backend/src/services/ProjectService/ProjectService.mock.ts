@@ -240,7 +240,6 @@ export const spacesWithSavedCharts: Space[] = [
     {
         organizationUuid: user.organizationUuid,
         name: 'sapce',
-        isPrivate: false,
         uuid: 'uuid',
         queries: [
             {
@@ -252,7 +251,6 @@ export const spacesWithSavedCharts: Space[] = [
         ],
         projectUuid,
         dashboards: [],
-        access: [],
     },
 ];
 
@@ -263,9 +261,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         uuid: 'uuid',
         queries: [],
         projectUuid,
-        isPrivate: false,
         dashboards: [],
-        access: [],
     },
 ];
 

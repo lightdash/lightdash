@@ -84,12 +84,7 @@ import {
 } from '../database/entities/savedCharts';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
 import { ShareTable, ShareTableName } from '../database/entities/share';
-import {
-    SpaceShareTable,
-    SpaceShareTableName,
-    SpaceTable,
-    SpaceTableName,
-} from '../database/entities/spaces';
+import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
     WarehouseCredentialTable,
@@ -132,6 +127,5 @@ declare module 'knex/types/tables' {
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
         [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
-        [SpaceShareTableName]: SpaceShareTable;
     }
 }

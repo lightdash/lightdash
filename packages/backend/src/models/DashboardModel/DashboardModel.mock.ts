@@ -118,7 +118,6 @@ export const spaceEntry: SpaceTable['base'] = {
     space_id: 0,
     space_uuid: '123',
     name: 'space name',
-    is_private: false,
     created_at: new Date(),
     project_id: 0,
     organization_uuid: 'organizationUuid',
