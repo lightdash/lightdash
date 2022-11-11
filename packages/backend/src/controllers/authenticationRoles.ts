@@ -6,9 +6,10 @@ import {
 
 const inheritedProjectRoleFromOrgRole = (
     orgRole: OrganizationMemberRole,
-): ProjectMemberRole => {
+): ProjectMemberRole | null => {
     switch (orgRole) {
         case OrganizationMemberRole.MEMBER:
+            return null;
         case OrganizationMemberRole.VIEWER:
             return ProjectMemberRole.VIEWER;
         case OrganizationMemberRole.EDITOR:
@@ -26,6 +27,6 @@ const inheritedProjectRoleFromOrgRole = (
 export const getProjectRoleOrInheritedFromOrganization = (
     projectRole: ProjectMemberRole | null | undefined,
     organizationRole: OrganizationMemberRole,
-): ProjectMemberRole =>
+): ProjectMemberRole | null =>
     // if user has not project role, it inherits rol from org
     projectRole || inheritedProjectRoleFromOrgRole(organizationRole);

@@ -21,5 +21,5 @@ export type SpaceShare = {
     userUuid: string;
     firstName: string;
     lastName: string;
-    role: ProjectMemberRole;
+    role: ProjectMemberRole | null;
 };
