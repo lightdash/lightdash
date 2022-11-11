@@ -1,5 +1,7 @@
 import { AnchorButton, Button, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import LinkButton from '../../common/LinkButton';
+import SimpleButton from '../../common/SimpleButton';
 
 export const ConfigureFilterWrapper = styled.div`
     width: 20.5em;
@@ -10,6 +12,7 @@ export const ConfigureFilterWrapper = styled.div`
 
 export const Title = styled.p`
     font-weight: bold;
+    margin-bottom: 0;
 `;
 
 export const InputsWrapper = styled.div`
@@ -23,25 +26,10 @@ export const InputsWrapper = styled.div`
     }
 `;
 
-export const BackButton = styled(AnchorButton)`
-    color: ${Colors.BLUE3} !important;
-    padding: 0;
-    margin-bottom: 1.5em;
-    justify-content: flex-start;
-    font-size: 12px;
-    font-weight: 600;
-    :hover {
-        background: transparent !important;
-        span {
-            text-decoration: underline;
-        }
-    }
-    :focus {
-        outline: none;
-        span {
-            text-decoration: underline;
-        }
-    }
+export const BackButton = styled(SimpleButton)`
+    align-self: flex-start;
+    font-size: 13px;
+    padding: 0 !important;
 `;
 
 export const ApplyFilterButton = styled(Button)`

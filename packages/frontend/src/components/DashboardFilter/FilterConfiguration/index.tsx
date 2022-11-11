@@ -1,4 +1,11 @@
-import { HTMLSelect, Intent } from '@blueprintjs/core';
+import {
+    Checkbox,
+    FormGroup,
+    HTMLSelect,
+    Intent,
+    Tab,
+    Tabs,
+} from '@blueprintjs/core';
 import { Classes, Popover2Props } from '@blueprintjs/popover2';
 import {
     createDashboardFilterRuleFromField,
@@ -11,6 +18,8 @@ import {
     getFilterTypeFromField,
 } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
+import { useDashboardTilesWithFilters } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import {
     ApplyFilterButton,
@@ -35,6 +44,10 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
     onBack,
 }) => {
+    const { dashboardTiles, dashboardTemporaryFilters } = useDashboardContext();
+    const { data: tilesWithFilters } =
+        useDashboardTilesWithFilters(dashboardTiles);
+
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
             filterRule || createDashboardFilterRuleFromField(field),
@@ -51,34 +64,76 @@ const FilterConfiguration: FC<Props> = ({
     return (
         <ConfigureFilterWrapper>
             {onBack && (
-                <BackButton minimal onClick={onBack}>
+                <BackButton small fill={false} onClick={onBack}>
                     Back
                 </BackButton>
             )}
-            <Title>{field.label}</Title>
-            <InputsWrapper>
-                <HTMLSelect
-                    fill
-                    onChange={(e) =>
-                        setInternalFilterRule((prevState) =>
-                            getFilterRuleWithDefaultValue(field, {
-                                ...prevState,
-                                operator: e.target
-                                    .value as FilterRule['operator'],
-                            }),
-                        )
+
+            <Tabs>
+                <Tab
+                    id="settings"
+                    title="Settings"
+                    panel={
+                        <InputsWrapper>
+                            <Title>{field.label}</Title>
+
+                            <HTMLSelect
+                                fill
+                                onChange={(e) =>
+                                    setInternalFilterRule((prevState) =>
+                                        getFilterRuleWithDefaultValue(field, {
+                                            ...prevState,
+                                            operator: e.target
+                                                .value as FilterRule['operator'],
+                                        }),
+                                    )
+                                }
+                                options={filterConfig.operatorOptions}
+                                value={internalFilterRule.operator}
+                            />
+                            <filterConfig.inputs
+                                popoverProps={popoverProps}
+                                filterType={filterType}
+                                field={field}
+                                filterRule={internalFilterRule}
+                                onChange={setInternalFilterRule as any}
+                            />
+                        </InputsWrapper>
                     }
-                    options={filterConfig.operatorOptions}
-                    value={internalFilterRule.operator}
                 />
-                <filterConfig.inputs
-                    popoverProps={popoverProps}
-                    filterType={filterType}
-                    field={field}
-                    filterRule={internalFilterRule}
-                    onChange={setInternalFilterRule as any}
+
+                <Tab
+                    id="tiles"
+                    title="Tiles"
+                    panel={
+                        <>
+                            <Title>Select tiles to apply filter to</Title>
+
+                            {tilesWithFilters &&
+                                Object.entries(tilesWithFilters).map(
+                                    ([uuid, tile]) => {
+                                        return (
+                                            <FormGroup key={uuid}>
+                                                <Checkbox
+                                                    label={tile.name}
+                                                    disabled={
+                                                        !tile.filters.find(
+                                                            (filter) =>
+                                                                filter.name ===
+                                                                    field.name &&
+                                                                filter.table ===
+                                                                    field.table,
+                                                        )
+                                                    }
+                                                />
+                                            </FormGroup>
+                                        );
+                                    },
+                                )}
+                        </>
+                    }
                 />
-            </InputsWrapper>
+            </Tabs>
 
             <ApplyFilterButton
                 type="submit"
