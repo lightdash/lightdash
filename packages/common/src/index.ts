@@ -350,10 +350,10 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         defaultTimeIntervalValues[field.timeInterval]
                             ? defaultTimeIntervalValues[field.timeInterval]
                             : moment();
-                    const dateValue = valueIsDate
-                        ? formatDate(value, undefined, true)
-                        : formatDate(defaultDate, undefined, false);
 
+                    const dateValue = valueIsDate
+                        ? formatDate(value, undefined, false)
+                        : formatDate(defaultDate, undefined, false);
                     filterRuleDefaults.values = [dateValue];
                 }
                 break;
