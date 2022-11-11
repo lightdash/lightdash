@@ -1,3 +1,10 @@
+## [0.320.2](https://github.com/lightdash/lightdash/compare/0.320.1...0.320.2) (2022-11-11)
+
+
+### Bug Fixes
+
+* change date when changing date operator ([#3763](https://github.com/lightdash/lightdash/issues/3763)) ([f3a8ee0](https://github.com/lightdash/lightdash/commit/f3a8ee08f9da4aeea67aa6de6da5a3af07207bef))
+
 ## [0.320.1](https://github.com/lightdash/lightdash/compare/0.320.0...0.320.1) (2022-11-10)
 
 
