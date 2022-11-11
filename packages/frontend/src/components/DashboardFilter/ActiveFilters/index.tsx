@@ -7,15 +7,16 @@ import { TagsWrapper } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
     const {
-        dashboard,
         dashboardFilters,
         dashboardTemporaryFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         dashboardTiles,
     } = useDashboardContext();
-    const { data: filterableFields } =
+    const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboardTiles);
+
+    if (isLoading || !filterableFields) return null;
 
     const fieldMap = filterableFields.reduce<Record<FieldId, FilterableField>>(
         (acc, field) => ({ ...acc, [fieldId(field)]: field }),

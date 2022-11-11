@@ -149,7 +149,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
 
     useEffect(() => {
-        if (filterableFields.length > 0) {
+        if (filterableFields && filterableFields.length > 0) {
             setFieldsWithSuggestions((prev) =>
                 filterableFields.reduce<FieldsWithSuggestions>(
                     (sum, field) => ({

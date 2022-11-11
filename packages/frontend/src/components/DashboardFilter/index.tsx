@@ -54,7 +54,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     content={
                         <FilterSearch
                             isEditMode={isEditMode}
-                            fields={filterableFields}
+                            fields={filterableFields || []}
                             popoverProps={{
                                 onOpened: () => setIsSubmenuOpen(true),
                                 onClose: () => setIsSubmenuOpen(false),

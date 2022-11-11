@@ -71,6 +71,11 @@ export type CreateDashboard = {
     spaceUuid?: string;
 };
 
+export type DashboardTile =
+    | DashboardChartTile
+    | DashboardMarkdownTile
+    | DashboardLoomTile;
+
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
@@ -78,9 +83,7 @@ export type Dashboard = {
     name: string;
     description?: string;
     updatedAt: Date;
-    tiles: Array<
-        DashboardChartTile | DashboardMarkdownTile | DashboardLoomTile
-    >;
+    tiles: Array<DashboardTile>;
     filters: DashboardFilters;
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
