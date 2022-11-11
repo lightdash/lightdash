@@ -356,7 +356,10 @@ export class SpaceModel {
 
     async update(spaceUuid: string, space: UpdateSpace): Promise<Space> {
         await this.database(SpaceTableName)
-            .update<UpdateSpace>(space)
+            .update<UpdateSpace>({
+                name: space.name,
+                is_private: space.isPrivate,
+            })
             .where('space_uuid', spaceUuid);
         return this.getFullSpace(spaceUuid);
     }
