@@ -331,7 +331,7 @@ export class SpaceModel {
         const [space] = await this.database(SpaceTableName)
             .insert({
                 project_id: project.project_id,
-                is_private: true,
+                is_private: false, // TODO change to true once we support private spaces in the UI,
                 name,
             })
             .returning('*');
