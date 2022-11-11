@@ -804,6 +804,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "rsanjabi",
+      "name": "Rebecca Sanjabi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47192430?v=4",
+      "profile": "http://rebeccasanjabi.com",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
