@@ -104,6 +104,7 @@ export class DbtCliClient implements DbtClient {
         ...command: string[]
     ): Promise<string | undefined> {
         const dbtArgs = [
+            '--quiet',
             ...command,
             '--profiles-dir',
             this.dbtProfilesDirectory,
