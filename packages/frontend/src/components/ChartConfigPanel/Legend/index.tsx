@@ -55,14 +55,12 @@ const LegendPanel: FC = () => {
                     large
                     checked={dirtyEchartsConfig?.legend?.type !== 'plain'}
                     onChange={() => {
-                        if (dirtyEchartsConfig?.legend) {
-                            const type: 'scroll' | 'plain' =
-                                dirtyEchartsConfig?.legend?.type === 'plain'
-                                    ? 'scroll'
-                                    : 'plain';
-                            methods.setValue('type', type);
-                            handleSubmit(setLegend)();
-                        }
+                        const type: 'scroll' | 'plain' =
+                            dirtyEchartsConfig?.legend?.type !== 'plain'
+                                ? 'plain'
+                                : 'scroll';
+                        methods.setValue('type', type);
+                        handleSubmit(setLegend)();
                     }}
                 />
                 <SectionTitle>Position</SectionTitle>
