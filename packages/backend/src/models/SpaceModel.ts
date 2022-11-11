@@ -397,7 +397,18 @@ export class SpaceModel {
             .delete();
     }
 
-    async clearSpaceAccess(spaceUuid: string): Promise<void> {
-        await this.database('spaces').where('space_uuid', spaceUuid).delete();
+    async clearSpaceAccess(spaceUuid: string, userUuid: string): Promise<void> {
+        const [space] = await this.database('spaces')
+            .select('space_id')
+            .where('space_uuid', spaceUuid);
+
+        const [user] = await this.database('users')
+            .select('user_id')
+            .where('user_uuid', userUuid);
+
+        await this.database('space_share')
+            .where('space_id', space.space_id)
+            .andWhereNot('user_id', user.user_id)
+            .delete();
     }
 }

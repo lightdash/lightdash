@@ -125,7 +125,8 @@ export class SpaceService {
 
         if (space.isPrivate !== updateSpace.isPrivate) {
             // Switching public and private spaces switches between their defaults
-            await this.spaceModel.clearSpaceAccess(spaceUuid);
+            // it will remove access to all users except for this `user.userUuid`
+            await this.spaceModel.clearSpaceAccess(spaceUuid, user.userUuid);
         }
         const updatedSpace = await this.spaceModel.update(
             spaceUuid,
