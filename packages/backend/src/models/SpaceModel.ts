@@ -396,4 +396,8 @@ export class SpaceModel {
             .andWhere('user_id', user.user_id)
             .delete();
     }
+
+    async clearSpaceAccess(spaceUuid: string): Promise<void> {
+        await this.database('spaces').where('space_uuid', spaceUuid).delete();
+    }
 }

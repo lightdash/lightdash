@@ -122,6 +122,11 @@ export class SpaceService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (space.isPrivate !== updateSpace.isPrivate) {
+            // Switching public and private spaces switches between their defaults
+            await this.spaceModel.clearSpaceAccess(spaceUuid);
+        }
         const updatedSpace = await this.spaceModel.update(
             spaceUuid,
             updateSpace,
