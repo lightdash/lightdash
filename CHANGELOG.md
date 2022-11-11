@@ -1,3 +1,10 @@
+## [0.320.3](https://github.com/lightdash/lightdash/compare/0.320.2...0.320.3) (2022-11-11)
+
+
+### Bug Fixes
+
+* filter card pill size ([#3768](https://github.com/lightdash/lightdash/issues/3768)) ([9ec2803](https://github.com/lightdash/lightdash/commit/9ec28032d084986b1bcb0660b7c150e1d6282006))
+
 ## [0.320.2](https://github.com/lightdash/lightdash/compare/0.320.1...0.320.2) (2022-11-11)
 
 
