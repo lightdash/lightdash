@@ -4,6 +4,7 @@ import {
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
+    AvailableFiltersForSavedQuery,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -12,7 +13,6 @@ import {
     Explore,
     ExploreError,
     fieldId as getFieldId,
-    FilterableField,
     FilterOperator,
     findFieldByIdInExplore,
     ForbiddenError,
@@ -1130,7 +1130,7 @@ export class ProjectService {
     async getAvailableFiltersForSavedQuery(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<FilterableField[]> {
+    ): Promise<AvailableFiltersForSavedQuery> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
 
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
@@ -1141,9 +1141,13 @@ export class ProjectService {
             savedChart.projectUuid,
             savedChart.tableName,
         );
-        return getDimensions(explore).filter(
-            (field) => isFilterableDimension(field) && !field.hidden,
-        );
+        return {
+            name: savedChart.name,
+            uuid: savedChart.uuid,
+            filters: getDimensions(explore).filter(
+                (field) => isFilterableDimension(field) && !field.hidden,
+            ),
+        };
     }
 
     async hasSavedCharts(

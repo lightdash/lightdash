@@ -1,11 +1,11 @@
 import {
     ApiError,
+    AvailableFiltersForSavedQuery,
     CreateDashboard,
     Dashboard,
     DashboardChartTile,
     DashboardTile,
     DashboardTileTypes,
-    FilterableField,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
@@ -57,7 +57,7 @@ const deleteDashboard = async (id: string) =>
     });
 
 export const getChartAvailableFilters = async (savedChartUuid: string) =>
-    lightdashApi<FilterableField[]>({
+    lightdashApi<AvailableFiltersForSavedQuery>({
         url: `/saved/${savedChartUuid}/availableFilters`,
         method: 'GET',
         body: undefined,
@@ -75,7 +75,7 @@ const useAvailableChartFilters = (savedChartUuid: string) => {
     return useQuery(getQueryConfig(savedChartUuid));
 };
 
-export const useDashboardFiltersByTiles = (tiles: DashboardTile[] = []) => {
+export const useDashboardTilesWithFilters = (tiles: DashboardTile[] = []) => {
     const tileUuids = useMemo(() => {
         return tiles
             .filter(
@@ -88,20 +88,20 @@ export const useDashboardFiltersByTiles = (tiles: DashboardTile[] = []) => {
 
     const queries = useQueries(
         tileUuids.map((uuid) => getQueryConfig(uuid)),
-    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
+    ) as UseQueryResult<AvailableFiltersForSavedQuery, ApiError>[]; // useQueries doesn't allow us to specify TError
 
     const isLoading = queries.some((query) => query.isLoading);
     const queryResults = queries.map((query) => query.data!);
 
-    const [data, setData] = useState<Record<string, FilterableField[]>>();
+    const [data, setData] =
+        useState<Record<string, AvailableFiltersForSavedQuery>>();
 
     useDeepCompareEffect(() => {
         if (isLoading || queryResults.length === 0) return;
 
-        const results = queryResults.reduce<Record<string, FilterableField[]>>(
-            (acc, result, index) => ({ ...acc, [tileUuids[index]]: result }),
-            {},
-        );
+        const results = queryResults.reduce<
+            Record<string, AvailableFiltersForSavedQuery>
+        >((acc, result) => ({ ...acc, [result.uuid]: result }), {});
 
         setData(results);
     }, [isLoading, tileUuids, queryResults]);
@@ -115,12 +115,12 @@ export const useDashboardFiltersByTiles = (tiles: DashboardTile[] = []) => {
 export const useAvailableDashboardFilterTargets = (
     tiles: DashboardTile[] = [],
 ) => {
-    const { isLoading, data } = useDashboardFiltersByTiles(tiles);
+    const { isLoading, data } = useDashboardTilesWithFilters(tiles);
 
     const availableFilters = useMemo(() => {
         if (isLoading || !data) return;
 
-        const allFilters = Object.values(data).flat();
+        const allFilters = Object.values(data).flatMap((e) => e.filters);
         if (allFilters.length === 0) return;
 
         return allFilters.filter(

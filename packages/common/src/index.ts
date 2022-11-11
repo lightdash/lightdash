@@ -506,6 +506,12 @@ export type TablesConfiguration = {
     };
 };
 
+export type AvailableFiltersForSavedQuery = {
+    uuid: string;
+    name: string;
+    filters: FilterableField[];
+};
+
 export type CreateProjectMember = {
     email: string;
     role: ProjectMemberRole;
@@ -699,7 +705,8 @@ type ApiResults =
     | Space
     | DbtCloudMetadataResponseMetrics
     | DbtCloudIntegration
-    | ShareUrl;
+    | ShareUrl
+    | AvailableFiltersForSavedQuery;
 
 export type ApiResponse = {
     status: 'ok';
