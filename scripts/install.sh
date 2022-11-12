@@ -120,6 +120,11 @@ check_os() {
             os="opensuse"
             package_manager="zypper"
             ;;
+        Arch\ Linux*)
+            desired_os=1
+            os="arch"
+            package_manager="pacman"
+            ;;
         *)
             desired_os=0
             os="Not Found: $os_name"
@@ -210,6 +215,14 @@ install_docker() {
         echo
         sudo yum install docker
         sudo service docker start
+    elif [[ $package_manager == pacman ]]; then
+        echo "Installing docker"
+        # sudo pacman -Syu
+        sudo pacman -S docker --noconfirm # (docker, containerd, runc)
+        sudo pacman -S docker-compose --noconfirm
+        docker info
+        sudo systemctl enable --now docker
+        sudo usermod -aG docker $USER
     else
 
         yum_cmd="sudo yum --assumeyes --quiet"
@@ -375,12 +388,12 @@ fi
 
 # Check is Docker daemon is installed and available. If not, the install & start Docker for Linux machines. We cannot automatically install Docker Desktop on Mac OS
 if ! is_command_present docker; then
-    if [[ $package_manager == "apt-get" || $package_manager == "zypper" || $package_manager == "yum" ]]; then
+    if [[ $package_manager == "apt-get" || $package_manager == "zypper" || $package_manager == "yum" || $package_manager == "pacman"  ]]; then
         install_docker
     else
         echo ""
         echo "+++++++++++ IMPORTANT READ ++++++++++++++++++++++"
-        echo "Docker Desktop must be installed manually on Mac OS or Windows to proceed. Docker can only be installed automatically on Ubuntu / openSUSE / SLES / Redhat / Cent OS"
+        echo "Docker Desktop must be installed manually on Mac OS or Windows to proceed. Docker can only be installed automatically on Ubuntu / openSUSE / SLES / Redhat / Cent OS / Arch "
         echo "https://docs.docker.com/docker-for-mac/install/"
         echo "++++++++++++++++++++++++++++++++++++++++++++++++"
         track_error "$DockerNotInstalled"
