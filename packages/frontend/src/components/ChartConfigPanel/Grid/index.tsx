@@ -1,5 +1,6 @@
 import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
+import startCase from 'lodash/startCase';
 import { FC, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionRow } from './Grid.styles';
@@ -12,12 +13,7 @@ export const defaultGrid: EchartsGrid = {
     bottom: '30', // pixels from bottom (makes room for x-axis)
 };
 
-enum Positions {
-    TOP = 'top',
-    BOTTOM = 'bottom',
-    LEFT = 'left',
-    RIGHT = 'right',
-}
+const positions = ['top', 'bottom', 'left', 'right'] as const;
 
 type Units = '%' | 'px';
 
@@ -32,7 +28,7 @@ const GridPanel: FC = () => {
     });
 
     const handleUpdate = (
-        position: `${Positions}`,
+        position: typeof positions[number],
         value: string,
         currentUnit: Units,
     ) => {
@@ -46,7 +42,7 @@ const GridPanel: FC = () => {
         });
     };
 
-    const handleUpdateUnit = (key: `${Positions}`, unit: Units) => {
+    const handleUpdateUnit = (key: typeof positions[number], unit: Units) => {
         const value = config[key];
         const pureValue = value?.replace(unit === 'px' ? '%' : 'px', '') ?? '';
 
@@ -57,15 +53,20 @@ const GridPanel: FC = () => {
 
     return (
         <SectionRow>
-            {Object.values(Positions).map((position) => {
+            {positions.map((position) => {
                 const value = config[position];
                 const currentUnit = value?.includes('%') ? '%' : 'px';
                 const nextUnit = currentUnit === '%' ? 'px' : '%';
                 const valueWithoutUnit = value?.replace(/%|px/g, '');
 
                 return (
-                    <FormGroup key={position} label={position.toUpperCase()}>
+                    <FormGroup
+                        key={position}
+                        label={startCase(position)}
+                        labelFor={`${position}-input`}
+                    >
                         <InputGroup
+                            id={`${position}-input`}
                             name={position}
                             placeholder={defaultGrid[position]}
                             value={valueWithoutUnit}
