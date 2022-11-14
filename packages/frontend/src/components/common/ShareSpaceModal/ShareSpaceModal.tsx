@@ -25,6 +25,8 @@ import Input from '../../ReactHookForm/Input';
 import BaseModal from '../modal/BaseModal';
 import CreateSpaceModalContent from '../SpaceActionModal/CreateSpaceModalContent';
 import {
+    AccessName,
+    AccessRole,
     FlexWrapper,
     Hightlighed,
     OpenShareModal,
@@ -207,18 +209,20 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     ) : null}
                     <FlexWrapper>
                         <ShareTag round large icon="people" />
-                        <p>Members of {project?.name}</p>
-                        <Select2<Access>
-                            filterable={false}
-                            items={ACCESS_TYPES}
-                            itemRenderer={renderAccess}
-                            onItemSelect={(item) => setSelectedAccess(item)}
-                        >
-                            <Button
-                                text={selectedAccess.title}
-                                rightIcon="double-caret-vertical"
-                            />
-                        </Select2>
+                        <AccessName>Members of {project?.name}</AccessName>
+                        <AccessRole>
+                            <Select2<Access>
+                                filterable={false}
+                                items={ACCESS_TYPES}
+                                itemRenderer={renderAccess}
+                                onItemSelect={(item) => setSelectedAccess(item)}
+                            >
+                                <Button
+                                    text={selectedAccess.title}
+                                    rightIcon="double-caret-vertical"
+                                />
+                            </Select2>
+                        </AccessRole>
                         {/*<HTMLSelect value={space.isPrivate?'private': 'public'}
                             options={[
                                 { value: 'private', label: 'Private' },
@@ -239,11 +243,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             return (
                                 <FlexWrapper key={sharedUser.userUuid}>
                                     <Avatar initials={initials} />
-                                    <p>
+                                    <AccessName>
                                         {sharedUser.firstName}{' '}
                                         {sharedUser.lastName}
-                                    </p>
-                                    {isYou ? <b>(You)</b> : ''}
+                                        {isYou ? <b>(You)</b> : ''}
+                                    </AccessName>
+
+                                    <AccessRole>{sharedUser.role}</AccessRole>
                                 </FlexWrapper>
                             );
                         })}

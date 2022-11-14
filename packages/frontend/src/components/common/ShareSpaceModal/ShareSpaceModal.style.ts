@@ -6,6 +6,7 @@ export const OpenShareModal = styled(Button)`
 `;
 export const FlexWrapper = styled.div`
     display: flex;
+    margin-bottom: 10px;
 `;
 
 export const ShareButton = styled(Button)`
@@ -22,4 +23,14 @@ export const ShareTag = styled(Tag)`
 
 export const Hightlighed = styled.span`
     color: ${Colors.BLUE3};
+`;
+
+export const AccessName = styled.p`
+    flex: auto;
+    margin: 5px 0px 0 10px;
+`;
+
+export const AccessRole = styled.div`
+    flex: 2;
+    text-align: right;
 `;
