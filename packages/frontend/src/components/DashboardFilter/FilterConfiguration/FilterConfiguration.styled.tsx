@@ -10,9 +10,14 @@ export const ConfigureFilterWrapper = styled.div`
     flex-direction: column;
 `;
 
+export const FieldTitle = styled.p`
+    font-weight: bold;
+    margin-bottom: 10px;
+`;
+
 export const Title = styled.p`
     font-weight: bold;
-    margin-bottom: 0;
+    margin-bottom: 0px;
 `;
 
 export const InputsWrapper = styled.div`

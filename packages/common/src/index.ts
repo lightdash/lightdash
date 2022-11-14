@@ -372,6 +372,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         ...filterRule,
         values: values !== undefined && values !== null ? values : [],
         settings: undefined,
+        tileUuids: [],
         ...filterRuleDefaults,
     };
 };
@@ -389,6 +390,7 @@ export const createFilterRuleFromField = (
             },
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+            tileUuids: [],
         },
         value ? [value] : [],
     );
@@ -403,6 +405,7 @@ export const createDashboardFilterRuleFromField = (
             tableName: field.table,
         },
         operator: FilterOperator.EQUALS,
+        tileUuids: [],
     });
 
 type AddFilterRuleArgs = {
