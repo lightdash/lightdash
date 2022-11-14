@@ -59,7 +59,7 @@ export type FilterRule<
     operator: O;
     settings?: S;
     values?: V[];
-    tileUuids: string[];
+    tileUuids?: string[];
 };
 
 export type DashboardFieldTarget = {

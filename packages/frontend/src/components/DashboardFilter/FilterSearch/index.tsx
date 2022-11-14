@@ -1,6 +1,7 @@
 import { Popover2Props } from '@blueprintjs/popover2';
 import { FilterableField, isField, isFilterableField } from '@lightdash/common';
 import React, { FC, useState } from 'react';
+import { useDashboardTilesWithFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -27,9 +28,17 @@ const FilterSearch: FC<Props> = ({
     onSelectField,
     popoverProps,
 }) => {
-    const [selectedField, setSelectedField] = useState<FilterableField>();
-    const { addDimensionDashboardFilter } = useDashboardContext();
     const { track } = useTracking();
+    const { dashboardTiles } = useDashboardContext();
+    const { data: tilesWithFilters, isLoading } =
+        useDashboardTilesWithFilters(dashboardTiles);
+    const { addDimensionDashboardFilter } = useDashboardContext();
+
+    const [selectedField, setSelectedField] = useState<FilterableField>();
+
+    if (isLoading || !tilesWithFilters) {
+        return null;
+    }
 
     return (
         <FilterModalContainer>
@@ -59,6 +68,7 @@ const FilterSearch: FC<Props> = ({
             ) : (
                 <FilterConfiguration
                     field={selectedField}
+                    tilesWithFilters={tilesWithFilters}
                     popoverProps={{
                         captureDismiss: true,
                         canEscapeKeyClose: true,

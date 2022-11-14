@@ -1,6 +1,8 @@
 import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
 import React, { FC } from 'react';
+import { useDashboardTilesWithFilters } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import FilterConfiguration from '../FilterConfiguration';
 import {
@@ -26,6 +28,14 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
+    const { dashboardTiles } = useDashboardContext();
+    const { data: tilesWithFilters, isLoading } =
+        useDashboardTilesWithFilters(dashboardTiles);
+
+    if (!isLoading || !tilesWithFilters) {
+        return null;
+    }
+
     if (!field) {
         return (
             <InvalidFilterTag onRemove={onRemove}>
@@ -39,6 +49,7 @@ const ActiveFilter: FC<Props> = ({
             content={
                 <FilterConfiguration
                     field={field}
+                    tilesWithFilters={tilesWithFilters}
                     filterRule={filterRule}
                     onSave={onUpdate}
                 />

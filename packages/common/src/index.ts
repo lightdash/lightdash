@@ -397,6 +397,7 @@ export const createFilterRuleFromField = (
 
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
+    applicableTileUuids: string[],
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(field, {
         id: uuidv4(),
@@ -405,7 +406,7 @@ export const createDashboardFilterRuleFromField = (
             tableName: field.table,
         },
         operator: FilterOperator.EQUALS,
-        tileUuids: [],
+        tileUuids: applicableTileUuids,
     });
 
 type AddFilterRuleArgs = {

@@ -27,13 +27,13 @@ import {
     ApplyFilterButton,
     BackButton,
     ConfigureFilterWrapper,
-    FieldTitle,
     InputsWrapper,
     Title,
 } from './FilterConfiguration.styled';
 
 interface Props {
     field: FilterableField;
+    tilesWithFilters: Record<string, AvailableFiltersForSavedQuery>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     onSave: (value: DashboardFilterRule) => void;
@@ -42,20 +42,12 @@ interface Props {
 
 const FilterConfiguration: FC<Props> = ({
     field,
+    tilesWithFilters,
     filterRule,
     popoverProps,
     onSave,
     onBack,
 }) => {
-    const { dashboardTiles } = useDashboardContext();
-    const { data: tilesWithFilters } =
-        useDashboardTilesWithFilters(dashboardTiles);
-
-    const [internalFilterRule, setInternalFilterRule] =
-        useState<DashboardFilterRule>(
-            filterRule || createDashboardFilterRuleFromField(field),
-        );
-
     const filterType = field
         ? getFilterTypeFromField(field)
         : FilterType.STRING;
@@ -67,7 +59,6 @@ const FilterConfiguration: FC<Props> = ({
 
     const applicableTileUuids = useMemo(
         () =>
-            tilesWithFilters &&
             Object.values(tilesWithFilters)
                 .filter((tile) =>
                     tile.filters.some(
@@ -80,14 +71,21 @@ const FilterConfiguration: FC<Props> = ({
         [tilesWithFilters, field.name, field.table],
     );
 
+    const [internalFilterRule, setInternalFilterRule] =
+        useState<DashboardFilterRule>(
+            filterRule ||
+                createDashboardFilterRuleFromField(field, applicableTileUuids),
+        );
+
     const handleToggleTile = (tileUuid: string, isChecked: boolean) => {
         setInternalFilterRule((prevState) =>
             produce(prevState, (draftState) => {
                 if (isChecked) {
-                    draftState.tileUuids.push(tileUuid);
+                    draftState.tileUuids?.push(tileUuid);
                 } else {
-                    draftState.tileUuids = draftState.tileUuids.filter(
-                        (uuid) => uuid !== tileUuid,
+                    draftState.tileUuids?.splice(
+                        draftState.tileUuids.indexOf(tileUuid),
+                        1,
                     );
                 }
             }),
