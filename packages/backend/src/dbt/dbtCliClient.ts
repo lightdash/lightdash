@@ -1,8 +1,10 @@
 import {
     DbtError,
+    DbtLog,
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
+    isDbtLog,
     isDbtPackages,
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
@@ -100,13 +102,27 @@ export class DbtCliClient implements DbtClient {
         return this.targetDirectory;
     }
 
-    private async _runDbtCommand(
-        ...command: string[]
-    ): Promise<string | undefined> {
+    static parseDbtJsonLogs(logs: string | undefined): DbtLog[] {
+        const lines = logs?.split('\n');
+        return (lines || []).reduce<DbtLog[]>((acc, line) => {
+            try {
+                const log = JSON.parse(line);
+                if (isDbtLog(log)) {
+                    return [...acc, log];
+                }
+                return acc;
+            } catch (e) {
+                Logger.warn('Error parsing dbt json log', e);
+            }
+            return acc;
+        }, []);
+    }
+
+    private async _runDbtCommand(...command: string[]): Promise<DbtLog[]> {
         const dbtArgs = [
-            '--quiet',
-            '--no-print',
             '--no-use-colors',
+            '--log-format',
+            'json',
             ...command,
             '--profiles-dir',
             this.dbtProfilesDirectory,
@@ -128,13 +144,11 @@ export class DbtCliClient implements DbtClient {
                     ...this.environment,
                 },
             });
-            return dbtProcess.all;
+            return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
             throw new DbtError(
-                `Failed to run "dbt ${command.join(' ')}"\n${e.all}`,
-                {
-                    logs: e.all,
-                },
+                `Failed to run "dbt ${command.join(' ')}"`,
+                DbtCliClient.parseDbtJsonLogs(e.all),
             );
         }
     }
@@ -169,7 +183,7 @@ export class DbtCliClient implements DbtClient {
         }
         throw new DbtError(
             'Cannot read response from dbt, manifest.json not valid',
-            { logs: dbtLogs },
+            dbtLogs,
         );
     }
 
@@ -215,7 +229,6 @@ export class DbtCliClient implements DbtClient {
         } catch (e) {
             throw new DbtError(
                 `Cannot read response from dbt, could not read dbt artifact: ${fullPath}`,
-                {},
             );
         }
     }
@@ -236,7 +249,7 @@ export class DbtCliClient implements DbtClient {
         }
         throw new DbtError(
             'Cannot read response from dbt, catalog.json is not a valid dbt catalog',
-            { dbtLogs },
+            dbtLogs,
         );
     }
 

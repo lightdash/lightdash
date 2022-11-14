@@ -32,6 +32,7 @@ export const RefreshStepsHeadingWrapper = styled.div`
 
     .bp4-icon {
         padding-top: 3px !important;
+        margin-left: 0;
     }
 `;
 
@@ -93,6 +94,5 @@ export const StepIconWrapper = styled(Icon)<{ status: string }>`
 export const ErrorMessageWrapper = styled.div`
     margin-top: 10px;
     word-wrap: break-word;
-    max-width: 290px;
     hyphens: auto;
 `;

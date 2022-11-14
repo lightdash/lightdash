@@ -1,4 +1,6 @@
 // eslint-disable-next-line max-classes-per-file
+import { DbtLog } from './job';
+
 type LightdashErrorParams = {
     message: string;
     name: string;
@@ -212,16 +214,16 @@ export class NetworkError extends LightdashError {
 }
 
 export class DbtError extends LightdashError {
-    constructor(
-        message = 'Dbt raised an error',
-        data: { [key: string]: any } = {},
-    ) {
+    logs: DbtLog[] | undefined;
+
+    constructor(message = 'Dbt raised an error', logs: DbtLog[] = []) {
         super({
             message,
             name: 'DbtError',
             statusCode: 500,
-            data,
+            data: {},
         });
+        this.logs = logs;
     }
 }
 
