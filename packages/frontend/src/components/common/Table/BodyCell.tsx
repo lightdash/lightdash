@@ -2,6 +2,7 @@ import { Position } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
+import debounce from 'lodash/debounce';
 import React, { FC, useCallback, useState } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
@@ -77,7 +78,14 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
         [onSelect, setIsCellSelected, canHaveContextMenu],
     );
 
-    console.log(isCellSelected);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleDebouncedCellSelect = useCallback(
+        debounce(handleCellSelect, 300, {
+            leading: true,
+            trailing: false,
+        }),
+        [handleCellSelect],
+    );
 
     return (
         <Popover2
@@ -86,11 +94,11 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             position={Position.BOTTOM_RIGHT}
             hasBackdrop
             backdropProps={{
-                onClick: () => handleCellSelect(undefined),
+                onClick: () => handleDebouncedCellSelect(undefined),
                 style: { zIndex: 20 },
             }}
-            onOpening={() => handleCellSelect(props.cell.id)}
-            onClosing={() => handleCellSelect(undefined)}
+            onOpening={() => handleDebouncedCellSelect(props.cell.id)}
+            onClosing={() => handleDebouncedCellSelect(undefined)}
             content={
                 CellContextMenu && (
                     <CellContextMenu
@@ -108,7 +116,7 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
                     }
                     hasContextMenu={canHaveContextMenu}
                     isSelected={isCellSelected}
-                    onSelect={handleCellSelect}
+                    onSelect={handleDebouncedCellSelect}
                     ref={ref}
                 />
             )}
