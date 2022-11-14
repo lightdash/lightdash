@@ -157,8 +157,8 @@ export const TableConfigPanel: React.FC = () => {
                         />
 
                         <Checkbox
-                            label="Hide row numbers"
-                            checked={hideRowNumbers}
+                            label="Show row numbers"
+                            checked={!hideRowNumbers}
                             onChange={(e) => {
                                 setHideRowNumbers(!hideRowNumbers);
                             }}
