@@ -1,3 +1,10 @@
+## [0.321.1](https://github.com/lightdash/lightdash/compare/0.321.0...0.321.1) (2022-11-14)
+
+
+### Bug Fixes
+
+* disable table configuration inputs for the viewer ([#3774](https://github.com/lightdash/lightdash/issues/3774)) ([62fded3](https://github.com/lightdash/lightdash/commit/62fded3ba2f321d9b34d79609a5a96876a4c35a2))
+
 # [0.321.0](https://github.com/lightdash/lightdash/compare/0.320.3...0.321.0) (2022-11-14)
 
 
