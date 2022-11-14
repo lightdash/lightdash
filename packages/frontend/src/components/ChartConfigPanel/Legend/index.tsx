@@ -4,6 +4,7 @@ import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
+import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
@@ -39,11 +40,12 @@ const LegendPanel: FC = () => {
             onSubmit={() => undefined}
             onBlur={handleSubmit(setLegend)}
         >
-            <BooleanSwitch
+            <Checkbox
                 name="show"
-                label="Show legend"
+                checkboxProps={{ label: 'Show legend' }}
                 defaultValue={showDefault}
             />
+
             <Collapse
                 isOpen={
                     dirtyEchartsConfig?.legend
