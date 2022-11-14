@@ -30,7 +30,7 @@ const GridPanel: FC = () => {
             onSubmit={() => undefined}
             onBlur={methods.handleSubmit(setGrid)}
         >
-            <SectionTitle>Margins</SectionTitle>
+            <SectionTitle>(px or %)</SectionTitle>
             <SectionRow>
                 <Input name="top" label="Top" placeholder={defaultGrid.top} />
                 <Input
