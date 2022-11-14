@@ -25,13 +25,26 @@ import Input from '../../ReactHookForm/Input';
 import BaseModal from '../modal/BaseModal';
 import CreateSpaceModalContent from '../SpaceActionModal/CreateSpaceModalContent';
 import {
+    AccessDescription,
     AccessName,
     AccessRole,
+    AccessSelectSubtitle,
+    AccessSelectTitle,
+    AccessWrapper,
+    AddUsersWrapper,
+    ChangeAccessButton,
+    DialogFooter,
     FlexWrapper,
     Hightlighed,
+    MemberAccess,
     OpenShareModal,
     ShareButton,
     ShareTag,
+    UserListWrapper,
+    UserName,
+    UserRole,
+    UserTag,
+    YouLabel,
 } from './ShareSpaceModal.style';
 
 import { MenuItem2 } from '@blueprintjs/popover2';
@@ -45,7 +58,8 @@ export interface ShareSpaceProps {
 
 export interface Access {
     title: string;
-    subtitle: string;
+    description: string;
+    selectDescription: string;
     value: string;
 }
 const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
@@ -53,19 +67,21 @@ const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
 const ACCESS_TYPES: Access[] = [
     {
         title: 'Restricted access',
-        subtitle: 'Only invited members can access',
+        description: 'Only invited members can access',
+        selectDescription: 'Only invited members can access',
         value: 'private',
     },
     {
         title: 'Full access',
-        subtitle:
+        description: 'All project members can access',
+        selectDescription:
             'All project members can access with their project permissions',
         value: 'public',
     },
 ];
 
 const renderAccess: ItemRenderer<Access> = (
-    film,
+    access,
     { handleClick, handleFocus, modifiers, query },
 ) => {
     if (!modifiers.matchesPredicate) {
@@ -76,22 +92,15 @@ const renderAccess: ItemRenderer<Access> = (
             multiline={true}
             active={modifiers.active}
             disabled={modifiers.disabled}
-            key={film.value}
+            key={access.value}
             onClick={handleClick}
             onFocus={handleFocus}
             text={
                 <>
-                    <p>{film.title}</p>
-                    <p
-                        style={{
-                            color: 'gray',
-                            wordBreak: 'break-word',
-                            width: '150px',
-                        }}
-                    >
-                        {' '}
-                        {film.subtitle}
-                    </p>
+                    <AccessSelectTitle>{access.title}</AccessSelectTitle>
+                    <AccessSelectSubtitle>
+                        {access.selectDescription}
+                    </AccessSelectSubtitle>
                 </>
             }
         />
@@ -158,6 +167,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             />
 
             <Dialog
+                style={{ width: 480, paddingBottom: 0 }}
                 title={`Share '${space.name}'`}
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}
@@ -165,7 +175,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             >
                 <div className={Classes.DIALOG_BODY}>
                     {selectedAccess.value === 'private' ? (
-                        <FlexWrapper>
+                        <AddUsersWrapper>
                             <MultiSelect2
                                 fill
                                 itemRenderer={renderUserShare}
@@ -201,15 +211,29 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <ShareButton
                                 text="Share"
                                 intent="primary"
+                                disabled={emailsSelected.length === 0}
                                 onClick={() => {
                                     setEmailsSelected([]);
                                 }}
                             />
-                        </FlexWrapper>
+                        </AddUsersWrapper>
                     ) : null}
-                    <FlexWrapper>
-                        <ShareTag round large icon="people" />
-                        <AccessName>Members of {project?.name}</AccessName>
+                    <AccessWrapper>
+                        <ShareTag
+                            round
+                            large
+                            icon={
+                                selectedAccess.value === 'private'
+                                    ? 'lock'
+                                    : 'people'
+                            }
+                        />
+                        <MemberAccess>
+                            <AccessName>Members of {project?.name}</AccessName>
+                            <AccessDescription>
+                                {selectedAccess.description}
+                            </AccessDescription>
+                        </MemberAccess>
                         <AccessRole>
                             <Select2<Access>
                                 filterable={false}
@@ -217,9 +241,10 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 itemRenderer={renderAccess}
                                 onItemSelect={(item) => setSelectedAccess(item)}
                             >
-                                <Button
+                                <ChangeAccessButton
+                                    minimal
                                     text={selectedAccess.title}
-                                    rightIcon="double-caret-vertical"
+                                    rightIcon="caret-down"
                                 />
                             </Select2>
                         </AccessRole>
@@ -230,33 +255,41 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             ]}
                             >
                         </HTMLSelect>*/}
-                    </FlexWrapper>
+                    </AccessWrapper>
+                    <UserListWrapper>
+                        {space.access &&
+                            space.access.map((sharedUser) => {
+                                const initials =
+                                    sharedUser.firstName.substr(0, 1) +
+                                    sharedUser.lastName.substr(0, 1);
 
-                    {space.access &&
-                        space.access.map((sharedUser) => {
-                            const initials =
-                                sharedUser.firstName.substr(0, 1) +
-                                sharedUser.lastName.substr(0, 1);
+                                const isYou =
+                                    user.data?.userUuid === sharedUser.userUuid;
+                                return (
+                                    <FlexWrapper key={sharedUser.userUuid}>
+                                        <UserTag round large>
+                                            {initials}
+                                        </UserTag>
 
-                            const isYou =
-                                user.data?.userUuid === sharedUser.userUuid;
-                            return (
-                                <FlexWrapper key={sharedUser.userUuid}>
-                                    <Avatar initials={initials} />
-                                    <AccessName>
-                                        {sharedUser.firstName}{' '}
-                                        {sharedUser.lastName}
-                                        {isYou ? <b>(You)</b> : ''}
-                                    </AccessName>
+                                        <UserName>
+                                            {sharedUser.firstName}{' '}
+                                            {sharedUser.lastName}{' '}
+                                            {isYou ? (
+                                                <YouLabel>(you)</YouLabel>
+                                            ) : (
+                                                ''
+                                            )}
+                                        </UserName>
 
-                                    <AccessRole>{sharedUser.role}</AccessRole>
-                                </FlexWrapper>
-                            );
-                        })}
+                                        <UserRole>{sharedUser.role}</UserRole>
+                                    </FlexWrapper>
+                                );
+                            })}
+                    </UserListWrapper>
                 </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <p>Learn more about permissions in our docs</p>
-                </div>
+                <DialogFooter>
+                    <p> Learn more about permissions in our docs</p>
+                </DialogFooter>
             </Dialog>
         </>
     );
