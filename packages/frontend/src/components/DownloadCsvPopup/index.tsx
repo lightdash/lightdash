@@ -122,14 +122,16 @@ const DownloadCsvPopup: FC<Props> = memo(
                         )}
 
                         <CSVLink
-                            data={csvRows}
                             ref={csvRef}
-                            tabIndex={0}
                             target="_blank"
+                            data={csvRows}
                             filename={csvFilename}
                         />
+
                         <Button
+                            fill
                             intent={Intent.PRIMARY}
+                            icon="export"
                             onClick={() => {
                                 if (limit === Limit.TABLE) {
                                     setCsvRows(
@@ -150,7 +152,7 @@ const DownloadCsvPopup: FC<Props> = memo(
                                 }
                             }}
                         >
-                            Download CSV
+                            Export CSV
                         </Button>
                     </>
                 }

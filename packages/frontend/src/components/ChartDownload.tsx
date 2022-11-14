@@ -3,15 +3,15 @@ import {
     Divider,
     FormGroup,
     HTMLSelect,
-    Icon,
     Intent,
     PopoverPosition,
+    Portal,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { ChartType, getResultValues, ResultRow } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, RefObject, useCallback, useState } from 'react';
+import React, { memo, RefObject, useCallback, useRef, useState } from 'react';
 import { CSVLink } from 'react-csv';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
@@ -109,6 +109,9 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartType,
     tableData,
 }) => {
+    const csvRef = useRef<
+        CSVLink & HTMLAnchorElement & { link: HTMLAnchorElement }
+    >(null);
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
     const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {
@@ -151,6 +154,12 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         }
     }, [chartRef, type]);
 
+    const handleCSVExport = useCallback(() => {
+        if (!csvRef.current) return;
+
+        csvRef.current.link.click();
+    }, [csvRef]);
+
     return (
         <div
             style={{
@@ -164,21 +173,30 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 <b>Options</b>
             </span>
             <Divider />
+
             <FormGroup label="File format" labelFor="download-type" inline>
                 {isTable ? (
-                    <CSVLink
-                        role="button"
-                        tabIndex={0}
-                        className="bp4-button"
-                        data={tableData}
-                        filename={`lightdash-export-${new Date()
-                            .toISOString()
-                            .slice(0, 10)}.csv`}
-                        target="_blank"
-                    >
-                        <Icon icon="export" />
-                        <span>Export CSV</span>
-                    </CSVLink>
+                    <>
+                        <Button
+                            intent="primary"
+                            icon="export"
+                            onClick={handleCSVExport}
+                        >
+                            Export CSV
+                        </Button>
+
+                        <Portal>
+                            <CSVLink
+                                ref={csvRef}
+                                tabIndex={0}
+                                data={tableData}
+                                filename={`lightdash-export-${new Date()
+                                    .toISOString()
+                                    .slice(0, 10)}.csv`}
+                                target="_blank"
+                            />
+                        </Portal>
+                    </>
                 ) : (
                     <HTMLSelect
                         id="download-type"

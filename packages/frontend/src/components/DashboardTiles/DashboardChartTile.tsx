@@ -24,7 +24,14 @@ import {
     ResultRow,
     SavedChart,
 } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    FC,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { CSVLink } from 'react-csv';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -102,25 +109,42 @@ const DownloadCSV: FC<{
     data: SavedChart;
     project: string;
 }> = ({ data, project }) => {
+    const csvRef = useRef<
+        CSVLink & HTMLAnchorElement & { link: HTMLAnchorElement }
+    >(null);
     const { data: resultData } = useSavedChartResults(project, data);
-
     const rows = resultData?.rows;
-    if (!rows || rows.length <= 0) {
-        return <MenuItem2 icon="download" text=".csv" disabled />;
-    }
+    const isDisabled = !rows || rows.length === 0;
+
+    const handleClick = useCallback(() => {
+        if (!csvRef.current) return;
+
+        (csvRef.current as any).link.click();
+    }, [csvRef]);
 
     return (
-        <CSVLink
-            role="menuitem"
-            tabIndex={0}
-            className="bp4-menu-item"
-            data={getResultValues(rows)}
-            filename={`${data?.name}.csv`}
-            target="_blank"
-        >
-            <Icon icon="download" />
-            <span>Download CSV</span>
-        </CSVLink>
+        <>
+            <MenuItem2
+                icon="export"
+                text="Export CSV"
+                disabled={isDisabled}
+                onClick={handleClick}
+            />
+
+            {!isDisabled && (
+                <Portal>
+                    <CSVLink
+                        ref={csvRef}
+                        role="menuitem"
+                        tabIndex={0}
+                        className="bp4-menu-item"
+                        data={getResultValues(rows)}
+                        filename={`${data?.name}.csv`}
+                        target="_blank"
+                    />
+                </Portal>
+            )}
+        </>
     );
 };
 
