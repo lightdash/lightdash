@@ -8,6 +8,7 @@ import {
     cliMockImplementation,
     dbtProjectYml,
     expectedCommandOptions,
+    expectedDbtOptions,
     expectedPackages,
     manifestMock,
     packagesYml,
@@ -34,7 +35,7 @@ describe('DbtCliClient', () => {
         await expect(execaMock).toHaveBeenCalledTimes(1);
         await expect(execaMock).toHaveBeenCalledWith(
             'dbt',
-            ['deps', ...expectedCommandOptions],
+            [...expectedDbtOptions, 'deps', ...expectedCommandOptions],
             expect.anything(),
         );
     });
@@ -62,7 +63,7 @@ describe('DbtCliClient', () => {
         await expect(execaMock).toHaveBeenCalledTimes(1);
         await expect(execaMock).toHaveBeenCalledWith(
             'dbt',
-            ['compile', ...expectedCommandOptions],
+            [...expectedDbtOptions, 'compile', ...expectedCommandOptions],
             expect.anything(),
         );
     });
@@ -81,7 +82,12 @@ describe('DbtCliClient', () => {
         await expect(execaMock).toHaveBeenCalledTimes(1);
         await expect(execaMock).toHaveBeenCalledWith(
             'dbt',
-            ['docs', 'generate', ...expectedCommandOptions],
+            [
+                ...expectedDbtOptions,
+                'docs',
+                'generate',
+                ...expectedCommandOptions,
+            ],
             expect.anything(),
         );
     });
