@@ -227,6 +227,7 @@ export class ProjectModel {
                 await trx('spaces').insert({
                     project_id: project.project_id,
                     name: 'Shared',
+                    is_private: false,
                 });
 
                 return project.project_uuid;
