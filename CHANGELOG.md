@@ -1,3 +1,10 @@
+# [0.321.0](https://github.com/lightdash/lightdash/compare/0.320.3...0.321.0) (2022-11-14)
+
+
+### Features
+
+* backend space share ([#3737](https://github.com/lightdash/lightdash/issues/3737)) ([7de42b1](https://github.com/lightdash/lightdash/commit/7de42b1b611d19e5aef918bbf481f3eb7a8a54f2))
+
 ## [0.320.3](https://github.com/lightdash/lightdash/compare/0.320.2...0.320.3) (2022-11-11)
 
 
