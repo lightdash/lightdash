@@ -1,10 +1,8 @@
+import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
-import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { FC, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import { SectionRow, SectionTitle } from './Grid.styles';
+import { SectionRow } from './Grid.styles';
 
 export const defaultGrid: EchartsGrid = {
     containLabel: true,
@@ -14,42 +12,87 @@ export const defaultGrid: EchartsGrid = {
     bottom: '30', // pixels from bottom (makes room for x-axis)
 };
 
+enum Positions {
+    TOP = 'top',
+    BOTTOM = 'bottom',
+    LEFT = 'left',
+    RIGHT = 'right',
+}
+
+type Units = '%' | 'px';
+
 const GridPanel: FC = () => {
     const {
         cartesianConfig: { dirtyEchartsConfig, setGrid },
     } = useVisualizationContext();
-    const methods = useForm<EchartsGrid>({
-        mode: 'onBlur',
-        defaultValues: { ...defaultGrid, ...dirtyEchartsConfig?.grid },
+
+    const [config, setConfig] = useState<EchartsGrid>({
+        ...defaultGrid,
+        ...dirtyEchartsConfig?.grid,
     });
 
+    const handleUpdate = (
+        position: `${Positions}`,
+        value: string,
+        currentUnit: Units,
+    ) => {
+        setConfig((prevState) => {
+            const newState = {
+                ...prevState,
+                [position]: `${value}${currentUnit}`,
+            };
+            setGrid(newState);
+            return newState;
+        });
+    };
+
+    const handleUpdateUnit = (key: `${Positions}`, unit: Units) => {
+        const value = config[key];
+        const pureValue = value?.replace(unit === 'px' ? '%' : 'px', '') ?? '';
+
+        if (!pureValue) return;
+
+        handleUpdate(key, pureValue, unit);
+    };
+
     return (
-        <Form
-            name="grid"
-            methods={methods}
-            onSubmit={() => undefined}
-            onBlur={methods.handleSubmit(setGrid)}
-        >
-            <SectionTitle>(px or %)</SectionTitle>
-            <SectionRow>
-                <Input name="top" label="Top" placeholder={defaultGrid.top} />
-                <Input
-                    name="bottom"
-                    label="Bottom"
-                    placeholder={defaultGrid.bottom}
-                />
-                <Input
-                    name="left"
-                    label="Left"
-                    placeholder={defaultGrid.left}
-                />
-                <Input
-                    name="right"
-                    label="Right"
-                    placeholder={defaultGrid.right}
-                />
-            </SectionRow>
-        </Form>
+        <SectionRow>
+            {Object.values(Positions).map((position) => {
+                const value = config[position];
+                const currentUnit = value?.includes('%') ? '%' : 'px';
+                const nextUnit = currentUnit === '%' ? 'px' : '%';
+                const valueWithoutUnit = value?.replace(/%|px/g, '');
+
+                return (
+                    <FormGroup key={position} label={position.toUpperCase()}>
+                        <InputGroup
+                            name={position}
+                            placeholder={defaultGrid[position]}
+                            value={valueWithoutUnit}
+                            onChange={(e) =>
+                                handleUpdate(
+                                    position,
+                                    e.target.value,
+                                    currentUnit,
+                                )
+                            }
+                            rightElement={
+                                <Button
+                                    minimal
+                                    small
+                                    disabled={valueWithoutUnit === ''}
+                                    onClick={() =>
+                                        handleUpdateUnit(position, nextUnit)
+                                    }
+                                >
+                                    {currentUnit}
+                                </Button>
+                            }
+                        />
+                    </FormGroup>
+                );
+            })}
+        </SectionRow>
     );
 };
 
