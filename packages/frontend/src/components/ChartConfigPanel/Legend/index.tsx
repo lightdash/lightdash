@@ -3,7 +3,6 @@ import { EchartsLegend, friendlyName } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
