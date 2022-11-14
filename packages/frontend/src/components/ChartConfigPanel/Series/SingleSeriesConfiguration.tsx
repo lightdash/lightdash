@@ -1,8 +1,7 @@
-import { Button, Icon, InputGroup, Switch } from '@blueprintjs/core';
+import { Button, Checkbox, FormGroup, InputGroup } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
-    getSeriesId,
     Series,
 } from '@lightdash/common';
 import React, { FC } from 'react';
@@ -199,11 +198,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 </SeriesExtraInputs>
                 {(type === CartesianSeriesType.LINE ||
                     type === CartesianSeriesType.AREA) && (
-                    <SeriesExtraInputs>
-                        <Switch
-                            alignIndicator={'right'}
+                    <FormGroup>
+                        <Checkbox
                             checked={series.showSymbol ?? true}
-                            label={'Show symbol'}
+                            label="Show symbol"
                             onChange={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -211,10 +209,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
-                        <Switch
-                            alignIndicator={'right'}
+                        <Checkbox
                             checked={series.smooth}
-                            label={'Smooth'}
+                            label="Smooth"
                             onChange={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -222,7 +219,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
-                    </SeriesExtraInputs>
+                    </FormGroup>
                 )}
             </SeriesOptionsWrapper>
         </SeriesWrapper>
