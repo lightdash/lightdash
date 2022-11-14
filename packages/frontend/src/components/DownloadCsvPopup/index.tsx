@@ -1,13 +1,14 @@
 import {
     Button,
-    Card,
+    ButtonProps,
+    FormGroup,
     Intent,
     NumericInput,
     PopoverPosition,
     Radio,
     RadioGroup,
 } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { getResultValues, ResultRow } from '@lightdash/common';
 import { FC, memo, useEffect, useRef, useState } from 'react';
 import { CSVLink } from 'react-csv';
@@ -31,6 +32,12 @@ export enum Values {
     FORMATTED = 'formatted',
     RAW = 'raw',
 }
+
+const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
+    return (
+        <Button text="Export CSV" rightIcon="caret-down" minimal {...props} />
+    );
+};
 
 const DownloadCsvPopup: FC<Props> = memo(
     ({ fileName, rows, getCsvResults }) => {
@@ -56,33 +63,51 @@ const DownloadCsvPopup: FC<Props> = memo(
         }${new Date().toISOString().slice(0, 10)}.csv`;
 
         if (!rows || rows.length <= 0) {
-            return <Button icon="download" text=".csv" disabled />;
+            return <ExportAsCSVButton disabled />;
         }
+
         return (
             <Popover2
+                placement="bottom-end"
+                isOpen={isOpen}
+                onInteraction={setIsOpen}
+                position={PopoverPosition.BOTTOM_LEFT}
+                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 content={
-                    <Card>
-                        <RadioGroup
-                            label={<Title>Values</Title>}
-                            onChange={(e) => setFormat(e.currentTarget.value)}
-                            selectedValue={format}
-                        >
-                            <Radio label="Formatted" value={Values.FORMATTED} />
-                            <Radio label="Raw" value={Values.RAW} />
-                        </RadioGroup>
+                    <>
+                        <FormGroup>
+                            <RadioGroup
+                                label={<Title>Values</Title>}
+                                onChange={(e) =>
+                                    setFormat(e.currentTarget.value)
+                                }
+                                selectedValue={format}
+                            >
+                                <Radio
+                                    label="Formatted"
+                                    value={Values.FORMATTED}
+                                />
+                                <Radio label="Raw" value={Values.RAW} />
+                            </RadioGroup>
+                        </FormGroup>
 
-                        <RadioGroup
-                            label={<Title>Limit</Title>}
-                            onChange={(e) => setLimit(e.currentTarget.value)}
-                            selectedValue={limit}
-                        >
-                            <Radio
-                                label="Results in Table"
-                                value={Limit.TABLE}
-                            />
-                            <Radio label="All Results" value={Limit.ALL} />
-                            <Radio label="Custom..." value={Limit.CUSTOM} />
-                        </RadioGroup>
+                        <FormGroup>
+                            <RadioGroup
+                                label={<Title>Limit</Title>}
+                                onChange={(e) =>
+                                    setLimit(e.currentTarget.value)
+                                }
+                                selectedValue={limit}
+                            >
+                                <Radio
+                                    label="Results in Table"
+                                    value={Limit.TABLE}
+                                />
+                                <Radio label="All Results" value={Limit.ALL} />
+                                <Radio label="Custom..." value={Limit.CUSTOM} />
+                            </RadioGroup>
+                        </FormGroup>
+
                         {limit === Limit.CUSTOM && (
                             <InputWrapper>
                                 <NumericInput
@@ -127,13 +152,10 @@ const DownloadCsvPopup: FC<Props> = memo(
                         >
                             Download CSV
                         </Button>
-                    </Card>
+                    </>
                 }
-                isOpen={isOpen}
-                onInteraction={setIsOpen}
-                position={PopoverPosition.BOTTOM_LEFT}
             >
-                <Button icon="download" text=".csv" />
+                <ExportAsCSVButton />
             </Popover2>
         );
     },
