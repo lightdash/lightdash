@@ -1,4 +1,4 @@
-import { Button, Switch } from '@blueprintjs/core';
+import { Button, Checkbox, FormGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
@@ -136,36 +136,35 @@ export const TableConfigPanel: React.FC = () => {
                             + Add
                         </AddPivotButton>
                     )}
-                    <SectionTitle>Show column total</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={showColumnCalculation}
-                        onChange={(e) => {
-                            setShowColumnCalculation(!showColumnCalculation);
-                        }}
-                    />
-                    <SectionTitle>Show table names</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={showTableNames}
-                        onChange={(e) => {
-                            setShowTableName(!showTableNames);
-                        }}
-                    />
-                    <SectionTitle>Hide row numbers</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={hideRowNumbers}
-                        onChange={(e) => {
-                            setHideRowNumbers(!hideRowNumbers);
-                        }}
-                    />
+
+                    <FormGroup>
+                        <Checkbox
+                            label="Show column total"
+                            checked={showColumnCalculation}
+                            onChange={(e) => {
+                                setShowColumnCalculation(
+                                    !showColumnCalculation,
+                                );
+                            }}
+                        />
+
+                        <Checkbox
+                            label="Show table names"
+                            checked={showTableNames}
+                            onChange={(e) => {
+                                setShowTableName(!showTableNames);
+                            }}
+                        />
+
+                        <Checkbox
+                            label="Hide row numbers"
+                            checked={hideRowNumbers}
+                            onChange={(e) => {
+                                setHideRowNumbers(!hideRowNumbers);
+                            }}
+                        />
+                    </FormGroup>
+
                     <SectionTitle>Columns</SectionTitle>
 
                     <ColumnConfiguration />
