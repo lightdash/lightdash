@@ -90,6 +90,7 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     return (
         <Popover2
             isOpen={isCellSelected}
+            lazy
             minimal
             position={Position.BOTTOM_RIGHT}
             hasBackdrop
