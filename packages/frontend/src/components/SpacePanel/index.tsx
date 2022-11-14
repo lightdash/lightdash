@@ -13,6 +13,7 @@ import {
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
+import ShareSpaceModal from '../common/ShareSpaceModal/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
@@ -76,21 +77,24 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     />
                 </PageBreadcrumbsWrapper>
 
-                <SpaceBrowserMenu
-                    onRename={() => setUpdateSpace(true)}
-                    onDelete={() => setDeleteSpace(true)}
-                >
-                    <Can
-                        I="manage"
-                        this={subject('Space', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        <Button icon="edit" text="Edit space" />
-                    </Can>
-                </SpaceBrowserMenu>
+                <div>
+                    <ShareSpaceModal space={space} projectUuid={projectUuid} />
 
+                    <SpaceBrowserMenu
+                        onRename={() => setUpdateSpace(true)}
+                        onDelete={() => setDeleteSpace(true)}
+                    >
+                        <Can
+                            I="manage"
+                            this={subject('Space', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <Button icon="edit" text="Edit space" />
+                        </Can>
+                    </SpaceBrowserMenu>
+                </div>
                 {updateSpace && (
                     <SpaceActionModal
                         projectUuid={projectUuid}
