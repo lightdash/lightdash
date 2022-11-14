@@ -65,22 +65,32 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
 
     const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
 
+    const canHaveContextMenu = !!CellContextMenu && props.hasData;
+
     const handleCellSelect = useCallback(
         (cellId: string | undefined) => {
+            if (!canHaveContextMenu) return;
+
             onSelect?.(cellId);
             setIsCellSelected(cellId ? true : false);
         },
-        [onSelect, setIsCellSelected],
+        [onSelect, setIsCellSelected, canHaveContextMenu],
     );
 
-    const canHaveContextMenu = !!CellContextMenu && props.hasData;
+    console.log(isCellSelected);
 
-    return canHaveContextMenu && isCellSelected ? (
+    return (
         <Popover2
+            isOpen={isCellSelected}
             minimal
-            defaultIsOpen
-            hasBackdrop
             position={Position.BOTTOM_RIGHT}
+            hasBackdrop
+            backdropProps={{
+                onClick: () => handleCellSelect(undefined),
+                style: { zIndex: 20 },
+            }}
+            onOpening={() => handleCellSelect(props.cell.id)}
+            onClosing={() => handleCellSelect(undefined)}
             content={
                 CellContextMenu && (
                     <CellContextMenu
@@ -91,21 +101,17 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             renderTarget={({ ref }) => (
                 <BodyCell
                     {...props}
-                    hasContextMenu
-                    isSelected={true}
+                    style={
+                        isCellSelected
+                            ? { position: 'relative', zIndex: 21 }
+                            : undefined
+                    }
+                    hasContextMenu={canHaveContextMenu}
+                    isSelected={isCellSelected}
                     onSelect={handleCellSelect}
                     ref={ref}
                 />
             )}
-            onOpening={() => handleCellSelect(props.cell.id)}
-            onClosing={() => handleCellSelect(undefined)}
-        />
-    ) : (
-        <BodyCell
-            {...props}
-            isSelected={false}
-            hasContextMenu={canHaveContextMenu}
-            onSelect={CellContextMenu ? handleCellSelect : undefined}
         />
     );
 };
