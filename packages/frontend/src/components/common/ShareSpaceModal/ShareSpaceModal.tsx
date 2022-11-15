@@ -1,5 +1,10 @@
 import { Classes, Dialog, Spinner } from '@blueprintjs/core';
-import { ItemRenderer, MultiSelect2, Select2 } from '@blueprintjs/select';
+import {
+    ItemPredicate,
+    ItemRenderer,
+    MultiSelect2,
+    Select2,
+} from '@blueprintjs/select';
 import { Space } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
@@ -122,6 +127,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
         ACCESS_TYPES[0],
     );
     const { user: sessionUser } = useApp();
+    const [searchQuery, setSearchQuery] = useState<string>('');
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
@@ -168,14 +174,24 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             );
             if (!user) return null;
 
+            const isDisabled = space.access
+                ?.map((access) => access.userUuid)
+                .includes(user.userUuid);
             return (
                 <MenuItem2
                     active={modifiers.active}
                     icon={
-                        usersSelected.includes(user.userUuid) ? 'tick' : 'blank'
+                        usersSelected.includes(user.userUuid) || isDisabled
+                            ? 'tick'
+                            : 'blank'
                     }
                     key={user.userUuid}
-                    //disabled={usersSelected.includes(user.userUuid)}
+                    title={
+                        isDisabled
+                            ? 'This user already has access to the space'
+                            : ''
+                    }
+                    disabled={isDisabled}
                     text={
                         <FlexWrapper key={`render_${user.userUuid}`}>
                             <UserTag large round>
@@ -200,14 +216,31 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 ),
                             );
                         else handleClick(e);
+
+                        setSearchQuery('');
                     }}
                     shouldDismissPopover={false}
                 />
             );
         },
-        [usersSelected, getInitials],
+        [usersSelected, getInitials, space, projectAccess],
     );
+    const filterUser: ItemPredicate<string> = useCallback(
+        (query, userUuid, _index) => {
+            const user = projectAccess?.find(
+                (userAccess) => userAccess.userUuid === userUuid,
+            );
+            if (!user) return false;
+            const normalizedQuery = query.toLowerCase();
 
+            return (
+                `${user.firstName} ${user.lastName} ${user.email}`
+                    .toLowerCase()
+                    .indexOf(normalizedQuery) >= 0
+            );
+        },
+        [projectAccess],
+    );
     const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
             setUsersSelected(
@@ -243,6 +276,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         <AddUsersWrapper>
                             <MultiSelect2
                                 fill
+                                itemPredicate={filterUser}
                                 itemRenderer={renderUserShare}
                                 items={userUuids || []}
                                 noResults={
@@ -260,15 +294,25 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                         ...usersSelected,
                                         select,
                                     ]);
+                                    setSearchQuery('');
                                 }}
+                                query={searchQuery}
+                                onQueryChange={setSearchQuery}
                                 tagRenderer={getUserNameOrEmail}
+                                resetOnQuery={true}
+                                popoverProps={{
+                                    onClosing: () => setSearchQuery(''),
+                                }}
                                 tagInputProps={{
                                     placeholder: undefined,
                                     addOnBlur: false,
                                     tagProps: {
                                         minimal: true,
                                     },
-                                    onRemove: handleRemove,
+                                    onRemove: (e) => {
+                                        setSearchQuery('');
+                                        handleRemove(e);
+                                    },
                                 }}
                                 selectedItems={usersSelected}
                             />
