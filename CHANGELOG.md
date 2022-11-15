@@ -1,3 +1,10 @@
+# [0.322.0](https://github.com/lightdash/lightdash/compare/0.321.1...0.322.0) (2022-11-15)
+
+
+### Features
+
+* viz config switch to checkbox ([#3785](https://github.com/lightdash/lightdash/issues/3785)) ([3276039](https://github.com/lightdash/lightdash/commit/327603919b2e58dfc23371eb101a532c265b2387))
+
 ## [0.321.1](https://github.com/lightdash/lightdash/compare/0.321.0...0.321.1) (2022-11-14)
 
 
