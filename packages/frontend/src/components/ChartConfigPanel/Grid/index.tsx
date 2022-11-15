@@ -5,17 +5,39 @@ import { FC, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionRow } from './Grid.styles';
 
-export const defaultGrid: EchartsGrid = {
+export const defaultGrid = {
     containLabel: true,
     left: '5%', // small padding
     right: '5%', // small padding
-    top: '70', // pixels from top (makes room for legend)
-    bottom: '30', // pixels from bottom (makes room for x-axis)
+    top: '70px', // pixels from top (makes room for legend)
+    bottom: '30px', // pixels from bottom (makes room for x-axis)
 };
 
 const positions = ['top', 'bottom', 'left', 'right'] as const;
 
-type Units = '%' | 'px';
+enum Units {
+    Pixels = 'px',
+    Percentage = '%',
+}
+
+const getNextUnit = (current?: Units): Units | undefined => {
+    if (!current) return;
+
+    const units = Object.values(Units);
+    const currentIndex = units.indexOf(current);
+    return units.concat(units[0])[currentIndex + 1];
+};
+
+const getValueAndUnit = (valueWithUnit?: string): [string?, Units?] => {
+    if (!valueWithUnit || valueWithUnit === '') return [];
+
+    const unit =
+        Object.values(Units).find((u) => valueWithUnit.endsWith(u)) ||
+        Units.Pixels;
+
+    const value = valueWithUnit.replace(unit, '');
+    return [value, unit];
+};
 
 const GridPanel: FC = () => {
     const {
@@ -30,34 +52,38 @@ const GridPanel: FC = () => {
     const handleUpdate = (
         position: typeof positions[number],
         value: string,
-        currentUnit: Units,
+        unit: Units = Units.Pixels,
     ) => {
+        const newValue = value && value !== '' ? `${value}${unit}` : undefined;
+
         setConfig((prevState) => {
-            const newState = {
-                ...prevState,
-                [position]: `${value}${currentUnit}`,
-            };
+            const newState = { ...prevState, [position]: newValue };
             setGrid(newState);
             return newState;
         });
     };
 
-    const handleUpdateUnit = (key: typeof positions[number], unit: Units) => {
-        const value = config[key];
-        const pureValue = value?.replace(unit === 'px' ? '%' : 'px', '') ?? '';
+    const handleUpdateUnit = (
+        key: typeof positions[number],
+        nextUnit: Units = Units.Pixels,
+    ) => {
+        const originalValue = config[key];
+        const [value] = getValueAndUnit(originalValue);
 
-        if (!pureValue) return;
+        if (!value || value === '') return;
 
-        handleUpdate(key, pureValue, unit);
+        handleUpdate(key, value, nextUnit);
     };
 
     return (
         <SectionRow>
             {positions.map((position) => {
-                const value = config[position];
-                const currentUnit = value?.includes('%') ? '%' : 'px';
-                const nextUnit = currentUnit === '%' ? 'px' : '%';
-                const valueWithoutUnit = value?.replace(/%|px/g, '');
+                const [value, unit] = getValueAndUnit(config[position]);
+                const [placeholder, placeholderUnit] = getValueAndUnit(
+                    defaultGrid[position],
+                );
+
+                const nextUnit = getNextUnit(unit);
 
                 return (
                     <FormGroup
@@ -66,27 +92,31 @@ const GridPanel: FC = () => {
                         labelFor={`${position}-input`}
                     >
                         <InputGroup
+                            type="number"
                             id={`${position}-input`}
                             name={position}
-                            placeholder={defaultGrid[position]}
-                            value={valueWithoutUnit}
+                            placeholder={placeholder}
+                            value={value || ''}
                             onChange={(e) =>
                                 handleUpdate(
                                     position,
                                     e.target.value,
-                                    currentUnit,
+                                    value ? unit : placeholderUnit,
                                 )
                             }
                             rightElement={
                                 <Button
                                     minimal
                                     small
-                                    disabled={valueWithoutUnit === ''}
+                                    disabled={!value}
                                     onClick={() =>
-                                        handleUpdateUnit(position, nextUnit)
+                                        handleUpdateUnit(
+                                            position,
+                                            value ? nextUnit : placeholderUnit,
+                                        )
                                     }
                                 >
-                                    {currentUnit}
+                                    {unit || placeholderUnit}
                                 </Button>
                             }
                         />
