@@ -5,7 +5,7 @@ import {
     MultiSelect2,
     Select2,
 } from '@blueprintjs/select';
-import { Space } from '@lightdash/common';
+import { OrganizationMemberProfile, Space } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProject } from '../../../hooks/useProject';
@@ -43,7 +43,7 @@ export interface ShareSpaceProps {
     projectUuid: string;
 }
 
-export interface Access {
+export interface AccessOption {
     title: string;
     description?: string;
     selectDescription: string;
@@ -54,36 +54,45 @@ const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
 const capitalize = (word: string): string =>
     word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
 
-const ACCESS_TYPES: Access[] = [
+const enum SpaceAccessType {
+    PRIVATE = 'private',
+    PUBLIC = 'public',
+}
+const SpaceAccessOptions: AccessOption[] = [
     {
         title: 'Restricted access',
         description: 'Only invited members can access',
         selectDescription: 'Only invited members can access',
-        value: 'private',
+        value: SpaceAccessType.PRIVATE,
     },
     {
         title: 'Full access',
         description: 'All project members can access',
         selectDescription:
             'All project members can access with their project permissions',
-        value: 'public',
+        value: SpaceAccessType.PUBLIC,
     },
 ];
 
-const USER_ACCESS_TYPES: Access[] = [
+const enum UserAccessAction {
+    KEEP = 'keep',
+    DELETE = 'delete',
+}
+
+const UserAccessOptions: AccessOption[] = [
     {
         title: 'viewer',
         selectDescription: `This permission has been inherited from user's project access`,
-        value: 'keep',
+        value: UserAccessAction.KEEP,
     },
     {
         title: 'No access',
         selectDescription: `Remove user's access`,
-        value: 'remove',
+        value: UserAccessAction.DELETE,
     },
 ];
 
-const renderAccess: ItemRenderer<Access> = (
+const renderAccess: ItemRenderer<AccessOption> = (
     access,
     { handleClick, handleFocus, modifiers, query },
 ) => {
@@ -110,21 +119,53 @@ const renderAccess: ItemRenderer<Access> = (
     );
 };
 
+const getUserNameOrEmail = (
+    userUuid: string,
+    organizationUsers: OrganizationMemberProfile[] | undefined,
+) => {
+    const user = organizationUsers?.find(
+        (userAccess) => userAccess.userUuid === userUuid,
+    );
+    if (!user) return userUuid;
+    return user?.firstName ? `${user.firstName} ${user.lastName}` : user.email;
+};
+
+const getInitials = (
+    userUuid: string,
+    organizationUsers: OrganizationMemberProfile[] | undefined,
+) => {
+    const user = organizationUsers?.find(
+        (userAccess) => userAccess.userUuid === userUuid,
+    );
+    if (!user) return userUuid;
+
+    if (user?.firstName) {
+        return user.firstName.substr(0, 1) + user.lastName.substr(0, 1);
+    } else {
+        return user.email.substr(0, 2).toUpperCase();
+    }
+};
+
 const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { data: project } = useProject(projectUuid);
 
-    const { mutate: spaceMutation, isLoading: isSavingSpace } =
-        useUpdateMutation(projectUuid, space.uuid);
-    const { mutate: shareSpaceMutation, isLoading: isSharingSpace } =
-        useAddSpaceShareMutation(projectUuid, space.uuid);
-    const { mutate: unshareSpaceMutation, isLoading: isUnsharingSpace } =
-        useDeleteSpaceShareMutation(projectUuid, space.uuid);
+    const { mutate: spaceMutation } = useUpdateMutation(
+        projectUuid,
+        space.uuid,
+    );
+    const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
+        projectUuid,
+        space.uuid,
+    );
+    const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
+        projectUuid,
+        space.uuid,
+    );
     const { data: projectAccess, isLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
-    const { data: organizationUsers, isLoading: isOrganizationUsersLoading } =
-        useOrganizationUsers();
-    const [selectedAccess, setSelectedAccess] = useState<Access>(
-        ACCESS_TYPES[0],
+    const { data: organizationUsers } = useOrganizationUsers();
+    const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
+        space.isPrivate ? SpaceAccessOptions[0] : SpaceAccessOptions[1],
     );
     const { user: sessionUser } = useApp();
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -135,34 +176,6 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
         if (projectAccess === undefined) return [];
         return projectAccess.map((user) => user.userUuid);
     }, [projectAccess]);
-
-    const getUserNameOrEmail = useCallback(
-        (userUuid: string) => {
-            const user = organizationUsers?.find(
-                (userAccess) => userAccess.userUuid === userUuid,
-            );
-            if (!user) return userUuid;
-            return user?.firstName
-                ? `${user.firstName} ${user.lastName}`
-                : user.email;
-        },
-        [organizationUsers],
-    );
-    const getInitials = useCallback(
-        (userUuid: string) => {
-            const user = organizationUsers?.find(
-                (userAccess) => userAccess.userUuid === userUuid,
-            );
-            if (!user) return userUuid;
-
-            if (user?.firstName) {
-                return user.firstName.substr(0, 1) + user.lastName.substr(0, 1);
-            } else {
-                return user.email.substr(0, 2).toUpperCase();
-            }
-        },
-        [organizationUsers],
-    );
 
     const renderUserShare: ItemRenderer<string> = useCallback(
         (userUuid, { modifiers, handleClick, query }) => {
@@ -195,7 +208,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     text={
                         <FlexWrapper key={`render_${user.userUuid}`}>
                             <UserTag large round>
-                                {getInitials(user.userUuid)}
+                                {getInitials(user.userUuid, organizationUsers)}
                             </UserTag>
                             <MemberAccess>
                                 <AccessName>
@@ -246,18 +259,22 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             setUsersSelected(
                 usersSelected.filter(
                     (userUuid) =>
-                        getUserNameOrEmail(userUuid) !== selectedValue,
+                        getUserNameOrEmail(userUuid, organizationUsers) !==
+                        selectedValue,
                 ),
             );
         },
-        [usersSelected, getUserNameOrEmail],
+        [usersSelected, getUserNameOrEmail, organizationUsers],
     );
 
-    if (isProjectAccessLoading) return null;
     return (
         <>
             <OpenShareModal
-                icon={selectedAccess.value === 'private' ? 'lock' : 'people'}
+                icon={
+                    selectedAccess.value === SpaceAccessType.PRIVATE
+                        ? 'lock'
+                        : 'people'
+                }
                 text="Share"
                 onClick={(e) => {
                     setIsOpen(true);
@@ -272,7 +289,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 lazy
             >
                 <div className={Classes.DIALOG_BODY}>
-                    {selectedAccess.value === 'private' ? (
+                    {selectedAccess.value === SpaceAccessType.PRIVATE ? (
                         <AddUsersWrapper>
                             <MultiSelect2
                                 fill
@@ -280,7 +297,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 itemRenderer={renderUserShare}
                                 items={userUuids || []}
                                 noResults={
-                                    isOrganizationUsersLoading ? (
+                                    isProjectAccessLoading ? (
                                         <StyledSpinner />
                                     ) : (
                                         <MenuItem2
@@ -298,7 +315,12 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 }}
                                 query={searchQuery}
                                 onQueryChange={setSearchQuery}
-                                tagRenderer={getUserNameOrEmail}
+                                tagRenderer={(userUuid) =>
+                                    getUserNameOrEmail(
+                                        userUuid,
+                                        organizationUsers,
+                                    )
+                                }
                                 resetOnQuery={true}
                                 popoverProps={{
                                     onClosing: () => setSearchQuery(''),
@@ -335,7 +357,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             round
                             large
                             icon={
-                                selectedAccess.value === 'private'
+                                selectedAccess.value === SpaceAccessType.PRIVATE
                                     ? 'lock'
                                     : 'people'
                             }
@@ -347,12 +369,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             </AccessDescription>
                         </MemberAccess>
                         <AccessRole>
-                            <Select2<Access>
+                            <Select2<AccessOption>
                                 filterable={false}
-                                items={ACCESS_TYPES}
+                                items={SpaceAccessOptions}
                                 itemRenderer={renderAccess}
                                 onItemSelect={(item) => {
-                                    const isPrivate = item.value === 'private';
+                                    const isPrivate =
+                                        item.value === SpaceAccessType.PRIVATE;
 
                                     if (isPrivate !== space.isPrivate) {
                                         setSelectedAccess(item);
@@ -380,9 +403,10 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 sharedUser.role?.toString() || '',
                             );
 
-                            const userAccessTypes = USER_ACCESS_TYPES.map(
+                            const userAccessTypes = UserAccessOptions.map(
                                 (accessType) => {
-                                    return accessType.value === 'keep'
+                                    return accessType.value ===
+                                        UserAccessAction.KEEP
                                         ? {
                                               ...accessType,
                                               title: role,
@@ -393,11 +417,15 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             return (
                                 <AddUsersWrapper key={sharedUser.userUuid}>
                                     <UserTag round large>
-                                        {getInitials(sharedUser.userUuid)}
+                                        {getInitials(
+                                            sharedUser.userUuid,
+                                            organizationUsers,
+                                        )}
                                     </UserTag>
                                     <UserName>
                                         {getUserNameOrEmail(
                                             sharedUser.userUuid,
+                                            organizationUsers,
                                         )}
                                         {isYou ? (
                                             <YouLabel> (you)</YouLabel>
@@ -408,12 +436,15 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                     {isYou ? (
                                         <UserRole>{role}</UserRole>
                                     ) : (
-                                        <Select2<Access>
+                                        <Select2<AccessOption>
                                             filterable={false}
                                             items={userAccessTypes}
                                             itemRenderer={renderAccess}
                                             onItemSelect={(item) => {
-                                                if (item.value === 'remove') {
+                                                if (
+                                                    item.value ===
+                                                    UserAccessAction.DELETE
+                                                ) {
                                                     unshareSpaceMutation(
                                                         sharedUser.userUuid,
                                                     );
