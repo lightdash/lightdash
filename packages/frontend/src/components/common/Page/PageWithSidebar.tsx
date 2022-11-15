@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 interface PageWithSidebarProps {
