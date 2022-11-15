@@ -1,3 +1,10 @@
+## [0.322.1](https://github.com/lightdash/lightdash/compare/0.322.0...0.322.1) (2022-11-15)
+
+
+### Bug Fixes
+
+* show underlying data errors ([#3787](https://github.com/lightdash/lightdash/issues/3787)) ([e8d4f59](https://github.com/lightdash/lightdash/commit/e8d4f591cf02c2c8eea08496cd27fc6f407f389e))
+
 # [0.322.0](https://github.com/lightdash/lightdash/compare/0.321.1...0.322.0) (2022-11-15)
 
 
