@@ -1,5 +1,13 @@
 import styled from 'styled-components';
 
+export const PageContentContainer = styled.div`
+    padding: 10px 20px;
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    gap: 10px;
+`;
+
 export const PageContentWrapper = styled.div`
     .bp4-card:not(:last-child) {
         margin-bottom: 20px;
