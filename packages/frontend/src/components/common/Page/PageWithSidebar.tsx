@@ -10,7 +10,6 @@ const PageWithSidebar = styled.div<PageWithSidebarProps>`
     flex-direction: row;
     flex-wrap: nowrap;
     ${({ alignItems }) => (alignItems ? `align-items: ${alignItems};` : '')}
-    background: ${Colors.LIGHT_GRAY4};
 `;
 
 export default PageWithSidebar;

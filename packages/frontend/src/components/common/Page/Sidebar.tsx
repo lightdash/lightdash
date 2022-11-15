@@ -1,4 +1,4 @@
-import { Card, H3 } from '@blueprintjs/core';
+import { Card, Divider, H3 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled, { css } from 'styled-components';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -38,11 +38,16 @@ const SidebarContent = styled('div')`
     flex-direction: column;
 `;
 
-const Sidebar: FC<{ title: string | React.ReactNode; noMargin?: boolean }> = ({
-    title,
-    noMargin,
-    children,
-}) => (
+interface SidebarProps {
+    title?: string | React.ReactNode;
+    noMargin?: boolean;
+}
+
+export const SidebarDivider = styled(Divider)`
+    margin: 12px 0 18px 0;
+`;
+
+const Sidebar: FC<SidebarProps> = ({ title, noMargin, children }) => (
     <SidebarWrapper elevation={1} noMargin={noMargin}>
         <TrackSection name={SectionName.SIDEBAR}>
             <SidebarColumn>

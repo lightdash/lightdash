@@ -4,9 +4,10 @@ import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { SidebarDivider } from '../../common/Page/Sidebar';
 import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
 import ExploreTree from '../ExploreTree';
-import { LoadingStateWrapper, TableDivider } from './ExplorePanel.styles';
+import { LoadingStateWrapper } from './ExplorePanel.styles';
 
 const SideBarLoadingState = () => (
     <LoadingStateWrapper large>
@@ -69,7 +70,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     }
                 />
 
-                <TableDivider />
+                <SidebarDivider />
 
                 <ExploreTree
                     explore={data}
