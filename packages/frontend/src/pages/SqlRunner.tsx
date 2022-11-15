@@ -6,7 +6,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMount } from 'react-use';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
-import PageWithSidebar from '../components/common/Page/PageWithSidebar';
+import {
+    PageContentContainer,
+    PageWithSidebar,
+} from '../components/common/Page/Page.styles';
 import Sidebar, { SidebarDivider } from '../components/common/Page/Sidebar';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
@@ -35,7 +38,6 @@ import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import {
     ButtonsWrapper,
-    ContentContainer,
     MissingTablesInfo,
     SideBarWrapper,
     SqlCallout,
@@ -233,7 +235,7 @@ const SqlRunnerPage = () => {
                 </SideBarWrapper>
             </Sidebar>
 
-            <div>
+            <PageContentContainer>
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <ButtonsWrapper>
                         <RefreshDbtButton />
@@ -313,7 +315,7 @@ const SqlRunnerPage = () => {
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
-            </div>
+            </PageContentContainer>
         </PageWithSidebar>
     );
 };
