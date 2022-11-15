@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import { DbSpace } from '../entities/spaces';
 
 type DbProject = {
     project_id: number;
@@ -207,7 +208,7 @@ export async function up(knex: Knex): Promise<void> {
                 .returning('*')
         )[0];
 
-        await knex('spaces')
+        await knex<Pick<DbSpace, 'name' | 'project_id'>>('spaces')
             .insert({
                 name: orgs[0].organization_name,
                 project_id: project.project_id,

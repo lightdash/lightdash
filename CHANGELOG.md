@@ -1,3 +1,38 @@
+## [0.322.1](https://github.com/lightdash/lightdash/compare/0.322.0...0.322.1) (2022-11-15)
+
+
+### Bug Fixes
+
+* show underlying data errors ([#3787](https://github.com/lightdash/lightdash/issues/3787)) ([e8d4f59](https://github.com/lightdash/lightdash/commit/e8d4f591cf02c2c8eea08496cd27fc6f407f389e))
+
+# [0.322.0](https://github.com/lightdash/lightdash/compare/0.321.1...0.322.0) (2022-11-15)
+
+
+### Features
+
+* viz config switch to checkbox ([#3785](https://github.com/lightdash/lightdash/issues/3785)) ([3276039](https://github.com/lightdash/lightdash/commit/327603919b2e58dfc23371eb101a532c265b2387))
+
+## [0.321.1](https://github.com/lightdash/lightdash/compare/0.321.0...0.321.1) (2022-11-14)
+
+
+### Bug Fixes
+
+* disable table configuration inputs for the viewer ([#3774](https://github.com/lightdash/lightdash/issues/3774)) ([62fded3](https://github.com/lightdash/lightdash/commit/62fded3ba2f321d9b34d79609a5a96876a4c35a2))
+
+# [0.321.0](https://github.com/lightdash/lightdash/compare/0.320.3...0.321.0) (2022-11-14)
+
+
+### Features
+
+* backend space share ([#3737](https://github.com/lightdash/lightdash/issues/3737)) ([7de42b1](https://github.com/lightdash/lightdash/commit/7de42b1b611d19e5aef918bbf481f3eb7a8a54f2))
+
+## [0.320.3](https://github.com/lightdash/lightdash/compare/0.320.2...0.320.3) (2022-11-11)
+
+
+### Bug Fixes
+
+* filter card pill size ([#3768](https://github.com/lightdash/lightdash/issues/3768)) ([9ec2803](https://github.com/lightdash/lightdash/commit/9ec28032d084986b1bcb0660b7c150e1d6282006))
+
 ## [0.320.2](https://github.com/lightdash/lightdash/compare/0.320.1...0.320.2) (2022-11-11)
 
 

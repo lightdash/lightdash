@@ -216,10 +216,9 @@ describe('Explore', () => {
 
                     // open configuration and flip Show table names in the config
                     cy.get('button').contains('Configure').click();
-                    cy.findByText('Show table names')
-                        .next('label')
-                        .contains('Yes') // table names are not hidden by default
-                        .click();
+                    cy.findByLabelText('Show table names').click({
+                        force: true,
+                    });
 
                     // check that chart table headers are correct
                     cy.findByTestId('visualization')
