@@ -257,7 +257,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     return (
         <>
             <OpenShareModal
-                icon="people"
+                icon={selectedAccess.value === 'private' ? 'lock' : 'people'}
                 text="Share"
                 onClick={(e) => {
                     setIsOpen(true);
