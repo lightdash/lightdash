@@ -2,6 +2,13 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
+import {
+    PageContentContainer,
+    PageWrapper,
+    Resizer,
+    StickySidebar,
+    WidthHack,
+} from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
@@ -11,15 +18,7 @@ import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
-import {
-    CardContent,
-    Drawer,
-    MainContent,
-    PageWrapper,
-    Resizer,
-    StickySidebar,
-    WidthHack,
-} from './SavedExplorer.styles';
+import { CardContent, Drawer } from './SavedExplorer.styles';
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{
@@ -101,6 +100,7 @@ const SavedExplorer = () => {
                                         <ExplorePanel />
                                     </CardContent>
                                 </Drawer>
+
                                 <WidthHack
                                     ref={sidebarRef}
                                     $state={state}
@@ -125,9 +125,10 @@ const SavedExplorer = () => {
                         )}
                     </Transition>
                 </StickySidebar>
-                <MainContent>
+
+                <PageContentContainer>
                     <Explorer />
-                </MainContent>
+                </PageContentContainer>
             </PageWrapper>
         </ExplorerProvider>
     );

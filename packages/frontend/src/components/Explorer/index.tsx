@@ -2,7 +2,6 @@ import { FC, memo } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import UnderlyingDataModal from '../UnderlyingData/UnderlyingDataModal';
 import UnderlyingDataProvider from '../UnderlyingData/UnderlyingDataProvider';
-import { ExplorerWrapper } from './Explorer.styles';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -17,7 +16,7 @@ const Explorer: FC = memo(() => {
         (context) => context.state.unsavedChartVersion.metricQuery.filters,
     );
     return (
-        <ExplorerWrapper>
+        <>
             <ExplorerHeader />
             <FiltersCard />
             <UnderlyingDataProvider
@@ -29,7 +28,7 @@ const Explorer: FC = memo(() => {
             </UnderlyingDataProvider>
             <ResultsCard />
             <SqlCard />
-        </ExplorerWrapper>
+        </>
     );
 });
 

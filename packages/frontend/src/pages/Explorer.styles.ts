@@ -21,16 +21,6 @@ export const SideBarCard = styled(Card)`
     overflow: hidden;
 `;
 
-export const Main = styled.div`
-    padding: 10px 20px;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: stretch;
-    min-width: 0;
-`;
-
 export const Resizer = styled.div<{ $isResizing: boolean }>`
     flex: 1;
     width: 5px;

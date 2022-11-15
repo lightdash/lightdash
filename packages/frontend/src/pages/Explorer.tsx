@@ -1,4 +1,5 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
+import { PageContentContainer } from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -10,7 +11,6 @@ import useSidebarResize from '../hooks/useSidebarResize';
 import { useApp } from '../providers/AppProvider';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
 import {
-    Main,
     PageContainer,
     Resizer,
     SideBar,
@@ -51,9 +51,10 @@ const ExplorerPage = memo(() => {
                         $isResizing={isResizing}
                     />
                 </SideBar>
-                <Main>
+
+                <PageContentContainer>
                     <ExplorerWithUrlParams />
-                </Main>
+                </PageContentContainer>
             </PageContainer>
         </ExplorerProvider>
     );

@@ -1,10 +1,28 @@
+import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import { NAVBAR_HEIGHT } from '../../NavBar/NavBar.styles';
+import { PAGE_HEADER_HEIGHT } from '../PageHeader';
+
+interface PageWithSidebarProps {
+    alignItems?: 'flex-start';
+}
+
+export const PageWithSidebar = styled.div<PageWithSidebarProps>`
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    ${({ alignItems }) => (alignItems ? `align-items: ${alignItems};` : '')}
+`;
 
 export const PageContentContainer = styled.div`
     padding: 10px 20px;
     display: flex;
+    flex-grow: 1;
     flex-direction: column;
-    width: 100vw;
+
+    justify-content: flex-start;
+    align-items: stretch;
+
     gap: 10px;
 `;
 
@@ -33,4 +51,40 @@ export const PageBreadcrumbsWrapper = styled.div`
     .bp4-breadcrumbs > li::after {
         margin-top: 5px;
     }
+`;
+
+export const WidthHack = styled.div<{ $state: string }>`
+    transition: ${({ $state }) =>
+        ['entering', 'exiting'].includes($state)
+            ? 'width 500ms ease-in-out'
+            : 'none'};
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    justify-content: flex-end;
+`;
+
+export const Resizer = styled.div<{ $isResizing: boolean }>`
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: 5px;
+    cursor: col-resize;
+    resize: horizontal;
+    height: 100%;
+    background: ${({ $isResizing }) =>
+        $isResizing
+            ? `linear-gradient(90deg, ${Colors.BLUE5} 0%, rgba(0,0,0,0) 100%);`
+            : 'none'};
+`;
+
+export const PageWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+`;
+
+export const StickySidebar = styled.div`
+    height: calc(100vh - ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px);
+    position: sticky;
+    top: ${NAVBAR_HEIGHT}px;
 `;
