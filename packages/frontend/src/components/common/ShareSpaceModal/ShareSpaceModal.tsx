@@ -1,29 +1,10 @@
-import {
-    Button,
-    Classes,
-    Dialog,
-    HTMLSelect,
-    Icon,
-    Intent,
-    Spinner,
-} from '@blueprintjs/core';
-import {
-    IItemRendererProps,
-    ItemRenderer,
-    MultiSelect2,
-    Select2,
-    Suggest2,
-} from '@blueprintjs/select';
+import { Classes, Dialog, Spinner } from '@blueprintjs/core';
+import { ItemRenderer, MultiSelect2, Select2 } from '@blueprintjs/select';
 import { Space } from '@lightdash/common';
-import { FC, SyntheticEvent, useCallback, useState } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { Avatar } from '../../Avatar';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import BaseModal from '../modal/BaseModal';
-import CreateSpaceModalContent from '../SpaceActionModal/CreateSpaceModalContent';
 import {
     AccessDescription,
     AccessName,
@@ -35,12 +16,10 @@ import {
     ChangeAccessButton,
     DialogFooter,
     FlexWrapper,
-    Hightlighed,
     MemberAccess,
     OpenShareModal,
     ShareButton,
     ShareTag,
-    UserListWrapper,
     UserName,
     UserRole,
     UserTag,
@@ -48,9 +27,12 @@ import {
 } from './ShareSpaceModal.style';
 
 import { MenuItem2 } from '@blueprintjs/popover2';
+import {
+    useAddSpaceShareMutation,
+    useDeleteSpaceShareMutation,
+    useUpdateMutation,
+} from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import HighlightedText from '../HighlightedText';
-import { Flex } from '../ResourceList/ResourceTable/ResourceTable.styles';
 export interface ShareSpaceProps {
     space: Space;
     projectUuid: string;
@@ -58,11 +40,14 @@ export interface ShareSpaceProps {
 
 export interface Access {
     title: string;
-    description: string;
+    description?: string;
     selectDescription: string;
     value: string;
 }
 const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
+const capitalize = (word: string): string =>
+    word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
 
 const ACCESS_TYPES: Access[] = [
     {
@@ -77,6 +62,19 @@ const ACCESS_TYPES: Access[] = [
         selectDescription:
             'All project members can access with their project permissions',
         value: 'public',
+    },
+];
+
+const USER_ACCESS_TYPES: Access[] = [
+    {
+        title: 'viewer',
+        selectDescription: `This permission has been inherited from user's project access`,
+        value: 'keep',
+    },
+    {
+        title: 'No access',
+        selectDescription: `Remove user's access`,
+        value: 'remove',
     },
 ];
 
@@ -109,6 +107,13 @@ const renderAccess: ItemRenderer<Access> = (
 
 const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const { data: project } = useProject(projectUuid);
+
+    const { mutate: spaceMutation, isLoading: isSavingSpace } =
+        useUpdateMutation(projectUuid, space.uuid);
+    const { mutate: shareSpaceMutation, isLoading: isSharingSpace } =
+        useAddSpaceShareMutation(projectUuid, space.uuid);
+    const { mutate: unshareSpaceMutation, isLoading: isUnsharingSpace } =
+        useDeleteSpaceShareMutation(projectUuid, space.uuid);
     const { data: projectAccess, isLoading: isProjectAccessLoading } =
         useProjectAccess(projectUuid);
     const { data: organizationUsers, isLoading: isOrganizationUsersLoading } =
@@ -116,46 +121,106 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const [selectedAccess, setSelectedAccess] = useState<Access>(
         ACCESS_TYPES[0],
     );
-    const { user } = useApp();
-    const orgUserEmails =
-        organizationUsers && organizationUsers.map((orgUser) => orgUser.email);
+    const { user: sessionUser } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const [emailsSelected, setEmailsSelected] = useState<string[]>([]);
+    const [usersSelected, setUsersSelected] = useState<string[]>([]);
+    const userUuids: string[] = useMemo(() => {
+        if (projectAccess === undefined) return [];
+        return projectAccess.map((user) => user.userUuid);
+    }, [projectAccess]);
+
+    const getUserNameOrEmail = useCallback(
+        (userUuid: string) => {
+            const user = organizationUsers?.find(
+                (userAccess) => userAccess.userUuid === userUuid,
+            );
+            if (!user) return userUuid;
+            return user?.firstName
+                ? `${user.firstName} ${user.lastName}`
+                : user.email;
+        },
+        [organizationUsers],
+    );
+    const getInitials = useCallback(
+        (userUuid: string) => {
+            const user = organizationUsers?.find(
+                (userAccess) => userAccess.userUuid === userUuid,
+            );
+            if (!user) return userUuid;
+
+            if (user?.firstName) {
+                return user.firstName.substr(0, 1) + user.lastName.substr(0, 1);
+            } else {
+                return user.email.substr(0, 2).toUpperCase();
+            }
+        },
+        [organizationUsers],
+    );
 
     const renderUserShare: ItemRenderer<string> = useCallback(
-        (name, { modifiers, handleClick, query }) => {
+        (userUuid, { modifiers, handleClick, query }) => {
             if (!modifiers.matchesPredicate) {
                 return null;
             }
+            const user = projectAccess?.find(
+                (userAccess) => userAccess.userUuid === userUuid,
+            );
+            if (!user) return null;
+
             return (
                 <MenuItem2
                     active={modifiers.active}
-                    icon={emailsSelected.includes(name) ? 'tick' : 'blank'}
-                    key={name}
-                    disabled={emailsSelected.includes(name)}
-                    text={
-                        <HighlightedText
-                            text={name}
-                            query={query}
-                            highlightElement={Hightlighed}
-                        />
+                    icon={
+                        usersSelected.includes(user.userUuid) ? 'tick' : 'blank'
                     }
-                    onClick={handleClick}
+                    key={user.userUuid}
+                    //disabled={usersSelected.includes(user.userUuid)}
+                    text={
+                        <FlexWrapper key={`render_${user.userUuid}`}>
+                            <UserTag large round>
+                                {getInitials(user.userUuid)}
+                            </UserTag>
+                            <MemberAccess>
+                                <AccessName>
+                                    {user.firstName} {user.lastName}
+                                </AccessName>
+                                <AccessDescription>
+                                    {user.email}
+                                </AccessDescription>
+                            </MemberAccess>
+                        </FlexWrapper>
+                    }
+                    onClick={(e) => {
+                        // Toggle user selected if selected
+                        if (usersSelected.includes(user.userUuid))
+                            setUsersSelected(
+                                usersSelected.filter(
+                                    (uuid) => uuid !== user.userUuid,
+                                ),
+                            );
+                        else handleClick(e);
+                    }}
                     shouldDismissPopover={false}
                 />
             );
         },
-        [emailsSelected],
+        [usersSelected, getInitials],
     );
+
     const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
-            setEmailsSelected(
-                emailsSelected.filter((email) => email !== selectedValue),
+            setUsersSelected(
+                usersSelected.filter(
+                    (userUuid) =>
+                        getUserNameOrEmail(userUuid) !== selectedValue,
+                ),
             );
         },
-        [emailsSelected],
+        [usersSelected, getUserNameOrEmail],
     );
+
+    if (isProjectAccessLoading) return null;
     return (
         <>
             <OpenShareModal
@@ -179,7 +244,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             <MultiSelect2
                                 fill
                                 itemRenderer={renderUserShare}
-                                items={orgUserEmails || []}
+                                items={userUuids || []}
                                 noResults={
                                     isOrganizationUsersLoading ? (
                                         <StyledSpinner />
@@ -190,14 +255,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                         />
                                     )
                                 }
-                                onItemSelect={(select: string) => {
-                                    setEmailsSelected([
-                                        ...emailsSelected,
+                                onItemSelect={(select) => {
+                                    setUsersSelected([
+                                        ...usersSelected,
                                         select,
                                     ]);
-                                    // setAddNewMember(false);
                                 }}
-                                tagRenderer={(name) => name}
+                                tagRenderer={getUserNameOrEmail}
                                 tagInputProps={{
                                     placeholder: undefined,
                                     addOnBlur: false,
@@ -206,14 +270,18 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                     },
                                     onRemove: handleRemove,
                                 }}
-                                selectedItems={emailsSelected}
+                                selectedItems={usersSelected}
                             />
                             <ShareButton
                                 text="Share"
                                 intent="primary"
-                                disabled={emailsSelected.length === 0}
-                                onClick={() => {
-                                    setEmailsSelected([]);
+                                disabled={usersSelected.length === 0}
+                                onClick={async () => {
+                                    for (const userUuid of usersSelected) {
+                                        if (userUuid)
+                                            await shareSpaceMutation(userUuid);
+                                    }
+                                    setUsersSelected([]);
                                 }}
                             />
                         </AddUsersWrapper>
@@ -239,7 +307,17 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 filterable={false}
                                 items={ACCESS_TYPES}
                                 itemRenderer={renderAccess}
-                                onItemSelect={(item) => setSelectedAccess(item)}
+                                onItemSelect={(item) => {
+                                    const isPrivate = item.value === 'private';
+
+                                    if (isPrivate !== space.isPrivate) {
+                                        setSelectedAccess(item);
+                                        spaceMutation({
+                                            name: space.name,
+                                            isPrivate: isPrivate,
+                                        });
+                                    }
+                                }}
                             >
                                 <ChangeAccessButton
                                     minimal
@@ -248,47 +326,79 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 />
                             </Select2>
                         </AccessRole>
-                        {/*<HTMLSelect value={space.isPrivate?'private': 'public'}
-                            options={[
-                                { value: 'private', label: 'Private' },
-                                { value: 'public', label: 'Full access' },
-                            ]}
-                            >
-                        </HTMLSelect>*/}
                     </AccessWrapper>
-                    <UserListWrapper>
-                        {space.access &&
-                            space.access.map((sharedUser) => {
-                                const initials =
-                                    sharedUser.firstName.substr(0, 1) +
-                                    sharedUser.lastName.substr(0, 1);
+                    {space.access &&
+                        space.access.map((sharedUser) => {
+                            const isYou =
+                                sessionUser.data?.userUuid ===
+                                sharedUser.userUuid;
+                            const role = capitalize(
+                                sharedUser.role?.toString() || '',
+                            );
 
-                                const isYou =
-                                    user.data?.userUuid === sharedUser.userUuid;
-                                return (
-                                    <FlexWrapper key={sharedUser.userUuid}>
-                                        <UserTag round large>
-                                            {initials}
-                                        </UserTag>
-
-                                        <UserName>
-                                            {sharedUser.firstName}{' '}
-                                            {sharedUser.lastName}{' '}
-                                            {isYou ? (
-                                                <YouLabel>(you)</YouLabel>
-                                            ) : (
-                                                ''
-                                            )}
-                                        </UserName>
-
-                                        <UserRole>{sharedUser.role}</UserRole>
-                                    </FlexWrapper>
-                                );
-                            })}
-                    </UserListWrapper>
+                            const userAccessTypes = USER_ACCESS_TYPES.map(
+                                (accessType) => {
+                                    return accessType.value === 'keep'
+                                        ? {
+                                              ...accessType,
+                                              title: role,
+                                          }
+                                        : accessType;
+                                },
+                            );
+                            return (
+                                <AddUsersWrapper key={sharedUser.userUuid}>
+                                    <UserTag round large>
+                                        {getInitials(sharedUser.userUuid)}
+                                    </UserTag>
+                                    <UserName>
+                                        {getUserNameOrEmail(
+                                            sharedUser.userUuid,
+                                        )}
+                                        {isYou ? (
+                                            <YouLabel> (you)</YouLabel>
+                                        ) : (
+                                            ''
+                                        )}
+                                    </UserName>
+                                    {isYou ? (
+                                        <UserRole>{role}</UserRole>
+                                    ) : (
+                                        <Select2<Access>
+                                            filterable={false}
+                                            items={userAccessTypes}
+                                            itemRenderer={renderAccess}
+                                            onItemSelect={(item) => {
+                                                if (item.value === 'remove') {
+                                                    unshareSpaceMutation(
+                                                        sharedUser.userUuid,
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <ChangeAccessButton
+                                                minimal
+                                                rightIcon="caret-down"
+                                                text={role}
+                                            />
+                                        </Select2>
+                                    )}
+                                </AddUsersWrapper>
+                            );
+                        })}
                 </div>
                 <DialogFooter>
-                    <p> Learn more about permissions in our docs</p>
+                    <p>
+                        {' '}
+                        Learn more about permissions in our{' '}
+                        <a
+                            href="https://docs.lightdash.com/references/roles"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            docs
+                        </a>
+                    </p>
                 </DialogFooter>
             </Dialog>
         </>

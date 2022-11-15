@@ -20,10 +20,6 @@ export const FlexWrapper = styled.div`
     display: flex;
 `;
 
-export const UserListWrapper = styled.div`
-    margin: 5px 5px 5px 5px;
-`;
-
 export const ShareButton = styled(Button)`
     width: 100px;
     text-align: center;
@@ -33,7 +29,7 @@ export const ShareButton = styled(Button)`
 
 export const ChangeAccessButton = styled(Button)`
     padding-right: 0;
-    font-weight: 600;
+    font-weight: 500;
     font-size: 13px;
     text-align: right;
     margin-top: 2px;
@@ -44,16 +40,16 @@ export const ShareTag = styled(Tag)`
     padding: 0 0 0 10px !important;
     background-color: lightgray;
     color: ${Colors.GRAY1};
+    margin-top: 4px;
 `;
 export const UserTag = styled(Tag)`
     width: 35px;
     height: 35px;
-    padding: 0 0 0 8px !important;
+    padding: 0 !important;
+    text-align: center;
     background-color: #8f99a8;
+    margin-top: 4px;
     color: ${Colors.WHITE};
-`;
-export const Hightlighed = styled.span`
-    color: ${Colors.BLUE3};
 `;
 
 export const MemberAccess = styled.div`
@@ -92,11 +88,12 @@ export const AccessDescription = styled.p`
     margin-bottom: 0;
 `;
 export const UserName = styled.p`
+    flex: auto;
+
     font-weight: 600;
     font-size: 13px;
-    margin-top: 6px;
     line-height: 20px;
-    margin: 5px 0px 0 10px;
+    margin: 10px 0px 0 10px;
 `;
 export const AccessRole = styled.div`
     flex: 2;
@@ -122,6 +119,8 @@ export const UserRole = styled.div`
     flex: 2;
     text-align: right;
     margin-top: 5px;
+    font-weight: 500;
+    font-size: 13px;
 `;
 export const YouLabel = styled.span`
     font-weight: 300;
