@@ -871,15 +871,34 @@ const useEcharts = () => {
     } = context;
     const { data: organisationData } = useOrganisation();
 
+    const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
+        if (
+            resultsData &&
+            validCartesianConfig &&
+            isCompleteLayout(validCartesianConfig.layout)
+        ) {
+            const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
+                (yField) =>
+                    !resultsData.metricQuery.dimensions.includes(yField),
+            );
+            const yFieldNonPivotedKeys =
+                validCartesianConfig.layout.yField.filter((yField) =>
+                    resultsData.metricQuery.dimensions.includes(yField),
+                );
+
+            return [
+                yFieldPivotedKeys,
+                [...yFieldNonPivotedKeys, validCartesianConfig.layout.xField],
+            ];
+        }
+        return [];
+    }, [validCartesianConfig, resultsData]);
+
     const { rows } = usePlottedData(
         resultsData?.rows,
         pivotDimensions,
-        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
-            ? validCartesianConfig.layout.yField
-            : undefined,
-        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
-            ? [validCartesianConfig.layout.xField]
-            : undefined,
+        pivotedKeys,
+        nonPivotedKeys,
     );
 
     const formats = useMemo(
