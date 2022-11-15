@@ -31,6 +31,7 @@ import {
     getDefaultTimeFrames,
     timeFrameConfigs,
     validateTimeFrames,
+    WeekDay,
 } from '../utils/timeFrames';
 import { compileExplore } from './exploreCompiler';
 
@@ -104,6 +105,7 @@ const convertDimension = (
             timeInterval,
             sql,
             type,
+            WeekDay.WEDNESDAY,
         );
         name = `${column.name}_${timeInterval.toLowerCase()}`;
         label = `${label} ${timeFrameConfigs[timeInterval]
