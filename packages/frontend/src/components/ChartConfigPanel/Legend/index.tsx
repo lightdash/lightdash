@@ -9,7 +9,7 @@ import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
 import { InputTitle, SectionRow, SectionTitle } from './Legend.styles';
 
-const triggerSubmitFields = ['show', 'orient', 'scroll'];
+const triggerSubmitFields = ['show', 'orient'];
 
 const LegendPanel: FC = () => {
     const {
