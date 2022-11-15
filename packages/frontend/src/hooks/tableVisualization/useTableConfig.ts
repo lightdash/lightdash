@@ -144,6 +144,7 @@ const useTableConfig = (
         getHeader,
         getDefaultColumnLabel,
         showTableNames,
+        isColumnFrozen,
     ]);
 
     // Remove columProperties from map if the column has been removed from results

@@ -996,6 +996,7 @@ const useEcharts = () => {
                 validCartesianConfig?.eChartsConfig.legend,
             ) || {
                 show: series.length > 1,
+                type: 'scroll',
             },
             dataset: {
                 id: 'lightdashResults',
