@@ -1,4 +1,4 @@
-import { Colors } from '@blueprintjs/core';
+import { Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { NAVBAR_HEIGHT } from '../../NavBar/NavBar.styles';
 import { PAGE_HEADER_HEIGHT } from '../PageHeader';
@@ -14,8 +14,19 @@ export const PageWithSidebar = styled.div<PageWithSidebarProps>`
     ${({ alignItems }) => (alignItems ? `align-items: ${alignItems};` : '')}
 `;
 
-export const PageContentContainer = styled.div`
-    padding: 10px 20px;
+interface PageContentContainerProps {
+    hasDraggableSidebar: boolean;
+}
+
+export const PageWrapper = styled.div`
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+`;
+
+export const PageContentContainer = styled.div<PageContentContainerProps>`
+    padding: 10px 20px 10px
+        ${({ hasDraggableSidebar }) => (hasDraggableSidebar ? 15 : 20)}px;
     display: flex;
     flex-grow: 1;
     flex-direction: column;
@@ -77,14 +88,21 @@ export const Resizer = styled.div<{ $isResizing: boolean }>`
             : 'none'};
 `;
 
-export const PageWrapper = styled.div`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-`;
-
 export const StickySidebar = styled.div`
     height: calc(100vh - ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px);
     position: sticky;
     top: ${NAVBAR_HEIGHT}px;
+`;
+
+export const SideBar = styled.div`
+    display: flex;
+    flex-direction: row;
+    position: sticky;
+    align-self: flex-start;
+    top: ${NAVBAR_HEIGHT}px;
+`;
+
+export const SideBarCard = styled(Card)`
+    height: calc(100vh - ${NAVBAR_HEIGHT}px);
+    overflow: hidden;
 `;

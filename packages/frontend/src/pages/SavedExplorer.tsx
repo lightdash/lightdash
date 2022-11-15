@@ -126,7 +126,7 @@ const SavedExplorer = () => {
                     </Transition>
                 </StickySidebar>
 
-                <PageContentContainer>
+                <PageContentContainer hasDraggableSidebar>
                     <Explorer />
                 </PageContentContainer>
             </PageWrapper>

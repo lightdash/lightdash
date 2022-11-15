@@ -1,5 +1,11 @@
 import { memo } from 'react';
-import { PageContentContainer } from '../components/common/Page/Page.styles';
+import {
+    PageContentContainer,
+    PageWrapper,
+    Resizer,
+    SideBar,
+    SideBarCard,
+} from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -10,12 +16,6 @@ import {
 import useSidebarResize from '../hooks/useSidebarResize';
 import { useApp } from '../providers/AppProvider';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
-import {
-    PageContainer,
-    Resizer,
-    SideBar,
-    SideBarCard,
-} from './Explorer.styles';
 
 const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();
@@ -36,7 +36,7 @@ const ExplorerPage = memo(() => {
     }
     return (
         <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
-            <PageContainer>
+            <PageWrapper>
                 <SideBar ref={sidebarRef}>
                     <SideBarCard
                         elevation={1}
@@ -52,10 +52,10 @@ const ExplorerPage = memo(() => {
                     />
                 </SideBar>
 
-                <PageContentContainer>
+                <PageContentContainer hasDraggableSidebar>
                     <ExplorerWithUrlParams />
                 </PageContentContainer>
-            </PageContainer>
+            </PageWrapper>
         </ExplorerProvider>
     );
 });
