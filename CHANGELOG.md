@@ -1,3 +1,10 @@
+# [0.323.0](https://github.com/lightdash/lightdash/compare/0.322.1...0.323.0) (2022-11-15)
+
+
+### Features
+
+* scroll legend ([#3770](https://github.com/lightdash/lightdash/issues/3770)) ([0eb6980](https://github.com/lightdash/lightdash/commit/0eb698080a1eeeed6196bcf65e7df70939b28a33))
+
 ## [0.322.1](https://github.com/lightdash/lightdash/compare/0.322.0...0.322.1) (2022-11-15)
 
 
