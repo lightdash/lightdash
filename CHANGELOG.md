@@ -1,3 +1,11 @@
+## [0.323.1](https://github.com/lightdash/lightdash/compare/0.323.0...0.323.1) (2022-11-15)
+
+
+### Bug Fixes
+
+* dbt compile error message ([#3771](https://github.com/lightdash/lightdash/issues/3771)) ([e3764df](https://github.com/lightdash/lightdash/commit/e3764dfc8a2dcc5584a35999940c792efda6a76a))
+* pivot with dimensions in y axis ([#3789](https://github.com/lightdash/lightdash/issues/3789)) ([b7e3302](https://github.com/lightdash/lightdash/commit/b7e3302d9176c58b80378c7fc5edbd0f2e0f52ce))
+
 # [0.323.0](https://github.com/lightdash/lightdash/compare/0.322.1...0.323.0) (2022-11-15)
 
 
