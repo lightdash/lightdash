@@ -1,7 +1,7 @@
 import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
 import startCase from 'lodash/startCase';
-import { FC, useState } from 'react';
+import { FC, useMemo } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionRow } from './Grid.styles';
 
