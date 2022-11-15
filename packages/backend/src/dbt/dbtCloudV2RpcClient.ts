@@ -35,7 +35,6 @@ export class DbtCloudV2RpcClient extends DbtRpcClientBase {
                 ) {
                     throw new DbtError(
                         `Dbt Cloud error:\n${e.data.status.user_message}`,
-                        e.data,
                     );
                 }
                 if (e.data.detail) {

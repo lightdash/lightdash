@@ -1,13 +1,14 @@
 import {
     BaseJob,
     CreateJob,
+    DbtError,
+    DbtLog,
     Job,
     JobLabels,
     JobStatusType,
     JobStep,
     JobStepStatusType,
     JobStepType,
-    LightdashError,
     NotFoundError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -77,6 +78,7 @@ export class JobModel {
                 stepError: step.step_error,
                 stepLabel,
                 startedAt: step.started_at,
+                stepDbtLogs: step.step_dbt_logs,
             };
         });
     }
@@ -136,12 +138,14 @@ export class JobModel {
         stepStatus: JobStepStatusType,
         stepType: JobStepType,
         stepError?: string,
+        stepDbtLogs?: DbtLog[],
     ): Promise<void> {
         await this.database(JobStepsTableName)
             .update({
                 step_status: stepStatus,
                 updated_at: new Date(),
                 step_error: stepError,
+                step_dbt_logs: JSON.stringify(stepDbtLogs),
             })
             .where('job_uuid', jobUuid)
             .andWhere('step_type', stepType);
@@ -184,21 +188,12 @@ export class JobModel {
             );
             return result;
         } catch (e) {
-            const formatJobErrorMessage = (error: unknown) => {
-                if (error instanceof LightdashError) {
-                    return `${error.name}: ${error.message}${
-                        Object.keys(error.data).length > 0
-                            ? ` \n${JSON.stringify(error.data)}`
-                            : ''
-                    }`;
-                }
-                return `${error}`;
-            };
             await this.updateJobStep(
                 jobUuid,
                 JobStepStatusType.ERROR,
                 jobStepType,
-                formatJobErrorMessage(e),
+                e.message,
+                e instanceof DbtError ? e.logs : [],
             );
             await this.update(jobUuid, { jobStatus: JobStatusType.ERROR });
             throw e; // throw the error again

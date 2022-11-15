@@ -122,7 +122,6 @@ export const patchPathParts = (patchPath: string) => {
     if (rest.length === 0) {
         throw new DbtError(
             'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
-            {},
         );
     }
     return {
