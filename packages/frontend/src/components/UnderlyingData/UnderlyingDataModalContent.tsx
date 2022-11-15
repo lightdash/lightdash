@@ -1,4 +1,4 @@
-import { AnchorButton } from '@blueprintjs/core';
+import { AnchorButton, NonIdealState } from '@blueprintjs/core';
 import {
     ChartType,
     CreateSavedChartVersion,
@@ -282,10 +282,21 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         return `${pathname}?${search}`;
     }, [tableName, metricQuery, projectUuid, showUnderlyingValues]);
 
-    const { data: resultsData, isLoading } = useUnderlyingDataResults(
-        tableName,
-        metricQuery,
-    );
+    const {
+        error,
+        data: resultsData,
+        isLoading,
+    } = useUnderlyingDataResults(tableName, metricQuery);
+
+    if (error) {
+        return (
+            <NonIdealState
+                title="Results not available"
+                description={error.error.message}
+                icon="error"
+            />
+        );
+    }
 
     return (
         <>
