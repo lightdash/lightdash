@@ -1,4 +1,4 @@
-import { Callout, H5 } from '@blueprintjs/core';
+import { Callout, H5, Tabs } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
@@ -34,4 +34,8 @@ export const ButtonsWrapper = styled.div`
 
 export const SqlCallout = styled(Callout)`
     margin-top: 20px;
+`;
+
+export const StyledTabs = styled(Tabs)`
+    margin-bottom: 10px;
 `;
