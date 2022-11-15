@@ -44,10 +44,13 @@ const GridPanel: FC = () => {
         cartesianConfig: { dirtyEchartsConfig, setGrid },
     } = useVisualizationContext();
 
-    const [config, setConfig] = useState<EchartsGrid>({
-        ...defaultGrid,
-        ...dirtyEchartsConfig?.grid,
-    });
+    const config = useMemo<EchartsGrid>(
+        () => ({
+            ...defaultGrid,
+            ...dirtyEchartsConfig?.grid,
+        }),
+        [dirtyEchartsConfig?.grid],
+    );
 
     const handleUpdate = (
         position: typeof positions[number],
@@ -56,11 +59,9 @@ const GridPanel: FC = () => {
     ) => {
         const newValue = value && value !== '' ? `${value}${unit}` : undefined;
 
-        setConfig((prevState) => {
-            const newState = { ...prevState, [position]: newValue };
-            setGrid(newState);
-            return newState;
-        });
+        const newState = { ...config, [position]: newValue };
+        setGrid(newState);
+        return newState;
     };
 
     const handleUpdateUnit = (
