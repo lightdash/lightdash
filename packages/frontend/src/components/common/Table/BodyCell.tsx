@@ -96,10 +96,9 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             hasBackdrop
             backdropProps={{
                 onClick: () => handleDebouncedCellSelect(undefined),
-                style: { zIndex: 20 },
             }}
             onOpening={() => handleDebouncedCellSelect(props.cell.id)}
-            onClosing={() => handleDebouncedCellSelect(undefined)}
+            onClose={() => handleDebouncedCellSelect(undefined)}
             content={
                 CellContextMenu && (
                     <CellContextMenu
