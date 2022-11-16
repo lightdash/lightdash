@@ -1,17 +1,37 @@
-const { App } = require('@slack/bolt');
-// import {App} from '@slack/bolt'
+import {
+    createInstallation,
+    deleteInstallation,
+    getInstallation,
+} from './SlackStorage';
 
+const { FileInstallationStore } = require('@slack/oauth');
+const { App, ExpressReceiver } = require('@slack/bolt');
+// import {App} from '@slack/bolt' //TODO fix import
+
+// Docs: https://slack.dev/bolt-js/concepts#authenticating-oauth
 const app = new App({
-    token: process.env.SLACK_BOT_TOKEN,
     signingSecret: process.env.SLACK_SIGNING_SECRET,
+    clientId: process.env.SLACK_CLIENT_ID,
+    clientSecret: process.env.SLACK_CLIENT_SECRET,
+    stateSecret: process.env.SLACK_STATE_SECRET,
     socketMode: true,
     appToken: process.env.SLACK_APP_TOKEN,
-    // Socket Mode doesn't listen on a port, but in case you want your app to respond to OAuth,
-    // you still need to listen on some port!
-    // port: process.env.PORT || 3000
+    port: process.env.SLACK_PORT || 4000, // TODO Use ExpressReceiver instead
+    scopes: ['links:read', 'links:write'],
+    /* installationStore: {
+        storeInstallation: createInstallation,
+        fetchInstallation: getInstallation,
+        deleteInstallation,
+    }, */
+    installationStore: new FileInstallationStore(), // TODO replace with DB storage
+    redirectUri: 'https://localhost:4000/slack/redirect',
+    installerOptions: {
+        directInstall: true,
+        redirectUriPath: '/slack/redirect',
+    },
 });
 
-const unfurl = (event: any) => {
+const unfurl = (event: any, client: any) => {
     const unfurls = event.links.reduce((acc: any, l: any) => {
         const { url } = l;
         const imgUrl =
@@ -36,16 +56,17 @@ const unfurl = (event: any) => {
         };
     }, {});
     console.info('unfurls', unfurls);
-    app.client.chat
+    client.chat
         .unfurl({ ts: event.message_ts, channel: event.channel, unfurls })
         .catch(console.error);
 };
 
 app.event('link_shared', (message: any) => {
-    const event = message.links ? message : message.event; // depending on the api, the message is different
+    const { event, client } = message; // message.links ? message : message.event; // depending on the api, the message is different
     console.debug('link_shared event', event);
+    console.debug('client event', client);
 
-    unfurl(event);
+    unfurl(event, client);
 });
 
 export const startSlackBot = async () => {
