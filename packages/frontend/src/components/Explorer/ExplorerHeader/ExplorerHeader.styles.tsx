@@ -3,9 +3,10 @@ import styled from 'styled-components';
 export const Wrapper = styled.div`
     height: 60px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    button {
-        margin: 0;
-    }
+`;
+
+export const Spacer = styled.div`
+    flex: 1;
 `;

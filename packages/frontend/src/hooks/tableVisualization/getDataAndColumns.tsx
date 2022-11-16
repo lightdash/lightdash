@@ -24,6 +24,7 @@ type Args = {
     selectedItemIds: string[];
     resultsData: ApiQueryResults;
     isColumnVisible: (key: string) => boolean;
+    isColumnFrozen: (key: string) => boolean;
     showTableNames: boolean;
     getHeader: (key: string) => string | undefined;
 };
@@ -33,6 +34,7 @@ const getDataAndColumns = ({
     selectedItemIds,
     resultsData,
     isColumnVisible,
+    isColumnFrozen,
     showTableNames,
     getHeader,
 }: Args): {
@@ -52,7 +54,6 @@ const getDataAndColumns = ({
             if (!isColumnVisible(itemId)) {
                 return acc;
             }
-
             const headerOverride = getHeader(itemId);
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
@@ -69,7 +70,7 @@ const getDataAndColumns = ({
                                 <>
                                     {showTableNames && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel} -{' '}
+                                            {item.tableLabel}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 
@@ -95,6 +96,7 @@ const getDataAndColumns = ({
                             : null,
                     meta: {
                         item,
+                        frozen: isColumnFrozen(itemId),
                     },
                 },
             );

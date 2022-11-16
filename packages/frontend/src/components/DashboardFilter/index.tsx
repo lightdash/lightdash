@@ -21,6 +21,8 @@ interface Props {
 const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isOpen, setIsOpen] = useState(false);
+    const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+
     const {
         dashboard,
         fieldsWithSuggestions,
@@ -28,11 +30,18 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         dashboardTiles,
     } = useDashboardContext();
     const { isLoading, data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboard, dashboardTiles);
+        useAvailableDashboardFilterTargets(dashboardTiles);
+
     const hasChartTiles =
         dashboardTiles.filter(
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         ).length >= 1;
+
+    const handleClose = () => {
+        setIsSubmenuOpen(false);
+        setIsOpen(false);
+    };
+
     return (
         <FiltersProvider
             projectUuid={projectUuid}
@@ -44,13 +53,19 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                         <FilterSearch
                             isEditMode={isEditMode}
                             fields={filterableFields}
-                            onClose={() => setIsOpen(false)}
+                            popoverProps={{
+                                onOpened: () => setIsSubmenuOpen(true),
+                                onClose: () => setIsSubmenuOpen(false),
+                            }}
+                            onClose={handleClose}
+                            onSelectField={handleClose}
                         />
                     }
-                    interactionKind="click"
+                    canEscapeKeyClose={isSubmenuOpen ? false : true}
+                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
                     popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                    isOpen={isOpen}
-                    onInteraction={setIsOpen}
+                    onOpened={() => setIsOpen(true)}
+                    onClose={handleClose}
                     position="bottom-right"
                     disabled={!hasChartTiles || isLoading}
                 >
@@ -75,6 +90,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                         </FilterTrigger>
                     </Tooltip2>
                 </TriggerWrapper>
+
                 {!isLoading && dashboardFilters && <ActiveFilters />}
             </DashboardFilterWrapper>
         </FiltersProvider>

@@ -16,7 +16,7 @@ export const Avatar: React.FC<AvatarProps> = ({ initials }) => (
             padding: '5px 0px',
             textAlign: 'center',
         }}
-        data-cy="user-avatar"
+        data-testid="user-avatar"
     >
         {initials.substr(0, 2)}
     </Tag>

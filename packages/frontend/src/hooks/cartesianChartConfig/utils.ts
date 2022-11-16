@@ -8,13 +8,14 @@ import {
     getSeriesId,
     Series,
 } from '@lightdash/common';
+import { getPivotedData } from '../plottedData/usePlottedData';
 
 export type GetExpectedSeriesMapArgs = {
     defaultCartesianType: CartesianSeriesType;
     defaultAreaStyle: Series['areaStyle'];
     isStacked: boolean;
-    resultsData: ApiQueryResults | undefined;
-    pivotKey: string | undefined;
+    resultsData: ApiQueryResults;
+    pivotKeys: string[] | undefined;
     yFields: string[];
     xField: string;
     availableDimensions: string[];
@@ -25,63 +26,51 @@ export const getExpectedSeriesMap = ({
     defaultAreaStyle,
     isStacked,
     resultsData,
-    pivotKey,
+    pivotKeys,
     yFields,
     xField,
     availableDimensions,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
-    if (pivotKey) {
-        const uniquePivotValues: string[] = Array.from(
-            new Set(resultsData?.rows.map((row) => row[pivotKey].value.raw)),
+    if (pivotKeys && pivotKeys.length > 0) {
+        const { rowKeyMap } = getPivotedData(
+            resultsData.rows,
+            pivotKeys,
+            yFields.filter((yField) => !availableDimensions.includes(yField)),
+            yFields.filter((yField) => availableDimensions.includes(yField)),
         );
-        expectedSeriesMap = (yFields || []).reduce<Record<string, Series>>(
-            (sum, yField) => {
-                if (availableDimensions.includes(yField)) {
-                    const series = {
-                        encode: {
-                            xRef: { field: xField },
-                            yRef: {
-                                field: yField,
-                            },
-                        },
-                        type: defaultCartesianType,
-                        areaStyle: defaultAreaStyle,
-                    };
-                    return { ...sum, [getSeriesId(series)]: series };
-                }
-                const stack =
-                    defaultAreaStyle || isStacked ? yField : undefined;
-                const groupSeries = uniquePivotValues.reduce<
-                    Record<string, Series>
-                >((acc, rawValue) => {
-                    const pivotSeries: Series = {
-                        type: defaultCartesianType,
-                        encode: {
-                            xRef: { field: xField },
-                            yRef: {
-                                field: yField,
-                                pivotValues: [
-                                    {
-                                        field: pivotKey,
-                                        value: rawValue,
-                                    },
-                                ],
-                            },
-                        },
-                        areaStyle: defaultAreaStyle,
-                        stack,
-                    };
-                    return {
-                        ...acc,
-                        [getSeriesId(pivotSeries)]: pivotSeries,
-                    };
-                }, {});
 
-                return { ...sum, ...groupSeries };
-            },
-            {},
-        );
+        expectedSeriesMap = Object.values(rowKeyMap).reduce<
+            Record<string, Series>
+        >((acc, rowKey) => {
+            let series: Series;
+            if (typeof rowKey === 'string') {
+                series = {
+                    encode: {
+                        xRef: { field: xField },
+                        yRef: {
+                            field: rowKey,
+                        },
+                    },
+                    type: defaultCartesianType,
+                    areaStyle: defaultAreaStyle,
+                };
+            } else {
+                series = {
+                    type: defaultCartesianType,
+                    encode: {
+                        xRef: { field: xField },
+                        yRef: rowKey,
+                    },
+                    areaStyle: defaultAreaStyle,
+                    stack:
+                        defaultAreaStyle || isStacked
+                            ? rowKey.field
+                            : undefined,
+                };
+            }
+            return { ...acc, [getSeriesId(series)]: series };
+        }, {});
     } else {
         expectedSeriesMap = (yFields || []).reduce<Record<string, Series>>(
             (sum, yField) => {

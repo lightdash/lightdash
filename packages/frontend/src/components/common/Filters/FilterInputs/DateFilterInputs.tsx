@@ -20,7 +20,7 @@ import { MultipleInputsWrapper } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
-    const { field, filterRule, onChange } = props;
+    const { field, filterRule, onChange, popoverProps, disabled } = props;
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
 
     switch (filterRule.operator) {
@@ -39,15 +39,13 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     week commencing
                                 </span>
                                 <WeekPicker
-                                    value={
-                                        filterRule.values?.[0]
-                                            ? new Date(filterRule.values?.[0])
-                                            : new Date()
-                                    }
+                                    disabled={disabled}
+                                    value={filterRule.values?.[0] || new Date()}
+                                    popoverProps={popoverProps}
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
-                                            values: [moment(value).utc(true)],
+                                            values: [moment(value).toDate()],
                                         });
                                     }}
                                 />
@@ -56,14 +54,15 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     case TimeFrames.MONTH:
                         return (
                             <MonthAndYearInput
+                                disabled={disabled}
                                 value={filterRule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc(true)
-                                                .startOf('month'),
+                                                .startOf('month')
+                                                .toDate(),
                                         ],
                                     });
                                 }}
@@ -72,14 +71,15 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     case TimeFrames.YEAR:
                         return (
                             <YearInput
+                                disabled={disabled}
                                 value={filterRule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...filterRule,
                                         values: [
                                             moment(value)
-                                                .utc(true)
-                                                .startOf('year'),
+                                                .startOf('year')
+                                                .toDate(),
                                         ],
                                     });
                                 }}
@@ -93,6 +93,8 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             if (isTimestamp) {
                 return (
                     <DateInput2
+                        className={disabled ? 'disabled-filter' : ''}
+                        disabled={disabled}
                         fill
                         defaultTimezone="UTC"
                         showTimezoneSelect={false}
@@ -119,20 +121,27 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         }}
                         popoverProps={{
                             placement: 'bottom',
+                            ...popoverProps,
                         }}
                     />
                 );
             }
             return (
                 <DateInput2
+                    className={disabled ? 'disabled-filter' : ''}
+                    disabled={disabled}
                     fill
                     value={
                         filterRule.values?.[0]
-                            ? new Date(filterRule.values?.[0]).toUTCString()
-                            : new Date().toUTCString()
+                            ? formatDate(
+                                  filterRule.values?.[0],
+                                  undefined,
+                                  false,
+                              )
+                            : new Date().toString()
                     }
                     formatDate={(value: Date) =>
-                        formatDate(moment(value).utc(true))
+                        formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
                     defaultValue={new Date().toString()}
@@ -140,12 +149,13 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         if (value) {
                             onChange({
                                 ...filterRule,
-                                values: [moment(value).utc(true)],
+                                values: [formatDate(value, undefined, false)],
                             });
                         }
                     }}
                     popoverProps={{
                         placement: 'bottom',
+                        ...popoverProps,
                     }}
                 />
             );
@@ -154,7 +164,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             return (
                 <MultipleInputsWrapper>
                     <NumericInput
+                        className={disabled ? 'disabled-filter' : ''}
                         fill
+                        disabled={disabled}
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
                         onValueChange={(value) =>
@@ -165,11 +177,13 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         }
                     />
                     <UnitOfTimeAutoComplete
+                        disabled={disabled}
                         isTimestamp={isTimestamp}
                         unitOfTime={
                             filterRule.settings?.unitOfTime || UnitOfTime.days
                         }
                         completed={filterRule.settings?.completed || false}
+                        popoverProps={popoverProps}
                         onChange={(value) =>
                             onChange({
                                 ...filterRule,

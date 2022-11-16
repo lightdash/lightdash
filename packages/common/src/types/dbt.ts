@@ -1,6 +1,9 @@
 import { DepGraph } from 'dependency-graph';
+import assertUnreachable from '../utils/assertUnreachable';
+import { ColumnInfo, CompiledModelNode, ParsedMetric } from './dbtFromSchema';
 import { DbtError, ParseError } from './errors';
 import {
+    CompactOrAlias,
     DimensionType,
     FieldType,
     FieldUrl,
@@ -30,31 +33,15 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
 };
-export type DbtRawModelNode = DbtNode & {
-    compiled?: boolean;
+export type DbtRawModelNode = CompiledModelNode & {
     columns: { [name: string]: DbtModelColumn };
-    config?: { meta?: DbtModelMetadata; materialized?: string };
+    config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
-    database: string | null;
-    schema: string;
-    name: string;
-    tags: string[];
-    relation_name: string;
-    depends_on: DbtTableDependency;
-    description?: string;
-    root_path: string;
-    patch_path: string | null;
-    original_file_path: string;
 };
 export type DbtModelNode = DbtRawModelNode & {
     database: string;
 };
-type DbtTableDependency = {
-    nodes: string[];
-};
-export type DbtModelColumn = {
-    name: string;
-    description?: string;
+export type DbtModelColumn = ColumnInfo & {
     meta: DbtColumnMetadata;
     data_type?: DimensionType;
 };
@@ -84,6 +71,7 @@ type DbtColumnLightdashDimension = {
     time_intervals?: 'default' | 'OFF' | TimeFrames[];
     hidden?: boolean;
     round?: number;
+    compact?: CompactOrAlias;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
@@ -96,12 +84,14 @@ export type DbtColumnLightdashMetric = {
     sql?: string;
     hidden?: boolean;
     round?: number;
+    compact?: CompactOrAlias;
     format?: string;
     group_label?: string;
     urls?: FieldUrl[];
     show_underlying_values?: string[];
     filters?: { [key: string]: any }[];
 };
+
 export const normaliseModelDatabase = (
     model: DbtRawModelNode,
     targetWarehouse: SupportedDbtAdapter,
@@ -117,15 +107,13 @@ export const normaliseModelDatabase = (
                     {},
                 );
             }
-            return { ...model, database: model.database };
+            return { ...model, database: model.database as string };
         case SupportedDbtAdapter.DATABRICKS:
-            return { ...model, database: 'SPARK' };
+            return { ...model, database: model.database || 'DEFAULT' };
         default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = targetWarehouse;
-            throw new ParseError(
+            return assertUnreachable(
+                targetWarehouse,
                 `Cannot recognise warehouse ${targetWarehouse}`,
-                {},
             );
     }
 };
@@ -134,7 +122,6 @@ export const patchPathParts = (patchPath: string) => {
     if (rest.length === 0) {
         throw new DbtError(
             'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
-            {},
         );
     }
     return {
@@ -143,17 +130,6 @@ export const patchPathParts = (patchPath: string) => {
     };
 };
 
-export type DbtSchemaDotYaml = {
-    version: 2;
-    models: {
-        name: string;
-        description?: string;
-        columns?: {
-            name: string;
-            description?: string;
-        }[];
-    }[];
-};
 export type LineageGraph = Record<string, LineageNodeDependency[]>;
 export type LineageNodeDependency = {
     type: 'model' | 'seed' | 'source';
@@ -169,7 +145,7 @@ export const buildModelGraph = (
     allModels.forEach((model) => {
         depGraph.addNode(model.unique_id, { type: 'model', name: model.name });
         // Only use models for graph.
-        model.depends_on.nodes.forEach((nodeId) => {
+        model.depends_on?.nodes?.forEach((nodeId) => {
             const node = lookup[nodeId];
             if (node) {
                 depGraph.addNode(node.unique_id, {
@@ -238,40 +214,9 @@ export interface DbtPackages {
 export const isDbtPackages = (
     results: Record<string, any>,
 ): results is DbtPackages => 'packages' in results;
-type DbtMetricFilter = {
-    field: string;
-    operator: string;
-    value: string;
-};
-export type DbtMetric = {
-    fqn: string[];
-    unique_id: string;
-    package_name: string;
-    path: string;
-    root_path: string;
-    original_file_path: string;
-    name: string;
-    description: string;
-    label: string;
-    type: string;
-    sql: string;
-    timestamp?: string | null;
-    filters: DbtMetricFilter[];
-    time_grains: string[];
-    dimensions: string[];
-    model?: string | null;
-    model_unique_id?: string | null;
-    resource_type?: 'metric';
+
+export type DbtMetric = ParsedMetric & {
     meta?: Record<string, any> & DbtMetricLightdashMetadata;
-    tags?: string[];
-    sources?: string[][];
-    depends_on?: {
-        macros?: string[];
-        nodes?: string[];
-    };
-    refs?: string[][];
-    metrics?: string[][];
-    created_at?: number;
 };
 
 export type DbtMetricLightdashMetadata = {
@@ -408,6 +353,7 @@ export const convertMetric = ({
     source,
     hidden: !!metric.hidden,
     round: metric.round,
+    compact: metric.compact,
     format: metric.format,
     groupLabel: metric.group_label,
     showUnderlyingValues: metric.show_underlying_values,

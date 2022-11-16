@@ -1,4 +1,10 @@
-import { CompiledMetric, FieldId, friendlyName, MetricType } from './field';
+import {
+    CompactOrAlias,
+    CompiledMetric,
+    FieldId,
+    friendlyName,
+    MetricType,
+} from './field';
 import { Filters } from './filter';
 
 export type TableCalculation = {
@@ -18,6 +24,7 @@ export interface AdditionalMetric {
     sql: string;
     hidden?: boolean;
     round?: number;
+    compact?: CompactOrAlias;
     format?: string;
     table: string;
     name: string;

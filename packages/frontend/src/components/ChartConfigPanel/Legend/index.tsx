@@ -1,15 +1,15 @@
-import { Collapse } from '@blueprintjs/core';
+import { Collapse, Switch } from '@blueprintjs/core';
 import { EchartsLegend, friendlyName } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
+import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
-import { SectionRow, SectionTitle } from './Legend.styles';
+import { InputTitle, SectionRow, SectionTitle } from './Legend.styles';
 
-const triggerSubmitFields = ['show', 'type', 'orient'];
+const triggerSubmitFields = ['show', 'orient'];
 
 const LegendPanel: FC = () => {
     const {
@@ -31,7 +31,6 @@ const LegendPanel: FC = () => {
     }, [handleSubmit, setLegend, watch]);
 
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
-
     return (
         <Form
             name="legend"
@@ -39,11 +38,12 @@ const LegendPanel: FC = () => {
             onSubmit={() => undefined}
             onBlur={handleSubmit(setLegend)}
         >
-            <BooleanSwitch
+            <Checkbox
                 name="show"
-                label="Show legend"
+                checkboxProps={{ label: 'Show legend' }}
                 defaultValue={showDefault}
             />
+
             <Collapse
                 isOpen={
                     dirtyEchartsConfig?.legend
@@ -51,6 +51,19 @@ const LegendPanel: FC = () => {
                         : showDefault
                 }
             >
+                <InputTitle>Scroll</InputTitle>
+                <Switch
+                    large
+                    checked={dirtyEchartsConfig?.legend?.type !== 'plain'}
+                    onChange={() => {
+                        const type: 'scroll' | 'plain' =
+                            dirtyEchartsConfig?.legend?.type !== 'plain'
+                                ? 'plain'
+                                : 'scroll';
+                        methods.setValue('type', type);
+                        handleSubmit(setLegend)();
+                    }}
+                />
                 <SectionTitle>Position</SectionTitle>
                 <SectionRow>
                     <Input name="top" label="Top" placeholder={'auto'} />
@@ -60,15 +73,6 @@ const LegendPanel: FC = () => {
                 </SectionRow>
                 <SectionTitle>Appearance</SectionTitle>
                 <SectionRow>
-                    <Select
-                        name="type"
-                        label="Type"
-                        options={['plain', 'scroll'].map((x) => ({
-                            value: x,
-                            label: friendlyName(x),
-                        }))}
-                        defaultValue="plain"
-                    />
                     <Select
                         name="orient"
                         label="Orientation"

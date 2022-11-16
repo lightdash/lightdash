@@ -6,9 +6,11 @@ import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjects } from '../../../hooks/useProjects';
+import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
+import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
     Codeblock,
@@ -17,23 +19,25 @@ import {
     Spacer,
     StyledNonIdealState,
     Subtitle,
-    Title,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
 interface ConnectUsingCliProps {
     siteUrl: string;
+    version: string;
     loginToken?: string;
-    needsProject: boolean;
+    isCreatingFirstProject: boolean;
+    onBack: () => void;
 }
 
 const codeBlock = ({
     siteUrl,
     loginToken,
-}: Pick<ConnectUsingCliProps, 'siteUrl' | 'loginToken'>) =>
+    version,
+}: Pick<ConnectUsingCliProps, 'siteUrl' | 'version' | 'loginToken'>) =>
     String.raw`
 #1 install lightdash CLI
-npm install -g @lightdash/cli
+npm install -g @lightdash/cli@${version}
 
 #2 login to lightdash
 lightdash login ${siteUrl} --token ${loginToken}
@@ -43,9 +47,11 @@ lightdash deploy --create
 `.trim();
 
 const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
-    needsProject,
+    isCreatingFirstProject,
     siteUrl,
+    version,
     loginToken,
+    onBack,
 }) => {
     const history = useHistory();
     const initialProjectFetch = useRef(false);
@@ -57,7 +63,6 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
     useProjects({
         refetchInterval: 3000,
         refetchIntervalInBackground: true,
-        retry: false,
         onSuccess: async (newProjects) => {
             if (!initialProjectFetch.current) {
                 existingProjects.current = newProjects;
@@ -84,22 +89,17 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 );
             }
         },
-        onError: ({ error }) => {
-            if (error.statusCode === 404) {
-                existingProjects.current = [];
-                initialProjectFetch.current = true;
-            }
-        },
     });
 
     return (
         <Wrapper>
+            <FloatingBackButton
+                icon="chevron-left"
+                text="Back"
+                onClick={onBack}
+            />
             <ConnectWarehouseWrapper>
-                {needsProject ? (
-                    <Title>You're in! 🎉</Title>
-                ) : (
-                    <Title>Connect new project</Title>
-                )}
+                <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 
                 <Subtitle>
                     To get started, upload your dbt project to Lightdash using
@@ -125,10 +125,10 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 <CodeLabel>Inside your dbt project, run:</CodeLabel>
 
                 <Codeblock>
-                    <pre>{codeBlock({ siteUrl, loginToken })}</pre>
+                    <pre>{codeBlock({ siteUrl, version, loginToken })}</pre>
 
                     <CopyToClipboard
-                        text={codeBlock({ siteUrl, loginToken })}
+                        text={codeBlock({ siteUrl, version, loginToken })}
                         options={{ message: 'Copied' }}
                         onCopy={() => {
                             showToastSuccess({
@@ -144,6 +144,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         </Button>
                     </CopyToClipboard>
                 </Codeblock>
+
                 <StyledNonIdealState
                     title="Waiting for data"
                     icon="stopwatch"
@@ -153,6 +154,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             <LinkButton
                 minimal
                 intent={Intent.PRIMARY}
+                replace
                 href="/createProject/manual"
                 trackingEvent={{
                     name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
@@ -161,7 +163,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 Create project manually
             </LinkButton>
 
-            {needsProject && (
+            {isCreatingFirstProject && (
                 <>
                     <Spacer $height={8} />
 

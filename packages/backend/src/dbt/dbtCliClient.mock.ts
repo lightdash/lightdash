@@ -13,6 +13,8 @@ export const cliArgs = {
     target: 'target',
 };
 
+export const expectedDbtOptions = ['--no-use-colors', '--log-format', 'json'];
+
 export const expectedCommandOptions = [
     '--profiles-dir',
     'dbtProfilesDirectory',

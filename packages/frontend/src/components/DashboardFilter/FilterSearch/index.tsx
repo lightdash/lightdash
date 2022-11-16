@@ -1,3 +1,4 @@
+import { Popover2Props } from '@blueprintjs/popover2';
 import { FilterableField, isField, isFilterableField } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -14,10 +15,18 @@ import {
 type Props = {
     fields: FilterableField[];
     isEditMode: boolean;
+    popoverProps?: Popover2Props;
     onClose: () => void;
+    onSelectField: (field: FilterableField) => void;
 };
 
-const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
+const FilterSearch: FC<Props> = ({
+    fields,
+    isEditMode,
+    onClose,
+    onSelectField,
+    popoverProps,
+}) => {
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const { track } = useTracking();
@@ -33,7 +42,14 @@ const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
                         onChange={(field) => {
                             if (isField(field) && isFilterableField(field)) {
                                 setSelectedField(field);
+                                onSelectField(field);
                             }
+                        }}
+                        popoverProps={{
+                            matchTargetWidth: true,
+                            captureDismiss: !popoverProps?.isOpen,
+                            canEscapeKeyClose: !popoverProps?.isOpen,
+                            ...popoverProps,
                         }}
                     />
                     <FilterFooter>
@@ -43,6 +59,11 @@ const FilterSearch: FC<Props> = ({ fields, onClose, isEditMode }) => {
             ) : (
                 <FilterConfiguration
                     field={selectedField}
+                    popoverProps={{
+                        captureDismiss: true,
+                        canEscapeKeyClose: true,
+                        ...popoverProps,
+                    }}
                     onSave={(value) => {
                         track({
                             name: EventName.ADD_FILTER_CLICKED,

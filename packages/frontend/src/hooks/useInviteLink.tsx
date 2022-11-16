@@ -74,7 +74,6 @@ export const useCreateInviteLinkMutation = () => {
             await queryClient.refetchQueries(['organization_users']);
             showToastSuccess({
                 title: 'Created new invite link',
-                subtitle: `Expires on ${formatTimestamp(data.expiresAt)}`,
             });
         },
     });

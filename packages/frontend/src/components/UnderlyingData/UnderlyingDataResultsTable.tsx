@@ -10,7 +10,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
-import { TableContainer } from '../Explorer/ResultsCard/ResultsCard.styles';
+import { TableColumn } from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
 import { LoadingPanel } from './UnderlyingDataModal.styles';
 
@@ -19,13 +19,23 @@ const UnderlyingDataResultsTable: FC<{
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     hasJoins?: boolean;
-}> = ({ fieldsMap, resultsData, isLoading, hasJoins }) => {
+    sortByUnderlyingValues: (
+        columnA: TableColumn,
+        columnB: TableColumn,
+    ) => number;
+}> = ({
+    fieldsMap,
+    resultsData,
+    isLoading,
+    hasJoins,
+    sortByUnderlyingValues,
+}) => {
     const columnHeader = useCallback(
         (dimension: Field) => (
             <TableHeaderLabelContainer>
                 {hasJoins === true && (
                     <TableHeaderRegularLabel>
-                        {dimension.tableLabel} -{' '}
+                        {dimension.tableLabel}{' '}
                     </TableHeaderRegularLabel>
                 )}
 
@@ -54,21 +64,19 @@ const UnderlyingDataResultsTable: FC<{
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
-                <Table
-                    status={'success'}
-                    data={resultsData?.rows || []}
-                    columns={columns}
-                    pagination={{
-                        show: true,
-                        defaultScroll: true,
-                    }}
-                    footer={{
-                        show: true,
-                    }}
-                    cellContextMenu={CellContextMenu}
-                />
-            </TableContainer>
+            <Table
+                status={'success'}
+                data={resultsData?.rows || []}
+                columns={columns.sort(sortByUnderlyingValues)}
+                pagination={{
+                    show: true,
+                    defaultScroll: true,
+                }}
+                footer={{
+                    show: true,
+                }}
+                cellContextMenu={CellContextMenu}
+            />
         </TrackSection>
     );
 };

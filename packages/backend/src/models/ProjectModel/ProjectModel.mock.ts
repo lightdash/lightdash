@@ -55,6 +55,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     smtp: undefined,
     siteUrl: '',
+    staticIp: '',
     database: {
         connectionUri: undefined,
         maxConnections: undefined,
@@ -62,6 +63,9 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     allowMultiOrgs: false,
     maxPayloadSize: '5mb',
+    query: {
+        maxLimit: 5000,
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {

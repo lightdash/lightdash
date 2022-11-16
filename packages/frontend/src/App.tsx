@@ -5,8 +5,8 @@ import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
 import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/select/lib/css/blueprint-select.css';
 import '@blueprintjs/table/lib/css/table.css';
-import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { ReactQueryDevtools } from 'react-query/devtools';
 import {
     BrowserRouter as Router,
     Redirect,
@@ -33,12 +33,12 @@ import Login from './pages/Login';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import { Projects } from './pages/Projects';
-import ProjectSettings from './pages/ProjectSettings';
 import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
+import ShareRedirect from './pages/ShareRedirect';
 import Signup from './pages/Signup';
 import Space from './pages/Space';
 import SqlRunner from './pages/SqlRunner';
@@ -117,6 +117,7 @@ const App = () => (
                                             }}
                                         >
                                             <UserCompletionModal />
+
                                             <Switch>
                                                 <Route path="/createProject/:method?">
                                                     <NavBar />
@@ -168,20 +169,18 @@ const App = () => (
                                                         <ForbiddenPanel subject="project" />
                                                     </TrackPage>
                                                 </Route>
+                                                <Route path="/share/:shareNanoid">
+                                                    <NavBar />
+                                                    <TrackPage
+                                                        name={PageName.SHARE}
+                                                    >
+                                                        <ShareRedirect />
+                                                    </TrackPage>
+                                                </Route>
                                                 <AppRoute path="/">
                                                     <Switch>
                                                         <ProjectRoute path="/projects/:projectUuid">
                                                             <Switch>
-                                                                <Route path="/projects/:projectUuid/settings/:tab?">
-                                                                    <NavBar />
-                                                                    <TrackPage
-                                                                        name={
-                                                                            PageName.PROJECT_SETTINGS
-                                                                        }
-                                                                    >
-                                                                        <ProjectSettings />
-                                                                    </TrackPage>
-                                                                </Route>
                                                                 <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
                                                                     <NavBar />
                                                                     <TrackPage
@@ -299,6 +298,7 @@ const App = () => (
                     </TrackingProvider>
                 </AppProvider>
             </HotkeysProvider>
+            <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
     </>
 );

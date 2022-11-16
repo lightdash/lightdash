@@ -12,11 +12,7 @@ import {
 import { createPortal } from 'react-dom';
 import { useColumns } from '../../hooks/useColumns';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import {
-    DroppableContainer,
-    PopoverGlobalStyles,
-    Spacer,
-} from './SortButton.styles';
+import { DroppableContainer, PopoverGlobalStyles } from './SortButton.styles';
 import SortItem from './SortItem';
 
 type Props = {
@@ -58,8 +54,6 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     return (
         <>
             <PopoverGlobalStyles />
-
-            <Spacer $width={10} />
 
             <Popover2
                 portalClassName="bp4-popover-portal-results-table-sort-fields"
@@ -143,7 +137,6 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                 position={Position.BOTTOM}
             >
                 <Tag
-                    large
                     round
                     minimal
                     intent="primary"

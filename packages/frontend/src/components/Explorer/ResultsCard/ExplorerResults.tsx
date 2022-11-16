@@ -1,4 +1,5 @@
 import { Colors } from '@blueprintjs/core';
+import { Field, getItemMap, TableCalculation } from '@lightdash/common';
 import React, { FC, memo, ReactNode, useCallback, useMemo } from 'react';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
@@ -14,7 +15,6 @@ import {
     EmptyStateNoTableData,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
-import { TableContainer } from './ResultsCard.styles';
 
 export const ExplorerResults = memo(() => {
     const columns = useColumns();
@@ -40,13 +40,39 @@ export const ExplorerResults = memo(() => {
     const setColumnOrder = useExplorerContext(
         (context) => context.actions.setColumnOrder,
     );
-    const activeExplore = useExplore(activeTableName, {
+    const { isLoading, data: exploreData } = useExplore(activeTableName, {
         refetchOnMount: false,
     });
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
+    const additionalMetrics = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.additionalMetrics,
+    );
+
+    const itemsMap: Record<string, Field | TableCalculation> | undefined =
+        useMemo(() => {
+            if (exploreData) {
+                return getItemMap(
+                    exploreData,
+                    additionalMetrics,
+                    tableCalculations,
+                );
+            }
+            return undefined;
+        }, [exploreData, additionalMetrics, tableCalculations]);
 
     const cellContextMenu = useCallback(
-        (props) => <CellContextMenu isEditMode={isEditMode} {...props} />,
-        [isEditMode],
+        (props) => (
+            <CellContextMenu
+                isEditMode={isEditMode}
+                {...props}
+                itemsMap={itemsMap}
+            />
+        ),
+        [isEditMode, itemsMap],
     );
 
     const IdleState: FC = useCallback(() => {
@@ -87,28 +113,26 @@ export const ExplorerResults = memo(() => {
 
     if (!activeTableName) return <NoTableSelected />;
 
-    if (activeExplore.isLoading) return <EmptyStateExploreLoading />;
+    if (isLoading) return <EmptyStateExploreLoading />;
 
     if (columns.length === 0) return <EmptyStateNoColumns />;
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <TableContainer>
-                <Table
-                    status={status}
-                    data={resultsData?.rows || []}
-                    columns={columns}
-                    columnOrder={explorerColumnOrder}
-                    onColumnOrderChange={setColumnOrder}
-                    cellContextMenu={cellContextMenu}
-                    headerContextMenu={
-                        isEditMode ? ColumnHeaderContextMenu : undefined
-                    }
-                    idleState={IdleState}
-                    pagination={pagination}
-                    footer={footer}
-                />
-            </TableContainer>
+            <Table
+                status={status}
+                data={resultsData?.rows || []}
+                columns={columns}
+                columnOrder={explorerColumnOrder}
+                onColumnOrderChange={setColumnOrder}
+                cellContextMenu={cellContextMenu}
+                headerContextMenu={
+                    isEditMode ? ColumnHeaderContextMenu : undefined
+                }
+                idleState={IdleState}
+                pagination={pagination}
+                footer={footer}
+            />
         </TrackSection>
     );
 });

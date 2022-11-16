@@ -1,3 +1,10 @@
+import { DBSQLClient } from '@databricks/sql';
+import IDBSQLClient, {
+    ConnectionOptions,
+} from '@databricks/sql/dist/contracts/IDBSQLClient';
+import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
+import IOperation from '@databricks/sql/dist/contracts/IOperation';
+import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
 import {
     CreateDatabricksCredentials,
     DimensionType,
@@ -5,18 +12,69 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import odbc, { Result } from 'odbc';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
-export const DRIVER_PATH = '/opt/simba/spark/lib/64/libsparkodbc_sb64.so';
-
-type SparkSchemaResult = {
+type SchemaResult = {
     TABLE_CAT: string;
     TABLE_SCHEM: string;
     TABLE_NAME: string;
     COLUMN_NAME: string;
     DATA_TYPE: number;
     TYPE_NAME: string;
+    // additional props
+    // COLUMN_SIZE: null,
+    // BUFFER_LENGTH: null,
+    // DECIMAL_DIGITS: null,
+    // NUM_PREC_RADIX: null,
+    // NULLABLE: 1,
+    // REMARKS: '',
+    // COLUMN_DEF: null,
+    // SQL_DATA_TYPE: null,
+    // SQL_DATETIME_SUB: null,
+    // CHAR_OCTET_LENGTH: null,
+    // ORDINAL_POSITION: 5,
+    // IS_NULLABLE: 'YES',
+    // SCOPE_CATALOG: null,
+    // SCOPE_SCHEMA: null,
+    // SCOPE_TABLE: null,
+    // SOURCE_DATA_TYPE: null,
+    // IS_AUTO_INCREMENT: 'NO'
+};
+
+const convertDataTypeToDimensionType = (
+    type: DatabricksDataTypes,
+): DimensionType => {
+    switch (type) {
+        case DatabricksDataTypes.BOOLEAN_TYPE:
+            return DimensionType.BOOLEAN;
+        case DatabricksDataTypes.TINYINT_TYPE:
+        case DatabricksDataTypes.SMALLINT_TYPE:
+        case DatabricksDataTypes.INT_TYPE:
+        case DatabricksDataTypes.BIGINT_TYPE:
+        case DatabricksDataTypes.FLOAT_TYPE:
+        case DatabricksDataTypes.DOUBLE_TYPE:
+        case DatabricksDataTypes.DECIMAL_TYPE:
+            return DimensionType.NUMBER;
+        case DatabricksDataTypes.DATE_TYPE:
+            return DimensionType.DATE;
+        case DatabricksDataTypes.TIMESTAMP_TYPE:
+            return DimensionType.TIMESTAMP;
+        case DatabricksDataTypes.STRING_TYPE:
+        case DatabricksDataTypes.BINARY_TYPE:
+        case DatabricksDataTypes.ARRAY_TYPE:
+        case DatabricksDataTypes.STRUCT_TYPE:
+        case DatabricksDataTypes.UNION_TYPE:
+        case DatabricksDataTypes.USER_DEFINED_TYPE:
+        case DatabricksDataTypes.INTERVAL_YEAR_MONTH_TYPE:
+        case DatabricksDataTypes.INTERVAL_DAY_TIME_TYPE:
+        case DatabricksDataTypes.NULL_TYPE:
+        case DatabricksDataTypes.MAP_TYPE:
+        case DatabricksDataTypes.CHAR_TYPE:
+        case DatabricksDataTypes.VARCHAR_TYPE:
+            return DimensionType.STRING;
+        default:
+            return DimensionType.STRING;
+    }
 };
 
 enum DatabricksTypes {
@@ -47,7 +105,7 @@ enum DatabricksTypes {
     VARCHAR = 'VARCHAR',
 }
 
-const normaliseDatabricksType = (type: string): string => {
+const normaliseDatabricksType = (type: string): DatabricksTypes => {
     const r = /^[A-Z]+/;
     const match = r.exec(type);
     if (match === null) {
@@ -56,11 +114,13 @@ const normaliseDatabricksType = (type: string): string => {
             {},
         );
     }
-    return match[0];
+    return match[0] as DatabricksTypes;
 };
 
 const mapFieldType = (type: string): DimensionType => {
-    switch (normaliseDatabricksType(type)) {
+    const normalizedType = normaliseDatabricksType(type);
+
+    switch (normalizedType) {
         case DatabricksTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
         case DatabricksTypes.TINYINT:
@@ -77,10 +137,6 @@ const mapFieldType = (type: string): DimensionType => {
         case DatabricksTypes.DEC:
         case DatabricksTypes.NUMERIC:
             return DimensionType.NUMBER;
-        case DatabricksTypes.DATE:
-            return DimensionType.DATE;
-        case DatabricksTypes.TIMESTAMP:
-            return DimensionType.TIMESTAMP;
         case DatabricksTypes.STRING:
         case DatabricksTypes.BINARY:
         case DatabricksTypes.INTERVAL:
@@ -89,49 +145,11 @@ const mapFieldType = (type: string): DimensionType => {
         case DatabricksTypes.MAP:
         case DatabricksTypes.CHAR:
         case DatabricksTypes.VARCHAR:
+        case DatabricksTypes.BYTE:
             return DimensionType.STRING;
-        default:
-            return DimensionType.STRING;
-    }
-};
-
-// https://infocenter.sybase.com/help/index.jsp?topic=/com.sybase.infocenter.dc36273.1570/html/sprocs/CIHHGDBC.htm
-enum DatabricksDataTypes {
-    CHAR = 1,
-    DECIMAL = 2,
-    DOUBLE_PRECISION = 8,
-    FLOAT = 6,
-    INTEGER = 4,
-    NUMERIC = 2,
-    REAL = 7,
-    SMALL_INT = 5,
-    BIG_INT = -5,
-    BINARY = -2,
-    BIT = -7,
-    DATE = 9,
-    TIME = 10,
-    TIMESTAMP = 11,
-    TINY_INT = -6,
-}
-
-const convertDataTypeToDimensionType = (type: number): DimensionType => {
-    switch (type) {
-        case DatabricksDataTypes.BIT:
-        case DatabricksDataTypes.BINARY:
-            return DimensionType.BOOLEAN;
-        case DatabricksDataTypes.TINY_INT:
-        case DatabricksDataTypes.SMALL_INT:
-        case DatabricksDataTypes.INTEGER:
-        case DatabricksDataTypes.BIG_INT:
-        case DatabricksDataTypes.FLOAT:
-        case DatabricksDataTypes.REAL:
-        case DatabricksDataTypes.DOUBLE_PRECISION:
-        case DatabricksDataTypes.DECIMAL:
-        case DatabricksDataTypes.NUMERIC:
-            return DimensionType.NUMBER;
-        case DatabricksDataTypes.DATE:
+        case DatabricksTypes.DATE:
             return DimensionType.DATE;
-        case DatabricksDataTypes.TIMESTAMP:
+        case DatabricksTypes.TIMESTAMP:
             return DimensionType.TIMESTAMP;
         default:
             return DimensionType.STRING;
@@ -139,42 +157,85 @@ const convertDataTypeToDimensionType = (type: number): DimensionType => {
 };
 
 export class DatabricksWarehouseClient implements WarehouseClient {
-    connectionString: string;
+    schema: string;
+
+    catalog?: string;
+
+    connectionOptions: ConnectionOptions;
 
     constructor({
         serverHostName,
-        port,
         personalAccessToken,
         httpPath,
+        // this supposed to be a `schema` but changing it will break for existing customers
+        database: schema,
+        catalog,
     }: CreateDatabricksCredentials) {
-        this.connectionString = `Driver=${DRIVER_PATH};Server=${serverHostName};HOST=${serverHostName};PORT=${port};SparkServerType=3;Schema=default;ThriftTransport=2;SSL=1;AuthMech=3;UID=token;PWD=${personalAccessToken};HTTPPath=${httpPath};UseNativeQuery=1`;
+        this.schema = schema;
+        this.catalog = catalog;
+        this.connectionOptions = {
+            token: personalAccessToken,
+            host: serverHostName,
+            path: httpPath.startsWith('/') ? httpPath : `/${httpPath}`,
+        };
+    }
+
+    private async getSession() {
+        const client = new DBSQLClient({});
+        let connection: IDBSQLClient;
+        let session: IDBSQLSession;
+
+        try {
+            connection = await client.connect(this.connectionOptions);
+
+            session = await connection.openSession({
+                initialCatalog: this.catalog,
+                initialSchema: this.schema,
+            });
+        } catch (e: any) {
+            throw new WarehouseConnectionError(e.message);
+        }
+
+        return {
+            session,
+            close: async () => {
+                await session.close();
+                await connection.close();
+            },
+        };
     }
 
     async runQuery(sql: string) {
-        let connection: odbc.Connection;
+        const { session, close } = await this.getSession();
+        let query: IOperation | null = null;
+
         try {
-            connection = await odbc.connect(this.connectionString);
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
-        try {
-            const result = await connection.query<Record<string, any>>(sql);
-            const fields = (result.columns || []).reduce<
+            query = await session.executeStatement(sql);
+
+            const result = await query.fetchAll();
+            const schema = await query.getSchema();
+
+            const fields = (schema?.columns ?? []).reduce<
                 Record<string, { type: DimensionType }>
             >(
                 (acc, column) => ({
                     ...acc,
-                    [column.name]: {
-                        type: convertDataTypeToDimensionType(column.dataType),
+                    [column.columnName]: {
+                        type: convertDataTypeToDimensionType(
+                            column.typeDesc.types[0]?.primitiveEntry?.type ??
+                                DatabricksDataTypes.STRING_TYPE,
+                        ),
                     },
                 }),
                 {},
             );
+
             return { fields, rows: result };
-        } catch (e) {
+        } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
-            await connection.close();
+            if (query) await query.close();
+            await close();
         }
     }
 
@@ -189,40 +250,34 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             table: string;
         }[],
     ) {
-        let pool: odbc.Pool;
-        let results: Result<SparkSchemaResult>[];
-        try {
-            pool = await odbc.pool(this.connectionString);
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
+        const { session, close } = await this.getSession();
+        let results: SchemaResult[][];
+
         try {
             const promises = requests.map(async (request) => {
-                let connection: odbc.Connection;
+                let query: IOperation | null = null;
                 try {
-                    connection = await pool.connect();
-                } catch (e) {
-                    throw new WarehouseConnectionError(e.message);
-                }
-                try {
-                    const columns = (await connection.columns(
-                        // @ts-ignore
-                        'SPARK', // This is always SPARK
-                        request.schema,
-                        request.table,
-                        '',
-                    )) as Result<SparkSchemaResult>;
-                    return columns;
-                } catch (e) {
+                    query = await session.getColumns({
+                        catalogName: request.database,
+                        schemaName: request.schema,
+                        tableName: request.table,
+                    });
+
+                    const result = (await query.fetchAll()) as SchemaResult[];
+
+                    return result;
+                } catch (e: any) {
                     throw new WarehouseQueryError(e.message);
                 } finally {
-                    await connection.close();
+                    if (query) query.close();
                 }
             });
             results = await Promise.all(promises);
         } finally {
-            await pool.close();
+            await close();
         }
+
+        const catalog = this.catalog || 'DEFAULT';
         return results.reduce<WarehouseCatalog>(
             (acc, result, index) => {
                 const columns = Object.fromEntries<DimensionType>(
@@ -232,11 +287,13 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                     ]),
                 );
                 const { schema, table } = requests[index];
-                acc.SPARK[schema] = acc.SPARK[schema] || {};
-                acc.SPARK[schema][table] = columns;
+
+                acc[catalog][schema] = acc[catalog][schema] || {};
+                acc[catalog][schema][table] = columns;
+
                 return acc;
             },
-            { SPARK: {} } as WarehouseCatalog,
+            { [catalog]: {} } as WarehouseCatalog,
         );
     }
 }

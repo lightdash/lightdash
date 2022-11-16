@@ -3,6 +3,7 @@ import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DbtCloudMetricsModel } from './DbtCloudMetricsModel';
 import { EmailModel } from './EmailModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
@@ -15,6 +16,7 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
+import { ShareModel } from './ShareModel';
 import { SpaceModel } from './SpaceModel';
 import { UserModel } from './UserModel';
 
@@ -48,5 +50,10 @@ export const spaceModel = new SpaceModel({
     database,
 });
 export const searchModel = new SearchModel({
+    database,
+});
+export const dbtCloudMetricsModel = new DbtCloudMetricsModel();
+
+export const shareModel = new ShareModel({
     database,
 });

@@ -1,11 +1,10 @@
-import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { FC, memo } from 'react';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
+import CollapsableCard from '../../common/CollapsableCard';
 import { RenderedSql } from '../../RenderedSql';
-import { CardHeader, StyledCard } from './SqlCard.styles';
 
 const SqlCard: FC = memo(() => {
     const expandedSections = useExplorerContext(
@@ -19,20 +18,14 @@ const SqlCard: FC = memo(() => {
     );
     const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
     return (
-        <StyledCard isOpen={sqlIsOpen} elevation={1}>
-            <CardHeader>
-                <Button
-                    icon={sqlIsOpen ? 'chevron-down' : 'chevron-right'}
-                    minimal
-                    onClick={() => toggleExpandedSection(ExplorerSection.SQL)}
-                    disabled={!unsavedChartVersionTableName}
-                />
-                <H5>SQL</H5>
-            </CardHeader>
-            <Collapse isOpen={sqlIsOpen}>
-                <RenderedSql />
-            </Collapse>
-        </StyledCard>
+        <CollapsableCard
+            title="SQL"
+            isOpen={sqlIsOpen}
+            onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
+            disabled={!unsavedChartVersionTableName}
+        >
+            <RenderedSql />
+        </CollapsableCard>
     );
 });
 

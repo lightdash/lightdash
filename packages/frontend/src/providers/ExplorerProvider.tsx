@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    assertUnreachable,
     ChartConfig,
     ChartType,
     CreateSavedChartVersion,
@@ -17,6 +18,8 @@ import {
     toggleArrayValue,
 } from '@lightdash/common';
 import produce from 'immer';
+import cloneDeep from 'lodash-es/cloneDeep';
+import isEqual from 'lodash-es/isEqual';
 import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
 import {
     createContext,
@@ -56,8 +59,8 @@ export enum ActionType {
     UPDATE_TABLE_CALCULATION,
     DELETE_TABLE_CALCULATION,
     SET_FETCH_RESULTS_FALSE,
+    SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
-    SET_MAGIC_METRICS,
     REMOVE_ADDITIONAL_METRIC,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
@@ -68,6 +71,10 @@ export enum ActionType {
 type Action =
     | { type: ActionType.RESET; payload: ExplorerReduceState }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
+    | {
+          type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
+          payload: CreateSavedChartVersion;
+      }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
     | {
@@ -123,10 +130,6 @@ type Action =
           payload: AdditionalMetric;
       }
     | {
-          type: ActionType.SET_MAGIC_METRICS;
-          payload: AdditionalMetric[];
-      }
-    | {
           type: ActionType.REMOVE_ADDITIONAL_METRIC;
           payload: FieldId;
       }
@@ -147,6 +150,7 @@ export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
+    previouslyFetchedState?: CreateSavedChartVersion;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -160,6 +164,7 @@ export interface ExplorerState extends ExplorerReduceState {
 export interface ExplorerContext {
     state: ExplorerState;
     queryResults: ReturnType<typeof useQueryResults>;
+    hasUnfetchedChanges: boolean;
     actions: {
         clear: () => void;
         reset: () => void;
@@ -180,7 +185,6 @@ export interface ExplorerContext {
             syncPristineState: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
-        setMagicMetrics: (metrics: AdditionalMetric[]) => void;
         removeAdditionalMetric: (key: FieldId) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
@@ -203,6 +207,7 @@ const Context = createContext<ExplorerContext | undefined>(undefined);
 
 const defaultState: ExplorerReduceState = {
     shouldFetchResults: false,
+    previouslyFetchedState: undefined,
     expandedSections: [ExplorerSection.RESULTS],
     unsavedChartVersion: {
         tableName: '',
@@ -304,6 +309,12 @@ function reducer(
         }
         case ActionType.SET_FETCH_RESULTS_FALSE: {
             return { ...state, shouldFetchResults: false };
+        }
+        case ActionType.SET_PREVIOUSLY_FETCHED_STATE: {
+            return {
+                ...state,
+                previouslyFetchedState: action.payload,
+            };
         }
         case ActionType.TOGGLE_EXPANDED_SECTION: {
             return {
@@ -566,25 +577,7 @@ function reducer(
                 },
             };
         }
-        case ActionType.SET_MAGIC_METRICS: {
-            return {
-                ...state,
-                unsavedChartVersion: {
-                    ...state.unsavedChartVersion,
-                    metricQuery: {
-                        ...state.unsavedChartVersion.metricQuery,
-                        additionalMetrics:
-                            state.unsavedChartVersion.metricQuery
-                                .additionalMetrics &&
-                            state.unsavedChartVersion.metricQuery
-                                .additionalMetrics.length > 0
-                                ? state.unsavedChartVersion.metricQuery
-                                      .additionalMetrics
-                                : action.payload,
-                    },
-                },
-            };
-        }
+
         case ActionType.REMOVE_ADDITIONAL_METRIC: {
             return {
                 ...state,
@@ -775,7 +768,10 @@ function reducer(
             };
         }
         default: {
-            throw new Error(`Unhandled action type`);
+            return assertUnreachable(
+                action,
+                'Unexpected action in explore reducer',
+            );
         }
     }
 }
@@ -964,13 +960,6 @@ export const ExplorerProvider: FC<{
         [],
     );
 
-    const setMagicMetrics = useCallback((payload: AdditionalMetric[]) => {
-        dispatch({
-            type: ActionType.SET_MAGIC_METRICS,
-            payload,
-        });
-    }, []);
-
     const removeAdditionalMetric = useCallback((key: FieldId) => {
         dispatch({
             type: ActionType.REMOVE_ADDITIONAL_METRIC,
@@ -1069,15 +1058,40 @@ export const ExplorerProvider: FC<{
     );
 
     // Fetch query results after state update
-    const { mutate, reset: resetQueryResults } = queryResults;
+    const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
+        queryResults;
+
+    const mutateAsync = useCallback(async () => {
+        try {
+            const result = await mutateAsyncQuery();
+
+            dispatch({
+                type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
+                payload: cloneDeep(state.unsavedChartVersion),
+            });
+
+            return result;
+        } catch (e) {
+            console.error(e);
+        }
+    }, [mutateAsyncQuery, state.unsavedChartVersion]);
+
+    const hasUnfetchedChanges = useMemo(() => {
+        return !isEqual(
+            state.unsavedChartVersion,
+            state.previouslyFetchedState,
+        );
+    }, [state.unsavedChartVersion, state.previouslyFetchedState]);
+
     useEffect(() => {
-        if (state.shouldFetchResults) {
-            mutate();
+        if (!state.shouldFetchResults) return;
+
+        mutateAsync().then(() => {
             dispatch({
                 type: ActionType.SET_FETCH_RESULTS_FALSE,
             });
-        }
-    }, [mutate, state]);
+        });
+    }, [mutateAsync, state.shouldFetchResults]);
 
     const clear = useCallback(async () => {
         dispatch({
@@ -1093,9 +1107,9 @@ export const ExplorerProvider: FC<{
         if (unsavedChartVersion.metricQuery.sorts.length <= 0 && defaultSort) {
             setSortFields([defaultSort]);
         } else {
-            mutate();
+            mutateAsync();
         }
-    }, [defaultSort, mutate, unsavedChartVersion, setSortFields]);
+    }, [defaultSort, mutateAsync, unsavedChartVersion, setSortFields]);
 
     const actions = useMemo(
         () => ({
@@ -1113,7 +1127,6 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
-            setMagicMetrics,
             removeAdditionalMetric,
             addTableCalculation,
             deleteTableCalculation,
@@ -1139,7 +1152,6 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
-            setMagicMetrics,
             removeAdditionalMetric,
             addTableCalculation,
             deleteTableCalculation,
@@ -1156,9 +1168,10 @@ export const ExplorerProvider: FC<{
         () => ({
             state,
             queryResults,
+            hasUnfetchedChanges,
             actions,
         }),
-        [actions, queryResults, state],
+        [actions, queryResults, state, hasUnfetchedChanges],
     );
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

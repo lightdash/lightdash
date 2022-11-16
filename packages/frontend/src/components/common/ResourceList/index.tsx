@@ -85,7 +85,10 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     moveToSpace: moveChart,
                 };
             default:
-                return assertUnreachable(resourceType);
+                return assertUnreachable(
+                    resourceType,
+                    'Unexpected resource type',
+                );
         }
     }, [moveChart, moveDashboard, resourceType]);
 

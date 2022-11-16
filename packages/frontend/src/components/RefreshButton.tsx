@@ -1,6 +1,6 @@
-import { KeyCombo, useHotkeys } from '@blueprintjs/core';
+import { Classes, HotkeyConfig, KeyCombo, useHotkeys } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
@@ -10,53 +10,64 @@ export const RefreshButton = memo(() => {
     const isValidQuery = useExplorerContext(
         (context) => context.state.isValidQuery,
     );
-    const isLoadingResults = useExplorerContext(
+    const isLoading = useExplorerContext(
         (context) => context.queryResults.isLoading,
     );
     const fetchResults = useExplorerContext(
         (context) => context.actions.fetchResults,
     );
+    const hasUnfetchedChanges = useExplorerContext(
+        (context) => context.hasUnfetchedChanges,
+    );
+
     const { track } = useTracking();
-    const isDisabled = !isValidQuery;
-    const onClick = useCallback(async () => {
+
+    const onClick = useCallback(() => {
         fetchResults();
-        track({
-            name: EventName.RUN_QUERY_BUTTON_CLICKED,
-        });
+        track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
     }, [fetchResults, track]);
-    const hotkeys = useMemo(() => {
-        const runQueryHotkey = {
-            combo: 'ctrl+enter',
-            group: 'Explorer',
-            label: 'Run query',
-            allowInInput: true,
-            onKeyDown: onClick,
-            global: true,
-            preventDefault: true,
-            stopPropagation: true,
-        };
-        return [
-            runQueryHotkey,
+
+    const isButtonDisabled = isLoading || !isValidQuery || !hasUnfetchedChanges;
+
+    const hotkeys = useMemo<HotkeyConfig[]>(
+        () => [
             {
-                ...runQueryHotkey,
-                combo: 'cmd+enter',
+                combo: 'mod+enter',
+                group: 'Explorer',
+                label: 'Run query',
+                allowInInput: true,
+                onKeyDown: onClick,
+                global: true,
+                preventDefault: true,
+                stopPropagation: true,
+                disabled: isButtonDisabled,
             },
-        ];
-    }, [onClick]);
+        ],
+        [onClick, isButtonDisabled],
+    );
+
     useHotkeys(hotkeys);
+
     return (
         <Tooltip2
-            content={<KeyCombo combo="cmd+enter" />}
+            content={
+                !hasUnfetchedChanges ? (
+                    'You need to make some changes before running a query'
+                ) : (
+                    <KeyCombo combo="mod+enter" />
+                )
+            }
             position="bottom"
-            disabled={isDisabled || isLoadingResults}
+            disabled={isLoading || !isValidQuery}
         >
             <BigButton
+                style={{ width: 150 }}
                 icon="play"
                 intent="primary"
-                style={{ width: 150 }}
-                onClick={onClick}
-                disabled={isDisabled}
-                loading={isLoadingResults}
+                loading={isLoading}
+                // disabled button captures hover events
+                onClick={isButtonDisabled ? undefined : onClick}
+                className={isButtonDisabled ? Classes.DISABLED : undefined}
             >
                 Run query
             </BigButton>

@@ -1,8 +1,9 @@
-import { AnchorButton } from '@blueprintjs/core';
+import { AnchorButton, NonIdealState } from '@blueprintjs/core';
 import {
     ChartType,
     CreateSavedChartVersion,
     Field,
+    fieldId as getFieldId,
     FilterOperator,
     FilterRule,
     getDimensions,
@@ -10,19 +11,17 @@ import {
     getResultValues,
     isDimension,
     isField,
-    MetricQuery,
-} from '@lightdash/common';
-import {
-    fieldId as getFieldId,
     isMetric,
     Metric,
-} from '@lightdash/common/dist/types/field';
-import React, { FC, useMemo } from 'react';
+    MetricQuery,
+} from '@lightdash/common';
+import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
+import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { HeaderRightContent } from './UnderlyingDataModal.styles';
 import { useUnderlyingDataContext } from './UnderlyingDataProvider';
@@ -55,18 +54,58 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         [explore],
     );
 
-    const hasJoins = useMemo(() => {
-        return (explore?.joinedTables || []).length > 0;
-    }, [explore]);
+    const joinedTables = useMemo(
+        () =>
+            (explore?.joinedTables || []).map(
+                (joinedTable) => joinedTable.table,
+            ),
+        [explore],
+    );
+
+    const showUnderlyingValues: string[] | undefined = useMemo(() => {
+        return config?.meta !== undefined &&
+            isField(config?.meta?.item) &&
+            isMetric(config?.meta.item)
+            ? config?.meta.item.showUnderlyingValues
+            : undefined;
+    }, [config?.meta]);
+
+    const sortByUnderlyingValues = useCallback(
+        (columnA: TableColumn, columnB: TableColumn) => {
+            if (showUnderlyingValues === undefined) return 0;
+
+            const indexOfUnderlyingValue = (column: TableColumn): number => {
+                const columnDimension = allDimensions.find(
+                    (dimension) => getFieldId(dimension) === column.id,
+                );
+                if (columnDimension === undefined) return -1;
+                return showUnderlyingValues?.indexOf(columnDimension.name) !==
+                    -1
+                    ? showUnderlyingValues?.indexOf(columnDimension.name)
+                    : showUnderlyingValues?.indexOf(
+                          `${columnDimension.table}.${columnDimension.name}`,
+                      );
+            };
+
+            return (
+                indexOfUnderlyingValue(columnA) -
+                indexOfUnderlyingValue(columnB)
+            );
+        },
+        [showUnderlyingValues, allDimensions],
+    );
 
     const metricQuery = useMemo<MetricQuery>(() => {
         if (!config) return defaultMetricQuery;
-        const { meta, row, pivot, dimensions, value } = config;
+        const { meta, row, pivotReference, dimensions, value } = config;
         if (meta?.item === undefined) return defaultMetricQuery;
 
         // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
-        const rowFieldIds = pivot
-            ? [pivot.fieldId, ...Object.keys(row)]
+        const rowFieldIds = pivotReference?.pivotValues
+            ? [
+                  ...pivotReference.pivotValues.map(({ field }) => field),
+                  ...Object.keys(row),
+              ]
             : Object.keys(row);
 
         // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
@@ -74,7 +113,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         const fieldsInQuery = allFields.filter((field) =>
             dimensionFieldIds.includes(getFieldId(field)),
         );
-        const tablesInQuery = new Set([
+        const availableTables = new Set([
+            ...joinedTables,
             ...fieldsInQuery.map((field) => field.table),
             tableName,
         ]);
@@ -123,18 +163,16 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                   },
               ];
 
-        const pivotFilter: FilterRule[] = pivot
-            ? [
-                  {
-                      id: uuidv4(),
-                      target: {
-                          fieldId: pivot.fieldId,
-                      },
-                      operator: FilterOperator.EQUALS,
-                      values: [pivot.value],
-                  },
-              ]
-            : [];
+        const pivotFilter: FilterRule[] = (
+            pivotReference?.pivotValues || []
+        ).map((pivot) => ({
+            id: uuidv4(),
+            target: {
+                fieldId: pivot.field,
+            },
+            operator: FilterOperator.EQUALS,
+            values: [pivot.value],
+        }));
 
         // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
@@ -153,11 +191,16 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             }) || [];
         const exploreFilters =
             filters?.dimensions !== undefined ? [filters?.dimensions] : [];
+
+        const dashboardFilters = config.dashboardFilters
+            ? config.dashboardFilters.dimensions
+            : [];
         const combinedFilters = [
             ...exploreFilters,
             ...dimensionFilters,
             ...pivotFilter,
             ...metricFilters,
+            ...dashboardFilters,
         ];
 
         const allFilters = {
@@ -166,17 +209,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 and: combinedFilters,
             },
         };
-
-        const showUnderlyingValues: string[] | undefined =
-            isField(meta?.item) && isMetric(meta.item)
-                ? meta.item.showUnderlyingValues
-                : undefined;
         const showUnderlyingTable: string | undefined = isField(meta?.item)
             ? meta.item.table
             : undefined;
         const availableDimensions = allDimensions.filter(
             (dimension) =>
-                tablesInQuery.has(dimension.table) &&
+                availableTables.has(dimension.table) &&
                 !dimension.timeInterval &&
                 !dimension.hidden &&
                 (showUnderlyingValues !== undefined
@@ -188,13 +226,20 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     : true),
         );
         const dimensionFields = availableDimensions.map(getFieldId);
-
         return {
             ...defaultMetricQuery,
             dimensions: dimensionFields,
             filters: allFilters,
         };
-    }, [config, filters, tableName, allFields, allDimensions]);
+    }, [
+        config,
+        filters,
+        tableName,
+        allFields,
+        allDimensions,
+        joinedTables,
+        showUnderlyingValues,
+    ]);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
         const selectedDimensions = metricQuery.dimensions;
@@ -211,9 +256,16 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     }, [explore, metricQuery]);
 
     const exploreFromHereUrl = useMemo(() => {
+        const showDimensions =
+            showUnderlyingValues !== undefined ? metricQuery.dimensions : [];
+
         const createSavedChartVersion: CreateSavedChartVersion = {
             tableName,
-            metricQuery,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: showDimensions,
+                metrics: [],
+            },
             pivotConfig: undefined,
             tableConfig: {
                 columnOrder: [],
@@ -228,12 +280,23 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
-    }, [tableName, metricQuery, projectUuid]);
+    }, [tableName, metricQuery, projectUuid, showUnderlyingValues]);
 
-    const { data: resultsData, isLoading } = useUnderlyingDataResults(
-        tableName,
-        metricQuery,
-    );
+    const {
+        error,
+        data: resultsData,
+        isLoading,
+    } = useUnderlyingDataResults(tableName, metricQuery);
+
+    if (error) {
+        return (
+            <NonIdealState
+                title="Results not available"
+                description={error.error.message}
+                icon="error"
+            />
+        );
+    }
 
     return (
         <>
@@ -255,7 +318,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 isLoading={isLoading}
                 resultsData={resultsData}
                 fieldsMap={fieldsMap}
-                hasJoins={hasJoins}
+                hasJoins={joinedTables.length > 0}
+                sortByUnderlyingValues={sortByUnderlyingValues}
             />
         </>
     );

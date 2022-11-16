@@ -3,11 +3,14 @@ import {
     Explore,
     ExploreError,
     FieldSearchResult,
+    hasIntersection,
     isExploreError,
+    NotExistsError,
     SavedChartSearchResult,
     SearchResults,
     SpaceSearchResult,
     TableSearchResult,
+    TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../database/entities/dashboards';
@@ -117,74 +120,110 @@ export class SearchModel {
             );
     }
 
-    private async searchTablesAndFields(
-        projectUuid: string,
-        query: string,
-    ): Promise<[TableSearchResult[], FieldSearchResult[]]> {
+    private async getProjectExplores(projectUuid: string): Promise<Explore[]> {
+        const projects = await this.database(ProjectTableName)
+            .select(['table_selection_type', 'table_selection_value'])
+            .where('project_uuid', projectUuid)
+            .limit(1);
+        if (projects.length === 0) {
+            throw new NotExistsError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        const tableSelection = {
+            type: projects[0].table_selection_type,
+            value: projects[0].table_selection_value,
+        };
+
         const explores = await this.database(CachedExploresTableName)
             .select(['explores'])
             .where('project_uuid', projectUuid)
             .limit(1);
+
         if (explores.length > 0 && explores[0].explores) {
-            const lowerCaseQuery = query.toLowerCase();
-            return (
-                explores[0].explores as Array<Explore | ExploreError>
-            ).reduce<[TableSearchResult[], FieldSearchResult[]]>(
-                (acc, explore) => {
+            return explores[0].explores.filter(
+                (explore: Explore | ExploreError) => {
                     if (!isExploreError(explore)) {
-                        return Object.values(explore.tables).reduce<
-                            [TableSearchResult[], FieldSearchResult[]]
-                        >(([tables, fields], table) => {
-                            if (
-                                table.label
-                                    .toLowerCase()
-                                    .includes(lowerCaseQuery) ||
-                                table.description
-                                    ?.toLowerCase()
-                                    .includes(lowerCaseQuery)
-                            ) {
-                                tables.push({
-                                    name: table.name,
-                                    label: table.label,
-                                    description: table.description,
-                                    explore: explore.name,
-                                    exploreLabel: explore.label,
-                                });
-                            }
-                            [
-                                ...Object.values(table.dimensions),
-                                ...Object.values(table.metrics),
-                            ].forEach((field) => {
-                                if (
-                                    field.label
-                                        .toLowerCase()
-                                        .includes(lowerCaseQuery) ||
-                                    field.description
-                                        ?.toLowerCase()
-                                        .includes(lowerCaseQuery)
-                                ) {
-                                    fields.push({
-                                        name: field.name,
-                                        label: field.label,
-                                        description: field.description,
-                                        type: field.type,
-                                        fieldType: field.fieldType,
-                                        table: field.table,
-                                        tableLabel: field.tableLabel,
-                                        explore: explore.name,
-                                        exploreLabel: explore.label,
-                                    });
-                                }
-                            });
-                            return [tables, fields];
-                        }, acc);
+                        if (
+                            tableSelection.type === TableSelectionType.WITH_TAGS
+                        ) {
+                            return hasIntersection(
+                                explore.tags || [],
+                                tableSelection.value || [],
+                            );
+                        }
+                        if (
+                            tableSelection.type ===
+                            TableSelectionType.WITH_NAMES
+                        ) {
+                            return (tableSelection.value || []).includes(
+                                explore.name,
+                            );
+                        }
+                        return true;
                     }
-                    return acc;
+                    return false;
                 },
-                [[], []],
             );
         }
-        return [[], []];
+        return [];
+    }
+
+    private async searchTablesAndFields(
+        projectUuid: string,
+        query: string,
+    ): Promise<[TableSearchResult[], FieldSearchResult[]]> {
+        const explores = await this.getProjectExplores(projectUuid);
+        const lowerCaseQuery = query.toLowerCase();
+        return explores.reduce<[TableSearchResult[], FieldSearchResult[]]>(
+            (acc, explore) =>
+                Object.values(explore.tables).reduce<
+                    [TableSearchResult[], FieldSearchResult[]]
+                >(([tables, fields], table) => {
+                    if (
+                        table.label.toLowerCase().includes(lowerCaseQuery) ||
+                        table.description
+                            ?.toLowerCase()
+                            .includes(lowerCaseQuery)
+                    ) {
+                        tables.push({
+                            name: table.name,
+                            label: table.label,
+                            description: table.description,
+                            explore: explore.name,
+                            exploreLabel: explore.label,
+                        });
+                    }
+                    [
+                        ...Object.values(table.dimensions),
+                        ...Object.values(table.metrics),
+                    ].forEach((field) => {
+                        if (
+                            !field.hidden &&
+                            (field.label
+                                .toLowerCase()
+                                .includes(lowerCaseQuery) ||
+                                field.description
+                                    ?.toLowerCase()
+                                    .includes(lowerCaseQuery))
+                        ) {
+                            fields.push({
+                                name: field.name,
+                                label: field.label,
+                                description: field.description,
+                                type: field.type,
+                                fieldType: field.fieldType,
+                                table: field.table,
+                                tableLabel: field.tableLabel,
+                                explore: explore.name,
+                                exploreLabel: explore.label,
+                            });
+                        }
+                    });
+                    return [tables, fields];
+                }, acc),
+            [[], []],
+        );
     }
 
     async search(projectUuid: string, query: string): Promise<SearchResults> {

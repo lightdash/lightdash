@@ -1,4 +1,4 @@
-import { Callout, Card, Colors, H5, Intent } from '@blueprintjs/core';
+import { Callout, H5, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     CreateWarehouseCredentials,
@@ -6,6 +6,7 @@ import {
     DbtProjectType,
     friendlyName,
     ProjectType,
+    WarehouseTypes,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
@@ -17,7 +18,6 @@ import {
     useProject,
     useUpdateMutation,
 } from '../../hooks/useProject';
-import { SelectedWarehouse } from '../../pages/CreateProject';
 import { useActiveJob } from '../../providers/ActiveJobProvider';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -27,13 +27,17 @@ import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
+import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
+import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
-    CompileProjectFixedWidthContainer,
-    CompileProjectWrapper,
     FormContainer,
     FormWrapper,
-    WarehouseLogo,
+    LeftPanel,
+    LeftPanelMessage,
+    LeftPanelTitle,
+    ProjectConnectionCard,
+    RightPanel,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -49,8 +53,8 @@ interface Props {
     showGeneralSettings: boolean;
     disabled: boolean;
     defaultType?: DbtProjectType;
-    selectedWarehouse?: SelectedWarehouse | undefined;
-    isProjectUpdate?: boolean | undefined;
+    selectedWarehouse?: WarehouseTypes;
+    isProjectUpdate?: boolean;
 }
 
 const ProjectForm: FC<Props> = ({
@@ -60,34 +64,17 @@ const ProjectForm: FC<Props> = ({
     selectedWarehouse,
     isProjectUpdate,
 }) => {
-    const [hasWarehouse, setHasWarehouse] = useState<
-        SelectedWarehouse | undefined
-    >(selectedWarehouse);
+    const { health } = useApp();
+    const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
 
     return (
         <>
             {showGeneralSettings && (
-                <Card
-                    style={{
-                        marginBottom: '20px',
-                        display: 'flex',
-                        flexDirection: 'row',
-                        gap: 20,
-                    }}
-                    elevation={1}
-                >
-                    <div style={{ flex: 1 }}>
-                        <div
-                            style={{
-                                marginBottom: 15,
-                            }}
-                        >
-                            <H5 style={{ display: 'inline', marginRight: 5 }}>
-                                General settings
-                            </H5>
-                        </div>
-                    </div>
-                    <div style={{ flex: 1 }}>
+                <ProjectConnectionCard elevation={1}>
+                    <LeftPanel>
+                        <H5>General settings</H5>
+                    </LeftPanel>
+                    <RightPanel>
                         <Input
                             name="name"
                             label="Project name"
@@ -96,88 +83,60 @@ const ProjectForm: FC<Props> = ({
                             }}
                             disabled={disabled}
                         />
-                    </div>
-                </Card>
+                    </RightPanel>
+                </ProjectConnectionCard>
             )}
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1 }}>
-                    {hasWarehouse && (
-                        <WarehouseLogo
-                            src={hasWarehouse.icon}
-                            alt={hasWarehouse.key}
-                        />
-                    )}
-                    <div>
-                        <H5 style={{ display: 'inline', marginRight: 5 }}>
-                            Warehouse connection
-                        </H5>
+            <ProjectConnectionCard elevation={1}>
+                <LeftPanel>
+                    {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
+                    <LeftPanelTitle>
+                        <H5>Warehouse connection</H5>
                         <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
-                    </div>
-                </div>
-                <div style={{ flex: 1 }}>
+                    </LeftPanelTitle>
+
+                    {health.data?.staticIp && (
+                        <LeftPanelMessage>
+                            If you need to add our IP address to your database's
+                            allow-list, use <b>{health.data?.staticIp}</b>
+                        </LeftPanelMessage>
+                    )}
+                </LeftPanel>
+                <RightPanel>
                     <WarehouseSettingsForm
                         disabled={disabled}
                         setSelectedWarehouse={setHasWarehouse}
                         selectedWarehouse={hasWarehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
-                </div>
-            </Card>
-            <Card
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: 20,
-                }}
-                elevation={1}
-            >
-                <div style={{ flex: 1 }}>
-                    <div
-                        style={{
-                            marginBottom: 15,
-                        }}
-                    >
-                        <WarehouseLogo src={DbtLogo} alt="dbt icon" />
-                        <div>
-                            <H5
-                                style={{
-                                    display: 'inline',
-                                    marginRight: 5,
-                                }}
-                            >
-                                dbt connection
-                            </H5>
-                            <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
-                        </div>
-                    </div>
+                </RightPanel>
+            </ProjectConnectionCard>
+            <ProjectConnectionCard elevation={1}>
+                <LeftPanel>
+                    <WarehouseIcon src={DbtLogo} alt="dbt icon" />
+                    <LeftPanelTitle>
+                        <H5>dbt connection</H5>
+                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                    </LeftPanelTitle>
 
-                    <p style={{ color: Colors.GRAY1 }}>
+                    <LeftPanelMessage>
                         Your dbt project must be compatible with{' '}
                         <a
                             href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
                             target="_blank"
                             rel="noreferrer"
                         >
-                            dbt version <b>1.2.0</b>
+                            dbt version <b>1.3.0</b>
                         </a>
-                    </p>
-                </div>
-                <div style={{ flex: 1 }}>
+                    </LeftPanelMessage>
+                </LeftPanel>
+                <RightPanel>
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
                         selectedWarehouse={hasWarehouse}
                     />
-                </div>
-            </Card>
+                </RightPanel>
+            </ProjectConnectionCard>
         </>
     );
 };
@@ -311,29 +270,25 @@ export const UpdateProjectConnection: FC<{
                     mutation={updateMutation}
                 />
             )}
-            <CompileProjectWrapper>
-                <CompileProjectFixedWidthContainer>
-                    <CompileProjectButton
-                        large
-                        type="submit"
-                        intent={Intent.PRIMARY}
-                        text="Test &amp; compile project"
-                        loading={isSaving}
-                        disabled={isDisabled}
-                    />
-                </CompileProjectFixedWidthContainer>
-            </CompileProjectWrapper>
+            <CompileProjectButton
+                large
+                type="submit"
+                intent={Intent.PRIMARY}
+                text="Test &amp; compile project"
+                loading={isSaving}
+                disabled={isDisabled}
+            />
         </FormContainer>
     );
 };
 
 interface CreateProjectConnectionProps {
-    needsProject: boolean;
-    selectedWarehouse?: SelectedWarehouse | undefined;
+    isCreatingFirstProject: boolean;
+    selectedWarehouse?: WarehouseTypes | undefined;
 }
 
 export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
-    needsProject,
+    isCreatingFirstProject,
     selectedWarehouse,
 }) => {
     const history = useHistory();
@@ -347,7 +302,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         defaultValues: {
             name: user.data?.organizationName,
             dbt: health.data?.defaultProject,
-            warehouse: { type: selectedWarehouse?.key },
+            warehouse: { type: selectedWarehouse },
         },
     });
     const { track } = useTracking();
@@ -367,7 +322,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 //@ts-ignore
                 warehouseConnection: {
                     ...warehouseConnection,
-                    type: selectedWarehouse?.key,
+                    type: selectedWarehouse,
                 },
             });
         }
@@ -391,15 +346,12 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             <ProjectFormProvider>
                 <FormWrapper>
                     <ProjectForm
-                        showGeneralSettings={!needsProject}
+                        showGeneralSettings={!isCreatingFirstProject}
                         disabled={isSaving || !!activeJobIsRunning}
                         defaultType={health.data?.defaultProject?.type}
                         selectedWarehouse={selectedWarehouse}
                     />
-                </FormWrapper>
-            </ProjectFormProvider>
-            <CompileProjectWrapper fixedButton>
-                <CompileProjectFixedWidthContainer>
+
                     <CompileProjectButton
                         large
                         type="submit"
@@ -407,8 +359,8 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         text="Test &amp; compile project"
                         loading={isSaving || activeJobIsRunning}
                     />
-                </CompileProjectFixedWidthContainer>
-            </CompileProjectWrapper>
+                </FormWrapper>
+            </ProjectFormProvider>
         </FormContainer>
     );
 };

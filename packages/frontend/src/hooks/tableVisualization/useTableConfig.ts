@@ -30,6 +30,13 @@ const useTableConfig = (
             ? true
             : tableChartConfig.showTableNames,
     );
+
+    const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
+        tableChartConfig?.hideRowNumbers === undefined
+            ? false
+            : tableChartConfig.hideRowNumbers,
+    );
+
     useEffect(() => {
         if (
             tableChartConfig?.showTableNames === undefined &&
@@ -84,7 +91,10 @@ const useTableConfig = (
         (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
         [columnProperties],
     );
-
+    const isColumnFrozen = useCallback(
+        (fieldId: string) => columnProperties[fieldId]?.frozen === true,
+        [columnProperties],
+    );
     const getHeader = useCallback(
         (fieldId: string) => {
             return columnProperties[fieldId]?.name;
@@ -97,19 +107,18 @@ const useTableConfig = (
         columns: Array<TableColumn | TableHeader>;
         error?: string;
     }>(() => {
-        const pivotDimension = pivotDimensions?.[0];
         if (!resultsData || !selectedItemIds) {
             return {
                 rows: [],
                 columns: [],
             };
         }
-        if (pivotDimension) {
+        if (pivotDimensions && pivotDimensions.length > 0) {
             return getPivotDataAndColumns({
                 columnOrder,
                 itemsMap,
                 resultsData,
-                pivotDimension,
+                pivotDimensions,
                 isColumnVisible,
                 getHeader,
                 getDefaultColumnLabel,
@@ -122,6 +131,7 @@ const useTableConfig = (
                 isColumnVisible,
                 showTableNames,
                 getHeader,
+                isColumnFrozen,
             });
         }
     }, [
@@ -134,6 +144,7 @@ const useTableConfig = (
         getHeader,
         getDefaultColumnLabel,
         showTableNames,
+        isColumnFrozen,
     ]);
 
     // Remove columProperties from map if the column has been removed from results
@@ -169,8 +180,14 @@ const useTableConfig = (
             showColumnCalculation,
             showTableNames,
             columns: columnProperties,
+            hideRowNumbers,
         }),
-        [showColumnCalculation, showTableNames, columnProperties],
+        [
+            showColumnCalculation,
+            hideRowNumbers,
+            showTableNames,
+            columnProperties,
+        ],
     );
 
     return {
@@ -181,6 +198,8 @@ const useTableConfig = (
         setShowColumnCalculation,
         showTableNames,
         setShowTableName,
+        hideRowNumbers,
+        setHideRowNumbers,
         rows,
         error,
         columns,
@@ -190,6 +209,7 @@ const useTableConfig = (
         getHeader,
         getDefaultColumnLabel,
         isColumnVisible,
+        isColumnFrozen,
     };
 };
 

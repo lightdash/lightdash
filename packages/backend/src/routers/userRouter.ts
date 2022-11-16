@@ -74,15 +74,19 @@ userRouter.post(
         userService
             .updatePassword(req.user!.userId, req.user!.userUuid, req.body)
             .then(() => {
-                req.logout();
-                req.session.save((err) => {
+                req.logout((err) => {
                     if (err) {
-                        next(err);
-                    } else {
-                        res.json({
-                            status: 'ok',
-                        });
+                        return next(err);
                     }
+                    return req.session.save((err2) => {
+                        if (err2) {
+                            next(err2);
+                        } else {
+                            res.json({
+                                status: 'ok',
+                            });
+                        }
+                    });
                 });
             })
             .catch(next),

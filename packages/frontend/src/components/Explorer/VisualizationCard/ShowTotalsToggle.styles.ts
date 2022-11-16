@@ -1,5 +1,7 @@
+import { Switch } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const ShowTotalsToggleWrapper = styled.div`
-    margin-top: 5px;
+export const StyledSwitch = styled(Switch)`
+    margin-bottom: 0px;
+    font-size: 14px !important;
 `;

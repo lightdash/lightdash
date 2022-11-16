@@ -1,23 +1,19 @@
-import { Button, Collapse, H5 } from '@blueprintjs/core';
 import { getResultValues } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import { getQueryResults } from '../../../hooks/useQueryResults';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
-import DownloadCsvButton from '../../DownloadCsvButton';
+import CollapsableCard from '../../common/CollapsableCard';
+import DownloadCsvPopup from '../../DownloadCsvPopup';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import UnderlyingDataModal from '../../UnderlyingData/UnderlyingDataModal';
 import UnderlyingDataProvider from '../../UnderlyingData/UnderlyingDataProvider';
 import { ExplorerResults } from './ExplorerResults';
-import {
-    CardHeader,
-    CardHeaderLeftContent,
-    CardHeaderRightContent,
-    CardWrapper,
-} from './ResultsCard.styles';
 
 const ResultsCard: FC = memo(() => {
     const isEditMode = useExplorerContext(
@@ -47,6 +43,19 @@ const ResultsCard: FC = memo(() => {
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
+    const metricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const getCsvResults = (csvLimit: number | null, onlyRaw: boolean) => {
+        return getQueryResults({
+            projectUuid,
+            tableId: tableName,
+            query: metricQuery,
+            csvLimit,
+        }).then((results) => getResultValues(results.rows, onlyRaw));
+    };
 
     const resultsIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.RESULTS),
@@ -56,20 +65,14 @@ const ResultsCard: FC = memo(() => {
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],
     );
-    const formattedRows = useMemo(() => rows && getResultValues(rows), [rows]);
     return (
-        <CardWrapper elevation={1}>
-            <CardHeader>
-                <CardHeaderLeftContent>
-                    <Button
-                        icon={resultsIsOpen ? 'chevron-down' : 'chevron-right'}
-                        minimal
-                        onClick={toggleCard}
-                        disabled={!tableName}
-                    />
-
-                    <H5>Results</H5>
-
+        <CollapsableCard
+            title="Results"
+            isOpen={resultsIsOpen}
+            onToggle={toggleCard}
+            disabled={!tableName}
+            headerElement={
+                <>
                     {tableName && (
                         <LimitButton
                             isEditMode={isEditMode}
@@ -81,25 +84,27 @@ const ResultsCard: FC = memo(() => {
                     {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}
-                </CardHeaderLeftContent>
-
-                {resultsIsOpen && tableName && (
-                    <CardHeaderRightContent>
+                </>
+            }
+            rightHeaderElement={
+                resultsIsOpen &&
+                tableName && (
+                    <>
                         {isEditMode && <AddColumnButton />}
-                        <DownloadCsvButton
+                        <DownloadCsvPopup
                             fileName={tableName}
-                            rows={formattedRows}
+                            rows={rows}
+                            getCsvResults={getCsvResults}
                         />
-                    </CardHeaderRightContent>
-                )}
-            </CardHeader>
-            <Collapse isOpen={resultsIsOpen}>
-                <UnderlyingDataProvider tableName={tableName} filters={filters}>
-                    <ExplorerResults />
-                    <UnderlyingDataModal />
-                </UnderlyingDataProvider>
-            </Collapse>
-        </CardWrapper>
+                    </>
+                )
+            }
+        >
+            <UnderlyingDataProvider tableName={tableName} filters={filters}>
+                <ExplorerResults />
+                <UnderlyingDataModal />
+            </UnderlyingDataProvider>
+        </CollapsableCard>
     );
 });
 

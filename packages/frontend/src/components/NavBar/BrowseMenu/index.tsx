@@ -44,20 +44,24 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 />
                             </NavLink>
 
-                            <MenuDivider />
+                            {spaces && spaces.length > 0 && (
+                                <>
+                                    <MenuDivider />
 
-                            {spaces?.map((space) => (
-                                <NavLink
-                                    key={space.uuid}
-                                    to={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                                >
-                                    <NavbarMenuItem
-                                        roleStructure="menuitem"
-                                        icon="folder-close"
-                                        text={space.name}
-                                    />
-                                </NavLink>
-                            ))}
+                                    {spaces.map((space) => (
+                                        <NavLink
+                                            key={space.uuid}
+                                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                                        >
+                                            <NavbarMenuItem
+                                                roleStructure="menuitem"
+                                                icon="folder-close"
+                                                text={space.name}
+                                            />
+                                        </NavLink>
+                                    ))}
+                                </>
+                            )}
                         </Menu>
                     )
                 }

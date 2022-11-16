@@ -4,12 +4,14 @@ import React, { FC } from 'react';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
 const BooleanFilterInputs: FC<FilterInputsProps> = (props) => {
-    const { filterRule, onChange } = props;
+    const { filterRule, onChange, disabled } = props;
     switch (filterRule.operator) {
         case FilterOperator.EQUALS: {
             return (
                 <HTMLSelect
                     fill
+                    className={disabled ? 'disabled-filter' : ''}
+                    disabled={disabled}
                     onChange={(e) =>
                         onChange({
                             ...filterRule,

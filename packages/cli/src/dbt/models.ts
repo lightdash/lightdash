@@ -12,8 +12,9 @@ import {
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import * as path from 'path';
+import GlobalState from '../globalState';
+import * as styles from '../styles';
 import { searchForModel, YamlSchema } from './schema';
 
 type CompiledModel = {
@@ -23,6 +24,7 @@ type CompiledModel = {
     rootPath: string;
     originalFilePath: string;
     patchPath: string | null | undefined;
+    alias?: string;
 };
 
 type GetDatabaseTableForModelArgs = {
@@ -36,9 +38,10 @@ export const getWarehouseTableForModel = async ({
     const tableRef = {
         database: model.database,
         schema: model.schema,
-        table: model.name,
+        table: model.alias || model.name,
     };
     const catalog = await warehouseClient.getCatalog([tableRef]);
+
     const table =
         catalog[tableRef.database]?.[tableRef.schema]?.[tableRef.table];
     if (!table) {
@@ -108,7 +111,6 @@ const askOverwriteDescription = async (
     columnName: string,
     existingDescription: string | undefined,
     newDescription: string | undefined,
-    spinner: ora.Ora,
 ): Promise<string> => {
     if (!existingDescription) return newDescription || '';
     if (!newDescription) return existingDescription;
@@ -122,9 +124,10 @@ const askOverwriteDescription = async (
         existingDescription.length > 20 ? '...' : ''
     }`;
     const overwriteMessage = `Do you want to overwrite the existing column "${columnName}" description (${shortDescription}) with a doc block?`;
-    spinner.stop();
+    const spinner = GlobalState.getActiveSpinner();
+    spinner?.stop();
     const overwrite = await askOverwrite(overwriteMessage);
-    spinner.start();
+    spinner?.start();
     if (overwrite) return newDescription;
     return existingDescription;
 };
@@ -134,14 +137,12 @@ type FindAndUpdateModelYamlArgs = {
     table: WarehouseTableSchema;
     docs: Record<string, DbtDoc>;
     includeMeta: boolean;
-    spinner: ora.Ora;
 };
 export const findAndUpdateModelYaml = async ({
     model,
     table,
     docs,
     includeMeta,
-    spinner,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
@@ -199,7 +200,6 @@ export const findAndUpdateModelYaml = async ({
                         column.name,
                         existingDescription,
                         newDescription,
-                        spinner,
                     ),
                     ...(meta !== undefined ? { meta } : {}),
                 };
@@ -212,9 +212,37 @@ export const findAndUpdateModelYaml = async ({
         const newColumns = generatedModel.columns.filter(
             (c) => !existingColumnNames.includes(c.name),
         );
+        const deletedColumnNames = existingColumnNames.filter(
+            (c) => !generatedModel.columns.map((gc) => gc.name).includes(c),
+        );
+        let updatedColumns = [...existingColumnsUpdated, ...newColumns];
+        if (deletedColumnNames.length > 0 && process.env.CI !== 'true') {
+            const spinner = GlobalState.getActiveSpinner();
+            spinner?.stop();
+            console.error(`
+These columns in your model ${styles.bold(model.name)} on file ${styles.bold(
+                match.filename.split('/').slice(-1),
+            )} no longer exist in your warehouse:
+${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
+            `);
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `Would you like to remove them from your .yml file? `,
+                },
+            ]);
+            spinner?.start();
+
+            if (answers.isConfirm) {
+                updatedColumns = updatedColumns.filter(
+                    (column) => !deletedColumnNames.includes(column.name),
+                );
+            }
+        }
         const updatedModel = {
             ...existingModel,
-            columns: [...existingColumnsUpdated, ...newColumns],
+            columns: updatedColumns,
         };
         const updatedYml: YamlSchema = {
             ...match.doc,
@@ -302,7 +330,7 @@ const methodSelector = ({
         throw new ParseError(`Invalid value for tag selector "${value}"`);
     }
     return models
-        .filter((model) => model.tags.includes(value))
+        .filter((model) => model.tags?.includes(value))
         .map((model) => model.unique_id);
 };
 
@@ -409,5 +437,6 @@ export const getCompiledModelsFromManifest = ({
         rootPath: modelLookup[nodeId].root_path,
         originalFilePath: modelLookup[nodeId].original_file_path,
         patchPath: modelLookup[nodeId].patch_path,
+        alias: modelLookup[nodeId].alias,
     }));
 };

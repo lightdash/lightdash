@@ -66,10 +66,12 @@ const useBigNumberConfig = (
 
     const [selectedField, setSelectedField] = useState<string | undefined>();
     const getField = useCallback(
-        (field: string) => {
-            return availableFields.find(
-                (f) => (isField(f) && fieldId(f) === field) || f.name === field,
-            );
+        (fieldNameOrId: string) => {
+            return availableFields.find((f) => {
+                return isField(f)
+                    ? fieldId(f) === fieldNameOrId
+                    : f.name === fieldNameOrId;
+            });
         },
         [availableFields],
     );
@@ -136,12 +138,15 @@ const useBigNumberConfig = (
     const bigNumber = !isNumber
         ? selectedField &&
           resultsData?.rows?.[0]?.[selectedField]?.value.formatted
-        : formatValue(
-              isField(item) ? item.format : undefined,
-              bigNumberStyle ? 2 : isField(item) ? item.round : undefined,
-              bigNumberRaw,
-              bigNumberStyle,
-          );
+        : formatValue(bigNumberRaw, {
+              format: isField(item) ? item.format : undefined,
+              round: bigNumberStyle
+                  ? 2
+                  : isField(item)
+                  ? item.round
+                  : undefined,
+              compact: bigNumberStyle,
+          });
 
     const showStyle = isNumber && (!isField(item) || item.format !== 'percent');
 

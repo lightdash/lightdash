@@ -38,6 +38,7 @@ services:
       - EMAIL_SMTP_SENDER_NAME=${EMAIL_SMTP_SENDER_NAME}
       - EMAIL_SMTP_SENDER_EMAIL=${EMAIL_SMTP_SENDER_EMAIL}
       - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
+      - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"

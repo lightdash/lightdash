@@ -25,6 +25,12 @@ export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
         ? undefined
         : `${fieldName} should start with a "/"`;
 
+export const startWithHTTPSProtocol: FieldValidator<string> =
+    (fieldName) => (value) =>
+        !value || value.match(/^https:\/\/.*/)
+            ? undefined
+            : `${fieldName} should start with a "https://"`;
+
 export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
     !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;
 
@@ -39,3 +45,8 @@ export const isValidEmailDomain: FieldValidator<string[]> =
                 : undefined;
         }
     };
+
+export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
+    !value || value.match(/\D/)
+        ? `${fieldName} should only contain numbers`
+        : undefined;

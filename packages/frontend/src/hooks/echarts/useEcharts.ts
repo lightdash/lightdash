@@ -23,12 +23,18 @@ import {
     isCompleteLayout,
     isDimension,
     isField,
+    isPivotReferenceWithValues,
+    isTimeInterval,
     Metric,
     MetricType,
+    PivotReference,
+    ResultRow,
     Series,
     TableCalculation,
     timeFrameConfigs,
 } from '@lightdash/common';
+import groupBy from 'lodash-es/groupBy';
+import toNumber from 'lodash-es/toNumber';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -182,22 +188,40 @@ export type EChartSeries = {
     type: Series['type'];
     connectNulls: boolean;
     stack?: string;
+    stackLabel?: {
+        show?: boolean;
+    };
     name?: string;
     color?: string;
     yAxisIndex?: number;
     xAxisIndex?: number;
-    encode: {
+    encode?: {
         x: string;
         y: string;
         tooltip: string[];
         seriesName: string;
     };
-    dimensions: Array<{ name: string; displayName: string }>;
+    dimensions?: Array<{ name: string; displayName: string }>;
     emphasis?: {
         focus?: string;
     };
     areaStyle?: any;
-    pivotRawValue?: any;
+    pivotReference?: PivotReference;
+    label?: {
+        show?: boolean;
+        fontSize?: number;
+        fontWeight?: string;
+        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        formatter?: (param: { data: Record<string, unknown> }) => string;
+    };
+    labelLayout?: {
+        hideOverlap?: boolean;
+    };
+    tooltip?: {
+        show?: boolean;
+        valueFormatter?: (value: unknown) => string;
+    };
+    data?: unknown[];
 };
 
 const getFormattedValue = (
@@ -232,29 +256,32 @@ type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
     formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
         | undefined;
     cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
-    pivotKey: string;
-    pivotField: { value: string };
+    pivotReference: Required<PivotReference>;
 };
 
 const getPivotSeries = ({
     series,
-    pivotKey,
-    pivotField,
+    pivotReference,
     items,
     xFieldHash,
     yFieldHash,
     flipAxes,
     formats,
     cartesianChart,
-}: GetPivotSeriesArg) => {
-    const value = getFormattedValue(pivotField.value, pivotKey, items);
-
+}: GetPivotSeriesArg): EChartSeries => {
+    const pivotLabel = pivotReference.pivotValues.reduce(
+        (acc, { field, value }) => {
+            const formattedValue = getFormattedValue(value, field, items);
+            return acc ? `${acc} - ${formattedValue}` : formattedValue;
+        },
+        '',
+    );
     return {
         ...series,
         emphasis: {
@@ -269,7 +296,7 @@ const getPivotSeries = ({
             tooltip: [yFieldHash],
             seriesName: yFieldHash,
         },
-        pivotRawValue: pivotField.value,
+        pivotReference,
         dimensions: [
             {
                 name: xFieldHash,
@@ -280,11 +307,11 @@ const getPivotSeries = ({
                 displayName:
                     cartesianChart.layout.yField &&
                     cartesianChart.layout.yField.length > 1
-                        ? `[${value}] ${getLabelFromField(
+                        ? `[${pivotLabel}] ${getLabelFromField(
                               items,
                               series.encode.yRef.field,
                           )}`
-                        : value,
+                        : pivotLabel,
             },
         ],
         tooltip: {
@@ -296,17 +323,17 @@ const getPivotSeries = ({
                 ...(formats &&
                     formats[series.encode.yRef.field] && {
                         formatter: (val: any) =>
-                            formatValue(
-                                formats[series.encode.yRef.field].format,
-                                formats[series.encode.yRef.field].round,
-                                val?.value?.[yFieldHash],
-                            ),
+                            formatValue(val?.value?.[yFieldHash], {
+                                format: formats[series.encode.yRef.field]
+                                    .format,
+                                round: formats[series.encode.yRef.field].round,
+                                compact:
+                                    formats[series.encode.yRef.field].compact,
+                            }),
                     }),
             },
-            labelLayout: function (params: any) {
-                return {
-                    hideOverlap: true,
-                };
+            labelLayout: {
+                hideOverlap: true,
             },
         }),
     };
@@ -316,7 +343,7 @@ type GetSimpleSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
     formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
+        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
         | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
@@ -365,17 +392,15 @@ const getSimpleSeries = ({
             ...(formats &&
                 formats[yFieldHash] && {
                     formatter: (value: any) =>
-                        formatValue(
-                            formats[yFieldHash].format,
-                            formats[yFieldHash].round,
-                            value?.value?.[yFieldHash],
-                        ),
+                        formatValue(value?.value?.[yFieldHash], {
+                            format: formats[yFieldHash].format,
+                            round: formats[yFieldHash].round,
+                            compact: formats[yFieldHash].compact,
+                        }),
                 }),
         },
-        labelLayout: function (params: any) {
-            return {
-                hideOverlap: true,
-            };
+        labelLayout: {
+            hideOverlap: true,
         },
     }),
 });
@@ -384,7 +409,7 @@ export const getEchartsSeries = (
     items: Array<Field | TableCalculation>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
-    pivotKey: string | undefined,
+    pivotKeys: string[] | undefined,
     formats:
         | Record<string, Pick<CompiledField, 'format' | 'round'>>
         | undefined,
@@ -395,17 +420,12 @@ export const getEchartsSeries = (
             const { flipAxes } = cartesianChart.layout;
             const xFieldHash = hashFieldReference(series.encode.xRef);
             const yFieldHash = hashFieldReference(series.encode.yRef);
-            const pivotField = series.encode.yRef.pivotValues?.find(
-                ({ field }) => field === pivotKey,
-            );
-
-            if (pivotKey && pivotField) {
+            if (pivotKeys && isPivotReferenceWithValues(series.encode.yRef)) {
                 return getPivotSeries({
                     series,
                     items,
                     cartesianChart,
-                    pivotKey,
-                    pivotField,
+                    pivotReference: series.encode.yRef,
                     formats,
                     flipAxes,
                     xFieldHash,
@@ -509,18 +529,29 @@ const getEchartAxis = ({
             axisItem &&
             getItemId(axisItem) &&
             items.find((item) => getItemId(axisItem) === getItemId(item));
-        const hasFormatOrRound =
-            isField(field) && (field.format || field.round);
+        const hasFormattingConfig =
+            isField(field) && (field.format || field.round || field.compact);
         const axisMinInterval =
             isDimension(field) &&
             field.timeInterval &&
+            isTimeInterval(field.timeInterval) &&
             timeFrameConfigs[field.timeInterval].getAxisMinInterval();
+        const axisLabelFormatter =
+            isDimension(field) &&
+            field.timeInterval &&
+            isTimeInterval(field.timeInterval) &&
+            timeFrameConfigs[field.timeInterval].getAxisLabelFormatter();
         const axisConfig: Record<string, any> = {};
-        if (field && (hasFormatOrRound || axisMinInterval)) {
+
+        if (field && (hasFormattingConfig || axisMinInterval)) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(field, value, true);
                 },
+            };
+        } else if (axisLabelFormatter) {
+            axisConfig.axisLabel = {
+                formatter: axisLabelFormatter,
             };
         }
         if (axisMinInterval) {
@@ -738,6 +769,97 @@ const getEchartAxis = ({
     };
 };
 
+const getValidStack = (series: EChartSeries | undefined) => {
+    return series && (series.type === 'bar' || !!series.areaStyle)
+        ? series.stack
+        : undefined;
+};
+
+const calculateStackTotal = (
+    row: ResultRow,
+    series: EChartSeries[],
+    flipAxis: boolean | undefined,
+) => {
+    return series.reduce<number>((acc, s) => {
+        const hash = flipAxis ? s.encode?.x : s.encode?.y;
+        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        if (!Number.isNaN(numberValue)) {
+            acc += numberValue;
+        }
+        return acc;
+    }, 0);
+};
+
+// Stack total row contains:
+// - x/y axis value
+// - the value 0 to be stacked (hack)
+// - the total of that stack to be used in the label
+// The x/axis value and the "0" need to flip position if the axis are flipped
+const getStackTotalRows = (
+    rows: ResultRow[],
+    series: EChartSeries[],
+    flipAxis: boolean | undefined,
+): [unknown, unknown, number][] => {
+    return rows.map((row) => {
+        const total = calculateStackTotal(row, series, flipAxis);
+        const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
+        if (!hash) {
+            return [null, null, 0];
+        }
+        return flipAxis
+            ? [0, row[hash]?.value.raw, total]
+            : [row[hash]?.value.raw, 0, total];
+    });
+};
+
+// To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
+const getStackTotalSeries = (
+    rows: ResultRow[],
+    seriesWithStack: EChartSeries[],
+    items: Array<Field | TableCalculation>,
+    flipAxis: boolean | undefined,
+) => {
+    const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
+    return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
+        (acc, [stack, series]) => {
+            if (!stack || !series[0] || !series[0].stackLabel?.show) {
+                return acc;
+            }
+            const stackSeries: EChartSeries = {
+                type: series[0].type,
+                connectNulls: true,
+                stack: stack,
+                label: {
+                    show: series[0].stackLabel?.show,
+                    formatter: (param) => {
+                        const stackTotal = param.data[2];
+                        const fieldId = series[0].pivotReference?.field;
+                        if (fieldId) {
+                            return getFormattedValue(
+                                stackTotal,
+                                fieldId,
+                                items,
+                            );
+                        }
+                        return '';
+                    },
+                    fontWeight: 'bold',
+                    position: flipAxis ? 'right' : 'top',
+                },
+                labelLayout: {
+                    hideOverlap: true,
+                },
+                tooltip: {
+                    show: false,
+                },
+                data: getStackTotalRows(rows, series, flipAxis),
+            };
+            return [...acc, stackSeries];
+        },
+        [],
+    );
+};
+
 const useEcharts = () => {
     const context = useVisualizationContext();
     const {
@@ -749,15 +871,34 @@ const useEcharts = () => {
     } = context;
     const { data: organisationData } = useOrganisation();
 
-    const plotData = usePlottedData(
+    const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
+        if (
+            resultsData &&
+            validCartesianConfig &&
+            isCompleteLayout(validCartesianConfig.layout)
+        ) {
+            const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
+                (yField) =>
+                    !resultsData.metricQuery.dimensions.includes(yField),
+            );
+            const yFieldNonPivotedKeys =
+                validCartesianConfig.layout.yField.filter((yField) =>
+                    resultsData.metricQuery.dimensions.includes(yField),
+                );
+
+            return [
+                yFieldPivotedKeys,
+                [...yFieldNonPivotedKeys, validCartesianConfig.layout.xField],
+            ];
+        }
+        return [];
+    }, [validCartesianConfig, resultsData]);
+
+    const { rows } = usePlottedData(
         resultsData?.rows,
         pivotDimensions,
-        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
-            ? validCartesianConfig.layout.yField
-            : undefined,
-        validCartesianConfig && isCompleteLayout(validCartesianConfig.layout)
-            ? [validCartesianConfig.layout.xField]
-            : undefined,
+        pivotedKeys,
+        nonPivotedKeys,
     );
 
     const formats = useMemo(
@@ -803,7 +944,7 @@ const useEcharts = () => {
             items,
             originalData,
             validCartesianConfig,
-            pivotDimensions?.[0],
+            pivotDimensions,
             formats,
         );
     }, [
@@ -829,18 +970,21 @@ const useEcharts = () => {
         });
     }, [items, series, validCartesianConfig, resultsData]);
 
-    //Remove stacking from invalid series
-    const stackedSeries = useMemo(
-        () =>
-            series.map((serie) => ({
-                ...serie,
-                stack:
-                    serie.type === 'bar' || !!serie.areaStyle
-                        ? serie.stack
-                        : undefined,
-            })),
-        [series],
-    );
+    const stackedSeries = useMemo(() => {
+        const seriesWithValidStack = series.map<EChartSeries>((serie) => ({
+            ...serie,
+            stack: getValidStack(serie),
+        }));
+        return [
+            ...seriesWithValidStack,
+            ...getStackTotalSeries(
+                rows,
+                seriesWithValidStack,
+                items,
+                validCartesianConfig?.layout.flipAxes,
+            ),
+        ];
+    }, [series, rows, items, validCartesianConfig?.layout.flipAxes]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =
@@ -871,10 +1015,11 @@ const useEcharts = () => {
                 validCartesianConfig?.eChartsConfig.legend,
             ) || {
                 show: series.length > 1,
+                type: 'scroll',
             },
             dataset: {
                 id: 'lightdashResults',
-                source: getResultValues(plotData, true),
+                source: getResultValues(rows, true),
             },
             tooltip: {
                 show: true,
@@ -893,13 +1038,13 @@ const useEcharts = () => {
             },
             color: colors,
         }),
-        [axis, colors, plotData, series, stackedSeries, validCartesianConfig],
+        [axis, colors, rows, series, stackedSeries, validCartesianConfig],
     );
 
     if (
         !explore ||
         series.length <= 0 ||
-        plotData.length <= 0 ||
+        rows.length <= 0 ||
         !validCartesianConfig
     ) {
         return undefined;

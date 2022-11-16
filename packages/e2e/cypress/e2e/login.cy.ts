@@ -8,6 +8,7 @@ describe('Login', () => {
         cy.logout();
     });
     it('Should login successfully', () => {
+        cy.logout();
         cy.visit('/login');
         cy.findByLabelText('Email address *').type(
             SEED_ORG_1_ADMIN_EMAIL.email,
@@ -19,6 +20,7 @@ describe('Login', () => {
         cy.url().should('include', '/home');
     });
     it('Should display error message when credentials are invalid', () => {
+        cy.logout();
         cy.visit('/login');
         cy.findByLabelText('Email address *').type('test-email');
         cy.findByLabelText('Password *').type('test-password');
@@ -26,6 +28,7 @@ describe('Login', () => {
         cy.findByText('Email and password not recognized').should('be.visible');
     });
     it('Should display error message when one field is empty', () => {
+        cy.logout();
         cy.visit('/login');
         cy.findByLabelText('Email address *').type('test-email');
         cy.get('[data-cy="login-button"]').click();

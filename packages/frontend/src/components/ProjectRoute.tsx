@@ -12,34 +12,29 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
     ...rest
 }) => {
     const { user } = useApp();
-    const projectsRequest = useProjects();
+    const { data: projects, isLoading, isError, error } = useProjects();
 
     return (
         <Route
             {...rest}
             render={(location) => {
-                if (projectsRequest.isLoading) {
+                if (isLoading) {
                     return <PageSpinner />;
                 }
 
-                if (projectsRequest.error) {
+                if (isError && error) {
                     return (
                         <div style={{ marginTop: '20px' }}>
                             <NonIdealState
                                 title="Unexpected error"
-                                description={
-                                    projectsRequest.error.error.message
-                                }
+                                description={error.error.message}
                             />
                         </div>
                     );
                 }
 
-                if (
-                    !projectsRequest.data ||
-                    projectsRequest.data?.length <= 0
-                ) {
-                    return <Redirect to={`/no-access`} />;
+                if (!projects || projects.length <= 0) {
+                    return <Redirect to="/no-access" />;
                 }
 
                 return (
@@ -55,7 +50,7 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
                             return isAllowed ? (
                                 children
                             ) : (
-                                <Redirect to={`/no-project-access`} />
+                                <Redirect to="/no-project-access" />
                             );
                         }}
                     </Can>

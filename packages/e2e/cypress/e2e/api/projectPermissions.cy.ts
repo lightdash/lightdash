@@ -27,7 +27,6 @@ describe('Lightdash API tests for member user with admin project permissions', (
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
             expect(resp.status).to.eq(200);
-            console.log(JSON.stringify(resp.status));
             expect(resp.body.results).to.have.property('email', email);
             expect(resp.body.results).to.have.property('role', 'member');
         });
@@ -250,7 +249,6 @@ describe('Lightdash API tests for member user with editor project permissions', 
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
             expect(resp.status).to.eq(200);
-            console.log(JSON.stringify(resp.status));
             expect(resp.body.results).to.have.property('email', email);
             expect(resp.body.results).to.have.property('role', 'member');
         });
@@ -473,7 +471,6 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
             expect(resp.status).to.eq(200);
-            console.log(JSON.stringify(resp.status));
             expect(resp.body.results).to.have.property('email', email);
             expect(resp.body.results).to.have.property('role', 'member');
         });
@@ -682,7 +679,6 @@ describe('Lightdash API tests for member user with NO project permissions', () =
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
             expect(resp.status).to.eq(200);
-            console.log(JSON.stringify(resp.status));
             expect(resp.body.results).to.have.property('email', email);
             expect(resp.body.results).to.have.property('role', 'member');
         });
@@ -788,13 +784,15 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         });
     });
 
-    it('Should get 404 from GET /org/projects', () => {
+    it('Should get an empty project list (200) from GET /org/projects', () => {
         cy.request({
             url: `${apiUrl}/org/projects`,
             headers: { 'Content-type': 'application/json' },
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(404);
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+            expect(resp.body.results).to.have.length(0);
         });
     });
 

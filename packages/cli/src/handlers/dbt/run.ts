@@ -1,6 +1,7 @@
 import { ParseError } from '@lightdash/common';
 import execa from 'execa';
 import { LightdashAnalytics } from '../../analytics/analytics';
+import GlobalState from '../../globalState';
 import { generateHandler } from '../generate';
 
 type DbtRunHandlerOptions = {
@@ -17,6 +18,7 @@ export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
     command: any,
 ) => {
+    GlobalState.setVerbose(options.verbose);
     await LightdashAnalytics.track({
         event: 'dbt_command.started',
         properties: {
@@ -29,7 +31,7 @@ export const dbtRunHandler = async (
         return [...acc, arg];
     }, []);
 
-    if (options.verbose) console.error(`> Running DBT command: ${commands}`);
+    GlobalState.debug(`> Running DBT command: ${commands}`);
 
     try {
         const subprocess = execa('dbt', commands, {

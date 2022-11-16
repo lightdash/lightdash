@@ -1,4 +1,5 @@
 import {
+    DbtLog,
     Job,
     JobStatusType,
     JobStepStatusType,
@@ -42,13 +43,19 @@ export type DbJobSteps = {
     step_status: JobStepStatusType;
     step_type: JobStepType;
     step_error: string | undefined;
+    step_dbt_logs: DbtLog[] | undefined;
     started_at: Date | undefined;
 };
 
 type CreateJobStep = Pick<DbJobSteps, 'job_uuid' | 'step_status' | 'step_type'>;
 
 type UpdateJobStep = Partial<
-    Pick<DbJobSteps, 'step_status' | 'updated_at' | 'step_error' | 'started_at'>
+    Pick<
+        DbJobSteps,
+        'step_status' | 'updated_at' | 'step_error' | 'started_at'
+    > & {
+        step_dbt_logs: string | undefined; // Because the object array needs to be converted to a string prior to passing it to the query builder
+    }
 >;
 
 export type JobStepsTable = Knex.CompositeTableType<
