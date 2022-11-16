@@ -43,7 +43,7 @@ export const ShareTag = styled(Tag)`
     width: 35px;
     height: 35px;
     padding: 0 0 0 10px !important;
-    background-color: lightgray;
+    background-color: ${Colors.LIGHT_GRAY4};
     color: ${Colors.GRAY1};
     margin-top: 4px;
 `;

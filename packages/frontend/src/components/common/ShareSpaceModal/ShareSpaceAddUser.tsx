@@ -99,6 +99,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             }
                         />
                     }
+                    placeholder="Start typing to search for users..."
                     key={user.userUuid}
                     title={
                         isDisabled
@@ -160,6 +161,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 resetOnQuery={true}
                 popoverProps={{
                     onClosing: () => setSearchQuery(''),
+                    placement: 'bottom-start',
                 }}
                 tagInputProps={{
                     placeholder: undefined,

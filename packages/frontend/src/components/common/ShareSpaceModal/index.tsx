@@ -78,7 +78,11 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             />
 
             <Dialog
-                style={{ width: 480, paddingBottom: 0 }}
+                style={{
+                    width: 480,
+                    paddingBottom: 0,
+                    backgroundColor: 'white',
+                }}
                 title={`Share '${space.name}'`}
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}

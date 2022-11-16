@@ -72,6 +72,9 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                             });
                         }
                     }}
+                    popoverProps={{
+                        placement: 'bottom-end',
+                    }}
                 >
                     <ChangeAccessButton
                         minimal

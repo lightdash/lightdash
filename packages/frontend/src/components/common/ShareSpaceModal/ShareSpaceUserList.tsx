@@ -10,7 +10,6 @@ import {
     AddUsersWrapper,
     ChangeAccessButton,
     ListUserWrapper,
-    UserListWrapper,
     UserName,
     UserRole,
     UserTag,
@@ -103,6 +102,9 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                                 sharedUser.userUuid,
                                             );
                                         }
+                                    }}
+                                    popoverProps={{
+                                        placement: 'bottom-end',
                                     }}
                                 >
                                     <ChangeAccessButton
