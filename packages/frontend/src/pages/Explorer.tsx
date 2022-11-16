@@ -1,10 +1,11 @@
+import { Card } from '@blueprintjs/core';
 import { memo } from 'react';
 import {
+    CardContent,
     PageContentContainer,
     PageWrapper,
     Resizer,
-    SideBar,
-    SideBarCard,
+    StickySidebar,
 } from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
@@ -37,20 +38,28 @@ const ExplorerPage = memo(() => {
     return (
         <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
             <PageWrapper>
-                <SideBar ref={sidebarRef}>
-                    <SideBarCard
+                <StickySidebar
+                    ref={sidebarRef}
+                    style={{
+                        width: sidebarWidth + 5,
+                    }}
+                >
+                    <Card
                         elevation={1}
                         style={{
                             width: sidebarWidth,
                         }}
                     >
-                        <ExploreSideBar />
-                    </SideBarCard>
+                        <CardContent>
+                            <ExploreSideBar />
+                        </CardContent>
+                    </Card>
+
                     <Resizer
                         onMouseDown={startResizing}
                         $isResizing={isResizing}
                     />
-                </SideBar>
+                </StickySidebar>
 
                 <PageContentContainer hasDraggableSidebar>
                     <ExplorerWithUrlParams />

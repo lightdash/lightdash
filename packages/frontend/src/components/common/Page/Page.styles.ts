@@ -88,21 +88,37 @@ export const Resizer = styled.div<{ $isResizing: boolean }>`
             : 'none'};
 `;
 
-export const StickySidebar = styled.div`
-    height: calc(100vh - ${NAVBAR_HEIGHT + PAGE_HEADER_HEIGHT}px);
+interface StickySidebarProps {
+    $pageHasHeader?: boolean;
+}
+
+export const StickySidebar = styled.div<StickySidebarProps>`
+    height: ${({ $pageHasHeader }) =>
+        `calc(100vh - ${
+            NAVBAR_HEIGHT + ($pageHasHeader ? PAGE_HEADER_HEIGHT : 0)
+        }px)`};
     position: sticky;
     top: ${NAVBAR_HEIGHT}px;
-`;
-
-export const SideBar = styled.div`
     display: flex;
-    flex-direction: row;
-    position: sticky;
-    align-self: flex-start;
-    top: ${NAVBAR_HEIGHT}px;
 `;
 
-export const SideBarCard = styled(Card)`
-    height: calc(100vh - ${NAVBAR_HEIGHT}px);
+export const Drawer = styled(Card)<{ $state: string }>`
+    height: 100%;
+    border-radius: 0;
     overflow: hidden;
+    transition: ${({ $state }) =>
+        ['entering', 'exiting'].includes($state)
+            ? 'opacity 500ms ease-in-out, left 500ms ease-in-out'
+            : 'none'};
+    position: absolute;
+    top: 0;
+    opacity: ${({ $state }) =>
+        ['exiting', 'exited', 'unmounted'].includes($state) ? 0 : 1};
+`;
+
+export const CardContent = styled.div`
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 `;

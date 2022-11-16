@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
 import {
+    CardContent,
+    Drawer,
     PageContentContainer,
     PageWrapper,
     Resizer,
@@ -18,7 +20,6 @@ import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
-import { CardContent, Drawer } from './SavedExplorer.styles';
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{
@@ -78,7 +79,7 @@ const SavedExplorer = () => {
             <SavedChartsHeader />
 
             <PageWrapper>
-                <StickySidebar>
+                <StickySidebar $pageHasHeader>
                     <Transition in={isEditMode} timeout={500}>
                         {(state) => (
                             <>
