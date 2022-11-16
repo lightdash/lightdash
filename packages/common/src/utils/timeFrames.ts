@@ -75,9 +75,10 @@ const bigqueryConfig: WarehouseConfig = {
             [WeekDay.SATURDAY]: 'SATURDAY',
             [WeekDay.SUNDAY]: 'SUNDAY',
         };
-        const datePart = startOfWeek
-            ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
-            : timeFrame;
+        const datePart =
+            timeFrame === TimeFrames.WEEK && startOfWeek
+                ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
+                : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
             return `DATETIME_TRUNC(${originalSql}, ${datePart})`;
         }
