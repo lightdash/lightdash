@@ -4,6 +4,7 @@ import {
     OrganizationMemberProfile,
     Space,
 } from '@lightdash/common';
+import { upperFirst } from 'lodash-es';
 import { FC } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
@@ -16,7 +17,7 @@ import {
     YouLabel,
 } from './ShareSpaceModal.style';
 import { AccessOption, renderAccess } from './ShareSpaceSelect';
-import { capitalize, getInitials, getUserNameOrEmail } from './Utils';
+import { getInitials, getUserNameOrEmail } from './Utils';
 
 export interface ShareSpaceUserListProps {
     space: Space;
@@ -59,7 +60,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             {space.access &&
                 space.access.map((sharedUser) => {
                     const isYou = sessionUser?.userUuid === sharedUser.userUuid;
-                    const role = capitalize(sharedUser.role?.toString() || '');
+                    const role = upperFirst(sharedUser.role?.toString() || '');
 
                     const userAccessTypes = UserAccessOptions.map(
                         (accessType) => {

@@ -1,8 +1,5 @@
 import { OrganizationMemberProfile } from '@lightdash/common';
 
-export const capitalize = (word: string): string =>
-    word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
-
 export const getUserNameOrEmail = (
     userUuid: string,
     organizationUsers: OrganizationMemberProfile[] | undefined,
