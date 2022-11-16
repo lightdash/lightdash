@@ -77,6 +77,7 @@ export const AccessSelectSubtitle = styled.p`
     line-height: 18px;
     color: ${Colors.GRAY2};
     width: 200px;
+    margin-bottom: 0;
 `;
 
 export const AccessName = styled.p`
