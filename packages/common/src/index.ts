@@ -87,6 +87,7 @@ export * from './types/user';
 export * from './utils/api';
 export * from './utils/formatting';
 export * from './utils/timeFrames';
+export * from './resourcesAsCode/charts';
 
 export const validateEmail = (email: string): boolean => {
     const re =

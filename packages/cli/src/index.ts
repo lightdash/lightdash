@@ -15,6 +15,7 @@ import {
 } from './handlers/preview';
 import { setProjectInteractively } from './handlers/setProject';
 import * as styles from './styles';
+import { importHandler } from './handlers/import';
 
 const { version: VERSION } = require('../package.json');
 
@@ -369,6 +370,11 @@ program
 
     .option('--create', 'Create a new project on your organization', false)
     .action(deployHandler);
+
+program
+    .command('import <url>')
+    .description('Imports an existing Lightdash resource as yaml')
+    .action(importHandler);
 
 program
     .command('generate')
