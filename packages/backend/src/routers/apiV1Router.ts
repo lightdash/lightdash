@@ -151,54 +151,54 @@ apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
-feat/share-slack-backend
 
-apiV1Router.get('/screenshot', async (req, res, next) => {
-    const { dashboardId } = req.query;
-
-    if (!dashboardId) {
+// TODO test endpoint, remove
+apiV1Router.get('/screenshot/:dashboardUuid', async (req, res, next) => {
+    const { dashboardUuid } = req.params;
+    console.debug(`Getting screenshot for dashboard ${dashboardUuid}`);
+    if (!dashboardUuid) {
         next(new ParameterError());
     }
-
-    const browser = await puppeteer.connect({
-        browserWSEndpoint: 'ws://browser:3000',
-    });
-
-    const page = await browser.newPage();
-
-    await page.setViewport({
-        width: 1400,
-        height: 768, // hardcoded
-    });
-    await page.setExtraHTTPHeaders({ cookie: req.headers.cookie || '' }); // copy cookie
-
-    const blockedUrls = [
-        'headwayapp.co',
-        'rudderlabs.com',
-        'analytics.lightdash.com',
-        'cohere.so',
-        'intercom.io',
-    ];
-    await page.setRequestInterception(true);
-    page.on('request', (request: any) => {
-        const url = request.url();
-        if (blockedUrls.includes(url)) {
-            request.abort();
-            return;
-        }
-
-        request.continue();
-    });
-
-    const dashboardUrl = `http://lightdash-dev:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/7aca576e-2aca-4c3c-b4ce-a63578203fb0/view`;
-    await page.goto(dashboardUrl, {
-        timeout: 100000,
-        waitUntil: 'networkidle0',
-    });
-
-    //            const imageBuffer = await page.screenshot({ path: 'screenshot.png' });
-
+    let browser;
     try {
+        browser = await puppeteer.connect({
+            browserWSEndpoint: 'ws://browser:3000',
+        });
+
+        const page = await browser.newPage();
+
+        await page.setViewport({
+            width: 1400,
+            height: 768, // hardcoded
+        });
+        await page.setExtraHTTPHeaders({ cookie: req.headers.cookie || '' }); // copy cookie
+
+        const blockedUrls = [
+            'headwayapp.co',
+            'rudderlabs.com',
+            'analytics.lightdash.com',
+            'cohere.so',
+            'intercom.io',
+        ];
+        await page.setRequestInterception(true);
+        page.on('request', (request: any) => {
+            const url = request.url();
+            if (blockedUrls.includes(url)) {
+                request.abort();
+                return;
+            }
+
+            request.continue();
+        });
+
+        const dashboardUrl = `http://lightdash-dev:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/7aca576e-2aca-4c3c-b4ce-a63578203fb0/view`;
+        await page.goto(dashboardUrl, {
+            timeout: 100000,
+            waitUntil: 'networkidle0',
+        });
+
+        //            const imageBuffer = await page.screenshot({ path: 'screenshot.png' });
+
         // await page.waitForSelector('#screenshot-dashboard');          // wait for the selector to load
         // const element = await page.$('#screenshot-dashboard');        // declare a variable with an ElementHandle
 
@@ -239,8 +239,8 @@ apiV1Router.get('/screenshot', async (req, res, next) => {
         res.end(imageBuffer);
     } catch (e) {
         console.error(e);
-        next(e);
+        next(e.message);
+    } finally {
+        if (browser) await browser.close();
     }
-
-    await browser.close();
 });
