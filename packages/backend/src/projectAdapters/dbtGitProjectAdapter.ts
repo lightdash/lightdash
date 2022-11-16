@@ -4,6 +4,7 @@ import {
     DbtProjectEnvironmentVariable,
     UnexpectedGitError,
     UnexpectedServerError,
+    WeekDay,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as fspromises from 'fs-extra';
@@ -180,9 +181,12 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         }
     }
 
-    public async compileAllExplores() {
+    public async compileAllExplores(
+        loadSources?: boolean,
+        startOfWeek?: WeekDay,
+    ) {
         await this._refreshRepo();
-        return super.compileAllExplores();
+        return super.compileAllExplores(loadSources, startOfWeek);
     }
 
     public async test() {

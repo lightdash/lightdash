@@ -16,6 +16,7 @@ import {
     normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
+    WeekDay,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Ajv from 'ajv';
@@ -93,6 +94,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async compileAllExplores(
         loadSources: boolean = false,
+        startOfWeek?: WeekDay,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
@@ -178,6 +180,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     loadSources,
                     adapterType,
                     metrics,
+                    startOfWeek,
                 );
                 return [...explores, ...failedExplores];
             }

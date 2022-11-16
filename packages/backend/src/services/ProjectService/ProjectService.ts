@@ -204,7 +204,11 @@ export class ProjectService {
                 const explores = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () => adapter.compileAllExplores(),
+                    async () =>
+                        adapter.compileAllExplores(
+                            undefined,
+                            data.warehouseConnection?.startOfWeek,
+                        ),
                 );
 
                 const projectUuid = await this.jobModel.tryJobStep(
@@ -330,7 +334,11 @@ export class ProjectService {
                 const explores = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () => adapter.compileAllExplores(),
+                    async () =>
+                        adapter.compileAllExplores(
+                            undefined,
+                            updatedProject.warehouseConnection?.startOfWeek,
+                        ),
                 );
                 await this.projectModel.saveExploresToCache(
                     projectUuid,
@@ -718,7 +726,10 @@ export class ProjectService {
         const adapter = await this.restartAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
         try {
-            const explores = await adapter.compileAllExplores();
+            const explores = await adapter.compileAllExplores(
+                undefined,
+                project.warehouseConnection?.startOfWeek,
+            );
             analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,

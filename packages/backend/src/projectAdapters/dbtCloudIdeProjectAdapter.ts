@@ -1,4 +1,4 @@
-import { Explore, ExploreError } from '@lightdash/common';
+import { Explore, ExploreError, WeekDay } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
 import { CachedWarehouse } from '../types';
@@ -31,7 +31,10 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
         super(rpcClient, warehouseClient, cachedWarehouse);
     }
 
-    public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
-        return super.compileAllExplores(false);
+    public async compileAllExplores(
+        loadSources?: boolean,
+        startOfWeek?: WeekDay,
+    ): Promise<(Explore | ExploreError)[]> {
+        return super.compileAllExplores(loadSources, startOfWeek);
     }
 }
