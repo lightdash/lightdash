@@ -1,4 +1,4 @@
-import { Icon, Menu, NonIdealState, Portal } from '@blueprintjs/core';
+import { Menu, NonIdealState, Portal } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -24,15 +24,7 @@ import {
     ResultRow,
     SavedChart,
 } from '@lightdash/common';
-import React, {
-    FC,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
-import { CSVLink } from 'react-csv';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
@@ -47,6 +39,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { getFilterRuleLabel } from '../common/Filters/configs';
 import { TableColumn } from '../common/Table/types';
+import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
@@ -109,42 +102,22 @@ const DownloadCSV: FC<{
     data: SavedChart;
     project: string;
 }> = ({ data, project }) => {
-    const csvRef = useRef<
-        CSVLink & HTMLAnchorElement & { link: HTMLAnchorElement }
-    >(null);
     const { data: resultData } = useSavedChartResults(project, data);
     const rows = resultData?.rows;
-    const isDisabled = !rows || rows.length === 0;
-
-    const handleClick = useCallback(() => {
-        if (!csvRef.current) return;
-
-        (csvRef.current as any).link.click();
-    }, [csvRef]);
 
     return (
-        <>
-            <MenuItem2
-                icon="export"
-                text="Export CSV"
-                disabled={isDisabled}
-                onClick={handleClick}
-            />
-
-            {!isDisabled && (
-                <Portal>
-                    <CSVLink
-                        ref={csvRef}
-                        role="menuitem"
-                        tabIndex={0}
-                        className="bp4-menu-item"
-                        data={getResultValues(rows)}
-                        filename={`${data?.name}.csv`}
-                        target="_blank"
-                    />
-                </Portal>
+        <CSVExporter
+            data={getResultValues(rows || [])}
+            filename={`${data?.name}.csv`}
+            renderElement={({ handleCsvExport, isDisabled }) => (
+                <MenuItem2
+                    icon="export"
+                    text="Export CSV"
+                    disabled={isDisabled}
+                    onClick={handleCsvExport}
+                />
             )}
-        </>
+        />
     );
 };
 

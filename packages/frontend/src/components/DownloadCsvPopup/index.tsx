@@ -11,7 +11,7 @@ import {
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { getResultValues, ResultRow } from '@lightdash/common';
 import { FC, memo, useEffect, useRef, useState } from 'react';
-import { CSVLink } from 'react-csv';
+import CSVExporter, { CsvExporterElementType } from '../CSVExporter';
 import { InputWrapper, Title } from './DownloadCsvPopup.styles';
 
 type Props = {
@@ -47,9 +47,8 @@ const DownloadCsvPopup: FC<Props> = memo(
         const [format, setFormat] = useState<string>(Values.FORMATTED);
 
         const [csvRows, setCsvRows] = useState<object[]>([]);
-        const csvRef = useRef<
-            CSVLink & HTMLAnchorElement & { link: HTMLAnchorElement }
-        >(null);
+        const csvRef = useRef<CsvExporterElementType>(null);
+
         useEffect(() => {
             if (csvRows.length > 0 && csvRef.current?.link) {
                 csvRef.current.link.click();
@@ -68,6 +67,7 @@ const DownloadCsvPopup: FC<Props> = memo(
 
         return (
             <Popover2
+                lazy
                 placement="bottom-end"
                 isOpen={isOpen}
                 onInteraction={setIsOpen}
@@ -121,9 +121,8 @@ const DownloadCsvPopup: FC<Props> = memo(
                             </InputWrapper>
                         )}
 
-                        <CSVLink
-                            ref={csvRef}
-                            target="_blank"
+                        <CSVExporter
+                            linkRef={csvRef}
                             data={csvRows}
                             filename={csvFilename}
                         />
