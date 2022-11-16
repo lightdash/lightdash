@@ -1,3 +1,10 @@
+# [0.324.0](https://github.com/lightdash/lightdash/compare/0.323.1...0.324.0) (2022-11-16)
+
+
+### Features
+
+* export as csv style consistency ([#3775](https://github.com/lightdash/lightdash/issues/3775)) ([6364164](https://github.com/lightdash/lightdash/commit/63641646212169214acf2cbb3e8d78eab9caeba7))
+
 ## [0.323.1](https://github.com/lightdash/lightdash/compare/0.323.0...0.323.1) (2022-11-15)
 
 
