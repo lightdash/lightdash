@@ -19,7 +19,7 @@ const PageBase = styled('div')<Props>`
     flex-direction: column;
     align-items: ${(props) =>
         props.isContentFullWidth ? 'stretch' : 'center'};
-    background: ${Colors.LIGHT_GRAY4};
+    background: ${Colors.LIGHT_GRAY5};
 `;
 
 const Page: FC<Props> = ({ noContentPadding, children, ...props }) => (

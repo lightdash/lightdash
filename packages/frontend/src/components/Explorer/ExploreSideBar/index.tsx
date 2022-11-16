@@ -14,10 +14,10 @@ import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { SidebarDivider } from '../../common/Page/Sidebar';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
-import { TableDivider } from '../ExplorePanel/ExplorePanel.styles';
 import {
     FooterWrapper,
     FormField,
@@ -64,7 +64,7 @@ const BasePanel = () => {
             <>
                 <StyledBreadcrumb items={[{ text: 'Tables' }]} />
 
-                <TableDivider />
+                <SidebarDivider />
 
                 <FormField>
                     <InputGroup
