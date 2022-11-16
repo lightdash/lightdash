@@ -1,4 +1,4 @@
-import { Icon, Menu, NonIdealState, Portal } from '@blueprintjs/core';
+import { Menu, NonIdealState, Portal } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -25,7 +25,6 @@ import {
     SavedChart,
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { CSVLink } from 'react-csv';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
@@ -40,6 +39,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { getFilterRuleLabel } from '../common/Filters/configs';
 import { TableColumn } from '../common/Table/types';
+import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
@@ -103,24 +103,21 @@ const DownloadCSV: FC<{
     project: string;
 }> = ({ data, project }) => {
     const { data: resultData } = useSavedChartResults(project, data);
-
     const rows = resultData?.rows;
-    if (!rows || rows.length <= 0) {
-        return <MenuItem2 icon="download" text=".csv" disabled />;
-    }
 
     return (
-        <CSVLink
-            role="menuitem"
-            tabIndex={0}
-            className="bp4-menu-item"
-            data={getResultValues(rows)}
+        <CSVExporter
+            data={getResultValues(rows || [])}
             filename={`${data?.name}.csv`}
-            target="_blank"
-        >
-            <Icon icon="download" />
-            <span>Download CSV</span>
-        </CSVLink>
+            renderElement={({ handleCsvExport, isDisabled }) => (
+                <MenuItem2
+                    icon="export"
+                    text="Export CSV"
+                    disabled={isDisabled}
+                    onClick={handleCsvExport}
+                />
+            )}
+        />
     );
 };
 
