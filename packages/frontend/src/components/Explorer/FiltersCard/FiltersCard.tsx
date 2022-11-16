@@ -1,4 +1,4 @@
-import { Button, Card, Collapse, H5, Tag } from '@blueprintjs/core';
+import { Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     convertAdditionalMetric,
@@ -13,27 +13,25 @@ import {
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import React, {
-    FC,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
+import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
+import CollapsableCard from '../../common/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from '../../common/Filters/FiltersProvider';
-import { CardHeader, FilterValues, Tooltip } from './FiltersCard.styles';
+import {
+    DisabledFilterHeader,
+    FilterValues,
+    Tooltip,
+} from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -155,47 +153,54 @@ const FiltersCard: FC = memo(() => {
         },
         [data],
     );
+
     return (
-        <Card style={{ padding: 5 }} elevation={1}>
-            <CardHeader>
-                <Tooltip2
-                    content={`You must be in 'edit' or 'explore' mode to view this panel`}
-                    interactionKind="hover"
-                    placement={'bottom-start'}
-                    disabled={isEditMode}
-                >
-                    <Button
-                        icon={filterIsOpen ? 'chevron-down' : 'chevron-right'}
-                        minimal
-                        disabled={!isEditMode || !tableName}
-                        onClick={() =>
-                            toggleExpandedSection(ExplorerSection.FILTERS)
-                        }
-                    />
-                </Tooltip2>
-                <H5>Filters</H5>
-                {totalActiveFilters > 0 && !filterIsOpen ? (
-                    <Tooltip2
-                        content={<>{allFilterRules.map(renderFilterRule)}</>}
-                        interactionKind="hover"
-                        placement={'bottom-start'}
-                    >
-                        <Tag large round minimal>
-                            {totalActiveFilters} active filter
-                            {totalActiveFilters === 1 ? '' : 's'}
-                        </Tag>
-                    </Tooltip2>
-                ) : null}
-            </CardHeader>
-            <Collapse isOpen={isEditMode && filterIsOpen}>
-                <FiltersProvider
-                    projectUuid={projectUuid}
-                    fieldsMap={fieldsWithSuggestions}
-                >
-                    <FiltersForm filters={filters} setFilters={setFilters} />
-                </FiltersProvider>
-            </Collapse>
-        </Card>
+        <CollapsableCard
+            isOpen={filterIsOpen}
+            title="Filters"
+            disabled={!tableName || (totalActiveFilters === 0 && !isEditMode)}
+            toggleTooltip={
+                totalActiveFilters === 0 && !isEditMode
+                    ? 'This chart has no filters'
+                    : ''
+            }
+            onToggle={() => toggleExpandedSection(ExplorerSection.FILTERS)}
+            headerElement={
+                <>
+                    {totalActiveFilters > 0 && !filterIsOpen ? (
+                        <Tooltip2
+                            content={
+                                <>{allFilterRules.map(renderFilterRule)}</>
+                            }
+                            interactionKind="hover"
+                            placement={'bottom-start'}
+                        >
+                            <Tag round minimal>
+                                {totalActiveFilters} active filter
+                                {totalActiveFilters === 1 ? '' : 's'}
+                            </Tag>
+                        </Tooltip2>
+                    ) : null}
+                    {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
+                        <DisabledFilterHeader>
+                            You must be in 'edit' or 'explore' mode to change
+                            the filters
+                        </DisabledFilterHeader>
+                    ) : null}
+                </>
+            }
+        >
+            <FiltersProvider
+                projectUuid={projectUuid}
+                fieldsMap={fieldsWithSuggestions}
+            >
+                <FiltersForm
+                    isEditMode={isEditMode}
+                    filters={filters}
+                    setFilters={setFilters}
+                />
+            </FiltersProvider>
+        </CollapsableCard>
     );
 });
 

@@ -1,11 +1,11 @@
 import {
     AuthorizationError,
     friendlyName,
+    isExploreError,
     Project,
     ProjectType,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import path from 'path';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -25,6 +25,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     profile: string | undefined;
     create?: boolean;
     verbose: boolean;
+    ignoreErrors: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -32,6 +33,25 @@ type DeployArgs = DeployHandlerOptions & {
 };
 export const deploy = async (options: DeployArgs): Promise<void> => {
     const explores = await compile(options);
+
+    const errors = explores.filter((e) => isExploreError(e)).length;
+    if (errors > 0) {
+        if (options.ignoreErrors) {
+            console.error(
+                styles.warning(`\nDeploying project with ${errors} errors\n`),
+            );
+        } else {
+            console.error(
+                styles.error(
+                    `Can't deploy with errors. If you still want to deploy, add ${styles.bold(
+                        '--ignore-errors',
+                    )} flag`,
+                ),
+            );
+            process.exit(1);
+        }
+    }
+
     await lightdashApi<undefined>({
         method: 'PUT',
         url: `/api/v1/projects/${options.projectUuid}/explores`,
@@ -52,29 +72,29 @@ const createNewProject = async (
     const absoluteProjectPath = path.resolve(options.projectDir);
     const context = await getDbtContext({
         projectDir: absoluteProjectPath,
-        verbose: options.verbose,
     });
     const dbtName = friendlyName(context.projectName);
 
-    const answers = await inquirer.prompt([
-        {
-            type: 'input',
-            name: 'name',
-            message: `Add a project name or press enter to use the default: [${dbtName}] `,
-        },
-    ]);
-    const projectName = answers.name ? answers.name : dbtName;
-
+    let projectName = dbtName;
+    if (process.env.CI !== 'true') {
+        const answers = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'name',
+                message: `Add a project name or press enter to use the default: [${dbtName}] `,
+            },
+        ]);
+        projectName = answers.name ? answers.name : dbtName;
+    }
     console.error('');
-    const spinner = ora(
+    const spinner = GlobalState.startSpinner(
         `  Creating new project ${styles.bold(projectName)}`,
-    ).start();
-    GlobalState.setActiveSpinner(spinner);
+    );
     await LightdashAnalytics.track({
         event: 'create.started',
         properties: {
             projectName,
-            isDefaultName: !!answers.name,
+            isDefaultName: dbtName === projectName,
         },
     });
     try {
@@ -112,6 +132,7 @@ const createNewProject = async (
 };
 
 export const deployHandler = async (options: DeployHandlerOptions) => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     const config = await getConfig();

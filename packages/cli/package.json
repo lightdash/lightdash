@@ -1,20 +1,17 @@
 {
     "name": "@lightdash/cli",
-    "version": "0.281.1",
+    "version": "0.324.0",
     "license": "MIT",
     "bin": {
         "lightdash": "dist/index.js"
     },
     "files": [
         "dist/**/*",
-        "track.sh",
-        "dependencies.sh"
+        "track.sh"
     ],
     "dependencies": {
-        "@lightdash/common": "^0.281.1",
-        "@lightdash/warehouses": "^0.281.1",
-        "@types/inquirer": "^8.2.1",
-        "@types/nunjucks": "^3.2.1",
+        "@lightdash/common": "^0.324.0",
+        "@lightdash/warehouses": "^0.324.0",
         "ajv": "^8.11.0",
         "better-ajv-errors": "^1.2.0",
         "chalk": "4.1.2",
@@ -33,30 +30,20 @@
     },
     "description": "Lightdash CLI tool",
     "devDependencies": {
-        "@types/jest": "^28.1.3",
         "@types/lodash": "^4.14.185",
-        "@types/node": "^14.14.35",
-        "@typescript-eslint/eslint-plugin": "^5.22.0",
-        "@typescript-eslint/parser": "^5.22.0",
-        "eslint": "^8.7.0",
-        "eslint-config-airbnb-base": "^15.0.0",
-        "eslint-config-airbnb-typescript": "^16.1.0",
-        "eslint-config-prettier": "^8.3.0",
-        "eslint-plugin-import": "^2.25.4",
-        "eslint-plugin-json": "^3.0.0",
-        "jest": "^28.1.1",
-        "prettier": "^2.3.2",
-        "prettier-plugin-organize-imports": "^2.3.4",
-        "ts-jest": "^28.0.5",
-        "ts-node": "^9.1.1",
-        "typescript": "^4.2.3"
+        "@types/inquirer": "^8.2.1",
+        "@types/nunjucks": "^3.2.1"
     },
     "scripts": {
         "test": "jest",
         "build": "tsc --build tsconfig.json",
-        "lint": "eslint ./src",
-        "format": "prettier --check --ignore-unknown ./src",
-        "preinstall": "bash track.sh started; bash dependencies.sh",
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "lint": "yarn run linter ./src",
+        "fix-lint": "yarn run linter ./src --fix",
+        "format": "yarn run formatter ./src --check",
+        "fix-format": "yarn run formatter ./src --write",
+        "preinstall": "bash track.sh started",
         "postinstall": "bash track.sh completed"
     }
 }

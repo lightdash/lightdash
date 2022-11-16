@@ -30,7 +30,9 @@ const warehouseConfig = {
     },
 };
 
-const configurePostgresWarehouse = (config) => {
+const configurePostgresWarehouse = (
+    config: typeof warehouseConfig['postgresSQL'],
+) => {
     cy.get('[name="warehouse.host"]').type(config.host, { log: false });
     cy.get('[name="warehouse.user"]').type(config.user, { log: false });
     cy.get('[name="warehouse.password"]').type(config.password, { log: false });
@@ -47,7 +49,9 @@ const configurePostgresWarehouse = (config) => {
     cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 
-const configureBigqueryWarehouse = (config) => {
+const configureBigqueryWarehouse = (
+    config: typeof warehouseConfig['bigQuery'],
+) => {
     cy.get('[name="warehouse.project"]').type(config.project, { log: false });
     cy.get('[name="warehouse.location"]').type(config.location, { log: false });
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
@@ -58,7 +62,9 @@ const configureBigqueryWarehouse = (config) => {
     cy.get('[name="warehouse.dataset"]').type(config.dataset);
 };
 
-const configureDatabricksWarehouse = (config) => {
+const configureDatabricksWarehouse = (
+    config: typeof warehouseConfig['databricks'],
+) => {
     cy.get('[name="warehouse.serverHostName"]').type(config.host, {
         log: false,
     });
@@ -73,7 +79,9 @@ const configureDatabricksWarehouse = (config) => {
     cy.get('[name="warehouse.database"]').type(config.schema);
 };
 
-const configureSnowflakeWarehouse = (config) => {
+const configureSnowflakeWarehouse = (
+    config: typeof warehouseConfig['snowflake'],
+) => {
     cy.get('[name="warehouse.account"]').type(config.account, { log: false });
     cy.get('[name="warehouse.user"]').type(config.user, { log: false });
     cy.get('[name="warehouse.password"]').type(config.password, { log: false });
@@ -101,7 +109,11 @@ const testCompile = () => {
         .should('not.be.disabled')
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
-    cy.findByText('Welcome, David! ⚡'); // wait for page to load and avoid race conditions
+    cy.findByText('Welcome, David! ⚡');
+    cy.findByText('Shared');
+    cy.findByText('Spaces');
+    cy.findByText('No charts added yet');
+    cy.wait(1000);
 };
 
 const testRunQuery = () => {
@@ -177,8 +189,8 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
     cy.get('button').contains('Run query').click();
 
     // wait for query to finish
-    cy.findByText('Loading chart').should('not.exist');
-    cy.findByText('Loading results').should('not.exist');
+    cy.findByText('Loading chart', { timeout: 30000 }).should('not.exist');
+    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
 
     // check first row values
     rowValues.forEach((value, index) => {
@@ -201,10 +213,12 @@ describe('Create projects', () => {
     it('Should be able to create new project from settings', () => {
         cy.visit(`/`);
 
-        cy.get('[data-cy="settings-button"]').click();
+        cy.findAllByTestId('settings-menu').click();
+        cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
         cy.findByText('Project management').click();
         cy.findByText('Create new').click();
+        cy.contains('button', 'PostgreSQL').click();
 
         cy.url().should('include', '/createProject/cli');
 
@@ -214,9 +228,9 @@ describe('Create projects', () => {
     it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
+        cy.contains('button', 'PostgreSQL').click();
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
-        cy.contains('button', 'PostgreSQL').click();
 
         cy.get('[name="name"]').clear().type('Jaffle PostgreSQL test');
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
@@ -233,9 +247,9 @@ describe('Create projects', () => {
 
         cy.visit(`/createProject`);
 
+        cy.contains('button', 'Redshift').click();
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
-        cy.contains('button', 'Redshift').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Redshift test');
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
@@ -248,9 +262,9 @@ describe('Create projects', () => {
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
 
+        cy.contains('button', 'BigQuery').click();
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
-        cy.contains('button', 'BigQuery').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Bigquery test');
         configureBigqueryWarehouse(warehouseConfig.bigQuery);
@@ -286,9 +300,9 @@ describe('Create projects', () => {
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
+        cy.contains('button', 'Databricks').click();
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
-        cy.contains('button', 'Databricks').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Databricks test');
         configureDatabricksWarehouse(warehouseConfig.databricks);
@@ -324,9 +338,9 @@ describe('Create projects', () => {
     it('Should create a Snowflake project', () => {
         cy.visit(`/createProject`);
 
+        cy.contains('button', 'Snowflake').click();
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
-        cy.contains('button', 'Snowflake').click();
 
         cy.get('[name="name"]').clear().type('Jaffle Snowflake test');
         configureSnowflakeWarehouse(warehouseConfig.snowflake);

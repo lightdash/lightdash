@@ -1,6 +1,5 @@
 import { ApiError, ApiExploresResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
-import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useQueryError from './useQueryError';
 
@@ -13,8 +12,7 @@ const getExplores = async (projectUuid: string, filtered?: boolean) =>
         body: undefined,
     });
 
-export const useExplores = (filtered?: boolean) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+export const useExplores = (projectUuid: string, filtered?: boolean) => {
     const setErrorResponse = useQueryError();
     const queryKey = ['tables', projectUuid, filtered ? 'filtered' : 'all'];
     return useQuery<ApiExploresResults, ApiError>({

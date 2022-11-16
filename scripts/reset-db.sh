@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-if [ ! -v PGPASSWORD ]; then
+if [ -z ${PGPASSWORD+x} ]; then
     echo "Can't find ENV variables (PGPASSWORD), have you loaded '.env' environments variable file?"
     exit 1
 fi

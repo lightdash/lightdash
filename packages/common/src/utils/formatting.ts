@@ -1,7 +1,9 @@
-import moment from 'moment';
+import moment, { MomentInput } from 'moment';
 import {
+    CompactOrAlias,
     DimensionType,
     Field,
+    findCompactConfig,
     isDimension,
     isField,
     MetricType,
@@ -11,7 +13,6 @@ import {
     isAdditionalMetric,
     TableCalculation,
 } from '../types/metricQuery';
-import { NumberStyle } from '../types/savedCharts';
 import { TimeFrames } from '../types/timeFrames';
 
 export const formatBoolean = <T>(v: T) =>
@@ -37,8 +38,9 @@ export const getDateFormat = (
     }
     return dateForm;
 };
-export function formatDate<T = string | Date>(
-    date: T,
+
+export function formatDate(
+    date: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
     convertToUTC: boolean = false,
 ): string {
@@ -55,7 +57,7 @@ const getTimeFormat = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): string => {
     let timeFormat: string;
-    switch (timeInterval.toUpperCase()) {
+    switch (timeInterval) {
         case TimeFrames.HOUR:
             timeFormat = 'HH';
             break;
@@ -72,8 +74,8 @@ const getTimeFormat = (
     return `YYYY-MM-DD, ${timeFormat} (Z)`;
 };
 
-export function formatTimestamp<T = string | Date>(
-    value: T,
+export function formatTimestamp(
+    value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
 ): string {
@@ -86,93 +88,93 @@ export const parseTimestamp = (
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
-export function valueIsNaN(value: any) {
+export function valueIsNaN(value: unknown) {
     if (typeof value === 'boolean') return true;
     return Number.isNaN(Number(value));
 }
 
+export function isNumber(value: unknown): value is number {
+    return !valueIsNaN(value);
+}
+
 function roundNumber(
-    value: any,
-    round: number | undefined,
-    format: string | undefined,
-    numberStyle?: string | undefined,
+    value: number,
+    options?: {
+        format?: string;
+        round?: number;
+        compact?: CompactOrAlias;
+    },
 ): string {
-    if (valueIsNaN(value)) {
-        return `${value}`;
-    }
+    const { format, round, compact } = options || {};
 
     const invalidRound = round === undefined || round < 0;
     if (invalidRound && !format) {
-        return numberStyle && !Number.isInteger(value)
+        return compact && !Number.isInteger(value)
             ? `${value}`
             : new Intl.NumberFormat('en-US').format(Number(value));
     }
     const isValidFormat =
         !!format && format !== 'km' && format !== 'mi' && format !== 'percent';
 
+    const validFractionDigits = invalidRound
+        ? {}
+        : { maximumFractionDigits: round, minimumFractionDigits: round };
+
     if (isValidFormat) {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: format?.toUpperCase(),
-            maximumFractionDigits: round || 0,
-            minimumFractionDigits: round || 0,
+            ...validFractionDigits,
         }).format(Number(value));
     }
 
-    return new Intl.NumberFormat('en-US', {
-        maximumFractionDigits: round || 0,
-        minimumFractionDigits: round || 0,
-    }).format(Number(value));
+    return new Intl.NumberFormat('en-US', validFractionDigits).format(
+        Number(value),
+    );
 }
 
 function styleNumber(
-    value: any,
-    numberStyle: NumberStyle | undefined,
-    round: number | undefined,
-    format: string | undefined,
+    value: number,
+    options?: {
+        format?: string;
+        round?: number;
+        compact?: CompactOrAlias;
+    },
 ): string {
-    if (valueIsNaN(value)) {
-        return `${value}`;
+    const { format, round, compact } = options || {};
+    if (compact) {
+        const compactRound =
+            compact && round === undefined && format === undefined ? 2 : round;
+        const compactConfig = findCompactConfig(compact);
+        if (compactConfig) {
+            return `${roundNumber(compactConfig.convertFn(Number(value)), {
+                format,
+                round: compactRound,
+                compact,
+            })}${compactConfig.suffix}`;
+        }
     }
-    switch (numberStyle) {
-        case NumberStyle.THOUSANDS:
-            return `${roundNumber(
-                Number(value) / 1000,
-                round,
-                format,
-                numberStyle,
-            )}K`;
-        case NumberStyle.MILLIONS:
-            return `${roundNumber(
-                Number(value) / 1000000,
-                round,
-                format,
-                numberStyle,
-            )}M`;
-        case NumberStyle.BILLIONS:
-            return `${roundNumber(
-                Number(value) / 1000000000,
-                round,
-                format,
-                numberStyle,
-            )}B`;
-        default:
-            return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
-    }
+    return `${new Intl.NumberFormat('en-US').format(Number(value))}`;
 }
 
 export function formatValue(
-    format: string | undefined,
-    round: number | undefined,
-    value: any,
-    numberStyle?: NumberStyle, // for bigNumbers
+    value: unknown,
+    options?: {
+        format?: string;
+        round?: number;
+        compact?: CompactOrAlias;
+    },
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
+    if (!isNumber(value)) {
+        return `${value}`;
+    }
+    const { format, round, compact } = options || {};
 
-    const styledValue = numberStyle
-        ? styleNumber(value, numberStyle, round, format)
-        : roundNumber(value, round, format);
+    const styledValue = compact
+        ? styleNumber(value, options)
+        : roundNumber(value, { round, format });
     switch (format) {
         case 'km':
         case 'mi':
@@ -186,8 +188,10 @@ export function formatValue(
                 return `${value}`;
             }
 
+            const invalidRound = round === undefined || round < 0;
+            const roundBy = invalidRound ? 0 : round;
             // Fix rounding issue
-            return `${(Number(value) * 100).toFixed(round)}%`;
+            return `${(Number(value) * 100).toFixed(roundBy)}%`;
 
         case '': // no format
             return styledValue;
@@ -199,7 +203,7 @@ export function formatValue(
 
 export function formatFieldValue(
     field: Field | AdditionalMetric | undefined,
-    value: any,
+    value: unknown,
     convertToUTC?: boolean,
 ): string {
     if (value === null) return '∅';
@@ -207,7 +211,7 @@ export function formatFieldValue(
     if (!field) {
         return `${value}`;
     }
-    const { type, round, format } = field;
+    const { type, round, format, compact } = field;
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -218,7 +222,7 @@ export function formatFieldValue(
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:
         case MetricType.SUM:
-            return formatValue(format, round, value);
+            return formatValue(value, { format, round, compact });
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
             return formatBoolean(value);
@@ -244,7 +248,7 @@ export function formatFieldValue(
                     convertToUTC,
                 );
             }
-            return formatValue(format, round, value);
+            return formatValue(value, { format, round, compact });
         }
         default: {
             return `${value}`;
@@ -254,12 +258,12 @@ export function formatFieldValue(
 
 export function formatItemValue(
     item: Field | AdditionalMetric | TableCalculation | undefined,
-    value: any,
+    value: unknown,
     convertToUTC?: boolean,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
     return isField(item) || isAdditionalMetric(item)
         ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(undefined, undefined, value);
+        : formatValue(value);
 }

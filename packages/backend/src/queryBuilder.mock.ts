@@ -7,7 +7,6 @@ import {
     FilterOperator,
     MetricType,
     SupportedDbtAdapter,
-    UnitOfTime,
 } from '@lightdash/common';
 
 export const emptyTable = (name: string): CompiledTable => ({
@@ -650,6 +649,23 @@ FROM metrics
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
 
+export const METRIC_QUERY_SQL_WITH_NO_LIMIT = `WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+
+GROUP BY 1
+)
+SELECT
+  *,
+  table1_dim1 + table1_metric1 AS "calc3"
+FROM metrics
+
+ORDER BY "table1_metric1" DESC
+`;
+
 export const METRIC_QUERY_SQL_BIGQUERY = `WITH metrics AS (
 SELECT
   \`table1\`.dim1 AS \`table1_dim1\`,
@@ -780,323 +796,4 @@ WHERE (
   ("table1_metric1") IN (0)
 )
 ORDER BY "table1_metric1" DESC
-LIMIT 10`;
-
-export const DimensionSqlMock = 'customers.created';
-
-export const InTheLast1DayFilter = {
-    id: 'id',
-    target: {
-        fieldId: 'fieldId',
-    },
-    operator: FilterOperator.IN_THE_PAST,
-    values: [1],
-    settings: {
-        unitOfTime: UnitOfTime.days,
-        completed: false,
-    },
-};
-
-export const InTheLast1DayFilterSQL = `((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))`;
-
-export const InTheLast1CompletedDayFilter = {
-    ...InTheLast1DayFilter,
-    settings: {
-        unitOfTime: UnitOfTime.days,
-        completed: true,
-    },
-};
-
-export const InTheLast1CompletedDayFilterSQL = `((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))`;
-
-export const InTheLast1WeekFilter = {
-    ...InTheLast1DayFilter,
-    settings: {
-        unitOfTime: UnitOfTime.weeks,
-        completed: false,
-    },
-};
-
-export const InTheLast1WeekFilterSQL = `((customers.created) >= ('2020-03-28') AND (customers.created) <= ('2020-04-04'))`;
-
-export const InTheLast1CompletedWeekFilter = {
-    ...InTheLast1DayFilter,
-    settings: {
-        unitOfTime: UnitOfTime.weeks,
-        completed: true,
-    },
-};
-
-export const InTheLast1CompletedWeekFilterSQL = `((customers.created) >= ('2020-03-22') AND (customers.created) < ('2020-03-29'))`;
-
-export const InTheLast1MonthFilter = {
-    ...InTheLast1WeekFilter,
-    settings: {
-        unitOfTime: UnitOfTime.months,
-        completed: false,
-    },
-};
-
-export const InTheLast1MonthFilterSQL = `((customers.created) >= ('2020-03-04') AND (customers.created) <= ('2020-04-04'))`;
-
-export const InTheLast1CompletedMonthFilter = {
-    ...InTheLast1WeekFilter,
-    settings: {
-        unitOfTime: UnitOfTime.months,
-        completed: true,
-    },
-};
-
-export const InTheLast1CompletedMonthFilterSQL = `((customers.created) >= ('2020-03-01') AND (customers.created) < ('2020-04-01'))`;
-
-export const InTheLast1YearFilter = {
-    ...InTheLast1WeekFilter,
-    settings: {
-        unitOfTime: UnitOfTime.years,
-        completed: false,
-    },
-};
-
-export const InTheLast1YearFilterSQL = `((customers.created) >= ('2019-04-04') AND (customers.created) <= ('2020-04-04'))`;
-
-export const InTheLast1CompletedYearFilter = {
-    ...InTheLast1WeekFilter,
-    settings: {
-        unitOfTime: UnitOfTime.years,
-        completed: true,
-    },
-};
-
-export const InTheLast1CompletedYearFilterSQL = `((customers.created) >= ('2019-01-01') AND (customers.created) < ('2020-01-01'))`;
-
-export const InTheLast1HourFilter = {
-    ...InTheLast1WeekFilter,
-    settings: {
-        unitOfTime: UnitOfTime.hours,
-        completed: false,
-    },
-};
-
-export const InTheLast1HourFilterSQL = `((customers.created) >= ('2020-04-03 23:12:00') AND (customers.created) <= ('2020-04-04 00:12:00'))`;
-
-export const InTheLast1CompletedHourFilter = {
-    ...InTheLast1DayFilter,
-    settings: {
-        unitOfTime: UnitOfTime.hours,
-        completed: true,
-    },
-};
-
-export const InTheLast1CompletedHourFilterSQL = `((customers.created) >= ('2020-04-03 23:00:00') AND (customers.created) < ('2020-04-04 00:00:00'))`;
-
-export const InTheLast1MinuteFilter = {
-    ...InTheLast1DayFilter,
-    settings: {
-        unitOfTime: UnitOfTime.minutes,
-        completed: false,
-    },
-};
-
-export const InTheLast1MinuteFilterSQL = `((customers.created) >= ('2020-04-04 00:11:00') AND (customers.created) <= ('2020-04-04 00:12:00'))`;
-
-export const InTheLast1CompletedMinuteFilter = {
-    ...InTheLast1DayFilter,
-    settings: {
-        unitOfTime: UnitOfTime.minutes,
-        completed: true,
-    },
-};
-
-export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 00:11:00') AND (customers.created) < ('2020-04-04 00:12:00'))`;
-
-export const EXPLORE_WITH_FILTERS: Explore = {
-    targetDatabase: SupportedDbtAdapter.POSTGRES,
-    name: 'table1',
-    label: 'table1',
-    baseTable: 'table1',
-    tags: [],
-    joinedTables: [
-        {
-            table: 'table2',
-            sqlOn: '${table1.shared} = ${table2.shared}',
-            compiledSqlOn: '("table1".shared) = ("table2".shared)',
-        },
-    ],
-    tables: {
-        table1: {
-            name: 'table1',
-            label: 'table1',
-            database: 'database',
-            schema: 'schema',
-            sqlTable: '"db"."schema"."table1"',
-            dimensions: {
-                dim1: {
-                    type: DimensionType.NUMBER,
-                    name: 'dim1',
-                    label: 'dim1',
-                    table: 'table1',
-                    tableLabel: 'table1',
-                    fieldType: FieldType.DIMENSION,
-                    sql: '${TABLE}.dim1',
-                    compiledSql: '"table1".dim1',
-                    tablesReferences: ['table1'],
-                    hidden: false,
-                },
-                shared: {
-                    type: DimensionType.STRING,
-                    name: 'shared',
-                    label: 'shared',
-                    table: 'table1',
-                    tableLabel: 'table1',
-                    fieldType: FieldType.DIMENSION,
-                    sql: '${TABLE}.shared',
-                    compiledSql: '"table1".shared',
-                    tablesReferences: ['table1'],
-                    hidden: false,
-                },
-                with_reference: {
-                    type: DimensionType.NUMBER,
-                    name: 'with_reference',
-                    label: 'with_reference',
-                    table: 'table1',
-                    tableLabel: 'table1',
-                    fieldType: FieldType.DIMENSION,
-                    sql: '${TABLE}.dim1 + ${table2.dim2}',
-                    compiledSql: '"table1".dim1 + "table2".dim2',
-                    tablesReferences: ['table1', 'table2'],
-                    hidden: false,
-                },
-            },
-            metrics: {
-                metric1: {
-                    type: MetricType.MAX,
-                    fieldType: FieldType.METRIC,
-                    table: 'table1',
-                    tableLabel: 'table1',
-                    name: 'metric1',
-                    label: 'metric1',
-                    sql: '${TABLE}.number_column',
-                    compiledSql: 'MAX("table1".number_column)',
-                    tablesReferences: ['table1'],
-                    isAutoGenerated: false,
-                    hidden: false,
-                    filters: [
-                        {
-                            id: 'filter1',
-                            target: { fieldId: 'shared' },
-                            operator: FilterOperator.INCLUDE,
-                            values: ['foo'],
-                        },
-                    ],
-                },
-            },
-            lineageGraph: {},
-        },
-        table2: {
-            name: 'table2',
-            label: 'table2',
-            database: 'database',
-            schema: 'schema',
-            sqlTable: '"db"."schema"."table2"',
-            dimensions: {
-                dim2: {
-                    type: DimensionType.NUMBER,
-                    name: 'dim2',
-                    label: 'dim2',
-                    table: 'table2',
-                    tableLabel: 'table2',
-                    fieldType: FieldType.DIMENSION,
-                    sql: '${TABLE}.dim2',
-                    compiledSql: '"table2".dim2',
-                    tablesReferences: ['table2'],
-                    hidden: false,
-                },
-                shared: {
-                    type: DimensionType.STRING,
-                    name: 'shared',
-                    label: 'shared',
-                    table: 'table2',
-                    tableLabel: 'table2',
-                    fieldType: FieldType.DIMENSION,
-                    sql: '${TABLE}.shared',
-                    compiledSql: '"table2".shared',
-                    tablesReferences: ['table2'],
-                    hidden: false,
-                },
-            },
-            metrics: {
-                metric2: {
-                    type: MetricType.MAX,
-                    fieldType: FieldType.METRIC,
-                    table: 'table2',
-                    tableLabel: 'table2',
-                    name: 'metric2',
-                    label: 'metric2',
-                    sql: '${TABLE}.number_column',
-                    compiledSql: 'MAX("table2".number_column)',
-                    tablesReferences: ['table2'],
-                    isAutoGenerated: false,
-                    hidden: false,
-                    filters: [
-                        {
-                            id: 'filter2_1',
-                            target: { fieldId: 'dim2' },
-                            operator: FilterOperator.LESS_THAN,
-                            values: [10],
-                        },
-                        {
-                            id: 'filter2_2',
-                            target: { fieldId: 'dim2' },
-                            operator: FilterOperator.GREATER_THAN,
-                            values: [5],
-                        },
-                    ],
-                },
-            },
-            lineageGraph: {},
-        },
-    },
-};
-
-export const METRIC_QUERY_FILTER_METRIC1: CompiledMetricQuery = {
-    dimensions: ['table1_dim1'],
-    metrics: ['table1_metric1'],
-    filters: {},
-    sorts: [{ fieldId: 'table1_metric1', descending: true }],
-    limit: 10,
-    tableCalculations: [],
-    compiledTableCalculations: [],
-    compiledAdditionalMetrics: [],
-};
-
-export const METRIC_QUERY_SQL_FILTER_METRIC1 = `SELECT
-  "table1".dim1 AS "table1_dim1",
-CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (MAX("table1".number_column)) ELSE NULL END AS "table1_metric1"
-FROM "db"."schema"."table1" AS "table1"
-
-
-GROUP BY 1
-ORDER BY "table1_metric1" DESC
-LIMIT 10`;
-
-export const METRIC_QUERY_FILTER_METRIC2: CompiledMetricQuery = {
-    dimensions: ['table2_dim2'],
-    metrics: ['table2_metric2'],
-    filters: {},
-    sorts: [{ fieldId: 'table2_metric2', descending: true }],
-    limit: 10,
-    tableCalculations: [],
-    compiledTableCalculations: [],
-    compiledAdditionalMetrics: [],
-};
-
-export const METRIC_QUERY_SQL_FILTER_METRIC2 = `SELECT
-  "table2".dim2 AS "table2_dim2",
-CASE WHEN (("table2".dim2) < (10) AND ("table2".dim2) > (5)) THEN (MAX("table2".number_column)) ELSE NULL END AS "table2_metric2"
-FROM "db"."schema"."table1" AS "table1"
-LEFT JOIN "db"."schema"."table2" AS "table2"
-  ON ("table1".shared) = ("table2".shared)
-
-GROUP BY 1
-ORDER BY "table2_metric2" DESC
 LIMIT 10`;

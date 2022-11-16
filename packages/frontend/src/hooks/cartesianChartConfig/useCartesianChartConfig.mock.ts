@@ -71,11 +71,21 @@ export const simpleSeriesMapArgs: GetExpectedSeriesMapArgs = {
             tableCalculations: [],
         },
         rows: [
-            { dimension_x: { value: { raw: 'a', formatted: 'a' } } },
-            { dimension_x: { value: { raw: 'b', formatted: 'b' } } },
+            {
+                dimension_x: { value: { raw: 'a', formatted: 'a' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+                my_second_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'b', formatted: 'b' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+                my_second_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
         ],
     },
-    pivotKey: undefined,
+    pivotKeys: undefined,
     yFields: ['my_metric', 'my_second_metric'],
     xField: 'my_dimension',
     availableDimensions: ['my_dimension', 'dimension_x'],
@@ -112,7 +122,7 @@ export const expectedSimpleSeriesMap: Record<string, Series> = {
 
 export const pivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
     ...simpleSeriesMapArgs,
-    pivotKey: 'dimension_x',
+    pivotKeys: ['dimension_x'],
 };
 
 export const expectedPivotedSeriesMap: Record<string, Series> = {
@@ -169,6 +179,119 @@ export const expectedPivotedSeriesMap: Record<string, Series> = {
             yRef: {
                 field: 'my_second_metric',
                 pivotValues: [{ field: 'dimension_x', value: 'b' }],
+            },
+        },
+    },
+};
+
+export const multiPivotSeriesMapArgs: GetExpectedSeriesMapArgs = {
+    ...simpleSeriesMapArgs,
+    pivotKeys: ['dimension_x', 'dimension_y'],
+    yFields: ['my_metric'],
+    resultsData: {
+        metricQuery: {
+            dimensions: ['dimension_x', 'dimension_y'],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 10,
+            tableCalculations: [],
+        },
+        rows: [
+            {
+                dimension_x: { value: { raw: 'a', formatted: 'a' } },
+                dimension_y: { value: { raw: 'a', formatted: 'a' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'b', formatted: 'b' } },
+                dimension_y: { value: { raw: 'b', formatted: 'b' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'a', formatted: 'a' } },
+                dimension_y: { value: { raw: 'b', formatted: 'b' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+            {
+                dimension_x: { value: { raw: 'b', formatted: 'b' } },
+                dimension_y: { value: { raw: 'a', formatted: 'a' } },
+                my_dimension: { value: { raw: 'a', formatted: 'a' } },
+                my_metric: { value: { raw: 'a', formatted: 'a' } },
+            },
+        ],
+    },
+};
+
+export const expectedMultiPivotedSeriesMap: Record<string, Series> = {
+    'my_dimension|my_metric.dimension_x.a.dimension_y.a': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [
+                    { field: 'dimension_x', value: 'a' },
+                    { field: 'dimension_y', value: 'a' },
+                ],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.b.dimension_y.a': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [
+                    { field: 'dimension_x', value: 'b' },
+                    { field: 'dimension_y', value: 'a' },
+                ],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.b.dimension_y.b': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [
+                    { field: 'dimension_x', value: 'b' },
+                    { field: 'dimension_y', value: 'b' },
+                ],
+            },
+        },
+    },
+    'my_dimension|my_metric.dimension_x.a.dimension_y.b': {
+        type: CartesianSeriesType.BAR,
+        areaStyle: undefined,
+        stack: undefined,
+        encode: {
+            xRef: {
+                field: 'my_dimension',
+            },
+            yRef: {
+                field: 'my_metric',
+                pivotValues: [
+                    { field: 'dimension_x', value: 'a' },
+                    { field: 'dimension_y', value: 'b' },
+                ],
             },
         },
     },

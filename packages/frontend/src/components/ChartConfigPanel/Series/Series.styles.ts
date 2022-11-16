@@ -3,6 +3,7 @@ import {
     Colors,
     FormGroup,
     HTMLSelect,
+    Icon,
     InputGroup,
 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
@@ -88,10 +89,14 @@ export const SeriesMainInputs = styled.div<{ $isGrouped?: boolean }>`
     ${({ $isGrouped }) =>
         $isGrouped
             ? `
-        grid-template-columns: 2.143em 12.5em 2.143em 2.14em;
+        grid-template-columns: 1em 2.143em 11.5em 2.143em 2.14em;
         column-gap: 0.357em;
         `
             : `margin-top: 25px;`}
+`;
+
+export const DragIcon = styled(Icon)`
+    margin-top: 6px;
 `;
 
 export const SeriesInputField = styled(InputGroup)`

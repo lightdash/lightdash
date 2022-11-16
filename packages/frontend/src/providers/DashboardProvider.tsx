@@ -68,10 +68,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [dashboardTiles, setDashboardTiles] = useState<
         Dashboard['tiles'] | []
     >([]);
-    const { data: filterableFields } = useAvailableDashboardFilterTargets(
-        dashboard,
-        dashboardTiles,
-    );
+    const { data: filterableFields } =
+        useAvailableDashboardFilterTargets(dashboardTiles);
+
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
     const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =

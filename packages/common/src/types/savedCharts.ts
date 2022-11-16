@@ -1,3 +1,4 @@
+import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
 
@@ -6,15 +7,9 @@ export enum ChartType {
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
-
-export enum NumberStyle {
-    THOUSANDS = 'thousands',
-    MILLIONS = 'millions',
-    BILLIONS = 'billions',
-}
 export type BigNumber = {
     label?: string;
-    style?: NumberStyle;
+    style?: CompactOrAlias;
     selectedField?: string;
 };
 
@@ -26,10 +21,12 @@ export type BigNumberConfig = {
 export type ColumnProperties = {
     visible?: boolean;
     name?: string;
+    frozen?: boolean;
 };
 export type TableChart = {
     showColumnCalculation?: boolean;
     showTableNames?: boolean;
+    hideRowNumbers?: boolean;
     columns?: Record<string, ColumnProperties>;
 };
 
@@ -50,6 +47,11 @@ export type PivotReference = {
     pivotValues?: { field: string; value: any }[];
 };
 
+export const isPivotReferenceWithValues = (
+    value: PivotReference,
+): value is Required<PivotReference> =>
+    !!value.pivotValues && value.pivotValues.length > 0;
+
 export type Series = {
     encode: {
         xRef: PivotReference;
@@ -59,12 +61,15 @@ export type Series = {
     };
     type: CartesianSeriesType;
     stack?: string;
+    stackLabel?: {
+        show?: boolean;
+    };
     name?: string;
     color?: string;
     yAxisIndex?: number;
     label?: {
         show?: boolean;
-        position?: 'left' | 'top' | 'right' | 'bottom';
+        position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
     };
     hidden?: boolean;
     areaStyle?: {};

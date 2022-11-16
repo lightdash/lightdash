@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 0: install dependencies
 # -----------------------------
-FROM node:14-bullseye AS base
+FROM node:16-bullseye AS base
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     python3-dev \
     software-properties-common \
-    unixodbc-dev \
     unzip \
     wget \
     && apt-get clean
@@ -22,21 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # dbt
 RUN python3 -m venv /usr/local/venv
 RUN /usr/local/venv/bin/pip install \
-    "dbt-core==1.2.0" \
-    "dbt-postgres==1.2.0" \
-    "dbt-redshift==1.2.0" \
-    "dbt-snowflake==1.2.0" \
-    "dbt-bigquery==1.2.0" \
-    "dbt-databricks==1.2.0"
+    "dbt-core==1.3.0" \
+    "dbt-postgres==1.3.0" \
+    "dbt-redshift==1.3.0" \
+    "dbt-snowflake==1.3.0" \
+    "dbt-bigquery==1.3.0" \
+    "dbt-databricks==1.3.0"
 ENV PATH $PATH:/usr/local/venv/bin
-
-RUN wget \
-    --quiet \
-    https://databricks-bi-artifacts.s3.us-east-2.amazonaws.com/simbaspark-drivers/odbc/2.6.19/SimbaSparkODBC-2.6.19.1033-Debian-64bit.zip \
-    -O /tmp/databricks_odbc.zip \
-    && unzip /tmp/databricks_odbc.zip -d /tmp \
-    && dpkg -i /tmp/simbaspark_*.deb \
-    && rm -rf /tmp/*
 
 
 # -----------------------------
@@ -59,6 +50,8 @@ FROM base AS prod-builder
 # Install development dependencies for all
 COPY package.json .
 COPY yarn.lock .
+COPY tsconfig.json .
+COPY .eslintrc.js .
 COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
@@ -85,6 +78,7 @@ COPY packages/frontend ./packages/frontend
 RUN yarn --cwd ./packages/frontend/ build
 
 # Cleanup development dependencies
+RUN rm -rf node_modules
 RUN rm -rf packages/*/node_modules
 
 # Install production dependencies
@@ -95,21 +89,19 @@ RUN yarn install --pure-lockfile --non-interactive --production
 # Stage 3: execution environment for backend
 # -----------------------------
 
-FROM node:14-bullseye as prod
+FROM node:16-bullseye as prod
 WORKDIR /usr/app
 
 ENV NODE_ENV production
 ENV PATH $PATH:/usr/local/venv/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    unixodbc-dev \
     python3 \
     python3-psycopg2 \
     python3-venv \
     && apt-get clean
 
 COPY --from=prod-builder /usr/local/venv /usr/local/venv
-COPY --from=prod-builder /opt/simba /opt/simba
 COPY --from=prod-builder /usr/app /usr/app
 
 # Production config

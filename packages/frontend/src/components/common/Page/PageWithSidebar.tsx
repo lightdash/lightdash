@@ -1,12 +1,15 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-const PageWithSidebar = styled('div')`
+interface PageWithSidebarProps {
+    alignItems?: 'flex-start';
+}
+
+const PageWithSidebar = styled.div<PageWithSidebarProps>`
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    justify-content: stretch;
-    align-items: flex-start;
+    ${({ alignItems }) => (alignItems ? `align-items: ${alignItems};` : '')}
     background: ${Colors.LIGHT_GRAY4};
 `;
 

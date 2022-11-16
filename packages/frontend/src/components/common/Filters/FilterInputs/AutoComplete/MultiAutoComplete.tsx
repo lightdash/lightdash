@@ -1,5 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
@@ -7,6 +7,7 @@ import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
 import {
+    comparator,
     itemPredicate,
     toggleValueFromArray,
     useAutoComplete,
@@ -16,22 +17,32 @@ type Props = {
     field: FilterableField;
     values: string[];
     suggestions: string[];
+    popoverProps?: Popover2Props;
+    disabled?: boolean;
     onChange: (values: string[]) => void;
 };
+
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
+const normalize = (item: string) => item.toLowerCase();
+const itemComparator = comparator(normalize);
 
 const MultiAutoComplete: FC<Props> = ({
     values,
     field,
     suggestions,
+    popoverProps,
+    disabled,
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
-    const { options, setSearch, isSearching } = useAutoComplete(
-        values,
-        suggestions,
-        getItemId(field),
-        projectUuid,
-    );
+    const {
+        options,
+        setSearch,
+        searchQuery,
+        isSearching,
+        isFetchingInitialData,
+    } = useAutoComplete(values, suggestions, getItemId(field), projectUuid);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -57,6 +68,7 @@ const MultiAutoComplete: FC<Props> = ({
         },
         [values],
     );
+
     const renderCreateOption = useCallback(
         (
             q: string,
@@ -72,42 +84,74 @@ const MultiAutoComplete: FC<Props> = ({
                     shouldDismissPopover={false}
                 />
             ) : (
-                <Spinner size={16} style={{ margin: 12 }} />
+                <StyledSpinner />
             ),
         [isSearching],
     );
-    const onItemSelect = useCallback(
+
+    const handleItemSelect = useCallback(
         (value: string) => {
-            onChange(toggleValueFromArray(values, value));
+            onChange(toggleValueFromArray(values, value, normalize));
         },
         [onChange, values],
     );
-    const onRemove = useCallback(
+
+    const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
             onChange(values.filter((v: string) => v !== selectedValue));
         },
         [onChange, values],
     );
+
+    const handleOnClose = useCallback(
+        (value?: string) => {
+            if (!value || value === '') return;
+
+            setSearch('');
+            if (!values.map(normalize).includes(normalize(value))) {
+                const existingOptionMatch = [...options].find((option) =>
+                    itemComparator(option, value),
+                );
+                handleItemSelect(existingOptionMatch || value);
+            }
+        },
+        [options, values, handleItemSelect, setSearch],
+    );
+
     return (
         <MultiSelect2
+            className={disabled ? 'disabled-filter' : ''}
+            disabled={disabled}
             fill
+            query={searchQuery}
             items={Array.from(options).sort()}
-            noResults={<MenuItem2 disabled text="No suggestions." />}
-            itemsEqual={(value, other) =>
-                value.toLowerCase() === other.toLowerCase()
+            noResults={
+                isFetchingInitialData ? (
+                    <StyledSpinner />
+                ) : (
+                    <MenuItem2 disabled text="No suggestions." />
+                )
             }
+            itemsEqual={itemComparator}
             selectedItems={values}
             itemRenderer={renderItem}
             tagRenderer={(name) => name}
-            onItemSelect={onItemSelect}
+            onItemSelect={handleItemSelect}
             tagInputProps={{
                 placeholder: undefined,
+                addOnBlur: false,
                 tagProps: {
                     minimal: true,
                 },
-                onRemove,
+                onRemove: handleRemove,
             }}
-            popoverProps={{ minimal: true, matchTargetWidth: true }}
+            popoverProps={{
+                minimal: true,
+                onClosing: () => {
+                    handleOnClose(searchQuery);
+                },
+                ...popoverProps,
+            }}
             resetOnSelect
             itemPredicate={itemPredicate}
             createNewItemRenderer={renderCreateOption}

@@ -75,7 +75,7 @@ const findModelInYaml = async ({
                 Required<Pick<YamlSchema, 'models'>>,
             modelIndex,
         };
-    } catch (e) {
+    } catch (e: any) {
         if (e.code === 'ENOENT') {
             return undefined;
         }
@@ -101,4 +101,24 @@ export const searchForModel = async ({
         }
     }
     return undefined;
+};
+
+export const getFileHeadComments = async (filePath: string) => {
+    let existingHeadComments: string | undefined;
+    try {
+        const raw = await fs.readFile(filePath, {
+            encoding: 'utf8',
+        });
+        const lines = raw.split('\n');
+        const nonCommentLineIndex = lines.findIndex(
+            (line) => line.length > 0 && line[0] !== '#',
+        );
+        if (nonCommentLineIndex >= 0) {
+            const commentLines = lines.slice(0, nonCommentLineIndex);
+            existingHeadComments = commentLines.join('\n');
+        }
+    } catch (e) {
+        // ignore
+    }
+    return existingHeadComments;
 };

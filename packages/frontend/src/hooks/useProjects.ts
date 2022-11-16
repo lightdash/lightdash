@@ -16,9 +16,7 @@ const getProjectsQuery = async () =>
     });
 
 export const useProjects = (
-    useQueryOptions: UseQueryOptions<OrganizationProject[], ApiError> = {
-        retry: false,
-    },
+    useQueryOptions?: UseQueryOptions<OrganizationProject[], ApiError>,
 ) => {
     return useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
@@ -42,17 +40,15 @@ export const deleteLastProject = () => {
 };
 
 export const useDefaultProject = () => {
-    const projectsQuery = useQuery<OrganizationProject[], ApiError>({
-        queryKey: ['projects', 'defaultProject'],
-        queryFn: getProjectsQuery,
-        retry: false,
-    });
-    const defaultProject = projectsQuery.data?.find(
+    const query = useProjects();
+
+    const defaultProject = query.data?.find(
         ({ type }) => type === ProjectType.DEFAULT,
     );
+
     return {
-        ...projectsQuery,
-        data: defaultProject || projectsQuery.data?.[0],
+        ...query,
+        data: defaultProject || query.data?.[0],
     };
 };
 

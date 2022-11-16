@@ -23,22 +23,28 @@ import {
     searchService,
     spaceService,
 } from '../services/services';
+import { integrationsRouter } from './integrations/intergrationsRouter';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get('/', isAuthenticated, async (req, res, next) => {
-    try {
-        res.json({
-            status: 'ok',
-            results: await projectService.getProject(
-                req.params.projectUuid,
-                req.user!,
-            ),
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.get(
+    '/',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await projectService.getProject(
+                    req.params.projectUuid,
+                    req.user!,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
 projectRouter.patch(
     '/',
@@ -165,6 +171,7 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const { body } = req;
+            const { csvLimit } = body;
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -179,6 +186,7 @@ projectRouter.post(
                 metricQuery,
                 req.params.projectUuid,
                 req.params.exploreId,
+                csvLimit,
             );
             res.json({
                 status: 'ok',
@@ -223,6 +231,7 @@ projectRouter.get(
 
 projectRouter.post(
     '/refresh',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -230,6 +239,7 @@ projectRouter.post(
             const results = await projectService.compileProject(
                 req.user!,
                 req.params.projectUuid,
+                getRequestMethod(req.header(LightdashRequestMethodHeader)),
             );
             res.json({
                 status: 'ok',
@@ -370,6 +380,42 @@ projectRouter.patch(
                 res.json({
                     status: 'ok',
                     results,
+                });
+            })
+            .catch(next);
+    },
+);
+
+projectRouter.post(
+    '/spaces/:spaceUUid/share',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        spaceService
+            .addSpaceShare(req.user!, req.params.spaceUUid, req.body.userUuid)
+            .then(() => {
+                res.json({
+                    status: 'ok',
+                });
+            })
+            .catch(next);
+    },
+);
+
+projectRouter.delete(
+    '/spaces/:spaceUUid/share/:userUuid',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        spaceService
+            .removeSpaceShare(
+                req.user!,
+                req.params.spaceUUid,
+                req.params.userUuid,
+            )
+            .then(() => {
+                res.json({
+                    status: 'ok',
                 });
             })
             .catch(next);
@@ -610,3 +656,5 @@ projectRouter.delete(
         }
     },
 );
+
+projectRouter.use('/integrations', integrationsRouter);

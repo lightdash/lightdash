@@ -23,6 +23,7 @@ type Props = {
     conditionLabel: string;
     fields: FilterableField[];
     filterGroup: FilterGroup;
+    isEditMode: boolean;
     onChange: (value: FilterGroup) => void;
     onDelete: () => void;
 };
@@ -32,6 +33,7 @@ const FilterGroupForm: FC<Props> = ({
     conditionLabel,
     fields,
     filterGroup,
+    isEditMode,
     onChange,
     onDelete,
 }) => {
@@ -94,7 +96,9 @@ const FilterGroupForm: FC<Props> = ({
         <FilterGroupWrapper>
             <FilterGroupHeader>
                 <HTMLSelect
+                    className={!isEditMode ? 'disabled-filter' : ''}
                     fill={false}
+                    disabled={!isEditMode}
                     iconProps={{ icon: 'caret-down' }}
                     options={[
                         {
@@ -128,11 +132,13 @@ const FilterGroupForm: FC<Props> = ({
                             <FilterRuleForm
                                 filterRule={item}
                                 fields={fields}
+                                isEditMode={isEditMode}
                                 onChange={(value) => onChangeItem(index, value)}
                                 onDelete={() => onDeleteItem(index)}
                             />
                         ) : (
                             <FilterGroupForm
+                                isEditMode={isEditMode}
                                 filterGroup={item}
                                 conditionLabel={conditionLabel}
                                 fields={fields}

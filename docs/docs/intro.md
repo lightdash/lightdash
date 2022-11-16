@@ -38,7 +38,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 - [Adding Tables to Lightdash](/guides/adding-tables-to-lightdash.mdx)
 - [Adding dimensions to Lightdash](/guides/how-to-create-dimensions.mdx)
 - [Adding metrics to Lightdash](/guides/how-to-create-metrics.mdx)
-- [Syncing your dbt changes to Lightdash](/references/syncing_your_dbt_changes.md)
+- [Syncing your dbt changes to Lightdash](/references/syncing_your_dbt_changes.mdx)
 - [How to join tables](/guides/how-to-join-tables.md)
 - [Formatting your fields](/guides/formatting-your-fields.mdx)
 

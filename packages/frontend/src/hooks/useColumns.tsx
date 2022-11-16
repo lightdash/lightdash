@@ -121,7 +121,7 @@ export const useColumns = (): TableColumn[] => {
                                 <>
                                     {hasJoins && (
                                         <TableHeaderRegularLabel>
-                                            {item.tableLabel} -{' '}
+                                            {item.tableLabel}{' '}
                                         </TableHeaderRegularLabel>
                                     )}
 
@@ -145,6 +145,7 @@ export const useColumns = (): TableColumn[] => {
                     meta: {
                         item,
                         draggable: true,
+                        frozen: false,
                         bgColor: getItemBgColor(item),
                         sort: isFieldSorted
                             ? {

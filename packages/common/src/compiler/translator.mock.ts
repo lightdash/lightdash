@@ -36,7 +36,7 @@ export const INVALID_ID_COLUMN_NAMES = [
 
 export const DBT_METRIC: DbtMetric = {
     fqn: [],
-    sql: '',
+    expression: '',
     unique_id: 'dbt_metric_1',
     package_name: '',
     path: '',
@@ -46,8 +46,8 @@ export const DBT_METRIC: DbtMetric = {
     name: 'dbt_metric_1',
     description: 'Description',
     label: 'Label',
-    type: MetricType.SUM,
-    timestamp: null,
+    calculation_method: MetricType.SUM,
+    timestamp: '',
     filters: [],
     time_grains: [],
     dimensions: [],
@@ -74,14 +74,14 @@ export const DBT_METRIC_WITH_FILTER: DbtMetric = {
 export const DBT_METRIC_WITH_SQL_FIELD: DbtMetric = {
     ...DBT_METRIC,
     name: 'dbt_metric_2',
-    sql: 'dim1',
+    expression: 'dim1',
 };
 
 export const DBT_METRIC_WITH_CUSTOM_SQL: DbtMetric = {
     ...DBT_METRIC,
     name: 'dbt_metric_3',
-    type: MetricType.NUMBER,
-    sql: 'dim1 + dim2',
+    calculation_method: MetricType.NUMBER,
+    expression: 'dim1 + dim2',
 };
 
 const ID_COLUMN_WITHOUT_METRICS: DbtModelColumn = {
@@ -167,11 +167,18 @@ const COLUMN_WITH_CUSTOM_TIME_INTERVALS: Record<string, DbtModelColumn> = {
     },
 };
 
-export const model: DbtModelNode = {
+export const model: DbtModelNode & { relation_name: string } = {
+    alias: '',
+    checksum: { name: '', checksum: '' },
+    fqn: [],
+    language: '',
+    package_name: '',
+    path: '',
+    raw_code: '',
     compiled: true,
     unique_id: 'unique_id',
     description: 'my fun table',
-    resource_type: 'resource_type',
+    resource_type: 'model',
     columns: {
         myColumnName: column,
     },
@@ -187,7 +194,7 @@ export const model: DbtModelNode = {
     original_file_path: '',
 };
 
-export const MODEL_WITH_NO_METRICS: DbtModelNode = {
+export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {
         [ID_COLUMN_WITHOUT_METRICS.name]: ID_COLUMN_WITHOUT_METRICS,
@@ -218,6 +225,7 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 hidden: false,
                 format: undefined,
                 round: undefined,
+                compact: undefined,
                 groupLabel: undefined,
             },
         },
@@ -240,6 +248,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             type: MetricType.SUM,
             format: undefined,
             round: undefined,
+            compact: undefined,
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
@@ -258,6 +267,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             type: MetricType.SUM,
             format: undefined,
             round: undefined,
+            compact: undefined,
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
@@ -276,6 +286,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             type: MetricType.NUMBER,
             format: undefined,
             round: undefined,
+            compact: undefined,
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
@@ -294,6 +305,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             type: MetricType.SUM,
             format: undefined,
             round: undefined,
+            compact: undefined,
             showUnderlyingValues: undefined,
             source: undefined,
             groupLabel: undefined,
@@ -302,26 +314,27 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
     },
 };
 
-export const MODEL_WITH_METRIC: DbtModelNode = {
+export const MODEL_WITH_METRIC: DbtModelNode & { relation_name: string } = {
     ...model,
     description: 'my test table',
     columns: COLUMN_WITH_METRICS,
 };
 
-export const MODEL_WITH_WRONG_METRIC: DbtModelNode = {
-    ...model,
-    columns: {
-        user_id: {
-            name: 'user_id',
-            data_type: DimensionType.STRING,
-            meta: {
-                metrics: {
-                    user_id: { type: MetricType.COUNT_DISTINCT },
+export const MODEL_WITH_WRONG_METRIC: DbtModelNode & { relation_name: string } =
+    {
+        ...model,
+        columns: {
+            user_id: {
+                name: 'user_id',
+                data_type: DimensionType.STRING,
+                meta: {
+                    metrics: {
+                        user_id: { type: MetricType.COUNT_DISTINCT },
+                    },
                 },
             },
         },
-    },
-};
+    };
 
 export const MODEL_WITH_WRONG_METRICS: DbtModelNode = {
     ...model,
@@ -375,6 +388,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         num_participating_athletes: {
@@ -392,6 +406,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
     },
@@ -410,6 +425,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             showUnderlyingValues: undefined,
             groupLabel: undefined,
             filters: [],
@@ -428,6 +444,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             showUnderlyingValues: undefined,
             groupLabel: undefined,
             filters: [],
@@ -435,7 +452,9 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
     },
 };
 
-export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: DbtModelNode = {
+export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
     ...model,
     columns: COLUMN_WITH_DEFAULT_TIME_INTERVALS,
 };
@@ -471,6 +490,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_RAW: {
@@ -488,6 +508,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_DAY: {
@@ -505,6 +526,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_WEEK: {
@@ -522,6 +544,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_MONTH: {
@@ -539,6 +562,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_QUARTER: {
@@ -551,6 +575,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             label: 'User created quarter',
             name: 'user_created_quarter',
             round: undefined,
+            compact: undefined,
             source: undefined,
             sql: 'DATETIME_TRUNC(${TABLE}.user_created, QUARTER)',
             table: 'myTable',
@@ -573,6 +598,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
     },
@@ -605,6 +631,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_RAW: {
@@ -624,6 +651,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_DAY: {
@@ -643,6 +671,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_WEEK: {
@@ -663,6 +692,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_MONTH: {
@@ -683,6 +713,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_QUARTER: {
@@ -695,6 +726,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             label: 'User created quarter',
             name: 'user_created_quarter',
             round: undefined,
+            compact: undefined,
             source: undefined,
             sql: "DATE_TRUNC('QUARTER', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
             table: 'myTable',
@@ -719,13 +751,16 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
     },
     metrics: {},
 };
 
-export const MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS: DbtModelNode = {
+export const MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
     ...model,
     columns: COLUMN_WITH_OFF_TIME_INTERVALS,
 };
@@ -756,13 +791,16 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
     },
     metrics: {},
 };
 
-export const MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: DbtModelNode = {
+export const MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
     ...model,
     columns: COLUMN_WITH_CUSTOM_TIME_INTERVALS,
 };
@@ -793,6 +831,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
         user_created_YEAR: {
@@ -810,6 +849,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             hidden: false,
             format: undefined,
             round: undefined,
+            compact: undefined,
             groupLabel: undefined,
         },
     },

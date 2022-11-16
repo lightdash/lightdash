@@ -747,7 +747,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/7778402?v=4",
       "profile": "https://github.com/olly-writes-code",
       "contributions": [
-        "ideas"
+        "ideas",
+        "bug"
       ]
     },
     {
@@ -757,6 +758,69 @@
       "profile": "https://github.com/gautamdoulani",
       "contributions": [
         "doc"
+      ]
+    },
+    {
+      "login": "davidpeitinho",
+      "name": "David Peitinho",
+      "avatar_url": "https://avatars.githubusercontent.com/u/116002164?v=4",
+      "profile": "https://github.com/davidpeitinho",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "IstvanM",
+      "name": "Istvan Meszaros",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4189234?v=4",
+      "profile": "http://www.whispy.me",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "rifkiamil",
+      "name": "Rif",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1672403?v=4",
+      "profile": "https://rifkiamil.medium.com/",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "phillipwilhelm",
+      "name": "Phillip W.",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5200312?v=4",
+      "profile": "https://github.com/phillipwilhelm",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "XiaozhouWang85",
+      "name": "XiaozhouWang85",
+      "avatar_url": "https://avatars.githubusercontent.com/u/42941066?v=4",
+      "profile": "https://github.com/XiaozhouWang85",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "rsanjabi",
+      "name": "Rebecca Sanjabi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47192430?v=4",
+      "profile": "http://rebeccasanjabi.com",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "kailin-lu",
+      "name": "Kailin L",
+      "avatar_url": "https://avatars.githubusercontent.com/u/31902827?v=4",
+      "profile": "https://github.com/kailin-lu",
+      "contributions": [
+        "ideas"
       ]
     }
   ],

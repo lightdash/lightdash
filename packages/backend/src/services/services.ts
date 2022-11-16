@@ -15,6 +15,7 @@ import {
     savedChartModel,
     searchModel,
     sessionModel,
+    shareModel,
     spaceModel,
     userModel,
 } from '../models/models';
@@ -25,6 +26,7 @@ import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SearchService } from './SearchService/SearchService';
+import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { UserService } from './UserService';
 
@@ -57,6 +59,11 @@ export const projectService = new ProjectService({
     jobModel,
     emailClient,
     spaceModel,
+});
+
+export const shareService = new ShareService({
+    lightdashConfig,
+    shareModel,
 });
 
 export const healthService = new HealthService({

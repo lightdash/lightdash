@@ -1,28 +1,11 @@
-import {
-    Alignment,
-    Button,
-    Classes,
-    Menu,
-    NavbarGroup,
-    PopoverInteractionKind,
-    Position,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Alignment, Classes, NavbarGroup } from '@blueprintjs/core';
 import { ProjectType } from '@lightdash/common';
 import { memo } from 'react';
-import { useMutation } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
-import { lightdashApi } from '../../api';
+import { useHistory } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
-import {
-    getLastProject,
-    setLastProject,
-    useDefaultProject,
-    useProjects,
-} from '../../hooks/useProjects';
-import { useApp } from '../../providers/AppProvider';
+import { useActiveProjectUuid } from '../../hooks/useProject';
+import { setLastProject, useProjects } from '../../hooks/useProjects';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
-import { UserAvatar } from '../Avatar';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
 import NavLink from '../NavLink';
 import { ShowErrorsButton } from '../ShowErrorsButton';
@@ -36,35 +19,19 @@ import {
     NavBarWrapper,
     ProjectDropdown,
 } from './NavBar.styles';
-
-const logoutQuery = async () =>
-    lightdashApi({
-        url: `/logout`,
-        method: 'GET',
-        body: undefined,
-    });
+import SettingsMenu from './SettingsMenu';
+import UserMenu from './UserMenu';
 
 const NavBar = memo(() => {
-    const { user } = useApp();
     const { errorLogs, setErrorLogsVisible } = useErrorLogs();
     const { showToastSuccess } = useToaster();
-    const defaultProject = useDefaultProject();
-    const { isLoading, data } = useProjects();
-    const params = useParams<{ projectUuid: string | undefined }>();
-    const lastProject = getLastProject();
-    const selectedProjectUuid =
-        params.projectUuid || lastProject || defaultProject.data?.projectUuid;
+    const { isLoading, data: projects } = useProjects();
+    const activeProjectUuid = useActiveProjectUuid();
 
     const history = useHistory();
-    const { mutate } = useMutation(logoutQuery, {
-        mutationKey: ['logout'],
-        onSuccess: () => {
-            window.location.href = '/login';
-        },
-    });
 
-    const homeUrl = selectedProjectUuid
-        ? `/projects/${selectedProjectUuid}/home`
+    const homeUrl = activeProjectUuid
+        ? `/projects/${activeProjectUuid}/home`
         : '/';
 
     return (
@@ -77,11 +44,11 @@ const NavBar = memo(() => {
                     >
                         <LogoContainer title="Home" />
                     </NavLink>
-                    {!!selectedProjectUuid && (
+                    {!!activeProjectUuid && (
                         <>
-                            <ExploreMenu projectUuid={selectedProjectUuid} />
-                            <BrowseMenu projectUuid={selectedProjectUuid} />
-                            <GlobalSearch projectUuid={selectedProjectUuid} />
+                            <ExploreMenu projectUuid={activeProjectUuid} />
+                            <BrowseMenu projectUuid={activeProjectUuid} />
+                            <GlobalSearch projectUuid={activeProjectUuid} />
                         </>
                     )}
                 </NavbarGroup>
@@ -90,20 +57,13 @@ const NavBar = memo(() => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
-                    <Button
-                        minimal
-                        icon="cog"
-                        data-cy="settings-button"
-                        onClick={() => {
-                            history.push(`/generalSettings`);
-                        }}
-                    />
+                    <SettingsMenu />
                     <HelpMenu />
                     <Divider />
-                    {selectedProjectUuid && (
+                    {activeProjectUuid && (
                         <ProjectDropdown
-                            disabled={isLoading || (data || []).length <= 0}
-                            options={data?.map((item) => ({
+                            disabled={isLoading || (projects || []).length <= 0}
+                            options={projects?.map((item) => ({
                                 value: item.projectUuid,
                                 label: `${
                                     item.type === ProjectType.PREVIEW
@@ -112,13 +72,13 @@ const NavBar = memo(() => {
                                 }${item.name}`,
                             }))}
                             fill
-                            value={selectedProjectUuid}
+                            value={activeProjectUuid}
                             onChange={(e) => {
                                 setLastProject(e.target.value);
                                 showToastSuccess({
                                     icon: 'tick',
                                     title: `You are now viewing ${
-                                        data?.find(
+                                        projects?.find(
                                             ({ projectUuid }) =>
                                                 projectUuid === e.target.value,
                                         )?.name
@@ -130,33 +90,10 @@ const NavBar = memo(() => {
                             }}
                         />
                     )}
-                    <Popover2
-                        interactionKind={PopoverInteractionKind.CLICK}
-                        content={
-                            <Menu>
-                                {user.data?.ability?.can(
-                                    'create',
-                                    'InviteLink',
-                                ) ? (
-                                    <MenuItem2
-                                        href={`/generalSettings/userManagement?to=invite`}
-                                        icon="new-person"
-                                        text="Invite user"
-                                    />
-                                ) : null}
-                                <MenuItem2
-                                    icon="log-out"
-                                    text="Logout"
-                                    onClick={() => mutate()}
-                                />
-                            </Menu>
-                        }
-                        position={Position.BOTTOM_LEFT}
-                    >
-                        <UserAvatar />
-                    </Popover2>
+                    <UserMenu />
                 </NavbarGroup>
             </NavBarWrapper>
+
             <ErrorLogsDrawer />
         </>
     );

@@ -1,10 +1,18 @@
-import { Button, HTMLSelect, InputGroup } from '@blueprintjs/core';
+import { Button, FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { getItemId, NumberStyle } from '@lightdash/common';
+import { CompactConfigMap, CompactOrAlias, getItemId } from '@lightdash/common';
 import React, { useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { InputWrapper } from './BigNumberConfig.styles';
+
+const StyleOptions = [
+    { value: '', label: 'none' },
+    ...Object.values(CompactConfigMap).map(({ compact, label }) => ({
+        value: compact,
+        label,
+    })),
+];
 
 export const BigNumberConfigPanel: React.FC = () => {
     const {
@@ -24,19 +32,14 @@ export const BigNumberConfigPanel: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const disabled = !selectedField;
 
-    const styleOptions = [
-        { value: '', label: 'none' },
-        { value: NumberStyle.THOUSANDS, label: 'thousands (K)' },
-        { value: NumberStyle.MILLIONS, label: 'millions (M)' },
-        { value: NumberStyle.BILLIONS, label: 'billions (B)' },
-    ];
     return (
         <Popover2
             disabled={disabled}
             content={
-                <>
-                    <InputWrapper label="Select field">
+                <InputWrapper>
+                    <FormGroup labelFor="bignumber-field" label="Select field">
                         <FieldAutoComplete
+                            id="bignumber-field"
                             fields={availableFields}
                             activeField={
                                 selectedField
@@ -47,36 +50,39 @@ export const BigNumberConfigPanel: React.FC = () => {
                                 setSelectedField(getItemId(item));
                             }}
                         />
-                    </InputWrapper>
-                    <InputWrapper label="Label">
+                    </FormGroup>
+
+                    <FormGroup labelFor="bignumber-label" label="Label">
                         <InputGroup
+                            id="bignumber-label"
                             placeholder={defaultLabel}
                             defaultValue={bigNumberLabel}
                             onBlur={(e) =>
                                 setBigNumberLabel(e.currentTarget.value)
                             }
                         />
-                    </InputWrapper>
+                    </FormGroup>
+
                     {showStyle && (
-                        <>
-                            <InputWrapper label="Style">
-                                <HTMLSelect
-                                    fill
-                                    options={styleOptions}
-                                    value={bigNumberStyle}
-                                    onChange={(e) => {
-                                        if (e.target.value === '')
-                                            setBigNumberStyle(undefined);
-                                        else
-                                            setBigNumberStyle(
-                                                e.target.value as NumberStyle,
-                                            );
-                                    }}
-                                />
-                            </InputWrapper>
-                        </>
+                        <FormGroup labelFor="bignumber-style" label="Style">
+                            <HTMLSelect
+                                id="bignumber-style"
+                                fill
+                                options={StyleOptions}
+                                value={bigNumberStyle}
+                                onChange={(e) => {
+                                    if (e.target.value === '') {
+                                        setBigNumberStyle(undefined);
+                                    } else {
+                                        setBigNumberStyle(
+                                            e.target.value as CompactOrAlias,
+                                        );
+                                    }
+                                }}
+                            />
+                        </FormGroup>
                     )}
-                </>
+                </InputWrapper>
             }
             interactionKind="click"
             isOpen={isOpen}

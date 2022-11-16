@@ -9,22 +9,27 @@ import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
 export const getQueryResults = async ({
     projectUuid,
     tableId,
     query,
+    csvLimit,
 }: {
     projectUuid: string;
     tableId: string;
     query: MetricQuery;
-}) =>
-    lightdashApi<ApiQueryResults>({
+    csvLimit?: number | null; //giving null returns all results (no limit)
+}) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
-        body: JSON.stringify(query),
+        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
     });
+};
 
 export const useQueryResults = (
     isValidQuery: boolean,
@@ -47,11 +52,11 @@ export const useQueryResults = (
             [setErrorResponse],
         ),
     });
-    const { mutate } = mutation;
+    const { mutateAsync } = mutation;
 
-    const mutateOverride = useCallback(() => {
+    const mutateAsyncOverride = useCallback(() => {
         if (!!unsavedChartVersion.tableName && isValidQuery) {
-            mutate({
+            return mutateAsync({
                 projectUuid,
                 tableId: unsavedChartVersion.tableName,
                 query: unsavedChartVersion.metricQuery,
@@ -62,12 +67,13 @@ export const useQueryResults = (
                 unsavedChartVersion.tableName,
                 isValidQuery,
             );
+            return Promise.reject();
         }
-    }, [mutate, projectUuid, isValidQuery, unsavedChartVersion]);
+    }, [mutateAsync, projectUuid, isValidQuery, unsavedChartVersion]);
 
     return useMemo(
-        () => ({ ...mutation, mutate: mutateOverride }),
-        [mutateOverride, mutation],
+        () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
+        [mutation, mutateAsyncOverride],
     );
 };
 

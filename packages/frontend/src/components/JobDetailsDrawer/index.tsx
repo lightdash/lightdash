@@ -112,7 +112,7 @@ const JobDetailsDrawer: FC = () => {
             isOpen={isJobsDrawerOpen}
             onClose={() => setIsJobsDrawerOpen(false)}
             shouldReturnFocusOnClose
-            size={'400px'}
+            size={'600px'}
             title={
                 <RefreshStepsHeadingWrapper className={Classes.DIALOG_HEADER}>
                     <DrawerIcon job={activeJob} />
@@ -135,7 +135,7 @@ const JobDetailsDrawer: FC = () => {
         >
             <StepsWrapper>
                 {activeJob.steps?.map((step) => (
-                    <Step status={step.stepStatus}>
+                    <Step key={step.jobUuid} status={step.stepStatus}>
                         <StepIcon step={step} />
                         <StepInfo>
                             <StepName>{step.stepLabel}</StepName>
@@ -148,6 +148,20 @@ const JobDetailsDrawer: FC = () => {
                             {step.stepError && (
                                 <ErrorMessageWrapper>
                                     <p>{step.stepError}</p>
+                                    {step.stepDbtLogs
+                                        ?.filter((log) => log.level === 'error')
+                                        .map((log) => (
+                                            <p key={log.ts}>
+                                                {log.msg
+                                                    .split('\n')
+                                                    .map((line) => (
+                                                        <>
+                                                            {line}
+                                                            <br />
+                                                        </>
+                                                    ))}
+                                            </p>
+                                        ))}
                                 </ErrorMessageWrapper>
                             )}
                         </StepInfo>

@@ -39,6 +39,28 @@ type TableCalculationFormInputs = {
     sql: string;
 };
 
+const getUniqueTableCalculationName = (
+    name: string,
+    tableCalculations: TableCalculation[],
+): string => {
+    const snakeName = snakeCaseName(name);
+    const suffixes = Array.from(Array(100).keys());
+    const getCalcName = (suffix: number) =>
+        suffix === 0 ? snakeName : `${snakeName}_${suffix}`;
+
+    const validSuffix = suffixes.find(
+        (suffix) =>
+            tableCalculations.findIndex(
+                ({ name: tableCalcName }) =>
+                    tableCalcName === getCalcName(suffix),
+            ) === -1,
+    );
+    if (validSuffix === undefined) {
+        throw new Error(`Table calculation ID "${name}" already exists.`);
+    }
+    return getCalcName(validSuffix);
+};
+
 const TableCalculationModal: FC<Props> = ({
     isOpen,
     isDisabled,
@@ -99,7 +121,10 @@ const TableCalculationModal: FC<Props> = ({
                     const { name, sql } = data;
                     try {
                         onSave({
-                            name: snakeCaseName(name),
+                            name: getUniqueTableCalculationName(
+                                name,
+                                tableCalculations,
+                            ),
                             displayName: name,
                             sql,
                         });
@@ -119,9 +144,6 @@ const TableCalculationModal: FC<Props> = ({
                         rules={{
                             required: true,
                             validate: {
-                                special_character: (columnName) =>
-                                    !hasSpecialCharacters(columnName) ||
-                                    'Please remove any special characters from the column name',
                                 unique_column_name: (columnName) =>
                                     !dimensions
                                         .concat(metrics)

@@ -16,6 +16,7 @@ import FieldAutoComplete from './FieldAutoComplete';
 type Props = {
     fields: FilterableField[];
     filterRule: FilterRule;
+    isEditMode: boolean;
     onChange: (value: FilterRule) => void;
     onDelete: () => void;
 };
@@ -23,6 +24,7 @@ type Props = {
 const FilterRuleForm: FC<Props> = ({
     fields,
     filterRule,
+    isEditMode,
     onChange,
     onDelete,
 }) => {
@@ -78,9 +80,12 @@ const FilterRuleForm: FC<Props> = ({
                                 onFieldChange(getFieldId(field));
                             }
                         }}
+                        disabled={!isEditMode}
                     />
                     <HTMLSelect
+                        className={!isEditMode ? 'disabled-filter' : ''}
                         fill={false}
+                        disabled={!isEditMode}
                         style={{ width: 150 }}
                         onChange={(e) => {
                             onChange(
@@ -91,9 +96,9 @@ const FilterRuleForm: FC<Props> = ({
                                         operator: e.currentTarget
                                             .value as FilterRule['operator'],
                                     },
-                                    filterRule.values
-                                        ? filterRule.values[0]
-                                        : 1,
+                                    (filterRule.values?.length || 0) > 0
+                                        ? filterRule.values
+                                        : [1],
                                 ),
                             );
                         }}
@@ -105,6 +110,7 @@ const FilterRuleForm: FC<Props> = ({
                         field={activeField}
                         filterRule={filterRule}
                         onChange={onChange}
+                        disabled={!isEditMode}
                     />
                 </>
             ) : (
@@ -113,7 +119,7 @@ const FilterRuleForm: FC<Props> = ({
                     {filterRule.target.fieldId}
                 </span>
             )}
-            <Button minimal icon="cross" onClick={onDelete} />
+            {isEditMode && <Button minimal icon="cross" onClick={onDelete} />}
         </div>
     );
 };

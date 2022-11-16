@@ -13,9 +13,9 @@ export const Wrapper = styled.div`
     width: 400px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     flex: 1;
-    margin: 50px auto 0;
+    margin: 80px auto 0;
+    position: relative;
 `;
 
 export const ConnectWarehouseWrapper = styled(Card)`
@@ -82,8 +82,11 @@ export const WarehouseButton = styled(Button)`
 `;
 
 export const WarehouseIcon = styled.img`
-    margin-right: 8px;
     width: 25px;
+`;
+
+export const OtherIcon = styled(Icon)`
+    padding: 0 5px;
 `;
 
 export const RadioButton = styled(Radio)`

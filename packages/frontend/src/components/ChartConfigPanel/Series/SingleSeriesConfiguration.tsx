@@ -1,11 +1,13 @@
-import { Button, InputGroup, Switch } from '@blueprintjs/core';
+import { Button, Checkbox, FormGroup, InputGroup } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
     Series,
 } from '@lightdash/common';
 import React, { FC } from 'react';
+import { DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import {
+    DragIcon,
     SeriesExtraInputs,
     SeriesExtraInputWrapper,
     SeriesExtraSelect,
@@ -26,6 +28,7 @@ type Props = {
     updateSingleSeries: (updatedSeries: Series) => void;
     isOpen?: boolean;
     toggleIsOpen?: () => void;
+    dragHandleProps?: DraggableProvidedDragHandleProps;
 };
 
 const SingleSeriesConfiguration: FC<Props> = ({
@@ -39,6 +42,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     isSingle,
     isOpen,
     toggleIsOpen,
+    dragHandleProps,
 }) => {
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
@@ -47,6 +51,13 @@ const SingleSeriesConfiguration: FC<Props> = ({
     return (
         <SeriesWrapper $isSingle={isSingle}>
             <SeriesMainInputs $isGrouped={isGrouped}>
+                {isGrouped && (
+                    <DragIcon
+                        tagName="div"
+                        icon="drag-handle-vertical"
+                        {...dragHandleProps}
+                    />
+                )}
                 <SeriesColorPicker
                     color={series.color || fallbackColor}
                     onChange={(color) => {
@@ -167,6 +178,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 { value: 'bottom', label: 'Bottom' },
                                 { value: 'left', label: 'Left' },
                                 { value: 'right', label: 'Right' },
+                                { value: 'inside', label: 'Inside' },
                             ]}
                             onChange={(e) => {
                                 const option = e.target.value;
@@ -186,11 +198,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 </SeriesExtraInputs>
                 {(type === CartesianSeriesType.LINE ||
                     type === CartesianSeriesType.AREA) && (
-                    <SeriesExtraInputs>
-                        <Switch
-                            alignIndicator={'right'}
+                    <FormGroup>
+                        <Checkbox
                             checked={series.showSymbol ?? true}
-                            label={'Show symbol'}
+                            label="Show symbol"
                             onChange={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -198,10 +209,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
-                        <Switch
-                            alignIndicator={'right'}
+                        <Checkbox
                             checked={series.smooth}
-                            label={'Smooth'}
+                            label="Smooth"
                             onChange={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -209,7 +219,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 });
                             }}
                         />
-                    </SeriesExtraInputs>
+                    </FormGroup>
                 )}
             </SeriesOptionsWrapper>
         </SeriesWrapper>

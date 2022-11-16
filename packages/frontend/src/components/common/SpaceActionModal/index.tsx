@@ -85,7 +85,10 @@ const SpaceModal: FC<ActionModalProps> = ({
                     case ActionType.DELETE:
                         return <DeleteSpaceModalContent data={data} />;
                     default:
-                        return assertUnreachable(actionType);
+                        return assertUnreachable(
+                            actionType,
+                            'Unexpected action in space',
+                        );
                 }
             }}
             renderFooter={() => (
@@ -137,7 +140,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
             const result = await deleteMutation(spaceUuid!);
             onSubmitForm?.(result);
         } else {
-            return assertUnreachable(actionType);
+            return assertUnreachable(actionType, 'Unexpected action in space');
         }
 
         props.onClose?.();

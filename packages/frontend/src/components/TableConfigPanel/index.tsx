@@ -1,7 +1,12 @@
-import { Button, Switch } from '@blueprintjs/core';
+import { Button, Checkbox, FormGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { fieldId, getDimensions, getItemId } from '@lightdash/common';
-import React, { useState } from 'react';
+import {
+    fieldId,
+    getDimensions,
+    getItemId,
+    replaceStringInArray,
+} from '@lightdash/common';
+import React, { useMemo, useState } from 'react';
 import {
     AxisFieldDropdown,
     DeleteFieldButton,
@@ -9,7 +14,13 @@ import {
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
-import { ConfigWrapper, SectionTitle } from './TableConfig.styles';
+import {
+    AddPivotButton,
+    ConfigWrapper,
+    SectionTitle,
+} from './TableConfig.styles';
+
+export const MAX_PIVOTS = 3;
 
 export const TableConfigPanel: React.FC = () => {
     const {
@@ -19,24 +30,41 @@ export const TableConfigPanel: React.FC = () => {
         tableConfig: {
             showColumnCalculation,
             showTableNames,
+            hideRowNumbers,
             setShowTableName,
             setShowColumnCalculation,
+            setHideRowNumbers,
         },
         setPivotDimensions,
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
-    const pivotDimension = pivotDimensions?.[0];
     const disabled = !resultsData;
+    const {
+        metricQuery: { dimensions },
+    } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
-    const availableDimensions = explore
-        ? getDimensions(explore).filter((field) =>
-              resultsData?.metricQuery.dimensions.includes(fieldId(field)),
-          )
-        : [];
+    const availableDimensions = useMemo(
+        () =>
+            explore
+                ? getDimensions(explore).filter((field) =>
+                      dimensions.includes(fieldId(field)),
+                  )
+                : [],
+        [explore, dimensions],
+    );
+    const availableGroupByDimensions = useMemo(
+        () =>
+            availableDimensions.filter(
+                (item) => !pivotDimensions?.includes(getItemId(item)),
+            ),
+        [availableDimensions, pivotDimensions],
+    );
 
-    // Group series logic
-    const groupSelectedField = availableDimensions.find(
-        (item) => getItemId(item) === pivotDimension,
+    const canAddPivot = useMemo(
+        () =>
+            availableGroupByDimensions.length > 0 &&
+            (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
+        [availableGroupByDimensions.length, pivotDimensions],
     );
 
     return (
@@ -45,45 +73,98 @@ export const TableConfigPanel: React.FC = () => {
             content={
                 <ConfigWrapper>
                     <SectionTitle>Group</SectionTitle>
-                    <AxisFieldDropdown>
-                        <FieldAutoComplete
-                            fields={availableDimensions}
-                            placeholder="Select a field to group by"
-                            activeField={groupSelectedField}
-                            onChange={(item) => {
-                                setPivotDimensions([getItemId(item)]);
+                    {pivotDimensions &&
+                        pivotDimensions.map((pivotKey) => {
+                            // Group series logic
+                            const groupSelectedField = availableDimensions.find(
+                                (item) => getItemId(item) === pivotKey,
+                            );
+
+                            return (
+                                <AxisFieldDropdown key={pivotKey}>
+                                    <FieldAutoComplete
+                                        fields={
+                                            groupSelectedField
+                                                ? [
+                                                      groupSelectedField,
+                                                      ...availableGroupByDimensions,
+                                                  ]
+                                                : availableGroupByDimensions
+                                        }
+                                        placeholder="Select a field to group by"
+                                        activeField={groupSelectedField}
+                                        onChange={(item) => {
+                                            setPivotDimensions(
+                                                pivotDimensions
+                                                    ? replaceStringInArray(
+                                                          pivotDimensions,
+                                                          pivotKey,
+                                                          getItemId(item),
+                                                      )
+                                                    : [getItemId(item)],
+                                            );
+                                        }}
+                                    />
+                                    {groupSelectedField && (
+                                        <DeleteFieldButton
+                                            minimal
+                                            icon="cross"
+                                            onClick={() => {
+                                                setPivotDimensions(
+                                                    pivotDimensions.filter(
+                                                        (key) =>
+                                                            key !== pivotKey,
+                                                    ),
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </AxisFieldDropdown>
+                            );
+                        })}
+                    {canAddPivot && (
+                        <AddPivotButton
+                            minimal
+                            intent="primary"
+                            onClick={() =>
+                                setPivotDimensions([
+                                    ...(pivotDimensions || []),
+                                    getItemId(availableGroupByDimensions[0]),
+                                ])
+                            }
+                        >
+                            + Add
+                        </AddPivotButton>
+                    )}
+
+                    <FormGroup>
+                        <Checkbox
+                            label="Show column total"
+                            checked={showColumnCalculation}
+                            onChange={(e) => {
+                                setShowColumnCalculation(
+                                    !showColumnCalculation,
+                                );
                             }}
                         />
-                        {groupSelectedField && (
-                            <DeleteFieldButton
-                                minimal
-                                icon="cross"
-                                onClick={() => {
-                                    setPivotDimensions([]);
-                                }}
-                            />
-                        )}
-                    </AxisFieldDropdown>
-                    <SectionTitle>Show column total</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={showColumnCalculation}
-                        onChange={(e) => {
-                            setShowColumnCalculation(!showColumnCalculation);
-                        }}
-                    />
-                    <SectionTitle>Show table names</SectionTitle>
-                    <Switch
-                        large
-                        innerLabelChecked="Yes"
-                        innerLabel="No"
-                        checked={showTableNames}
-                        onChange={(e) => {
-                            setShowTableName(!showTableNames);
-                        }}
-                    />
+
+                        <Checkbox
+                            label="Show table names"
+                            checked={showTableNames}
+                            onChange={(e) => {
+                                setShowTableName(!showTableNames);
+                            }}
+                        />
+
+                        <Checkbox
+                            label="Show row numbers"
+                            checked={!hideRowNumbers}
+                            onChange={(e) => {
+                                setHideRowNumbers(!hideRowNumbers);
+                            }}
+                        />
+                    </FormGroup>
+
                     <SectionTitle>Columns</SectionTitle>
 
                     <ColumnConfiguration />

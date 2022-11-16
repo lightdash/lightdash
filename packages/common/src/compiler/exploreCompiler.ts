@@ -15,6 +15,8 @@ import {
     Metric,
     MetricType,
 } from '../types/field';
+import assertUnreachable from '../utils/assertUnreachable';
+import { renderFilterRuleSql } from './filtersCompiler';
 
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {
@@ -128,6 +130,19 @@ const compileDimensionReference = (
     };
 };
 
+function compileDimension(
+    dimension: Dimension,
+    tables: Record<string, Table>,
+    quoteChar: string,
+): CompiledDimension {
+    const compiledDimension = compileDimensionSql(dimension, tables, quoteChar);
+    return {
+        ...dimension,
+        compiledSql: compiledDimension.sql,
+        tablesReferences: Array.from(compiledDimension.tablesReferences),
+    };
+}
+
 const compileMetricReference = (
     ref: string,
     tables: Record<string, Table>,
@@ -166,6 +181,35 @@ const compileMetricReference = (
     };
 };
 
+export const renderSqlType = (sql: string, type: MetricType): string => {
+    switch (type) {
+        case MetricType.AVERAGE:
+            return `AVG(${sql})`;
+        case MetricType.COUNT:
+            return `COUNT(${sql})`;
+        case MetricType.COUNT_DISTINCT:
+            return `COUNT(DISTINCT ${sql})`;
+        case MetricType.MAX:
+            return `MAX(${sql})`;
+        case MetricType.MIN:
+            return `MIN(${sql})`;
+        case MetricType.SUM:
+            return `SUM(${sql})`;
+        case MetricType.NUMBER:
+        case MetricType.STRING:
+        case MetricType.DATE:
+        case MetricType.BOOLEAN:
+            break;
+        default:
+            return assertUnreachable(
+                type,
+                new CompileError(
+                    `No SQL render function implemented for metric with type "${type}"`,
+                ),
+            );
+    }
+    return sql;
+};
 export const compileMetricSql = (
     metric: Metric,
     tables: Record<string, Table>,
@@ -203,41 +247,38 @@ export const compileMetricSql = (
         ]);
         return compiledReference.sql;
     });
-    const metricType = metric.type;
-    switch (metricType) {
-        case MetricType.AVERAGE:
-            renderedSql = `AVG(${renderedSql})`;
-            break;
-        case MetricType.COUNT:
-            renderedSql = `COUNT(${renderedSql})`;
-            break;
-        case MetricType.COUNT_DISTINCT:
-            renderedSql = `COUNT(DISTINCT ${renderedSql})`;
-            break;
-        case MetricType.MAX:
-            renderedSql = `MAX(${renderedSql})`;
-            break;
-        case MetricType.MIN:
-            renderedSql = `MIN(${renderedSql})`;
-            break;
-        case MetricType.SUM:
-            renderedSql = `SUM(${renderedSql})`;
-            break;
-        case MetricType.NUMBER:
-        case MetricType.STRING:
-        case MetricType.DATE:
-        case MetricType.BOOLEAN:
-            break;
-        default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = metricType;
-            throw new CompileError(
-                `No SQL render function implemented for metric with type "${metricType}"`,
-                {},
+    if (metric.filters !== undefined && metric.filters.length > 0) {
+        const conditions = metric.filters.map((filter) => {
+            const { refTable, refName } = getParsedReference(
+                filter.target.fieldId,
+                metric.table,
             );
+            const dimensionField = tables[refTable]?.dimensions[refName];
+            if (!dimensionField) {
+                throw new Error(
+                    `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
+                );
+            }
+            const compiledDimension = compileDimension(
+                dimensionField,
+                tables,
+                quoteChar,
+            );
+            if (compiledDimension.tablesReferences) {
+                tablesReferences = new Set([
+                    ...tablesReferences,
+                    ...compiledDimension.tablesReferences,
+                ]);
+            }
+            return renderFilterRuleSql(filter, compiledDimension, quoteChar);
+        });
+        renderedSql = `CASE WHEN (${conditions.join(
+            ' AND ',
+        )}) THEN (${renderedSql}) ELSE NULL END`;
     }
+    const compiledSql = renderSqlType(renderedSql, metric.type);
 
-    return { sql: renderedSql, tablesReferences };
+    return { sql: compiledSql, tablesReferences };
 };
 
 export const compileExploreJoinSql = (
@@ -251,20 +292,8 @@ export const compileExploreJoinSql = (
         (_, p1) =>
             compileDimensionReference(p1, tables, join.table, quoteChar).sql,
     );
-const compileDimension = (
-    dimension: Dimension,
-    tables: Record<string, Table>,
-    quoteChar: string,
-): CompiledDimension => {
-    const compiledDimension = compileDimensionSql(dimension, tables, quoteChar);
-    return {
-        ...dimension,
-        compiledSql: compiledDimension.sql,
-        tablesReferences: Array.from(compiledDimension.tablesReferences),
-    };
-};
 
-const compileMetric = (
+export const compileMetric = (
     metric: Metric,
     tables: Record<string, Table>,
     quoteChar: string,

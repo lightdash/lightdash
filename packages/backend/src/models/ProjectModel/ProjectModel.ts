@@ -1,7 +1,9 @@
 import {
     AlreadyExistsError,
+    CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
+    DbtCloudIntegration,
     DbtProjectConfig,
     Explore,
     ExploreError,
@@ -137,9 +139,7 @@ export class ProjectModel {
         const projects = await this.database('projects')
             .select('project_uuid', 'name', 'project_type')
             .where('organization_id', orgs[0].organization_id);
-        if (projects.length === 0) {
-            throw new NotExistsError('No project exists');
-        }
+
         return projects.map<OrganizationProject>(
             ({ name, project_uuid, project_type }) => ({
                 name,
@@ -227,6 +227,7 @@ export class ProjectModel {
                 await trx('spaces').insert({
                     project_id: project.project_id,
                     name: 'Shared',
+                    is_private: false,
                 });
 
                 return project.project_uuid;
@@ -620,5 +621,70 @@ export class ProjectModel {
         `,
             { projectUuid, userUuid },
         );
+    }
+
+    async findDbtCloudIntegration(
+        projectUuid: string,
+    ): Promise<DbtCloudIntegration | undefined> {
+        const [row] = await this.database('dbt_cloud_integrations')
+            .select(['metrics_job_id'])
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'dbt_cloud_integrations.project_id',
+            )
+            .where('project_uuid', projectUuid);
+        if (row === undefined) {
+            return undefined;
+        }
+        return {
+            metricsJobId: row.metrics_job_id,
+        };
+    }
+
+    async findDbtCloudIntegrationWithSecrets(
+        projectUuid: string,
+    ): Promise<CreateDbtCloudIntegration | undefined> {
+        const [row] = await this.database('dbt_cloud_integrations')
+            .select(['metrics_job_id', 'service_token'])
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'dbt_cloud_integrations.project_id',
+            )
+            .where('project_uuid', projectUuid);
+        if (row === undefined) {
+            return undefined;
+        }
+        const serviceToken = this.encryptionService.decrypt(row.service_token);
+        return {
+            metricsJobId: row.metrics_job_id,
+            serviceToken,
+        };
+    }
+
+    async upsertDbtCloudIntegration(
+        projectUuid: string,
+        integration: CreateDbtCloudIntegration,
+    ): Promise<void> {
+        const [project] = await this.database('projects')
+            .select(['project_id'])
+            .where('project_uuid', projectUuid);
+        if (project === undefined) {
+            throw new NotExistsError(
+                `Cannot find project with id '${projectUuid}'`,
+            );
+        }
+        const encryptedServiceToken = this.encryptionService.encrypt(
+            integration.serviceToken,
+        );
+        await this.database('dbt_cloud_integrations')
+            .insert({
+                project_id: project.project_id,
+                service_token: encryptedServiceToken,
+                metrics_job_id: integration.metricsJobId,
+            })
+            .onConflict('project_id')
+            .merge();
     }
 }

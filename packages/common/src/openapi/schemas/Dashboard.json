@@ -33,7 +33,7 @@
             "type": "string"
         },
         "updatedByUser": {
-            "$ref": "#/components/schemas/UpdatedByUser"
+            "$ref": "../Schemas/UpdatedByUser.json"
         }
     },
     "required": [

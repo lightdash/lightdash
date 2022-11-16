@@ -1,4 +1,4 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Button, Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
@@ -10,42 +10,16 @@ export const FormContainer = styled(Form)`
     flex-direction: column;
 `;
 
-export const WarehouseLogo = styled.img`
-    margin-bottom: 10px;
-    width: 30px;
-`;
-
-export const CompileProjectWrapper = styled.div<{ fixedButton?: boolean }>`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    position: sticky;
-    background: ${Colors.WHITE};
-    border-top: 1px solid ${Colors.LIGHT_GRAY1};
-    bottom: 0;
-    margin-top: auto;
-    padding: 20px 0;
-    ${({ fixedButton }) =>
-        fixedButton &&
-        `
-            position: fixed;
-            z-index: 1;
-        `}
-`;
-
-export const CompileProjectFixedWidthContainer = styled.div`
-    width: 800px;
-    display: flex;
-    justify-content: flex-end;
-`;
-
 export const FormWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
     width: 800px;
     margin: 0 auto;
 `;
 
-export const CompileProjectButton = styled(Button)``;
+export const CompileProjectButton = styled(Button)`
+    align-self: flex-end;
+`;
 
 export const AdvancedButtonWrapper = styled.div`
     display: flex;
@@ -54,4 +28,33 @@ export const AdvancedButtonWrapper = styled.div`
 
 export const AdvancedButton = styled(SimpleButton)`
     padding-right: 2px;
+`;
+
+export const ProjectConnectionCard = styled(Card)`
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+`;
+
+export const LeftPanel = styled.div`
+    flex: 1;
+`;
+
+export const RightPanel = styled.div`
+    flex: 1;
+`;
+
+export const LeftPanelTitle = styled.div`
+    margin-bottom: 10px;
+    margin-top: 10px;
+
+    h5 {
+        display: inline;
+        margin-right: 5px;
+    }
+`;
+
+export const LeftPanelMessage = styled.p`
+    color: ${Colors.GRAY1};
 `;

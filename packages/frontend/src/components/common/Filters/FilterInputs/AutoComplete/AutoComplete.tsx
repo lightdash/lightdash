@@ -1,5 +1,5 @@
 import { Spinner } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
@@ -13,16 +13,23 @@ type Props2 = {
     value: string;
     suggestions: string[];
     onChange: (values: string) => void;
+    popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
-const AutoComplete: FC<Props2> = ({ value, field, suggestions, onChange }) => {
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
+const AutoComplete: FC<Props2> = ({
+    value,
+    field,
+    suggestions,
+    popoverProps,
+    disabled,
+    onChange,
+}) => {
     const { projectUuid } = useFiltersContext();
-    const { options, setSearch, isSearching } = useAutoComplete(
-        value,
-        suggestions,
-        getItemId(field),
-        projectUuid,
-    );
+    const { options, setSearch, isSearching, isFetchingInitialData } =
+        useAutoComplete(value, suggestions, getItemId(field), projectUuid);
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -48,6 +55,7 @@ const AutoComplete: FC<Props2> = ({ value, field, suggestions, onChange }) => {
         },
         [value],
     );
+
     const renderCreateOption = useCallback(
         (
             q: string,
@@ -63,15 +71,23 @@ const AutoComplete: FC<Props2> = ({ value, field, suggestions, onChange }) => {
                     shouldDismissPopover={false}
                 />
             ) : (
-                <Spinner size={16} style={{ margin: 12 }} />
+                <StyledSpinner />
             ),
         [isSearching],
     );
     return (
         <Suggest2
+            className={disabled ? 'disabled-filter' : ''}
+            disabled={disabled}
             fill
             items={Array.from(options).sort()}
-            noResults={<MenuItem2 disabled text="No suggestions." />}
+            noResults={
+                isFetchingInitialData ? (
+                    <StyledSpinner />
+                ) : (
+                    <MenuItem2 disabled text="No suggestions." />
+                )
+            }
             itemsEqual={(v, other) => v.toLowerCase() === other.toLowerCase()}
             selectedItem={value}
             itemRenderer={renderItem}
@@ -80,6 +96,7 @@ const AutoComplete: FC<Props2> = ({ value, field, suggestions, onChange }) => {
                 minimal: true,
                 matchTargetWidth: true,
                 popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
             }}
             resetOnSelect
             itemPredicate={itemPredicate}

@@ -77,7 +77,10 @@ export const getSortLabel = (
                     ? BooleanSortLabels.ASC
                     : BooleanSortLabels.DESC;
             default:
-                return assertUnreachable(item.type);
+                return assertUnreachable(
+                    item.type,
+                    'Unexpected dimension type when getting sort label',
+                );
         }
     } else if (isMetric(item)) {
         switch (item.type) {
@@ -104,7 +107,10 @@ export const getSortLabel = (
                     ? BooleanSortLabels.ASC
                     : BooleanSortLabels.DESC;
             default:
-                return assertUnreachable(item.type);
+                return assertUnreachable(
+                    item.type,
+                    'Unexpected metric type when getting sort label',
+                );
         }
     } else {
         throw new Error('Field is not a Dimension or Metric');

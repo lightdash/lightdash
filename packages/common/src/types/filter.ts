@@ -83,7 +83,7 @@ export type DateFilterRule = FilterRule<
     }
 >;
 
-type FilterGroupItem = FilterGroup | FilterRule;
+export type FilterGroupItem = FilterGroup | FilterRule;
 
 type OrFilterGroup = {
     id: string;

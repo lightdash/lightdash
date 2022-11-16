@@ -1,18 +1,35 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
-export const TableContainer = styled.div`
-    flex: 1;
-    padding: 10px;
-    overflow: hidden;
+export const TableScrollableWrapper = styled.div`
     display: flex;
     flex-direction: column;
-`;
 
-export const TableScrollableWrapper = styled.div`
     position: relative;
     overflow: auto;
-    min-height: 90px;
+    min-width: 100%;
+`;
+
+interface TableContainerProps {
+    $shouldExpand?: boolean;
+    $padding?: number;
+}
+
+export const TableContainer = styled.div<TableContainerProps>`
+    display: flex;
+    flex-direction: column;
+    padding: ${({ $padding = 10 }) => `${$padding}px`};
+    min-width: 100%;
+    overflow: hidden;
+
+    ${({ $shouldExpand }) =>
+        $shouldExpand
+            ? `
+                height: 100%;
+            `
+            : `
+                max-height: 800px;
+            `}
 `;
 
 export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
@@ -24,6 +41,7 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
         !showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
 
     thead {
+        z-index: 2;
         position: sticky;
         top: 0;
         inset-block-start: 0; /* "top" */
@@ -52,13 +70,13 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
 
     tfoot {
         position: sticky;
+        z-index: 3;
         bottom: 0;
         inset-block-end: 0; /* "bottom" */
 
         th:first-child {
             border-top: none !important;
             border-bottom: none !important;
-            box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd !important;
         }
 
         th {
@@ -67,6 +85,20 @@ export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
             box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd,
                 inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
         }
+    }
+
+    .sticky-column {
+        position: sticky !important;
+        left: 1px;
+        z-index: 1;
+        background-color: white;
+        word-break: break-word;
+    }
+    .first-sticky-column {
+        box-shadow: lightgray -1px 0px 0px 0px, lightgray 0px 1px 0px 0px inset !important;
+    }
+    .last-sticky-column {
+        border-right: 2px solid darkgray;
     }
 `;
 
@@ -124,6 +156,7 @@ export const PaginationWrapper = styled.div`
 
 export const PageCount = styled.span`
     color: ${Colors.GRAY1};
+    height: 20px;
 `;
 
 export const Th = styled.th``;

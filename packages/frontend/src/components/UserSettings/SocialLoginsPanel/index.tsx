@@ -46,32 +46,29 @@ const SocialLoginsPanel: FC = () => {
     return (
         <div>
             <CardWrapper>
-                {data &&
-                    data.map((id) => (
-                        <CardContainer elevation={0}>
-                            <Text>
-                                <Bold
-                                    className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                                >
-                                    {renderIssuerType(id.issuerType)}
-                                </Bold>
-                                {id.email && <Tag minimal>{id.email}</Tag>}
-                            </Text>
-                            <Button
-                                icon="delete"
-                                disabled={deleteMutation.isLoading}
-                                intent="danger"
-                                text="Delete"
-                                outlined
-                                onClick={() =>
-                                    deleteMutation.mutate({
-                                        email: id.email,
-                                        issuer: id.issuer,
-                                    })
-                                }
-                            />
-                        </CardContainer>
-                    ))}
+                {data?.map((id) => (
+                    <CardContainer key={id.issuerType} elevation={0}>
+                        <Text>
+                            <Bold className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
+                                {renderIssuerType(id.issuerType)}
+                            </Bold>
+                            {id.email && <Tag minimal>{id.email}</Tag>}
+                        </Text>
+                        <Button
+                            icon="delete"
+                            disabled={deleteMutation.isLoading}
+                            intent="danger"
+                            text="Delete"
+                            outlined
+                            onClick={() =>
+                                deleteMutation.mutate({
+                                    email: id.email,
+                                    issuer: id.issuer,
+                                })
+                            }
+                        />
+                    </CardContainer>
+                ))}
             </CardWrapper>
             <Title>Add social login</Title>
             <GoogleButtonWrapper>

@@ -61,7 +61,7 @@ models:
             type: string
             label: 'Total revenue' # this is the label you'll see in Lightdash
             description: 'My custom description' # you can override the description you'll see in Lightdash here
-            sql: "IF(${revenue_gbp_total_est} = NULL, 0, ${registered_user_email})" # custom SQL applied to the column from dbt used to define the dimension
+            sql: "IF(${TABLE}.revenue_gbp_total_est = NULL, 0, ${registered_user_email})" # custom SQL applied to the column from dbt used to define the dimension
             hidden: false
             round: 2
             format: 'gbp'
@@ -81,18 +81,41 @@ models:
 
 All the properties you can customize:
 
-| Property                                          | Required | Value                            | Description                                                                                                                                                                                                                                                |
-|---------------------------------------------------|----------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| label                                             | No       | string                           | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                |
-| type                                              | No       | Dimension type                   | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                         |
-| description                                       | No       | string                           | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                 |
-| sql                                               | No       | string                           | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                             |
-| [time_intervals](#time-intervals)                 | No       | `'default'` or `OFF` or string[] | `'default'` will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps, as will not setting anything; if you want no time intervals set `'OFF'`.                                     |
-| hidden                                            | No       | boolean                          | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                           |
-| round                                             | No       | number                           | Rounds a number to a specified number of digits                                                                                                                                                                                                            |
-| format                                            | No       | string                           | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'percent']`                                                                                              |
-| group_label                                       | No       | string                           | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
-| [urls](#urls)                                     | No       | Array of { url, label }          | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
+| Property                          | Required | Value                                                                                                                                             | Description                                                                                                                                                                                                                                                |
+|-----------------------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| label                             | No       | string                                                                                                                                            | Custom label. If you set this property, this is what you'll see in Lightdash instead of the dimension name.                                                                                                                                                |
+| type                              | No       | Dimension type                                                                                                                                    | The dimension type is automatically pulled from your table schemas in Lightdash but you can override the type using this property.                                                                                                                         |
+| description                       | No       | string                                                                                                                                            | Description of the dimension in Lightdash. You can use this to override the description you have for the dimension in dbt.                                                                                                                                 |
+| sql                               | No       | string                                                                                                                                            | Custom SQL applied to the column used to define the dimension.                                                                                                                                                                                             |
+| [time_intervals](#time-intervals) | No       | `'default'` or `OFF` or an array[] containing elements of [date](#date-options), [numeric](#numeric-options) or [string](#string-options) options | `'default'` (or not setting the `time_intervals` property) will be converted into `['DAY', 'WEEK', 'MONTH', 'YEAR']` for dates and `['RAW', 'DAY', 'WEEK', 'MONTH', 'YEAR']` for timestamps; if you want no time intervals set `'OFF'`.                    |
+| hidden                            | No       | boolean                                                                                                                                           | If set to `true`, the dimension is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                           |
+| round                             | No       | number                                                                                                                                            | Rounds a number to a specified number of digits                                                                                                                                                                                                            |
+| format                            | No       | string                                                                                                                                            | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent']`                                                                                       |
+| [compact](#compact-values)        | No       | string                                                                                                                                            | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                             |
+| group_label                       | No       | string                                                                                                                                            | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
+| [urls](#urls)                     | No       | Array of { url, label }                                                                                                                           | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
+
+## Compact values
+
+You can compact values in your YAML. For example, if I wanted all of my revenue values to be shown in thousands (e.g. `1,500` appears as `1.50K`), then I would write something like this in my .yml:
+
+```yaml
+	version: 2
+	models:
+	- name: sales
+	  columns:
+	    - name: revenue
+	      meta:
+	        dimension:
+	            compact: thousands # You can also use 'K'
+```
+
+| Value     | Alias              | Example output |
+|-----------|--------------------|----------------|
+| thousands | "K" and "thousand" | 1K             |
+| millions  | "M" and "million"  | 1M             |
+| billions  | "B" and "billion"  | 1B             |
+| trillions | "T" and "trillion" | 1T             |
 
 ## Time intervals
 
@@ -185,10 +208,30 @@ columns:
           - label: Search for company in Google
             url: "https://google.com/search?${ value.formatted | url_encode }"
           - label: Open in CRM
-            url: "https://mycrm.com/companies/${ value.formatted | url_encode }"
+            url: "https://mycrm.com/companies/${ row.company.company_id.raw | url_encode }"
 ```
 
 The `${ value.formatted }` will be replaced with the value of the company name in the Lightdash UI at query run time.
+The `${ row.company.company_id.raw }` will be replaced with the value of the company id in the Lightdash UI at query run time.
+The action will be disabled if the column "company_id" from table "company" is not part of the query.
+
+### You can reference values from other columns in your URLs
+
+You can reference another dimension from your table in your URL. For these URLs to work, the other column you've referenced needs to be included in your results table.
+For example, say I’ve added a URL to `company_name` and it uses the field `customer_id`:
+
+```
+columns:
+  - name: company_name
+    label: Registered trading name of the company
+    meta:
+      dimension:
+        urls:
+          - label: "Open company"
+            url: "https://example.com/company/${row.customers.customer_id.raw | url_encode }"
+```
+
+This URL will only work if I have `customer_id` included in my results table.
 
 ### Liquid Templating
 
@@ -196,10 +239,12 @@ Use templates to configure the url values depending on the query, this allows yo
 
 **Available liquid tags**
 
-| Tag                    | Description                                                                                  |
-|------------------------|----------------------------------------------------------------------------------------------|
-| `${ value.formatted }` | The exact value of the dimension as seen in the Lightdash UI. For example "$1,427.20"        |
-| `${ value.raw }`       | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
+| Tag                                         | Description                                                                                  |
+|---------------------------------------------|----------------------------------------------------------------------------------------------|
+| `${ value.formatted }`                      | The exact value of the dimension as seen in the Lightdash UI. For example "$1,427.20"        |
+| `${ value.raw }`                            | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
+| `${ row.table_name.column_name.formatted }` | The exact value of the column as seen in the Lightdash UI. For example "$1,427.20"           |
+| `${ row.table_name.column_name.raw }`       | The raw value of the dimension returned from the underlying SQL query. For example "1427.2 " |
 
 **Available liquid filters**
 
@@ -216,25 +261,25 @@ There are [many more filters available in the Liquid documentation](https://liqu
 
 ## Using special characters or capital letters in your column names
 
-If you use special characters on your column names,  you might get errors when using those columns on explore. 
-For example, having a column named `Status` with capital S on a table named `orders` in postgres throws the following error: 
+If you use special characters on your column names,  you might get errors when using those columns on explore.
+For example, having a column named `Status` with capital S on a table named `orders` in postgres throws the following error:
 
 ```
 column orders.status does not exist
 ```
 
-To fix this, we can add the quoted column to our `sql` meta tag on dimensions 
+To fix this, we can add the quoted column to our `sql` meta tag on dimensions
 
 ```
 - name: status
-  meta: 
-    dimension: 
+  meta:
+    dimension:
       type: string
       sql: '"orders"."Status"' # you can also use '${TABLE}."Status"'
 
 ```
 
-This will quote the `Status` columns on the SQL query 
+This will quote the `Status` columns on the SQL query
 
 ```
 SELECT

@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.281.1",
+    "version": "0.324.0",
     "private": true,
     "dependencies": {
         "@blueprintjs/core": "^4.7.0",
@@ -12,18 +12,17 @@
         "@casl/ability": "^5.4.4",
         "@casl/react": "^3.0.0",
         "@hookform/error-message": "^2.0.0",
-        "@lightdash/common": "^0.281.1",
+        "@lightdash/common": "^0.324.0",
         "@sentry/react": "^6.17.6",
         "@sentry/tracing": "^6.17.6",
         "@tanstack/react-table": "^8.5.11",
         "@testing-library/jest-dom": "^5.16.2",
         "@testing-library/react": "^12.1.2",
         "@testing-library/user-event": "^13.5.0",
-        "@types/react-transition-group": "^4.4.4",
-        "@typescript-eslint/eslint-plugin": "^5.11.0",
         "@uiw/react-md-editor": "^3.10.0",
         "ace-builds": "^1.4.14",
         "cohere-js": "^1.0.19",
+        "copy-to-clipboard": "^3.3.2",
         "dagre": "^0.8.5",
         "echarts": "^5.3.0",
         "echarts-for-react": "^3.0.2",
@@ -31,6 +30,7 @@
         "http-proxy-middleware": "^2.0.3",
         "immer": "^9.0.15",
         "jspdf": "^2.5.1",
+        "lodash-es": "^4.17.21",
         "moment": "^2.29.4",
         "react": "^17.0.2",
         "react-ace": "^9.5.0",
@@ -50,67 +50,47 @@
         "rudder-sdk-js": "^2.8.0",
         "scheduler": "^0.23.0",
         "styled-components": "^5.3.3",
-        "typescript": "^4.5.5",
         "use-context-selector": "^1.4.1",
-        "uuid": "^8.3.2",
-        "web-vitals": "^2.1.4"
+        "uuid": "^8.3.2"
     },
     "scripts": {
-        "start": "PORT=3000 GENERATE_SOURCEMAP=false react-scripts start",
-        "build": "GENERATE_SOURCEMAP=false react-scripts build",
-        "test": "react-scripts test --watchAll=false --transformIgnorePatterns \"node_modules/(?!react-markdown)/\"",
-        "eject": "react-scripts eject",
-        "lint": "eslint ./src",
-        "fix-lint": "eslint --fix ./src",
-        "format": "prettier --check --ignore-unknown ./src",
-        "fix-format": "prettier --write --ignore-unknown ./src"
-    },
-    "eslintConfig": {
-        "extends": [
-            "react-app",
-            "react-app/jest"
-        ]
-    },
-    "browserslist": {
-        "production": [
-            ">0.2%",
-            "not dead",
-            "not op_mini all"
-        ],
-        "development": [
-            "last 1 chrome version",
-            "last 1 firefox version",
-            "last 1 safari version"
-        ]
+        "start": "vite",
+        "build": "vite build",
+        "serve": "vite preview",
+        "test": "jest",
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
+        "lint": "yarn run linter ./src",
+        "fix-lint": "yarn run linter ./src --fix",
+        "format": "yarn run formatter ./src --check",
+        "fix-format": "yarn run formatter ./src --write"
     },
     "devDependencies": {
+        "@tanstack/react-query-devtools": "^4.3.5",
         "@types/dagre": "^0.7.47",
-        "@types/jest": "^27.4.0",
-        "@types/react": "^17.0.39",
+        "@types/lodash-es": "^4.17.6",
+        "@types/react": "^17.0.2        ",
         "@types/react-beautiful-dnd": "^13.1.2",
         "@types/react-color": "^3.0.6",
         "@types/react-copy-to-clipboard": "^5.0.2",
         "@types/react-csv": "^1.1.2",
-        "@types/react-dom": "^17.0.11",
+        "@types/react-dom": "^17.0.2",
         "@types/react-grid-layout": "^1.3.1",
         "@types/react-router-dom": "^5.3.3",
         "@types/react-syntax-highlighter": "^13.5.2",
+        "@types/react-transition-group": "^4.4.4",
         "@types/styled-components": "^5.1.22",
         "@types/uuid": "^8.3.4",
-        "eslint": "^8.8.0",
-        "eslint-config-airbnb": "^19.0.4",
-        "eslint-config-airbnb-typescript": "^16.1.0",
-        "eslint-config-prettier": "^8.3.0",
+        "@vitejs/plugin-react": "^2.1.0",
         "eslint-plugin-css-modules": "^2.11.0",
-        "eslint-plugin-import": "^2.25.4",
-        "eslint-plugin-json": "^3.1.0",
-        "eslint-plugin-jsx-a11y": "^6.5.1",
-        "eslint-plugin-prettier": "^4.0.0",
-        "eslint-plugin-react": "^7.28.0",
-        "eslint-plugin-react-hooks": "^4.3.0",
+        "eslint-plugin-jsx-a11y": "^6.6.1",
+        "eslint-plugin-react": "^7.31.8",
+        "eslint-plugin-react-hooks": "^4.6.0",
         "postcss-normalize": "10.0.1",
-        "prettier": "^2.5.1",
-        "prettier-plugin-organize-imports": "^2.3.4",
-        "react-scripts": "5.0.0"
+        "vite": "^3.1.0",
+        "vite-plugin-chunk-split": "^0.4.1",
+        "vite-plugin-eslint": "^1.8.1",
+        "vite-plugin-svgr": "^2.2.1",
+        "vite-tsconfig-paths": "^3.5.0"
     }
 }

@@ -5,6 +5,7 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     countTotalFilterRules,
+    CreateDbtCloudIntegration,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -32,6 +33,7 @@ import {
     MissingWarehouseCredentialsError,
     NotExistsError,
     NotFoundError,
+    ParameterError,
     Project,
     ProjectCatalog,
     ProjectMemberProfile,
@@ -52,6 +54,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
 import Logger from '../../logger';
+import { DbtCloudMetricsModel } from '../../models/DbtCloudMetricsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -471,6 +474,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
+        allResults?: boolean,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -488,7 +492,7 @@ export class ProjectService {
             explore,
             metricQuery,
         });
-        return buildQuery({ explore, compiledMetricQuery });
+        return buildQuery({ explore, compiledMetricQuery, allResults });
     }
 
     async runQuery(
@@ -496,6 +500,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
+        csvLimit: number | undefined,
     ): Promise<ApiQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -509,11 +514,23 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        if (
+            csvLimit === undefined &&
+            metricQuery.limit > lightdashConfig.query.maxLimit
+        ) {
+            throw new ParameterError(
+                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+            );
+        }
+
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
-            metricQuery,
+            csvLimit !== undefined && csvLimit !== null
+                ? { ...metricQuery, limit: csvLimit }
+                : metricQuery,
             projectUuid,
             exploreName,
+            csvLimit === null,
         );
 
         const onboardingRecord =
@@ -609,6 +626,12 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        if (limit > lightdashConfig.query.maxLimit) {
+            throw new ParameterError(
+                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+            );
+        }
+
         const explore = await this.getExploreByFieldId(
             user,
             projectUuid,
@@ -685,6 +708,7 @@ export class ProjectService {
     async refreshAllTables(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
+        requestMethod: RequestMethod,
     ): Promise<(Explore | ExploreError)[]> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -699,6 +723,7 @@ export class ProjectService {
                 event: 'project.compiled',
                 userId: user.userUuid,
                 properties: {
+                    requestMethod,
                     projectId: projectUuid,
                     projectName: project.name,
                     projectType: project.dbtConnection.type,
@@ -785,6 +810,7 @@ export class ProjectService {
                 event: 'project.error',
                 userId: user.userUuid,
                 properties: {
+                    requestMethod,
                     projectId: projectUuid,
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
@@ -822,6 +848,7 @@ export class ProjectService {
     async compileProject(
         user: SessionUser,
         projectUuid: string,
+        requestMethod: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (
@@ -861,7 +888,12 @@ export class ProjectService {
                     const explores = await this.jobModel.tryJobStep(
                         job.jobUuid,
                         JobStepType.COMPILING,
-                        async () => this.refreshAllTables(user, projectUuid),
+                        async () =>
+                            this.refreshAllTables(
+                                user,
+                                projectUuid,
+                                requestMethod,
+                            ),
                     );
                     await this.projectModel.saveExploresToCache(
                         projectUuid,
@@ -1237,5 +1269,69 @@ export class ProjectService {
         }
 
         await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
+    }
+
+    async upsertDbtCloudIntegration(
+        user: SessionUser,
+        projectUuid: string,
+        integration: CreateDbtCloudIntegration,
+    ) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.upsertDbtCloudIntegration(
+            projectUuid,
+            integration,
+        );
+        analytics.track({
+            event: 'dbt_cloud_integration.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+            },
+        });
+        return this.findDbtCloudIntegration(user, projectUuid);
+    }
+
+    async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectModel.findDbtCloudIntegration(projectUuid);
+    }
+
+    async getdbtCloudMetrics(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const integration =
+            await this.projectModel.findDbtCloudIntegrationWithSecrets(
+                projectUuid,
+            );
+        if (integration === undefined) {
+            return { metrics: [] };
+        }
+        return DbtCloudMetricsModel.getMetrics(
+            integration.serviceToken,
+            integration.metricsJobId,
+        );
     }
 }

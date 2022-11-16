@@ -12,6 +12,7 @@ import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
+import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
@@ -25,6 +26,7 @@ export const projectAdapterFromConfig = async (
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
+
     switch (config.type) {
         case DbtProjectType.DBT:
             return new DbtLocalCredentialsProjectAdapter({
@@ -35,6 +37,16 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
             });
+        case DbtProjectType.NONE:
+            return new DbtNoneCredentialsProjectAdapter({
+                warehouseClient,
+                projectDir: '/usr/app/dbt',
+                warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
+                cachedWarehouse,
+            });
+
         case DbtProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
                 warehouseClient,

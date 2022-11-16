@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, Select } from '@blueprintjs/select';
+import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
+import { ItemRenderer, Select2 } from '@blueprintjs/select';
 import { UnitOfTime } from '@lightdash/common';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
@@ -37,7 +37,7 @@ const UnitOfTimeOptions = (isTimestamp: boolean) => {
     );
 };
 
-const FieldSuggest = Select.ofType<UnitOfTimeOption>();
+const FieldSuggest = Select2.ofType<UnitOfTimeOption>();
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -70,6 +70,8 @@ type Props = {
     completed: boolean;
     onChange: (value: UnitOfTimeOption) => void;
     onClosed?: () => void;
+    popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
 const UnitOfTimeAutoComplete: FC<Props> = ({
@@ -78,10 +80,14 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
     completed,
     onChange,
     onClosed,
+    popoverProps,
+    disabled,
 }) => (
     <>
         <AutocompleteMaxHeight />
         <FieldSuggest
+            className={disabled ? 'disabled-filter' : ''}
+            disabled={disabled}
             items={UnitOfTimeOptions(isTimestamp)}
             itemsEqual={(value, other) =>
                 value.unitOfTime === other.unitOfTime &&
@@ -92,6 +98,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 minimal: true,
                 onClosed,
                 popoverClassName: 'autocomplete-max-height',
+                ...popoverProps,
             }}
             itemRenderer={renderItem}
             activeItem={{
@@ -114,6 +121,8 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
             }}
         >
             <Button
+                className={disabled ? 'disabled-filter' : ''}
+                disabled={disabled}
                 rightIcon="caret-down"
                 text={completed ? `completed ${unitOfTime}` : unitOfTime}
                 fill

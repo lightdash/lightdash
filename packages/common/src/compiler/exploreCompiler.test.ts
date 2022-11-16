@@ -1,6 +1,6 @@
 import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
-import { compileExplore } from './exploreCompiler';
+import { compileExplore, compileMetric } from './exploreCompiler';
 import {
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
@@ -20,6 +20,7 @@ import {
     exploreTableSelfReferenceCompiled,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    tablesWithMetricsWithFilters,
 } from './exploreCompiler.mock';
 
 test('Should compile empty table', () => {
@@ -101,5 +102,49 @@ describe('Default field labels render for', () => {
     });
     test('names with numbers in the middle', () => {
         expect(friendlyName('my_1field_id')).toEqual('My 1field id');
+    });
+});
+
+describe('Compile metrics with filters', () => {
+    beforeAll(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+    });
+    afterAll(() => {
+        jest.useFakeTimers();
+    });
+    test('should show filters as columns metric1', () => {
+        expect(
+            compileMetric(
+                tablesWithMetricsWithFilters.table1.metrics.metric1,
+                tablesWithMetricsWithFilters,
+                '"',
+            ).compiledSql,
+        ).toStrictEqual(
+            `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END)`,
+        );
+    });
+    test('should show filters as columns metric2', () => {
+        expect(
+            compileMetric(
+                tablesWithMetricsWithFilters.table2.metrics.metric2,
+                tablesWithMetricsWithFilters,
+                '"',
+            ).compiledSql,
+        ).toStrictEqual(
+            `MAX(CASE WHEN (("table2".dim2) < (10) AND ("table2".dim2) > (5)) THEN ("table2".number_column) ELSE NULL END)`,
+        );
+    });
+
+    test('should show filters as columns metric with sql', () => {
+        expect(
+            compileMetric(
+                tablesWithMetricsWithFilters.table1.metrics.metric_with_sql,
+                tablesWithMetricsWithFilters,
+                '"',
+            ).compiledSql,
+        ).toStrictEqual(
+            `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
+        );
     });
 });

@@ -40,6 +40,7 @@ export type LightdashConfig = {
     cohere: CohereConfig;
     intercom: IntercomConfig;
     siteUrl: string;
+    staticIp: string;
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
@@ -47,6 +48,9 @@ export type LightdashConfig = {
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
+    query: {
+        maxLimit: number;
+    };
 };
 
 export type IntercomConfig = {
@@ -212,8 +216,15 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             token: process.env.COHERE_TOKEN || '',
         },
         siteUrl,
+        staticIp: process.env.STATIC_IP || '',
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
+        query: {
+            maxLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_MAX_LIMIT',
+                ) || 5000,
+        },
     };
 };
 

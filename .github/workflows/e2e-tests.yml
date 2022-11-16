@@ -41,6 +41,7 @@ jobs:
         with:
           browser: chrome
           project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/**/*
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
         env:
@@ -52,6 +53,8 @@ jobs:
           CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
           CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
           CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC'
 
       # After the test run completes
       # store videos and any screenshots

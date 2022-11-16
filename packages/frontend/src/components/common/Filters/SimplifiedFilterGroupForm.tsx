@@ -11,10 +11,12 @@ import FilterRuleForm from './FilterRuleForm';
 type Props = {
     fields: FilterableField[];
     filterRules: FilterRule[];
+    isEditMode: boolean;
     onChange: (value: FilterRule[]) => void;
 };
 
 const SimplifiedFilterGroupForm: FC<Props> = ({
+    isEditMode,
     fields,
     filterRules,
     onChange,
@@ -53,6 +55,7 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
             <FilterGroupItemsWrapper>
                 {filterRules.map((item, index) => (
                     <FilterRuleForm
+                        isEditMode={isEditMode}
                         key={item.id}
                         filterRule={item}
                         fields={fields}

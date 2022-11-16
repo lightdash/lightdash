@@ -4,12 +4,14 @@ import fetch from 'node-fetch';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { configFilePath, setContext, setDefaultUser } from '../config';
+import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
-import { setProjectInteractively } from './setProject';
+import { setFirstProject, setProjectInteractively } from './setProject';
 
 type LoginOptions = {
     token?: string;
+    interactive?: boolean;
     verbose: boolean;
 };
 
@@ -89,9 +91,10 @@ const loginWithPassword = async (url: string) => {
 };
 
 export const login = async (url: string, options: LoginOptions) => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
-    if (options.verbose) console.error(`> Login URL: ${url}`);
+    GlobalState.debug(`> Login URL: ${url}`);
 
     await LightdashAnalytics.track({
         event: 'login.started',
@@ -115,8 +118,7 @@ export const login = async (url: string, options: LoginOptions) => {
         ? await loginWithToken(url, options.token)
         : await loginWithPassword(url);
 
-    if (options.verbose)
-        console.error(`> Logged in with userUuid: ${userUuid}`);
+    GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);
 
     await LightdashAnalytics.track({
         event: 'login.completed',
@@ -127,31 +129,32 @@ export const login = async (url: string, options: LoginOptions) => {
         },
     });
     await setContext({ serverUrl: url, apiKey: token });
-    if (options.verbose) console.error(`> Saved config on: ${configFilePath}`);
+
+    GlobalState.debug(`> Saved config on: ${configFilePath}`);
 
     await setDefaultUser(userUuid);
 
     console.error(`\n  ✅️ Login successful\n`);
 
     try {
-        await setProjectInteractively({ verbose: options.verbose });
-    } catch (e: any) {
-        if (options.verbose)
-            console.error(
-                `> Set project returned response: ${JSON.stringify(e)}`,
-            );
-        if (e !== undefined && e.statusCode === 404) {
-            console.error(
-                'Now you can add your first project to lightdash by doing: ',
-            );
-            console.error(
-                `\n  ${styles.bold(`⚡️ lightdash deploy --create`)}\n`,
-            );
+        if (process.env.CI === 'true') {
+            await setFirstProject();
         } else {
-            console.error('Unable to select projects, try with: ');
-            console.error(
-                `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,
-            );
+            const project = await setProjectInteractively();
+
+            if (!project) {
+                console.error(
+                    'Now you can add your first project to lightdash by doing: ',
+                );
+                console.error(
+                    `\n  ${styles.bold(`⚡️ lightdash deploy --create`)}\n`,
+                );
+            }
         }
+    } catch {
+        console.error('Unable to select projects, try with: ');
+        console.error(
+            `\n  ${styles.bold(`⚡️ lightdash config set-project`)}\n`,
+        );
     }
 };

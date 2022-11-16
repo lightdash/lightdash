@@ -103,7 +103,7 @@ const BigQueryForm: FC<{
                         This is the JSON key file. You can see{' '}
                         <a
                             target="_blank"
-                            href="https://cloud.google.com/docs/authentication/getting-started#cloud-console"
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
                             rel="noreferrer"
                         >
                             how to create a key here

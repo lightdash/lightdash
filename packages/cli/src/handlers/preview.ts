@@ -1,7 +1,6 @@
 import { Project, ProjectType } from '@lightdash/common';
 import chokidar from 'chokidar';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import path from 'path';
 import {
     adjectives,
@@ -47,12 +46,11 @@ const projectUrl = async (project: Project): Promise<URL> => {
     );
 };
 
-const getPreviewProject = async (name: string, verbose?: boolean) => {
+const getPreviewProject = async (name: string) => {
     const projects = await lightdashApi<Project[]>({
         method: 'GET',
         url: `/api/v1/org/projects/`,
         body: undefined,
-        verbose,
     });
     return projects.find(
         (project) =>
@@ -62,6 +60,7 @@ const getPreviewProject = async (name: string, verbose?: boolean) => {
 export const previewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
     const name = uniqueNamesGenerator({
         length: 2,
@@ -69,8 +68,9 @@ export const previewHandler = async (
         dictionaries: [adjectives, animals],
     });
     console.error('');
-    const spinner = ora(`  Setting up preview environment`).start();
-    GlobalState.setActiveSpinner(spinner);
+    const spinner = GlobalState.startSpinner(
+        `  Setting up preview environment`,
+    );
     let project: Project | undefined;
 
     try {
@@ -80,7 +80,7 @@ export const previewHandler = async (
             type: ProjectType.PREVIEW,
         });
     } catch (e) {
-        if (options.verbose) console.error(`> Unable to create project: ${e}`);
+        GlobalState.debug(`> Unable to create project: ${e}`);
         spinner.fail();
         throw e;
     }
@@ -109,7 +109,11 @@ export const previewHandler = async (
         },
     });
     try {
-        await deploy({ ...options, projectUuid: project.projectUuid });
+        await deploy({
+            ...options,
+            projectUuid: project.projectUuid,
+            ignoreErrors: true,
+        });
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
                 project,
@@ -122,9 +126,9 @@ export const previewHandler = async (
         });
         const manifestFilePath = path.join(context.targetDir, 'manifest.json');
 
-        const pressToShutdown = ora(
+        const pressToShutdown = GlobalState.startSpinner(
             `  Press [ENTER] to shutdown preview...`,
-        ).start();
+        );
 
         const watcher = chokidar
             .watch(manifestFilePath)
@@ -142,6 +146,7 @@ export const previewHandler = async (
                     await deploy({
                         ...options,
                         projectUuid: project.projectUuid,
+                        ignoreErrors: true,
                     });
                 }
 
@@ -176,8 +181,7 @@ export const previewHandler = async (
         });
         throw e;
     }
-    const teardownSpinner = ora(`  Cleaning up`).start();
-    GlobalState.setActiveSpinner(spinner);
+    const teardownSpinner = GlobalState.startSpinner(`  Cleaning up`);
     await lightdashApi({
         method: 'DELETE',
         url: `/api/v1/org/projects/${project.projectUuid}`,
@@ -195,6 +199,7 @@ export const previewHandler = async (
 export const startPreviewHandler = async (
     options: PreviewHandlerOptions,
 ): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     if (!options.name) {
@@ -204,10 +209,7 @@ export const startPreviewHandler = async (
 
     const projectName = options.name;
 
-    const previewProject = await getPreviewProject(
-        projectName,
-        options.verbose,
-    );
+    const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
         await LightdashAnalytics.track({
             event: 'start_preview.update',
@@ -219,7 +221,11 @@ export const startPreviewHandler = async (
 
         // Update
         console.error(`Updating project preview ${projectName}`);
-        await deploy({ ...options, projectUuid: previewProject.projectUuid });
+        await deploy({
+            ...options,
+            projectUuid: previewProject.projectUuid,
+            ignoreErrors: true,
+        });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
         if (process.env.CI === 'true') {
@@ -256,7 +262,11 @@ export const startPreviewHandler = async (
                 name: options.name,
             },
         });
-        await deploy({ ...options, projectUuid: project.projectUuid });
+        await deploy({
+            ...options,
+            projectUuid: project.projectUuid,
+            ignoreErrors: true,
+        });
         const url = await projectUrl(project);
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
@@ -268,6 +278,7 @@ export const startPreviewHandler = async (
 export const stopPreviewHandler = async (
     options: StopPreviewHandlerOptions,
 ): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
     if (!options.name) {
@@ -277,10 +288,7 @@ export const stopPreviewHandler = async (
 
     const projectName = options.name;
 
-    const previewProject = await getPreviewProject(
-        projectName,
-        options.verbose,
-    );
+    const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
         await LightdashAnalytics.track({
             event: 'stop_preview.delete',

@@ -2,7 +2,6 @@ import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
-import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
 
@@ -11,6 +10,7 @@ export const DatabricksSchemaInput: FC<{
 }> = ({ disabled }) => {
     return (
         <Input
+            // this supposed to be a `schema` but changing it will break for existing customers
             name="warehouse.database"
             label="Schema"
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
@@ -31,6 +31,7 @@ const DatabricksForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
+
     return (
         <>
             <Input
@@ -57,7 +58,7 @@ const DatabricksForm: FC<{
                     },
                 }}
                 disabled={disabled}
-                placeholder="sql/protocolv1/o/xxxx/xxxx"
+                placeholder="/sql/protocolv1/o/xxxx/xxxx"
             />
             <PasswordInput
                 name="warehouse.personalAccessToken"
@@ -71,15 +72,16 @@ const DatabricksForm: FC<{
                 }
                 disabled={disabled}
             />
-            <NumericInput
-                name="warehouse.port"
-                label="Port"
-                documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#port-2"
+            <Input
+                name="warehouse.catalog"
+                label="Catalog name"
+                labelHelp="This is the catalog name."
                 rules={{
-                    required: 'Required field',
+                    validate: {
+                        hasNoWhiteSpaces: hasNoWhiteSpaces('Catalog name'),
+                    },
                 }}
                 disabled={disabled}
-                defaultValue={443}
             />
         </>
     );

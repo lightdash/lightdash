@@ -35,6 +35,7 @@ export const user: SessionUser = {
     lastName: 'lastName',
     organizationUuid: 'organizationUuid',
     organizationName: 'organizationName',
+    organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
     isSetupComplete: true,
@@ -239,6 +240,7 @@ export const spacesWithSavedCharts: Space[] = [
     {
         organizationUuid: user.organizationUuid,
         name: 'sapce',
+        isPrivate: false,
         uuid: 'uuid',
         queries: [
             {
@@ -250,6 +252,7 @@ export const spacesWithSavedCharts: Space[] = [
         ],
         projectUuid,
         dashboards: [],
+        access: [],
     },
 ];
 
@@ -260,7 +263,9 @@ export const spacesWithNoSavedCharts: Space[] = [
         uuid: 'uuid',
         queries: [],
         projectUuid,
+        isPrivate: false,
         dashboards: [],
+        access: [],
     },
 ];
 
@@ -280,6 +285,7 @@ export const job: Job = {
             stepStatus: JobStepStatusType.DONE,
             stepType: JobStepType.COMPILING,
             stepError: undefined,
+            stepDbtLogs: undefined,
             stepLabel: JobLabels[JobStepType.COMPILING],
             startedAt: new Date(),
         },
@@ -302,6 +308,7 @@ export const jobError: Job = {
             stepStatus: JobStepStatusType.ERROR,
             stepType: JobStepType.COMPILING,
             stepError: 'Detailed error message',
+            stepDbtLogs: undefined,
             stepLabel: JobLabels[JobStepType.COMPILING],
             startedAt: new Date(),
         },

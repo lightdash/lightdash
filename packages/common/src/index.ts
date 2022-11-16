@@ -2,6 +2,10 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
+import {
+    DbtCloudIntegration,
+    DbtCloudMetadataResponseMetrics,
+} from './types/dbtCloud';
 import { Explore, SummaryExplore } from './types/explore';
 import {
     CompiledDimension,
@@ -49,23 +53,28 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
+import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
+import { ShareUrl } from './types/share';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
-import { formatItemValue } from './utils/formatting';
+import assertUnreachable from './utils/assertUnreachable';
+import { formatDate, formatItemValue } from './utils/formatting';
 
 export * from './authorization/index';
 export * from './authorization/types';
 export * from './compiler/exploreCompiler';
+export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
 export * from './types/api';
 export * from './types/dashboard';
 export * from './types/dbt';
+export * from './types/dbtCloud';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/field';
@@ -76,13 +85,16 @@ export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/projectMemberProfile';
+export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/search';
+export * from './types/share';
 export * from './types/space';
 export * from './types/table';
 export * from './types/timeFrames';
 export * from './types/user';
 export * from './utils/api';
+export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/formatting';
 export * from './utils/timeFrames';
 
@@ -110,6 +122,13 @@ export const toggleArrayValue = <T = string>(
     }
     return array;
 };
+
+export const replaceStringInArray = (
+    arrayToUpdate: string[],
+    valueToReplace: string,
+    newValue: string,
+) =>
+    arrayToUpdate.map((value) => (value === valueToReplace ? newValue : value));
 
 export type SqlResultsRow = { [columnName: string]: any };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
@@ -141,6 +160,7 @@ export enum DbtProjectType {
     GITLAB = 'gitlab',
     BITBUCKET = 'bitbucket',
     AZURE_DEVOPS = 'azure_devops',
+    NONE = 'none',
 }
 
 // Seeds
@@ -258,9 +278,10 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
         case MetricType.BOOLEAN:
             return FilterType.BOOLEAN;
         default: {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = field;
-            throw Error(`No filter type found for field type: ${fieldType}`);
+            return assertUnreachable(
+                field,
+                `No filter type found for field type: ${fieldType}`,
+            );
         }
     }
 };
@@ -268,7 +289,7 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
-    value?: any,
+    values?: any[],
 ): T => {
     const filterType = getFilterTypeFromField(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -280,6 +301,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     ) {
         switch (filterType) {
             case FilterType.DATE: {
+                const value = values ? values[0] : undefined;
+
+                const isTimestamp = field.type === DimensionType.TIMESTAMP;
                 if (filterRule.operator === FilterOperator.IN_THE_PAST) {
                     const numberValue =
                         value === undefined || typeof value !== 'number'
@@ -291,43 +315,52 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         unitOfTime: UnitOfTime.days,
                         completed: false,
                     } as DateFilterRule['settings'];
+                } else if (isTimestamp) {
+                    const valueIsDate =
+                        value !== undefined && typeof value !== 'number';
+
+                    const timestampValue = valueIsDate
+                        ? moment(value).format('YYYY-MM-DDTHH:mm:ssZ')
+                        : moment().utc(true).format('YYYY-MM-DDTHH:mm:ssZ');
+
+                    filterRuleDefaults.values = [timestampValue];
                 } else {
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
-                    const defaultTimeIntervalValues: Record<string, Date> = {
-                        [TimeFrames.DAY]: new Date(),
+
+                    const defaultTimeIntervalValues: Record<
+                        string,
+                        moment.Moment
+                    > = {
+                        [TimeFrames.DAY]: moment(),
                         [TimeFrames.WEEK]: moment(
                             valueIsDate ? value : undefined,
-                        )
-                            .utc(true)
-                            .startOf('week')
-                            .toDate(),
-                        [TimeFrames.MONTH]: moment()
-                            .utc(true)
-                            .startOf('month')
-                            .toDate(),
+                        ).startOf('week'),
+                        [TimeFrames.MONTH]: moment(
+                            valueIsDate ? value : undefined,
+                        ).startOf('month'),
                         [TimeFrames.YEAR]: moment(
                             valueIsDate ? value : undefined,
-                        )
-                            .utc(true)
-                            .startOf('year')
-                            .toDate(),
+                        ).startOf('year'),
                     };
+
                     const defaultDate =
                         isDimension(field) &&
                         field.timeInterval &&
                         defaultTimeIntervalValues[field.timeInterval]
                             ? defaultTimeIntervalValues[field.timeInterval]
-                            : new Date();
+                            : moment();
 
-                    const dateValue = valueIsDate ? value : defaultDate;
+                    const dateValue = valueIsDate
+                        ? formatDate(value, undefined, false)
+                        : formatDate(defaultDate, undefined, false);
                     filterRuleDefaults.values = [dateValue];
                 }
                 break;
             }
             case FilterType.BOOLEAN: {
                 filterRuleDefaults.values =
-                    value !== undefined ? [value] : [false];
+                    values !== undefined ? values : [false];
                 break;
             }
             default:
@@ -336,7 +369,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     }
     return {
         ...filterRule,
-        values: value !== undefined && value !== null ? [value] : [],
+        values: values !== undefined && values !== null ? values : [],
         settings: undefined,
         ...filterRuleDefaults,
     };
@@ -356,7 +389,7 @@ export const createFilterRuleFromField = (
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
-        value,
+        value ? [value] : [],
     );
 
 export const createDashboardFilterRuleFromField = (
@@ -441,14 +474,6 @@ export const snakeCaseName = (text: string): string =>
 
 export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
-export type ResultRow = {
-    [col: string]: {
-        value: {
-            raw: any;
-            formatted: any;
-        };
-    };
-};
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
     rows: ResultRow[];
@@ -670,7 +695,10 @@ type ApiResults =
     | PersonalAccessToken
     | ProjectMemberProfile[]
     | SearchResults
-    | Space;
+    | Space
+    | DbtCloudMetadataResponseMetrics
+    | DbtCloudIntegration
+    | ShareUrl;
 
 export type ApiResponse = {
     status: 'ok';
@@ -745,6 +773,10 @@ export type HealthState = {
         token: string;
     };
     siteUrl: string;
+    staticIp: string;
+    query: {
+        maxLimit: number;
+    };
 };
 
 export enum DBFieldTypes {
@@ -795,11 +827,12 @@ export type BigqueryCredentials = Omit<
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
-    serverHostName: string;
-    port: number;
+    catalog?: string;
+    // this supposed to be a `schema` but changing it will break for existing customers
     database: string;
-    personalAccessToken: string;
+    serverHostName: string;
     httpPath: string;
+    personalAccessToken: string;
 };
 
 export type DatabricksCredentials = Omit<
@@ -860,6 +893,7 @@ export type CreateSnowflakeCredentials = {
     threads?: number;
     clientSessionKeepAlive?: boolean;
     queryTag?: string;
+    accessUrl?: string;
 };
 
 export type SnowflakeCredentials = Omit<
@@ -888,6 +922,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.GITLAB]: 'GitLab',
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
+    [DbtProjectType.NONE]: 'None',
 };
 
 export interface DbtProjectConfigBase {
@@ -902,6 +937,10 @@ export type DbtProjectEnvironmentVariable = {
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
     target?: string;
     environment?: DbtProjectEnvironmentVariable[];
+}
+
+export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
+    type: DbtProjectType.NONE;
 }
 
 export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
@@ -962,7 +1001,8 @@ export type DbtProjectConfig =
     | DbtGithubProjectConfig
     | DbtBitBucketProjectConfig
     | DbtGitlabProjectConfig
-    | DbtAzureDevOpsProjectConfig;
+    | DbtAzureDevOpsProjectConfig
+    | DbtNoneProjectConfig;
 
 export type OrganizationProject = {
     projectUuid: string;
@@ -1193,8 +1233,4 @@ export const deepEqual = (
             (!areObjects && val1 !== val2)
         );
     });
-};
-
-export const assertUnreachable = (_x: never): never => {
-    throw new Error("Didn't expect to get here");
 };

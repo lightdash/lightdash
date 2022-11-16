@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
+import { Popover2Props } from '@blueprintjs/popover2';
 import { formatDate, hexToRGB, parseDate } from '@lightdash/common';
 import moment from 'moment';
 import React, { FC, useState } from 'react';
@@ -68,11 +69,22 @@ function getWeekRange(date: Date): WeekRange {
 type Props = {
     value: Date;
     onChange: (value: Date) => void;
+    popoverProps?: Popover2Props;
+    disabled?: boolean;
 };
 
-const WeekPicker: FC<Props> = ({ value, onChange }) => {
+const WeekPicker: FC<Props> = ({
+    value: dateValue,
+    onChange,
+    popoverProps,
+    disabled,
+}) => {
+    const value = moment(dateValue).toDate();
+    //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
+    const formattedDate = formatDate(value);
     const [hoverRange, setHoverRange] = useState<WeekRange>();
     const selectedDays = getWeekDays(getWeekRange(value).from);
+
     const daysAreSelected = selectedDays.length > 0;
     const modifiers = {
         hoverRange,
@@ -96,9 +108,11 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
             <SelectedWeekStyles />
             <DateInput2
                 fill
+                className={disabled ? 'disabled-filter' : ''}
+                disabled={disabled}
                 defaultTimezone="UTC"
                 showTimezoneSelect={false}
-                value={value.toUTCString()}
+                value={formattedDate}
                 formatDate={formatDate}
                 parseDate={parseDate}
                 defaultValue={getWeekRange(new Date()).from.toString()}
@@ -115,6 +129,7 @@ const WeekPicker: FC<Props> = ({ value, onChange }) => {
                 popoverProps={{
                     popoverClassName: 'WeekPicker',
                     placement: 'bottom',
+                    ...popoverProps,
                 }}
             />
         </>

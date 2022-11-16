@@ -26,6 +26,7 @@ import {
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
 import { TimeFrames } from '../types/timeFrames';
+import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
     timeFrameConfigs,
@@ -63,9 +64,10 @@ const convertTimezone = (
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
         default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const never: never = adapterType;
-            throw new ParseError(`Cannot recognise warehouse ${adapterType}`);
+            return assertUnreachable(
+                adapterType,
+                new ParseError(`Cannot recognise warehouse ${adapterType}`),
+            );
     }
 };
 
@@ -125,6 +127,7 @@ const convertDimension = (
         hidden: !!column.meta.dimension?.hidden,
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
+        compact: column.meta.dimension?.compact,
         groupLabel: column.meta.dimension?.group_label,
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }
@@ -159,15 +162,15 @@ const convertDbtMetricToLightdashMetric = (
 ): Metric => {
     let sql: string;
     let type: MetricType;
-    if (metric.type === 'expression') {
+    if (metric.calculation_method === 'expression') {
         type = MetricType.NUMBER;
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
-        if (!metric.sql) {
+        if (!metric.expression) {
             throw new ParseError(
                 `dbt expression metric "${metric.name}" must have the sql field set`,
             );
         }
-        sql = metric.sql;
+        sql = metric.expression;
 
         referencedMetrics.forEach((ref) => {
             const re = new RegExp(ref, 'g');
@@ -176,19 +179,21 @@ const convertDbtMetricToLightdashMetric = (
         });
     } else {
         try {
-            type = parseMetricType(metric.type);
+            type = parseMetricType(metric.calculation_method);
         } catch (e) {
             throw new ParseError(
-                `Cannot parse metric '${metric.unique_id}: type ${metric.type} is not a valid Lightdash metric type`,
+                `Cannot parse metric '${metric.unique_id}: type ${metric.calculation_method} is not a valid Lightdash metric type`,
             );
         }
         sql = defaultSql(metric.name);
-        if (metric.sql) {
-            const isSingleColumnName = /^[a-zA-Z0-9_]+$/g.test(metric.sql);
+        if (metric.expression) {
+            const isSingleColumnName = /^[a-zA-Z0-9_]+$/g.test(
+                metric.expression,
+            );
             if (isSingleColumnName) {
-                sql = defaultSql(metric.sql);
+                sql = defaultSql(metric.expression);
             } else {
-                sql = metric.sql;
+                sql = metric.expression;
             }
         }
     }
@@ -216,6 +221,7 @@ const convertDbtMetricToLightdashMetric = (
         source: undefined,
         hidden: !!metric.meta?.hidden,
         round: metric.meta?.round,
+        compact: metric.meta?.compact,
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
         showUnderlyingValues: metric.meta?.show_underlying_values,
@@ -331,6 +337,9 @@ export const convertTable = (
         throw new ParseError(`${message} ${duplicatedNames}`);
     }
 
+    if (!model.relation_name) {
+        throw new Error('Model has no table relation');
+    }
     return {
         name: model.name,
         label: tableLabel,
@@ -371,7 +380,7 @@ const modelCanUseMetric = (
     if (modelRef === modelName) {
         return true;
     }
-    if (metric.type === 'expression') {
+    if (metric.calculation_method === 'expression') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
         return referencedMetrics.every((m) =>
             modelCanUseMetric(m, modelName, metrics),
@@ -442,7 +451,7 @@ export const convertExplores = async (
             return compileExplore({
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
-                tags: model.tags,
+                tags: model.tags || [],
                 baseTable: model.name,
                 joinedTables: (meta?.joins || []).map((join) => ({
                     table: join.join,

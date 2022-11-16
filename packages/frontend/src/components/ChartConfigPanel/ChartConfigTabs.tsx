@@ -1,8 +1,8 @@
 import {
+    Checkbox,
     HTMLSelect,
     InputGroup,
     Label,
-    Switch,
     Tab,
     Tabs,
 } from '@blueprintjs/core';
@@ -19,7 +19,7 @@ import {
     Metric,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useCallback, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
@@ -315,6 +315,7 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             </InputWrapper>
+
                             {showSecondAxisRange && (
                                 <AxisMinMax
                                     label={`Auto ${
@@ -332,21 +333,22 @@ const ChartConfigTabs: FC = () => {
                                     }
                                 />
                             )}
-                            <SectionTitle>Show grid</SectionTitle>
 
-                            <GridSettings>
-                                <Switch
+                            <InputWrapper label="Show grid">
+                                <Checkbox
+                                    label={`${
+                                        dirtyLayout?.flipAxes ? 'Y' : 'X'
+                                    }-axis`}
                                     checked={!!dirtyLayout?.showGridX}
                                     onChange={(e) => {
                                         setShowGridX(!dirtyLayout?.showGridX);
                                     }}
                                 />
-                                <Label>
-                                    {dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis
-                                </Label>
-                            </GridSettings>
-                            <GridSettings>
-                                <Switch
+
+                                <Checkbox
+                                    label={`${
+                                        dirtyLayout?.flipAxes ? 'X' : 'Y'
+                                    }-axis`}
                                     checked={
                                         dirtyLayout?.showGridY !== undefined
                                             ? dirtyLayout?.showGridY
@@ -360,10 +362,7 @@ const ChartConfigTabs: FC = () => {
                                         );
                                     }}
                                 />
-                                <Label>
-                                    {dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis
-                                </Label>
-                            </GridSettings>
+                            </InputWrapper>
                         </>
                     }
                 />

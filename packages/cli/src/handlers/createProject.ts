@@ -63,17 +63,16 @@ const askPermissionToStoreWarehouseCredentials = async (): Promise<boolean> => {
     return savedAnswer;
 };
 
-type CreateProjectHandlerOptions = {
+type CreateProjectOptions = {
     name: string;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
     type: ProjectType;
-    verbose: boolean;
 };
 export const createProject = async (
-    options: CreateProjectHandlerOptions,
+    options: CreateProjectOptions,
 ): Promise<Project | undefined> => {
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
@@ -122,7 +121,7 @@ export const createProject = async (
         type: options.type,
         warehouseConnection: credentials,
         dbtConnection: {
-            type: DbtProjectType.DBT,
+            type: DbtProjectType.NONE,
             target: targetName,
         },
     };

@@ -6,15 +6,30 @@ export type DbSpace = {
     space_id: number;
     space_uuid: string;
     name: string;
+    is_private: boolean;
     created_at: Date;
     project_id: number;
     organization_uuid: string;
 };
 
-type CreateDbSpace = Pick<DbSpace, 'name' | 'project_id'>;
+type CreateDbSpace = Pick<DbSpace, 'name' | 'project_id' | 'is_private'>;
 
 export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;
 export const SpaceTableName = 'spaces';
+
+export type DbSpaceShare = {
+    space_id: number;
+    user_id: number;
+};
+
+type CreateDbSpaceShare = Pick<DbSpaceShare, 'space_id' | 'user_id'>;
+
+export type SpaceShareTable = Knex.CompositeTableType<
+    DbSpaceShare,
+    CreateDbSpaceShare
+>;
+
+export const SpaceShareTableName = 'space_share';
 
 export const getSpace = async (
     db: Knex,
@@ -95,6 +110,7 @@ export const getSpaceWithQueries = async (
         organizationUuid: space.organization_uuid,
         uuid: space.space_uuid,
         name: space.name,
+        isPrivate: space.is_private,
         queries: savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
@@ -109,6 +125,7 @@ export const getSpaceWithQueries = async (
         })),
         projectUuid,
         dashboards: [],
+        access: [],
     };
 };
 

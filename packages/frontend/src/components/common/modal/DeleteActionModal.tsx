@@ -32,7 +32,7 @@ const RelatedDashboardsMessage: FC<RelatedDashboardsMessageProps> = ({
             <ul>
                 {relatedDashboards.map((dashboard) => {
                     return (
-                        <li>
+                        <li key={dashboard.uuid}>
                             <Link
                                 target="_blank"
                                 to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}

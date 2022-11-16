@@ -54,6 +54,13 @@ type PersonalAccessTokenEvent = BaseTrack & {
     };
 };
 
+type DbtCloudIntegration = BaseTrack & {
+    event: 'dbt_cloud_integration.updated';
+    properties: {
+        projectId: string;
+    };
+};
+
 type SqlExecutedEvent = BaseTrack & {
     event: 'sql.executed';
     properties: {
@@ -206,6 +213,7 @@ type ProjectCompiledEvent = BaseTrack & {
     event: 'project.compiled';
     userId?: string;
     properties: {
+        requestMethod: RequestMethod;
         projectId: string;
         projectName: string;
         projectType: DbtProjectType;
@@ -224,6 +232,7 @@ type ProjectErrorEvent = BaseTrack & {
     event: 'project.error';
     userId?: string;
     properties: {
+        requestMethod: RequestMethod;
         projectId: string;
         name: string;
         statusCode: number;
@@ -368,6 +377,15 @@ type FieldValueSearch = BaseTrack & {
     };
 };
 
+type ShareUrl = BaseTrack & {
+    event: 'share_url.created' | 'share_url.used';
+    userId: string;
+    properties: {
+        organizationId: string;
+        path: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -388,6 +406,7 @@ type Track =
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent
+    | DbtCloudIntegration
     | PersonalAccessTokenEvent
     | DuplicatedChartCreatedEvent
     | DuplicatedDashboardCreatedEvent
@@ -398,7 +417,8 @@ type Track =
     | DashboardUpdateMultiple
     | SavedChartUpdateMultiple
     | FieldValueSearch
-    | PermissionsUpdated;
+    | PermissionsUpdated
+    | ShareUrl;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

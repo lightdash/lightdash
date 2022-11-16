@@ -42,7 +42,8 @@ const ProjectTablesConfiguration: FC<{
     const ability = useAbilityContext();
     const [isListOpen, toggleList] = useToggle(false);
 
-    const { data: explores, isLoading: isLoadingExplores } = useExplores();
+    const { data: explores, isLoading: isLoadingExplores } =
+        useExplores(projectUuid);
     const { data, isLoading } = useProjectTablesConfiguration(projectUuid);
     const {
         mutate: update,
@@ -184,7 +185,7 @@ const ProjectTablesConfiguration: FC<{
                     <Collapse isOpen={isListOpen}>
                         <ListWrapper className={Classes.ELEVATION_0}>
                             {modelsIncluded.map((name) => (
-                                <Text title={name} ellipsize>
+                                <Text key={name} title={name} ellipsize>
                                     {name}
                                 </Text>
                             ))}
@@ -258,6 +259,7 @@ const ProjectTablesConfiguration: FC<{
                     </RadioGroup>
                 </RightPanel>
             </CardWrapper>
+
             {canUpdateTableConfiguration && (
                 <SaveButton
                     type="submit"

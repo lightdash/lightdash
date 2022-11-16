@@ -243,6 +243,7 @@ type TimeFrameConfig = {
         type: DimensionType,
     ) => string;
     getAxisMinInterval: () => number | null;
+    getAxisLabelFormatter: () => Record<string, string> | null;
 };
 
 export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
@@ -251,114 +252,133 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getDimensionType: (fallback) => fallback,
         getSql: (_adapterType, _timeInterval, originalSql) => originalSql,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     MILLISECOND: {
         getLabel: () => 'Millisecond',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     SECOND: {
         getLabel: () => 'Second',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     MINUTE: {
         getLabel: () => 'Minute',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     HOUR: {
         getLabel: () => 'Hour',
         getDimensionType: () => DimensionType.TIMESTAMP,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     DAY: {
         getLabel: () => 'Day',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => ({ hour: '' }),
     },
     WEEK: {
         getLabel: () => 'Week',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => ({ hour: '' }),
     },
     MONTH: {
         getLabel: () => 'Month',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => 2629800000,
+        getAxisLabelFormatter: () => null,
     },
     QUARTER: {
         getLabel: () => 'Quarter',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => 7889400000,
+        getAxisLabelFormatter: () => null,
     },
     YEAR: {
         getLabel: () => 'Year',
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => 31557600000,
+        getAxisLabelFormatter: () => null,
     },
     MONTH_NUM: {
         getLabel: () => 'Month (number)',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: getSqlForDatePart,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     DAY_OF_WEEK_INDEX: {
         getLabel: () => 'Day of the week (index)',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: getSqlForDatePart,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     DAY_OF_MONTH_NUM: {
         getLabel: () => 'Day of the month (number)',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: getSqlForDatePart,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     DAY_OF_YEAR_NUM: {
         getLabel: () => 'Day of the year (number)',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: getSqlForDatePart,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     QUARTER_NUM: {
         getLabel: () => 'Quarter (number)',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: getSqlForDatePart,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     YEAR_NUM: {
         getLabel: () => 'Year (number)',
         getDimensionType: () => DimensionType.NUMBER,
         getSql: getSqlForDatePart,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     DAY_OF_WEEK_NAME: {
         getLabel: () => 'Day of the week (name)',
         getDimensionType: () => DimensionType.STRING,
         getSql: getSqlForDatePartName,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     MONTH_NAME: {
         getLabel: () => 'Month (name)',
         getDimensionType: () => DimensionType.STRING,
         getSql: getSqlForDatePartName,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
     QUARTER_NAME: {
         getLabel: () => 'Quarter (name)',
         getDimensionType: () => DimensionType.STRING,
         getSql: getSqlForDatePartName,
         getAxisMinInterval: () => null,
+        getAxisLabelFormatter: () => null,
     },
 };
 
@@ -374,7 +394,7 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
           ]
         : [TimeFrames.DAY, TimeFrames.WEEK, TimeFrames.MONTH, TimeFrames.YEAR];
 
-const isTimeInterval = (value: string): value is TimeFrames =>
+export const isTimeInterval = (value: string): value is TimeFrames =>
     Object.keys(timeFrameConfigs).includes(value);
 
 export const validateTimeFrames = (values: string[]): TimeFrames[] =>

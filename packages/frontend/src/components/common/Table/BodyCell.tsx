@@ -3,6 +3,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import React, { FC, useCallback, useState } from 'react';
+import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
 import { CellContextMenuProps } from './types';
@@ -14,6 +15,8 @@ interface CommonBodyCellProps {
     hasData: boolean;
     cellContextMenu?: FC<CellContextMenuProps>;
     onSelect?: (cellId: string | undefined) => void;
+    className?: string;
+    style?: CSSProperties;
 }
 
 interface BodyCellProps extends CommonBodyCellProps {
@@ -32,11 +35,15 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
             isSelected,
             children,
             onSelect,
+            className,
+            style,
         },
         ref,
     ) => {
         return (
             <Td
+                style={style}
+                className={className}
                 ref={ref}
                 $rowIndex={rowIndex}
                 $isSelected={isSelected}

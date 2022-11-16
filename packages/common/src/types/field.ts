@@ -1,6 +1,74 @@
 import { FilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
 
+export enum Compact {
+    THOUSANDS = 'thousands',
+    MILLIONS = 'millions',
+    BILLIONS = 'billions',
+    TRILLIONS = 'trillions',
+}
+
+const CompactAlias = [
+    'K',
+    'thousand',
+    'M',
+    'million',
+    'B',
+    'billion',
+    'T',
+    'trillion',
+] as const;
+
+type CompactConfig = {
+    compact: Compact;
+    alias: Array<typeof CompactAlias[number]>;
+    convertFn: (value: number) => number;
+    label: string;
+    suffix: string;
+};
+
+export type CompactOrAlias = Compact | typeof CompactAlias[number];
+
+export const CompactConfigMap: Record<Compact, CompactConfig> = {
+    [Compact.THOUSANDS]: {
+        compact: Compact.THOUSANDS,
+        alias: ['K', 'thousand'],
+        convertFn: (value: number) => value / 1000,
+        label: 'thousands (K)',
+        suffix: 'K',
+    },
+    [Compact.MILLIONS]: {
+        compact: Compact.MILLIONS,
+        alias: ['M', 'million'],
+        convertFn: (value: number) => value / 1000000,
+        label: 'millions (M)',
+        suffix: 'M',
+    },
+    [Compact.BILLIONS]: {
+        compact: Compact.BILLIONS,
+        alias: ['B', 'billion'],
+        convertFn: (value: number) => value / 1000000000,
+        label: 'billions (B)',
+        suffix: 'B',
+    },
+    [Compact.TRILLIONS]: {
+        compact: Compact.TRILLIONS,
+        alias: ['T', 'trillion'],
+        convertFn: (value: number) => value / 1000000000000,
+        label: 'trillions (T)',
+        suffix: 'T',
+    },
+};
+
+export function findCompactConfig(
+    compactOrAlias: CompactOrAlias,
+): CompactConfig | undefined {
+    return Object.values(CompactConfigMap).find(
+        ({ compact, alias }) =>
+            compact === compactOrAlias || alias.includes(compactOrAlias as any),
+    );
+}
+
 export enum FieldType {
     METRIC = 'metric',
     DIMENSION = 'dimension',
@@ -23,17 +91,21 @@ export interface Field {
     description?: string;
     source?: Source | undefined;
     hidden: boolean;
+    compact?: CompactOrAlias;
     round?: number;
     format?: string;
     groupLabel?: string;
     urls?: FieldUrl[];
 }
 
-export const isField = (field: any): field is Field => field?.fieldType;
+export const isField = (field: any): field is Field =>
+    field ? !!field.fieldType : false;
+
 // Field ids are unique across the project
 export type FieldId = string;
 export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
     `${field.table}_${field.name}`;
+
 export type Source = {
     path: string;
     range: {

@@ -5,7 +5,9 @@ describe('Settings - Invites', () => {
     });
 
     it('Should invite user', () => {
-        cy.get('[data-cy="settings-button"]').click();
+        cy.findAllByTestId('settings-menu').click();
+        cy.findByRole('menuitem', { name: 'Organization settings' }).click();
+
         cy.contains('User management').click();
         cy.contains('Add user').click();
         cy.findByLabelText('Enter user email address *').type(
@@ -30,11 +32,13 @@ describe('Settings - Invites', () => {
             .should('have.value', 'marygreen@lightdash.com');
         cy.findByLabelText('Password *').type('PasswordMary1');
         cy.contains('Sign up').click();
-        cy.get('[data-cy="user-avatar"]').should('contain', 'MG');
+        cy.findByTestId('user-avatar').should('contain', 'MG');
     });
 
     it('Should delete user', () => {
-        cy.get('[data-cy="settings-button"]').click();
+        cy.findAllByTestId('settings-menu').click();
+        cy.findByRole('menuitem', { name: 'Organization settings' }).click();
+
         cy.contains('User management').click();
         cy.findByText('marygreen@lightdash.com')
             .parents('.bp4-card')

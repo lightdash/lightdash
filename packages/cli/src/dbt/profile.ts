@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 import { convertBigquerySchema } from './targets/Bigquery';
+import { convertDatabricksSchema } from './targets/databricks';
 import { convertPostgresSchema } from './targets/postgres';
 import { convertRedshiftSchema } from './targets/redshift';
 import { convertSnowflakeSchema } from './targets/snowflake';
@@ -56,6 +57,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertBigquerySchema(target);
         case 'redshift':
             return convertRedshiftSchema(target);
+        case 'databricks':
+            return convertDatabricksSchema(target);
         default:
             throw new ParseError(
                 `Sorry! Lightdash doesn't yet support ${target.type} dbt targets`,

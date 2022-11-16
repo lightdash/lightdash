@@ -179,6 +179,7 @@ const createSavedChartVersion = async (
                         description: additionalMetric.description,
                         sql: additionalMetric.sql,
                         hidden: additionalMetric.hidden,
+                        compact: additionalMetric.compact,
                         round: additionalMetric.round,
                         format: additionalMetric.format,
                         saved_queries_version_id:

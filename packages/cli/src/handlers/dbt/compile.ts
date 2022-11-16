@@ -1,5 +1,6 @@
 import { ParseError } from '@lightdash/common';
 import execa from 'execa';
+import GlobalState from '../../globalState';
 
 export type DbtCompileOptions = {
     profilesDir: string;
@@ -15,7 +16,6 @@ export type DbtCompileOptions = {
     selector: string | undefined;
     state: string | undefined;
     fullRefresh: boolean | undefined;
-    verbose: boolean;
 };
 
 const dbtCompileArgs = [
@@ -51,7 +51,10 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
 export const dbtCompile = async (options: DbtCompileOptions) => {
     try {
         const args = optionsToArgs(options);
-        await execa('dbt', ['compile', ...args]);
+        GlobalState.debug(`> Running: dbt compile ${args.join(' ')}`);
+        const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
+        console.error(stdout);
+        console.error(stderr);
     } catch (e: any) {
         throw new ParseError(`Failed to run dbt compile:\n  ${e.message}`);
     }

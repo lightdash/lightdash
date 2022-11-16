@@ -1,21 +1,25 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
+    Field,
     isField,
     isFilterableField,
-    renderTemplatedUrl,
     ResultRow,
+    TableCalculation,
 } from '@lightdash/common';
-import { FC } from 'react';
+import React, { FC } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps } from '../../common/Table/types';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
+import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell' | 'isEditMode'>
-> = ({ cell, isEditMode }) => {
+    Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
+        itemsMap: Record<string, Field | TableCalculation>;
+    }
+> = ({ cell, isEditMode, itemsMap }) => {
     const { addFilter } = useFilters();
     const { viewData } = useUnderlyingDataContext();
     const { track } = useTracking();
@@ -24,30 +28,15 @@ const CellContextMenu: FC<
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-
     return (
         <Menu>
-            {!!value.raw &&
-                isField(item) &&
-                (item.urls || []).map((urlConfig) => (
-                    <MenuItem2
-                        key={`url_entry_${urlConfig.label}`}
-                        icon="open-application"
-                        text={urlConfig.label}
-                        onClick={() => {
-                            track({
-                                name: EventName.GO_TO_LINK_CLICKED,
-                            });
-                            window.open(
-                                renderTemplatedUrl(urlConfig.url, {
-                                    raw: value.raw,
-                                    formatted: value.formatted,
-                                }),
-                                '_blank',
-                            );
-                        }}
-                    />
-                ))}
+            {!!value.raw && isField(item) && (
+                <UrlMenuItems
+                    urls={item.urls}
+                    cell={cell}
+                    itemsMap={itemsMap}
+                />
+            )}
 
             {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
 

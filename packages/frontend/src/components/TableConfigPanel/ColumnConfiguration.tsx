@@ -1,9 +1,11 @@
-import { Button, InputGroup } from '@blueprintjs/core';
+import { Button, Colors, Icon, InputGroup } from '@blueprintjs/core';
 import React from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     ColumnConfigurationWrapper,
     ColumnWrapper,
+    EyeButton,
+    FrozenIcon,
 } from './ColumnConfiguration.styles';
 
 export const ColumnConfiguration: React.FC = () => {
@@ -15,14 +17,14 @@ export const ColumnConfiguration: React.FC = () => {
             getHeader,
             getDefaultColumnLabel,
             isColumnVisible,
+            isColumnFrozen,
         },
     } = useVisualizationContext();
-    const pivotDimension = pivotDimensions?.[0];
     return (
         <ColumnConfigurationWrapper>
             {selectedItemIds?.map((fieldId) => {
                 return (
-                    <ColumnWrapper>
+                    <ColumnWrapper key={fieldId}>
                         <InputGroup
                             fill
                             disabled={!isColumnVisible(fieldId)}
@@ -35,8 +37,9 @@ export const ColumnConfiguration: React.FC = () => {
                             }}
                         />
 
-                        {fieldId !== pivotDimension && (
-                            <Button
+                        {(!pivotDimensions ||
+                            !pivotDimensions.includes(fieldId)) && (
+                            <EyeButton
                                 icon={
                                     isColumnVisible(fieldId)
                                         ? 'eye-off'
@@ -45,6 +48,23 @@ export const ColumnConfiguration: React.FC = () => {
                                 onClick={() => {
                                     updateColumnProperty(fieldId, {
                                         visible: !isColumnVisible(fieldId),
+                                    });
+                                }}
+                            />
+                        )}
+                        {pivotDimensions === undefined && (
+                            <FrozenIcon
+                                icon={
+                                    isColumnFrozen(fieldId) ? 'lock' : 'unlock'
+                                }
+                                color={
+                                    isColumnFrozen(fieldId)
+                                        ? 'black'
+                                        : Colors.GRAY5
+                                }
+                                onClick={() => {
+                                    updateColumnProperty(fieldId, {
+                                        frozen: !isColumnFrozen(fieldId),
                                     });
                                 }}
                             />

@@ -15,6 +15,10 @@ import {
     DashboardViewsTableName,
     DashboardViewTable,
 } from '../database/entities/dashboards';
+import {
+    DbtCloudIntegrationsTable,
+    DbtCloudIntegrationsTableName,
+} from '../database/entities/dbtCloudIntegrations';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
     InviteLinkTable,
@@ -79,7 +83,13 @@ import {
     SavedQueryTableCalculationTableName,
 } from '../database/entities/savedCharts';
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
-import { SpaceTable, SpaceTableName } from '../database/entities/spaces';
+import { ShareTable, ShareTableName } from '../database/entities/share';
+import {
+    SpaceShareTable,
+    SpaceShareTableName,
+    SpaceTable,
+    SpaceTableName,
+} from '../database/entities/spaces';
 import { UserTable, UserTableName } from '../database/entities/users';
 import {
     WarehouseCredentialTable,
@@ -120,5 +130,8 @@ declare module 'knex/types/tables' {
         [JobStepsTableName]: JobStepsTable;
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
+        [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
+        [ShareTableName]: ShareTable;
+        [SpaceShareTableName]: SpaceShareTable;
     }
 }

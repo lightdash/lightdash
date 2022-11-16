@@ -1,11 +1,12 @@
-import React, { FC, memo } from 'react';
-import { useApp } from '../../../providers/AppProvider';
+import { FC, memo } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { Can } from '../../common/Authorization';
+import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
-import { Wrapper } from './ExplorerHeader.styles';
+import { Spacer, Wrapper } from './ExplorerHeader.styles';
 
 const ExplorerHeader: FC = memo(() => {
     const isEditMode = useExplorerContext(
@@ -14,25 +15,28 @@ const ExplorerHeader: FC = memo(() => {
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
-
-    const { user } = useApp();
+    const isValidQuery = useExplorerContext(
+        (context) => context.state.isValidQuery,
+    );
 
     return (
         <Wrapper>
             {isEditMode ? (
                 <>
                     <RefreshDbtButton />
-                    <div>
-                        <RefreshButton />
-                        {!savedChart &&
-                            user.data?.ability?.can('manage', 'SavedChart') && (
-                                <SaveChartButton isExplorer />
-                            )}
-                    </div>
+                    <Spacer />
+                    <RefreshButton />
+                    {!savedChart && (
+                        <Can I="manage" a="SavedChart">
+                            <SaveChartButton isExplorer />
+                        </Can>
+                    )}
                 </>
             ) : (
                 <ExploreFromHereButton />
             )}
+
+            <ShareShortLinkButton disabled={!isValidQuery} />
         </Wrapper>
     );
 });

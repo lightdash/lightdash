@@ -1,0 +1,84 @@
+name: Timezone tests
+on: [ deployment_status ]
+jobs:
+  cypress-run:
+    # Only trigger for correct environment and status
+    if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
+    runs-on: ubuntu-latest
+    container: cypress/browsers:node14.19.0-chrome100-ff99-edge
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+      - name: Get deployment url
+        id: deployment_url
+        env:
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Install and build Common package
+      - name: Install packages/common modules
+        run: yarn workspace @lightdash/common install
+      - name: Build packages/common module
+        run: yarn common-build
+
+      - name: Cypress run with UTC
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC' # For tests
+      - name: Cypress run with America/New_York
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'America/New_York'
+          CYPRESS_TZ: 'America/New_York' # For tests
+
+      - name: Cypress run with Europe/Madrid
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'Europe/Madrid'
+          CYPRESS_TZ: 'Europe/Madrid' # For tests
+      - name: Cypress run with Asia/Tokyo
+        uses: cypress-io/github-action@v4
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/dates.cy.ts
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          TZ: 'Asia/Tokyo'
+          CYPRESS_TZ: 'Asia/Tokyo' # For tests
+
+      # After the test run completes
+      # store videos and any screenshots
+      - uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: cypress-screenshots
+          path: packages/e2e/cypress/screenshots
+      - uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: cypress-videos
+          path: packages/e2e/cypress/videos

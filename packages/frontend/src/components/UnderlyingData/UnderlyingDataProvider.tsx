@@ -1,9 +1,11 @@
 import {
+    DashboardFilters,
     Field,
     Filters,
     getItemId,
     hashFieldReference,
     isDimension,
+    PivotReference,
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
@@ -23,7 +25,8 @@ type UnderlyingDataConfig = {
     meta: TableColumn['meta'];
     row: ResultRow;
     dimensions?: string[];
-    pivot?: { fieldId: string; value: any };
+    pivotReference?: PivotReference;
+    dashboardFilters?: DashboardFilters;
 };
 
 type UnderlyingDataContext = {
@@ -36,31 +39,26 @@ type UnderlyingDataContext = {
         meta: TableColumn['meta'],
         row: ResultRow,
         dimensions?: string[],
-        pivot?: { fieldId: string; value: any },
+        pivotReference?: PivotReference,
+        dashboardFilters?: DashboardFilters,
     ) => void;
     closeModal: () => void;
 };
 
 export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
-    pivot: string | undefined,
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
-) => {
-    const withPivot =
-        pivot !== undefined
-            ? { fieldId: pivot, value: series[e.seriesIndex].pivotRawValue }
-            : undefined;
-
+): UnderlyingDataConfig => {
+    const pivotReference = series[e.seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
-        if (!isDimension(item) && withPivot) {
+        if (
+            !isDimension(item) &&
+            pivotReference &&
+            pivotReference.field === getItemId(item)
+        ) {
             return e.dimensionNames.includes(
-                hashFieldReference({
-                    field: getItemId(item),
-                    pivotValues: [
-                        { field: withPivot.fieldId, value: withPivot.value },
-                    ],
-                }),
+                hashFieldReference(pivotReference),
             );
         }
         return e.dimensionNames.includes(getItemId(item));
@@ -86,7 +84,7 @@ export const getDataFromChartClick = (
         meta: { item: selectedField },
         value: { raw: selectedValue, formatted: selectedValue },
         row,
-        pivot: withPivot,
+        pivotReference,
     };
 };
 const Context = createContext<UnderlyingDataContext | undefined>(undefined);
@@ -102,9 +100,10 @@ export const UnderlyingDataProvider: FC<Props> = ({
     children,
 }) => {
     const [config, setConfig] = useState<UnderlyingDataConfig>();
+    const [isModalOpen, setModalOpen] = useState<boolean>(false);
 
     const closeModal = useCallback(() => {
-        setConfig(undefined);
+        setModalOpen(false);
     }, []);
 
     const viewData = useCallback(
@@ -113,15 +112,19 @@ export const UnderlyingDataProvider: FC<Props> = ({
             meta: TableColumn['meta'],
             row: ResultRow,
             dimensions?: string[],
-            pivot?: { fieldId: string; value: any },
+            pivotReference?: PivotReference,
+            dashboardFilters?: DashboardFilters,
         ) => {
             setConfig({
                 value,
                 meta,
                 row,
                 dimensions,
-                pivot,
+                pivotReference,
+                dashboardFilters,
             });
+
+            setModalOpen(true);
         },
         [setConfig],
     );
@@ -133,7 +136,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 filters,
                 config,
                 viewData,
-                isModalOpen: !!config,
+                isModalOpen,
                 closeModal,
             }}
         >
