@@ -15,7 +15,7 @@ type Dependencies = {
     spaceModel: SpaceModel;
 };
 
-const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
+export const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
     !space.isPrivate ||
     space.access.find(
         (userAccess) =>

@@ -17,16 +17,34 @@ import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { spaceModel } from '../../models/models';
+import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
+    spaceModel: SpaceModel;
 };
 
 export class DashboardService {
     dashboardModel: DashboardModel;
 
+    spaceModel: SpaceModel;
+
     constructor({ dashboardModel }: Dependencies) {
         this.dashboardModel = dashboardModel;
+        this.spaceModel = spaceModel;
+    }
+
+    async hasDashboardSpaceAccess(
+        spaceUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        try {
+            const space = await this.spaceModel.getFullSpace(spaceUuid);
+            return hasSpaceAccess(space, userUuid);
+        } catch (e) {
+            return false;
+        }
     }
 
     static getCreateEventProperties(
@@ -61,8 +79,24 @@ export class DashboardService {
             projectUuid,
             chartUuid,
         );
-        return dashboards.filter((dashboard) =>
-            user.ability.can('view', subject('Dashboard', dashboard)),
+
+        const spaceUuids = [
+            ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
+        ];
+        const spaceAccess: Record<string, boolean> = await spaceUuids.reduce<
+            Promise<Record<string, boolean>>
+        >(async (acc, spaceUuid) => {
+            const a = await acc;
+            a[spaceUuid] = await this.hasDashboardSpaceAccess(
+                spaceUuid,
+                user.userUuid,
+            );
+            return a;
+        }, Promise.resolve({}));
+        return dashboards.filter(
+            (dashboard) =>
+                user.ability.can('view', subject('Dashboard', dashboard)) &&
+                spaceAccess[dashboard.spaceUuid],
         );
     }
 

@@ -73,6 +73,7 @@ export const healthService = new HealthService({
 
 export const dashboardService = new DashboardService({
     dashboardModel,
+    spaceModel,
 });
 
 export const savedChartsService = new SavedChartService({
