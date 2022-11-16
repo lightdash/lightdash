@@ -13,7 +13,12 @@ export const AddUsersWrapper = styled.div`
 export const AccessWrapper = styled.div`
     display: flex;
 
-    margin: 5px 5px 15px 5px;
+    margin: 5px 5px 5px 5px;
+`;
+
+export const ListUserWrapper = styled.div`
+    display: flex;
+    margin: 15px 5px 5px 5px;
 `;
 
 export const FlexWrapper = styled.div`

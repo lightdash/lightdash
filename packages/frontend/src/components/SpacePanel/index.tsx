@@ -13,7 +13,7 @@ import {
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
-import ShareSpaceModal from '../common/ShareSpaceModal/ShareSpaceModal';
+import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
