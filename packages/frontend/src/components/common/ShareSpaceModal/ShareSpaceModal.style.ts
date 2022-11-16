@@ -1,4 +1,4 @@
-import { Button, Card, Colors, H5, Tag } from '@blueprintjs/core';
+import { Button, Card, Colors, H5, Icon, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const OpenShareModal = styled(Button)`
@@ -129,4 +129,7 @@ export const UserRole = styled.div`
 `;
 export const YouLabel = styled.span`
     font-weight: 300;
+`;
+export const SelectIcon = styled(Icon)`
+    margin-top: 24px;
 `;

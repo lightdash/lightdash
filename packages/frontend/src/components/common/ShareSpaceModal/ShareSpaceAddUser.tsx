@@ -13,6 +13,7 @@ import {
     AddUsersWrapper,
     FlexWrapper,
     MemberAccess,
+    SelectIcon,
     ShareButton,
     UserTag,
 } from './ShareSpaceModal.style';
@@ -89,9 +90,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 <MenuItem2
                     active={modifiers.active}
                     icon={
-                        usersSelected.includes(user.userUuid) || isDisabled
-                            ? 'tick'
-                            : 'blank'
+                        <SelectIcon
+                            icon={
+                                usersSelected.includes(user.userUuid) ||
+                                isDisabled
+                                    ? 'tick'
+                                    : 'blank'
+                            }
+                        />
                     }
                     key={user.userUuid}
                     title={
@@ -131,7 +137,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, space, projectAccess],
+        [usersSelected, space, projectAccess, organizationUsers],
     );
 
     return (
