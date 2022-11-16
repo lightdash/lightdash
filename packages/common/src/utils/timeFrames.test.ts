@@ -15,7 +15,7 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                "(DATE_TRUNC('WEEK', (${TABLE}.created - interval '5 days')) + interval '5 days')",
+                "(DATE_TRUNC('WEEK', (${TABLE}.created - interval '2 days')) + interval '2 days')",
             );
             expect(
                 timeFrameConfigs[TimeFrames.WEEK].getSql(
@@ -26,7 +26,7 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                "(DATE_TRUNC('WEEK', (${TABLE}.created - interval '5 days')) + interval '5 days')",
+                "(DATE_TRUNC('WEEK', (${TABLE}.created - interval '2 days')) + interval '2 days')",
             );
             expect(
                 timeFrameConfigs[TimeFrames.WEEK].getSql(
@@ -46,7 +46,7 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                "DATEADD(DAY, 5, DATE_TRUNC('WEEK', DATEADD(DAY, -5, ${TABLE}.created)))",
+                "DATEADD(DAY, 2, DATE_TRUNC('WEEK', DATEADD(DAY, -2, ${TABLE}.created)))",
             );
             expect(
                 timeFrameConfigs[TimeFrames.WEEK].getSql(
@@ -57,7 +57,7 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                "DATEADD(DAY, 5, DATE_TRUNC('WEEK', DATEADD(DAY, -5, ${TABLE}.created)))",
+                "DATEADD(DAY, 2, DATE_TRUNC('WEEK', DATEADD(DAY, -2, ${TABLE}.created)))",
             );
         });
     });

@@ -125,7 +125,7 @@ const bigqueryConfig: WarehouseConfig = {
 const snowflakeConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && startOfWeek) {
-            const intervalDiff = `${7 - startOfWeek}`;
+            const intervalDiff = `${startOfWeek}`;
             return `DATEADD(DAY, ${intervalDiff}, DATE_TRUNC('${timeFrame}', DATEADD(DAY, -${intervalDiff}, ${originalSql})))`;
         }
 
@@ -164,7 +164,7 @@ const snowflakeConfig: WarehouseConfig = {
 const postgresConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && startOfWeek) {
-            const intervalDiff = `${7 - startOfWeek} days`;
+            const intervalDiff = `${startOfWeek} days`;
             return `(DATE_TRUNC('${timeFrame}', (${originalSql} - interval '${intervalDiff}')) + interval '${intervalDiff}')`;
         }
         return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
@@ -197,7 +197,7 @@ const postgresConfig: WarehouseConfig = {
 const databricksConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && startOfWeek) {
-            const intervalDiff = `${7 - startOfWeek}`;
+            const intervalDiff = `${startOfWeek}`;
             return `DATEADD(DAY, ${intervalDiff}, DATE_TRUNC('${timeFrame}', DATEADD(DAY, -${intervalDiff}, ${originalSql})))`;
         }
         return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
