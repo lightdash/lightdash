@@ -48,10 +48,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
-        return organizationUsers
+        const projectUserUuids =
+            projectAccess?.map((project) => project.userUuid) || [];
+        const orgUserUuids = organizationUsers
             .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
             .map((user) => user.userUuid);
-    }, [organizationUsers]);
+        return [...new Set([...projectUserUuids, ...orgUserUuids])];
+    }, [organizationUsers, projectAccess]);
 
     const filterUser: ItemPredicate<string> = useCallback(
         (query, userUuid, _index) => {
