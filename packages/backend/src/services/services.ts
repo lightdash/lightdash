@@ -79,6 +79,7 @@ export const dashboardService = new DashboardService({
 export const savedChartsService = new SavedChartService({
     projectModel,
     savedChartModel,
+    spaceModel,
 });
 
 export const personalAccessTokenService = new PersonalAccessTokenService({

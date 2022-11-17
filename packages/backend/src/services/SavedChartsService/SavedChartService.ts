@@ -14,10 +14,13 @@ import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
+    spaceModel: SpaceModel;
 };
 
 export class SavedChartService {
@@ -25,9 +28,24 @@ export class SavedChartService {
 
     private readonly savedChartModel: SavedChartModel;
 
+    private readonly spaceModel: SpaceModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.savedChartModel = dependencies.savedChartModel;
+        this.spaceModel = dependencies.spaceModel;
+    }
+
+    async hasChartSpaceAccess(
+        spaceUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        try {
+            const space = await this.spaceModel.getFullSpace(spaceUuid);
+            return hasSpaceAccess(space, userUuid);
+        } catch (e) {
+            return false;
+        }
     }
 
     static getCreateEventProperties(
@@ -186,6 +204,17 @@ export class SavedChartService {
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
+        if (
+            !(await this.hasChartSpaceAccess(
+                savedChart.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
         return savedChart;
     }
 
