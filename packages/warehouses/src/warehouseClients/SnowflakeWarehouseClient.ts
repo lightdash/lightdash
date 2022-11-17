@@ -159,6 +159,13 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
+            if (this.startOfWeek) {
+                const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
+                await this.executeStatement(
+                    connection,
+                    `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
+                );
+            }
             await this.executeStatement(
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",

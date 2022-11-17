@@ -1,6 +1,7 @@
 import React, { FC } from 'react';
 import Select2 from '../../../ReactHookForm/Select2';
 
+const defaultOption = { value: null, label: 'Auto' };
 const daysOfWeekOptions = [
     'Monday',
     'Tuesday',
@@ -17,7 +18,8 @@ const StartOfWeekSelect: FC<{ disabled: boolean }> = ({ disabled }) => {
             name="warehouse.startOfWeek"
             label="Start of week"
             labelHelp="Will be taken into account when using 'WEEK' time interval"
-            items={[{ value: null, label: 'Auto' }, ...daysOfWeekOptions]}
+            items={[defaultOption, ...daysOfWeekOptions]}
+            defaultValue={defaultOption.value}
             disabled={disabled}
         />
     );

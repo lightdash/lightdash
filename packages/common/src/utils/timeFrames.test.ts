@@ -57,7 +57,7 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                "DATEADD(DAY, 2, DATE_TRUNC('WEEK', DATEADD(DAY, -2, ${TABLE}.created)))",
+                "DATE_TRUNC('WEEK', ${TABLE}.created)", // start of week is set in the session
             );
         });
     });

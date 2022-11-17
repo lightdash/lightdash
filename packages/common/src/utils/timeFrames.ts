@@ -123,14 +123,8 @@ const bigqueryConfig: WarehouseConfig = {
 };
 
 const snowflakeConfig: WarehouseConfig = {
-    getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
-        if (timeFrame === TimeFrames.WEEK && startOfWeek) {
-            const intervalDiff = `${startOfWeek}`;
-            return `DATEADD(DAY, ${intervalDiff}, DATE_TRUNC('${timeFrame}', DATEADD(DAY, -${intervalDiff}, ${originalSql})))`;
-        }
-
-        return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
-    },
+    getSqlForTruncatedDate: (timeFrame, originalSql) =>
+        `DATE_TRUNC('${timeFrame}', ${originalSql})`,
     getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
         if (!datePart) {
