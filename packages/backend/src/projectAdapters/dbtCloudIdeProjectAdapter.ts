@@ -31,10 +31,7 @@ export class DbtCloudIdeProjectAdapter extends DbtBaseProjectAdapter {
         super(rpcClient, warehouseClient, cachedWarehouse);
     }
 
-    public async compileAllExplores(
-        loadSources?: boolean,
-        startOfWeek?: WeekDay,
-    ): Promise<(Explore | ExploreError)[]> {
-        return super.compileAllExplores(loadSources, startOfWeek);
+    public async compileAllExplores(): Promise<(Explore | ExploreError)[]> {
+        return super.compileAllExplores(false);
     }
 }

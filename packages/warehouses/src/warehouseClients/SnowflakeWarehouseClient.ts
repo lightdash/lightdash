@@ -4,6 +4,7 @@ import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WeekDay,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
@@ -107,7 +108,10 @@ const parseRows = (rows: Record<string, any>[]) =>
 export class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
+    startOfWeek: WeekDay | undefined;
+
     constructor(credentials: CreateSnowflakeCredentials) {
+        this.startOfWeek = credentials.startOfWeek;
         let decodedPrivateKey: string | Buffer | undefined =
             credentials.privateKey;
         if (credentials.privateKey && credentials.privateKeyPass) {
@@ -140,6 +144,10 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 ? { accessUrl: credentials.accessUrl }
                 : {}),
         } as ConnectionOptions; // force type because accessUrl property is not recognised
+    }
+
+    getStartOfWeek() {
+        return this.startOfWeek;
     }
 
     async runQuery(sqlText: string) {

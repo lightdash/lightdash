@@ -11,6 +11,7 @@ import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WeekDay,
 } from '@lightdash/common';
 import { WarehouseCatalog, WarehouseClient } from '../types';
 
@@ -163,6 +164,8 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
     connectionOptions: ConnectionOptions;
 
+    startOfWeek: WeekDay | undefined;
+
     constructor({
         serverHostName,
         personalAccessToken,
@@ -170,7 +173,9 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         // this supposed to be a `schema` but changing it will break for existing customers
         database: schema,
         catalog,
+        startOfWeek,
     }: CreateDatabricksCredentials) {
+        this.startOfWeek = startOfWeek;
         this.schema = schema;
         this.catalog = catalog;
         this.connectionOptions = {
@@ -178,6 +183,10 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             host: serverHostName,
             path: httpPath.startsWith('/') ? httpPath : `/${httpPath}`,
         };
+    }
+
+    getStartOfWeek() {
+        return this.startOfWeek;
     }
 
     private async getSession() {

@@ -181,12 +181,9 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         }
     }
 
-    public async compileAllExplores(
-        loadSources?: boolean,
-        startOfWeek?: WeekDay,
-    ) {
+    public async compileAllExplores() {
         await this._refreshRepo();
-        return super.compileAllExplores(loadSources, startOfWeek);
+        return super.compileAllExplores();
     }
 
     public async test() {

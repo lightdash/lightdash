@@ -3,6 +3,7 @@ import {
     DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WeekDay,
 } from '@lightdash/common';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
@@ -121,13 +122,20 @@ const convertDataTypeIdToDimensionType = (
 export class PostgresClient implements WarehouseClient {
     pool: pg.Pool;
 
-    constructor(config: PoolConfig) {
+    startOfWeek: WeekDay | undefined;
+
+    constructor(config: PoolConfig, startOfWeek: WeekDay | undefined) {
+        this.startOfWeek = startOfWeek;
         try {
             const pool = new pg.Pool(config);
             this.pool = pool;
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
+    }
+
+    getStartOfWeek() {
+        return this.startOfWeek;
     }
 
     async runQuery(sql: string) {
@@ -231,14 +239,19 @@ export class PostgresWarehouseClient
     implements WarehouseClient
 {
     constructor(credentials: CreatePostgresCredentials) {
-        super({
-            connectionString: `postgres://${encodeURIComponent(
-                credentials.user,
-            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
-                credentials.host,
-            )}:${credentials.port}/${encodeURIComponent(
-                credentials.dbname,
-            )}?sslmode=${credentials.sslmode || 'prefer'}`,
-        });
+        super(
+            {
+                connectionString: `postgres://${encodeURIComponent(
+                    credentials.user,
+                )}:${encodeURIComponent(
+                    credentials.password,
+                )}@${encodeURIComponent(credentials.host)}:${
+                    credentials.port
+                }/${encodeURIComponent(credentials.dbname)}?sslmode=${
+                    credentials.sslmode || 'prefer'
+                }`,
+            },
+            credentials.startOfWeek,
+        );
     }
 }

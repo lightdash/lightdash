@@ -1,4 +1,4 @@
-import { DimensionType } from '@lightdash/common';
+import { DimensionType, WeekDay } from '@lightdash/common';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
@@ -26,4 +26,6 @@ export interface WarehouseClient {
     }>;
 
     test(): Promise<void>;
+
+    getStartOfWeek(): WeekDay | undefined;
 }

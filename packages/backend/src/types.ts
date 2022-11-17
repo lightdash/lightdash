@@ -5,15 +5,11 @@ import {
     DimensionType,
     Explore,
     ExploreError,
-    WeekDay,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
-    compileAllExplores(
-        loadSources?: boolean,
-        startOfWeek?: WeekDay,
-    ): Promise<(Explore | ExploreError)[]>;
+    compileAllExplores(): Promise<(Explore | ExploreError)[]>;
     getDbtPackages(): Promise<DbtPackages | undefined>;
     runQuery(sql: string): Promise<{
         fields: Record<string, { type: DimensionType }>;
