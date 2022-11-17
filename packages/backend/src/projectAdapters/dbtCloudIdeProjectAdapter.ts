@@ -1,4 +1,4 @@
-import { Explore, ExploreError, WeekDay } from '@lightdash/common';
+import { Explore, ExploreError } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { DbtCloudV2RpcClient } from '../dbt/dbtCloudV2RpcClient';
 import { CachedWarehouse } from '../types';

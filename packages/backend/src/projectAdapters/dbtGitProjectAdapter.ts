@@ -4,7 +4,6 @@ import {
     DbtProjectEnvironmentVariable,
     UnexpectedGitError,
     UnexpectedServerError,
-    WeekDay,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as fspromises from 'fs-extra';
