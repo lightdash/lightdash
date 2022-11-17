@@ -4,7 +4,6 @@ import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
-    ProjectMemberProfile,
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
@@ -49,7 +48,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
-        return organizationUsers.map((user) => user.userUuid);
+        return organizationUsers
+            .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+            .map((user) => user.userUuid);
     }, [organizationUsers]);
 
     const filterUser: ItemPredicate<string> = useCallback(
@@ -188,40 +189,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 intent="primary"
                 disabled={usersSelected.length === 0}
                 onClick={async () => {
-                    const invalidUsers = usersSelected.filter((userUuid) => {
-                        const projectUser = projectAccess?.find(
-                            (user) => user.userUuid === userUuid,
-                        );
-                        const orgUser = organizationUsers?.find(
-                            (user) => user.userUuid === userUuid,
-                        );
-                        return (
-                            projectUser === undefined &&
-                            orgUser?.role === OrganizationMemberRole.MEMBER
-                        );
-                    });
-                    if (invalidUsers.length > 0) {
-                        const userNames = invalidUsers.map((userUuid) => {
-                            const orgUser = organizationUsers?.find(
-                                (user) => user.userUuid === userUuid,
-                            );
-                            return `"${orgUser?.firstName} ${orgUser?.lastName}"`;
-                        });
-
-                        showToastError({
-                            title: `You can't add users ${userNames.join(',')}`,
-                            subtitle: `These users are only a member of this organization, but do not have access to the project`,
-                            action: {
-                                text: 'Change project permissions',
-                                icon: 'arrow-right',
-                                onClick: () =>
-                                    history.push(
-                                        `/generalSettings/projectManagement/${projectUuid}/projectAccess`,
-                                    ),
-                            },
-                        });
-                        return;
-                    }
                     for (const userUuid of usersSelected) {
                         if (userUuid) await shareSpaceMutation(userUuid);
                     }
