@@ -7,6 +7,7 @@ import {
     DashboardTileTypes,
     OrganizationMemberRole,
     SessionUser,
+    Space,
     UpdateDashboard,
 } from '@lightdash/common';
 import { SpaceTable } from '../../database/entities/spaces';
@@ -42,6 +43,21 @@ export const space: SpaceTable['base'] = {
     created_at: new Date(),
     project_id: 0,
     organization_uuid: user.organizationUuid,
+};
+
+export const publicSpace: Space = {
+    isPrivate: false,
+    organizationUuid: '',
+    uuid: '',
+    queries: [],
+    projectUuid: '',
+    dashboards: [],
+    access: [],
+    name: '',
+};
+export const privateSpace: Space = {
+    ...publicSpace,
+    isPrivate: true,
 };
 
 export const dashboard: Dashboard = {
