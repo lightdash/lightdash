@@ -16,7 +16,6 @@ import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytic
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { spaceModel } from '../../models/models';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
@@ -30,7 +29,7 @@ export class DashboardService {
 
     spaceModel: SpaceModel;
 
-    constructor({ dashboardModel }: Dependencies) {
+    constructor({ dashboardModel, spaceModel }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
     }
