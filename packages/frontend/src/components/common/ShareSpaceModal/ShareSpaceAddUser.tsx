@@ -99,7 +99,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             }
                         />
                     }
-                    placeholder="Start typing to search for users..."
                     key={user.userUuid}
                     title={
                         isDisabled
@@ -164,7 +163,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     placement: 'bottom-start',
                 }}
                 tagInputProps={{
-                    placeholder: undefined,
+                    placeholder: 'Start typing to search for users...',
                     addOnBlur: false,
                     tagProps: {
                         minimal: true,

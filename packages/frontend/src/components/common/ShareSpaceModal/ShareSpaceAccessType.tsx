@@ -60,6 +60,9 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     filterable={false}
                     items={SpaceAccessOptions}
                     itemRenderer={renderAccess}
+                    activeItem={SpaceAccessOptions.find(
+                        (option) => option.value === selectedAccess.value,
+                    )}
                     onItemSelect={(item) => {
                         const isPrivate =
                             item.value === SpaceAccessType.PRIVATE;
