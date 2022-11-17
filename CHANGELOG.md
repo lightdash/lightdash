@@ -1,3 +1,46 @@
+# [0.324.0](https://github.com/lightdash/lightdash/compare/0.323.1...0.324.0) (2022-11-16)
+
+
+### Features
+
+* export as csv style consistency ([#3775](https://github.com/lightdash/lightdash/issues/3775)) ([6364164](https://github.com/lightdash/lightdash/commit/63641646212169214acf2cbb3e8d78eab9caeba7))
+
+## [0.323.1](https://github.com/lightdash/lightdash/compare/0.323.0...0.323.1) (2022-11-15)
+
+
+### Bug Fixes
+
+* dbt compile error message ([#3771](https://github.com/lightdash/lightdash/issues/3771)) ([e3764df](https://github.com/lightdash/lightdash/commit/e3764dfc8a2dcc5584a35999940c792efda6a76a))
+* pivot with dimensions in y axis ([#3789](https://github.com/lightdash/lightdash/issues/3789)) ([b7e3302](https://github.com/lightdash/lightdash/commit/b7e3302d9176c58b80378c7fc5edbd0f2e0f52ce))
+
+# [0.323.0](https://github.com/lightdash/lightdash/compare/0.322.1...0.323.0) (2022-11-15)
+
+
+### Features
+
+* scroll legend ([#3770](https://github.com/lightdash/lightdash/issues/3770)) ([0eb6980](https://github.com/lightdash/lightdash/commit/0eb698080a1eeeed6196bcf65e7df70939b28a33))
+
+## [0.322.1](https://github.com/lightdash/lightdash/compare/0.322.0...0.322.1) (2022-11-15)
+
+
+### Bug Fixes
+
+* show underlying data errors ([#3787](https://github.com/lightdash/lightdash/issues/3787)) ([e8d4f59](https://github.com/lightdash/lightdash/commit/e8d4f591cf02c2c8eea08496cd27fc6f407f389e))
+
+# [0.322.0](https://github.com/lightdash/lightdash/compare/0.321.1...0.322.0) (2022-11-15)
+
+
+### Features
+
+* viz config switch to checkbox ([#3785](https://github.com/lightdash/lightdash/issues/3785)) ([3276039](https://github.com/lightdash/lightdash/commit/327603919b2e58dfc23371eb101a532c265b2387))
+
+## [0.321.1](https://github.com/lightdash/lightdash/compare/0.321.0...0.321.1) (2022-11-14)
+
+
+### Bug Fixes
+
+* disable table configuration inputs for the viewer ([#3774](https://github.com/lightdash/lightdash/issues/3774)) ([62fded3](https://github.com/lightdash/lightdash/commit/62fded3ba2f321d9b34d79609a5a96876a4c35a2))
+
 # [0.321.0](https://github.com/lightdash/lightdash/compare/0.320.3...0.321.0) (2022-11-14)
 
 

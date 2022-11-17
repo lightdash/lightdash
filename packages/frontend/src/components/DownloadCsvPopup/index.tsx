@@ -1,16 +1,17 @@
 import {
     Button,
-    Card,
+    ButtonProps,
+    FormGroup,
     Intent,
     NumericInput,
     PopoverPosition,
     Radio,
     RadioGroup,
 } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { getResultValues, ResultRow } from '@lightdash/common';
 import { FC, memo, useEffect, useRef, useState } from 'react';
-import { CSVLink } from 'react-csv';
+import CSVExporter, { CsvExporterElementType } from '../CSVExporter';
 import { InputWrapper, Title } from './DownloadCsvPopup.styles';
 
 type Props = {
@@ -32,6 +33,12 @@ export enum Values {
     RAW = 'raw',
 }
 
+const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
+    return (
+        <Button text="Export CSV" rightIcon="caret-down" minimal {...props} />
+    );
+};
+
 const DownloadCsvPopup: FC<Props> = memo(
     ({ fileName, rows, getCsvResults }) => {
         const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -40,9 +47,8 @@ const DownloadCsvPopup: FC<Props> = memo(
         const [format, setFormat] = useState<string>(Values.FORMATTED);
 
         const [csvRows, setCsvRows] = useState<object[]>([]);
-        const csvRef = useRef<
-            CSVLink & HTMLAnchorElement & { link: HTMLAnchorElement }
-        >(null);
+        const csvRef = useRef<CsvExporterElementType>(null);
+
         useEffect(() => {
             if (csvRows.length > 0 && csvRef.current?.link) {
                 csvRef.current.link.click();
@@ -56,33 +62,52 @@ const DownloadCsvPopup: FC<Props> = memo(
         }${new Date().toISOString().slice(0, 10)}.csv`;
 
         if (!rows || rows.length <= 0) {
-            return <Button icon="download" text=".csv" disabled />;
+            return <ExportAsCSVButton disabled />;
         }
+
         return (
             <Popover2
+                lazy
+                placement="bottom-end"
+                isOpen={isOpen}
+                onInteraction={setIsOpen}
+                position={PopoverPosition.BOTTOM_LEFT}
+                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                 content={
-                    <Card>
-                        <RadioGroup
-                            label={<Title>Values</Title>}
-                            onChange={(e) => setFormat(e.currentTarget.value)}
-                            selectedValue={format}
-                        >
-                            <Radio label="Formatted" value={Values.FORMATTED} />
-                            <Radio label="Raw" value={Values.RAW} />
-                        </RadioGroup>
+                    <>
+                        <FormGroup>
+                            <RadioGroup
+                                label={<Title>Values</Title>}
+                                onChange={(e) =>
+                                    setFormat(e.currentTarget.value)
+                                }
+                                selectedValue={format}
+                            >
+                                <Radio
+                                    label="Formatted"
+                                    value={Values.FORMATTED}
+                                />
+                                <Radio label="Raw" value={Values.RAW} />
+                            </RadioGroup>
+                        </FormGroup>
 
-                        <RadioGroup
-                            label={<Title>Limit</Title>}
-                            onChange={(e) => setLimit(e.currentTarget.value)}
-                            selectedValue={limit}
-                        >
-                            <Radio
-                                label="Results in Table"
-                                value={Limit.TABLE}
-                            />
-                            <Radio label="All Results" value={Limit.ALL} />
-                            <Radio label="Custom..." value={Limit.CUSTOM} />
-                        </RadioGroup>
+                        <FormGroup>
+                            <RadioGroup
+                                label={<Title>Limit</Title>}
+                                onChange={(e) =>
+                                    setLimit(e.currentTarget.value)
+                                }
+                                selectedValue={limit}
+                            >
+                                <Radio
+                                    label="Results in Table"
+                                    value={Limit.TABLE}
+                                />
+                                <Radio label="All Results" value={Limit.ALL} />
+                                <Radio label="Custom..." value={Limit.CUSTOM} />
+                            </RadioGroup>
+                        </FormGroup>
+
                         {limit === Limit.CUSTOM && (
                             <InputWrapper>
                                 <NumericInput
@@ -96,15 +121,16 @@ const DownloadCsvPopup: FC<Props> = memo(
                             </InputWrapper>
                         )}
 
-                        <CSVLink
+                        <CSVExporter
+                            linkRef={csvRef}
                             data={csvRows}
-                            ref={csvRef}
-                            tabIndex={0}
-                            target="_blank"
                             filename={csvFilename}
                         />
+
                         <Button
+                            fill
                             intent={Intent.PRIMARY}
+                            icon="export"
                             onClick={() => {
                                 if (limit === Limit.TABLE) {
                                     setCsvRows(
@@ -125,15 +151,12 @@ const DownloadCsvPopup: FC<Props> = memo(
                                 }
                             }}
                         >
-                            Download CSV
+                            Export CSV
                         </Button>
-                    </Card>
+                    </>
                 }
-                isOpen={isOpen}
-                onInteraction={setIsOpen}
-                position={PopoverPosition.BOTTOM_LEFT}
             >
-                <Button icon="download" text=".csv" />
+                <ExportAsCSVButton />
             </Popover2>
         );
     },

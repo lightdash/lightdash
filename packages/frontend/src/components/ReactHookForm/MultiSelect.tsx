@@ -1,7 +1,7 @@
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     ItemRenderer,
-    MultiSelect as BlueprintMultiSelect,
+    MultiSelect2 as BlueprintMultiSelect,
 } from '@blueprintjs/select';
 import React, { FC } from 'react';
 import { ControllerRenderProps, FieldValues } from 'react-hook-form';

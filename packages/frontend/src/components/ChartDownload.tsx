@@ -3,7 +3,6 @@ import {
     Divider,
     FormGroup,
     HTMLSelect,
-    Icon,
     Intent,
     PopoverPosition,
 } from '@blueprintjs/core';
@@ -11,9 +10,9 @@ import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { ChartType, getResultValues, ResultRow } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, RefObject, useCallback, useState } from 'react';
-import { CSVLink } from 'react-csv';
+import React, { memo, RefObject, useCallback, useRef, useState } from 'react';
 import useEcharts from '../hooks/echarts/useEcharts';
+import CSVExporter from './CSVExporter';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -164,21 +163,25 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 <b>Options</b>
             </span>
             <Divider />
+
             <FormGroup label="File format" labelFor="download-type" inline>
                 {isTable ? (
-                    <CSVLink
-                        role="button"
-                        tabIndex={0}
-                        className="bp4-button"
+                    <CSVExporter
                         data={tableData}
                         filename={`lightdash-export-${new Date()
                             .toISOString()
                             .slice(0, 10)}.csv`}
-                        target="_blank"
-                    >
-                        <Icon icon="export" />
-                        <span>Export CSV</span>
-                    </CSVLink>
+                        renderElement={({ handleCsvExport, isDisabled }) => (
+                            <Button
+                                intent="primary"
+                                icon="export"
+                                disabled={isDisabled}
+                                onClick={handleCsvExport}
+                            >
+                                Export CSV
+                            </Button>
+                        )}
+                    />
                 ) : (
                     <HTMLSelect
                         id="download-type"
@@ -224,6 +227,7 @@ export const ChartDownloadMenu: React.FC = memo(() => {
 
     return (
         <Popover2
+            lazy
             content={
                 <ChartDownloadOptions
                     chartRef={chartRef}
