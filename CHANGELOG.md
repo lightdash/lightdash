@@ -1,3 +1,10 @@
+# [0.325.0](https://github.com/lightdash/lightdash/compare/0.324.0...0.325.0) (2022-11-17)
+
+
+### Features
+
+* space access frontend ([#3783](https://github.com/lightdash/lightdash/issues/3783)) ([25153a0](https://github.com/lightdash/lightdash/commit/25153a0497685638937a4fb907cc4e1bc525ac02))
+
 # [0.324.0](https://github.com/lightdash/lightdash/compare/0.323.1...0.324.0) (2022-11-16)
 
 
