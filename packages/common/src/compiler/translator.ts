@@ -162,12 +162,14 @@ const convertDbtMetricToLightdashMetric = (
 ): Metric => {
     let sql: string;
     let type: MetricType;
-    if (metric.calculation_method === 'expression') {
+    if (metric.calculation_method === 'derived') {
         type = MetricType.NUMBER;
-        const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
+        const referencedMetrics = new Set(
+            (metric.metrics || []).map((m) => m[0]),
+        );
         if (!metric.expression) {
             throw new ParseError(
-                `dbt expression metric "${metric.name}" must have the sql field set`,
+                `dbt derived metric "${metric.name}" must have the expression field set`,
             );
         }
         sql = metric.expression;
@@ -380,7 +382,7 @@ const modelCanUseMetric = (
     if (modelRef === modelName) {
         return true;
     }
-    if (metric.calculation_method === 'expression') {
+    if (metric.calculation_method === 'derived') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
         return referencedMetrics.every((m) =>
             modelCanUseMetric(m, modelName, metrics),
