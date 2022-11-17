@@ -1,13 +1,13 @@
 import {
     CreateSnowflakeCredentials,
     DimensionType,
-    isNumber,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
     WeekDay,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
+import isNumber from 'lodash-es/isNumber';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../types';

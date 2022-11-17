@@ -1,8 +1,8 @@
+import isNumber from 'lodash-es/isNumber';
 import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
-import { isNumber } from './formatting';
 
 export enum WeekDay {
     MONDAY,

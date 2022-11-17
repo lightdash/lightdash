@@ -12,7 +12,11 @@
         "@google-cloud/bigquery": "^5.9.1",
         "@lightdash/common": "^0.325.0",
         "pg": "^8.7.1",
+        "lodash-es": "^4.17.21",
         "snowflake-sdk": "^1.6.4"
+    },
+    "devDependencies": {
+        "@types/lodash-es": "^4.17.6"
     },
     "description": "Warehouse connectors for Lightdash",
     "scripts": {
