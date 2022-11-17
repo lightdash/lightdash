@@ -2,6 +2,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
+import { isNumber } from './formatting';
 
 export enum WeekDay {
     MONDAY,
@@ -76,7 +77,7 @@ const bigqueryConfig: WarehouseConfig = {
             [WeekDay.SUNDAY]: 'SUNDAY',
         };
         const datePart =
-            timeFrame === TimeFrames.WEEK && startOfWeek
+            timeFrame === TimeFrames.WEEK && isNumber(startOfWeek)
                 ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
@@ -157,7 +158,7 @@ const snowflakeConfig: WarehouseConfig = {
 
 const postgresConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
-        if (timeFrame === TimeFrames.WEEK && startOfWeek) {
+        if (timeFrame === TimeFrames.WEEK && isNumber(startOfWeek)) {
             const intervalDiff = `${startOfWeek} days`;
             return `(DATE_TRUNC('${timeFrame}', (${originalSql} - interval '${intervalDiff}')) + interval '${intervalDiff}')`;
         }
@@ -190,7 +191,7 @@ const postgresConfig: WarehouseConfig = {
 
 const databricksConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
-        if (timeFrame === TimeFrames.WEEK && startOfWeek) {
+        if (timeFrame === TimeFrames.WEEK && isNumber(startOfWeek)) {
             const intervalDiff = `${startOfWeek}`;
             return `DATEADD(DAY, ${intervalDiff}, DATE_TRUNC('${timeFrame}', DATEADD(DAY, -${intervalDiff}, ${originalSql})))`;
         }
