@@ -9,7 +9,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useHistory, useParams } from 'react-router-dom';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
@@ -103,7 +103,8 @@ const Dashboard = () => {
         [dashboardTemporaryFilters],
     );
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
-    const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const { data: dashboard, error: dashboardError } =
+        useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const [dashboardName, setDashboardName] = useState<string>('');
     const {
@@ -306,10 +307,12 @@ const Dashboard = () => {
         dashboardUuid,
     ]);
 
+    if (dashboardError) {
+        return <Redirect to="/no-access" />;
+    }
     if (dashboard === undefined) {
         return <Spinner />;
     }
-
     const dashboardChartTiles = dashboardTiles.filter(
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
     );

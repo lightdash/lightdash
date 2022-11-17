@@ -85,13 +85,13 @@ export class DashboardService {
         ];
         const spaceAccess: Record<string, boolean> = await spaceUuids.reduce<
             Promise<Record<string, boolean>>
-        >(async (acc, spaceUuid) => {
-            const a = await acc;
-            a[spaceUuid] = await this.hasDashboardSpaceAccess(
+        >(async (accPromise, spaceUuid) => {
+            const acc = await accPromise;
+            acc[spaceUuid] = await this.hasDashboardSpaceAccess(
                 spaceUuid,
                 user.userUuid,
             );
-            return a;
+            return acc;
         }, Promise.resolve({}));
         return dashboards.filter(
             (dashboard) =>
@@ -107,6 +107,16 @@ export class DashboardService {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
+        }
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                dashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
         return dashboard;
     }
@@ -138,6 +148,11 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+        if (!(await this.hasDashboardSpaceAccess(space.uuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             dashboard,
@@ -160,6 +175,17 @@ export class DashboardService {
 
         if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
+        }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                dashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
 
         const duplicatedDashboard = {
@@ -208,6 +234,18 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                existingDashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
         if (isDashboardUnversionedFields(dashboard)) {
             const updatedDashboard = await this.dashboardModel.update(
                 dashboardUuid,
@@ -264,6 +302,18 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                space.space_uuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
         analytics.track({
             event: 'dashboard.updated_multiple',
             userId: user.userUuid,
@@ -276,7 +326,7 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        const { organizationUuid, projectUuid } =
+        const { organizationUuid, projectUuid, spaceUuid } =
             await this.dashboardModel.getById(dashboardUuid);
         if (
             user.ability.cannot(
@@ -285,6 +335,12 @@ export class DashboardService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
         const deletedDashboard = await this.dashboardModel.delete(
             dashboardUuid,
