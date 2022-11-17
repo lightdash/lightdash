@@ -3,10 +3,13 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
     OrganizationMemberProfile,
+    OrganizationMemberRole,
     ProjectMemberProfile,
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
@@ -36,21 +39,22 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const { data: projectAccess, isLoading: isProjectAccessLoading } =
-        useProjectAccess(projectUuid);
+    const { data: projectAccess } = useProjectAccess(projectUuid);
+    const { showToastError } = useToaster();
+    const history = useHistory();
 
     const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
     const userUuids: string[] = useMemo(() => {
-        if (projectAccess === undefined) return [];
-        return projectAccess.map((user) => user.userUuid);
-    }, [projectAccess]);
+        if (organizationUsers === undefined) return [];
+        return organizationUsers.map((user) => user.userUuid);
+    }, [organizationUsers]);
 
     const filterUser: ItemPredicate<string> = useCallback(
         (query, userUuid, _index) => {
-            const user = projectAccess?.find(
+            const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === userUuid,
             );
             if (!user) return false;
@@ -62,7 +66,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     .indexOf(normalizedQuery) >= 0
             );
         },
-        [projectAccess],
+        [organizationUsers],
     );
     const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
@@ -82,7 +86,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             if (!modifiers.matchesPredicate) {
                 return null;
             }
-            const user = projectAccess?.find(
+            const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === userUuid,
             );
             if (!user) return null;
@@ -141,7 +145,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, space, projectAccess, organizationUsers],
+        [usersSelected, space, organizationUsers, organizationUsers],
     );
 
     return (
@@ -151,13 +155,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 itemPredicate={filterUser}
                 itemRenderer={renderUserShare}
                 items={userUuids || []}
-                noResults={
-                    isProjectAccessLoading ? (
-                        <StyledSpinner />
-                    ) : (
-                        <MenuItem2 disabled text="No suggestions." />
-                    )
-                }
+                noResults={<MenuItem2 disabled text="No suggestions." />}
                 onItemSelect={(select) => {
                     setUsersSelected([...usersSelected, select]);
                     setSearchQuery('');
@@ -190,6 +188,40 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 intent="primary"
                 disabled={usersSelected.length === 0}
                 onClick={async () => {
+                    const invalidUsers = usersSelected.filter((userUuid) => {
+                        const projectUser = projectAccess?.find(
+                            (user) => user.userUuid === userUuid,
+                        );
+                        const orgUser = organizationUsers?.find(
+                            (user) => user.userUuid === userUuid,
+                        );
+                        return (
+                            projectUser === undefined &&
+                            orgUser?.role === OrganizationMemberRole.MEMBER
+                        );
+                    });
+                    if (invalidUsers.length > 0) {
+                        const userNames = invalidUsers.map((userUuid) => {
+                            const orgUser = organizationUsers?.find(
+                                (user) => user.userUuid === userUuid,
+                            );
+                            return `"${orgUser?.firstName} ${orgUser?.lastName}"`;
+                        });
+
+                        showToastError({
+                            title: `You can't add users ${userNames.join(',')}`,
+                            subtitle: `These users are only a member of this organization, but do not have access to the project`,
+                            action: {
+                                text: 'Change project permissions',
+                                icon: 'arrow-right',
+                                onClick: () =>
+                                    history.push(
+                                        `/generalSettings/projectManagement/${projectUuid}/projectAccess`,
+                                    ),
+                            },
+                        });
+                        return;
+                    }
                     for (const userUuid of usersSelected) {
                         if (userUuid) await shareSpaceMutation(userUuid);
                     }
