@@ -3,4 +3,7 @@ module.exports = {
     testEnvironment: 'node',
     automock: false,
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+    moduleNameMapper: {
+        'lodash-es': 'lodash',
+    },
 };

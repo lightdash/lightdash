@@ -160,7 +160,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
-            if (isNumber(this.startOfWeek)) {
+            if (this.startOfWeek !== undefined && isNumber(this.startOfWeek)) {
                 const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
                 await this.executeStatement(
                     connection,
