@@ -1,3 +1,4 @@
+import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
@@ -6,6 +7,7 @@ import {
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
     AccessDescription,
@@ -19,21 +21,23 @@ import {
 } from './ShareSpaceModal.style';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
 interface ShareSpaceAddUserProps {
     space: Space;
     projectUuid: string;
-    projectAccess: ProjectMemberProfile[] | undefined;
     organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
 export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     space,
     projectUuid,
-    projectAccess,
     organizationUsers,
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const { data: projectAccess, isLoading: isProjectAccessLoading } =
+        useProjectAccess(projectUuid);
 
     const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
@@ -147,7 +151,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 itemPredicate={filterUser}
                 itemRenderer={renderUserShare}
                 items={userUuids || []}
-                noResults={<MenuItem2 disabled text="No suggestions." />}
+                noResults={
+                    isProjectAccessLoading ? (
+                        <StyledSpinner />
+                    ) : (
+                        <MenuItem2 disabled text="No suggestions." />
+                    )
+                }
                 onItemSelect={(select) => {
                     setUsersSelected([...usersSelected, select]);
                     setSearchQuery('');
