@@ -1,4 +1,4 @@
-import { Classes, Tooltip2 } from '@blueprintjs/popover2';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -11,7 +11,6 @@ import {
     DashboardFilterWrapper,
     FilterTrigger,
     Tooltip,
-    TriggerWrapper,
 } from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
@@ -50,7 +49,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
         >
             <DashboardFilterWrapper>
-                <TriggerWrapper
+                <Popover2
                     content={
                         <FilterSearch
                             isEditMode={isEditMode}
@@ -65,7 +64,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     }
                     canEscapeKeyClose={isSubmenuOpen ? false : true}
                     interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
-                    popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
                     onOpened={() => setIsOpen(true)}
                     onClose={handleClose}
                     position="bottom-right"
@@ -91,7 +89,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                             Add filter
                         </FilterTrigger>
                     </Tooltip2>
-                </TriggerWrapper>
+                </Popover2>
 
                 {!isLoading && dashboardFilters && <ActiveFilters />}
             </DashboardFilterWrapper>

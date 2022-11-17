@@ -1,4 +1,5 @@
 import {
+    Button,
     Checkbox,
     FormGroup,
     HTMLSelect,
@@ -6,7 +7,8 @@ import {
     Tab,
     Tabs,
 } from '@blueprintjs/core';
-import { Classes, Popover2Props } from '@blueprintjs/popover2';
+import { Classes, MenuItem2, Popover2Props } from '@blueprintjs/popover2';
+import { ItemRenderer, Select2 } from '@blueprintjs/select';
 import {
     AvailableFiltersForSavedQuery,
     createDashboardFilterRuleFromField,
@@ -23,9 +25,8 @@ import React, { FC, useMemo, useState } from 'react';
 import { useDashboardTilesWithFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { FilterTypeConfig } from '../../common/Filters/configs';
+import SimpleButton from '../../common/SimpleButton';
 import {
-    ApplyFilterButton,
-    BackButton,
     ConfigureFilterWrapper,
     InputsWrapper,
     Title,
@@ -36,11 +37,23 @@ interface Props {
     tilesWithFilters: Record<string, AvailableFiltersForSavedQuery>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
+    selectedTabId: string;
+    onTabChange: (tabId: string) => void;
     onSave: (value: DashboardFilterRule) => void;
     onBack?: () => void;
 }
 
+const exactMatch = (field: FilterableField, filterField: FilterableField) => {
+    return field.name === filterField.name && field.type === filterField.type;
+};
+
+const typeMatch = (field: FilterableField, filterField: FilterableField) => {
+    return field.type === filterField.type;
+};
+
 const FilterConfiguration: FC<Props> = ({
+    selectedTabId,
+    onTabChange,
     field,
     tilesWithFilters,
     filterRule,
@@ -108,24 +121,44 @@ const FilterConfiguration: FC<Props> = ({
         }
     };
 
+    const renderItem: ItemRenderer<FilterableField> = (
+        filter,
+        { handleClick, handleFocus, modifiers, query },
+    ) => {
+        if (!modifiers.matchesPredicate) {
+            return null;
+        }
+
+        return (
+            <MenuItem2
+                active={modifiers.active}
+                disabled={modifiers.disabled}
+                key={filter.name}
+                label={filter.type}
+                text={
+                    <>
+                        {filter.tableLabel} <b>{filter.label}</b>
+                    </>
+                }
+                onClick={handleClick}
+                onFocus={handleFocus}
+                roleStructure="listoption"
+            />
+        );
+    };
+
     return (
         <ConfigureFilterWrapper>
-            {onBack && (
-                <BackButton small fill={false} onClick={onBack}>
-                    Back
-                </BackButton>
-            )}
+            <div style={{ marginBottom: 10 }}>
+                {field.tableLabel} <Title>{field.label}</Title>
+            </div>
 
-            {/* <FieldTitle>{field.label}</FieldTitle> */}
-
-            <Tabs>
+            <Tabs selectedTabId={selectedTabId} onChange={onTabChange}>
                 <Tab
                     id="settings"
                     title="Settings"
                     panel={
                         <InputsWrapper>
-                            <Title>{field.label}</Title>
-
                             <HTMLSelect
                                 fill
                                 onChange={(e) =>
@@ -158,27 +191,26 @@ const FilterConfiguration: FC<Props> = ({
                         <>
                             <Title>Select tiles to apply filter to</Title>
 
-                            <FormGroup>
-                                {tilesWithFilters &&
-                                    Object.values(tilesWithFilters)
-                                        .sort(sortByAvailability)
-                                        .map((tile) => {
-                                            const isApplicable =
-                                                applicableTileUuids?.includes(
-                                                    tile.uuid,
-                                                );
+                            {tilesWithFilters &&
+                                Object.values(tilesWithFilters)
+                                    .sort(sortByAvailability)
+                                    .map((tile) => {
+                                        const isApplicable =
+                                            applicableTileUuids?.includes(
+                                                tile.uuid,
+                                            );
 
-                                            const isChecked =
-                                                isApplicable &&
-                                                !internalFilterRule.tileUuids
-                                                    ? true
-                                                    : internalFilterRule.tileUuids?.includes(
-                                                          tile.uuid,
-                                                      );
+                                        const isChecked =
+                                            isApplicable &&
+                                            !internalFilterRule.tileUuids
+                                                ? true
+                                                : internalFilterRule.tileUuids?.includes(
+                                                      tile.uuid,
+                                                  );
 
-                                            return (
+                                        return (
+                                            <FormGroup key={tile.uuid}>
                                                 <Checkbox
-                                                    key={tile.uuid}
                                                     label={tile.name}
                                                     disabled={!isApplicable}
                                                     checked={isChecked}
@@ -189,28 +221,110 @@ const FilterConfiguration: FC<Props> = ({
                                                         );
                                                     }}
                                                 />
-                                            );
-                                        })}
-                            </FormGroup>
+
+                                                <div
+                                                    style={{
+                                                        marginLeft: 24,
+                                                    }}
+                                                >
+                                                    <Select2<FilterableField>
+                                                        disabled={!isChecked}
+                                                        fill
+                                                        filterable={false}
+                                                        items={tile.filters
+                                                            .filter((f) =>
+                                                                typeMatch(
+                                                                    f,
+                                                                    field,
+                                                                ),
+                                                            )
+                                                            .sort((a, b) =>
+                                                                exactMatch(
+                                                                    a,
+                                                                    field,
+                                                                ) &&
+                                                                !exactMatch(
+                                                                    b,
+                                                                    field,
+                                                                )
+                                                                    ? -1
+                                                                    : 1,
+                                                            )}
+                                                        itemRenderer={
+                                                            renderItem
+                                                        }
+                                                        noResults={
+                                                            <MenuItem2
+                                                                disabled
+                                                                text="No results."
+                                                            />
+                                                        }
+                                                        onItemSelect={(
+                                                            item,
+                                                        ) => {
+                                                            console.log(item);
+                                                        }}
+                                                        popoverProps={{
+                                                            minimal: true,
+                                                            matchTargetWidth:
+                                                                true,
+                                                        }}
+                                                    >
+                                                        <Button
+                                                            minimal
+                                                            alignText="left"
+                                                            disabled={
+                                                                !isChecked
+                                                            }
+                                                            outlined
+                                                            fill
+                                                            text={
+                                                                isApplicable
+                                                                    ? 'Select field'
+                                                                    : 'Not applicable'
+                                                            }
+                                                            rightIcon="caret-down"
+                                                            placeholder="Select a film"
+                                                        />
+                                                    </Select2>
+                                                </div>
+                                            </FormGroup>
+                                        );
+                                    })}
                         </>
                     }
                 />
             </Tabs>
 
-            <ApplyFilterButton
-                type="submit"
-                className={Classes.POPOVER2_DISMISS}
-                intent={Intent.PRIMARY}
-                text="Apply"
-                disabled={
-                    ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
-                        internalFilterRule.operator,
-                    ) &&
-                    (!internalFilterRule.values ||
-                        internalFilterRule.values.length <= 0)
-                }
-                onClick={() => onSave(internalFilterRule)}
-            />
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginTop: 24,
+                }}
+            >
+                {onBack && (
+                    <SimpleButton small fill={false} onClick={onBack}>
+                        Back
+                    </SimpleButton>
+                )}
+
+                <Button
+                    type="submit"
+                    className={Classes.POPOVER2_DISMISS}
+                    intent={Intent.PRIMARY}
+                    text="Apply"
+                    disabled={
+                        ![
+                            FilterOperator.NULL,
+                            FilterOperator.NOT_NULL,
+                        ].includes(internalFilterRule.operator) &&
+                        (!internalFilterRule.values ||
+                            internalFilterRule.values.length <= 0)
+                    }
+                    onClick={() => onSave(internalFilterRule)}
+                />
+            </div>
         </ConfigureFilterWrapper>
     );
 };
