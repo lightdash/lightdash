@@ -160,3 +160,91 @@ export const useCreateMutation = (
         },
     );
 };
+
+const addSpaceShare = async (
+    projectUuid: string,
+    spaceUuid: string,
+    userUuid: string,
+) =>
+    lightdashApi<Space>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}/share`,
+        method: 'POST',
+        body: JSON.stringify({ userUuid }),
+    });
+
+export const useAddSpaceShareMutation = (
+    projectUuid: string,
+    spaceUuid: string,
+) => {
+    const { showToastSuccess, showToastError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<Space, ApiError, string>(
+        (userUuid) => addSpaceShare(projectUuid, spaceUuid, userUuid),
+        {
+            mutationKey: ['space_share', projectUuid, spaceUuid],
+            onSuccess: async (space) => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.refetchQueries([
+                    'space',
+                    projectUuid,
+                    spaceUuid,
+                ]);
+
+                showToastSuccess({
+                    title: `Success! Space was shared.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to share space`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
+const deleteSpaceShare = async (
+    projectUuid: string,
+    spaceUuid: string,
+    userUuid: string,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}/share/${userUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteSpaceShareMutation = (
+    projectUuid: string,
+    spaceUuid: string,
+) => {
+    const { showToastSuccess, showToastError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<undefined, ApiError, string>(
+        (userUuid) => deleteSpaceShare(projectUuid, spaceUuid, userUuid),
+        {
+            mutationKey: ['space_unshare', projectUuid, spaceUuid],
+            onSuccess: async () => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.refetchQueries([
+                    'space',
+                    projectUuid,
+                    spaceUuid,
+                ]);
+
+                showToastSuccess({
+                    title: `Success! Space was unshared.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to unshare space`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
