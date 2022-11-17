@@ -133,7 +133,7 @@ export class DashboardService {
             };
         };
         const space = dashboard.spaceUuid
-            ? await spaceModel.get(dashboard.spaceUuid)
+            ? await this.spaceModel.get(dashboard.spaceUuid)
             : await getFirstSpace();
 
         if (

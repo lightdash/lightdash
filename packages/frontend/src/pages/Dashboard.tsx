@@ -49,12 +49,23 @@ const GridTile: FC<
         tile.type === DashboardTileTypes.SAVED_CHART
             ? tile.properties?.savedChartUuid || undefined
             : undefined;
-    const { data: savedQuery, isLoading } = useSavedQuery({
+    const {
+        data: savedQuery,
+        isLoading,
+        isError,
+    } = useSavedQuery({
         id: savedChartUuid,
     });
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading) return <></>;
+            if (isError)
+                return (
+                    <TileBase
+                        title={"You don't have access to view this chart"}
+                        {...props}
+                    ></TileBase>
+                );
             return (
                 <UnderlyingDataProvider
                     filters={savedQuery?.metricQuery.filters}
