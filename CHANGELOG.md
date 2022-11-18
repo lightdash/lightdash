@@ -1,3 +1,10 @@
+## [0.327.2](https://github.com/lightdash/lightdash/compare/0.327.1...0.327.2) (2022-11-18)
+
+
+### Bug Fixes
+
+* select and copy value from table cell ([#3777](https://github.com/lightdash/lightdash/issues/3777)) ([f4bc20d](https://github.com/lightdash/lightdash/commit/f4bc20d16a605afaa7724636ee868b818b73caee))
+
 ## [0.327.1](https://github.com/lightdash/lightdash/compare/0.327.0...0.327.1) (2022-11-18)
 
 
