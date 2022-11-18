@@ -82,21 +82,26 @@ export class DashboardService {
         const spaceUuids = [
             ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
         ];
-        const spaceAccess: Record<string, boolean> = await spaceUuids.reduce<
-            Promise<Record<string, boolean>>
-        >(async (accPromise, spaceUuid) => {
-            const acc = await accPromise;
-            acc[spaceUuid] = await this.hasDashboardSpaceAccess(
-                spaceUuid,
-                user.userUuid,
-            );
-            return acc;
-        }, Promise.resolve({}));
-        return dashboards.filter(
-            (dashboard) =>
-                user.ability.can('view', subject('Dashboard', dashboard)) &&
-                spaceAccess[dashboard.spaceUuid],
+        const spaces = await Promise.all(
+            spaceUuids.map((spaceUuid) =>
+                this.spaceModel.getFullSpace(spaceUuid),
+            ),
         );
+
+        return dashboards.filter((dashboard) => {
+            const hasAbility = user.ability.can(
+                'view',
+                subject('Dashboard', dashboard),
+            );
+            const dashboardSpace = spaces.find(
+                (space) => space.uuid === dashboard.spaceUuid,
+            );
+            return (
+                hasAbility &&
+                dashboardSpace &&
+                hasSpaceAccess(dashboardSpace, user.userUuid)
+            );
+        });
     }
 
     async getById(

@@ -1,4 +1,12 @@
-import React, { memo } from 'react';
+import { Card } from '@blueprintjs/core';
+import { memo } from 'react';
+import {
+    CardContent,
+    PageContentContainer,
+    PageWrapper,
+    Resizer,
+    StickySidebar,
+} from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -9,13 +17,6 @@ import {
 import useSidebarResize from '../hooks/useSidebarResize';
 import { useApp } from '../providers/AppProvider';
 import { ExplorerProvider } from '../providers/ExplorerProvider';
-import {
-    Main,
-    PageContainer,
-    Resizer,
-    SideBar,
-    SideBarCard,
-} from './Explorer.styles';
 
 const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();
@@ -36,25 +37,34 @@ const ExplorerPage = memo(() => {
     }
     return (
         <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
-            <PageContainer>
-                <SideBar ref={sidebarRef}>
-                    <SideBarCard
+            <PageWrapper>
+                <StickySidebar
+                    ref={sidebarRef}
+                    style={{
+                        width: sidebarWidth + 5,
+                    }}
+                >
+                    <Card
                         elevation={1}
                         style={{
                             width: sidebarWidth,
                         }}
                     >
-                        <ExploreSideBar />
-                    </SideBarCard>
+                        <CardContent>
+                            <ExploreSideBar />
+                        </CardContent>
+                    </Card>
+
                     <Resizer
                         onMouseDown={startResizing}
                         $isResizing={isResizing}
                     />
-                </SideBar>
-                <Main>
+                </StickySidebar>
+
+                <PageContentContainer hasDraggableSidebar>
                     <ExplorerWithUrlParams />
-                </Main>
-            </PageContainer>
+                </PageContentContainer>
+            </PageWrapper>
         </ExplorerProvider>
     );
 });

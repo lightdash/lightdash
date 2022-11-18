@@ -1,4 +1,4 @@
-import { HotkeyConfig, Menu, Tab, Tabs, useHotkeys } from '@blueprintjs/core';
+import { HotkeyConfig, Menu, Tab, useHotkeys } from '@blueprintjs/core';
 import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { DbtCloudMetric, TableBase } from '@lightdash/common';
@@ -6,11 +6,15 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMount } from 'react-use';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
-import PageWithSidebar from '../components/common/Page/PageWithSidebar';
-import Sidebar from '../components/common/Page/Sidebar';
+import {
+    PageContentContainer,
+    PageWithSidebar,
+} from '../components/common/Page/Page.styles';
+import Sidebar, { SidebarDivider } from '../components/common/Page/Sidebar';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
+import { StyledBreadcrumb } from '../components/Explorer/ExploreSideBar/ExploreSideBar.styles';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -34,10 +38,10 @@ import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
 import {
     ButtonsWrapper,
-    ContentContainer,
     MissingTablesInfo,
     SideBarWrapper,
     SqlCallout,
+    StyledTabs,
 } from './SqlRunner.styles';
 
 const generateBasicSqlQuery = (table: string) =>
@@ -175,17 +179,22 @@ const SqlRunnerPage = () => {
 
     return (
         <PageWithSidebar>
-            <Sidebar title="SQL runner">
-                <Tabs
-                    id="sql-runner"
-                    selectedTabId={activeTabId}
-                    onChange={setActiveTabId}
-                >
-                    <Tab id="warehouse-schema" title="Warehouse Schema" />
-                    {!!metrics.data?.metrics.length && (
+            <Sidebar>
+                <StyledBreadcrumb items={[{ text: 'SQL Runner' }]} />
+
+                <SidebarDivider />
+
+                {!!metrics.data?.metrics.length && (
+                    <StyledTabs
+                        id="sql-runner"
+                        selectedTabId={activeTabId}
+                        onChange={setActiveTabId}
+                    >
+                        <Tab id="warehouse-schema" title="Warehouse Schema" />
                         <Tab id="metrics" title="dbt metrics" />
-                    )}
-                </Tabs>
+                    </StyledTabs>
+                )}
+
                 <SideBarWrapper>
                     {activeTabId === 'warehouse-schema' &&
                         (isCatalogLoading ? (
@@ -226,7 +235,7 @@ const SqlRunnerPage = () => {
                 </SideBarWrapper>
             </Sidebar>
 
-            <ContentContainer>
+            <PageContentContainer>
                 <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
                     <ButtonsWrapper>
                         <RefreshDbtButton />
@@ -306,7 +315,7 @@ const SqlRunnerPage = () => {
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
-            </ContentContainer>
+            </PageContentContainer>
         </PageWithSidebar>
     );
 };

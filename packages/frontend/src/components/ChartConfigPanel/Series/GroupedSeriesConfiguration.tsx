@@ -1,10 +1,9 @@
-import { Icon, Switch } from '@blueprintjs/core';
+import { Checkbox, FormGroup, Icon, Switch } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     CartesianSeriesType,
     Field,
     formatItemValue,
-    getDefaultSeriesColor,
     getItemId,
     getItemLabel,
     getSeriesId,
@@ -283,11 +282,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
             </GroupSeriesInputs>
             {(chartValue === CartesianSeriesType.LINE ||
                 chartValue === CartesianSeriesType.AREA) && (
-                <GroupSeriesInputs>
-                    <Switch
-                        alignIndicator={'right'}
+                <FormGroup>
+                    <Checkbox
                         checked={seriesGroup[0].showSymbol ?? true}
-                        label={'Show symbol'}
+                        label="Show symbol"
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 showSymbol: !(
@@ -296,17 +294,16 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             });
                         }}
                     />
-                    <Switch
-                        alignIndicator={'right'}
+                    <Checkbox
                         checked={seriesGroup[0].smooth}
-                        label={'Smooth'}
+                        label="Smooth"
                         onChange={() => {
                             updateAllGroupedSeries(fieldKey, {
                                 smooth: !(seriesGroup[0].smooth ?? true),
                             });
                         }}
                     />
-                </GroupSeriesInputs>
+                </FormGroup>
             )}
             <GroupSeriesWrapper>
                 <DragDropContext onDragEnd={onDragEnd}>

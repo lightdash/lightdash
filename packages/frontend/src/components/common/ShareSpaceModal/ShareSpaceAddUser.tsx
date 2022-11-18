@@ -1,11 +1,15 @@
+import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
     OrganizationMemberProfile,
-    ProjectMemberProfile,
+    OrganizationMemberRole,
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
+import { useHistory } from 'react-router-dom';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
     AccessDescription,
@@ -19,34 +23,42 @@ import {
 } from './ShareSpaceModal.style';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
+const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
+
 interface ShareSpaceAddUserProps {
     space: Space;
     projectUuid: string;
-    projectAccess: ProjectMemberProfile[] | undefined;
     organizationUsers: OrganizationMemberProfile[] | undefined;
 }
 
 export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     space,
     projectUuid,
-    projectAccess,
     organizationUsers,
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const { data: projectAccess } = useProjectAccess(projectUuid);
+    const { showToastError } = useToaster();
+    const history = useHistory();
 
     const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
     const userUuids: string[] = useMemo(() => {
-        if (projectAccess === undefined) return [];
-        return projectAccess.map((user) => user.userUuid);
-    }, [projectAccess]);
+        if (organizationUsers === undefined) return [];
+        const projectUserUuids =
+            projectAccess?.map((project) => project.userUuid) || [];
+        const orgUserUuids = organizationUsers
+            .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+            .map((user) => user.userUuid);
+        return [...new Set([...projectUserUuids, ...orgUserUuids])];
+    }, [organizationUsers, projectAccess]);
 
     const filterUser: ItemPredicate<string> = useCallback(
         (query, userUuid, _index) => {
-            const user = projectAccess?.find(
+            const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === userUuid,
             );
             if (!user) return false;
@@ -58,7 +70,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     .indexOf(normalizedQuery) >= 0
             );
         },
-        [projectAccess],
+        [organizationUsers],
     );
     const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
@@ -78,7 +90,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             if (!modifiers.matchesPredicate) {
                 return null;
             }
-            const user = projectAccess?.find(
+            const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === userUuid,
             );
             if (!user) return null;
@@ -99,7 +111,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             }
                         />
                     }
-                    placeholder="Start typing to search for users..."
                     key={user.userUuid}
                     title={
                         isDisabled
@@ -138,7 +149,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, space, projectAccess, organizationUsers],
+        [usersSelected, space, organizationUsers, organizationUsers],
     );
 
     return (
@@ -164,7 +175,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     placement: 'bottom-start',
                 }}
                 tagInputProps={{
-                    placeholder: undefined,
+                    placeholder: 'Start typing to search for users...',
                     addOnBlur: false,
                     tagProps: {
                         minimal: true,

@@ -1,48 +1,15 @@
-import { Classes, Dialog, Spinner } from '@blueprintjs/core';
-import {
-    ItemPredicate,
-    ItemRenderer,
-    MultiSelect2,
-    Select2,
-} from '@blueprintjs/select';
-import { OrganizationMemberProfile, Space } from '@lightdash/common';
-import { FC, useCallback, useMemo, useState } from 'react';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useProject } from '../../../hooks/useProject';
-import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import {
-    AccessDescription,
-    AccessName,
-    AccessRole,
-    AccessSelectSubtitle,
-    AccessSelectTitle,
-    AccessWrapper,
-    AddUsersWrapper,
-    ChangeAccessButton,
-    DialogFooter,
-    FlexWrapper,
-    MemberAccess,
-    OpenShareModal,
-    ShareButton,
-    ShareTag,
-    UserName,
-    UserRole,
-    UserTag,
-    YouLabel,
-} from './ShareSpaceModal.style';
+import { Classes, Dialog } from '@blueprintjs/core';
 
-import { MenuItem2 } from '@blueprintjs/popover2';
-import {
-    useAddSpaceShareMutation,
-    useDeleteSpaceShareMutation,
-    useUpdateMutation,
-} from '../../../hooks/useSpaces';
+import { Space } from '@lightdash/common';
+import { FC, useState } from 'react';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { DialogFooter, OpenShareModal } from './ShareSpaceModal.style';
+
 import { useApp } from '../../../providers/AppProvider';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import {
     AccessOption,
-    renderAccess,
     SpaceAccessOptions,
     SpaceAccessType,
 } from './ShareSpaceSelect';
@@ -54,7 +21,6 @@ export interface ShareSpaceProps {
 }
 
 const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
-    const { data: projectAccess } = useProjectAccess(projectUuid);
     const { data: organizationUsers } = useOrganizationUsers();
     const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
         space.isPrivate ? SpaceAccessOptions[0] : SpaceAccessOptions[1],
@@ -93,7 +59,6 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         <ShareSpaceAddUser
                             space={space}
                             projectUuid={projectUuid}
-                            projectAccess={projectAccess}
                             organizationUsers={organizationUsers}
                         />
                     ) : null}
