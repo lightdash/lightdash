@@ -1,3 +1,10 @@
+# [0.326.0](https://github.com/lightdash/lightdash/compare/0.325.0...0.326.0) (2022-11-18)
+
+
+### Features
+
+* start of week ([#3792](https://github.com/lightdash/lightdash/issues/3792)) ([ab3c486](https://github.com/lightdash/lightdash/commit/ab3c486ba1db453d869b20df38ffbbd1f7740c3b))
+
 # [0.325.0](https://github.com/lightdash/lightdash/compare/0.324.0...0.325.0) (2022-11-17)
 
 
