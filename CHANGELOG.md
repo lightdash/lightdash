@@ -1,3 +1,10 @@
+## [0.327.1](https://github.com/lightdash/lightdash/compare/0.327.0...0.327.1) (2022-11-18)
+
+
+### Bug Fixes
+
+* SITE_URL variable in docker-compose ([#3809](https://github.com/lightdash/lightdash/issues/3809)) ([59bf7a4](https://github.com/lightdash/lightdash/commit/59bf7a471168c1bafa4073a8945228bcf01e8617))
+
 # [0.327.0](https://github.com/lightdash/lightdash/compare/0.326.0...0.327.0) (2022-11-18)
 
 
