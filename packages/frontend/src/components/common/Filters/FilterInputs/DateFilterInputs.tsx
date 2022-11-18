@@ -6,6 +6,7 @@ import {
     FilterOperator,
     formatDate,
     isDimension,
+    isWeekDay,
     parseDate,
     TimeFrames,
     UnitOfTime,
@@ -13,7 +14,7 @@ import {
 import moment from 'moment';
 import React, { FC } from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
-import WeekPicker from '../../WeekPicker';
+import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
@@ -126,6 +127,11 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                             placement: 'bottom',
                             ...popoverProps,
                         }}
+                        dayPickerProps={{
+                            firstDayOfWeek: isWeekDay(startOfWeek)
+                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                : undefined,
+                        }}
                     />
                 );
             }
@@ -159,6 +165,11 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     popoverProps={{
                         placement: 'bottom',
                         ...popoverProps,
+                    }}
+                    dayPickerProps={{
+                        firstDayOfWeek: isWeekDay(startOfWeek)
+                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            : undefined,
                     }}
                 />
             );
