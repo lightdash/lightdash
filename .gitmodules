@@ -1,3 +1,6 @@
 [submodule "examples/full-jaffle-shop-demo/dbt"]
 	path = examples/full-jaffle-shop-demo/dbt
 	url = https://github.com/lightdash/jaffle_shop
+[submodule "examples/compendio/dbt"]
+	path = examples/compendio/dbt
+	url = https://github.com/180seg/compendio.git

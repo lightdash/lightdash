@@ -1,4 +1,11 @@
 import {
+    CreateTrinoCredentials,
+    DimensionType,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from '@lightdash/common';
+import * as _ from 'lodash';
+import {
     BasicAuth,
     Columns,
     ConnectionOptions,
@@ -7,14 +14,7 @@ import {
     QueryResult,
     Trino,
 } from 'trino-client';
-
-import {
-    CreateTrinoCredentials,
-    DimensionType,
-    WarehouseConnectionError,
-    WarehouseQueryError,
-} from '@lightdash/common';
-import { WarehouseClient } from '../types';
+import { WarehouseCatalog, WarehouseClient } from '../types';
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -43,6 +43,51 @@ export enum TrinoTypes {
     UUID = 'uuid',
 }
 
+type SchemaResult = {
+    TABLE_CAT: string;
+    TABLE_SCHEM: string;
+    TABLE_NAME: string;
+    COLUMN_NAME: string;
+    DATA_TYPE: number;
+    TYPE_NAME: string;
+    // additional props
+    // COLUMN_SIZE: null,
+    // BUFFER_LENGTH: null,
+    // DECIMAL_DIGITS: null,
+    // NUM_PREC_RADIX: null,
+    // NULLABLE: 1,
+    // REMARKS: '',
+    // COLUMN_DEF: null,
+    // SQL_DATA_TYPE: null,
+    // SQL_DATETIME_SUB: null,
+    // CHAR_OCTET_LENGTH: null,
+    // ORDINAL_POSITION: 5,
+    // IS_NULLABLE: 'YES',
+    // SCOPE_CATALOG: null,
+    // SCOPE_SCHEMA: null,
+    // SCOPE_TABLE: null,
+    // SOURCE_DATA_TYPE: null,
+    // IS_AUTO_INCREMENT: 'NO'
+};
+
+interface TableInfo {
+    database: string;
+    schema: string;
+    table: string;
+}
+
+const queryTableSchema = ({ database, schema, table }: TableInfo) => `SELECT
+                                                                    table_catalog 
+                                                                    , table_schema 
+                                                                    , table_name
+                                                                    , column_name 
+                                                                    , data_type 
+                                                                    FROM ${database}.information_schema.columns 
+                                                                    WHERE table_catalog = '${database}'
+                                                                    AND table_schema = '${schema}'
+                                                                    AND table_name = '${table}'
+                                                                    ORDER BY 1, 2, 3, ordinal_position`;
+
 const convertDataTypeToDimensionType = (
     type: TrinoTypes | string,
 ): DimensionType => {
@@ -63,7 +108,6 @@ const convertDataTypeToDimensionType = (
             return DimensionType.NUMBER;
         case TrinoTypes.DECIMAL:
             return DimensionType.NUMBER;
-
         case TrinoTypes.DATE:
             return DimensionType.DATE;
         case TrinoTypes.TIMESTAMP:
@@ -71,6 +115,55 @@ const convertDataTypeToDimensionType = (
         default:
             return DimensionType.STRING;
     }
+};
+
+type CatalaogDetails = string | string[];
+
+interface CatalogItemGroup {
+    [key: string]: string[][];
+}
+
+const customGroup = (arr: any): CatalogItemGroup =>
+    _.groupBy(arr, (e) => e.shift());
+
+const keyName = (k: [string, string[][]]): string => _.first(k)?.toString()!;
+
+const handlerVals = (val: string | string[][]): string => val[0][0]!;
+
+const catalogToSchema = (catalog: string[][]): WarehouseCatalog => {
+    const schema: WarehouseCatalog = {};
+    const groupSchema = customGroup(catalog);
+    // TODO tem alguma forma mais elegante de fazer isso?
+    Object.entries(groupSchema).map((db) => {
+        const dbKey: string = keyName(db);
+        const dbValue: CatalogItemGroup = customGroup(_.last(db));
+        schema[dbKey] = {};
+        Object.entries(dbValue).map((value) => {
+            const schemaKey: string = keyName(value);
+            const schemaValue: CatalogItemGroup = customGroup(_.last(value));
+            schema[dbKey][schemaKey] = {};
+            Object.entries(schemaValue).map((schemaItem) => {
+                const columnsKey: string = keyName(schemaItem);
+                const columnValue: CatalogItemGroup = customGroup(
+                    _.last(schemaItem),
+                );
+                schema[dbKey][schemaKey][columnsKey] = {};
+
+                Object.entries(columnValue).map((column) => {
+                    const itemName: string = keyName(column);
+                    const item: string = handlerVals(_.last(column)!);
+                    schema[dbKey][schemaKey][columnsKey][itemName] =
+                        convertDataTypeToDimensionType(item);
+                    return null;
+                });
+                return null;
+            });
+            return null;
+        });
+        return null;
+    });
+
+    return schema;
 };
 
 export class TrinoWarehouseClient implements WarehouseClient {
@@ -119,7 +212,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
             console.log(sql);
             query = await session.query(sql);
             console.log(query);
-            const { id } = (await query.next()).value;
             const result: QueryData = (await query.next()).value.data ?? [];
             const schema: {
                 name: string;
@@ -180,20 +272,32 @@ export class TrinoWarehouseClient implements WarehouseClient {
       `);
     }
 
-    async getCatalog(
-        requests: {
-            database: string;
-            schema: string;
-            table: string;
-        }[],
-    ) {
-        this.test();
-        return {
-            teste_db: {
-                teste_schema: {
-                    teste_table: { teste_column: DimensionType.BOOLEAN },
-                },
-            },
-        };
+    async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
+        const { session, close } = await this.getSession();
+        let results: string[][];
+
+        try {
+            const promises = requests.map(async (request) => {
+                let query: Iterator<QueryResult> | null = null;
+
+                try {
+                    query = await session.query(queryTableSchema(request));
+                    const result = (await query.next()).value.data ?? [];
+
+                    return result;
+                } catch (e: any) {
+                    throw new WarehouseQueryError(e.message);
+                } finally {
+                    if (query) close();
+                }
+            });
+
+            results = await Promise.all(promises);
+        } finally {
+            await close();
+        }
+
+        console.warn('FUNCTION: TrinoWarehouseClient.getCatalog');
+        return catalogToSchema(results);
     }
 }

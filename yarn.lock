@@ -1053,6 +1053,18 @@
   resolved "https://registry.yarnpkg.com/@kwsites/promise-deferred/-/promise-deferred-1.1.1.tgz#8ace5259254426ccef57f3175bc64ed7095ed919"
   integrity sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==
 
+"@lightdash/common@^0.317.2":
+  version "0.317.3"
+  resolved "https://registry.yarnpkg.com/@lightdash/common/-/common-0.317.3.tgz#08ab844c731a3c359ede92de1d154ce8e9ca8076"
+  integrity sha512-lWbnojWnCs4kL7DgIcz/z5FNJIRWqrGopNP+m3jlj1Ou/RjE1S4S9QewiOinZqeW85xxbI4gHJuKLEexq5Hwpw==
+  dependencies:
+    "@casl/ability" "^5.4.3"
+    dependency-graph "^0.11.0"
+    liquidjs "^9.41.0"
+    moment "^2.29.4"
+    pegjs "^0.10.0"
+    uuid "^8.3.2"
+
 "@mapbox/node-pre-gyp@^1.0.10":
   version "1.0.10"
   resolved "https://registry.yarnpkg.com/@mapbox/node-pre-gyp/-/node-pre-gyp-1.0.10.tgz#8e6735ccebbb1581e5a7e652244cadc8a844d03c"
@@ -7655,6 +7667,11 @@ liquidjs@^10.0.0:
   version "10.4.0"
   resolved "https://registry.yarnpkg.com/liquidjs/-/liquidjs-10.4.0.tgz#4993135c87a582389bccd3a4be2cabf044c01474"
   integrity sha512-4fpR8KFJ96bXkzynK9Yo1jwn7sjOkJfKawSbEXINc39DZfy7r5SYtcAM5T/Ccg5n0xoZf6ap5Gap4VwFCJiQ1g==
+
+liquidjs@^9.41.0:
+  version "9.43.0"
+  resolved "https://registry.yarnpkg.com/liquidjs/-/liquidjs-9.43.0.tgz#69924ed3bbe143c17c13ea675cc70390d72eb307"
+  integrity sha512-qZZuL5Emja2UgCqiLewiw9bvwZQwm19TTGFxDkonVzB4YSTOZ8tuTVo/7Uu/AeW1cL2Qb/at3DSoV8wwyFXQCw==
 
 listr2@^3.8.3:
   version "3.14.0"
