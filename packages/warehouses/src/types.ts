@@ -27,5 +27,5 @@ export interface WarehouseClient {
 
     test(): Promise<void>;
 
-    getStartOfWeek(): WeekDay | undefined;
+    getStartOfWeek(): WeekDay | null | undefined;
 }

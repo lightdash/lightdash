@@ -164,7 +164,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | undefined;
+    startOfWeek: WeekDay | null | undefined;
 
     constructor({
         serverHostName,

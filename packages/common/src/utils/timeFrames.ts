@@ -1,4 +1,3 @@
-import isNumber from 'lodash-es/isNumber';
 import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType } from '../types/field';
@@ -13,6 +12,11 @@ export enum WeekDay {
     SATURDAY,
     SUNDAY,
 }
+
+export const isWeekDay = (value: unknown): value is WeekDay =>
+    Number.isSafeInteger(value) &&
+    (value as number) >= 0 &&
+    (value as number) <= 6;
 
 const nullTimeFrameMap: Record<TimeFrames, null> = {
     DAY: null,
@@ -51,7 +55,7 @@ type WarehouseConfig = {
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
-        startOfWeek?: WeekDay,
+        startOfWeek?: WeekDay | null,
     ) => string;
     getSqlForDatePart: (
         timeFrame: TimeFrames,
@@ -77,9 +81,7 @@ const bigqueryConfig: WarehouseConfig = {
             [WeekDay.SUNDAY]: 'SUNDAY',
         };
         const datePart =
-            timeFrame === TimeFrames.WEEK &&
-            startOfWeek !== undefined &&
-            isNumber(startOfWeek)
+            timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)
                 ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
@@ -160,11 +162,7 @@ const snowflakeConfig: WarehouseConfig = {
 
 const postgresConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
-        if (
-            timeFrame === TimeFrames.WEEK &&
-            startOfWeek !== undefined &&
-            isNumber(startOfWeek)
-        ) {
+        if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek} days`;
             return `(DATE_TRUNC('${timeFrame}', (${originalSql} - interval '${intervalDiff}')) + interval '${intervalDiff}')`;
         }
@@ -197,11 +195,7 @@ const postgresConfig: WarehouseConfig = {
 
 const databricksConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
-        if (
-            timeFrame === TimeFrames.WEEK &&
-            startOfWeek !== undefined &&
-            isNumber(startOfWeek)
-        ) {
+        if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek}`;
             return `DATEADD(DAY, ${intervalDiff}, DATE_TRUNC('${timeFrame}', DATEADD(DAY, -${intervalDiff}, ${originalSql})))`;
         }
@@ -284,7 +278,7 @@ type TimeFrameConfig = {
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
-        startOfWeek?: WeekDay,
+        startOfWeek?: WeekDay | null,
     ) => string;
     getAxisMinInterval: () => number | null;
     getAxisLabelFormatter: () => Record<string, string> | null;

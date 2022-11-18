@@ -1,13 +1,13 @@
 import {
     CreateSnowflakeCredentials,
     DimensionType,
+    isWeekDay,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
     WeekDay,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
-import isNumber from 'lodash-es/isNumber';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../types';
@@ -109,7 +109,7 @@ const parseRows = (rows: Record<string, any>[]) =>
 export class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | undefined;
+    startOfWeek: WeekDay | null | undefined;
 
     constructor(credentials: CreateSnowflakeCredentials) {
         this.startOfWeek = credentials.startOfWeek;
@@ -160,7 +160,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
-            if (this.startOfWeek !== undefined && isNumber(this.startOfWeek)) {
+            if (isWeekDay(this.startOfWeek)) {
                 const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
                 await this.executeStatement(
                     connection,

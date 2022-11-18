@@ -804,7 +804,7 @@ export type CreateBigqueryCredentials = {
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;
-    startOfWeek?: WeekDay;
+    startOfWeek?: WeekDay | null;
 };
 
 export const sensitiveCredentialsFieldNames = [
@@ -835,7 +835,7 @@ export type CreateDatabricksCredentials = {
     serverHostName: string;
     httpPath: string;
     personalAccessToken: string;
-    startOfWeek?: WeekDay;
+    startOfWeek?: WeekDay | null;
 };
 
 export type DatabricksCredentials = Omit<
@@ -856,7 +856,7 @@ export type CreatePostgresCredentials = {
     searchPath?: string;
     role?: string;
     sslmode?: string;
-    startOfWeek?: WeekDay;
+    startOfWeek?: WeekDay | null;
 };
 
 export type PostgresCredentials = Omit<
@@ -876,7 +876,7 @@ export type CreateRedshiftCredentials = {
     keepalivesIdle?: number;
     sslmode?: string;
     ra3Node?: boolean;
-    startOfWeek?: WeekDay;
+    startOfWeek?: WeekDay | null;
 };
 
 export type RedshiftCredentials = Omit<
@@ -899,7 +899,7 @@ export type CreateSnowflakeCredentials = {
     clientSessionKeepAlive?: boolean;
     queryTag?: string;
     accessUrl?: string;
-    startOfWeek?: WeekDay;
+    startOfWeek?: WeekDay | null;
 };
 
 export type SnowflakeCredentials = Omit<

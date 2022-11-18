@@ -122,9 +122,9 @@ const convertDataTypeIdToDimensionType = (
 export class PostgresClient implements WarehouseClient {
     pool: pg.Pool;
 
-    startOfWeek: WeekDay | undefined;
+    startOfWeek: WeekDay | null | undefined;
 
-    constructor(config: PoolConfig, startOfWeek: WeekDay | undefined) {
+    constructor(config: PoolConfig, startOfWeek: WeekDay | null | undefined) {
         this.startOfWeek = startOfWeek;
         try {
             const pool = new pg.Pool(config);

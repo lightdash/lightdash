@@ -79,7 +79,7 @@ const convertDimension = (
     column: DbtModelColumn,
     source?: Source,
     timeInterval?: TimeFrames,
-    startOfWeek?: WeekDay,
+    startOfWeek?: WeekDay | null,
 ): Dimension => {
     let type =
         column.meta.dimension?.type || column.data_type || DimensionType.STRING;
@@ -237,7 +237,7 @@ export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
     dbtMetrics: DbtMetric[],
-    startOfWeek?: WeekDay,
+    startOfWeek?: WeekDay | null,
 ): Omit<Table, 'lineageGraph'> => {
     if (!model.compiled) {
         throw new NonCompiledModelError(`Model has not been compiled by dbt`);
@@ -402,7 +402,7 @@ export const convertExplores = async (
     loadSources: boolean,
     adapterType: SupportedDbtAdapter,
     metrics: DbtMetric[],
-    startOfWeek?: WeekDay,
+    startOfWeek?: WeekDay | null,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(

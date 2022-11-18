@@ -4,7 +4,4 @@ module.exports = {
     automock: false,
     setupFiles: ['./setupJest.ts'],
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-    moduleNameMapper: {
-        'lodash-es': 'lodash',
-    },
 };
