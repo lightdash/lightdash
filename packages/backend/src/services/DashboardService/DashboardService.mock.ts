@@ -47,10 +47,10 @@ export const space: SpaceTable['base'] = {
 
 export const publicSpace: Space = {
     isPrivate: false,
-    organizationUuid: '',
-    uuid: '',
+    organizationUuid: 'organizationUuid',
+    uuid: 'spaceUuid',
     queries: [],
-    projectUuid: '',
+    projectUuid: 'projectUuid',
     dashboards: [],
     access: [],
     name: '',

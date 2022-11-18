@@ -87,7 +87,6 @@ export class DashboardService {
                 this.spaceModel.getFullSpace(spaceUuid),
             ),
         );
-
         return dashboards.filter((dashboard) => {
             const hasAbility = user.ability.can(
                 'view',
