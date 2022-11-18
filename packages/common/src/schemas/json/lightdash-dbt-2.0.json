@@ -244,19 +244,7 @@
                         "type": "string"
                     },
                     "type": {
-                        "type": "string",
-                        "enum": [
-                            "average",
-                            "boolean",
-                            "count",
-                            "count_distinct",
-                            "date",
-                            "max",
-                            "min",
-                            "number",
-                            "string",
-                            "sum"
-                        ]
+                        "type": "string"
                     },
                     "sql": {
                         "type": "string"
@@ -306,7 +294,7 @@
                         }
                     }
                 },
-                "required": ["name", "model", "sql", "type"]
+                "required": ["name"]
             }
         },
         "seeds": {
