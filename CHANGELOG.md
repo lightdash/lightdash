@@ -1,3 +1,10 @@
+# [0.327.0](https://github.com/lightdash/lightdash/compare/0.326.0...0.327.0) (2022-11-18)
+
+
+### Features
+
+* dbt derived metrics ([#3806](https://github.com/lightdash/lightdash/issues/3806)) ([b32be2d](https://github.com/lightdash/lightdash/commit/b32be2da54f17564c9a6da2c35f8e8e993fe4cd8))
+
 # [0.326.0](https://github.com/lightdash/lightdash/compare/0.325.0...0.326.0) (2022-11-18)
 
 
