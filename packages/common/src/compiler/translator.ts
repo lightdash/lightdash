@@ -31,6 +31,7 @@ import {
     getDefaultTimeFrames,
     timeFrameConfigs,
     validateTimeFrames,
+    WeekDay,
 } from '../utils/timeFrames';
 import { compileExplore } from './exploreCompiler';
 
@@ -78,6 +79,7 @@ const convertDimension = (
     column: DbtModelColumn,
     source?: Source,
     timeInterval?: TimeFrames,
+    startOfWeek?: WeekDay | null,
 ): Dimension => {
     let type =
         column.meta.dimension?.type || column.data_type || DimensionType.STRING;
@@ -104,6 +106,7 @@ const convertDimension = (
             timeInterval,
             sql,
             type,
+            startOfWeek,
         );
         name = `${column.name}_${timeInterval.toLowerCase()}`;
         label = `${label} ${timeFrameConfigs[timeInterval]
@@ -234,6 +237,7 @@ export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
     dbtMetrics: DbtMetric[],
+    startOfWeek?: WeekDay | null,
 ): Omit<Table, 'lineageGraph'> => {
     if (!model.compiled) {
         throw new NonCompiledModelError(`Model has not been compiled by dbt`);
@@ -250,6 +254,9 @@ export const convertTable = (
                 model,
                 tableLabel,
                 column,
+                undefined,
+                undefined,
+                startOfWeek,
             );
 
             let extraDimensions = {};
@@ -284,6 +291,7 @@ export const convertTable = (
                             column,
                             undefined,
                             interval,
+                            startOfWeek,
                         ),
                     }),
                     {},
@@ -394,6 +402,7 @@ export const convertExplores = async (
     loadSources: boolean,
     adapterType: SupportedDbtAdapter,
     metrics: DbtMetric[],
+    startOfWeek?: WeekDay | null,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -405,7 +414,12 @@ export const convertExplores = async (
                 const tableMetrics = metrics.filter((metric) =>
                     modelCanUseMetric(metric.name, model.name, metrics),
                 );
-                const table = convertTable(adapterType, model, tableMetrics);
+                const table = convertTable(
+                    adapterType,
+                    model,
+                    tableMetrics,
+                    startOfWeek,
+                );
 
                 // add sources
                 if (loadSources && model.patch_path !== null) {

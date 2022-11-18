@@ -15,6 +15,7 @@ import {
     AdvancedButtonWrapper,
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
+import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
@@ -182,6 +183,7 @@ const SnowflakeForm: FC<{
                         },
                     }}
                 />
+                <StartOfWeekSelect disabled={disabled} />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

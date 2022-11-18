@@ -63,6 +63,7 @@ import { TimeFrames } from './types/timeFrames';
 import { LightdashUser } from './types/user';
 import assertUnreachable from './utils/assertUnreachable';
 import { formatDate, formatItemValue } from './utils/formatting';
+import { WeekDay } from './utils/timeFrames';
 
 export * from './authorization/index';
 export * from './authorization/types';
@@ -803,6 +804,7 @@ export type CreateBigqueryCredentials = {
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;
+    startOfWeek?: WeekDay | null;
 };
 
 export const sensitiveCredentialsFieldNames = [
@@ -833,6 +835,7 @@ export type CreateDatabricksCredentials = {
     serverHostName: string;
     httpPath: string;
     personalAccessToken: string;
+    startOfWeek?: WeekDay | null;
 };
 
 export type DatabricksCredentials = Omit<
@@ -853,6 +856,7 @@ export type CreatePostgresCredentials = {
     searchPath?: string;
     role?: string;
     sslmode?: string;
+    startOfWeek?: WeekDay | null;
 };
 
 export type PostgresCredentials = Omit<
@@ -872,6 +876,7 @@ export type CreateRedshiftCredentials = {
     keepalivesIdle?: number;
     sslmode?: string;
     ra3Node?: boolean;
+    startOfWeek?: WeekDay | null;
 };
 
 export type RedshiftCredentials = Omit<
@@ -894,6 +899,7 @@ export type CreateSnowflakeCredentials = {
     clientSessionKeepAlive?: boolean;
     queryTag?: string;
     accessUrl?: string;
+    startOfWeek?: WeekDay | null;
 };
 
 export type SnowflakeCredentials = Omit<

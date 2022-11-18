@@ -1,9 +1,11 @@
 import {
     CreateSnowflakeCredentials,
     DimensionType,
+    isWeekDay,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WeekDay,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
@@ -107,7 +109,10 @@ const parseRows = (rows: Record<string, any>[]) =>
 export class SnowflakeWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
+    startOfWeek: WeekDay | null | undefined;
+
     constructor(credentials: CreateSnowflakeCredentials) {
+        this.startOfWeek = credentials.startOfWeek;
         let decodedPrivateKey: string | Buffer | undefined =
             credentials.privateKey;
         if (credentials.privateKey && credentials.privateKeyPass) {
@@ -142,6 +147,10 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
+    getStartOfWeek() {
+        return this.startOfWeek;
+    }
+
     async runQuery(sqlText: string) {
         let connection: Connection;
         try {
@@ -151,6 +160,13 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
+            if (isWeekDay(this.startOfWeek)) {
+                const snowflakeStartOfWeekIndex = this.startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
+                await this.executeStatement(
+                    connection,
+                    `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
+                );
+            }
             await this.executeStatement(
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",

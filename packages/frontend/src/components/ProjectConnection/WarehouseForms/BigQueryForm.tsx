@@ -12,6 +12,7 @@ import {
     AdvancedButtonWrapper,
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
+import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
@@ -225,6 +226,7 @@ const BigQueryForm: FC<{
                     disabled={disabled}
                     defaultValue={1000000000}
                 />
+                <StartOfWeekSelect disabled={disabled} />
             </FormSection>
 
             <AdvancedButtonWrapper>
