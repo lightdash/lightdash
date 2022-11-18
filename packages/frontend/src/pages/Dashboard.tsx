@@ -1,4 +1,4 @@
-import { Alert, Intent, Spinner } from '@blueprintjs/core';
+import { Alert, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Dashboard as IDashboard, DashboardTileTypes } from '@lightdash/common';
 import React, {
     FC,
@@ -61,10 +61,12 @@ const GridTile: FC<
             if (isLoading) return <></>;
             if (isError)
                 return (
-                    <TileBase
-                        title={"You don't have access to view this chart"}
-                        {...props}
-                    ></TileBase>
+                    <TileBase title={''} {...props}>
+                        <NonIdealState
+                            icon="lock"
+                            title={`You don't have access to view this chart`}
+                        ></NonIdealState>
+                    </TileBase>
                 );
             return (
                 <UnderlyingDataProvider
