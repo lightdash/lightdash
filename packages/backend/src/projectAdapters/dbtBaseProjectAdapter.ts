@@ -143,6 +143,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 loadSources,
                 adapterType,
                 metrics,
+                this.warehouseClient.getStartOfWeek(),
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {

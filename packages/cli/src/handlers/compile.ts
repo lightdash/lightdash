@@ -4,6 +4,7 @@ import {
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
+    isWeekDay,
     ParseError,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
@@ -26,6 +27,7 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     target: string | undefined;
     profile: string | undefined;
     verbose: boolean;
+    startOfWeek?: number;
 };
 export const compile = async (options: GenerateHandlerOptions) => {
     await LightdashAnalytics.track({
@@ -84,6 +86,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
         false,
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
+        isWeekDay(options.startOfWeek) ? options.startOfWeek : undefined,
     );
     console.error('');
 
