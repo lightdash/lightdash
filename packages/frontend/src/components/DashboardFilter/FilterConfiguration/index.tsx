@@ -194,7 +194,10 @@ const FilterConfiguration: FC<Props> = ({
                     title="Tiles"
                     panel={
                         <>
-                            <Title>Select tiles to apply filter to</Title>
+                            <Title>
+                                Select tiles to apply filter to and which field
+                                to filter by
+                            </Title>
 
                             {tilesWithFilters &&
                                 Object.values(tilesWithFilters)
@@ -232,6 +235,7 @@ const FilterConfiguration: FC<Props> = ({
                                             );
 
                                         return (
+                                            // TODO: extract to component
                                             <FormGroup key={tile.uuid}>
                                                 <Checkbox
                                                     label={tile.name}
