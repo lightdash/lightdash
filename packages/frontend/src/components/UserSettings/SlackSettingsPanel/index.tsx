@@ -4,6 +4,7 @@ import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
+import { useApp } from '../../../providers/AppProvider';
 import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
 import { Can, useAbilityContext } from '../../common/Authorization';
 import {
