@@ -228,12 +228,8 @@ export type ArgumentsOf<F extends Function> = F extends (
     : never;
 
 // Helper function to get a list of all dimensions in an explore
-export const getDimensions = (explore: Explore): CompiledDimension[] => {
-    console.log(explore);
-    return Object.values(explore.tables).flatMap((t) =>
-        Object.values(t.dimensions),
-    );
-};
+export const getDimensions = (explore: Explore): CompiledDimension[] =>
+    Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
 
 // Helper function to get a list of all metrics in an explore
 export const getMetrics = (explore: Explore): CompiledMetric[] =>

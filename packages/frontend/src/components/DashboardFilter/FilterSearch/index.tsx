@@ -47,6 +47,13 @@ const FilterSearch: FC<Props> = ({
         return null;
     }
 
+    const handleChangeField = (field: FilterableField) => {
+        if (isField(field) && isFilterableField(field)) {
+            setSelectedField(field);
+            onSelectField(field);
+        }
+    };
+
     const handleSave = (
         value: DashboardFilterRule<
             FilterOperator,
@@ -85,15 +92,7 @@ const FilterSearch: FC<Props> = ({
                     >
                         <FieldAutoComplete
                             fields={fields}
-                            onChange={(field) => {
-                                if (
-                                    isField(field) &&
-                                    isFilterableField(field)
-                                ) {
-                                    setSelectedField(field);
-                                    onSelectField(field);
-                                }
-                            }}
+                            onChange={handleChangeField}
                             popoverProps={{
                                 matchTargetWidth: true,
                                 captureDismiss: !popoverProps?.isOpen,

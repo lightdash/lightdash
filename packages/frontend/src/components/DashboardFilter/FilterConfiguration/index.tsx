@@ -77,8 +77,6 @@ const FilterConfiguration: FC<Props> = ({
         [tilesWithFilters, field.type],
     );
 
-    console.log({ filterConfig, filterType, field });
-
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
             filterRule
