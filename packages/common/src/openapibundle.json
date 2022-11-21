@@ -1861,6 +1861,20 @@
                     },
                     "settings": {
                         "type": "object"
+                    },
+                    "tileConfigs": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "fieldId": {
+                                    "type": "string"
+                                },
+                                "tileUuid": {
+                                    "type": "string"
+                                }
+                            }
+                        }
                     }
                 },
                 "required": ["id", "target", "operator"]
