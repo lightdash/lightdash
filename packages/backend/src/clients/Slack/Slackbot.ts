@@ -68,20 +68,48 @@ const unfurl = (event: any, client: any) => {
     const unfurls = event.links.reduce((acc: any, l: any) => {
         const { url } = l;
         const imgUrl =
-            'https://uploads-ssl.webflow.com/62a9ae93cf7542032ae55b9c/62b6fe214cc86859e7f29485_Group%201000000843.png';
+            'https://user-images.githubusercontent.com/1983672/203070424-c6051437-f92d-448b-827e-0c4aec58867a.png';
+        const dashboardName = 'Public dashboard';
+        const dashboardUrl =
+            'http://localhost:3000/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/2844e926-a868-4dfe-b41c-6d7cc74e1b24/edit';
         return {
             [url]: {
                 blocks: [
                     {
-                        type: 'section',
+                        /* type: 'section',
                         text: {
                             type: 'mrkdwn',
-                            text: `Unfurling url`,
+                            text: `public dashboard`,
                         },
                         accessory: {
                             type: 'image',
                             image_url: imgUrl,
                             alt_text: 'Image unfurled',
+                        }, */
+
+                        type: 'image',
+                        title: {
+                            type: 'plain_text',
+                            text: 'Public dashboard',
+                        },
+                        block_id: 'image4',
+                        image_url: imgUrl,
+                        alt_text: 'An incredibly cute kitten.',
+                    },
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `<${dashboardUrl}|${dashboardName}> `,
+                        },
+                        accessory: {
+                            type: 'button',
+                            text: {
+                                type: 'plain_text',
+                                text: 'Open dashboard',
+                                emoji: true,
+                            },
+                            value: 'view_alternate_1',
                         },
                     },
                 ],

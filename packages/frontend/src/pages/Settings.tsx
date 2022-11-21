@@ -12,6 +12,7 @@ import OrganisationPanel from '../components/UserSettings/OrganisationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
+import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
@@ -142,6 +143,12 @@ const Settings: FC = () => {
                             exact
                             to={`${basePath}/appearance`}
                         />
+
+                        <RouterMenuItem
+                            text="Slack"
+                            exact
+                            to={`${basePath}/slack`}
+                        />
                     </Menu>
                 </MenuWrapper>
             </Sidebar>
@@ -246,7 +253,13 @@ const Settings: FC = () => {
                         </ContentWrapper>
                     </Content>
                 </Route>
-
+                <Route exact path={`/generalSettings/slack`}>
+                    <Content>
+                        <CardContainer>
+                            <SlackSettingsPanel />
+                        </CardContainer>
+                    </Content>
+                </Route>
                 <Route exact path={`/generalSettings`}>
                     <Content>
                         <CardContainer>
