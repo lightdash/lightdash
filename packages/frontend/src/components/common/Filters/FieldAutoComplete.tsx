@@ -13,7 +13,8 @@ import {
     isMetric,
     TableCalculation,
 } from '@lightdash/common';
-import { createGlobalStyle } from 'styled-components';
+import { FC } from 'react';
+import styled, { createGlobalStyle } from 'styled-components';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 type Item = Field | TableCalculation | FilterableField;
@@ -25,6 +26,7 @@ const AutocompleteMaxHeight = createGlobalStyle`
   }
 `;
 
+// TODO: extract
 const getFieldIcon = (field: Item) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {
         return getItemIconName(field.type);
@@ -32,23 +34,58 @@ const getFieldIcon = (field: Item) => {
     return getItemIcon(field);
 };
 
-const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
+// TODO: extract
+interface FieldItemProps {
+    item: Item;
+}
+
+// TODO: extract
+const BolderText = styled.span`
+    font-weight: 600;
+`;
+
+export const FieldIcon: FC<FieldItemProps> = ({ item }) => {
+    return <Icon icon={getFieldIcon(item)} color={getItemColor(item)} />;
+};
+
+export const FieldLabel: FC<FieldItemProps> = ({ item }) => {
+    return (
+        <span>
+            {isField(item) ? `${item.tableLabel} ` : ''}
+            <BolderText>
+                {isField(item) ? item.label : item.displayName}
+            </BolderText>
+        </span>
+    );
+};
+
+// TODO: extract
+export const FieldItem: FC<FieldItemProps> = ({ item }) => (
+    <div>
+        <FieldIcon item={item} />
+        <FieldLabel item={item} />
+    </div>
+);
+
+// TODO: extract
+export const renderItem: ItemRenderer<Item> = (
+    item,
+    { modifiers, handleClick, handleFocus },
+) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
     return (
         <MenuItem2
-            active={modifiers.active}
             key={getItemId(item)}
-            icon={<Icon icon={getFieldIcon(item)} color={getItemColor(item)} />}
-            text={
-                <span>
-                    {isField(item) ? `${item.tableLabel} ` : ''}
-                    <b>{isField(item) ? item.label : item.displayName}</b>
-                </span>
-            }
-            onClick={handleClick}
+            roleStructure="listoption"
             shouldDismissPopover={false}
+            active={modifiers.active}
+            disabled={modifiers.disabled}
+            icon={<FieldIcon item={item} />}
+            text={<FieldLabel item={item} />}
+            onClick={handleClick}
+            onFocus={handleFocus}
         />
     );
 };

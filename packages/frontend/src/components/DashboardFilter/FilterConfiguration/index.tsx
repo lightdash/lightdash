@@ -8,7 +8,7 @@ import {
     Tabs,
 } from '@blueprintjs/core';
 import { Classes, MenuItem2, Popover2Props } from '@blueprintjs/popover2';
-import { ItemRenderer, Select2 } from '@blueprintjs/select';
+import { Select2 } from '@blueprintjs/select';
 import {
     applyDefaultTileConfigToFilterRule,
     AvailableFiltersForSavedQuery,
@@ -28,6 +28,11 @@ import {
 import produce from 'immer';
 import { FC, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
+import {
+    FieldIcon,
+    FieldLabel,
+    renderItem,
+} from '../../common/Filters/FieldAutoComplete';
 import SimpleButton from '../../common/SimpleButton';
 import {
     ConfigureFilterWrapper,
@@ -142,36 +147,11 @@ const FilterConfiguration: FC<Props> = ({
         }
     };
 
-    const renderItem: ItemRenderer<FilterableField> = (
-        filter,
-        { handleClick, handleFocus, modifiers, query },
-    ) => {
-        if (!modifiers.matchesPredicate) {
-            return null;
-        }
-
-        return (
-            <MenuItem2
-                active={modifiers.active}
-                disabled={modifiers.disabled}
-                key={filter.name}
-                label={filter.type}
-                text={
-                    <>
-                        {filter.table} <b>{filter.name}</b>
-                    </>
-                }
-                onClick={handleClick}
-                onFocus={handleFocus}
-                roleStructure="listoption"
-            />
-        );
-    };
-
     return (
         <ConfigureFilterWrapper>
+            {/* TODO: styled? */}
             <div style={{ marginBottom: 10 }}>
-                {field.tableLabel} <Title>{field.label}</Title>
+                <FieldLabel item={field} />
             </div>
 
             <Tabs
@@ -235,11 +215,12 @@ const FilterConfiguration: FC<Props> = ({
 
                                         const filterableFieldId =
                                             tileConfig?.fieldId;
-                                        const filter = tile.filters.find(
-                                            (f) =>
-                                                fieldId(f) ===
-                                                filterableFieldId,
-                                        );
+                                        const filterableField =
+                                            tile.filters.find(
+                                                (f) =>
+                                                    fieldId(f) ===
+                                                    filterableFieldId,
+                                            );
 
                                         const sortedItems = tile.filters
                                             .filter(fieldMatchType(field))
@@ -285,14 +266,16 @@ const FilterConfiguration: FC<Props> = ({
                                                                 text="No results."
                                                             />
                                                         }
-                                                        activeItem={filter}
+                                                        activeItem={
+                                                            filterableField
+                                                        }
                                                         onItemSelect={(
-                                                            newFilter,
+                                                            newFilterableField,
                                                         ) => {
                                                             handleChange(
                                                                 FilterActions.ADD,
                                                                 tile,
-                                                                newFilter,
+                                                                newFilterableField,
                                                             );
                                                         }}
                                                         popoverProps={{
@@ -314,19 +297,23 @@ const FilterConfiguration: FC<Props> = ({
                                                             }
                                                             outlined
                                                             fill
+                                                            icon={
+                                                                filterableField && (
+                                                                    <FieldIcon
+                                                                        item={
+                                                                            filterableField
+                                                                        }
+                                                                    />
+                                                                )
+                                                            }
                                                             text={
                                                                 isApplicable ? (
-                                                                    filter ? (
-                                                                        <>
-                                                                            {
-                                                                                filter.table
-                                                                            }{' '}
-                                                                            <b>
-                                                                                {
-                                                                                    filter.name
-                                                                                }
-                                                                            </b>
-                                                                        </>
+                                                                    filterableField ? (
+                                                                        <FieldLabel
+                                                                            item={
+                                                                                filterableField
+                                                                            }
+                                                                        />
                                                                     ) : (
                                                                         'Select field'
                                                                     )
