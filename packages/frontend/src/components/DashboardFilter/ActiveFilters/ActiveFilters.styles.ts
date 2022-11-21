@@ -25,14 +25,6 @@ export const InvalidFilterTag = styled(TagContainer)`
     }
 `;
 
-export const TagsWrapper = styled.div`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.5em;
-    padding-top: 0.2em;
-`;
-
 export const FilterValues = styled.span`
     font-weight: 700;
 `;
