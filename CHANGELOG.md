@@ -1,3 +1,12 @@
+# [0.328.0](https://github.com/lightdash/lightdash/compare/0.327.2...0.328.0) (2022-11-21)
+
+
+### Features
+
+*  filter private spaces from dashboards ([#3799](https://github.com/lightdash/lightdash/issues/3799)) ([0be25bb](https://github.com/lightdash/lightdash/commit/0be25bb2df7683b098e81bb54b0e8a270a98b640))
+* date picker use start of week configuration ([#3812](https://github.com/lightdash/lightdash/issues/3812)) ([635be3e](https://github.com/lightdash/lightdash/commit/635be3ebca6d056c24843002a1797d58f9535547))
+* filter space private charts ([#3800](https://github.com/lightdash/lightdash/issues/3800)) ([600de91](https://github.com/lightdash/lightdash/commit/600de9138671c1151b31525c6f93199d188faacb))
+
 ## [0.327.2](https://github.com/lightdash/lightdash/compare/0.327.1...0.327.2) (2022-11-18)
 
 
