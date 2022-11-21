@@ -334,10 +334,10 @@ const FilterConfiguration: FC<Props> = ({
                 />
             </Tabs>
 
+            {/* TODO: style */}
             <div
                 style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
                     marginTop: 24,
                 }}
             >
@@ -347,9 +347,10 @@ const FilterConfiguration: FC<Props> = ({
                     </SimpleButton>
                 )}
 
+                {/* TODO: style */}
                 <Button
                     style={{
-                        alignSelf: 'flex-end',
+                        marginLeft: 'auto',
                     }}
                     type="submit"
                     className={Classes.POPOVER2_DISMISS}
