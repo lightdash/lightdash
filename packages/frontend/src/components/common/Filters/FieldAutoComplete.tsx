@@ -3,6 +3,7 @@ import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import {
     Field,
+    FilterableField,
     getItemColor,
     getItemIcon,
     getItemId,
@@ -12,13 +13,10 @@ import {
     isMetric,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
-type Item = Field | TableCalculation;
-
-const FieldSuggest = Suggest2.ofType<Item>();
+type Item = Field | TableCalculation | FilterableField;
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -55,20 +53,20 @@ const renderItem: ItemRenderer<Item> = (item, { modifiers, handleClick }) => {
     );
 };
 
-type Props = {
+type FieldAutoCompleteProps<T> = {
     id?: string;
     name?: string;
     disabled?: boolean;
     autoFocus?: boolean;
-    activeField?: Item;
+    activeField?: T;
     placeholder?: string;
-    fields: Array<Item>;
-    onChange: (value: Item) => void;
+    fields: Array<T>;
+    onChange: (value: T) => void;
     onClosed?: () => void;
     popoverProps?: Popover2Props;
 };
 
-const FieldAutoComplete: FC<Props> = ({
+const FieldAutoComplete = <T extends Item>({
     disabled,
     autoFocus,
     activeField,
@@ -79,10 +77,10 @@ const FieldAutoComplete: FC<Props> = ({
     onClosed,
     placeholder,
     popoverProps,
-}) => (
+}: FieldAutoCompleteProps<T>) => (
     <>
         <AutocompleteMaxHeight />
-        <FieldSuggest
+        <Suggest2<T>
             fill
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}

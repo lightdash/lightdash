@@ -34,24 +34,31 @@ import {
     Title,
 } from './FilterConfiguration.styled';
 
-interface Props {
-    field: FilterableField;
-    tilesWithFilters: Record<string, AvailableFiltersForSavedQuery>;
-    filterRule?: DashboardFilterRule;
-    popoverProps?: Popover2Props;
-    selectedTabId: string;
-    onTabChange: (tabId: string) => void;
-    onSave: (value: DashboardFilterRule) => void;
-    onBack?: () => void;
-}
-
 enum FilterActions {
     ADD = 'add',
     REMOVE = 'remove',
 }
 
+export enum FilterTabs {
+    SETTINGS = 'settings',
+    TILES = 'tiles',
+}
+
+const DEFAULT_TAB = FilterTabs.SETTINGS;
+
+interface Props {
+    field: FilterableField;
+    tilesWithFilters: Record<string, AvailableFiltersForSavedQuery>;
+    filterRule?: DashboardFilterRule;
+    popoverProps?: Popover2Props;
+    selectedTabId?: string;
+    onTabChange: (tabId: FilterTabs) => void;
+    onSave: (value: DashboardFilterRule) => void;
+    onBack?: () => void;
+}
+
 const FilterConfiguration: FC<Props> = ({
-    selectedTabId,
+    selectedTabId = DEFAULT_TAB,
     onTabChange,
     field,
     tilesWithFilters,
@@ -74,7 +81,7 @@ const FilterConfiguration: FC<Props> = ({
             Object.values(tilesWithFilters).filter((tile) =>
                 tile.filters.some(fieldMatchType(field)),
             ),
-        [tilesWithFilters, field.type],
+        [tilesWithFilters, field],
     );
 
     const [internalFilterRule, setInternalFilterRule] =
@@ -336,7 +343,7 @@ const FilterConfiguration: FC<Props> = ({
             <div
                 style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
+                    justifyContent: 'flex-end',
                     marginTop: 24,
                 }}
             >
@@ -347,6 +354,9 @@ const FilterConfiguration: FC<Props> = ({
                 )}
 
                 <Button
+                    style={{
+                        alignSelf: 'flex-end',
+                    }}
                     type="submit"
                     className={Classes.POPOVER2_DISMISS}
                     intent={Intent.PRIMARY}

@@ -1,10 +1,11 @@
-import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC, useState } from 'react';
 import { useDashboardTilesWithFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
-import FilterConfiguration from '../FilterConfiguration';
+import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
+import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
 import {
     FilterValues,
     InvalidFilterTag,
@@ -32,6 +33,8 @@ const ActiveFilter: FC<Props> = ({
     const { data: tilesWithFilters, isLoading } =
         useDashboardTilesWithFilters(dashboardTiles);
 
+    const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
+
     if (isLoading || !tilesWithFilters) {
         return null;
     }
@@ -47,14 +50,17 @@ const ActiveFilter: FC<Props> = ({
     return (
         <Popover2
             content={
-                <FilterConfiguration
-                    field={field}
-                    tilesWithFilters={tilesWithFilters}
-                    filterRule={filterRule}
-                    onSave={onUpdate}
-                />
+                <FilterModalContainer $wide={selectedTabId === 'tiles'}>
+                    <FilterConfiguration
+                        selectedTabId={selectedTabId}
+                        onTabChange={setSelectedTabId}
+                        field={field}
+                        tilesWithFilters={tilesWithFilters}
+                        filterRule={filterRule}
+                        onSave={onUpdate}
+                    />
+                </FilterModalContainer>
             }
-            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
             position="bottom"
         >
             <TagContainer interactive onRemove={onRemove} onClick={onClick}>

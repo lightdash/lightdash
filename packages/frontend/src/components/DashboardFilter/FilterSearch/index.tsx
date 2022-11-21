@@ -14,7 +14,7 @@ import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
-import FilterConfiguration from '../FilterConfiguration';
+import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 import { FilterModalContainer } from './FilterSearch.styles';
 
 type Props = {
@@ -24,8 +24,6 @@ type Props = {
     onClose: () => void;
     onSelectField: (field: FilterableField) => void;
 };
-
-const DEFAULT_TAB = 'settings';
 
 const FilterSearch: FC<Props> = ({
     fields,
@@ -41,7 +39,7 @@ const FilterSearch: FC<Props> = ({
     const { addDimensionDashboardFilter } = useDashboardContext();
 
     const [selectedField, setSelectedField] = useState<FilterableField>();
-    const [selectedTabId, setSelectedTabId] = useState(DEFAULT_TAB);
+    const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
     if (isLoading || !tilesWithFilters) {
         return null;
@@ -70,12 +68,12 @@ const FilterSearch: FC<Props> = ({
         });
         setSelectedField(undefined);
         addDimensionDashboardFilter(value, !isEditMode);
-        setSelectedTabId(DEFAULT_TAB);
+        setSelectedTabId(undefined);
         onClose();
     };
 
     const handleBack = () => {
-        setSelectedTabId(DEFAULT_TAB);
+        setSelectedTabId(undefined);
         setSelectedField(undefined);
     };
 
