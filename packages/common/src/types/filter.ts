@@ -1,5 +1,3 @@
-import { FilterableField } from './field';
-
 export enum FilterType {
     STRING = 'string',
     NUMBER = 'number',
@@ -52,7 +50,7 @@ export type FieldTarget = {
 
 export type DashboardTileFilterConfig = {
     tileUuid: string;
-    filter: FilterableField;
+    fieldId: string;
 };
 
 export type FilterRule<

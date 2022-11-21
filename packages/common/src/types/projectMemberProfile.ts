@@ -1,6 +1,3 @@
-import assertUnreachable from '../utils/assertUnreachable';
-import { OrganizationMemberRole } from './organizationMemberProfile';
-
 export enum ProjectMemberRole {
     VIEWER = 'viewer',
     EDITOR = 'editor',

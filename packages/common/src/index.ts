@@ -411,11 +411,11 @@ const getDefaultTileConfigForFilterableField = (
     applicableTiles: AvailableFiltersForSavedQuery[],
 ): DashboardTileFilterConfig[] =>
     applicableTiles
-        .map((tile) => {
-            const filter = tile.filters.find(fieldMatchExact(field));
-            if (!filter) return undefined;
+        .map<DashboardTileFilterConfig | undefined>((tile) => {
+            const filterableField = tile.filters.find(fieldMatchExact(field));
+            if (!filterableField) return undefined;
 
-            return { tileUuid: tile.uuid, filter };
+            return { tileUuid: tile.uuid, fieldId: fieldId(filterableField) };
         })
         .filter(
             (tileConfig): tileConfig is DashboardTileFilterConfig =>

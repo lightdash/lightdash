@@ -14,6 +14,7 @@ import {
     AvailableFiltersForSavedQuery,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
+    fieldId,
     fieldMatchExact,
     fieldMatchType,
     fieldMatchTypeAndName,
@@ -108,17 +109,17 @@ const FilterConfiguration: FC<Props> = ({
                     }) || [];
 
                 if (action === FilterActions.ADD) {
-                    const filter =
+                    const filterableField =
                         filterUuid ??
                         tile.filters.find(fieldMatchExact(field)) ??
                         tile.filters.find(fieldMatchTypeAndName(field)) ??
                         tile.filters.find(fieldMatchType(field));
 
-                    if (!filter) return draftState;
+                    if (!filterableField) return draftState;
 
                     draftState.tileConfigs.push({
                         tileUuid: tile.uuid,
-                        filter,
+                        fieldId: fieldId(filterableField),
                     });
                 }
             }),
@@ -232,7 +233,13 @@ const FilterConfiguration: FC<Props> = ({
                                         const isChecked =
                                             isApplicable && !!tileConfig;
 
-                                        const filter = tileConfig?.filter;
+                                        const filterableFieldId =
+                                            tileConfig?.fieldId;
+                                        const filter = tile.filters.find(
+                                            (f) =>
+                                                fieldId(f) ===
+                                                filterableFieldId,
+                                        );
 
                                         const sortedItems = tile.filters
                                             .filter(fieldMatchType(field))
