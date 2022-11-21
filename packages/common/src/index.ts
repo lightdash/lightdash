@@ -25,7 +25,9 @@ import {
     MetricType,
 } from './types/field';
 import {
+    DashboardFieldTarget,
     DashboardFilterRule,
+    DashboardTileFilterConfig,
     DateFilterRule,
     FilterOperator,
     FilterRule,
@@ -226,8 +228,12 @@ export type ArgumentsOf<F extends Function> = F extends (
     : never;
 
 // Helper function to get a list of all dimensions in an explore
-export const getDimensions = (explore: Explore): CompiledDimension[] =>
-    Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
+export const getDimensions = (explore: Explore): CompiledDimension[] => {
+    console.log(explore);
+    return Object.values(explore.tables).flatMap((t) =>
+        Object.values(t.dimensions),
+    );
+};
 
 // Helper function to get a list of all metrics in an explore
 export const getMetrics = (explore: Explore): CompiledMetric[] =>
@@ -390,14 +396,61 @@ export const createFilterRuleFromField = (
             },
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
-            tileUuids: [],
         },
         value ? [value] : [],
     );
 
+export const fieldMatchExact = (a: FilterableField) => (b: FilterableField) =>
+    a.type === b.type && a.name === b.name && a.table === b.table;
+
+export const fieldMatchTypeAndName =
+    (a: FilterableField) => (b: FilterableField) =>
+        a.type === b.type && a.name === b.name;
+
+export const fieldMatchType = (a: FilterableField) => (b: FilterableField) =>
+    a.type === b.type;
+
+const getDefaultTileConfigForFilterableField = (
+    field: FilterableField,
+    applicableTiles: AvailableFiltersForSavedQuery[],
+): DashboardTileFilterConfig[] =>
+    applicableTiles
+        .map((tile) => {
+            const filter = tile.filters.find(fieldMatchExact(field));
+            if (!filter) return undefined;
+
+            return { tileUuid: tile.uuid, filter };
+        })
+        .filter(
+            (tileConfig): tileConfig is DashboardTileFilterConfig =>
+                !!tileConfig,
+        );
+
+export const applyDefaultTileConfigToFilterRule = (
+    filterRule: DashboardFilterRule<
+        FilterOperator,
+        DashboardFieldTarget,
+        any,
+        any
+    >,
+    field: FilterableField,
+    applicableTiles: AvailableFiltersForSavedQuery[],
+) => {
+    if (!filterRule.tileConfigs) {
+        return {
+            ...filterRule,
+            tileConfigs: getDefaultTileConfigForFilterableField(
+                field,
+                applicableTiles,
+            ),
+        };
+    }
+    return filterRule;
+};
+
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
-    applicableTileUuids: string[],
+    applicableTiles: AvailableFiltersForSavedQuery[],
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(field, {
         id: uuidv4(),
@@ -406,7 +459,10 @@ export const createDashboardFilterRuleFromField = (
             tableName: field.table,
         },
         operator: FilterOperator.EQUALS,
-        tileUuids: applicableTileUuids,
+        tileConfigs: getDefaultTileConfigForFilterableField(
+            field,
+            applicableTiles,
+        ),
     });
 
 type AddFilterRuleArgs = {

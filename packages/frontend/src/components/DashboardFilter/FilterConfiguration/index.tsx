@@ -10,9 +10,13 @@ import {
 import { Classes, MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Select2 } from '@blueprintjs/select';
 import {
+    applyDefaultTileConfigToFilterRule,
     AvailableFiltersForSavedQuery,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
+    fieldMatchExact,
+    fieldMatchType,
+    fieldMatchTypeAndName,
     FilterableField,
     FilterOperator,
     FilterRule,
@@ -21,9 +25,7 @@ import {
     getFilterTypeFromField,
 } from '@lightdash/common';
 import produce from 'immer';
-import React, { FC, useMemo, useState } from 'react';
-import { useDashboardTilesWithFilters } from '../../../hooks/dashboard/useDashboard';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { FC, useMemo, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
 import SimpleButton from '../../common/SimpleButton';
 import {
@@ -43,13 +45,10 @@ interface Props {
     onBack?: () => void;
 }
 
-const exactMatch = (field: FilterableField, filterField: FilterableField) => {
-    return field.name === filterField.name && field.type === filterField.type;
-};
-
-const typeMatch = (field: FilterableField, filterField: FilterableField) => {
-    return field.type === filterField.type;
-};
+enum FilterActions {
+    ADD = 'add',
+    REMOVE = 'remove',
+}
 
 const FilterConfiguration: FC<Props> = ({
     selectedTabId,
@@ -70,36 +69,52 @@ const FilterConfiguration: FC<Props> = ({
         [filterType],
     );
 
-    const applicableTileUuids = useMemo(
+    const applicableTiles = useMemo(
         () =>
-            Object.values(tilesWithFilters)
-                .filter((tile) =>
-                    tile.filters.some(
-                        (filter) =>
-                            filter.name === field.name &&
-                            filter.table === field.table,
-                    ),
-                )
-                .map((tile) => tile.uuid),
-        [tilesWithFilters, field.name, field.table],
+            Object.values(tilesWithFilters).filter((tile) =>
+                tile.filters.some(fieldMatchType(field)),
+            ),
+        [tilesWithFilters, field.type],
     );
+
+    console.log({ filterConfig, filterType, field });
 
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
-            filterRule ||
-                createDashboardFilterRuleFromField(field, applicableTileUuids),
+            filterRule
+                ? applyDefaultTileConfigToFilterRule(
+                      filterRule,
+                      field,
+                      applicableTiles,
+                  )
+                : createDashboardFilterRuleFromField(field, applicableTiles),
         );
 
-    const handleToggleTile = (tileUuid: string, isChecked: boolean) => {
+    const handleChange = (
+        action: FilterActions,
+        tile: AvailableFiltersForSavedQuery,
+        filterUuid?: FilterableField,
+    ) => {
         setInternalFilterRule((prevState) =>
             produce(prevState, (draftState) => {
-                if (isChecked) {
-                    draftState.tileUuids?.push(tileUuid);
-                } else {
-                    draftState.tileUuids?.splice(
-                        draftState.tileUuids.indexOf(tileUuid),
-                        1,
-                    );
+                draftState.tileConfigs =
+                    draftState.tileConfigs?.filter((tileConfig) => {
+                        return tileConfig.tileUuid !== tile.uuid;
+                    }) || [];
+
+                if (action === FilterActions.ADD) {
+                    const filter =
+                        filterUuid ??
+                        tile.filters.find(fieldMatchExact(field)) ??
+                        tile.filters.find(fieldMatchTypeAndName(field)) ??
+                        tile.filters.find(fieldMatchType(field));
+
+                    if (!filter) return draftState;
+
+                    draftState.tileConfigs.push({
+                        tileUuid: tile.uuid,
+                        filter,
+                    });
                 }
             }),
         );
@@ -109,8 +124,8 @@ const FilterConfiguration: FC<Props> = ({
         a: AvailableFiltersForSavedQuery,
         b: AvailableFiltersForSavedQuery,
     ) => {
-        const isAApplicable = applicableTileUuids?.includes(a.uuid);
-        const isBApplicable = applicableTileUuids?.includes(b.uuid);
+        const isAApplicable = applicableTiles?.some((t) => t.uuid === a.uuid);
+        const isBApplicable = applicableTiles?.some((t) => t.uuid === b.uuid);
 
         if (isAApplicable && !isBApplicable) {
             return -1;
@@ -137,7 +152,7 @@ const FilterConfiguration: FC<Props> = ({
                 label={filter.type}
                 text={
                     <>
-                        {filter.tableLabel} <b>{filter.label}</b>
+                        {filter.table} <b>{filter.name}</b>
                     </>
                 }
                 onClick={handleClick}
@@ -153,7 +168,11 @@ const FilterConfiguration: FC<Props> = ({
                 {field.tableLabel} <Title>{field.label}</Title>
             </div>
 
-            <Tabs selectedTabId={selectedTabId} onChange={onTabChange}>
+            <Tabs
+                selectedTabId={selectedTabId}
+                onChange={onTabChange}
+                renderActiveTabPanelOnly
+            >
                 <Tab
                     id="settings"
                     title="Settings"
@@ -196,17 +215,28 @@ const FilterConfiguration: FC<Props> = ({
                                     .sort(sortByAvailability)
                                     .map((tile) => {
                                         const isApplicable =
-                                            applicableTileUuids?.includes(
-                                                tile.uuid,
+                                            applicableTiles?.some(
+                                                (t) => t.uuid === tile.uuid,
+                                            );
+
+                                        const tileConfig =
+                                            internalFilterRule.tileConfigs?.find(
+                                                (t) => t.tileUuid === tile.uuid,
                                             );
 
                                         const isChecked =
-                                            isApplicable &&
-                                            !internalFilterRule.tileUuids
-                                                ? true
-                                                : internalFilterRule.tileUuids?.includes(
-                                                      tile.uuid,
-                                                  );
+                                            isApplicable && !!tileConfig;
+
+                                        const filter = tileConfig?.filter;
+
+                                        const sortedItems = tile.filters
+                                            .filter(fieldMatchType(field))
+                                            .sort((a, b) =>
+                                                fieldMatchExact(a)(field) &&
+                                                !fieldMatchExact(b)(field)
+                                                    ? -1
+                                                    : 1,
+                                            );
 
                                         return (
                                             <FormGroup key={tile.uuid}>
@@ -215,9 +245,11 @@ const FilterConfiguration: FC<Props> = ({
                                                     disabled={!isApplicable}
                                                     checked={isChecked}
                                                     onChange={() => {
-                                                        handleToggleTile(
-                                                            tile.uuid,
-                                                            !isChecked,
+                                                        handleChange(
+                                                            isChecked
+                                                                ? FilterActions.REMOVE
+                                                                : FilterActions.ADD,
+                                                            tile,
                                                         );
                                                     }}
                                                 />
@@ -231,25 +263,7 @@ const FilterConfiguration: FC<Props> = ({
                                                         disabled={!isChecked}
                                                         fill
                                                         filterable={false}
-                                                        items={tile.filters
-                                                            .filter((f) =>
-                                                                typeMatch(
-                                                                    f,
-                                                                    field,
-                                                                ),
-                                                            )
-                                                            .sort((a, b) =>
-                                                                exactMatch(
-                                                                    a,
-                                                                    field,
-                                                                ) &&
-                                                                !exactMatch(
-                                                                    b,
-                                                                    field,
-                                                                )
-                                                                    ? -1
-                                                                    : 1,
-                                                            )}
+                                                        items={sortedItems}
                                                         itemRenderer={
                                                             renderItem
                                                         }
@@ -259,15 +273,25 @@ const FilterConfiguration: FC<Props> = ({
                                                                 text="No results."
                                                             />
                                                         }
+                                                        activeItem={filter}
                                                         onItemSelect={(
-                                                            item,
+                                                            newFilter,
                                                         ) => {
-                                                            console.log(item);
+                                                            handleChange(
+                                                                FilterActions.ADD,
+                                                                tile,
+                                                                newFilter,
+                                                            );
                                                         }}
                                                         popoverProps={{
                                                             minimal: true,
                                                             matchTargetWidth:
                                                                 true,
+                                                            captureDismiss:
+                                                                !popoverProps?.isOpen,
+                                                            canEscapeKeyClose:
+                                                                !popoverProps?.isOpen,
+                                                            ...popoverProps,
                                                         }}
                                                     >
                                                         <Button
@@ -279,9 +303,24 @@ const FilterConfiguration: FC<Props> = ({
                                                             outlined
                                                             fill
                                                             text={
-                                                                isApplicable
-                                                                    ? 'Select field'
-                                                                    : 'Not applicable'
+                                                                isApplicable ? (
+                                                                    filter ? (
+                                                                        <>
+                                                                            {
+                                                                                filter.table
+                                                                            }{' '}
+                                                                            <b>
+                                                                                {
+                                                                                    filter.name
+                                                                                }
+                                                                            </b>
+                                                                        </>
+                                                                    ) : (
+                                                                        'Select field'
+                                                                    )
+                                                                ) : (
+                                                                    'Not applicable'
+                                                                )
                                                             }
                                                             rightIcon="caret-down"
                                                             placeholder="Select a film"

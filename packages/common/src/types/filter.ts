@@ -1,3 +1,5 @@
+import { FilterableField } from './field';
+
 export enum FilterType {
     STRING = 'string',
     NUMBER = 'number',
@@ -48,6 +50,11 @@ export type FieldTarget = {
     fieldId: string;
 };
 
+export type DashboardTileFilterConfig = {
+    tileUuid: string;
+    filter: FilterableField;
+};
+
 export type FilterRule<
     O = FilterOperator,
     T = FieldTarget,
@@ -59,7 +66,6 @@ export type FilterRule<
     operator: O;
     settings?: S;
     values?: V[];
-    tileUuids?: string[];
 };
 
 export type DashboardFieldTarget = {
@@ -72,7 +78,9 @@ export type DashboardFilterRule<
     T = DashboardFieldTarget,
     V = any,
     S = any,
-> = FilterRule<O, T, V, S>;
+> = FilterRule<O, T, V, S> & {
+    tileConfigs?: DashboardTileFilterConfig[];
+};
 
 export type DateFilterRule = FilterRule<
     FilterOperator,

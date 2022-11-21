@@ -60,8 +60,6 @@ const ValidDashboardChartTile: FC<{
         series: EChartSeries[],
     ) => void;
 }> = ({ data, project, onSeriesContextMenu }) => {
-    console.log({ data, project });
-
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);

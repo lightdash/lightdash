@@ -22,13 +22,11 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+
     const project = useProject(projectUuid);
-    const {
-        dashboard,
-        fieldsWithSuggestions,
-        dashboardFilters,
-        dashboardTiles,
-    } = useDashboardContext();
+    const { dashboardFilters, fieldsWithSuggestions, dashboardTiles } =
+        useDashboardContext();
+
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboardTiles);
 

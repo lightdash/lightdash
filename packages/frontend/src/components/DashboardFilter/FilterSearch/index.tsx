@@ -79,7 +79,7 @@ const FilterSearch: FC<Props> = ({
             {!selectedField ? (
                 <>
                     <FormGroup
-                        // TODO: stuff.
+                        // TODO: update styles.
                         label={<b>Select a dimension to filter</b>}
                         helperText="Filters set on individual charts will be overridden."
                     >
