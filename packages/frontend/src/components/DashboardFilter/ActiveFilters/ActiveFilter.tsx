@@ -32,7 +32,7 @@ const ActiveFilter: FC<Props> = ({
     const { data: tilesWithFilters, isLoading } =
         useDashboardTilesWithFilters(dashboardTiles);
 
-    if (!isLoading || !tilesWithFilters) {
+    if (isLoading || !tilesWithFilters) {
         return null;
     }
 
