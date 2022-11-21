@@ -5,6 +5,7 @@ const tableName = 'slack_auth_tokens';
 export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable(tableName))) {
         await knex.schema.createTable(tableName, (tableBuilder) => {
+            tableBuilder.string('slack_team_id').primary();
             tableBuilder
                 .integer('organization_id')
                 .notNullable()

@@ -10,22 +10,18 @@ const { App, ExpressReceiver } = require('@slack/bolt');
 // import {App} from '@slack/bolt' //TODO fix import
 
 // Docs: https://slack.dev/bolt-js/concepts#authenticating-oauth
-/*
-apiV1Router.get('/slack/redirect', (req, res) => {
-    console.error('receiver.installer', receiver.installer)
-    receiver.installer.handleCallback(req, res);
-  }); */
 
-export const receiver = new ExpressReceiver({
+const receiverOptions = {
     signingSecret: process.env.SLACK_SIGNING_SECRET,
     clientId: process.env.SLACK_CLIENT_ID,
+    // appToken: process.env.SLACK_APP_TOKEN,
+
     clientSecret: process.env.SLACK_CLIENT_SECRET,
     stateSecret: process.env.SLACK_STATE_SECRET,
     router: apiV1Router,
-    // socketMode: true,
-    // appToken: process.env.SLACK_APP_TOKEN,
-    port: 3000, // use same express port
-    scopes: ['links:read', 'links:write'],
+    // port: 4000,
+    // port: 3000, // use same express port
+    scopes: ['links:read', 'links:write', 'channels:read'],
     installationStore: {
         storeInstallation: createInstallation,
         fetchInstallation: getInstallation,
@@ -34,15 +30,38 @@ export const receiver = new ExpressReceiver({
     // installationStore: new FileInstallationStore(), // TODO replace with DB storage
     redirectUri: 'http://localhost:3000/api/v1/slack/oauth_redirect',
     installerOptions: {
-        // TODO use metadata to insert org id ?
-        //  installPath: '/api/v1/slack/install',
         directInstall: true,
         redirectUriPath: '/slack/oauth_redirect',
     },
+};
+// export const app = new App(receiverOptions );
+
+export const receiver = new ExpressReceiver(receiverOptions);
+
+apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
+    try {
+        const options = {
+            redirectUri: receiverOptions.redirectUri,
+            scopes: receiverOptions.scopes,
+            metadata: { organizationUuid: req.params.organizationUuid },
+        };
+        await receiver.installer.handleInstallPath(
+            req,
+            res,
+            receiverOptions.installerOptions,
+            options,
+        );
+    } catch (error) {
+        next(error);
+    }
 });
 
 const app = new App({
-    receiver,
+    // receiver,
+    ...receiverOptions,
+    port: 4000,
+    socketMode: true,
+    appToken: process.env.SLACK_APP_TOKEN,
 });
 
 const unfurl = (event: any, client: any) => {
@@ -77,13 +96,20 @@ const unfurl = (event: any, client: any) => {
 
 app.event('link_shared', (message: any) => {
     const { event, client } = message; // message.links ? message : message.event; // depending on the api, the message is different
-    console.debug('link_shared event', event);
-    console.debug('client event', client);
+    // console.debug('link_shared event', event);
+    // console.debug('client event', client);
 
     unfurl(event, client);
 });
 
+app.message(':wave:', async (event: any) => {
+    const { message, say } = event;
+    await say(`Hello, <@${message.user}>`);
+});
+
 export const startSlackBot = async () => {
+    await receiver.start();
+
     await app.start();
 
     console.debug('⚡️ Bolt app is running!');

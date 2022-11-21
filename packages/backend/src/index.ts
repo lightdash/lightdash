@@ -15,7 +15,7 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
-import { receiver, startSlackBot } from './clients/Slack/Slackbot';
+import { startSlackBot } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
 import {
     apiKeyPassportStrategy,
