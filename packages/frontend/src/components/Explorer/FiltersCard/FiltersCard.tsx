@@ -16,6 +16,7 @@ import {
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
+import { useProject } from '../../../hooks/useProject';
 import {
     ExplorerSection,
     useExplorerContext,
@@ -35,6 +36,7 @@ import {
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const project = useProject(projectUuid);
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,
     );
@@ -193,6 +195,7 @@ const FiltersCard: FC = memo(() => {
             <FiltersProvider
                 projectUuid={projectUuid}
                 fieldsMap={fieldsWithSuggestions}
+                startOfWeek={project.data?.warehouseConnection?.startOfWeek}
             >
                 <FiltersForm
                     isEditMode={isEditMode}

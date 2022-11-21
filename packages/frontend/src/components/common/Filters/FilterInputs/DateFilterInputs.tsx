@@ -6,6 +6,7 @@ import {
     FilterOperator,
     formatDate,
     isDimension,
+    isWeekDay,
     parseDate,
     TimeFrames,
     UnitOfTime,
@@ -13,14 +14,16 @@ import {
 import moment from 'moment';
 import React, { FC } from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
-import WeekPicker from '../../WeekPicker';
+import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
 import YearInput from '../../YearInput';
+import { useFiltersContext } from '../FiltersProvider';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 import { MultipleInputsWrapper } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
     const { field, filterRule, onChange, popoverProps, disabled } = props;
+    const { startOfWeek } = useFiltersContext();
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
 
     switch (filterRule.operator) {
@@ -42,6 +45,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                                     disabled={disabled}
                                     value={filterRule.values?.[0] || new Date()}
                                     popoverProps={popoverProps}
+                                    startOfWeek={startOfWeek}
                                     onChange={(value: Date) => {
                                         onChange({
                                             ...filterRule,
@@ -123,6 +127,11 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                             placement: 'bottom',
                             ...popoverProps,
                         }}
+                        dayPickerProps={{
+                            firstDayOfWeek: isWeekDay(startOfWeek)
+                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                : undefined,
+                        }}
                     />
                 );
             }
@@ -156,6 +165,11 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     popoverProps={{
                         placement: 'bottom',
                         ...popoverProps,
+                    }}
+                    dayPickerProps={{
+                        firstDayOfWeek: isWeekDay(startOfWeek)
+                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            : undefined,
                     }}
                 />
             );

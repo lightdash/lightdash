@@ -3,6 +3,7 @@ import { DashboardTileTypes } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
+import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import ActiveFilters from './ActiveFilters';
@@ -22,7 +23,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
-
+    const project = useProject(projectUuid);
     const {
         dashboard,
         fieldsWithSuggestions,
@@ -46,6 +47,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         <FiltersProvider
             projectUuid={projectUuid}
             fieldsMap={fieldsWithSuggestions}
+            startOfWeek={project.data?.warehouseConnection?.startOfWeek}
         >
             <DashboardFilterWrapper>
                 <TriggerWrapper
