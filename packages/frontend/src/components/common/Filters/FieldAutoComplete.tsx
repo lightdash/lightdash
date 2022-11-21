@@ -60,14 +60,6 @@ export const FieldLabel: FC<FieldItemProps> = ({ item }) => {
 };
 
 // TODO: extract
-export const FieldItem: FC<FieldItemProps> = ({ item }) => (
-    <div>
-        <FieldIcon item={item} />
-        <FieldLabel item={item} />
-    </div>
-);
-
-// TODO: extract
 export const renderItem: ItemRenderer<Item> = (
     item,
     { modifiers, handleClick, handleFocus },
