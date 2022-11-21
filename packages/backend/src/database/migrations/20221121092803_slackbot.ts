@@ -12,6 +12,8 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable('organizations')
                 .onDelete('CASCADE');
             tableBuilder.jsonb('installation');
+
+            tableBuilder.unique(['organization_id']);
         });
     }
 }

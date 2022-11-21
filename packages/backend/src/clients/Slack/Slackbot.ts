@@ -10,6 +10,11 @@ const { App, ExpressReceiver } = require('@slack/bolt');
 // import {App} from '@slack/bolt' //TODO fix import
 
 // Docs: https://slack.dev/bolt-js/concepts#authenticating-oauth
+/*
+apiV1Router.get('/slack/redirect', (req, res) => {
+    console.error('receiver.installer', receiver.installer)
+    receiver.installer.handleCallback(req, res);
+  }); */
 
 export const receiver = new ExpressReceiver({
     signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -27,11 +32,12 @@ export const receiver = new ExpressReceiver({
         deleteInstallation,
     },
     // installationStore: new FileInstallationStore(), // TODO replace with DB storage
-    redirectUri: 'http://localhost:3000/api/v1/slack/redirect',
+    redirectUri: 'http://localhost:3000/api/v1/slack/oauth_redirect',
     installerOptions: {
+        // TODO use metadata to insert org id ?
         //  installPath: '/api/v1/slack/install',
         directInstall: true,
-        redirectUriPath: '/api/v1/slack/redirect',
+        redirectUriPath: '/slack/oauth_redirect',
     },
 });
 

@@ -1,52 +1,27 @@
 import database from '../../database/database';
 
-export const getTeamId = (payload: any) => {
-    if (payload.isEnterpriseInstall && payload.enterprise !== undefined) {
-        return payload.enterprise.id;
-    }
-    if (payload.team !== undefined) {
-        return payload.team.id;
-    }
-
-    throw new Error('Could not find a valid team id in the payload request');
-};
-
 export const createInstallation = async (installation: any) => {
     console.debug('slack createInstallation', installation);
-    const teamId = getTeamId(installation);
-    const authorizatedTeamIds = (
-        process.env.SLACK_AUTHORIZED_TEAMS || ''
-    ).split(',');
-    if (!authorizatedTeamIds.includes(teamId)) {
-        throw new Error('Not authorized to install Cloudy in this workspace');
-    }
+    const organizationId = 1;
     await database('slack_auth_tokens')
         .insert({
-            slack_team_id: teamId,
+            organization_id: organizationId,
             installation,
         })
-        .onConflict('slack_team_id')
-        .ignore();
+        .onConflict('organization_id')
+        .merge();
 };
 export const getInstallation = async (installQuery: any) => {
     console.debug('slack getInstallation', installQuery);
 
-    let teamId;
-    if (
-        installQuery.isEnterpriseInstall &&
-        installQuery.enterpriseId !== undefined
-    ) {
-        teamId = installQuery.enterpriseId;
-    } else if (installQuery.teamId !== undefined) {
-        teamId = installQuery.teamId;
-    } else {
-        throw new Error('Could not find a valid team id in the request');
-    }
+    const organizationId = 1;
     const [row] = await database('slack_auth_tokens')
         .select('*')
-        .where('slack_team_id', teamId);
+        .where('organization_id', organizationId);
     if (row === undefined) {
-        throw new Error(`Could not find an installation for team id ${teamId}`);
+        throw new Error(
+            `Could not find an installation for team id ${organizationId}`,
+        );
     }
     return row.installation;
 };
@@ -54,16 +29,9 @@ export const getInstallation = async (installQuery: any) => {
 export const deleteInstallation = async (installQuery: any) => {
     console.debug('slack deleteInstallation', installQuery);
 
-    let teamId;
-    if (
-        installQuery.isEnterpriseInstall &&
-        installQuery.enterpriseId !== undefined
-    ) {
-        teamId = installQuery.enterpriseId;
-    } else if (installQuery.teamId !== undefined) {
-        teamId = installQuery.teamId;
-    } else {
-        throw new Error('Could not find a valid team id in the request');
-    }
-    await database('slack_auth_tokens').delete().where('slack_team_id', teamId);
+    const organizationId = 1;
+
+    await database('slack_auth_tokens')
+        .delete()
+        .where('organization_id', organizationId);
 };
