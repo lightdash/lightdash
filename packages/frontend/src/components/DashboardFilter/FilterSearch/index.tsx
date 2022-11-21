@@ -82,24 +82,25 @@ const FilterSearch: FC<Props> = ({
             $wide={!!selectedField && selectedTabId === 'tiles'}
         >
             {!selectedField ? (
-                <>
-                    <FormGroup
-                        // TODO: update styles.
-                        label={<b>Select a dimension to filter</b>}
-                        helperText="Filters set on individual charts will be overridden."
-                    >
-                        <FieldAutoComplete
-                            fields={fields}
-                            onChange={handleChangeField}
-                            popoverProps={{
-                                matchTargetWidth: true,
-                                captureDismiss: !popoverProps?.isOpen,
-                                canEscapeKeyClose: !popoverProps?.isOpen,
-                                ...popoverProps,
-                            }}
-                        />
-                    </FormGroup>
-                </>
+                <FormGroup
+                    style={{
+                        marginBottom: 0,
+                    }}
+                    // TODO: update styles.
+                    label={<b>Select a dimension to filter</b>}
+                    helperText="Filters set on individual charts will be overridden."
+                >
+                    <FieldAutoComplete
+                        fields={fields}
+                        onChange={handleChangeField}
+                        popoverProps={{
+                            matchTargetWidth: true,
+                            captureDismiss: !popoverProps?.isOpen,
+                            canEscapeKeyClose: !popoverProps?.isOpen,
+                            ...popoverProps,
+                        }}
+                    />
+                </FormGroup>
             ) : (
                 <FilterConfiguration
                     selectedTabId={selectedTabId}

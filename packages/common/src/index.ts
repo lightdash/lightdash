@@ -374,7 +374,6 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         ...filterRule,
         values: values !== undefined && values !== null ? values : [],
         settings: undefined,
-        tileUuids: [],
         ...filterRuleDefaults,
     };
 };
