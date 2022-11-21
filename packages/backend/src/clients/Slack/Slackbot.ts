@@ -1,26 +1,45 @@
-const { WebClient } = require('@slack/client');
-const { SocketModeClient } = require('@slack/socket-mode');
+import { apiV1Router } from '../../routers/apiV1Router';
+import {
+    createInstallation,
+    deleteInstallation,
+    getInstallation,
+} from './SlackStorage';
 
-let slackClient: any;
-let socketModeClient: any;
+const { FileInstallationStore } = require('@slack/oauth');
+const { App, ExpressReceiver } = require('@slack/bolt');
+// import {App} from '@slack/bolt' //TODO fix import
 
-if (process.env.SLACK_BOT_TOKEN) {
-    slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
-} else {
-    console.warn('Unable to use slack, missing SLACK_BOT_TOKEN env variable');
-}
+// Docs: https://slack.dev/bolt-js/concepts#authenticating-oauth
 
-if (process.env.SLACK_APP_TOKEN) {
-    socketModeClient = new SocketModeClient({
-        appToken: process.env.SLACK_APP_TOKEN,
-    });
-} else {
-    console.warn(
-        'Unable to connect to slack via socket, missing SLACK_APP_TOKEN env variable',
-    );
-}
+export const receiver = new ExpressReceiver({
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    clientId: process.env.SLACK_CLIENT_ID,
+    clientSecret: process.env.SLACK_CLIENT_SECRET,
+    stateSecret: process.env.SLACK_STATE_SECRET,
+    router: apiV1Router,
+    // socketMode: true,
+    // appToken: process.env.SLACK_APP_TOKEN,
+    port: 3000, // use same express port
+    scopes: ['links:read', 'links:write'],
+    installationStore: {
+        storeInstallation: createInstallation,
+        fetchInstallation: getInstallation,
+        deleteInstallation,
+    },
+    // installationStore: new FileInstallationStore(), // TODO replace with DB storage
+    redirectUri: 'http://localhost:3000/api/v1/slack/redirect',
+    installerOptions: {
+        //  installPath: '/api/v1/slack/install',
+        directInstall: true,
+        redirectUriPath: '/api/v1/slack/redirect',
+    },
+});
 
-const unfurl = (event: any) => {
+const app = new App({
+    receiver,
+});
+
+const unfurl = (event: any, client: any) => {
     const unfurls = event.links.reduce((acc: any, l: any) => {
         const { url } = l;
         const imgUrl =
@@ -45,22 +64,21 @@ const unfurl = (event: any) => {
         };
     }, {});
     console.info('unfurls', unfurls);
-    if (slackClient)
-        slackClient.chat
-            .unfurl({ ts: event.message_ts, channel: event.channel, unfurls })
-            .catch(console.error);
+    client.chat
+        .unfurl({ ts: event.message_ts, channel: event.channel, unfurls })
+        .catch(console.error);
 };
 
+app.event('link_shared', (message: any) => {
+    const { event, client } = message; // message.links ? message : message.event; // depending on the api, the message is different
+    console.debug('link_shared event', event);
+    console.debug('client event', client);
+
+    unfurl(event, client);
+});
+
 export const startSlackBot = async () => {
-    if (socketModeClient && slackClient) {
-        console.info('Starting slack socket mode client');
+    await app.start();
 
-        socketModeClient.on('link_shared', (message: any) => {
-            const event = message.links ? message : message.event; // depending on the api, the message is different
-            console.debug('link_shared event', event);
-            unfurl(event);
-        });
-
-        await socketModeClient.start();
-    }
+    console.debug('⚡️ Bolt app is running!');
 };
