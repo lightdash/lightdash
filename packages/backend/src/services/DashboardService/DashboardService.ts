@@ -16,17 +16,34 @@ import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytic
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { spaceModel } from '../../models/models';
+import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
+    spaceModel: SpaceModel;
 };
 
 export class DashboardService {
     dashboardModel: DashboardModel;
 
-    constructor({ dashboardModel }: Dependencies) {
+    spaceModel: SpaceModel;
+
+    constructor({ dashboardModel, spaceModel }: Dependencies) {
         this.dashboardModel = dashboardModel;
+        this.spaceModel = spaceModel;
+    }
+
+    async hasDashboardSpaceAccess(
+        spaceUuid: string,
+        userUuid: string,
+    ): Promise<boolean> {
+        try {
+            const space = await this.spaceModel.getFullSpace(spaceUuid);
+            return hasSpaceAccess(space, userUuid);
+        } catch (e) {
+            return false;
+        }
     }
 
     static getCreateEventProperties(
@@ -61,9 +78,29 @@ export class DashboardService {
             projectUuid,
             chartUuid,
         );
-        return dashboards.filter((dashboard) =>
-            user.ability.can('view', subject('Dashboard', dashboard)),
+
+        const spaceUuids = [
+            ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
+        ];
+        const spaces = await Promise.all(
+            spaceUuids.map((spaceUuid) =>
+                this.spaceModel.getFullSpace(spaceUuid),
+            ),
         );
+        return dashboards.filter((dashboard) => {
+            const hasAbility = user.ability.can(
+                'view',
+                subject('Dashboard', dashboard),
+            );
+            const dashboardSpace = spaces.find(
+                (space) => space.uuid === dashboard.spaceUuid,
+            );
+            return (
+                hasAbility &&
+                dashboardSpace &&
+                hasSpaceAccess(dashboardSpace, user.userUuid)
+            );
+        });
     }
 
     async getById(
@@ -73,6 +110,16 @@ export class DashboardService {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
+        }
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                dashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
         return dashboard;
     }
@@ -90,7 +137,7 @@ export class DashboardService {
             };
         };
         const space = dashboard.spaceUuid
-            ? await spaceModel.get(dashboard.spaceUuid)
+            ? await this.spaceModel.get(dashboard.spaceUuid)
             : await getFirstSpace();
 
         if (
@@ -103,6 +150,11 @@ export class DashboardService {
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (!(await this.hasDashboardSpaceAccess(space.uuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
@@ -126,6 +178,17 @@ export class DashboardService {
 
         if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
+        }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                dashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
 
         const duplicatedDashboard = {
@@ -174,6 +237,18 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                existingDashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
         if (isDashboardUnversionedFields(dashboard)) {
             const updatedDashboard = await this.dashboardModel.update(
                 dashboardUuid,
@@ -230,6 +305,18 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                space.space_uuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
         analytics.track({
             event: 'dashboard.updated_multiple',
             userId: user.userUuid,
@@ -242,7 +329,7 @@ export class DashboardService {
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        const { organizationUuid, projectUuid } =
+        const { organizationUuid, projectUuid, spaceUuid } =
             await this.dashboardModel.getById(dashboardUuid);
         if (
             user.ability.cannot(
@@ -251,6 +338,12 @@ export class DashboardService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
         const deletedDashboard = await this.dashboardModel.delete(
             dashboardUuid,

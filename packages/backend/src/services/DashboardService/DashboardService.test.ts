@@ -1,12 +1,15 @@
 import { defineUserAbility, ForbiddenError } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
-import { dashboardModel } from '../../models/models';
+import { dashboardModel, spaceModel } from '../../models/models';
+
 import { DashboardService } from './DashboardService';
 import {
     createDashboard,
     createDashboardWithTileIds,
     dashboard,
     dashboardsDetails,
+    privateSpace,
+    publicSpace,
     space,
     updateDashboard,
     updateDashboardDetailsAndTiles,
@@ -41,6 +44,10 @@ jest.mock('../../models/models', () => ({
 
         addVersion: jest.fn(async () => dashboard),
     },
+
+    spaceModel: {
+        getFullSpace: jest.fn(async () => publicSpace),
+    },
 }));
 
 describe('DashboardService', () => {
@@ -48,6 +55,7 @@ describe('DashboardService', () => {
     const { uuid: dashboardUuid } = dashboard;
     const service = new DashboardService({
         dashboardModel,
+        spaceModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -256,5 +264,28 @@ describe('DashboardService', () => {
             projectUuid,
             undefined,
         );
+    });
+
+    test('should not see dashboard from private space', async () => {
+        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
+            async () => privateSpace,
+        );
+
+        await expect(
+            service.getById(user, dashboard.uuid),
+        ).rejects.toThrowError(ForbiddenError);
+    });
+
+    test('should not see dashboards from private space', async () => {
+        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
+            async () => privateSpace,
+        );
+        const result = await service.getAllByProject(
+            user,
+            projectUuid,
+            undefined,
+        );
+
+        expect(result).toEqual([]);
     });
 });
