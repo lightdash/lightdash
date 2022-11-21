@@ -3,7 +3,6 @@ import { FC } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import ActiveFilter from './ActiveFilter';
-import { TagsWrapper } from './ActiveFilters.styles';
 
 const ActiveFilters: FC = () => {
     const {
@@ -24,7 +23,7 @@ const ActiveFilters: FC = () => {
     );
 
     return (
-        <TagsWrapper>
+        <>
             {dashboardFilters.dimensions.map((item, index) => (
                 <ActiveFilter
                     key={item.id}
@@ -51,7 +50,7 @@ const ActiveFilters: FC = () => {
                     }
                 />
             ))}
-        </TagsWrapper>
+        </>
     );
 };
 

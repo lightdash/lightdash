@@ -6,8 +6,9 @@ export const ConfigureFilterWrapper = styled.div`
     flex-direction: column;
 `;
 
-export const Title = styled.span`
-    font-weight: bold;
+export const Title = styled.div`
+    font-weight: 600;
+    margin-bottom: 10px;
 `;
 
 export const InputsWrapper = styled.div`
