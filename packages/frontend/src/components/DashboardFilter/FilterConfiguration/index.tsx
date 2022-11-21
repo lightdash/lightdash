@@ -350,7 +350,7 @@ const FilterConfiguration: FC<Props> = ({
             <div
                 style={{
                     display: 'flex',
-                    justifyContent: 'flex-end',
+                    justifyContent: 'space-between',
                     marginTop: 24,
                 }}
             >
