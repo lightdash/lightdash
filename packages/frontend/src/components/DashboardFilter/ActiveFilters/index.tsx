@@ -1,5 +1,5 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import ActiveFilter from './ActiveFilter';

@@ -49,6 +49,7 @@ const ActiveFilter: FC<Props> = ({
     const filterRuleLabels = getFilterRuleLabel(filterRule, field);
     return (
         <Popover2
+            placement="bottom-start"
             content={
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>
                     <FilterConfiguration
@@ -61,13 +62,12 @@ const ActiveFilter: FC<Props> = ({
                     />
                 </FilterModalContainer>
             }
-            position="bottom"
         >
             <TagContainer interactive onRemove={onRemove} onClick={onClick}>
                 <Tooltip2
-                    content={`Table: ${field.tableLabel}`}
                     interactionKind="hover"
-                    placement={'bottom-start'}
+                    placement="bottom-start"
+                    content={`Table: ${field.tableLabel}`}
                 >
                     <>
                         {`${filterRuleLabels.field}: ${filterRuleLabels.operator} `}

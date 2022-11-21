@@ -48,6 +48,12 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         >
             <DashboardFilterWrapper>
                 <Popover2
+                    disabled={!hasChartTiles || isLoading}
+                    canEscapeKeyClose={isSubmenuOpen ? false : true}
+                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
+                    placement="bottom-start"
+                    onOpened={() => setIsOpen(true)}
+                    onClose={handleClose}
                     content={
                         <FilterSearch
                             isEditMode={isEditMode}
@@ -60,23 +66,17 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                             onSelectField={handleClose}
                         />
                     }
-                    canEscapeKeyClose={isSubmenuOpen ? false : true}
-                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
-                    onOpened={() => setIsOpen(true)}
-                    onClose={handleClose}
-                    position="bottom-right"
-                    disabled={!hasChartTiles || isLoading}
                 >
                     <Tooltip2
+                        disabled={isOpen || isEditMode}
+                        placement="bottom-start"
+                        interactionKind="hover"
                         content={
                             <Tooltip>
                                 Only filters added in <b>'edit'</b> mode will be
                                 saved
                             </Tooltip>
                         }
-                        placement="bottom"
-                        interactionKind="hover"
-                        disabled={isOpen || isEditMode}
                     >
                         <FilterTrigger
                             minimal
