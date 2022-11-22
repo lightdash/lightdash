@@ -10,16 +10,21 @@
 				"properties": {
 					"error": {
 						"properties": {
-							"data": {},
+							"data": {
+								"description": "Optional data containing details of the error"
+							},
 							"message": {
-								"type": "string"
+								"type": "string",
+								"description": "A friendly message summarising the error"
 							},
 							"name": {
-								"type": "string"
+								"type": "string",
+								"description": "Unique name for the type of error"
 							},
 							"statusCode": {
 								"type": "number",
-								"format": "double"
+								"format": "integer",
+								"description": "HTTP status code"
 							}
 						},
 						"required": [
@@ -40,7 +45,8 @@
 					"error",
 					"status"
 				],
-				"type": "object"
+				"type": "object",
+				"description": "The Error object is returned from the api any time there is an error.\nThe message contains"
 			},
 			"ShareUrl": {
 				"properties": {
@@ -54,19 +60,23 @@
 						"type": "string"
 					},
 					"organizationUuid": {
-						"type": "string"
+						"type": "string",
+						"format": "uuid"
 					},
 					"createdByUserUuid": {
-						"type": "string"
+						"type": "string",
+						"format": "uuid"
 					},
 					"params": {
 						"type": "string"
 					},
 					"path": {
-						"type": "string"
+						"type": "string",
+						"description": "The URL path of the full URL"
 					},
 					"nanoid": {
-						"type": "string"
+						"type": "string",
+						"description": "Unique shareable id"
 					}
 				},
 				"required": [
@@ -74,12 +84,33 @@
 					"path",
 					"nanoid"
 				],
+				"type": "object",
+				"description": "A ShareUrl maps a short shareable id to a full URL\nin the Lightdash UI. This allows very long URLs\nto be represented by short ids."
+			},
+			"ApiShareResponse": {
+				"properties": {
+					"results": {
+						"$ref": "#/components/schemas/ShareUrl"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"ok"
+						],
+						"nullable": false
+					}
+				},
+				"required": [
+					"results",
+					"status"
+				],
 				"type": "object"
 			},
 			"Pick_ShareUrl.path-or-params_": {
 				"properties": {
 					"path": {
-						"type": "string"
+						"type": "string",
+						"description": "The URL path of the full URL"
 					},
 					"params": {
 						"type": "string"
@@ -93,10 +124,23 @@
 				"description": "From T, pick a set of properties whose keys are in the union K"
 			},
 			"CreateShareUrl": {
-				"$ref": "#/components/schemas/Pick_ShareUrl.path-or-params_"
+				"$ref": "#/components/schemas/Pick_ShareUrl.path-or-params_",
+				"description": "Contains the detail of a full URL to generate a short URL id"
 			}
 		},
-		"securitySchemes": {}
+		"securitySchemes": {
+			"session_cookie": {
+				"type": "apiKey",
+				"in": "cookie",
+				"name": "connect.sid"
+			},
+			"api_key": {
+				"type": "apiKey",
+				"in": "header",
+				"name": "Authorization",
+				"description": "Value should be 'ApiKey <your key>'"
+			}
+		}
 	},
 	"info": {
 		"title": "backend",
@@ -110,30 +154,14 @@
 	"paths": {
 		"/api/v1/share/{nanoId}": {
 			"get": {
-				"operationId": "Get",
+				"operationId": "getShareUrl",
 				"responses": {
 					"200": {
 						"description": "Ok",
 						"content": {
 							"application/json": {
 								"schema": {
-									"properties": {
-										"results": {
-											"$ref": "#/components/schemas/ShareUrl"
-										},
-										"status": {
-											"type": "string",
-											"enum": [
-												"ok"
-											],
-											"nullable": false
-										}
-									},
-									"required": [
-										"results",
-										"status"
-									],
-									"type": "object"
+									"$ref": "#/components/schemas/ApiShareResponse"
 								}
 							}
 						}
@@ -149,9 +177,11 @@
 						}
 					}
 				},
+				"description": "Get a share url from a short url id",
 				"security": [],
 				"parameters": [
 					{
+						"description": "the short id for the share url",
 						"in": "path",
 						"name": "nanoId",
 						"required": true,
@@ -164,30 +194,14 @@
 		},
 		"/api/v1/share": {
 			"post": {
-				"operationId": "Create",
+				"operationId": "CreateShareUrl",
 				"responses": {
-					"200": {
-						"description": "Ok",
+					"201": {
+						"description": "Created",
 						"content": {
 							"application/json": {
 								"schema": {
-									"properties": {
-										"results": {
-											"$ref": "#/components/schemas/ShareUrl"
-										},
-										"status": {
-											"type": "string",
-											"enum": [
-												"ok"
-											],
-											"nullable": false
-										}
-									},
-									"required": [
-										"results",
-										"status"
-									],
-									"type": "object"
+									"$ref": "#/components/schemas/ApiShareResponse"
 								}
 							}
 						}
@@ -203,14 +217,17 @@
 						}
 					}
 				},
+				"description": "Given a full URL generates a short url id that can be used for sharing",
 				"security": [],
 				"parameters": [],
 				"requestBody": {
+					"description": "a full URL used to generate a short url id",
 					"required": true,
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/components/schemas/CreateShareUrl"
+								"$ref": "#/components/schemas/CreateShareUrl",
+								"description": "a full URL used to generate a short url id"
 							}
 						}
 					}

@@ -2,6 +2,7 @@
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
         "experimentalDecorators": true,
+        "experimentalDecorators": true,
         /* Visit https://aka.ms/tsconfig.json to read more about this file */
         "resolveJsonModule": true,
 

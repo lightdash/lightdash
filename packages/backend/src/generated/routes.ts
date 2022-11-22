@@ -20,6 +20,11 @@ const models: TsoaRoute.Models = {
         "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"host":{"dataType":"string"},"url":{"dataType":"string"},"shareUrl":{"dataType":"string"},"organizationUuid":{"dataType":"string"},"createdByUserUuid":{"dataType":"string"},"params":{"dataType":"string","required":true},"path":{"dataType":"string","required":true},"nanoid":{"dataType":"string","required":true}},"validators":{}},
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    "ApiShareResponse": {
+        "dataType": "refAlias",
+        "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"results":{"ref":"ShareUrl","required":true},"status":{"dataType":"enum","enums":["ok"],"required":true}},"validators":{}},
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     "Pick_ShareUrl.path-or-params_": {
         "dataType": "refAlias",
         "type": {"dataType":"nestedObjectLiteral","nestedProperties":{"path":{"dataType":"string","required":true},"params":{"dataType":"string","required":true}},"validators":{}},
@@ -86,7 +91,7 @@ export function RegisterRoutes(app: express.Router) {
 
 
               const promise = controller.create.apply(controller, validatedArgs as any);
-              promiseHandler(controller, promise, response, undefined, next);
+              promiseHandler(controller, promise, response, 201, next);
             } catch (err) {
                 return next(err);
             }
