@@ -1,3 +1,10 @@
+# [0.329.0](https://github.com/lightdash/lightdash/compare/0.328.0...0.329.0) (2022-11-22)
+
+
+### Features
+
+* show missing users link footer on share space ([5d2273e](https://github.com/lightdash/lightdash/commit/5d2273ef505f1d7968c89c70403348591cc56260))
+
 # [0.328.0](https://github.com/lightdash/lightdash/compare/0.327.2...0.328.0) (2022-11-21)
 
 
