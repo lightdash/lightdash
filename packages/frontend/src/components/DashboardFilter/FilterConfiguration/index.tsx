@@ -1,4 +1,4 @@
-import { Button, HTMLSelect, Intent, Tab, Tabs } from '@blueprintjs/core';
+import { Button, Intent, Tab, Tabs } from '@blueprintjs/core';
 import { Classes, Popover2Props } from '@blueprintjs/popover2';
 
 import {
@@ -13,24 +13,14 @@ import {
     FilterableField,
     FilterOperator,
     FilterRule,
-    FilterType,
     getFilterRuleWithDefaultValue,
-    getFilterTypeFromField,
 } from '@lightdash/common';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
-import { FilterTypeConfig } from '../../common/Filters/configs';
-import {
-    FieldIcon,
-    FieldLabel,
-    renderItem,
-} from '../../common/Filters/FieldAutoComplete';
+import { FieldLabel } from '../../common/Filters/FieldAutoComplete';
 import SimpleButton from '../../common/SimpleButton';
-import {
-    ConfigureFilterWrapper,
-    InputsWrapper,
-    Title,
-} from './FilterConfiguration.styled';
+import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
+import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 
 export enum FilterTabs {
@@ -66,15 +56,6 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
     onBack,
 }) => {
-    const filterType = field
-        ? getFilterTypeFromField(field)
-        : FilterType.STRING;
-
-    const filterConfig = useMemo(
-        () => FilterTypeConfig[filterType],
-        [filterType],
-    );
-
     const availableFilters = useMemo(
         () =>
             Object.values(tilesWithSavedQuery).filter((tile) =>
@@ -99,7 +80,26 @@ const FilterConfiguration: FC<Props> = ({
                   ),
         );
 
-    const handleChange = useCallback(
+    const handleChangeFilterRule = useCallback(
+        (newFilterRule: DashboardFilterRule) => {
+            setInternalFilterRule(newFilterRule);
+        },
+        [],
+    );
+
+    const handleChangeFilterOperator = useCallback(
+        (operator: FilterRule['operator']) => {
+            setInternalFilterRule((prevState) =>
+                getFilterRuleWithDefaultValue(field, {
+                    ...prevState,
+                    operator: operator,
+                }),
+            );
+        },
+        [field],
+    );
+
+    const handleChangeTileConfiguration = useCallback(
         (
             action: FilterActions,
             tileUuid: string,
@@ -167,29 +167,13 @@ const FilterConfiguration: FC<Props> = ({
                     id="settings"
                     title="Settings"
                     panel={
-                        <InputsWrapper>
-                            <HTMLSelect
-                                fill
-                                onChange={(e) =>
-                                    setInternalFilterRule((prevState) =>
-                                        getFilterRuleWithDefaultValue(field, {
-                                            ...prevState,
-                                            operator: e.target
-                                                .value as FilterRule['operator'],
-                                        }),
-                                    )
-                                }
-                                options={filterConfig.operatorOptions}
-                                value={internalFilterRule.operator}
-                            />
-                            <filterConfig.inputs
-                                popoverProps={popoverProps}
-                                filterType={filterType}
-                                field={field}
-                                filterRule={internalFilterRule}
-                                onChange={setInternalFilterRule as any}
-                            />
-                        </InputsWrapper>
+                        <FilterSettings
+                            field={field}
+                            filterRule={internalFilterRule}
+                            onChangeFilterOperator={handleChangeFilterOperator}
+                            onChangeFilterRule={handleChangeFilterRule}
+                            popoverProps={popoverProps}
+                        />
                     }
                 />
 
@@ -202,7 +186,7 @@ const FilterConfiguration: FC<Props> = ({
                             filterRule={internalFilterRule}
                             popoverProps={popoverProps}
                             tilesWithSavedQuery={tilesWithSavedQuery}
-                            onChange={handleChange}
+                            onChange={handleChangeTileConfiguration}
                         />
                     }
                 />
