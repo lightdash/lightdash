@@ -144,11 +144,13 @@ const Settings: FC = () => {
                             to={`${basePath}/appearance`}
                         />
 
-                        <RouterMenuItem
-                            text="Slack"
-                            exact
-                            to={`${basePath}/slack`}
-                        />
+                        {localStorage.getItem('slack') && (
+                            <RouterMenuItem
+                                text="Slack"
+                                exact
+                                to={`${basePath}/slack`}
+                            />
+                        )}
                     </Menu>
                 </MenuWrapper>
             </Sidebar>
