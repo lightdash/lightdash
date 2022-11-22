@@ -38,8 +38,3 @@ export const DashboardFilterWrapper = styled.div`
     gap: 8px;
     align-items: center;
 `;
-
-export const Tooltip = styled.p`
-    padding: 0;
-    margin: 0;
-`;

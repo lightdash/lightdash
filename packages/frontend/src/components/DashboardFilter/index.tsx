@@ -1,6 +1,6 @@
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useProject } from '../../hooks/useProject';
@@ -10,7 +10,6 @@ import ActiveFilters from './ActiveFilters';
 import {
     DashboardFilterWrapper,
     FilterTrigger,
-    Tooltip,
 } from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
@@ -48,6 +47,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         >
             <DashboardFilterWrapper>
                 <Popover2
+                    lazy
                     disabled={!hasChartTiles || isLoading}
                     canEscapeKeyClose={isSubmenuOpen ? false : true}
                     interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
@@ -60,7 +60,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                             fields={filterableFields || []}
                             popoverProps={{
                                 onOpened: () => setIsSubmenuOpen(true),
+                                onOpening: () => setIsSubmenuOpen(true),
                                 onClose: () => setIsSubmenuOpen(false),
+                                onClosing: () => setIsSubmenuOpen(false),
                             }}
                             onClose={handleClose}
                             onSelectField={handleClose}
@@ -68,14 +70,15 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     }
                 >
                     <Tooltip2
+                        lazy
                         disabled={isOpen || isEditMode}
                         placement="bottom-start"
                         interactionKind="hover"
                         content={
-                            <Tooltip>
+                            <>
                                 Only filters added in <b>'edit'</b> mode will be
                                 saved
-                            </Tooltip>
+                            </>
                         }
                     >
                         <FilterTrigger

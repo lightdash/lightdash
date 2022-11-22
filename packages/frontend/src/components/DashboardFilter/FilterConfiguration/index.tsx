@@ -16,7 +16,7 @@ import {
     matchFieldExact,
 } from '@lightdash/common';
 import produce from 'immer';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import SimpleButton from '../../common/SimpleButton';
 import {

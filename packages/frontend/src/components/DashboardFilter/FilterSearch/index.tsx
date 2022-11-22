@@ -83,10 +83,7 @@ const FilterSearch: FC<Props> = ({
         >
             {!selectedField ? (
                 <FormGroup
-                    style={{
-                        marginBottom: 0,
-                    }}
-                    // TODO: update styles.
+                    style={{ marginBottom: 0 }}
                     label={<b>Select a dimension to filter</b>}
                     helperText="Filters set on individual charts will be overridden."
                 >
@@ -94,6 +91,7 @@ const FilterSearch: FC<Props> = ({
                         fields={fields}
                         onChange={handleChangeField}
                         popoverProps={{
+                            lazy: true,
                             matchTargetWidth: true,
                             captureDismiss: !popoverProps?.isOpen,
                             canEscapeKeyClose: !popoverProps?.isOpen,
@@ -108,8 +106,9 @@ const FilterSearch: FC<Props> = ({
                     field={selectedField}
                     tilesWithSavedQuery={tilesWithSavedQuery}
                     popoverProps={{
-                        captureDismiss: true,
-                        canEscapeKeyClose: true,
+                        lazy: true,
+                        captureDismiss: !popoverProps?.isOpen,
+                        canEscapeKeyClose: !popoverProps?.isOpen,
                         ...popoverProps,
                     }}
                     onSave={handleSave}

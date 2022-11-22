@@ -120,11 +120,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                                         newFilterableField,
                                     );
                                 }}
-                                popoverProps={{
-                                    captureDismiss: !popoverProps?.isOpen,
-                                    canEscapeKeyClose: !popoverProps?.isOpen,
-                                    ...popoverProps,
-                                }}
+                                popoverProps={popoverProps}
                             />
                         </div>
                     </FormGroup>
