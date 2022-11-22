@@ -1,7 +1,13 @@
 import { Colors } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import { Popover2Props } from '@blueprintjs/popover2';
-import { formatDate, hexToRGB, parseDate } from '@lightdash/common';
+import {
+    formatDate,
+    hexToRGB,
+    isWeekDay,
+    parseDate,
+    WeekDay,
+} from '@lightdash/common';
 import moment from 'moment';
 import React, { FC, useState } from 'react';
 import { createGlobalStyle } from 'styled-components';
@@ -31,6 +37,7 @@ const SelectedWeekStyles = createGlobalStyle`
     border-top-color: ${Colors.BLUE3};
     border-bottom-color: ${Colors.BLUE3};
     color: ${Colors.WHITE};
+
     &:hover {
       color: ${Colors.WHITE};
     }
@@ -39,7 +46,7 @@ const SelectedWeekStyles = createGlobalStyle`
   .WeekPicker .DayPicker-Day--selectedRangeStart {
     background-color: ${Colors.BLUE3} !important;
     border-left: 1px solid ${Colors.BLUE3};
-    border-radius: 3px 0 0 3px!important;
+    border-radius: 3px 0 0 3px !important;
   }
 
   .WeekPicker .DayPicker-Day--selectedRangeEnd {
@@ -57,9 +64,41 @@ function getWeekDays(weekStart: Date): Date[] {
     return days;
 }
 
+// from 0 (Monday) to 6 (Sunday) to 0 (Sunday) to 6 (Saturday)
+export const convertWeekDayToDayPickerWeekDay = (weekDay: WeekDay) => {
+    const converted = weekDay + 1;
+    return converted <= 6 ? converted : 0;
+};
+
+// from 0 (Monday) to 6 (Sunday) to 1 (Monday) to 7 (Sunday)
+export const convertWeekDayToMomentWeekDay = (weekDay: WeekDay) => {
+    return weekDay + 1;
+};
+
 type WeekRange = { from: Date; to: Date };
 
-function getWeekRange(date: Date): WeekRange {
+function getWeekRange(date: Date, startOfWeek?: WeekDay | null): WeekRange {
+    if (isWeekDay(startOfWeek)) {
+        const convertedStartOfWeek = convertWeekDayToMomentWeekDay(startOfWeek);
+        const valueWeekDay = moment(date).isoWeekday(); //  1 (Monday) to 7 (Sunday)
+        let from = moment(date);
+        if (valueWeekDay > convertedStartOfWeek) {
+            from = moment(date).subtract(
+                valueWeekDay - convertedStartOfWeek,
+                'days',
+            );
+        } else if (convertedStartOfWeek > valueWeekDay) {
+            from = moment(date).subtract(
+                7 - convertedStartOfWeek + valueWeekDay,
+                'days',
+            );
+        }
+        return {
+            from: from.toDate(),
+            to: moment(from).add(6, 'day').toDate(),
+        };
+    }
+
     return {
         from: moment(date).startOf('week').toDate(),
         to: moment(date).endOf('week').toDate(),
@@ -71,6 +110,7 @@ type Props = {
     onChange: (value: Date) => void;
     popoverProps?: Popover2Props;
     disabled?: boolean;
+    startOfWeek?: WeekDay | null;
 };
 
 const WeekPicker: FC<Props> = ({
@@ -78,12 +118,13 @@ const WeekPicker: FC<Props> = ({
     onChange,
     popoverProps,
     disabled,
+    startOfWeek,
 }) => {
     const value = moment(dateValue).toDate();
     //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
     const formattedDate = formatDate(value);
     const [hoverRange, setHoverRange] = useState<WeekRange>();
-    const selectedDays = getWeekDays(getWeekRange(value).from);
+    const selectedDays = getWeekDays(getWeekRange(value, startOfWeek).from);
 
     const daysAreSelected = selectedDays.length > 0;
     const modifiers = {
@@ -98,7 +139,7 @@ const WeekPicker: FC<Props> = ({
         selectedRangeEnd: daysAreSelected && selectedDays[6],
     };
     const onDayMouseEnter = (date: Date) => {
-        setHoverRange(getWeekRange(date));
+        setHoverRange(getWeekRange(date, startOfWeek));
     };
     const onDayMouseLeave = () => {
         setHoverRange(undefined);
@@ -115,11 +156,20 @@ const WeekPicker: FC<Props> = ({
                 value={formattedDate}
                 formatDate={formatDate}
                 parseDate={parseDate}
-                defaultValue={getWeekRange(new Date()).from.toString()}
+                defaultValue={getWeekRange(
+                    new Date(),
+                    startOfWeek,
+                ).from.toString()}
                 onChange={(pickedDate: string | null) => {
-                    onChange(getWeekRange(new Date(pickedDate || value)).from);
+                    onChange(
+                        getWeekRange(new Date(pickedDate || value), startOfWeek)
+                            .from,
+                    );
                 }}
                 dayPickerProps={{
+                    firstDayOfWeek: isWeekDay(startOfWeek)
+                        ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                        : undefined,
                     selectedDays,
                     showOutsideDays: true,
                     modifiers: modifiers as any,

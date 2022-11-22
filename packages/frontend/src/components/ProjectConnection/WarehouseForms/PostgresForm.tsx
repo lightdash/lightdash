@@ -12,6 +12,7 @@ import {
     AdvancedButtonWrapper,
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
+import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
@@ -178,6 +179,7 @@ const PostgresForm: FC<{
                     disabled={disabled}
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />
+                <StartOfWeekSelect disabled={disabled} />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

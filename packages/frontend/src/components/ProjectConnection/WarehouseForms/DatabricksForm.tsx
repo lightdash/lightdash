@@ -1,9 +1,16 @@
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
+import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
+import {
+    AdvancedButton,
+    AdvancedButtonWrapper,
+} from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
+import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
@@ -28,6 +35,7 @@ export const DatabricksSchemaInput: FC<{
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
@@ -83,6 +91,16 @@ const DatabricksForm: FC<{
                 }}
                 disabled={disabled}
             />
+            <FormSection isOpen={isOpen} name="advanced">
+                <StartOfWeekSelect disabled={disabled} />
+            </FormSection>
+            <AdvancedButtonWrapper>
+                <AdvancedButton
+                    icon={isOpen ? 'chevron-up' : 'chevron-down'}
+                    text={`Advanced configuration options`}
+                    onClick={toggleOpen}
+                />
+            </AdvancedButtonWrapper>
         </>
     );
 };

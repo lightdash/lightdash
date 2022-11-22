@@ -2,7 +2,7 @@ import { Menu, NonIdealState } from '@blueprintjs/core';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
-import PageWithSidebar from '../components/common/Page/PageWithSidebar';
+import { PageWithSidebar } from '../components/common/Page/Page.styles';
 import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import PageSpinner from '../components/PageSpinner';
@@ -75,7 +75,7 @@ const Settings: FC = () => {
 
     return (
         <PageWithSidebar alignItems="flex-start">
-            <Sidebar title="Settings" noMargin>
+            <Sidebar title="Settings">
                 <MenuWrapper>
                     <MenuHeader>User settings</MenuHeader>
 

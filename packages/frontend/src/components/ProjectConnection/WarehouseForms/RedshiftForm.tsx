@@ -13,6 +13,7 @@ import {
     AdvancedButtonWrapper,
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
+import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const RedshiftSchemaInput: FC<{
     disabled: boolean;
@@ -138,6 +139,7 @@ const RedshiftForm: FC<{
                     defaultValue
                     disabled={disabled}
                 />
+                <StartOfWeekSelect disabled={disabled} />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

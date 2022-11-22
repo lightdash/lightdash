@@ -165,12 +165,12 @@ export class SpaceModel {
                 `${UserTableName}.user_id`,
                 `${SpaceShareTableName}.user_id`,
             )
-            .innerJoin(
+            .leftJoin(
                 ProjectTableName,
                 `${SpaceTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
-            .innerJoin(
+            .leftJoin(
                 OrganizationMembershipsTableName,
                 `${OrganizationMembershipsTableName}.user_id`,
                 `${UserTableName}.user_id`,
@@ -197,6 +197,7 @@ export class SpaceModel {
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
             ])
+            .distinctOn(`users.user_uuid`)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return access.map(
@@ -331,7 +332,7 @@ export class SpaceModel {
         const [space] = await this.database(SpaceTableName)
             .insert({
                 project_id: project.project_id,
-                is_private: false, // TODO change to true once we support private spaces in the UI,
+                is_private: true,
                 name,
             })
             .returning('*');

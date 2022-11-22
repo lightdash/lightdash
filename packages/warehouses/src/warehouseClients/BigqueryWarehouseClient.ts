@@ -131,6 +131,10 @@ export class BigqueryWarehouseClient implements WarehouseClient {
         }
     }
 
+    getStartOfWeek() {
+        return this.credentials.startOfWeek;
+    }
+
     async runQuery(query: string) {
         try {
             const [job] = await this.client.createQueryJob({

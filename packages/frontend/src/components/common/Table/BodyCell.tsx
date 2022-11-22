@@ -2,6 +2,7 @@ import { Position } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
+import debounce from 'lodash/debounce';
 import React, { FC, useCallback, useState } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
@@ -65,22 +66,39 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
 
     const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
 
+    const canHaveContextMenu = !!CellContextMenu && props.hasData;
+
     const handleCellSelect = useCallback(
         (cellId: string | undefined) => {
+            if (!canHaveContextMenu) return;
+
             onSelect?.(cellId);
             setIsCellSelected(cellId ? true : false);
         },
-        [onSelect, setIsCellSelected],
+        [onSelect, setIsCellSelected, canHaveContextMenu],
     );
 
-    const canHaveContextMenu = !!CellContextMenu && props.hasData;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleDebouncedCellSelect = useCallback(
+        debounce(handleCellSelect, 300, {
+            leading: true,
+            trailing: false,
+        }),
+        [handleCellSelect],
+    );
 
-    return canHaveContextMenu && isCellSelected ? (
+    return (
         <Popover2
+            isOpen={isCellSelected}
+            lazy
             minimal
-            defaultIsOpen
-            hasBackdrop
             position={Position.BOTTOM_RIGHT}
+            hasBackdrop
+            backdropProps={{
+                onClick: () => handleDebouncedCellSelect(undefined),
+            }}
+            onOpening={() => handleDebouncedCellSelect(props.cell.id)}
+            onClose={() => handleDebouncedCellSelect(undefined)}
             content={
                 CellContextMenu && (
                     <CellContextMenu
@@ -91,21 +109,17 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             renderTarget={({ ref }) => (
                 <BodyCell
                     {...props}
-                    hasContextMenu
-                    isSelected={true}
-                    onSelect={handleCellSelect}
+                    style={
+                        isCellSelected
+                            ? { position: 'relative', zIndex: 21 }
+                            : undefined
+                    }
+                    hasContextMenu={canHaveContextMenu}
+                    isSelected={isCellSelected}
+                    onSelect={handleDebouncedCellSelect}
                     ref={ref}
                 />
             )}
-            onOpening={() => handleCellSelect(props.cell.id)}
-            onClosing={() => handleCellSelect(undefined)}
-        />
-    ) : (
-        <BodyCell
-            {...props}
-            isSelected={false}
-            hasContextMenu={canHaveContextMenu}
-            onSelect={CellContextMenu ? handleCellSelect : undefined}
         />
     );
 };

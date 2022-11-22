@@ -1,3 +1,54 @@
+# [0.329.0](https://github.com/lightdash/lightdash/compare/0.328.0...0.329.0) (2022-11-22)
+
+
+### Features
+
+* show missing users link footer on share space ([5d2273e](https://github.com/lightdash/lightdash/commit/5d2273ef505f1d7968c89c70403348591cc56260))
+
+# [0.328.0](https://github.com/lightdash/lightdash/compare/0.327.2...0.328.0) (2022-11-21)
+
+
+### Features
+
+*  filter private spaces from dashboards ([#3799](https://github.com/lightdash/lightdash/issues/3799)) ([0be25bb](https://github.com/lightdash/lightdash/commit/0be25bb2df7683b098e81bb54b0e8a270a98b640))
+* date picker use start of week configuration ([#3812](https://github.com/lightdash/lightdash/issues/3812)) ([635be3e](https://github.com/lightdash/lightdash/commit/635be3ebca6d056c24843002a1797d58f9535547))
+* filter space private charts ([#3800](https://github.com/lightdash/lightdash/issues/3800)) ([600de91](https://github.com/lightdash/lightdash/commit/600de9138671c1151b31525c6f93199d188faacb))
+
+## [0.327.2](https://github.com/lightdash/lightdash/compare/0.327.1...0.327.2) (2022-11-18)
+
+
+### Bug Fixes
+
+* select and copy value from table cell ([#3777](https://github.com/lightdash/lightdash/issues/3777)) ([f4bc20d](https://github.com/lightdash/lightdash/commit/f4bc20d16a605afaa7724636ee868b818b73caee))
+
+## [0.327.1](https://github.com/lightdash/lightdash/compare/0.327.0...0.327.1) (2022-11-18)
+
+
+### Bug Fixes
+
+* SITE_URL variable in docker-compose ([#3809](https://github.com/lightdash/lightdash/issues/3809)) ([59bf7a4](https://github.com/lightdash/lightdash/commit/59bf7a471168c1bafa4073a8945228bcf01e8617))
+
+# [0.327.0](https://github.com/lightdash/lightdash/compare/0.326.0...0.327.0) (2022-11-18)
+
+
+### Features
+
+* dbt derived metrics ([#3806](https://github.com/lightdash/lightdash/issues/3806)) ([b32be2d](https://github.com/lightdash/lightdash/commit/b32be2da54f17564c9a6da2c35f8e8e993fe4cd8))
+
+# [0.326.0](https://github.com/lightdash/lightdash/compare/0.325.0...0.326.0) (2022-11-18)
+
+
+### Features
+
+* start of week ([#3792](https://github.com/lightdash/lightdash/issues/3792)) ([ab3c486](https://github.com/lightdash/lightdash/commit/ab3c486ba1db453d869b20df38ffbbd1f7740c3b))
+
+# [0.325.0](https://github.com/lightdash/lightdash/compare/0.324.0...0.325.0) (2022-11-17)
+
+
+### Features
+
+* space access frontend ([#3783](https://github.com/lightdash/lightdash/issues/3783)) ([25153a0](https://github.com/lightdash/lightdash/commit/25153a0497685638937a4fb907cc4e1bc525ac02))
+
 # [0.324.0](https://github.com/lightdash/lightdash/compare/0.323.1...0.324.0) (2022-11-16)
 
 
