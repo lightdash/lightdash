@@ -18,7 +18,7 @@ const useDashboardFiltersForExplore = (
         [explore],
     );
 
-    const aggregateFilters = useCallback(
+    const overrideTileFilters = useCallback(
         (rules: DashboardFilterRule[]) =>
             rules
                 .filter((f) => {
@@ -37,7 +37,7 @@ const useDashboardFiltersForExplore = (
                         ...f,
                         target: {
                             fieldId: tileConfig.fieldId,
-                            tableName: tileConfig.fieldId.split('_')[0],
+                            tableName: tileConfig.fieldId.split('_')[0], // TODO: use a better way to get a table name
                         },
                     };
                 })
@@ -47,16 +47,16 @@ const useDashboardFiltersForExplore = (
 
     return useMemo(() => {
         return {
-            dimensions: aggregateFilters([
+            dimensions: overrideTileFilters([
                 ...dashboardFilters.dimensions,
                 ...dashboardTemporaryFilters.dimensions,
             ]),
-            metrics: aggregateFilters([
+            metrics: overrideTileFilters([
                 ...dashboardFilters.metrics,
                 ...dashboardTemporaryFilters.metrics,
             ]),
         };
-    }, [dashboardFilters, dashboardTemporaryFilters, aggregateFilters]);
+    }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);
 };
 
 export default useDashboardFiltersForExplore;
