@@ -1,0 +1,25 @@
+{
+    "entryFile": "src/index.ts",
+    "noImplicitAdditionalProperties": "throw-on-extras",
+    "controllerPathGlobs": ["src/**/*Controller.ts"],
+    "spec": {
+        "outputDirectory": "./src/generated/",
+        "specVersion": 3,
+        "securityDefinitions": {
+            "session_cookie": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "connect.sid"
+            },
+            "api_key": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "Authorization",
+                "description": "Value should be 'ApiKey <your key>'"
+            }
+        }
+    },
+    "routes": {
+        "routesDir": "./src/generated/"
+    }
+}

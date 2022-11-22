@@ -158,7 +158,7 @@ function styleNumber(
 }
 
 export function formatValue(
-    value: unknown,
+    value: any,
     options?: {
         format?: string;
         round?: number;
@@ -229,13 +229,13 @@ export function formatFieldValue(
         case DimensionType.DATE:
         case MetricType.DATE:
             return formatDate(
-                value,
+                value as any,
                 isDimension(field) ? field.timeInterval : undefined,
                 convertToUTC,
             );
         case DimensionType.TIMESTAMP:
             return formatTimestamp(
-                value,
+                value as any,
                 isDimension(field) ? field.timeInterval : undefined,
                 convertToUTC,
             );

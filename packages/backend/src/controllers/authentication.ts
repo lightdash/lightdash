@@ -10,7 +10,7 @@ import {
     OpenIdUser,
     SessionUser,
 } from '@lightdash/common';
-import { Request, RequestHandler } from 'express';
+import express, { Request, RequestHandler } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';

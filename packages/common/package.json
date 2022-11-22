@@ -29,7 +29,6 @@
         "fix-lint": "yarn run linter ./src --fix",
         "format": "yarn run formatter ./src --check",
         "fix-format": "yarn run formatter ./src --write",
-        "bundle-openapi": "openapi bundle --output ./src/openapibundle --ext json ./src/openapi/openapi.json --lint",
         "test": "TZ=UTC jest"
     }
 }

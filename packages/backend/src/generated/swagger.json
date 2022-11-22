@@ -1,0 +1,226 @@
+{
+	"components": {
+		"examples": {},
+		"headers": {},
+		"parameters": {},
+		"requestBodies": {},
+		"responses": {},
+		"schemas": {
+			"ErrorPayload": {
+				"properties": {
+					"error": {
+						"properties": {
+							"data": {},
+							"message": {
+								"type": "string"
+							},
+							"name": {
+								"type": "string"
+							},
+							"statusCode": {
+								"type": "number",
+								"format": "double"
+							}
+						},
+						"required": [
+							"name",
+							"statusCode"
+						],
+						"type": "object"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"error"
+						],
+						"nullable": false
+					}
+				},
+				"required": [
+					"error",
+					"status"
+				],
+				"type": "object"
+			},
+			"ShareUrl": {
+				"properties": {
+					"host": {
+						"type": "string"
+					},
+					"url": {
+						"type": "string"
+					},
+					"shareUrl": {
+						"type": "string"
+					},
+					"organizationUuid": {
+						"type": "string"
+					},
+					"createdByUserUuid": {
+						"type": "string"
+					},
+					"params": {
+						"type": "string"
+					},
+					"path": {
+						"type": "string"
+					},
+					"nanoid": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"params",
+					"path",
+					"nanoid"
+				],
+				"type": "object"
+			},
+			"Pick_ShareUrl.path-or-params_": {
+				"properties": {
+					"path": {
+						"type": "string"
+					},
+					"params": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"path",
+					"params"
+				],
+				"type": "object",
+				"description": "From T, pick a set of properties whose keys are in the union K"
+			},
+			"CreateShareUrl": {
+				"$ref": "#/components/schemas/Pick_ShareUrl.path-or-params_"
+			}
+		},
+		"securitySchemes": {}
+	},
+	"info": {
+		"title": "backend",
+		"version": "0.327.2",
+		"license": {
+			"name": "MIT"
+		},
+		"contact": {}
+	},
+	"openapi": "3.0.0",
+	"paths": {
+		"/api/v1/share/{nanoId}": {
+			"get": {
+				"operationId": "Get",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"results": {
+											"$ref": "#/components/schemas/ShareUrl"
+										},
+										"status": {
+											"type": "string",
+											"enum": [
+												"ok"
+											],
+											"nullable": false
+										}
+									},
+									"required": [
+										"results",
+										"status"
+									],
+									"type": "object"
+								}
+							}
+						}
+					},
+					"default": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorPayload"
+								}
+							}
+						}
+					}
+				},
+				"security": [],
+				"parameters": [
+					{
+						"in": "path",
+						"name": "nanoId",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				]
+			}
+		},
+		"/api/v1/share": {
+			"post": {
+				"operationId": "Create",
+				"responses": {
+					"200": {
+						"description": "Ok",
+						"content": {
+							"application/json": {
+								"schema": {
+									"properties": {
+										"results": {
+											"$ref": "#/components/schemas/ShareUrl"
+										},
+										"status": {
+											"type": "string",
+											"enum": [
+												"ok"
+											],
+											"nullable": false
+										}
+									},
+									"required": [
+										"results",
+										"status"
+									],
+									"type": "object"
+								}
+							}
+						}
+					},
+					"default": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorPayload"
+								}
+							}
+						}
+					}
+				},
+				"security": [],
+				"parameters": [],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateShareUrl"
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"servers": [
+		{
+			"url": "/"
+		}
+	]
+}

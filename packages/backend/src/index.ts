@@ -1,5 +1,4 @@
 import { LightdashMode, SessionUser } from '@lightdash/common';
-import apiSpec from '@lightdash/common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
@@ -8,7 +7,6 @@ import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
 import express, { NextFunction, Request, Response } from 'express';
-import * as OpenApiValidator from 'express-openapi-validator';
 import expressSession from 'express-session';
 import passport from 'passport';
 import path from 'path';
@@ -24,6 +22,8 @@ import {
 } from './controllers/authentication';
 import database from './database/database';
 import { errorHandler } from './errors';
+import { RegisterRoutes } from './generated/routes';
+import apiSpec from './generated/swagger.json';
 import Logger from './logger';
 import { userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
@@ -103,34 +103,6 @@ app.use(morganMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
-if (process.env.NODE_ENV === 'development') {
-    app.use(
-        OpenApiValidator.middleware({
-            apiSpec: path.join(
-                __dirname,
-                '../../common/src/openapibundle.json',
-            ),
-            // apiSpec,
-            validateRequests: true,
-            ignoreUndocumented: true,
-            validateResponses: {
-                removeAdditional: 'failing',
-                onError: (error, body, req) => {
-                    Logger.warn(
-                        `[${req.method}] ${
-                            req.originalUrl
-                        } Response body fails validation:\n${
-                            error.message
-                        }\n${JSON.stringify(body, null, 4)}`,
-                    );
-                },
-            },
-            validateSecurity: false,
-            validateApiSpec: true,
-            operationHandlers: false,
-        }),
-    );
-}
 app.use(
     expressSession({
         secret: lightdashConfig.lightdashSecret,
@@ -152,6 +124,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 // api router
 app.use('/api/v1', apiV1Router);
+
+// Register api
+RegisterRoutes(app);
 
 // Api docs
 if (
