@@ -6,7 +6,7 @@ import {
 } from './SlackStorage';
 
 // TODO https://github.com/slackapi/bolt-js/issues/904 fix slack bot compatibility with typescript
-const { App, ExpressReceiver } = require('@slack/bolt');
+const { App, ExpressReceiver, LogLevel } = require('@slack/bolt');
 
 const slackOptions = {
     signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -20,7 +20,12 @@ const slackOptions = {
         fetchInstallation: getInstallation,
         deleteInstallation,
     },
-    redirectUri: `${process.env.SITE_URL}/api/v1/slack/oauth_redirect`,
+    // Slack only allow https on redirections
+    // When testing locally on http://localhost:3000, replace again https:// with http:// after redirection happens
+    redirectUri: `${(process.env.SITE_URL || '').replace(
+        'http://',
+        'https://',
+    )}/api/v1/slack/oauth_redirect`,
     installerOptions: {
         directInstall: true,
         redirectUriPath: '/slack/oauth_redirect',
@@ -49,6 +54,7 @@ apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
 
 const app = new App({
     ...slackOptions,
+    logLevel: LogLevel.INFO,
     port: process.env.SLACK_PORT || 4000,
     socketMode: true,
     appToken: process.env.SLACK_APP_TOKEN,
@@ -57,14 +63,19 @@ const app = new App({
 const unfurl = (event: any, client: any) => {
     const unfurls = event.links.reduce((acc: any, l: any) => {
         const { url } = l;
-        const imgUrl =
-            'https://user-images.githubusercontent.com/1983672/203070424-c6051437-f92d-448b-827e-0c4aec58867a.png';
-        const dashboardName = 'Public dashboard';
-        const dashboardUrl = `${process.env.SITE_URL}/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards/2844e926-a868-4dfe-b41c-6d7cc74e1b24/edit`;
+
         return {
             [url]: {
                 blocks: [
                     {
+                        type: 'header',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Lightdash URL unfurls are not yet available',
+                        },
+                    },
+
+                    /* {
                         type: 'image',
                         title: {
                             type: 'plain_text',
@@ -89,7 +100,7 @@ const unfurl = (event: any, client: any) => {
                             },
                             value: 'view_alternate_1',
                         },
-                    },
+                    }, */
                 ],
             },
         };
@@ -108,5 +119,5 @@ export const startSlackBot = async () => {
     await receiver.start();
     await app.start();
 
-    console.debug('⚡️ Bolt app is running!');
+    console.debug('Slack app is running');
 };
