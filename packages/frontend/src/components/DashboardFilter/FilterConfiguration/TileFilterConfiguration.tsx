@@ -1,6 +1,5 @@
-import { Button, Checkbox, FormGroup } from '@blueprintjs/core';
-import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
-import { Select2 } from '@blueprintjs/select';
+import { Checkbox, FormGroup } from '@blueprintjs/core';
+import { Popover2Props } from '@blueprintjs/popover2';
 import {
     AvailableFiltersForSavedQuery,
     byFieldExact,
@@ -11,9 +10,7 @@ import {
 } from '@lightdash/common';
 import { FC } from 'react';
 import { FilterActions } from '.';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import FieldLabel from '../../common/Filters/FieldLabel';
-import renderFilterItem from '../../common/Filters/renderFilterItem';
+import FieldSelect from '../../common/Filters/FieldSelect';
 import { Title } from './FilterConfiguration.styled';
 
 interface TileFilterConfigurationProps {
@@ -36,21 +33,21 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     onChange,
 }) => {
     // TODO enable sort.
-    const sortByAvailability = (
-        a: AvailableFiltersForSavedQuery,
-        b: AvailableFiltersForSavedQuery,
-    ) => {
-        const isAApplicable = availableFilters?.some((t) => t.uuid === a.uuid);
-        const isBApplicable = availableFilters?.some((t) => t.uuid === b.uuid);
+    // const sortByAvailability = (
+    //     a: AvailableFiltersForSavedQuery,
+    //     b: AvailableFiltersForSavedQuery,
+    // ) => {
+    //     const isAApplicable = availableFilters?.some((t) => t.uuid === a.uuid);
+    //     const isBApplicable = availableFilters?.some((t) => t.uuid === b.uuid);
 
-        if (isAApplicable && !isBApplicable) {
-            return -1;
-        } else if (!isAApplicable && isBApplicable) {
-            return 1;
-        } else {
-            return 0;
-        }
-    };
+    //     if (isAApplicable && !isBApplicable) {
+    //         return -1;
+    //     } else if (!isAApplicable && isBApplicable) {
+    //         return 1;
+    //     } else {
+    //         return 0;
+    //     }
+    // };
 
     return (
         <>
@@ -58,126 +55,80 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                 Select tiles to apply filter to and which field to filter by
             </Title>
 
-            {tilesWithSavedQuery &&
-                Object.entries(tilesWithSavedQuery).map(
-                    ([tileUuid, savedQuery]) => {
-                        // TODO: fix sort
-                        // .sort(sortByAvailability)
-                        const isApplicable = true;
-                        // TODO: fix availability
-                        // availableFilters?.some(
-                        //     (t) => t.uuid === tileUuid,
-                        // );
+            {Object.entries(tilesWithSavedQuery).map(
+                ([tileUuid, savedQuery]) => {
+                    // TODO: fix sort
+                    // .sort(sortByAvailability)
+                    const isAvailable = true;
+                    // TODO: fix availability
+                    // availableFilters?.some(
+                    //     (t) => t.uuid === tileUuid,
+                    // );
 
-                        const tileConfig = filterRule.tileConfigs?.find(
-                            (t) => t.tileUuid === tileUuid,
+                    const tileConfig = filterRule.tileConfigs?.find(
+                        (t) => t.tileUuid === tileUuid,
+                    );
+
+                    const isChecked = isAvailable && !!tileConfig;
+
+                    const filterableFieldId = tileConfig?.fieldId;
+                    const filterableField = savedQuery.filters.find(
+                        (f) => fieldId(f) === filterableFieldId,
+                    );
+
+                    const sortedItems = savedQuery.filters
+                        .filter(byType(field))
+                        .sort((a, b) =>
+                            byFieldExact(a)(field) && !byFieldExact(b)(field)
+                                ? -1
+                                : 1,
                         );
 
-                        const isChecked = isApplicable && !!tileConfig;
+                    return (
+                        <FormGroup key={tileUuid}>
+                            <Checkbox
+                                label={savedQuery.name}
+                                disabled={!isAvailable}
+                                checked={isChecked}
+                                onChange={() => {
+                                    onChange(
+                                        isChecked
+                                            ? FilterActions.REMOVE
+                                            : FilterActions.ADD,
+                                        tileUuid,
+                                    );
+                                }}
+                            />
 
-                        const filterableFieldId = tileConfig?.fieldId;
-                        const filterableField = savedQuery.filters.find(
-                            (f) => fieldId(f) === filterableFieldId,
-                        );
-
-                        const sortedItems = savedQuery.filters
-                            .filter(byType(field))
-                            .sort((a, b) =>
-                                byFieldExact(a)(field) &&
-                                !byFieldExact(b)(field)
-                                    ? -1
-                                    : 1,
-                            );
-
-                        return (
-                            <FormGroup key={tileUuid}>
-                                <Checkbox
-                                    label={savedQuery.name}
-                                    disabled={!isApplicable}
-                                    checked={isChecked}
-                                    onChange={() => {
+                            <div
+                                style={{
+                                    marginLeft: 24,
+                                }}
+                            >
+                                <FieldSelect
+                                    available={isAvailable}
+                                    disabled={!isAvailable || !isChecked}
+                                    items={sortedItems}
+                                    activeItem={filterableField}
+                                    onItemSelect={(newFilterableField) => {
                                         onChange(
-                                            isChecked
-                                                ? FilterActions.REMOVE
-                                                : FilterActions.ADD,
+                                            FilterActions.ADD,
                                             tileUuid,
+                                            newFilterableField,
                                         );
                                     }}
-                                />
-
-                                <div
-                                    style={{
-                                        marginLeft: 24,
+                                    popoverProps={{
+                                        captureDismiss: !popoverProps?.isOpen,
+                                        canEscapeKeyClose:
+                                            !popoverProps?.isOpen,
+                                        ...popoverProps,
                                     }}
-                                >
-                                    <Select2<FilterableField>
-                                        disabled={!isChecked}
-                                        fill
-                                        filterable={false}
-                                        items={sortedItems}
-                                        itemRenderer={renderFilterItem}
-                                        noResults={
-                                            <MenuItem2
-                                                disabled
-                                                text="No results."
-                                            />
-                                        }
-                                        activeItem={filterableField}
-                                        onItemSelect={(newFilterableField) => {
-                                            onChange(
-                                                FilterActions.ADD,
-                                                tileUuid,
-                                                newFilterableField,
-                                            );
-                                        }}
-                                        popoverProps={{
-                                            lazy: true,
-                                            minimal: true,
-                                            matchTargetWidth: true,
-                                            captureDismiss:
-                                                !popoverProps?.isOpen,
-                                            canEscapeKeyClose:
-                                                !popoverProps?.isOpen,
-                                            ...popoverProps,
-                                        }}
-                                    >
-                                        <Button
-                                            minimal
-                                            alignText="left"
-                                            disabled={!isChecked}
-                                            outlined
-                                            fill
-                                            icon={
-                                                filterableField && (
-                                                    <FieldIcon
-                                                        item={filterableField}
-                                                    />
-                                                )
-                                            }
-                                            text={
-                                                isApplicable ? (
-                                                    filterableField ? (
-                                                        <FieldLabel
-                                                            item={
-                                                                filterableField
-                                                            }
-                                                        />
-                                                    ) : (
-                                                        'Select field'
-                                                    )
-                                                ) : (
-                                                    'Not applicable'
-                                                )
-                                            }
-                                            rightIcon="caret-down"
-                                            placeholder="Select a film"
-                                        />
-                                    </Select2>
-                                </div>
-                            </FormGroup>
-                        );
-                    },
-                )}
+                                />
+                            </div>
+                        </FormGroup>
+                    );
+                },
+            )}
         </>
     );
 };
