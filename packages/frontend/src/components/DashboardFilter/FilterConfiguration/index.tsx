@@ -4,9 +4,6 @@ import { Classes, Popover2Props } from '@blueprintjs/popover2';
 import {
     applyDefaultTileConfigToFilterRule,
     AvailableFiltersForSavedQuery,
-    byFieldExact,
-    byType,
-    byTypeAndName,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
     fieldId,
@@ -14,6 +11,9 @@ import {
     FilterOperator,
     FilterRule,
     getFilterRuleWithDefaultValue,
+    matchFieldByType,
+    matchFieldByTypeAndName,
+    matchFieldExact,
 } from '@lightdash/common';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
@@ -108,12 +108,14 @@ const FilterConfiguration: FC<Props> = ({
                             return tileConfig.tileUuid !== tileUuid;
                         }) || [];
 
+                    const filters = savedQuery.filters;
+
                     if (action === FilterActions.ADD) {
                         const filterableField =
                             filterUuid ??
-                            savedQuery.filters.find(byFieldExact(field)) ??
-                            savedQuery.filters.find(byTypeAndName(field)) ??
-                            savedQuery.filters.find(byType(field));
+                            filters.find(matchFieldExact(field)) ??
+                            filters.find(matchFieldByTypeAndName(field)) ??
+                            filters.find(matchFieldByType(field));
 
                         if (!filterableField) return draftState;
 

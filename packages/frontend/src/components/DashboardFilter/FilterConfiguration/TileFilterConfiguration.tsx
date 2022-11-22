@@ -2,12 +2,12 @@ import { Checkbox, FormGroup } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     AvailableFiltersForSavedQuery,
-    byFieldExact,
-    byType,
-    byTypeAndName,
     DashboardFilterRule,
     fieldId,
     FilterableField,
+    matchFieldByType,
+    matchFieldByTypeAndName,
+    matchFieldExact,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
@@ -33,7 +33,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     popoverProps,
     onChange,
 }) => {
-    const sortBy = useCallback(
+    const tilesSortBy = useCallback(
         (
             matcher: (a: FilterableField) => (b: FilterableField) => boolean,
             a: AvailableFiltersForSavedQuery,
@@ -46,11 +46,24 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
         [field],
     );
 
+    const itemsSortBy = useCallback(
+        (
+            matcher: (a: FilterableField) => (b: FilterableField) => boolean,
+            a: FilterableField,
+            b: FilterableField,
+        ) => {
+            const matchA = matcher(field)(a);
+            const matchB = matcher(field)(b);
+            return matchA === matchB ? 0 : matchA ? -1 : 1;
+        },
+        [field],
+    );
+
     const sortedTileEntries = useMemo(() => {
         return Object.entries(tilesWithSavedQuery)
-            .sort(([, a], [, b]) => sortBy(byTypeAndName, a, b))
-            .sort(([, a], [, b]) => sortBy(byFieldExact, a, b));
-    }, [sortBy, tilesWithSavedQuery]);
+            .sort(([, a], [, b]) => tilesSortBy(matchFieldByTypeAndName, a, b))
+            .sort(([, a], [, b]) => tilesSortBy(matchFieldExact, a, b));
+    }, [tilesSortBy, tilesWithSavedQuery]);
 
     return (
         <>
@@ -59,16 +72,13 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
             </Title>
 
             {sortedTileEntries.map(([tileUuid, savedQuery]) => {
-                const isAvailable = true;
-                // TODO: fix availability
-                // availableFilters?.some(
-                //     (t) => t.uuid === tileUuid,
-                // );
-
                 const tileConfig = filterRule.tileConfigs?.find(
                     (t) => t.tileUuid === tileUuid,
                 );
 
+                const isAvailable = savedQuery.filters.some((t) =>
+                    matchFieldByType(field)(t),
+                );
                 const isChecked = isAvailable && !!tileConfig;
 
                 const filterableFieldId = tileConfig?.fieldId;
@@ -77,12 +87,9 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                 );
 
                 const sortedItems = savedQuery.filters
-                    .filter(byType(field))
-                    .sort((a, b) =>
-                        byFieldExact(a)(field) && !byFieldExact(b)(field)
-                            ? -1
-                            : 1,
-                    );
+                    .filter(matchFieldByType(field))
+                    .sort((a, b) => itemsSortBy(matchFieldByTypeAndName, a, b))
+                    .sort((a, b) => itemsSortBy(matchFieldExact, a, b));
 
                 return (
                     <FormGroup key={tileUuid}>
@@ -100,11 +107,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                             }}
                         />
 
-                        <div
-                            style={{
-                                marginLeft: 24,
-                            }}
-                        >
+                        <div style={{ marginLeft: 24 }}>
                             <FieldSelect
                                 available={isAvailable}
                                 disabled={!isAvailable || !isChecked}

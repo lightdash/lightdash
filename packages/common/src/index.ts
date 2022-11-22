@@ -395,13 +395,14 @@ export const createFilterRuleFromField = (
         value ? [value] : [],
     );
 
-export const byFieldExact = (a: FilterableField) => (b: FilterableField) =>
+export const matchFieldExact = (a: FilterableField) => (b: FilterableField) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
 
-export const byTypeAndName = (a: FilterableField) => (b: FilterableField) =>
-    a.type === b.type && a.name === b.name;
+export const matchFieldByTypeAndName =
+    (a: FilterableField) => (b: FilterableField) =>
+        a.type === b.type && a.name === b.name;
 
-export const byType = (a: FilterableField) => (b: FilterableField) =>
+export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
     a.type === b.type;
 
 const getDefaultTileConfigForFilterableField = (
@@ -412,7 +413,7 @@ const getDefaultTileConfigForFilterableField = (
         .map<DashboardTileFilterConfig | undefined>(
             ([tileUuid, savedQuery]) => {
                 const filterableField = savedQuery.filters.find(
-                    byFieldExact(field),
+                    matchFieldExact(field),
                 );
                 if (!filterableField) return undefined;
 
