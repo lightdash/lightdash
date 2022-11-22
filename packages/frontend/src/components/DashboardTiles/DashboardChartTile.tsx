@@ -138,6 +138,7 @@ const DashboardChartTile: FC<Props> = (props) => {
     const { track } = useTracking();
     const {
         tile: {
+            uuid: tileUuid,
             properties: { savedChartUuid },
         },
         isEditMode,
@@ -261,8 +262,10 @@ const DashboardChartTile: FC<Props> = (props) => {
     // TODO: move this logic out of component
     let savedQueryWithDashboardFilters: SavedChart | undefined;
 
-    const dashboardFiltersThatApplyToChart =
-        useDashboardFiltersForExplore(explore);
+    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
+        tileUuid,
+        explore,
+    );
 
     if (savedQuery) {
         const dimensionFilters: FilterGroup = {

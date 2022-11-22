@@ -1,6 +1,7 @@
 import {
     ApiError,
     AvailableFiltersForSavedQuery,
+    byDashbordChartTileType,
     CreateDashboard,
     Dashboard,
     DashboardChartTile,
@@ -70,24 +71,22 @@ export const getQueryConfig = (savedChartUuid: string) => {
     };
 };
 
-// TODO: remove if not used
-const useAvailableChartFilters = (savedChartUuid: string) => {
-    return useQuery(getQueryConfig(savedChartUuid));
-};
-
-export const useDashboardTilesWithFilters = (tiles: DashboardTile[] = []) => {
-    const tileUuids = useMemo(() => {
+export const useDashboardTilesWithSavedQuery = (
+    tiles: DashboardTile[] = [],
+) => {
+    const savedChartUuids = useMemo(() => {
         return tiles
-            .filter(
-                (tile): tile is DashboardChartTile =>
-                    tile.type === DashboardTileTypes.SAVED_CHART,
-            )
+            .filter(byDashbordChartTileType)
             .map((tile) => tile.properties.savedChartUuid)
             .filter((uuid): uuid is string => !!uuid);
     }, [tiles]);
 
+    const tileUuids = useMemo(() => {
+        return tiles.map((tile) => tile.uuid);
+    }, [tiles]);
+
     const queries = useQueries(
-        tileUuids.map((uuid) => getQueryConfig(uuid)),
+        savedChartUuids.map((uuid) => getQueryConfig(uuid)),
     ) as UseQueryResult<AvailableFiltersForSavedQuery, ApiError>[]; // useQueries doesn't allow us to specify TError
 
     const isLoading = queries.some((query) => query.isLoading);
@@ -101,7 +100,13 @@ export const useDashboardTilesWithFilters = (tiles: DashboardTile[] = []) => {
 
         const results = queryResults.reduce<
             Record<string, AvailableFiltersForSavedQuery>
-        >((acc, result) => ({ ...acc, [result.uuid]: result }), {});
+        >(
+            (acc, result, index) => ({
+                ...acc,
+                [tileUuids[index]]: result,
+            }),
+            {},
+        );
 
         setData(results);
     }, [isLoading, tileUuids, queryResults]);
@@ -115,7 +120,7 @@ export const useDashboardTilesWithFilters = (tiles: DashboardTile[] = []) => {
 export const useAvailableDashboardFilterTargets = (
     tiles: DashboardTile[] = [],
 ) => {
-    const { isLoading, data } = useDashboardTilesWithFilters(tiles);
+    const { isLoading, data } = useDashboardTilesWithSavedQuery(tiles);
 
     const availableFilters = useMemo(() => {
         if (isLoading || !data) return;

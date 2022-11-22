@@ -12,12 +12,12 @@ import { Select2 } from '@blueprintjs/select';
 import {
     applyDefaultTileConfigToFilterRule,
     AvailableFiltersForSavedQuery,
+    byFieldExact,
+    byType,
+    byTypeAndName,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
     fieldId,
-    fieldMatchExact,
-    fieldMatchType,
-    fieldMatchTypeAndName,
     FilterableField,
     FilterOperator,
     FilterRule,
@@ -54,7 +54,7 @@ const DEFAULT_TAB = FilterTabs.SETTINGS;
 
 interface Props {
     field: FilterableField;
-    tilesWithFilters: Record<string, AvailableFiltersForSavedQuery>;
+    tilesWithSavedQuery: Record<string, AvailableFiltersForSavedQuery>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
@@ -67,7 +67,7 @@ const FilterConfiguration: FC<Props> = ({
     selectedTabId = DEFAULT_TAB,
     onTabChange,
     field,
-    tilesWithFilters,
+    tilesWithSavedQuery,
     filterRule,
     popoverProps,
     onSave,
@@ -82,13 +82,15 @@ const FilterConfiguration: FC<Props> = ({
         [filterType],
     );
 
-    const applicableTiles = useMemo(
+    const availableFilters = useMemo(
         () =>
-            Object.values(tilesWithFilters).filter((tile) =>
-                tile.filters.some(fieldMatchType(field)),
+            Object.values(tilesWithSavedQuery).filter((tile) =>
+                tile.filters.some(byType(field)),
             ),
-        [tilesWithFilters, field],
+        [tilesWithSavedQuery, field],
     );
+
+    console.log({ tilesWithSavedQuery });
 
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
@@ -96,34 +98,39 @@ const FilterConfiguration: FC<Props> = ({
                 ? applyDefaultTileConfigToFilterRule(
                       filterRule,
                       field,
-                      applicableTiles,
+                      tilesWithSavedQuery,
                   )
-                : createDashboardFilterRuleFromField(field, applicableTiles),
+                : createDashboardFilterRuleFromField(
+                      field,
+                      tilesWithSavedQuery,
+                  ),
         );
 
     const handleChange = (
         action: FilterActions,
-        tile: AvailableFiltersForSavedQuery,
+        tileUuid: string,
         filterUuid?: FilterableField,
     ) => {
+        const savedQuery = tilesWithSavedQuery[tileUuid];
+
         setInternalFilterRule((prevState) =>
             produce(prevState, (draftState) => {
                 draftState.tileConfigs =
                     draftState.tileConfigs?.filter((tileConfig) => {
-                        return tileConfig.tileUuid !== tile.uuid;
+                        return tileConfig.tileUuid !== tileUuid;
                     }) || [];
 
                 if (action === FilterActions.ADD) {
                     const filterableField =
                         filterUuid ??
-                        tile.filters.find(fieldMatchExact(field)) ??
-                        tile.filters.find(fieldMatchTypeAndName(field)) ??
-                        tile.filters.find(fieldMatchType(field));
+                        savedQuery.filters.find(byFieldExact(field)) ??
+                        savedQuery.filters.find(byTypeAndName(field)) ??
+                        savedQuery.filters.find(byType(field));
 
                     if (!filterableField) return draftState;
 
                     draftState.tileConfigs.push({
-                        tileUuid: tile.uuid,
+                        tileUuid,
                         fieldId: fieldId(filterableField),
                     });
                 }
@@ -135,8 +142,8 @@ const FilterConfiguration: FC<Props> = ({
         a: AvailableFiltersForSavedQuery,
         b: AvailableFiltersForSavedQuery,
     ) => {
-        const isAApplicable = applicableTiles?.some((t) => t.uuid === a.uuid);
-        const isBApplicable = applicableTiles?.some((t) => t.uuid === b.uuid);
+        const isAApplicable = availableFilters?.some((t) => t.uuid === a.uuid);
+        const isBApplicable = availableFilters?.some((t) => t.uuid === b.uuid);
 
         if (isAApplicable && !isBApplicable) {
             return -1;
@@ -199,18 +206,20 @@ const FilterConfiguration: FC<Props> = ({
                                 to filter by
                             </Title>
 
-                            {tilesWithFilters &&
-                                Object.values(tilesWithFilters)
-                                    .sort(sortByAvailability)
-                                    .map((tile) => {
-                                        const isApplicable =
-                                            applicableTiles?.some(
-                                                (t) => t.uuid === tile.uuid,
-                                            );
+                            {tilesWithSavedQuery &&
+                                Object.entries(tilesWithSavedQuery).map(
+                                    ([tileUuid, savedQuery]) => {
+                                        // TODO: fix sort
+                                        // .sort(sortByAvailability)
+                                        const isApplicable = true;
+                                        // TODO: fix availability
+                                        // availableFilters?.some(
+                                        //     (t) => t.uuid === tileUuid,
+                                        // );
 
                                         const tileConfig =
                                             internalFilterRule.tileConfigs?.find(
-                                                (t) => t.tileUuid === tile.uuid,
+                                                (t) => t.tileUuid === tileUuid,
                                             );
 
                                         const isChecked =
@@ -219,26 +228,26 @@ const FilterConfiguration: FC<Props> = ({
                                         const filterableFieldId =
                                             tileConfig?.fieldId;
                                         const filterableField =
-                                            tile.filters.find(
+                                            savedQuery.filters.find(
                                                 (f) =>
                                                     fieldId(f) ===
                                                     filterableFieldId,
                                             );
 
-                                        const sortedItems = tile.filters
-                                            .filter(fieldMatchType(field))
+                                        const sortedItems = savedQuery.filters
+                                            .filter(byType(field))
                                             .sort((a, b) =>
-                                                fieldMatchExact(a)(field) &&
-                                                !fieldMatchExact(b)(field)
+                                                byFieldExact(a)(field) &&
+                                                !byFieldExact(b)(field)
                                                     ? -1
                                                     : 1,
                                             );
 
                                         return (
                                             // TODO: extract to component
-                                            <FormGroup key={tile.uuid}>
+                                            <FormGroup key={tileUuid}>
                                                 <Checkbox
-                                                    label={tile.name}
+                                                    label={savedQuery.name}
                                                     disabled={!isApplicable}
                                                     checked={isChecked}
                                                     onChange={() => {
@@ -246,7 +255,7 @@ const FilterConfiguration: FC<Props> = ({
                                                             isChecked
                                                                 ? FilterActions.REMOVE
                                                                 : FilterActions.ADD,
-                                                            tile,
+                                                            tileUuid,
                                                         );
                                                     }}
                                                 />
@@ -278,7 +287,7 @@ const FilterConfiguration: FC<Props> = ({
                                                         ) => {
                                                             handleChange(
                                                                 FilterActions.ADD,
-                                                                tile,
+                                                                tileUuid,
                                                                 newFilterableField,
                                                             );
                                                         }}
@@ -332,7 +341,8 @@ const FilterConfiguration: FC<Props> = ({
                                                 </div>
                                             </FormGroup>
                                         );
-                                    })}
+                                    },
+                                )}
                         </>
                     }
                 />

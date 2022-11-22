@@ -13,7 +13,7 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
@@ -25,8 +25,12 @@ const DashboardCellContextMenu: FC<
 > = ({ cell, explore }) => {
     const { viewData } = useUnderlyingDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
-    const dashboardFiltersThatApplyToChart =
-        useDashboardFiltersForExplore(explore);
+    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
+        // TODO: update here...
+        'needs tile uuid here',
+        explore,
+    );
+
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
