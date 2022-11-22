@@ -39,6 +39,8 @@ services:
       - EMAIL_SMTP_SENDER_EMAIL=${EMAIL_SMTP_SENDER_EMAIL}
       - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
       - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
+      - HEADLESS_BROWSER_HOST=headless-browser
+      - HEADLESS_BROWSER_PORT=3000
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
@@ -56,3 +58,9 @@ services:
       POSTGRES_PASSWORD: ${PGPASSWORD}
     ports:
       - "5432:${PGPORT}"
+
+  headless-browser:
+    image: browserless/chrome
+    restart: always
+    ports:
+      - "3001:3000"

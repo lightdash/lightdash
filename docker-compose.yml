@@ -32,6 +32,8 @@ services:
       - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS:-false}
       - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
       - LIGHTDASH_MAX_PAYLOAD=${LIGHTDASH_MAX_PAYLOAD:-5mb}
+      - HEADLESS_BROWSER_HOST=headless-browser
+      - HEADLESS_BROWSER_PORT=3000
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
@@ -46,6 +48,12 @@ services:
       POSTGRES_DB: ${PGDATABASE:-postgres}
     volumes:
       - db-data:/var/lib/postgresql/data
+
+  headless-browser:
+    image: browserless/chrome
+    restart: always
+    ports:
+      - "3001:3000"
 
 volumes:
   db-data:
