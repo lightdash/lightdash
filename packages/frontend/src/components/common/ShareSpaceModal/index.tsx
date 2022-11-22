@@ -5,6 +5,7 @@ import { FC, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { DialogFooter, OpenShareModal } from './ShareSpaceModal.style';
 
+import { Link } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
@@ -76,17 +77,29 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     />
                 </div>
                 <DialogFooter>
-                    <p>
-                        {' '}
-                        Learn more about permissions in our{' '}
-                        <a
-                            href="https://docs.lightdash.com/references/roles"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            docs
-                        </a>
-                    </p>
+                    {sessionUser.data?.ability?.can('create', 'InviteLink') ? (
+                        <p>
+                            Can’t find a user? Spaces can only be shared with{' '}
+                            <Link
+                                to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
+                            >
+                                existing project members
+                            </Link>
+                            .
+                        </p>
+                    ) : (
+                        <p>
+                            Learn more about permissions in our{' '}
+                            <a
+                                href="https://docs.lightdash.com/references/roles"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                docs
+                            </a>
+                            .
+                        </p>
+                    )}
                 </DialogFooter>
             </Dialog>
         </>
