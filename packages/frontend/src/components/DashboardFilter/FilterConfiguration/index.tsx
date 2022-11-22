@@ -1,4 +1,4 @@
-import { Button, Intent, Tab, Tabs } from '@blueprintjs/core';
+import { Intent, Tab, Tabs } from '@blueprintjs/core';
 import { Classes, Popover2Props } from '@blueprintjs/popover2';
 
 import {
@@ -19,7 +19,11 @@ import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import SimpleButton from '../../common/SimpleButton';
-import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
+import {
+    ActionsWrapper,
+    ApplyButton,
+    ConfigureFilterWrapper,
+} from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 
@@ -56,16 +60,6 @@ const FilterConfiguration: FC<Props> = ({
     onSave,
     onBack,
 }) => {
-    const availableFilters = useMemo(
-        () =>
-            Object.values(tilesWithSavedQuery).filter((tile) =>
-                tile.filters.some(byType(field)),
-            ),
-        [tilesWithSavedQuery, field],
-    );
-
-    console.log({ tilesWithSavedQuery });
-
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
             filterRule
@@ -134,29 +128,9 @@ const FilterConfiguration: FC<Props> = ({
         [field, tilesWithSavedQuery],
     );
 
-    // TODO move to tile filter config
-    const sortByAvailability = (
-        a: AvailableFiltersForSavedQuery,
-        b: AvailableFiltersForSavedQuery,
-    ) => {
-        const isAApplicable = availableFilters?.some((t) => t.uuid === a.uuid);
-        const isBApplicable = availableFilters?.some((t) => t.uuid === b.uuid);
-
-        if (isAApplicable && !isBApplicable) {
-            return -1;
-        } else if (!isAApplicable && isBApplicable) {
-            return 1;
-        } else {
-            return 0;
-        }
-    };
-
     return (
         <ConfigureFilterWrapper>
-            {/* TODO: styled? */}
-            <div style={{ marginBottom: 10 }}>
-                <FieldLabel item={field} />
-            </div>
+            <FieldLabel item={field} />
 
             <Tabs
                 selectedTabId={selectedTabId}
@@ -192,24 +166,14 @@ const FilterConfiguration: FC<Props> = ({
                 />
             </Tabs>
 
-            {/* TODO: style */}
-            <div
-                style={{
-                    display: 'flex',
-                    marginTop: 24,
-                }}
-            >
+            <ActionsWrapper>
                 {onBack && (
                     <SimpleButton small onClick={onBack}>
                         Back
                     </SimpleButton>
                 )}
 
-                {/* TODO: style */}
-                <Button
-                    style={{
-                        marginLeft: 'auto',
-                    }}
+                <ApplyButton
                     type="submit"
                     className={Classes.POPOVER2_DISMISS}
                     intent={Intent.PRIMARY}
@@ -224,7 +188,7 @@ const FilterConfiguration: FC<Props> = ({
                     }
                     onClick={() => onSave(internalFilterRule)}
                 />
-            </div>
+            </ActionsWrapper>
         </ConfigureFilterWrapper>
     );
 };

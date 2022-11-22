@@ -35,6 +35,23 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     popoverProps,
     onChange,
 }) => {
+    // TODO enable sort.
+    const sortByAvailability = (
+        a: AvailableFiltersForSavedQuery,
+        b: AvailableFiltersForSavedQuery,
+    ) => {
+        const isAApplicable = availableFilters?.some((t) => t.uuid === a.uuid);
+        const isBApplicable = availableFilters?.some((t) => t.uuid === b.uuid);
+
+        if (isAApplicable && !isBApplicable) {
+            return -1;
+        } else if (!isAApplicable && isBApplicable) {
+            return 1;
+        } else {
+            return 0;
+        }
+    };
+
     return (
         <>
             <Title>
@@ -73,7 +90,6 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                             );
 
                         return (
-                            // TODO: extract to component
                             <FormGroup key={tileUuid}>
                                 <Checkbox
                                     label={savedQuery.name}

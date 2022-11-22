@@ -47,6 +47,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 options={filterConfig.operatorOptions}
                 value={filterRule.operator}
             />
+
             <filterConfig.inputs
                 popoverProps={popoverProps}
                 filterType={filterType}

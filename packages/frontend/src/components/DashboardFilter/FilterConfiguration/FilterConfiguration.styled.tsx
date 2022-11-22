@@ -1,9 +1,11 @@
+import { Button } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ConfigureFilterWrapper = styled.div`
     height: 100%;
     display: flex;
     flex-direction: column;
+    gap: 15px;
 `;
 
 export const Title = styled.div`
@@ -13,10 +15,15 @@ export const Title = styled.div`
 
 export const InputsWrapper = styled.div`
     display: flex;
-    gap: 1.071em;
     flex-direction: column;
+    gap: 10px;
+`;
 
-    select {
-        width: 100% !important;
-    }
+export const ActionsWrapper = styled.div`
+    display: flex;
+    justify-content: space-between;
+`;
+
+export const ApplyButton = styled(Button)`
+    margin-left: auto;
 `;
