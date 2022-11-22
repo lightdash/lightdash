@@ -116,8 +116,12 @@ app.event('link_shared', (message: any) => {
 });
 
 export const startSlackBot = async () => {
-    await receiver.start();
-    await app.start();
+    try {
+        await receiver.start();
+        await app.start();
 
-    console.debug('Slack app is running');
+        console.debug('Slack app is running');
+    } catch (e: unknown) {
+        console.error(`Unable to start Slack app ${e}`);
+    }
 };
