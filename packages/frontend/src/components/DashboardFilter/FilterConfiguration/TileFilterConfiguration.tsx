@@ -11,11 +11,9 @@ import {
 } from '@lightdash/common';
 import { FC } from 'react';
 import { FilterActions } from '.';
-import {
-    FieldIcon,
-    FieldLabel,
-    renderItem,
-} from '../../common/Filters/FieldAutoComplete';
+import FieldIcon from '../../common/Filters/FieldIcon';
+import FieldLabel from '../../common/Filters/FieldLabel';
+import renderFilterItem from '../../common/Filters/renderFilterItem';
 import { Title } from './FilterConfiguration.styled';
 
 interface TileFilterConfigurationProps {
@@ -101,7 +99,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                                         fill
                                         filterable={false}
                                         items={sortedItems}
-                                        itemRenderer={renderItem}
+                                        itemRenderer={renderFilterItem}
                                         noResults={
                                             <MenuItem2
                                                 disabled

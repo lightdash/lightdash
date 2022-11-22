@@ -17,7 +17,7 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import { FC, useCallback, useMemo, useState } from 'react';
-import { FieldLabel } from '../../common/Filters/FieldAutoComplete';
+import FieldLabel from '../../common/Filters/FieldLabel';
 import SimpleButton from '../../common/SimpleButton';
 import { ConfigureFilterWrapper } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
@@ -200,7 +200,7 @@ const FilterConfiguration: FC<Props> = ({
                 }}
             >
                 {onBack && (
-                    <SimpleButton small fill={false} onClick={onBack}>
+                    <SimpleButton small onClick={onBack}>
                         Back
                     </SimpleButton>
                 )}

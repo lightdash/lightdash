@@ -1,3 +1,6 @@
+import { Field, FilterableField } from './field';
+import { TableCalculation } from './metricQuery';
+
 export enum FilterType {
     STRING = 'string',
     NUMBER = 'number',
@@ -114,6 +117,8 @@ export type DashboardFilters = {
     dimensions: DashboardFilterRule[];
     metrics: DashboardFilterRule[];
 };
+
+export type FilterItem = Field | TableCalculation | FilterableField;
 
 /* Utils */
 
