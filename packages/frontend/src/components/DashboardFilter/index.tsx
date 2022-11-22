@@ -47,7 +47,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         >
             <DashboardFilterWrapper>
                 <Popover2
-                    lazy
                     disabled={!hasChartTiles || isLoading}
                     canEscapeKeyClose={isSubmenuOpen ? false : true}
                     interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
@@ -70,7 +69,6 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     }
                 >
                     <Tooltip2
-                        lazy
                         disabled={isOpen || isEditMode}
                         placement="bottom-start"
                         interactionKind="hover"

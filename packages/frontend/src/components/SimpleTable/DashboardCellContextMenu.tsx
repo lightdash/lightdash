@@ -21,13 +21,15 @@ import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
 const DashboardCellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell'> & { explore: Explore | undefined }
-> = ({ cell, explore }) => {
+    Pick<CellContextMenuProps, 'cell'> & {
+        explore: Explore | undefined;
+        tileUuid: string;
+    }
+> = ({ cell, explore, tileUuid }) => {
     const { viewData } = useUnderlyingDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
-        // TODO: update here...
-        'needs tile uuid here',
+        tileUuid,
         explore,
     );
 

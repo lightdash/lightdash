@@ -13,7 +13,14 @@ import {
     isFilterableField,
     Metric,
 } from '@lightdash/common';
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
@@ -28,11 +35,7 @@ import {
     FieldsWithSuggestions,
     FiltersProvider,
 } from '../../common/Filters/FiltersProvider';
-import {
-    DisabledFilterHeader,
-    FilterValues,
-    Tooltip,
-} from './FiltersCard.styles';
+import { DisabledFilterHeader, FilterValues } from './FiltersCard.styles';
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -145,10 +148,10 @@ const FiltersCard: FC = memo(() => {
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
-                    <Tooltip key={field.name}>
+                    <React.Fragment key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </Tooltip>
+                    </React.Fragment>
                 );
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;

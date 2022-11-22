@@ -4,9 +4,7 @@ import {
     byDashbordChartTileType,
     CreateDashboard,
     Dashboard,
-    DashboardChartTile,
     DashboardTile,
-    DashboardTileTypes,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
