@@ -46,7 +46,6 @@ services:
     ports:
       - "${PORT}:8080"
       - "3000:3000"
-      - "4000:4000"
     command: ""
     entrypoint: ["/bin/sh", "-c", "sleep infinity"]
 
