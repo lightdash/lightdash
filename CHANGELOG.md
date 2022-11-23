@@ -1,3 +1,10 @@
+## [0.329.1](https://github.com/lightdash/lightdash/compare/0.329.0...0.329.1) (2022-11-23)
+
+
+### Bug Fixes
+
+* fix remove previous admin ([#3824](https://github.com/lightdash/lightdash/issues/3824)) ([c695ba9](https://github.com/lightdash/lightdash/commit/c695ba9c461c6f2585f039e4de5986f53ef4d446))
+
 # [0.329.0](https://github.com/lightdash/lightdash/compare/0.328.0...0.329.0) (2022-11-22)
 
 
