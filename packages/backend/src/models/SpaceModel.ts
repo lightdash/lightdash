@@ -374,10 +374,13 @@ export class SpaceModel {
             .select('user_id')
             .where('user_uuid', userUuid);
 
-        await this.database(SpaceShareTableName).insert({
-            space_id: space.space_id,
-            user_id: user.user_id,
-        });
+        await this.database(SpaceShareTableName)
+            .insert({
+                space_id: space.space_id,
+                user_id: user.user_id,
+            })
+            .onConflict(['user_id', 'space_id'])
+            .merge();
     }
 
     async removeSpaceAccess(
