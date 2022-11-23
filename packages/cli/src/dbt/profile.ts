@@ -59,6 +59,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertRedshiftSchema(target);
         case 'databricks':
             return convertDatabricksSchema(target);
+        case 'trino':
+            return convertDatabricksSchema(target);
         default:
             throw new ParseError(
                 `Sorry! Lightdash doesn't yet support ${target.type} dbt targets`,

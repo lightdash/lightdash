@@ -166,6 +166,19 @@ const catalogToSchema = (catalog: string[][]): WarehouseCatalog => {
     return schema;
 };
 
+const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
+    const s: string[] = schema.map((e) => e.name);
+    return data.map((i) => {
+        const item: { [key: string]: any } = {};
+        i.map((column, index) => {
+            const name: string = s[index];
+            item[name] = column;
+            return null;
+        });
+        return item;
+    });
+};
+
 export class TrinoWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
@@ -206,20 +219,14 @@ export class TrinoWarehouseClient implements WarehouseClient {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
 
-        console.warn('FUNCTION: TrinoWarehouseClient.runQuery');
-
         try {
-            console.log(sql);
             query = await session.query(sql);
-            console.log(query);
             const result: QueryData = (await query.next()).value.data ?? [];
             const schema: {
                 name: string;
                 type: string;
                 typeSignature: { rawType: string };
             }[] = (await query.next()).value.columns ?? [];
-
-            console.log(result);
 
             const fields = schema.reduce(
                 (acc, column) => ({
@@ -233,7 +240,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
                 {},
             );
 
-            return { fields, rows: result };
+            return { fields, rows: resultHandler(schema, result) };
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -242,34 +249,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
     }
 
     async test(): Promise<void> {
-        await this.runQuery(`select 
-        true as "boolean"
-      , CAST(1 as tinyint) as "tinyint"
-      , CAST(1 as SMALLINT) as "SMALLINT"
-      , CAST(1 as INTEGER) as "INTEGER"
-      , CAST(1 as BIGINT) as "BIGINT"
-      , CAST('10.3' as REAL) as "REAL"
-      , CAST('10.3' as DOUBLE) as "DOUBLE"
-      , CAST('10.3' as DECIMAL) as "DECIMAL"
-      , CAST('alo' as varchar) as "varchar"
-      , CAST('alo' as char) as "char"
-      , CAST('alo' as VARBINARY) as "VARBINARY"
-      , CAST('alo' as JSON) as "JSON"
-      , CAST(NOW() as DATE) as "DATE"
-      , CAST(NOW() as TIME) as "TIME"
-      , CAST(NOW() as TIME WITH TIME ZONE) as "TIME WITH TIME ZONE"
-      , CAST(NOW() as TIMESTAMP) as "TIMESTAMP"
-      , CAST(NOW() as TIMESTAMP WITH TIME ZONE) as "TIMESTAMP WITH TIME ZONE"
-      , INTERVAL '3' year as "INTERVAL YEAR"
-      , INTERVAL '3' MONTH as "INTERVAL YEAR TO MONTH"
-      , INTERVAL '2' day as "INTERVAL DAY TO SECOND"
-      , ARRAY[1, 2, 3] as "ARRAY"
-      , JSON '{"foo": 1, "bar": 2}' as "JSON"
-      , MAP(ARRAY['foo', 'bar'], ARRAY[1, 2]) as "MAP"
-      , ROW(1, 2.0) as "ROW"
-      , IPADDRESS '10.0.0.1' as "IPADDRESS"
-      , UUID '12151fd2-7586-11e9-8f9e-2a86e4085a59' as "uuid"    
-      `);
+        await this.runQuery(`SELECT 1`);
     }
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
@@ -297,7 +277,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
             await close();
         }
 
-        console.warn('FUNCTION: TrinoWarehouseClient.getCatalog');
         return catalogToSchema(results);
     }
 }
