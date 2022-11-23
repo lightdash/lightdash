@@ -317,10 +317,10 @@ const DashboardChartTile: FC<Props> = (props) => {
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
-                    <React.Fragment key={field.name}>
+                    <div key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </React.Fragment>
+                    </div>
                 );
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
@@ -346,7 +346,15 @@ const DashboardChartTile: FC<Props> = (props) => {
                     <div>
                         <Tooltip2
                             content={
-                                <>{appliedFilterRules.map(renderFilterRule)}</>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '4px',
+                                    }}
+                                >
+                                    {appliedFilterRules.map(renderFilterRule)}
+                                </div>
                             }
                             interactionKind="hover"
                             placement={'bottom-start'}

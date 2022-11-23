@@ -148,10 +148,10 @@ const FiltersCard: FC = memo(() => {
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
-                    <React.Fragment key={field.name}>
+                    <div key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </React.Fragment>
+                    </div>
                 );
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
@@ -175,7 +175,15 @@ const FiltersCard: FC = memo(() => {
                     {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tooltip2
                             content={
-                                <>{allFilterRules.map(renderFilterRule)}</>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '4px',
+                                    }}
+                                >
+                                    {allFilterRules.map(renderFilterRule)}
+                                </div>
                             }
                             interactionKind="hover"
                             placement={'bottom-start'}
