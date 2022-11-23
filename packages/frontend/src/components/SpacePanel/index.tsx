@@ -78,7 +78,18 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 </PageBreadcrumbsWrapper>
 
                 <div>
-                    <ShareSpaceModal space={space} projectUuid={projectUuid} />
+                    <Can
+                        I="manage"
+                        this={subject('Space', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        <ShareSpaceModal
+                            space={space}
+                            projectUuid={projectUuid}
+                        />
+                    </Can>
 
                     <SpaceBrowserMenu
                         onRename={() => setUpdateSpace(true)}
