@@ -1,0 +1,16 @@
+config:
+  send_anonymous_usage_stats: false
+
+compendio_trino:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: ldap
+      user: admin
+      password: '82YcUAjjELPWBBrZ1Tfmztz0dLreCa1HvuOChJR008D4NtQT6/edHKmv'
+      http_scheme: https
+      host: trino.data.staging.180s.com.br
+      port: 443
+      database: metabase
+      schema: compendio

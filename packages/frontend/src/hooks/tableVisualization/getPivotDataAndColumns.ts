@@ -120,7 +120,12 @@ const getPivotDataAndColumns = ({
                               getHeader(itemId) ||
                               getDefaultColumnLabel(itemId),
                           cell: (info) =>
-                              info.getValue()?.value.formatted || '-',
+                              info.getValue()?.value.formatted || '1-',
+                          //   {
+                          //     console.log("==========#######>>>>>>>       INFO: dimensionHeaders")
+                          //     console.log(info)
+                          //     return info.getValue()?.value.formatted || '-';
+                          // },
                           footer: () =>
                               totals[itemId]
                                   ? formatItemValue(item, totals[itemId])
@@ -198,8 +203,13 @@ const getPivotDataAndColumns = ({
                                         getHeader(itemId) ||
                                         getDefaultColumnLabel(itemId),
                                     cell: (info) =>
-                                        info.getValue()?.value.formatted || '-',
-
+                                        info.getValue()?.value.formatted ||
+                                        '2-',
+                                    // {
+                                    //     console.log("==========#######>>>>>>>       INFO: getPivotHeaderGroups")
+                                    //     console.log(info)
+                                    //     return info.getValue()?.value.formatted || '-';
+                                    // },
                                     footer: () =>
                                         totals[key]
                                             ? formatItemValue(item, totals[key])

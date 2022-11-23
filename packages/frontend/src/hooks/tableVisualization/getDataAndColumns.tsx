@@ -89,7 +89,13 @@ const getDataAndColumns = ({
                         </TableHeaderLabelContainer>
                     ),
                     cell: (info: any) =>
-                        info.getValue()?.value.formatted || '-',
+                        info.getValue()?.value.formatted || '3-',
+                    // {
+                    //     console.log("==========#######>>>>>>>       INFO: getDataAndColumns")
+                    //     console.log(info)
+                    //     return info.getValue()?.value.formatted || '-';
+                    // },
+
                     footer: () =>
                         totals[itemId]
                             ? formatItemValue(item, totals[itemId])

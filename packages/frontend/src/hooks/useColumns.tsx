@@ -57,6 +57,7 @@ export const useColumns = (): TableColumn[] => {
     const resultsData = useExplorerContext(
         (context) => context.queryResults.data,
     );
+
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
     });
@@ -112,7 +113,11 @@ export const useColumns = (): TableColumn[] => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
             const column: TableColumn = columnHelper.accessor(
-                (row) => row[fieldId],
+                (row) => {
+                    console.log('----------------------');
+                    console.log(row[fieldId]);
+                    return row[fieldId];
+                },
                 {
                     id: fieldId,
                     header: () => (

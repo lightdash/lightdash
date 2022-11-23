@@ -32,8 +32,13 @@ const useUnderlyingDataColumns = ({
                         columnHeader !== undefined
                             ? columnHeader(dimension)
                             : dimension.label,
-                    cell: (info: any) =>
-                        info.getValue()?.value.formatted || '-',
+                    cell: (info: any) => {
+                        console.log(
+                            '==========#######>>>>>>>       INFO: useUnderlyingDataColumns',
+                        );
+                        console.log(info);
+                        return info.getValue()?.value.formatted || '-';
+                    },
                     footer: () =>
                         totals[fieldId]
                             ? formatItemValue(dimension, totals[fieldId])
