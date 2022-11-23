@@ -32,7 +32,7 @@ const slackOptions = {
     },
 };
 
-export const receiver = new ExpressReceiver(slackOptions);
+const receiver = new ExpressReceiver(slackOptions);
 
 apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
     try {
@@ -50,14 +50,6 @@ apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
     } catch (error) {
         next(error);
     }
-});
-
-const app = new App({
-    ...slackOptions,
-    logLevel: LogLevel.INFO,
-    port: process.env.SLACK_PORT || 4000,
-    socketMode: true,
-    appToken: process.env.SLACK_APP_TOKEN,
 });
 
 const unfurl = (event: any, client: any) => {
@@ -110,16 +102,28 @@ const unfurl = (event: any, client: any) => {
         .catch(console.error);
 };
 
-app.event('link_shared', (message: any) => {
-    const { event, client } = message;
-    unfurl(event, client);
-});
-
 export const startSlackBot = async () => {
     try {
         await receiver.start();
-        await app.start();
 
+        if (process.env.SLACK_APP_TOKEN) {
+            const app = new App({
+                ...slackOptions,
+                logLevel: LogLevel.INFO,
+                port: process.env.SLACK_PORT || 4000,
+                socketMode: true,
+                appToken: process.env.SLACK_APP_TOKEN,
+            });
+
+            app.event('link_shared', (message: any) => {
+                const { event, client } = message;
+                unfurl(event, client);
+            });
+
+            await app.start();
+        } else {
+            console.warn(`Missing "SLACK_APP_TOKEN", Slack App will not run`);
+        }
         console.debug('Slack app is running');
     } catch (e: unknown) {
         console.error(`Unable to start Slack app ${e}`);
