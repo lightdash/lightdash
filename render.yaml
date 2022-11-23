@@ -47,12 +47,12 @@ services:
         fromService:
           type: pserv
           name: headless-browser
-          property: host
+          property: port
       - key: HEADLESS_BROWSER_HOST
         fromService:
           type: pserv
           name: headless-browser
-          property: port
+          property: host
 
 envVarGroups:
   - name: rudder-settings
