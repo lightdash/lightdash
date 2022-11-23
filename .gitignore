@@ -42,6 +42,8 @@ yarn-error.log*
 node_modules
 package-lock.json
 
+
+packages/backend/screenshot.png
 # typescript
 *.tsbuildinfo
 
@@ -55,3 +57,4 @@ package-lock.json
 
 # credentials
 credentials.json
+

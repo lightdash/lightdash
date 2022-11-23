@@ -148,3 +148,71 @@ apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/share', shareRouter);
+
+const puppeteer = require('puppeteer');
+
+// TODO test endpoint, remove
+apiV1Router.get('/test-headless-browser/', async (req, res, next) => {
+    let browser;
+
+    try {
+        const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
+        console.debug(`Headless chrome endpoint: ${browserWSEndpoint}`);
+        browser = await puppeteer.connect({
+            browserWSEndpoint,
+        });
+
+        const page = await browser.newPage();
+
+        await page.setViewport({
+            width: 1400,
+            height: 768, // hardcoded
+        });
+        await page.setExtraHTTPHeaders({ cookie: req.headers.cookie || '' }); // copy cookie
+
+        const blockedUrls = [
+            'headwayapp.co',
+            'rudderlabs.com',
+            'analytics.lightdash.com',
+            'cohere.so',
+            'intercom.io',
+        ];
+        await page.setRequestInterception(true);
+        page.on('request', (request: any) => {
+            const url = request.url();
+            if (blockedUrls.includes(url)) {
+                request.abort();
+                return;
+            }
+
+            request.continue();
+        });
+        const hostname =
+            process.env.NODE_ENV === 'development'
+                ? 'lightdash-dev'
+                : 'lightdash';
+
+        const testUrl = `http://${hostname}:${process.env.PORT || 3000}/login`;
+        console.debug(`Fetching headless chrome URL: ${testUrl}`);
+        await page.goto(testUrl, {
+            timeout: 100000,
+            waitUntil: 'networkidle0',
+        });
+
+        const imageBuffer = await page.screenshot({
+            path: 'screenshot.png',
+            clip: { x: 0, y: 0, width: 1024, height: 768 },
+        });
+
+        res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': imageBuffer.length,
+        });
+        res.end(imageBuffer);
+    } catch (e) {
+        console.error(e);
+        next(e.message);
+    } finally {
+        if (browser) await browser.close();
+    }
+});
