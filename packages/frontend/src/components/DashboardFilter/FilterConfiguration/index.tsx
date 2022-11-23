@@ -130,43 +130,49 @@ const FilterConfiguration: FC<Props> = ({
         [field, tilesWithSavedQuery],
     );
 
+    const filterSettings = (
+        <FilterSettings
+            field={field}
+            filterRule={internalFilterRule}
+            onChangeFilterOperator={handleChangeFilterOperator}
+            onChangeFilterRule={handleChangeFilterRule}
+            popoverProps={popoverProps}
+        />
+    );
+
     return (
         <ConfigureFilterWrapper>
             <FieldLabel item={field} />
 
-            <Tabs
-                selectedTabId={selectedTabId}
-                onChange={onTabChange}
-                renderActiveTabPanelOnly
-            >
-                <Tab
-                    id="settings"
-                    title="Settings"
-                    panel={
-                        <FilterSettings
-                            field={field}
-                            filterRule={internalFilterRule}
-                            onChangeFilterOperator={handleChangeFilterOperator}
-                            onChangeFilterRule={handleChangeFilterRule}
-                            popoverProps={popoverProps}
-                        />
-                    }
-                />
+            {localStorage.getItem('dashboard_filters') ? (
+                <Tabs
+                    selectedTabId={selectedTabId}
+                    onChange={onTabChange}
+                    renderActiveTabPanelOnly
+                >
+                    <Tab
+                        id="settings"
+                        title="Settings"
+                        panel={filterSettings}
+                    />
 
-                <Tab
-                    id="tiles"
-                    title="Tiles"
-                    panel={
-                        <TileFilterConfiguration
-                            field={field}
-                            filterRule={internalFilterRule}
-                            popoverProps={popoverProps}
-                            tilesWithSavedQuery={tilesWithSavedQuery}
-                            onChange={handleChangeTileConfiguration}
-                        />
-                    }
-                />
-            </Tabs>
+                    <Tab
+                        id="tiles"
+                        title="Tiles"
+                        panel={
+                            <TileFilterConfiguration
+                                field={field}
+                                filterRule={internalFilterRule}
+                                popoverProps={popoverProps}
+                                tilesWithSavedQuery={tilesWithSavedQuery}
+                                onChange={handleChangeTileConfiguration}
+                            />
+                        }
+                    />
+                </Tabs>
+            ) : (
+                filterSettings
+            )}
 
             <ActionsWrapper>
                 {onBack && (
