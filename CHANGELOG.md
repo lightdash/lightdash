@@ -1,3 +1,10 @@
+# [0.330.0](https://github.com/lightdash/lightdash/compare/0.329.1...0.330.0) (2022-11-23)
+
+
+### Features
+
+* hide share space button if user does not have space permissions ([#3830](https://github.com/lightdash/lightdash/issues/3830)) ([d9ec807](https://github.com/lightdash/lightdash/commit/d9ec807ad235e647c425a57270c85c65936697e2))
+
 ## [0.329.1](https://github.com/lightdash/lightdash/compare/0.329.0...0.329.1) (2022-11-23)
 
 
