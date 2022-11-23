@@ -1,9 +1,10 @@
-import { Position } from '@blueprintjs/core';
+import { HotkeyConfig, Position, useHotkeys } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
+import copy from 'copy-to-clipboard';
 import debounce from 'lodash/debounce';
-import React, { FC, useCallback, useState } from 'react';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
@@ -21,8 +22,10 @@ interface CommonBodyCellProps {
 }
 
 interface BodyCellProps extends CommonBodyCellProps {
+    isCopying?: boolean;
     isSelected: boolean;
     hasContextMenu: boolean;
+    onKeyDown?: (event: React.KeyboardEvent) => void;
 }
 
 const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
@@ -34,8 +37,10 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
             hasContextMenu,
             isNumericItem,
             isSelected,
+            isCopying = false,
             children,
             onSelect,
+            onKeyDown,
             className,
             style,
         },
@@ -46,9 +51,11 @@ const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
                 style={style}
                 className={className}
                 ref={ref}
+                onKeyDown={onKeyDown}
                 $rowIndex={rowIndex}
                 $isSelected={isSelected}
                 $isInteractive={hasContextMenu}
+                $isCopying={isCopying}
                 $hasData={hasData}
                 $isNaN={!hasData || !isNumericItem}
                 onClick={() => onSelect?.(isSelected ? undefined : cell.id)}
@@ -65,6 +72,7 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
     const CellContextMenu = props.cellContextMenu;
 
     const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
+    const [isCellBeingCopied, setIsCellBeingCopied] = useState<boolean>(false);
 
     const canHaveContextMenu = !!CellContextMenu && props.hasData;
 
@@ -86,6 +94,30 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
         }),
         [handleCellSelect],
     );
+
+    const hotkeys = useMemo<HotkeyConfig[]>(
+        () => [
+            {
+                label: 'Select cell',
+                combo: 'mod+c',
+                global: true,
+                disabled: !isCellSelected || !props.hasData,
+                preventDefault: true,
+                stopPropagation: true,
+                onKeyDown: () => {
+                    const value = (props.cell.getValue() as ResultRow[0]).value
+                        .formatted;
+
+                    setIsCellBeingCopied(true);
+                    copy(value);
+                    setTimeout(() => setIsCellBeingCopied(false), 150);
+                },
+            },
+        ],
+        [isCellSelected, props.hasData, props.cell],
+    );
+
+    const { handleKeyDown } = useHotkeys(hotkeys);
 
     return (
         <Popover2
@@ -109,6 +141,7 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             renderTarget={({ ref }) => (
                 <BodyCell
                     {...props}
+                    ref={ref}
                     style={
                         isCellSelected
                             ? { position: 'relative', zIndex: 21 }
@@ -116,8 +149,13 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
                     }
                     hasContextMenu={canHaveContextMenu}
                     isSelected={isCellSelected}
+                    isCopying={isCellBeingCopied}
                     onSelect={handleDebouncedCellSelect}
-                    ref={ref}
+                    onKeyDown={
+                        isCellSelected
+                            ? (e) => handleKeyDown(e as any)
+                            : undefined
+                    }
                 />
             )}
         />

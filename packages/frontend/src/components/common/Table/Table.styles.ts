@@ -119,6 +119,7 @@ export const Td = styled.td<{
     $rowIndex: number;
     $isSelected: boolean;
     $isInteractive: boolean;
+    $isCopying: boolean;
     $hasData: boolean;
 }>`
     ${CellStyles}
@@ -137,6 +138,11 @@ export const Td = styled.td<{
                 background-color: #ECF6FE;
             `
             : ''}
+
+
+    transition: filter 0.15s linear;
+
+    filter: ${({ $isCopying }) => ($isCopying ? 'saturate(3)' : 'saturate(1)')};
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
