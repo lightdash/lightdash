@@ -91,7 +91,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                                 projectUuid,
                             })}
                         >
-                            <Button icon="edit" text="Edit space" />
+                            <Button icon="more" />
                         </Can>
                     </SpaceBrowserMenu>
                 </div>
