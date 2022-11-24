@@ -3,6 +3,7 @@ import {
     LightdashUser,
     OrganizationMemberProfile,
     Space,
+    SpaceShare,
 } from '@lightdash/common';
 import { upperFirst } from 'lodash-es';
 import { FC } from 'react';
@@ -10,9 +11,9 @@ import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
     ChangeAccessButton,
     ListUserWrapper,
-    UserName,
+    PrimaryText,
+    UserCircle,
     UserRole,
-    UserTag,
     YouLabel,
 } from './ShareSpaceModal.style';
 import { AccessOption, renderAccess } from './ShareSpaceSelect';
@@ -54,11 +55,20 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         space.uuid,
     );
 
+    const userIsYou = (spaceShare: SpaceShare) =>
+        spaceShare.userUuid === sessionUser?.userUuid;
+
     return (
         <>
-            {space.access &&
-                space.access.map((sharedUser) => {
-                    const isYou = sessionUser?.userUuid === sharedUser.userUuid;
+            {space.access
+                .sort((a, b) => {
+                    if (userIsYou(a) && !userIsYou(b)) return -1;
+                    if (!userIsYou(a) && userIsYou(b)) return 1;
+                    return 0;
+                })
+
+                .map((sharedUser) => {
+                    const isYou = userIsYou(sharedUser);
                     const role = upperFirst(sharedUser.role?.toString() || '');
 
                     const userAccessTypes = UserAccessOptions.map(
@@ -71,22 +81,23 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 : accessType;
                         },
                     );
+
                     return (
                         <ListUserWrapper key={sharedUser.userUuid}>
-                            <UserTag>
+                            <UserCircle>
                                 {getInitials(
                                     sharedUser.userUuid,
                                     organizationUsers,
                                 )}
-                            </UserTag>
+                            </UserCircle>
 
-                            <UserName>
+                            <PrimaryText>
                                 {getUserNameOrEmail(
                                     sharedUser.userUuid,
                                     organizationUsers,
                                 )}
                                 {isYou ? <YouLabel> (you)</YouLabel> : ''}
-                            </UserName>
+                            </PrimaryText>
 
                             {isYou ? (
                                 <UserRole>{role}</UserRole>

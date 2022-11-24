@@ -1,4 +1,3 @@
-import { Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
@@ -7,23 +6,18 @@ import {
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
-    AccessDescription,
-    AccessName,
     AddUsersWrapper,
     FlexWrapper,
     MemberAccess,
-    SelectIcon,
+    PrimaryText,
+    SecondaryText,
     ShareButton,
-    UserTag,
+    UserCircle,
 } from './ShareSpaceModal.style';
 import { getInitials, getUserNameOrEmail } from './Utils';
-
-const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
 
 interface ShareSpaceAddUserProps {
     space: Space;
@@ -39,8 +33,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { showToastError } = useToaster();
-    const history = useHistory();
 
     const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
@@ -96,15 +88,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             if (!user) return null;
 
             const isDisabled = space.access
-                ?.map((access) => access.userUuid)
+                .map((access) => access.userUuid)
                 .includes(user.userUuid);
+
             return (
                 <MenuItem2
                     active={modifiers.active}
                     icon={
-                        <UserTag large round>
-                            {getInitials(user.userUuid, organizationUsers)}
-                        </UserTag>
+                        null
                         // <SelectIcon
                         //     icon={
                         //         usersSelected.includes(user.userUuid) ||
@@ -123,13 +114,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     disabled={isDisabled}
                     text={
                         <FlexWrapper key={user.userUuid}>
+                            <UserCircle>
+                                {getInitials(user.userUuid, organizationUsers)}
+                            </UserCircle>
+
                             <MemberAccess>
-                                <AccessName>
+                                <PrimaryText>
                                     {user.firstName} {user.lastName}
-                                </AccessName>
-                                <AccessDescription>
-                                    {user.email}
-                                </AccessDescription>
+                                </PrimaryText>
+
+                                <SecondaryText>{user.email}</SecondaryText>
                             </MemberAccess>
                         </FlexWrapper>
                     }

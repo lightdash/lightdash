@@ -1,6 +1,11 @@
+import { Colors } from '@blueprintjs/core';
 import { createGlobalStyle } from 'styled-components';
 
 const AppStyle = createGlobalStyle`
+    .bp4-multi-select-tag-input-input::placeholder {
+        color: ${Colors.GRAY3};
+    }
+
     .ace_editor.ace_autocomplete {
         width: 500px;
     }

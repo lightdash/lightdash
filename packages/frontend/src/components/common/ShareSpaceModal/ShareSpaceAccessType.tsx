@@ -5,13 +5,13 @@ import { FC } from 'react';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import {
-    AccessDescription,
-    AccessName,
     AccessRole,
     AccessWrapper,
     ChangeAccessButton,
     MemberAccess,
-    ShareTag,
+    PrimaryText,
+    SecondaryText,
+    ShareCircle,
     UserRole,
 } from './ShareSpaceModal.style';
 import {
@@ -42,7 +42,7 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
     );
     return (
         <AccessWrapper>
-            <ShareTag>
+            <ShareCircle>
                 <Icon
                     icon={
                         selectedAccess.value === SpaceAccessType.PRIVATE
@@ -50,13 +50,11 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                             : 'people'
                     }
                 />
-            </ShareTag>
+            </ShareCircle>
 
             <MemberAccess>
-                <AccessName>Members of {project?.name}</AccessName>
-                <AccessDescription>
-                    {selectedAccess.description}
-                </AccessDescription>
+                <PrimaryText>Members of {project?.name}</PrimaryText>
+                <SecondaryText>{selectedAccess.description}</SecondaryText>
             </MemberAccess>
 
             <AccessRole>
