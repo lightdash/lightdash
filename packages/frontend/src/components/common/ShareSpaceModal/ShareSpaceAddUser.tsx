@@ -1,3 +1,4 @@
+import { Classes } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
@@ -10,7 +11,7 @@ import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
     FlexWrapper,
-    MemberAccess,
+    PrimaryAndSecondaryTextWrapper,
     PrimaryText,
     SecondaryText,
     ShareButton,
@@ -90,20 +91,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 .map((access) => access.userUuid)
                 .includes(user.userUuid);
 
+            const isSelected = usersSelected.includes(user.userUuid);
+
             return (
                 <MenuItem2
-                    active={modifiers.active}
-                    icon={
-                        null
-                        // <SelectIcon
-                        //     icon={
-                        //         usersSelected.includes(user.userUuid) ||
-                        //         isDisabled
-                        //             ? 'tick'
-                        //             : 'blank'
-                        //     }
-                        // />
-                    }
+                    className={isSelected ? Classes.SELECTED : ''}
                     key={user.userUuid}
                     title={
                         isDisabled
@@ -117,12 +109,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 {getInitials(user.userUuid, organizationUsers)}
                             </UserCircle>
 
-                            <MemberAccess>
-                                <PrimaryText>
+                            <PrimaryAndSecondaryTextWrapper
+                                $disabled={isDisabled}
+                            >
+                                <PrimaryText $selected={isSelected}>
                                     {user.firstName} {user.lastName}
                                 </PrimaryText>
                                 <SecondaryText>{user.email}</SecondaryText>
-                            </MemberAccess>
+                            </PrimaryAndSecondaryTextWrapper>
                         </FlexWrapper>
                     }
                     onClick={(e) => {

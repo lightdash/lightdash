@@ -44,17 +44,26 @@ export const UserCircle = styled.div`
     color: ${Colors.WHITE};
 `;
 
-export const MemberAccess = styled.div`
+interface PrimaryAndSecondaryTextWrapperProps {
+    $disabled?: boolean;
+}
+
+export const PrimaryAndSecondaryTextWrapper = styled.div<PrimaryAndSecondaryTextWrapperProps>`
     flex-grow: 1;
     overflow: hidden;
     max-width: 100%;
+    ${({ $disabled }) => ($disabled ? `opacity: 0.5;` : '')}
 `;
 
-export const PrimaryText = styled.div`
+interface PrimaryButtonProps {
+    $selected?: boolean;
+}
+
+export const PrimaryText = styled.div<PrimaryButtonProps>`
     flex: 1;
     font-weight: 600;
     font-size: 13px;
-    color: ${Colors.DARK_GRAY1};
+    color: ${(props) => (props.$selected ? Colors.BLUE3 : Colors.DARK_GRAY1)};
 `;
 
 PrimaryText.defaultProps = {

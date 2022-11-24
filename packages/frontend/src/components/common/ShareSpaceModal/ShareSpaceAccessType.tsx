@@ -8,7 +8,7 @@ import {
     AccessRole,
     ChangeAccessButton,
     FlexWrapper,
-    MemberAccess,
+    PrimaryAndSecondaryTextWrapper,
     PrimaryText,
     SecondaryText,
     ShareCircle,
@@ -52,10 +52,10 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                 />
             </ShareCircle>
 
-            <MemberAccess>
+            <PrimaryAndSecondaryTextWrapper>
                 <PrimaryText>Members of {project?.name}</PrimaryText>
                 <SecondaryText>{selectedAccess.description}</SecondaryText>
-            </MemberAccess>
+            </PrimaryAndSecondaryTextWrapper>
 
             <AccessRole>
                 <Select2<AccessOption>
