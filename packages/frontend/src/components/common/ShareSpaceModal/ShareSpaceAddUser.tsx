@@ -9,7 +9,6 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
-    AddUsersWrapper,
     FlexWrapper,
     MemberAccess,
     PrimaryText,
@@ -143,11 +142,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, space, organizationUsers, organizationUsers],
+        [usersSelected, space, organizationUsers],
     );
 
     return (
-        <AddUsersWrapper>
+        <FlexWrapper>
             <MultiSelect2
                 fill
                 itemPredicate={filterUser}
@@ -194,6 +193,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     setUsersSelected([]);
                 }}
             />
-        </AddUsersWrapper>
+        </FlexWrapper>
     );
 };

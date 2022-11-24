@@ -10,7 +10,7 @@ import { FC } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
     ChangeAccessButton,
-    ListUserWrapper,
+    FlexWrapper,
     PrimaryText,
     UserCircle,
     UserRole,
@@ -83,7 +83,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     );
 
                     return (
-                        <ListUserWrapper key={sharedUser.userUuid}>
+                        <FlexWrapper key={sharedUser.userUuid}>
                             <UserCircle>
                                 {getInitials(
                                     sharedUser.userUuid,
@@ -128,7 +128,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                     </ChangeAccessButton>
                                 </Select2>
                             )}
-                        </ListUserWrapper>
+                        </FlexWrapper>
                     );
                 })}
         </>

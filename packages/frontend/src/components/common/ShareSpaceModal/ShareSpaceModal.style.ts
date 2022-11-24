@@ -1,40 +1,14 @@
-import {
-    AnchorButton,
-    Button,
-    Classes,
-    Colors,
-    Icon,
-    Tag,
-} from '@blueprintjs/core';
-import { MultiSelect2 } from '@blueprintjs/select';
+import { AnchorButton, Button, Classes, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const OpenShareModal = styled(Button)`
     margin-right: 10px;
 `;
 
-export const AddUsersWrapper = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
-export const AccessWrapper = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
-export const ListUserWrapper = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
 export const FlexWrapper = styled.div`
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 `;
 
 export const ShareButton = styled(Button)`
@@ -139,10 +113,4 @@ export const UserRole = styled.div`
 
 export const YouLabel = styled.span`
     font-weight: 300;
-`;
-
-export const lighterPlaceholderTextStyle = css`
-    &::placeholder {
-        color: ${Colors.GRAY3};
-    }
 `;

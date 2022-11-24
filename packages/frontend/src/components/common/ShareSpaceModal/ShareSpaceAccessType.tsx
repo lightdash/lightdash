@@ -6,8 +6,8 @@ import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import {
     AccessRole,
-    AccessWrapper,
     ChangeAccessButton,
+    FlexWrapper,
     MemberAccess,
     PrimaryText,
     SecondaryText,
@@ -41,7 +41,7 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
         space.uuid,
     );
     return (
-        <AccessWrapper>
+        <FlexWrapper>
             <ShareCircle>
                 <Icon
                     icon={
@@ -87,6 +87,6 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                     </ChangeAccessButton>
                 </Select2>
             </AccessRole>
-        </AccessWrapper>
+        </FlexWrapper>
     );
 };
