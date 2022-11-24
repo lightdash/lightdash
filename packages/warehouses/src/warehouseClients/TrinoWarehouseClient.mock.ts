@@ -1,12 +1,14 @@
-import { CreatePostgresCredentials, WarehouseTypes } from '@lightdash/common';
-import { PostgresTypes } from './PostgresWarehouseClient';
+import { CreateTrinoCredentials, WarehouseTypes } from '@lightdash/common';
+import { TrinoTypes } from './TrinoWarehouseClient';
 import { config } from './WarehouseClient.mock';
 
-export const credentials: CreatePostgresCredentials = {
-    type: WarehouseTypes.POSTGRES,
+// TODO rever parametros necessarios para essa função
+export const credentials: CreateTrinoCredentials = {
+    type: WarehouseTypes.TRINO,
     host: '',
     user: '',
     password: '',
+    catalog: '',
     dbname: '',
     schema: '',
     port: 5432,
@@ -22,37 +24,37 @@ export const columns: Record<string, any>[] = [
     {
         ...columnBase,
         column_name: 'myStringColumn',
-        data_type: PostgresTypes.TEXT,
+        data_type: TrinoTypes.VARCHAR,
     },
     {
         ...columnBase,
         column_name: 'myNumberColumn',
-        data_type: PostgresTypes.NUMERIC,
+        data_type: TrinoTypes.REAL,
     },
     {
         ...columnBase,
         column_name: 'myDateColumn',
-        data_type: PostgresTypes.DATE,
+        data_type: TrinoTypes.DATE,
     },
     {
         ...columnBase,
         column_name: 'myTimestampColumn',
-        data_type: PostgresTypes.TIMESTAMP,
+        data_type: TrinoTypes.TIMESTAMP,
     },
     {
         ...columnBase,
         column_name: 'myBooleanColumn',
-        data_type: PostgresTypes.BOOLEAN,
+        data_type: TrinoTypes.BOOLEAN,
     },
     {
         ...columnBase,
         column_name: 'myArrayColumn',
-        data_type: PostgresTypes.JSONB,
+        data_type: TrinoTypes.ARRAY,
     },
     {
         ...columnBase,
         column_name: 'myObjectColumn',
-        data_type: PostgresTypes.JSON,
+        data_type: TrinoTypes.JSON,
     },
 ];
 
