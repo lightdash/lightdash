@@ -7,9 +7,11 @@ import {
     Table,
     useReactTable,
 } from '@tanstack/react-table';
+import { debounce } from 'lodash-es';
 import React, {
     createContext,
     FC,
+    useCallback,
     useContext,
     useEffect,
     useState,
@@ -46,6 +48,8 @@ type Props = {
 
 type TableContext = Props & {
     table: Table<ResultRow>;
+    selectedCellId: string | undefined;
+    onSelectCell: (cellId: string | undefined) => void;
 };
 
 const Context = createContext<TableContext | undefined>(undefined);
@@ -150,8 +154,31 @@ export const TableProvider: FC<Props> = ({
         }
     }, [pagination, setPageSize]);
 
+    const [selectedCellId, setSelectedCellId] = useState<string>();
+
+    const handleSelectCell = useCallback((id: string | undefined) => {
+        console.log(id);
+        setSelectedCellId(id);
+    }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleDebouncedCellSelect = useCallback(
+        debounce(handleSelectCell, 300, {
+            leading: true,
+            trailing: false,
+        }),
+        [handleSelectCell],
+    );
+
     return (
-        <Context.Provider value={{ table, ...rest }}>
+        <Context.Provider
+            value={{
+                table,
+                selectedCellId,
+                onSelectCell: handleDebouncedCellSelect,
+                ...rest,
+            }}
+        >
             {children}
         </Context.Provider>
     );

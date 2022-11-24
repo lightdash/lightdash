@@ -5,7 +5,8 @@ import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 
 const TableBody: FC = () => {
-    const { table, cellContextMenu } = useTableContext();
+    const { table, cellContextMenu, selectedCellId, onSelectCell } =
+        useTableContext();
 
     return (
         <tbody>
@@ -24,6 +25,9 @@ const TableBody: FC = () => {
                                 isNumericItem={isNumericItem(meta?.item)}
                                 hasData={!!meta?.item}
                                 cellContextMenu={cellContextMenu}
+                                selected={cell.id === selectedCellId}
+                                onSelect={() => onSelectCell(cell.id)}
+                                onDeselect={() => onSelectCell(undefined)}
                             >
                                 {flexRender(
                                     cell.column.columnDef.cell,

@@ -3,8 +3,7 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
 import copy from 'copy-to-clipboard';
-import debounce from 'lodash/debounce';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
@@ -16,9 +15,11 @@ interface CommonBodyCellProps {
     isNumericItem: boolean;
     hasData: boolean;
     cellContextMenu?: FC<CellContextMenuProps>;
-    onSelect?: (cellId: string | undefined) => void;
     className?: string;
     style?: CSSProperties;
+    selected?: boolean;
+    onSelect: () => void;
+    onDeselect: () => void;
 }
 
 const BodyCell: FC<CommonBodyCellProps> = ({
@@ -30,33 +31,15 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     isNumericItem,
     rowIndex,
     style,
+    selected = false,
     onSelect,
+    onDeselect,
 }) => {
     const CellContextMenu = cellContextMenu;
 
-    const [isSelected, setIsSelected] = useState<boolean>(false);
     const [isCopying, setIsCopying] = useState<boolean>(false);
 
     const hasContextMenu = hasData && !!CellContextMenu;
-
-    const handleCellSelect = useCallback(
-        (cellId: string | undefined) => {
-            if (!hasContextMenu) return;
-
-            onSelect?.(cellId);
-            setIsSelected(cellId ? true : false);
-        },
-        [onSelect, setIsSelected, hasContextMenu],
-    );
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const handleDebouncedCellSelect = useCallback(
-        debounce(handleCellSelect, 300, {
-            leading: true,
-            trailing: false,
-        }),
-        [handleCellSelect],
-    );
 
     const hotkeys = useMemo<HotkeyConfig[]>(
         () => [
@@ -64,7 +47,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                 label: 'Select cell',
                 combo: 'mod+c',
                 // global: true,
-                disabled: !isSelected || !hasData,
+                disabled: !selected || !hasData,
                 // preventDefault: true,
                 // stopPropagation: true,
                 onKeyDown: () => {
@@ -77,10 +60,8 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                 },
             },
         ],
-        [isSelected, hasData, cell],
+        [selected, hasData, cell],
     );
-
-    console.log(isSelected, hasData);
 
     // const { handleKeyDown: onKeyDown } = useHotkeys(hotkeys);
 
@@ -95,16 +76,14 @@ const BodyCell: FC<CommonBodyCellProps> = ({
 
     return (
         <Popover2
-            isOpen={isSelected}
+            isOpen={selected}
             lazy
             minimal
             position={Position.BOTTOM_RIGHT}
             hasBackdrop
-            backdropProps={{
-                onClick: () => handleDebouncedCellSelect(undefined),
-            }}
-            onOpening={() => handleDebouncedCellSelect(cell.id)}
-            onClose={() => handleDebouncedCellSelect(undefined)}
+            backdropProps={{ onClick: onDeselect }}
+            onOpening={() => onSelect()}
+            onClose={() => onDeselect()}
             content={
                 CellContextMenu && (
                     <CellContextMenu
@@ -117,23 +96,19 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                     className={className}
                     style={{
                         ...style,
-                        ...(isSelected
+                        ...(selected
                             ? { position: 'relative', zIndex: 21 }
                             : {}),
                     }}
                     ref={ref}
                     // onKeyDown={handleKeyDown}
                     $rowIndex={rowIndex}
-                    $isSelected={isSelected}
+                    $isSelected={selected}
                     $isInteractive={hasContextMenu}
                     $isCopying={isCopying}
                     $hasData={hasContextMenu}
                     $isNaN={!hasData || !isNumericItem}
-                    onClick={() =>
-                        handleDebouncedCellSelect(
-                            isSelected ? undefined : cell.id,
-                        )
-                    }
+                    onClick={selected ? onDeselect : onSelect}
                 >
                     <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
                         {children}
