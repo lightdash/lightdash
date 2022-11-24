@@ -32,13 +32,13 @@ export const TableContainer = styled.div<TableContainerProps>`
             `}
 `;
 
-export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
+export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
     width: 100%;
     border-left: 1px solid #dcdcdd;
     border-right: 1px solid #dcdcdd;
 
-    ${({ showFooter }) =>
-        !showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
+    ${({ $showFooter }) =>
+        !$showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
 
     thead {
         z-index: 2;
