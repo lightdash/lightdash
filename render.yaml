@@ -4,8 +4,11 @@ databases:
   - name: jaffle_db
     ipAllowList: []
 
-
 services:
+  - type: pserv
+    env: docker
+    name: headless-browser
+    dockerfilePath: docker/Dockerfile.headless-browser
   - type: web
     env: docker
     name: lightdash
@@ -40,6 +43,16 @@ services:
         value: true
       - key: TRUST_PROXY
         value: true
+      - key: HEADLESS_BROWSER_PORT
+        fromService:
+          type: pserv
+          name: headless-browser
+          property: port
+      - key: HEADLESS_BROWSER_HOST
+        fromService:
+          type: pserv
+          name: headless-browser
+          property: host
 
 envVarGroups:
   - name: rudder-settings
