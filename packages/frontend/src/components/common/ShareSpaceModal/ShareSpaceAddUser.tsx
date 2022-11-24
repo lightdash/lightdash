@@ -121,7 +121,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 <PrimaryText>
                                     {user.firstName} {user.lastName}
                                 </PrimaryText>
-
                                 <SecondaryText>{user.email}</SecondaryText>
                             </MemberAccess>
                         </FlexWrapper>

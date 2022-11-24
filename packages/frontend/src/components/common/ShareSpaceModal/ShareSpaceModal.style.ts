@@ -62,6 +62,7 @@ PrimaryText.defaultProps = {
 };
 
 const secondaryTextStyles = css`
+    flex: 1;
     font-weight: 400;
     font-size: 12px;
     color: ${Colors.GRAY2};
