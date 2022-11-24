@@ -63,7 +63,7 @@ export const PrimaryText = styled.div<PrimaryButtonProps>`
     flex: 1;
     font-weight: 600;
     font-size: 13px;
-    color: ${(props) => (props.$selected ? Colors.BLUE3 : Colors.DARK_GRAY1)};
+    color: ${(props) => (props.$selected ? Colors.BLUE2 : Colors.DARK_GRAY1)};
 `;
 
 PrimaryText.defaultProps = {
