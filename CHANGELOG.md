@@ -1,3 +1,10 @@
+# [0.331.0](https://github.com/lightdash/lightdash/compare/0.330.0...0.331.0) (2022-11-24)
+
+
+### Features
+
+* arch linux installation update ([#3773](https://github.com/lightdash/lightdash/issues/3773)) ([163fc74](https://github.com/lightdash/lightdash/commit/163fc74ede1504e644c2bc16c534f429a7c4297d))
+
 # [0.330.0](https://github.com/lightdash/lightdash/compare/0.329.1...0.330.0) (2022-11-23)
 
 
