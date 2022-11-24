@@ -1,9 +1,8 @@
-import { HotkeyConfig, Position, useHotkeys } from '@blueprintjs/core';
+import { Position } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { Cell } from '@tanstack/react-table';
-import copy from 'copy-to-clipboard';
-import { FC, useMemo, useState } from 'react';
+import { FC } from 'react';
 import { CSSProperties } from 'styled-components';
 import RichBodyCell from './ScrollableTable/RichBodyCell';
 import { Td } from './Table.styles';
@@ -17,9 +16,11 @@ interface CommonBodyCellProps {
     cellContextMenu?: FC<CellContextMenuProps>;
     className?: string;
     style?: CSSProperties;
+    copying?: boolean;
     selected?: boolean;
     onSelect: () => void;
     onDeselect: () => void;
+    onKeyDown: React.KeyboardEventHandler<HTMLElement>;
 }
 
 const BodyCell: FC<CommonBodyCellProps> = ({
@@ -27,52 +28,28 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     cellContextMenu,
     children,
     className,
+    copying = false,
     hasData,
     isNumericItem,
     rowIndex,
-    style,
     selected = false,
+    style,
     onSelect,
     onDeselect,
+    onKeyDown,
 }) => {
     const CellContextMenu = cellContextMenu;
 
-    const [isCopying, setIsCopying] = useState<boolean>(false);
-
     const hasContextMenu = hasData && !!CellContextMenu;
 
-    const hotkeys = useMemo<HotkeyConfig[]>(
-        () => [
-            {
-                label: 'Select cell',
-                combo: 'mod+c',
-                // global: true,
-                disabled: !selected || !hasData,
-                // preventDefault: true,
-                // stopPropagation: true,
-                onKeyDown: () => {
-                    const value = (cell.getValue() as ResultRow[0]).value
-                        .formatted;
+    const handleSelect = () => {
+        if (!hasContextMenu) return;
+        onSelect();
+    };
 
-                    // setIsCopying(true);
-                    // copy(value);
-                    // setTimeout(() => setIsCopying(false), 150);
-                },
-            },
-        ],
-        [selected, hasData, cell],
-    );
-
-    // const { handleKeyDown: onKeyDown } = useHotkeys(hotkeys);
-
-    // const handleKeyDown = useCallback(
-    //     (event: React.KeyboardEvent) => {
-    //         if (!isSelected) return undefined;
-
-    //         onKeyDown(event as any);
-    //     },
-    //     [isSelected, onKeyDown],
-    // );
+    const handleDeselect = () => {
+        onDeselect();
+    };
 
     return (
         <Popover2
@@ -81,9 +58,9 @@ const BodyCell: FC<CommonBodyCellProps> = ({
             minimal
             position={Position.BOTTOM_RIGHT}
             hasBackdrop
-            backdropProps={{ onClick: onDeselect }}
-            onOpening={() => onSelect()}
-            onClose={() => onDeselect()}
+            backdropProps={{ onClick: handleDeselect }}
+            onOpening={() => handleSelect()}
+            onClose={() => handleDeselect()}
             content={
                 CellContextMenu && (
                     <CellContextMenu
@@ -101,14 +78,14 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                             : {}),
                     }}
                     ref={ref}
-                    // onKeyDown={handleKeyDown}
+                    onKeyDown={onKeyDown}
                     $rowIndex={rowIndex}
                     $isSelected={selected}
                     $isInteractive={hasContextMenu}
-                    $isCopying={isCopying}
+                    $isCopying={copying}
                     $hasData={hasContextMenu}
                     $isNaN={!hasData || !isNumericItem}
-                    onClick={selected ? onDeselect : onSelect}
+                    onClick={selected ? handleDeselect : handleSelect}
                 >
                     <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
                         {children}

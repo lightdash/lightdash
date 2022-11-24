@@ -1,12 +1,14 @@
+import { HotkeyConfig, useHotkeys } from '@blueprintjs/core';
 import { ResultRow } from '@lightdash/common';
 import {
-    ColumnDef,
+    Cell,
     ColumnOrderState,
     getCoreRowModel,
     getPaginationRowModel,
     Table,
     useReactTable,
 } from '@tanstack/react-table';
+import copy from 'copy-to-clipboard';
 import { debounce } from 'lodash-es';
 import React, {
     createContext,
@@ -14,10 +16,9 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
 } from 'react';
-import { createGlobalStyle } from 'styled-components';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -48,8 +49,10 @@ type Props = {
 
 type TableContext = Props & {
     table: Table<ResultRow>;
-    selectedCellId: string | undefined;
-    onSelectCell: (cellId: string | undefined) => void;
+    selectedCell: Cell<ResultRow, unknown> | undefined;
+    onSelectCell: (cell: Cell<ResultRow, unknown> | undefined) => void;
+    copyingCellId: string | undefined;
+    onCopyCell: React.KeyboardEventHandler<HTMLElement>;
 };
 
 const Context = createContext<TableContext | undefined>(undefined);
@@ -154,12 +157,15 @@ export const TableProvider: FC<Props> = ({
         }
     }, [pagination, setPageSize]);
 
-    const [selectedCellId, setSelectedCellId] = useState<string>();
+    const [selectedCell, setSelectedCell] =
+        useState<Cell<ResultRow, unknown>>();
 
-    const handleSelectCell = useCallback((id: string | undefined) => {
-        console.log(id);
-        setSelectedCellId(id);
-    }, []);
+    const handleSelectCell = useCallback(
+        (cell: Cell<ResultRow, unknown> | undefined) => {
+            setSelectedCell(cell);
+        },
+        [],
+    );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedCellSelect = useCallback(
@@ -170,12 +176,44 @@ export const TableProvider: FC<Props> = ({
         [handleSelectCell],
     );
 
+    const [copyingCellId, setCopyingCellId] = useState<string>();
+
+    const hotkeys = useMemo<HotkeyConfig[]>(
+        () => [
+            {
+                label: 'Copy value from the select cell',
+                combo: 'mod+c',
+                global: true,
+                disabled: !selectedCell,
+                onKeyDown: () => {
+                    if (!selectedCell) return;
+
+                    const value = (selectedCell.getValue() as ResultRow[0])
+                        .value;
+
+                    copy(value.formatted);
+
+                    setCopyingCellId((cellId) => {
+                        if (cellId) return;
+                        setTimeout(() => setCopyingCellId(undefined), 300);
+                        return selectedCell.id;
+                    });
+                },
+            },
+        ],
+        [selectedCell],
+    );
+
+    const { handleKeyDown } = useHotkeys(hotkeys);
+
     return (
         <Context.Provider
             value={{
                 table,
-                selectedCellId,
+                selectedCell,
                 onSelectCell: handleDebouncedCellSelect,
+                copyingCellId: copyingCellId,
+                onCopyCell: handleKeyDown,
                 ...rest,
             }}
         >
