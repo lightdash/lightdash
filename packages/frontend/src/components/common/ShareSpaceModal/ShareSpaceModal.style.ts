@@ -8,7 +8,7 @@ export const OpenShareModal = styled(Button)`
 export const FlexWrapper = styled.div`
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 `;
 
 export const ShareButton = styled(Button)`
