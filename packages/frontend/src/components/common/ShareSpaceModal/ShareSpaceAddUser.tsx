@@ -102,14 +102,17 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 <MenuItem2
                     active={modifiers.active}
                     icon={
-                        <SelectIcon
-                            icon={
-                                usersSelected.includes(user.userUuid) ||
-                                isDisabled
-                                    ? 'tick'
-                                    : 'blank'
-                            }
-                        />
+                        <UserTag large round>
+                            {getInitials(user.userUuid, organizationUsers)}
+                        </UserTag>
+                        // <SelectIcon
+                        //     icon={
+                        //         usersSelected.includes(user.userUuid) ||
+                        //         isDisabled
+                        //             ? 'tick'
+                        //             : 'blank'
+                        //     }
+                        // />
                     }
                     key={user.userUuid}
                     title={
@@ -119,10 +122,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     }
                     disabled={isDisabled}
                     text={
-                        <FlexWrapper key={`render_${user.userUuid}`}>
-                            <UserTag large round>
-                                {getInitials(user.userUuid, organizationUsers)}
-                            </UserTag>
+                        <FlexWrapper key={user.userUuid}>
                             <MemberAccess>
                                 <AccessName>
                                     {user.firstName} {user.lastName}
@@ -171,8 +171,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 }
                 resetOnQuery={true}
                 popoverProps={{
+                    minimal: true,
+                    matchTargetWidth: true,
                     onClosing: () => setSearchQuery(''),
-                    placement: 'bottom-start',
                 }}
                 tagInputProps={{
                     placeholder: 'Start typing to search for users...',
@@ -187,6 +188,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 }}
                 selectedItems={usersSelected}
             />
+
             <ShareButton
                 text="Share"
                 intent="primary"

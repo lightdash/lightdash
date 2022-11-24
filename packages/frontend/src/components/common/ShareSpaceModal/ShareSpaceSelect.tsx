@@ -43,6 +43,7 @@ export const enum SpaceAccessType {
     PRIVATE = 'private',
     PUBLIC = 'public',
 }
+
 export const SpaceAccessOptions: AccessOption[] = [
     {
         title: 'Restricted access',

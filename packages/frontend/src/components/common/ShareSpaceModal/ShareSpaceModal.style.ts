@@ -1,5 +1,5 @@
-import { Button, Card, Colors, H5, Icon, Tag } from '@blueprintjs/core';
-import styled from 'styled-components';
+import { AnchorButton, Button, Colors, Icon, Tag } from '@blueprintjs/core';
+import styled, { css } from 'styled-components';
 
 export const OpenShareModal = styled(Button)`
     margin-right: 10px;
@@ -7,18 +7,19 @@ export const OpenShareModal = styled(Button)`
 
 export const AddUsersWrapper = styled.div`
     display: flex;
-    margin: 5px 5px 15px 5px;
+    gap: 10px;
 `;
 
 export const AccessWrapper = styled.div`
     display: flex;
-
-    margin: 5px 5px 5px 5px;
+    align-items: center;
+    gap: 10px;
 `;
 
 export const ListUserWrapper = styled.div`
     display: flex;
-    margin: 15px 5px 5px 5px;
+    align-items: center;
+    gap: 10px;
 `;
 
 export const FlexWrapper = styled.div`
@@ -28,109 +29,104 @@ export const FlexWrapper = styled.div`
 export const ShareButton = styled(Button)`
     width: 100px;
     text-align: center;
-    margin-left: 10px;
     border-radius: 3px;
 `;
 
-export const ChangeAccessButton = styled(Button)`
-    padding-right: 0;
-    font-weight: 500;
-    font-size: 13px;
-    text-align: right;
-    margin-top: 2px;
+export const ChangeAccessButton = styled(AnchorButton)`
+    height: 24px;
+    padding: 0 2px 0 5px;
 `;
-export const ShareTag = styled(Tag)`
+
+const commonTagStyle = css`
     width: 35px;
     height: 35px;
-    padding: 0 0 0 10px !important;
+    border-radius: 100%;
+    display: flex;
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
+`;
+
+export const ShareTag = styled.div`
+    ${commonTagStyle}
     background-color: ${Colors.LIGHT_GRAY4};
     color: ${Colors.GRAY1};
-    margin-top: 4px;
 `;
-export const UserTag = styled(Tag)`
-    width: 35px;
-    height: 35px;
-    padding: 0 !important;
-    text-align: center;
-    background-color: #8f99a8;
-    margin-top: 4px;
+
+export const UserTag = styled.div`
+    ${commonTagStyle}
+    background-color: ${Colors.GRAY3};
     color: ${Colors.WHITE};
 `;
 
 export const MemberAccess = styled.div`
     flex: auto;
-    margin: 0px 0px 0 10px;
 `;
 
-export const AccessSelectTitle = styled.p`
+export const AccessSelectTitle = styled.div`
     font-weight: 600;
     font-size: 13px;
-    line-height: 20px;
-    margin-bottom: 0;
 
     color: ${Colors.DARK_GRAY1};
 `;
 
-export const AccessSelectSubtitle = styled.p`
+export const AccessSelectSubtitle = styled.div`
     font-weight: 400;
     font-size: 12px;
-    line-height: 18px;
     color: ${Colors.GRAY2};
     width: 200px;
-    margin-bottom: 0;
 `;
 
-export const AccessName = styled.p`
+export const AccessName = styled.div`
     font-weight: 600;
     font-size: 13px;
-    line-height: 20px;
-    margin-bottom: 0;
 `;
-export const AccessDescription = styled.p`
+
+export const AccessDescription = styled.div`
     font-size: 12px;
     font-weight: 400;
-    line-height: 20px;
     color: ${Colors.GRAY1};
-    margin-bottom: 0;
 `;
-export const UserName = styled.p`
-    flex: auto;
 
+export const UserName = styled.div`
+    flex: 1;
     font-weight: 600;
     font-size: 13px;
-    line-height: 20px;
-    margin: 10px 0px 0 10px;
 `;
+
 export const AccessRole = styled.div`
-    flex: 2;
+    flex-grow: 0;
+    flex-shrink: 0;
     text-align: right;
+`;
+
+export const DialogBody = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
 `;
 
 export const DialogFooter = styled.div`
-    height: 40px;
     background-color: ${Colors.LIGHT_GRAY5};
     border-top: 1px solid ${Colors.LIGHT_GRAY1};
-    border-radius: 2px;
+    border-radius: 0 0 2px 2px;
 
-    p {
-        color: ${Colors.GRAY1};
-        font-size: 12px;
-        line-height: 18px;
-        font-weight: 400;
-        margin: 11px 0 9px 21px;
-    }
+    color: ${Colors.GRAY1};
+    font-size: 12px;
+    font-weight: 400;
+
+    padding: 10px 20px;
 `;
 
 export const UserRole = styled.div`
-    flex: 2;
     text-align: right;
-    margin-top: 5px;
-    font-weight: 500;
-    font-size: 13px;
+    font-weight: 500 !important;
+    font-size: 13px !important;
 `;
+
 export const YouLabel = styled.span`
     font-weight: 300;
 `;
-export const SelectIcon = styled(Icon)`
-    margin-top: 24px;
-`;
+
+export const SelectIcon = styled(Icon)``;

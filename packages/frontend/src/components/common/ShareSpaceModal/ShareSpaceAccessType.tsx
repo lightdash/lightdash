@@ -1,3 +1,4 @@
+import { Icon } from '@blueprintjs/core';
 import { Select2 } from '@blueprintjs/select';
 import { Space } from '@lightdash/common';
 import { FC } from 'react';
@@ -11,6 +12,7 @@ import {
     ChangeAccessButton,
     MemberAccess,
     ShareTag,
+    UserRole,
 } from './ShareSpaceModal.style';
 import {
     AccessOption,
@@ -40,21 +42,23 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
     );
     return (
         <AccessWrapper>
-            <ShareTag
-                round
-                large
-                icon={
-                    selectedAccess.value === SpaceAccessType.PRIVATE
-                        ? 'lock'
-                        : 'people'
-                }
-            />
+            <ShareTag>
+                <Icon
+                    icon={
+                        selectedAccess.value === SpaceAccessType.PRIVATE
+                            ? 'lock'
+                            : 'people'
+                    }
+                />
+            </ShareTag>
+
             <MemberAccess>
                 <AccessName>Members of {project?.name}</AccessName>
                 <AccessDescription>
                     {selectedAccess.description}
                 </AccessDescription>
             </MemberAccess>
+
             <AccessRole>
                 <Select2<AccessOption>
                     filterable={false}
@@ -76,14 +80,13 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                         }
                     }}
                     popoverProps={{
-                        placement: 'bottom-end',
+                        minimal: true,
+                        position: 'bottom-right',
                     }}
                 >
-                    <ChangeAccessButton
-                        minimal
-                        text={selectedAccess.title}
-                        rightIcon="caret-down"
-                    />
+                    <ChangeAccessButton minimal rightIcon="caret-down">
+                        <UserRole>{selectedAccess.title}</UserRole>
+                    </ChangeAccessButton>
                 </Select2>
             </AccessRole>
         </AccessWrapper>

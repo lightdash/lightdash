@@ -8,7 +8,6 @@ import { upperFirst } from 'lodash-es';
 import { FC } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
-    AddUsersWrapper,
     ChangeAccessButton,
     ListUserWrapper,
     UserName,
@@ -74,12 +73,13 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     );
                     return (
                         <ListUserWrapper key={sharedUser.userUuid}>
-                            <UserTag round large>
+                            <UserTag>
                                 {getInitials(
                                     sharedUser.userUuid,
                                     organizationUsers,
                                 )}
                             </UserTag>
+
                             <UserName>
                                 {getUserNameOrEmail(
                                     sharedUser.userUuid,
@@ -87,6 +87,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                 )}
                                 {isYou ? <YouLabel> (you)</YouLabel> : ''}
                             </UserName>
+
                             {isYou ? (
                                 <UserRole>{role}</UserRole>
                             ) : (
@@ -111,8 +112,9 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                                     <ChangeAccessButton
                                         minimal
                                         rightIcon="caret-down"
-                                        text={role}
-                                    />
+                                    >
+                                        <UserRole>{role}</UserRole>
+                                    </ChangeAccessButton>
                                 </Select2>
                             )}
                         </ListUserWrapper>
