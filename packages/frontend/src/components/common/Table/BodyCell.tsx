@@ -21,69 +21,32 @@ interface CommonBodyCellProps {
     style?: CSSProperties;
 }
 
-interface BodyCellProps extends CommonBodyCellProps {
-    isCopying?: boolean;
-    isSelected: boolean;
-    hasContextMenu: boolean;
-    onKeyDown?: (event: React.KeyboardEvent) => void;
-}
+const BodyCell: FC<CommonBodyCellProps> = ({
+    cell,
+    cellContextMenu,
+    children,
+    className,
+    hasData,
+    isNumericItem,
+    rowIndex,
+    style,
+    onSelect,
+}) => {
+    const CellContextMenu = cellContextMenu;
 
-const BodyCell = React.forwardRef<HTMLTableCellElement, BodyCellProps>(
-    (
-        {
-            rowIndex,
-            cell,
-            hasData,
-            hasContextMenu,
-            isNumericItem,
-            isSelected,
-            isCopying = false,
-            children,
-            onSelect,
-            onKeyDown,
-            className,
-            style,
-        },
-        ref,
-    ) => {
-        return (
-            <Td
-                style={style}
-                className={className}
-                ref={ref}
-                onKeyDown={onKeyDown}
-                $rowIndex={rowIndex}
-                $isSelected={isSelected}
-                $isInteractive={hasContextMenu}
-                $isCopying={isCopying}
-                $hasData={hasData}
-                $isNaN={!hasData || !isNumericItem}
-                onClick={() => onSelect?.(isSelected ? undefined : cell.id)}
-            >
-                <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
-                    {children}
-                </RichBodyCell>
-            </Td>
-        );
-    },
-);
+    const [isSelected, setIsSelected] = useState<boolean>(false);
+    const [isCopying, setIsCopying] = useState<boolean>(false);
 
-const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
-    const CellContextMenu = props.cellContextMenu;
-
-    const [isCellSelected, setIsCellSelected] = useState<boolean>(false);
-    const [isCellBeingCopied, setIsCellBeingCopied] = useState<boolean>(false);
-
-    const canHaveContextMenu = !!CellContextMenu && props.hasData;
+    const hasContextMenu = hasData && !!CellContextMenu;
 
     const handleCellSelect = useCallback(
         (cellId: string | undefined) => {
-            if (!canHaveContextMenu) return;
+            if (!hasContextMenu) return;
 
             onSelect?.(cellId);
-            setIsCellSelected(cellId ? true : false);
+            setIsSelected(cellId ? true : false);
         },
-        [onSelect, setIsCellSelected, canHaveContextMenu],
+        [onSelect, setIsSelected, hasContextMenu],
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,28 +63,39 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             {
                 label: 'Select cell',
                 combo: 'mod+c',
-                global: true,
-                disabled: !isCellSelected || !props.hasData,
-                preventDefault: true,
-                stopPropagation: true,
+                // global: true,
+                disabled: !isSelected || !hasData,
+                // preventDefault: true,
+                // stopPropagation: true,
                 onKeyDown: () => {
-                    const value = (props.cell.getValue() as ResultRow[0]).value
+                    const value = (cell.getValue() as ResultRow[0]).value
                         .formatted;
 
-                    setIsCellBeingCopied(true);
-                    copy(value);
-                    setTimeout(() => setIsCellBeingCopied(false), 150);
+                    // setIsCopying(true);
+                    // copy(value);
+                    // setTimeout(() => setIsCopying(false), 150);
                 },
             },
         ],
-        [isCellSelected, props.hasData, props.cell],
+        [isSelected, hasData, cell],
     );
 
-    const { handleKeyDown } = useHotkeys(hotkeys);
+    console.log(isSelected, hasData);
+
+    // const { handleKeyDown: onKeyDown } = useHotkeys(hotkeys);
+
+    // const handleKeyDown = useCallback(
+    //     (event: React.KeyboardEvent) => {
+    //         if (!isSelected) return undefined;
+
+    //         onKeyDown(event as any);
+    //     },
+    //     [isSelected, onKeyDown],
+    // );
 
     return (
         <Popover2
-            isOpen={isCellSelected}
+            isOpen={isSelected}
             lazy
             minimal
             position={Position.BOTTOM_RIGHT}
@@ -129,37 +103,45 @@ const BodyCellWrapper: FC<CommonBodyCellProps> = ({ onSelect, ...props }) => {
             backdropProps={{
                 onClick: () => handleDebouncedCellSelect(undefined),
             }}
-            onOpening={() => handleDebouncedCellSelect(props.cell.id)}
+            onOpening={() => handleDebouncedCellSelect(cell.id)}
             onClose={() => handleDebouncedCellSelect(undefined)}
             content={
                 CellContextMenu && (
                     <CellContextMenu
-                        cell={props.cell as Cell<ResultRow, ResultRow[0]>}
+                        cell={cell as Cell<ResultRow, ResultRow[0]>}
                     />
                 )
             }
             renderTarget={({ ref }) => (
-                <BodyCell
-                    {...props}
-                    ref={ref}
-                    style={
-                        isCellSelected
+                <Td
+                    className={className}
+                    style={{
+                        ...style,
+                        ...(isSelected
                             ? { position: 'relative', zIndex: 21 }
-                            : undefined
+                            : {}),
+                    }}
+                    ref={ref}
+                    // onKeyDown={handleKeyDown}
+                    $rowIndex={rowIndex}
+                    $isSelected={isSelected}
+                    $isInteractive={hasContextMenu}
+                    $isCopying={isCopying}
+                    $hasData={hasContextMenu}
+                    $isNaN={!hasData || !isNumericItem}
+                    onClick={() =>
+                        handleDebouncedCellSelect(
+                            isSelected ? undefined : cell.id,
+                        )
                     }
-                    hasContextMenu={canHaveContextMenu}
-                    isSelected={isCellSelected}
-                    isCopying={isCellBeingCopied}
-                    onSelect={handleDebouncedCellSelect}
-                    onKeyDown={
-                        isCellSelected
-                            ? (e) => handleKeyDown(e as any)
-                            : undefined
-                    }
-                />
+                >
+                    <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
+                        {children}
+                    </RichBodyCell>
+                </Td>
             )}
         />
     );
 };
 
-export default BodyCellWrapper;
+export default BodyCell;
