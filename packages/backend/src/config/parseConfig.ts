@@ -30,6 +30,7 @@ export type LightdashConfig = {
     version: '1.0';
     lightdashSecret: string;
     secureCookies: boolean;
+    cookiesMaxAgeHours?: number;
     trustProxy: boolean;
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
@@ -178,6 +179,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
+        cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
+            'COOKIES_MAX_AGE_HOURS',
+        ),
         trustProxy: process.env.TRUST_PROXY === 'true',
         database: {
             connectionUri: process.env.PGCONNECTIONURI,
