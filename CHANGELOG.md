@@ -1,3 +1,10 @@
+# [0.333.0](https://github.com/lightdash/lightdash/compare/0.332.0...0.333.0) (2022-11-25)
+
+
+### Features
+
+* cell copy to clipboard ([#3839](https://github.com/lightdash/lightdash/issues/3839)) ([546d32c](https://github.com/lightdash/lightdash/commit/546d32cf2d4c3adb2355a3574914b8be2b95fcc2))
+
 # [0.332.0](https://github.com/lightdash/lightdash/compare/0.331.0...0.332.0) (2022-11-25)
 
 
