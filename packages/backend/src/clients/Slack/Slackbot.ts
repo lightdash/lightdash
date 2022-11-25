@@ -103,10 +103,10 @@ const unfurl = (event: any, client: any) => {
 };
 
 export const startSlackBot = async () => {
-    try {
-        await receiver.start();
+    if (process.env.SLACK_APP_TOKEN) {
+        try {
+            await receiver.start();
 
-        if (process.env.SLACK_APP_TOKEN) {
             const app = new App({
                 ...slackOptions,
                 logLevel: LogLevel.INFO,
@@ -121,11 +121,12 @@ export const startSlackBot = async () => {
             });
 
             await app.start();
-        } else {
-            console.warn(`Missing "SLACK_APP_TOKEN", Slack App will not run`);
+
+            console.debug('Slack app is running');
+        } catch (e: unknown) {
+            console.error(`Unable to start Slack app ${e}`);
         }
-        console.debug('Slack app is running');
-    } catch (e: unknown) {
-        console.error(`Unable to start Slack app ${e}`);
+    } else {
+        console.warn(`Missing "SLACK_APP_TOKEN", Slack App will not run`);
     }
 };
