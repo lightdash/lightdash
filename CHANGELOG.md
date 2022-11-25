@@ -1,3 +1,10 @@
+# [0.334.0](https://github.com/lightdash/lightdash/compare/0.333.0...0.334.0) (2022-11-25)
+
+
+### Features
+
+* space created_by_user_id and hide users when space is public ([#3840](https://github.com/lightdash/lightdash/issues/3840)) ([131b8f2](https://github.com/lightdash/lightdash/commit/131b8f2a3e1416dbfa2cbb38c2c6e560d1c96081))
+
 # [0.333.0](https://github.com/lightdash/lightdash/compare/0.332.0...0.333.0) (2022-11-25)
 
 
