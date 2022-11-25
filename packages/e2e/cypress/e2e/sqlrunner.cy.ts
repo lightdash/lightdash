@@ -27,7 +27,7 @@ describe('SQL Runner', () => {
             .type('{ctrl}{enter}');
 
         const find = [
-            '1 results',
+            '1 result',
             'First name',
             firstCustomer.created,
             firstCustomer.firstName,

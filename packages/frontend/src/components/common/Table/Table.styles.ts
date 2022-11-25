@@ -162,7 +162,7 @@ export const PaginationWrapper = styled.div`
 
 export const PageCount = styled.span`
     color: ${Colors.GRAY1};
-    height: 20px;
+    font-size: 12px;
 `;
 
 export const Th = styled.th``;
