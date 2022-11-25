@@ -161,9 +161,6 @@ if (process.env.CI === 'true') {
             // Wait a random number of seconds between 0 an 1, to ensure the response can overlap with other requests.
             const delay = Math.floor(Math.random() * 1000);
             setTimeout(() => {
-                console.debug(
-                    `Got headless chrome callback request with flag ${req.params.flag} `,
-                );
                 res.json({
                     flag: req.params.flag,
                     delay,
@@ -195,7 +192,6 @@ if (process.env.CI === 'true') {
 
             const response = await page.goto(testUrl, {});
             const result = await response.json();
-            console.debug(`Fetching headless chrome response: `, result);
 
             res.json({
                 response: result,
