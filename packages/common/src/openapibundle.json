@@ -1862,12 +1862,15 @@
                     "settings": {
                         "type": "object"
                     },
-                    "tileConfigs": {
+                    "tileTargetOverride": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
                                 "fieldId": {
+                                    "type": "string"
+                                },
+                                "tableName": {
                                     "type": "string"
                                 },
                                 "tileUuid": {

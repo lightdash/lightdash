@@ -23,12 +23,13 @@ const useDashboardFiltersForExplore = (
             rules
                 .filter((f) => {
                     return (
-                        f.tileConfigs?.some((t) => t.tileUuid === tileUuid) ??
-                        true
+                        f.tileTargetOverride?.some(
+                            (t) => t.tileUuid === tileUuid,
+                        ) ?? true
                     );
                 })
                 .map((f) => {
-                    const tileConfig = f.tileConfigs?.find(
+                    const tileConfig = f.tileTargetOverride?.find(
                         (t) => t.tileUuid === tileUuid,
                     );
                     if (!tileConfig) return f;
@@ -37,7 +38,7 @@ const useDashboardFiltersForExplore = (
                         ...f,
                         target: {
                             fieldId: tileConfig.fieldId,
-                            tableName: tileConfig.fieldId.split('_')[0], // TODO: use a better way to get a table name
+                            tableName: tileConfig.tableName,
                         },
                     };
                 })

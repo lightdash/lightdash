@@ -72,7 +72,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
             </Title>
 
             {sortedTileEntries.map(([tileUuid, savedQuery]) => {
-                const tileConfig = filterRule.tileConfigs?.find(
+                const tileConfig = filterRule.tileTargetOverride?.find(
                     (t) => t.tileUuid === tileUuid,
                 );
 
