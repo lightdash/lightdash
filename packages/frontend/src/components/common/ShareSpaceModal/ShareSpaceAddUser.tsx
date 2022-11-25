@@ -1,4 +1,4 @@
-import { Spinner } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
@@ -7,23 +7,17 @@ import {
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
-    AccessDescription,
-    AccessName,
-    AddUsersWrapper,
     FlexWrapper,
-    MemberAccess,
-    SelectIcon,
+    PrimaryAndSecondaryTextWrapper,
+    PrimaryText,
+    SecondaryText,
     ShareButton,
-    UserTag,
+    UserCircle,
 } from './ShareSpaceModal.style';
 import { getInitials, getUserNameOrEmail } from './Utils';
-
-const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
 
 interface ShareSpaceAddUserProps {
     space: Space;
@@ -39,13 +33,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { showToastError } = useToaster();
-    const history = useHistory();
 
     const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
+
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
         const projectUserUuids =
@@ -72,6 +65,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         },
         [organizationUsers],
     );
+
     const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
             setUsersSelected(
@@ -96,21 +90,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             if (!user) return null;
 
             const isDisabled = space.access
-                ?.map((access) => access.userUuid)
-                .includes(user.userUuid);
+                .map((access) => access.userUuid)
+                .includes(userUuid);
+
+            const isSelected = usersSelected.includes(userUuid) && !isDisabled;
+
             return (
                 <MenuItem2
-                    active={modifiers.active}
-                    icon={
-                        <SelectIcon
-                            icon={
-                                usersSelected.includes(user.userUuid) ||
-                                isDisabled
-                                    ? 'tick'
-                                    : 'blank'
-                            }
-                        />
-                    }
+                    className={isSelected ? Classes.SELECTED : undefined}
                     key={user.userUuid}
                     title={
                         isDisabled
@@ -119,18 +106,30 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     }
                     disabled={isDisabled}
                     text={
-                        <FlexWrapper key={`render_${user.userUuid}`}>
-                            <UserTag large round>
+                        <FlexWrapper key={user.userUuid}>
+                            <UserCircle>
                                 {getInitials(user.userUuid, organizationUsers)}
-                            </UserTag>
-                            <MemberAccess>
-                                <AccessName>
-                                    {user.firstName} {user.lastName}
-                                </AccessName>
-                                <AccessDescription>
-                                    {user.email}
-                                </AccessDescription>
-                            </MemberAccess>
+                            </UserCircle>
+
+                            <PrimaryAndSecondaryTextWrapper
+                                $disabled={isDisabled}
+                            >
+                                {user.firstName || user.lastName ? (
+                                    <>
+                                        <PrimaryText $selected={isSelected}>
+                                            {user.firstName} {user.lastName}
+                                        </PrimaryText>
+
+                                        <SecondaryText>
+                                            {user.email}
+                                        </SecondaryText>
+                                    </>
+                                ) : (
+                                    <PrimaryText $selected={isSelected}>
+                                        {user.email}
+                                    </PrimaryText>
+                                )}
+                            </PrimaryAndSecondaryTextWrapper>
                         </FlexWrapper>
                     }
                     onClick={(e) => {
@@ -149,11 +148,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, space, organizationUsers, organizationUsers],
+        [usersSelected, space, organizationUsers],
     );
 
     return (
-        <AddUsersWrapper>
+        <FlexWrapper>
             <MultiSelect2
                 fill
                 itemPredicate={filterUser}
@@ -171,8 +170,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 }
                 resetOnQuery={true}
                 popoverProps={{
+                    minimal: true,
+                    matchTargetWidth: true,
                     onClosing: () => setSearchQuery(''),
-                    placement: 'bottom-start',
                 }}
                 tagInputProps={{
                     placeholder: 'Start typing to search for users...',
@@ -187,6 +187,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 }}
                 selectedItems={usersSelected}
             />
+
             <ShareButton
                 text="Share"
                 intent="primary"
@@ -198,6 +199,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     setUsersSelected([]);
                 }}
             />
-        </AddUsersWrapper>
+        </FlexWrapper>
     );
 };

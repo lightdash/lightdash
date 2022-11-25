@@ -1,14 +1,16 @@
 import { Classes, Dialog } from '@blueprintjs/core';
-
 import { Space } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { DialogFooter, OpenShareModal } from './ShareSpaceModal.style';
-
 import { Link } from 'react-router-dom';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
+import {
+    DialogBody,
+    DialogFooter,
+    OpenShareModal,
+} from './ShareSpaceModal.style';
 import {
     AccessOption,
     SpaceAccessOptions,
@@ -50,12 +52,12 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     paddingBottom: 0,
                     backgroundColor: 'white',
                 }}
-                title={`Share '${space.name}'`}
+                title={`Share ’${space.name}’`}
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}
                 lazy
             >
-                <div className={Classes.DIALOG_BODY}>
+                <DialogBody>
                     {selectedAccess.value === SpaceAccessType.PRIVATE ? (
                         <ShareSpaceAddUser
                             space={space}
@@ -63,12 +65,14 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             organizationUsers={organizationUsers}
                         />
                     ) : null}
+
                     <ShareSpaceAccessType
                         projectUuid={projectUuid}
                         space={space}
                         selectedAccess={selectedAccess}
                         setSelectedAccess={setSelectedAccess}
                     />
+
                     {selectedAccess.value === SpaceAccessType.PRIVATE && (
                         <ShareSpaceUserList
                             projectUuid={projectUuid}
@@ -77,20 +81,21 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                             organizationUsers={organizationUsers}
                         />
                     )}
-                </div>
+                </DialogBody>
+
                 <DialogFooter>
                     {sessionUser.data?.ability?.can('create', 'InviteLink') ? (
-                        <p>
-                            Can’t find a user? Spaces can only be shared with{' '}
+                        <>
+                            Can’t find a user? Saces can only be shared with{' '}
                             <Link
                                 to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                             >
                                 existing project members
                             </Link>
                             .
-                        </p>
+                        </>
                     ) : (
-                        <p>
+                        <>
                             Learn more about permissions in our{' '}
                             <a
                                 href="https://docs.lightdash.com/references/roles"
@@ -100,7 +105,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 docs
                             </a>
                             .
-                        </p>
+                        </>
                     )}
                 </DialogFooter>
             </Dialog>
