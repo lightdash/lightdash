@@ -144,7 +144,7 @@ const Settings: FC = () => {
                             to={`${basePath}/appearance`}
                         />
 
-                        {localStorage.getItem('slack') && (
+                        {health.hasSlack && (
                             <RouterMenuItem
                                 text="Slack"
                                 exact

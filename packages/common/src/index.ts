@@ -778,6 +778,7 @@ export type HealthState = {
     query: {
         maxLimit: number;
     };
+    hasSlack: boolean;
 };
 
 export enum DBFieldTypes {

@@ -15,6 +15,17 @@ type HealthServiceDependencies = {
     organizationModel: OrganizationModel;
 };
 
+const hasSlackConfig = (): boolean => {
+    const variables = [
+        process.env.SLACK_APP_TOKEN,
+        process.env.SLACK_SIGNING_SECRET,
+        process.env.SLACK_CLIENT_ID,
+        process.env.SLACK_CLIENT_SECRET,
+        process.env.SLACK_STATE_SECRET,
+    ];
+    return variables.find((v) => v === undefined) === undefined;
+};
+
 export class HealthService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -61,6 +72,7 @@ export class HealthService {
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             query: this.lightdashConfig.query,
+            hasSlack: hasSlackConfig(),
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,
