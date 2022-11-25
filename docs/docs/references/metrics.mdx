@@ -52,8 +52,8 @@ metrics:
     label: DBT METRIC!
     model: ref('customers')
     description: "A NEW DBT METRIC nuuuuuts"
-    type: count_distinct
-    sql: customer_id # must be a simple column name that you want to apply this metric to
+    calculation_method: count_distinct
+    expression: customer_id # must be a simple column name that you want to apply this metric to
     meta:
       hidden: false
 ```
@@ -64,7 +64,7 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 
 :::
 
-- **The `sql` field must be a simple column name.**
+- **The `expression` field must be a simple column name.**
 
   It should be the column name that you want to apply your metric to (e.g. `customer_id` for the metric `total_customers`). Itcannot be anything more than a column name.
 
@@ -81,8 +81,8 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
   ``` yaml
   metrics:
     - name: customer_count
-      type: count_distinct
-      sql: customer_id
+      calculation_method: count_distinct
+      expression: customer_id
       model: customers
   ```
 
@@ -99,7 +99,7 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 
   The second metric has the same name `customer_count` on the same model `customers` but the first uses type: count_distinct and the second uses type: count. Because the second metric is defined on the column `meta:` tag, it'll take priority over the first.
 
-- The `type` must be [one of the Lightdash types](#metric-types).
+- The `calculation_method` must be [one of the Lightdash types](#metric-types).
 - `timestamp`, `time_grains`, and `dimensions` are all ignored because metrics get all dimensions of the model.
 
 ## Metric Categories
