@@ -1,3 +1,10 @@
+# [0.335.0](https://github.com/lightdash/lightdash/compare/0.334.0...0.335.0) (2022-11-25)
+
+
+### Features
+
+* configurable max age for cookies ([#3850](https://github.com/lightdash/lightdash/issues/3850)) ([3ca7f14](https://github.com/lightdash/lightdash/commit/3ca7f14a7b547913bcfd64a613bea1f13f9cf52f))
+
 # [0.334.0](https://github.com/lightdash/lightdash/compare/0.333.0...0.334.0) (2022-11-25)
 
 
