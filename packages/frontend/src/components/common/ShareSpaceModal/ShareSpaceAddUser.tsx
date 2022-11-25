@@ -38,6 +38,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         projectUuid,
         space.uuid,
     );
+
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
         const projectUserUuids =
@@ -64,6 +65,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         },
         [organizationUsers],
     );
+
     const handleRemove = useCallback(
         (selectedValue: React.ReactNode) => {
             setUsersSelected(
@@ -89,13 +91,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
             const isDisabled = space.access
                 .map((access) => access.userUuid)
-                .includes(user.userUuid);
+                .includes(userUuid);
 
-            const isSelected = usersSelected.includes(user.userUuid);
+            const isSelected = usersSelected.includes(userUuid) && !isDisabled;
 
             return (
                 <MenuItem2
-                    className={isSelected ? Classes.SELECTED : ''}
+                    className={isSelected ? Classes.SELECTED : undefined}
                     key={user.userUuid}
                     title={
                         isDisabled
@@ -112,10 +114,21 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             <PrimaryAndSecondaryTextWrapper
                                 $disabled={isDisabled}
                             >
-                                <PrimaryText $selected={isSelected}>
-                                    {user.firstName} {user.lastName}
-                                </PrimaryText>
-                                <SecondaryText>{user.email}</SecondaryText>
+                                {user.firstName || user.lastName ? (
+                                    <>
+                                        <PrimaryText $selected={isSelected}>
+                                            {user.firstName} {user.lastName}
+                                        </PrimaryText>
+
+                                        <SecondaryText>
+                                            {user.email}
+                                        </SecondaryText>
+                                    </>
+                                ) : (
+                                    <PrimaryText $selected={isSelected}>
+                                        {user.email}
+                                    </PrimaryText>
+                                )}
                             </PrimaryAndSecondaryTextWrapper>
                         </FlexWrapper>
                     }
