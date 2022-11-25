@@ -138,7 +138,7 @@ app.use(
         proxy: lightdashConfig.trustProxy,
         rolling: true,
         cookie: {
-            maxAge: 86400000, // 1 day
+            maxAge: (lightdashConfig.cookiesMaxAgeHours || 24) * 60 * 60 * 1000, // in ms
             secure: lightdashConfig.secureCookies,
             httpOnly: true,
             sameSite: 'lax',
