@@ -15,6 +15,7 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { startSlackBot } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
 import {
     apiKeyPassportStrategy,
@@ -246,3 +247,5 @@ passport.deserializeUser(async (id: string, done) => {
     // Store that user on the request (`req`) object
     done(null, user);
 });
+
+startSlackBot();

@@ -227,7 +227,10 @@ module.exports = {
         {
             type: 'category',
             label: '💏 Integrations',
-            items: ['guides/dbt-semantic-layer'],
+            items: [
+                'guides/dbt-semantic-layer',
+                'guides/sharing-in-slack'
+            ],
         },
     ],
 };
