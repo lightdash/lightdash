@@ -1,3 +1,10 @@
+# [0.332.0](https://github.com/lightdash/lightdash/compare/0.331.0...0.332.0) (2022-11-25)
+
+
+### Features
+
+* share slackbot ([#3462](https://github.com/lightdash/lightdash/issues/3462)) ([e966feb](https://github.com/lightdash/lightdash/commit/e966feb79853e3eb64bc84812d29092a2b12ff00))
+
 # [0.331.0](https://github.com/lightdash/lightdash/compare/0.330.0...0.331.0) (2022-11-24)
 
 
