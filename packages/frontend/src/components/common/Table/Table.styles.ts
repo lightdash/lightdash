@@ -32,13 +32,13 @@ export const TableContainer = styled.div<TableContainerProps>`
             `}
 `;
 
-export const Table = styled(HTMLTable)<{ showFooter: boolean }>`
+export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
     width: 100%;
     border-left: 1px solid #dcdcdd;
     border-right: 1px solid #dcdcdd;
 
-    ${({ showFooter }) =>
-        !showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
+    ${({ $showFooter }) =>
+        !$showFooter ? ` border-bottom: 1px solid #dcdcdd;` : undefined}
 
     thead {
         z-index: 2;
@@ -119,6 +119,7 @@ export const Td = styled.td<{
     $rowIndex: number;
     $isSelected: boolean;
     $isInteractive: boolean;
+    $isCopying: boolean;
     $hasData: boolean;
 }>`
     ${CellStyles}
@@ -137,6 +138,11 @@ export const Td = styled.td<{
                 background-color: #ECF6FE;
             `
             : ''}
+
+
+    transition: filter 0.15s linear;
+
+    filter: ${({ $isCopying }) => ($isCopying ? 'saturate(3)' : 'saturate(1)')};
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
