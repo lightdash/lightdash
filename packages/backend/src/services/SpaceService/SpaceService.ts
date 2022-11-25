@@ -90,6 +90,7 @@ export class SpaceService {
         const newSpace = await this.spaceModel.createSpace(
             projectUuid,
             space.name,
+            user.userId,
         );
 
         await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);

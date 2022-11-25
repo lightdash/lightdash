@@ -69,12 +69,14 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         selectedAccess={selectedAccess}
                         setSelectedAccess={setSelectedAccess}
                     />
-                    <ShareSpaceUserList
-                        projectUuid={projectUuid}
-                        space={space}
-                        sessionUser={sessionUser.data}
-                        organizationUsers={organizationUsers}
-                    />
+                    {selectedAccess.value === SpaceAccessType.PRIVATE && (
+                        <ShareSpaceUserList
+                            projectUuid={projectUuid}
+                            space={space}
+                            sessionUser={sessionUser.data}
+                            organizationUsers={organizationUsers}
+                        />
+                    )}
                 </div>
                 <DialogFooter>
                     {sessionUser.data?.ability?.can('create', 'InviteLink') ? (

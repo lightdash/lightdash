@@ -324,7 +324,11 @@ export class SpaceModel {
         };
     }
 
-    async createSpace(projectUuid: string, name: string): Promise<Space> {
+    async createSpace(
+        projectUuid: string,
+        name: string,
+        userId: number,
+    ): Promise<Space> {
         const [project] = await this.database('projects')
             .select('project_id')
             .where('project_uuid', projectUuid);
@@ -334,6 +338,7 @@ export class SpaceModel {
                 project_id: project.project_id,
                 is_private: true,
                 name,
+                created_by_user_id: userId,
             })
             .returning('*');
 

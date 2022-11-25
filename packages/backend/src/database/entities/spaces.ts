@@ -10,9 +10,13 @@ export type DbSpace = {
     created_at: Date;
     project_id: number;
     organization_uuid: string;
+    created_by_user_id?: number;
 };
 
-type CreateDbSpace = Pick<DbSpace, 'name' | 'project_id' | 'is_private'>;
+type CreateDbSpace = Pick<
+    DbSpace,
+    'name' | 'project_id' | 'is_private' | 'created_by_user_id'
+>;
 
 export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;
 export const SpaceTableName = 'spaces';
