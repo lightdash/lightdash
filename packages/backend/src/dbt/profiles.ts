@@ -200,9 +200,6 @@ export const profileFromCredentials = (
         },
     });
 
-    console.log(credentials.type);
-    console.log(profile);
-
     return {
         profile,
         environment,

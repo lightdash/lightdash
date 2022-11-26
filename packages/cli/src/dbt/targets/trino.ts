@@ -58,11 +58,6 @@ export const trinoSchema: JSONSchemaType<TrinoTarget> = {
 export const convertTrinoSchema = (target: Target): CreateTrinoCredentials => {
     const validate = ajv.compile<TrinoTarget>(trinoSchema);
 
-    console.log('TARGET AQUI');
-    console.log(target);
-
-    console.log(WarehouseTypes);
-
     if (validate(target)) {
         const teste: CreateTrinoCredentials = {
             type: WarehouseTypes.TRINO,
@@ -73,9 +68,6 @@ export const convertTrinoSchema = (target: Target): CreateTrinoCredentials => {
             port: target.port,
             dbname: target.database,
         };
-
-        console.log('CREDENTIALS');
-        console.log(teste);
 
         return teste;
     }

@@ -31,9 +31,9 @@ export enum TrinoTypes {
     JSON = 'json',
     DATE = 'date',
     TIME = 'time',
-    TIME_TZ = 'time(3) with time zone',
+    TIME_TZ = 'time with time zone',
     TIMESTAMP = 'timestamp',
-    TIMESTAMP_TZ = 'timestamp(3) with time zone',
+    TIMESTAMP_TZ = 'timestamp with time zone',
     INTERVAL_YEAR_MONTH = 'interval year to month',
     INTERVAL_DAY_TIME = 'interval day to second',
     ARRAY = 'array',
@@ -42,33 +42,6 @@ export enum TrinoTypes {
     IPADDRESS = 'ipaddress',
     UUID = 'uuid',
 }
-
-type SchemaResult = {
-    TABLE_CAT: string;
-    TABLE_SCHEM: string;
-    TABLE_NAME: string;
-    COLUMN_NAME: string;
-    DATA_TYPE: number;
-    TYPE_NAME: string;
-    // additional props
-    // COLUMN_SIZE: null,
-    // BUFFER_LENGTH: null,
-    // DECIMAL_DIGITS: null,
-    // NUM_PREC_RADIX: null,
-    // NULLABLE: 1,
-    // REMARKS: '',
-    // COLUMN_DEF: null,
-    // SQL_DATA_TYPE: null,
-    // SQL_DATETIME_SUB: null,
-    // CHAR_OCTET_LENGTH: null,
-    // ORDINAL_POSITION: 5,
-    // IS_NULLABLE: 'YES',
-    // SCOPE_CATALOG: null,
-    // SCOPE_SCHEMA: null,
-    // SCOPE_TABLE: null,
-    // SOURCE_DATA_TYPE: null,
-    // IS_AUTO_INCREMENT: 'NO'
-};
 
 interface TableInfo {
     database: string;
@@ -112,12 +85,12 @@ const convertDataTypeToDimensionType = (
             return DimensionType.DATE;
         case TrinoTypes.TIMESTAMP:
             return DimensionType.TIMESTAMP;
+        case TrinoTypes.TIMESTAMP_TZ:
+            return DimensionType.TIMESTAMP;
         default:
             return DimensionType.STRING;
     }
 };
-
-type CatalaogDetails = string | string[];
 
 interface CatalogItemGroup {
     [key: string]: string[][];
@@ -130,9 +103,9 @@ const keyName = (k: [string, string[][]]): string => _.first(k)?.toString()!;
 
 const handlerVals = (val: string | string[][]): string => val[0][0]!;
 
-const catalogToSchema = (catalog: string[][]): WarehouseCatalog => {
+const catalogToSchema = (catalog: string[][][]): WarehouseCatalog => {
     const schema: WarehouseCatalog = {};
-    const groupSchema = customGroup(catalog);
+    const groupSchema = customGroup(_.first(catalog));
     // TODO tem alguma forma mais elegante de fazer isso?
     Object.entries(groupSchema).map((db) => {
         const dbKey: string = keyName(db);
@@ -162,7 +135,6 @@ const catalogToSchema = (catalog: string[][]): WarehouseCatalog => {
         });
         return null;
     });
-
     return schema;
 };
 
@@ -190,6 +162,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
         dbname,
         schema,
     }: CreateTrinoCredentials) {
+        // TODO improve authentication parameters
         this.connectionOptions = {
             auth: new BasicAuth(user, password),
             catalog: dbname,
@@ -254,7 +227,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
         const { session, close } = await this.getSession();
-        let results: string[][];
+        let results: string[][][];
 
         try {
             const promises = requests.map(async (request) => {

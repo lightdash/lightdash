@@ -8,7 +8,6 @@ export const credentials: CreateTrinoCredentials = {
     host: '',
     user: '',
     password: '',
-    catalog: '',
     dbname: '',
     schema: '',
     port: 5432,

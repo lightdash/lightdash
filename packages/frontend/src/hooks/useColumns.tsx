@@ -113,11 +113,7 @@ export const useColumns = (): TableColumn[] => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
             const column: TableColumn = columnHelper.accessor(
-                (row) => {
-                    console.log('----------------------');
-                    console.log(row[fieldId]);
-                    return row[fieldId];
-                },
+                (row) => row[fieldId],
                 {
                     id: fieldId,
                     header: () => (
