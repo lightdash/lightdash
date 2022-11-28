@@ -27,6 +27,7 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
+import { SlackService } from './SlackService/SlackService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { UserService } from './UserService';
 
@@ -94,4 +95,11 @@ export const spaceService = new SpaceService({
 export const searchService = new SearchService({
     projectModel,
     searchModel,
+});
+
+export const slackService = new SlackService({
+    lightdashConfig,
+    dashboardModel,
+    savedChartModel,
+    spaceModel,
 });
