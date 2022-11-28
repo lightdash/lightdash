@@ -196,7 +196,7 @@ export class SlackService {
                         type: 'section',
                         text: {
                             type: 'mrkdwn',
-                            text: `${dashboard.description || ''}`,
+                            text: `${dashboard.description || '-'}`,
                         },
                         accessory: {
                             type: 'button',
@@ -206,7 +206,7 @@ export class SlackService {
                                 emoji: true,
                             },
                             value: 'click_me_123',
-                            url: url,
+                            url,
                             action_id: 'button-action',
                         },
                     },
@@ -221,12 +221,7 @@ export class SlackService {
         return unfurls;
     }
 
-    async unfurl(
-        event: any,
-        client: any,
-        context: any,
-        payload: any,
-    ): Promise<void> {
+    async unfurl(event: any, client: any, context: any): Promise<void> {
         event.links.map(async (l: any) => {
             const { url } = l;
 

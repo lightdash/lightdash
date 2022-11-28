@@ -76,9 +76,8 @@ export const startSlackBot = async () => {
             });
 
             app.event('link_shared', async (message: any) => {
-                console.debug('link shared', message);
-                const { event, client, context, payload } = message;
-                await slackService.unfurl(event, client, context, payload);
+                const { event, client, context } = message;
+                await slackService.unfurl(event, client, context);
             });
 
             await app.start();
