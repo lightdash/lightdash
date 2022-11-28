@@ -68,7 +68,6 @@ const DownloadCsvPopup: FC<Props> = memo(
         return (
             <Popover2
                 lazy
-                placement="bottom-end"
                 isOpen={isOpen}
                 onInteraction={setIsOpen}
                 position={PopoverPosition.BOTTOM_LEFT}

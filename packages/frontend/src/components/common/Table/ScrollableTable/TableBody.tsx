@@ -5,7 +5,14 @@ import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 
 const TableBody: FC = () => {
-    const { table, cellContextMenu } = useTableContext();
+    const {
+        table,
+        cellContextMenu,
+        selectedCell,
+        onSelectCell,
+        copyingCellId,
+        onCopyCell,
+    } = useTableContext();
 
     return (
         <tbody>
@@ -24,6 +31,11 @@ const TableBody: FC = () => {
                                 isNumericItem={isNumericItem(meta?.item)}
                                 hasData={!!meta?.item}
                                 cellContextMenu={cellContextMenu}
+                                copying={cell.id === copyingCellId}
+                                selected={cell.id === selectedCell?.id}
+                                onSelect={() => onSelectCell(cell)}
+                                onDeselect={() => onSelectCell(undefined)}
+                                onKeyDown={onCopyCell}
                             >
                                 {flexRender(
                                     cell.column.columnDef.cell,

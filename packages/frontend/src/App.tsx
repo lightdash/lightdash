@@ -1,4 +1,4 @@
-import { Colors, HotkeysProvider } from '@blueprintjs/core';
+import { Colors, FocusStyleManager, HotkeysProvider } from '@blueprintjs/core';
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/datetime/lib/css/blueprint-datetime.css'; // We need to import the datetime css until this bug is fixed: https://github.com/palantir/blueprint/issues/5388
 import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
@@ -66,6 +66,8 @@ const isMobile =
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent,
     ) || window.innerWidth < 768;
+
+FocusStyleManager.onlyShowFocusOnTabs();
 
 const App = () => (
     <>

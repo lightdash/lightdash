@@ -1,8 +1,8 @@
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer } from '@blueprintjs/select';
 import {
-    AccessSelectSubtitle,
-    AccessSelectTitle,
+    PrimaryText,
+    SecondaryTextWithMaxWidth,
 } from './ShareSpaceModal.style';
 
 export interface AccessOption {
@@ -14,25 +14,25 @@ export interface AccessOption {
 
 export const renderAccess: ItemRenderer<AccessOption> = (
     access,
-    { handleClick, handleFocus, modifiers, query },
+    { handleClick, handleFocus, modifiers },
 ) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
     return (
         <MenuItem2
+            key={access.value}
             multiline={true}
             active={modifiers.active}
             disabled={modifiers.disabled}
-            key={access.value}
             onClick={handleClick}
             onFocus={handleFocus}
             text={
                 <>
-                    <AccessSelectTitle>{access.title}</AccessSelectTitle>
-                    <AccessSelectSubtitle>
+                    <PrimaryText>{access.title}</PrimaryText>
+                    <SecondaryTextWithMaxWidth>
                         {access.selectDescription}
-                    </AccessSelectSubtitle>
+                    </SecondaryTextWithMaxWidth>
                 </>
             }
         />
@@ -43,6 +43,7 @@ export const enum SpaceAccessType {
     PRIVATE = 'private',
     PUBLIC = 'public',
 }
+
 export const SpaceAccessOptions: AccessOption[] = [
     {
         title: 'Restricted access',
