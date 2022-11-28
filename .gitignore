@@ -41,6 +41,7 @@ yarn-error.log*
 .idea
 node_modules
 package-lock.json
+screenshot.png 
 
 # typescript
 *.tsbuildinfo
