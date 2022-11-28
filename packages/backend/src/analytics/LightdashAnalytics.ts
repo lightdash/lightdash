@@ -392,6 +392,8 @@ type ShareSlack = BaseTrack & {
         | 'share_slack.unfurl_error'
         | 'share_slack.install'
         | 'share_slack.install_error';
+    userId?: string;
+    anonymousId?: string;
     properties: {
         isDashboard?: boolean;
         error?: string;

@@ -1,4 +1,5 @@
 import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -243,6 +244,7 @@ export class SlackService {
 
             analytics.track({
                 event: 'share_slack.unfurl',
+                userId: event.user,
                 properties: {
                     isDashboard: url.match(dashboardUrl) !== null,
                 },
@@ -270,6 +272,7 @@ export class SlackService {
                     .catch((e: any) => {
                         analytics.track({
                             event: 'share_slack.unfurl_error',
+                            userId: event.user,
                             properties: {
                                 error: `${e}`,
                             },
@@ -281,6 +284,8 @@ export class SlackService {
             } catch (e) {
                 analytics.track({
                     event: 'share_slack.unfurl_error',
+                    userId: event.user,
+
                     properties: {
                         error: `${e}`,
                     },

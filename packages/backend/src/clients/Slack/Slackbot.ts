@@ -1,4 +1,9 @@
 import { analytics } from '../../analytics/client';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../../controllers/authentication';
 import { apiV1Router } from '../../routers/apiV1Router';
 import { slackService } from '../../services/services';
 import {
@@ -44,37 +49,51 @@ const slackOptions = {
 
 const receiver = new ExpressReceiver(slackOptions);
 
-apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
-    try {
-        const options = {
-            redirectUri: slackOptions.redirectUri,
-            scopes: slackOptions.scopes,
-            userScopes: ['files:write'],
-            metadata: { organizationUuid: req.params.organizationUuid },
-        };
-        analytics.track({
-            event: 'share_slack.install',
-            properties: {
-                organizationUuid: req.params.organizationUuid,
-            },
-        });
+apiV1Router.get(
+    '/slack/install/:organizationUuid',
+    isAuthenticated,
+    unauthorisedInDemo,
 
-        await receiver.installer.handleInstallPath(
-            req,
-            res,
-            slackOptions.installerOptions,
-            options,
-        );
-    } catch (error) {
-        analytics.track({
-            event: 'share_slack.install_error',
-            properties: {
-                error: `${error}`,
-            },
-        });
-        next(error);
-    }
-});
+    async (req, res, next) => {
+        try {
+            const options = {
+                redirectUri: slackOptions.redirectUri,
+                scopes: slackOptions.scopes,
+                userScopes: ['files:write'],
+                metadata: { organizationUuid: req.params.organizationUuid },
+            };
+            analytics.track({
+                event: 'share_slack.install',
+                userId: req.user?.userUuid,
+                anonymousId: !req.user?.userUuid
+                    ? LightdashAnalytics.anonymousId
+                    : undefined,
+                properties: {
+                    organizationUuid: req.params.organizationUuid,
+                },
+            });
+
+            await receiver.installer.handleInstallPath(
+                req,
+                res,
+                slackOptions.installerOptions,
+                options,
+            );
+        } catch (error) {
+            analytics.track({
+                event: 'share_slack.install_error',
+                userId: req.user?.userUuid,
+                anonymousId: !req.user?.userUuid
+                    ? LightdashAnalytics.anonymousId
+                    : undefined,
+                properties: {
+                    error: `${error}`,
+                },
+            });
+            next(error);
+        }
+    },
+);
 
 export const startSlackBot = async () => {
     if (process.env.SLACK_APP_TOKEN) {
