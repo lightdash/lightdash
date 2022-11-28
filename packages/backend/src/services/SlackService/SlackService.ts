@@ -1,3 +1,4 @@
+import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -80,7 +81,6 @@ const fetchDashboardScreenshot = async (url: string): Promise<Buffer> => {
 
     try {
         const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
-        console.debug(`Headless chrome endpoint: ${browserWSEndpoint}`);
         browser = await puppeteer.connect({
             browserWSEndpoint,
         });
@@ -91,7 +91,6 @@ const fetchDashboardScreenshot = async (url: string): Promise<Buffer> => {
             width: 1024,
             height: 768, // hardcoded
         });
-        // await page.setExtraHTTPHeaders({ cookie: req.headers.cookie || '' }); // copy cookie
 
         const blockedUrls = [
             'headwayapp.co',
@@ -110,20 +109,15 @@ const fetchDashboardScreenshot = async (url: string): Promise<Buffer> => {
 
             request.continue();
         });
-        console.debug(`Fetching headless chrome URL: ${url}`);
         await page.goto(url, {
             timeout: 100000,
             waitUntil: 'networkidle0',
         });
-        console.debug(`Taking screenshot`);
-
         const path = `/tmp/${encodeURIComponent(url)}.png`;
-        console.debug('saving image in path', path);
         const imageBuffer = await page.screenshot({
             path,
             clip: { x: 0, y: 0, width: 1024, height: 768 },
         });
-        console.debug(`imageBuffer`, imageBuffer);
 
         return imageBuffer;
         // return path
@@ -224,7 +218,12 @@ export class SlackService {
     async unfurl(event: any, client: any, context: any): Promise<void> {
         event.links.map(async (l: any) => {
             const { url } = l;
-
+            if (!url.startsWith(this.lightdashConfig.siteUrl)) {
+                console.warn(
+                    `URL to unfurl ${url} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
+                );
+                return;
+            }
             const dashboardUrl = new RegExp(
                 `/projects/${uuid}/dashboards/${uuid}`,
             );
@@ -242,6 +241,13 @@ export class SlackService {
                 return;
             }
 
+            analytics.track({
+                event: 'share_slack.unfurl',
+                properties: {
+                    isDashboard: url.match(dashboardUrl) !== null,
+                },
+            });
+
             try {
                 const screenshot = await fetchDashboardScreenshot(url);
 
@@ -255,19 +261,31 @@ export class SlackService {
                 const unfurls = await (url.match(dashboardUrl)
                     ? this.unfurlDashboard(url, imageUrl)
                     : this.unfurlChart(url, imageUrl));
-                console.debug('unfurls', JSON.stringify(unfurls));
                 client.chat
                     .unfurl({
                         ts: event.message_ts,
                         channel: event.channel,
                         unfurls,
                     })
-                    .catch((e: any) =>
+                    .catch((e: any) => {
+                        analytics.track({
+                            event: 'share_slack.unfurl_error',
+                            properties: {
+                                error: `${e}`,
+                            },
+                        });
                         console.error(
                             `Unable to unfurl url ${url}: ${JSON.stringify(e)}`,
-                        ),
-                    );
+                        );
+                    });
             } catch (e) {
+                analytics.track({
+                    event: 'share_slack.unfurl_error',
+                    properties: {
+                        error: `${e}`,
+                    },
+                });
+
                 notifySlackError(e, url, client, event);
             }
         });

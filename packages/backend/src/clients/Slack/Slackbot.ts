@@ -1,3 +1,4 @@
+import { analytics } from '../../analytics/client';
 import { apiV1Router } from '../../routers/apiV1Router';
 import { slackService } from '../../services/services';
 import {
@@ -51,6 +52,13 @@ apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
             userScopes: ['files:write'],
             metadata: { organizationUuid: req.params.organizationUuid },
         };
+        analytics.track({
+            event: 'share_slack.install',
+            properties: {
+                organizationUuid: req.params.organizationUuid,
+            },
+        });
+
         await receiver.installer.handleInstallPath(
             req,
             res,
@@ -58,6 +66,12 @@ apiV1Router.get('/slack/install/:organizationUuid', async (req, res, next) => {
             options,
         );
     } catch (error) {
+        analytics.track({
+            event: 'share_slack.install_error',
+            properties: {
+                error: `${error}`,
+            },
+        });
         next(error);
     }
 });

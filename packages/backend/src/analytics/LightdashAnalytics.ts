@@ -386,6 +386,19 @@ type ShareUrl = BaseTrack & {
     };
 };
 
+type ShareSlack = BaseTrack & {
+    event:
+        | 'share_slack.unfurl'
+        | 'share_slack.unfurl_error'
+        | 'share_slack.install'
+        | 'share_slack.install_error';
+    properties: {
+        isDashboard?: boolean;
+        error?: string;
+        organizationUuid?: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -418,7 +431,8 @@ type Track =
     | SavedChartUpdateMultiple
     | FieldValueSearch
     | PermissionsUpdated
-    | ShareUrl;
+    | ShareUrl
+    | ShareSlack;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
