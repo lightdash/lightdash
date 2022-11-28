@@ -15,32 +15,32 @@ type CreateDashboardTileBase = {
     y: number;
     h: number;
     w: number;
+    properties: {
+        title: string;
+        hideTitle: boolean;
+    };
 };
 
 type DashboardTileBase = Required<CreateDashboardTileBase>;
 
 export type DashboardMarkdownTileProperties = {
     type: DashboardTileTypes.MARKDOWN;
-    properties: {
-        title: string;
+    properties: CreateDashboardTileBase['properties'] & {
         content: string;
     };
 };
 
 export type DashboardLoomTileProperties = {
     type: DashboardTileTypes.LOOM;
-    properties: {
-        title: string;
+    properties: CreateDashboardTileBase['properties'] & {
         url: string;
-        hideTitle?: boolean;
     };
 };
 
 export type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
-    properties: {
+    properties: CreateDashboardTileBase['properties'] & {
         savedChartUuid: string | null;
-        hideTitle?: boolean;
     };
 };
 

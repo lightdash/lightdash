@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
@@ -357,14 +358,12 @@ export class DashboardModel {
                     height: number;
                     dashboard_tile_uuid: string;
                     saved_query_uuid: string | null;
-                    loomTitle: string | null;
                     url: string | null;
-                    markdownTitle: string | null;
                     content: string | null;
-                    loomHideTitle: boolean | false;
-                    chartHideTitle: boolean | false;
+                    hide_title: boolean | null;
+                    title: string | null;
                 }[]
-            >([
+            >(
                 `${DashboardTilesTableName}.x_offset`,
                 `${DashboardTilesTableName}.y_offset`,
                 `${DashboardTilesTableName}.type`,
@@ -372,13 +371,22 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
-                `${DashboardTileLoomsTableName}.title as loomTitle`,
+                this.database.raw(
+                    `COALESCE(
+                        ${SavedChartsTableName}.name,
+                        ${DashboardTileLoomsTableName}.title,
+                        ${DashboardTileMarkdownsTableName}.title
+                    ) AS title`,
+                ),
+                this.database.raw(
+                    `COALESCE(
+                        ${DashboardTileLoomsTableName}.hide_title,
+                        ${DashboardTileChartTableName}.hide_title
+                    ) AS hide_title`,
+                ),
                 `${DashboardTileLoomsTableName}.url`,
-                `${DashboardTileMarkdownsTableName}.title as markdownTitle`,
                 `${DashboardTileMarkdownsTableName}.content`,
-                `${DashboardTileLoomsTableName}.hide_title as loomHideTitle`,
-                `${DashboardTileChartTableName}.hide_title as chartHideTitle`,
-            ])
+            )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
                     `${DashboardTileChartTableName}.dashboard_tile_uuid`,
@@ -441,12 +449,10 @@ export class DashboardModel {
                     y_offset,
                     dashboard_tile_uuid,
                     saved_query_uuid,
-                    loomTitle,
+                    title,
+                    hide_title,
                     url,
-                    markdownTitle,
                     content,
-                    loomHideTitle,
-                    chartHideTitle,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -466,7 +472,8 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SAVED_CHART,
                                 properties: {
                                     savedChartUuid: saved_query_uuid,
-                                    hideTitle: chartHideTitle,
+                                    title: title || '',
+                                    hideTitle: hide_title || false,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
@@ -474,7 +481,8 @@ export class DashboardModel {
                                 ...base,
                                 type: DashboardTileTypes.MARKDOWN,
                                 properties: {
-                                    title: markdownTitle || '',
+                                    title: title || '',
+                                    hideTitle: hide_title || false,
                                     content: content || '',
                                 },
                             };
@@ -483,15 +491,17 @@ export class DashboardModel {
                                 ...base,
                                 type: DashboardTileTypes.LOOM,
                                 properties: {
-                                    title: loomTitle || '',
+                                    title: title || '',
+                                    hideTitle: hide_title || false,
                                     url: url || '',
-                                    hideTitle: loomHideTitle,
                                 },
                             };
                         default: {
-                            const never: never = type;
-                            throw new UnexpectedServerError(
-                                `Dashboard tile type "${type}" not recognised`,
+                            return assertUnreachable(
+                                type,
+                                new UnexpectedServerError(
+                                    `Dashboard tile type "${type}" not recognised`,
+                                ),
                             );
                         }
                     }

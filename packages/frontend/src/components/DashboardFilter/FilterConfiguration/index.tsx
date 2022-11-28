@@ -3,9 +3,9 @@ import { Classes, Popover2Props } from '@blueprintjs/popover2';
 
 import {
     applyDefaultTileFieldTargetOverride,
-    AvailableFiltersForSavedQuery,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
+    DashboardTile,
     fieldId,
     FilterableField,
     FilterOperator,
@@ -40,8 +40,9 @@ export enum FilterActions {
 }
 
 interface Props {
+    tiles: DashboardTile[];
     field: FilterableField;
-    tilesWithSavedQuery: Record<string, AvailableFiltersForSavedQuery>;
+    tilesSavedQueryFilters: Record<string, FilterableField[]>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
@@ -52,13 +53,14 @@ interface Props {
 
 const FilterConfiguration: FC<Props> = ({
     selectedTabId = DEFAULT_TAB,
-    onTabChange,
+    tiles,
     field,
-    tilesWithSavedQuery,
+    tilesSavedQueryFilters,
     filterRule,
     popoverProps,
     onSave,
     onBack,
+    onTabChange,
 }) => {
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
@@ -66,11 +68,11 @@ const FilterConfiguration: FC<Props> = ({
                 ? applyDefaultTileFieldTargetOverride(
                       filterRule,
                       field,
-                      tilesWithSavedQuery,
+                      tilesSavedQueryFilters,
                   )
                 : createDashboardFilterRuleFromField(
                       field,
-                      tilesWithSavedQuery,
+                      tilesSavedQueryFilters,
                   ),
         );
 
@@ -99,7 +101,7 @@ const FilterConfiguration: FC<Props> = ({
             tileUuid: string,
             filterUuid?: FilterableField,
         ) => {
-            const savedQuery = tilesWithSavedQuery[tileUuid];
+            const savedQuery = tilesSavedQueryFilters[tileUuid];
 
             setInternalFilterRule((prevState) =>
                 produce(prevState, (draftState) => {
@@ -108,7 +110,7 @@ const FilterConfiguration: FC<Props> = ({
                             return tileConfig.tileUuid !== tileUuid;
                         }) || [];
 
-                    const filters = savedQuery.filters;
+                    const filters = savedQuery;
 
                     if (action === FilterActions.ADD) {
                         const filterableField =
@@ -128,7 +130,7 @@ const FilterConfiguration: FC<Props> = ({
                 }),
             );
         },
-        [field, tilesWithSavedQuery],
+        [field, tilesSavedQueryFilters],
     );
 
     const filterSettings = (
@@ -165,7 +167,8 @@ const FilterConfiguration: FC<Props> = ({
                                 field={field}
                                 filterRule={internalFilterRule}
                                 popoverProps={popoverProps}
-                                tilesWithSavedQuery={tilesWithSavedQuery}
+                                tiles={tiles}
+                                tilesSavedQueryFilters={tilesSavedQueryFilters}
                                 onChange={handleChangeTileConfiguration}
                             />
                         }

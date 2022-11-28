@@ -1,10 +1,10 @@
 import {
     ApiError,
-    AvailableFiltersForSavedQuery,
     byDashbordChartTileType,
     CreateDashboard,
     Dashboard,
     DashboardTile,
+    FilterableField,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
@@ -56,7 +56,7 @@ const deleteDashboard = async (id: string) =>
     });
 
 export const getChartAvailableFilters = async (savedChartUuid: string) =>
-    lightdashApi<AvailableFiltersForSavedQuery>({
+    lightdashApi<FilterableField[]>({
         url: `/saved/${savedChartUuid}/availableFilters`,
         method: 'GET',
         body: undefined,
@@ -69,7 +69,7 @@ export const getQueryConfig = (savedChartUuid: string) => {
     };
 };
 
-export const useDashboardTilesWithSavedQuery = (
+export const useDashboardTilesSavedQueryFilters = (
     tiles: DashboardTile[] = [],
 ) => {
     const savedChartUuids = useMemo(() => {
@@ -85,20 +85,17 @@ export const useDashboardTilesWithSavedQuery = (
 
     const queries = useQueries(
         savedChartUuids.map((uuid) => getQueryConfig(uuid)),
-    ) as UseQueryResult<AvailableFiltersForSavedQuery, ApiError>[]; // useQueries doesn't allow us to specify TError
+    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
 
     const isLoading = queries.some((query) => query.isLoading);
     const queryResults = queries.map((query) => query.data!);
 
-    const [data, setData] =
-        useState<Record<string, AvailableFiltersForSavedQuery>>();
+    const [data, setData] = useState<Record<string, FilterableField[]>>();
 
     useDeepCompareEffect(() => {
         if (isLoading || queryResults.length === 0) return;
 
-        const results = queryResults.reduce<
-            Record<string, AvailableFiltersForSavedQuery>
-        >(
+        const results = queryResults.reduce<Record<string, FilterableField[]>>(
             (acc, result, index) => ({
                 ...acc,
                 [tileUuids[index]]: result,
@@ -118,12 +115,12 @@ export const useDashboardTilesWithSavedQuery = (
 export const useAvailableDashboardFilterTargets = (
     tiles: DashboardTile[] = [],
 ) => {
-    const { isLoading, data } = useDashboardTilesWithSavedQuery(tiles);
+    const { isLoading, data } = useDashboardTilesSavedQueryFilters(tiles);
 
     const availableFilters = useMemo(() => {
         if (isLoading || !data) return;
 
-        const allFilters = Object.values(data).flatMap((e) => e.filters);
+        const allFilters = Object.values(data).flat();
         if (allFilters.length === 0) return;
 
         return allFilters.filter(

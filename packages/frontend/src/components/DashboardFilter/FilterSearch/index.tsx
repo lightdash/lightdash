@@ -9,7 +9,7 @@ import {
     isFilterableField,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useDashboardTilesWithSavedQuery } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardTilesSavedQueryFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -34,14 +34,14 @@ const FilterSearch: FC<Props> = ({
 }) => {
     const { track } = useTracking();
     const { dashboardTiles } = useDashboardContext();
-    const { data: tilesWithSavedQuery, isLoading } =
-        useDashboardTilesWithSavedQuery(dashboardTiles);
+    const { data: tilesSavedQueryFilters, isLoading } =
+        useDashboardTilesSavedQueryFilters(dashboardTiles);
     const { addDimensionDashboardFilter } = useDashboardContext();
 
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (isLoading || !tilesWithSavedQuery) {
+    if (isLoading || !tilesSavedQueryFilters) {
         return null;
     }
 
@@ -103,8 +103,9 @@ const FilterSearch: FC<Props> = ({
                 <FilterConfiguration
                     selectedTabId={selectedTabId}
                     onTabChange={setSelectedTabId}
+                    tiles={dashboardTiles}
                     field={selectedField}
-                    tilesWithSavedQuery={tilesWithSavedQuery}
+                    tilesSavedQueryFilters={tilesSavedQueryFilters}
                     popoverProps={{
                         lazy: true,
                         captureDismiss: !popoverProps?.isOpen,

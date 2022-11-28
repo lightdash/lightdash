@@ -407,21 +407,23 @@ export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
 
 const getDefaultTileFieldTargetOverride = (
     field: FilterableField,
-    tilesWithSavedQuery: Record<string, AvailableFiltersForSavedQuery>,
+    tilesSavedQueryFilters: Record<string, FilterableField[]>,
 ): TileFieldTargetOverride[] =>
-    Object.entries(tilesWithSavedQuery)
-        .map<TileFieldTargetOverride | undefined>(([tileUuid, savedQuery]) => {
-            const filterableField = savedQuery.filters.find(
-                matchFieldExact(field),
-            );
-            if (!filterableField) return undefined;
+    Object.entries(tilesSavedQueryFilters)
+        .map<TileFieldTargetOverride | undefined>(
+            ([tileUuid, savedQueryFilters]) => {
+                const filterableField = savedQueryFilters.find(
+                    matchFieldExact(field),
+                );
+                if (!filterableField) return undefined;
 
-            return {
-                tileUuid,
-                fieldId: fieldId(filterableField),
-                tableName: filterableField.table,
-            };
-        })
+                return {
+                    tileUuid,
+                    fieldId: fieldId(filterableField),
+                    tableName: filterableField.table,
+                };
+            },
+        )
         .filter(
             (tileConfig): tileConfig is TileFieldTargetOverride => !!tileConfig,
         );
@@ -434,14 +436,14 @@ export const applyDefaultTileFieldTargetOverride = (
         any
     >,
     field: FilterableField,
-    tilesWithSavedQuery: Record<string, AvailableFiltersForSavedQuery>,
+    tilesSavedQueryFilters: Record<string, FilterableField[]>,
 ) => {
     if (!filterRule.tileTargetOverride) {
         return {
             ...filterRule,
             tileTargetOverride: getDefaultTileFieldTargetOverride(
                 field,
-                tilesWithSavedQuery,
+                tilesSavedQueryFilters,
             ),
         };
     }
@@ -450,7 +452,7 @@ export const applyDefaultTileFieldTargetOverride = (
 
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
-    tilesWithSavedQuery: Record<string, AvailableFiltersForSavedQuery>,
+    tilesSavedQueryFilters: Record<string, FilterableField[]>,
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(field, {
         id: uuidv4(),
@@ -461,7 +463,7 @@ export const createDashboardFilterRuleFromField = (
         operator: FilterOperator.EQUALS,
         tileTargetOverride: getDefaultTileFieldTargetOverride(
             field,
-            tilesWithSavedQuery,
+            tilesSavedQueryFilters,
         ),
     });
 
@@ -564,12 +566,6 @@ export type TablesConfiguration = {
         type: TableSelectionType;
         value: string[] | null;
     };
-};
-
-export type AvailableFiltersForSavedQuery = {
-    uuid: string;
-    name: string;
-    filters: FilterableField[];
 };
 
 export type CreateProjectMember = {
@@ -765,8 +761,7 @@ type ApiResults =
     | Space
     | DbtCloudMetadataResponseMetrics
     | DbtCloudIntegration
-    | ShareUrl
-    | AvailableFiltersForSavedQuery;
+    | ShareUrl;
 
 export type ApiResponse = {
     status: 'ok';
