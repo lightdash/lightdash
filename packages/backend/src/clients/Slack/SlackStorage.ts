@@ -31,7 +31,6 @@ export const getOrganizationId = async (
     return row.organization_id;
 };
 export const createInstallation = async (installation: any) => {
-    console.debug('slack createInstallation', installation);
     const organizationId = await getOrganizationId(
         installation.metadata?.organizationUuid,
     );
@@ -46,11 +45,7 @@ export const createInstallation = async (installation: any) => {
         .merge();
 };
 export const getInstallation = async (installQuery: any) => {
-    console.debug('slack getInstallation', installQuery);
-
     const teamId = getTeamId(installQuery);
-    console.debug('slack getInstallation teamId', teamId);
-
     const [row] = await database('slack_auth_tokens')
         .select('*')
         .where('slack_team_id', teamId);
@@ -61,8 +56,6 @@ export const getInstallation = async (installQuery: any) => {
 };
 
 export const deleteInstallation = async (installQuery: any) => {
-    console.debug('slack deleteInstallation', installQuery);
-
     const teamId = getTeamId(installQuery);
 
     await database('slack_auth_tokens').delete().where('slack_team_id', teamId);
