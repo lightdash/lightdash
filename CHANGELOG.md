@@ -1,3 +1,10 @@
+## [0.335.1](https://github.com/lightdash/lightdash/compare/0.335.0...0.335.1) (2022-11-29)
+
+
+### Bug Fixes
+
+* explore container overflow ([#3868](https://github.com/lightdash/lightdash/issues/3868)) ([38a079b](https://github.com/lightdash/lightdash/commit/38a079b513187a32caa80dbc9e181da78dd2bd64))
+
 # [0.335.0](https://github.com/lightdash/lightdash/compare/0.334.0...0.335.0) (2022-11-25)
 
 
