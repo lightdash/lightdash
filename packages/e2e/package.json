@@ -20,6 +20,5 @@
         "cypress-file-upload": "^5.0.8",
         "@lightdash/common": "^0.331.0",
         "node-fetch": "^2.6.1"
-
     }
 }
