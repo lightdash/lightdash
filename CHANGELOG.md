@@ -1,3 +1,24 @@
+# [0.335.0](https://github.com/lightdash/lightdash/compare/0.334.0...0.335.0) (2022-11-25)
+
+
+### Features
+
+* configurable max age for cookies ([#3850](https://github.com/lightdash/lightdash/issues/3850)) ([3ca7f14](https://github.com/lightdash/lightdash/commit/3ca7f14a7b547913bcfd64a613bea1f13f9cf52f))
+
+# [0.334.0](https://github.com/lightdash/lightdash/compare/0.333.0...0.334.0) (2022-11-25)
+
+
+### Features
+
+* space created_by_user_id and hide users when space is public ([#3840](https://github.com/lightdash/lightdash/issues/3840)) ([131b8f2](https://github.com/lightdash/lightdash/commit/131b8f2a3e1416dbfa2cbb38c2c6e560d1c96081))
+
+# [0.333.0](https://github.com/lightdash/lightdash/compare/0.332.0...0.333.0) (2022-11-25)
+
+
+### Features
+
+* cell copy to clipboard ([#3839](https://github.com/lightdash/lightdash/issues/3839)) ([546d32c](https://github.com/lightdash/lightdash/commit/546d32cf2d4c3adb2355a3574914b8be2b95fcc2))
+
 # [0.332.0](https://github.com/lightdash/lightdash/compare/0.331.0...0.332.0) (2022-11-25)
 
 
