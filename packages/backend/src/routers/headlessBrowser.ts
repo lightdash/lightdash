@@ -4,8 +4,8 @@ const puppeteer = require('puppeteer');
 
 export const headlessBrowserRouter = express.Router({ mergeParams: true });
 
-// Extra endpoints for headless-chrome testing
-if (process.env.CI === 'true') {
+// Extra endpoints for headless-chrome testing on Render
+if (process.env.IS_PULL_REQUEST === 'true') {
     headlessBrowserRouter.get('/callback/:flag', async (req, res, next) => {
         // Returns json with the same argument specified in flag
         // Wait a random number of seconds between 0 an 1, to ensure the response can overlap with other requests.
