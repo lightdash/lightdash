@@ -1,8 +1,24 @@
 import { Button, ButtonGroup } from '@blueprintjs/core';
-import React from 'react';
+import { FC } from 'react';
 import { PageCount, PaginationWrapper, TableFooter } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../types';
+
+interface ResultCountProps {
+    count: number;
+}
+
+const ResultCount: FC<ResultCountProps> = ({ count }) => {
+    return (
+        <PageCount>
+            {count === 0
+                ? 'No results'
+                : count === 1
+                ? '1 result'
+                : `${count} results`}
+        </PageCount>
+    );
+};
 
 const TablePagination = () => {
     const { table, data, pagination } = useTableContext();
@@ -50,9 +66,7 @@ const TablePagination = () => {
                     />
                 </PaginationWrapper>
             ) : (
-                <PageCount>
-                    <b>{table.getRowModel().rows.length} results</b>
-                </PageCount>
+                <ResultCount count={table.getRowModel().rows.length} />
             )}
         </TableFooter>
     );

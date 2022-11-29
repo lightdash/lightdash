@@ -15,6 +15,7 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { startSlackBot } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
 import {
     apiKeyPassportStrategy,
@@ -137,7 +138,7 @@ app.use(
         proxy: lightdashConfig.trustProxy,
         rolling: true,
         cookie: {
-            maxAge: 86400000, // 1 day
+            maxAge: (lightdashConfig.cookiesMaxAgeHours || 24) * 60 * 60 * 1000, // in ms
             secure: lightdashConfig.secureCookies,
             httpOnly: true,
             sameSite: 'lax',
@@ -246,3 +247,5 @@ passport.deserializeUser(async (id: string, done) => {
     // Store that user on the request (`req`) object
     done(null, user);
 });
+
+startSlackBot();
