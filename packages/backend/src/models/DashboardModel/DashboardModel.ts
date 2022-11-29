@@ -3,6 +3,10 @@ import {
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
+    DashboardChartTile,
+    DashboardLoomTile,
+    DashboardMarkdownTile,
+    DashboardTile,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -465,34 +469,39 @@ export class DashboardModel {
                         w: width,
                     };
 
+                    const commonProperties: Pick<
+                        DashboardTile['properties'],
+                        'title' | 'hideTitle'
+                    > = {
+                        title: title ?? '',
+                        hideTitle: hide_title ?? false,
+                    };
+
                     switch (type) {
                         case DashboardTileTypes.SAVED_CHART:
-                            return {
+                            return <DashboardChartTile>{
                                 ...base,
                                 type: DashboardTileTypes.SAVED_CHART,
                                 properties: {
+                                    ...commonProperties,
                                     savedChartUuid: saved_query_uuid,
-                                    title: title || '',
-                                    hideTitle: hide_title || false,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
-                            return {
+                            return <DashboardMarkdownTile>{
                                 ...base,
                                 type: DashboardTileTypes.MARKDOWN,
                                 properties: {
-                                    title: title || '',
-                                    hideTitle: hide_title || false,
+                                    ...commonProperties,
                                     content: content || '',
                                 },
                             };
                         case DashboardTileTypes.LOOM:
-                            return {
+                            return <DashboardLoomTile>{
                                 ...base,
                                 type: DashboardTileTypes.LOOM,
                                 properties: {
-                                    title: title || '',
-                                    hideTitle: hide_title || false,
+                                    ...commonProperties,
                                     url: url || '',
                                 },
                             };
