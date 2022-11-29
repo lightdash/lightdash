@@ -1,13 +1,6 @@
 import { Button, FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import {
-    CompactConfigMap,
-    CompactOrAlias,
-    CompiledDimension,
-    getItemId,
-    Metric,
-    TableCalculation,
-} from '@lightdash/common';
+import { CompactConfigMap, CompactOrAlias, getItemId } from '@lightdash/common';
 import React, { useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
