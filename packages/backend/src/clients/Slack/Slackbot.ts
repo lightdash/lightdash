@@ -1,3 +1,4 @@
+import { ForbiddenError, SlackSettings } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
@@ -9,7 +10,9 @@ import { slackService } from '../../services/services';
 import {
     createInstallation,
     deleteInstallation,
+    deleteInstallationFromOrganizationUuid,
     getInstallation,
+    getInstallationFromOrganizationUuid,
 } from './SlackStorage';
 
 // TODO https://github.com/slackapi/bolt-js/issues/904 fix slack bot compatibility with typescript
@@ -48,6 +51,53 @@ const slackOptions = {
 };
 
 const receiver = new ExpressReceiver(slackOptions);
+
+apiV1Router.get(
+    '/slack/',
+    isAuthenticated,
+    unauthorisedInDemo,
+
+    async (req, res, next) => {
+        try {
+            const organizationUuid = req.user?.organizationUuid;
+            if (!organizationUuid) throw new ForbiddenError();
+            const slackAuth = await getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+            const response: SlackSettings = {
+                organizationUuid,
+                slackTeamName: slackAuth.installation?.team?.name || 'Slack',
+                createdAt: slackAuth.createdAt,
+            };
+            res.json({
+                status: 'ok',
+                results: response,
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+apiV1Router.delete(
+    '/slack/',
+    isAuthenticated,
+    unauthorisedInDemo,
+
+    async (req, res, next) => {
+        try {
+            const organizationUuid = req.user?.organizationUuid;
+            if (!organizationUuid) throw new ForbiddenError();
+            await deleteInstallationFromOrganizationUuid(organizationUuid);
+
+            res.json({
+                status: 'ok',
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
 
 apiV1Router.get(
     '/slack/install/:organizationUuid',

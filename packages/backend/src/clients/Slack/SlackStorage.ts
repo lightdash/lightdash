@@ -55,8 +55,37 @@ export const getInstallation = async (installQuery: any) => {
     return row.installation;
 };
 
+export const getInstallationFromOrganizationUuid = async (
+    organizationUuid: string,
+) => {
+    const [row] = await database('slack_auth_tokens')
+        .leftJoin(
+            'organizations',
+            'slack_auth_tokens.organization_id',
+            'organizations.organization_id',
+        )
+        .select('*')
+        .where('organization_uuid', organizationUuid);
+    if (row === undefined) {
+        throw new Error(
+            `Could not find an installation for organizationUuid ${organizationUuid}`,
+        );
+    }
+    return row;
+};
+
 export const deleteInstallation = async (installQuery: any) => {
     const teamId = getTeamId(installQuery);
 
     await database('slack_auth_tokens').delete().where('slack_team_id', teamId);
+};
+
+export const deleteInstallationFromOrganizationUuid = async (
+    organizationUuid: string,
+) => {
+    const organizationId = await getOrganizationId(organizationUuid);
+
+    await database('slack_auth_tokens')
+        .delete()
+        .where('organization_id', organizationId);
 };
