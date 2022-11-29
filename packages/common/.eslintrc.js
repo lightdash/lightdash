@@ -20,6 +20,5 @@ module.exports = {
             'warn',
             { argsIgnorePattern: '^_' },
         ],
-        'import/no-cycle': ['warn', { maxDepth: 1 }],
     },
 };
