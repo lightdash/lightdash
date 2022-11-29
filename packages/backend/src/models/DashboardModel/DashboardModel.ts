@@ -469,10 +469,7 @@ export class DashboardModel {
                         w: width,
                     };
 
-                    const commonProperties: Pick<
-                        DashboardTile['properties'],
-                        'title' | 'hideTitle'
-                    > = {
+                    const commonProperties = {
                         title: title ?? '',
                         hideTitle: hide_title ?? false,
                     };
