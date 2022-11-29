@@ -17,23 +17,20 @@ describe('Lightdash headless browser', () => {
             (resp) => {
                 expect(resp.status).to.eq(200);
                 const response = resp.body;
-                const expectedRequest = [
-                    ['browser', 'ws://headless-browser:3000'],
-                    ['flag', 'single-test'],
-                ];
 
-                expectedRequest.forEach(([property, value]) =>
-                    expect(response.request).to.have.property(property, value),
+                expect(response.request).to.have.property(
+                    'flag',
+                    'single-test',
                 );
-                const expectedResponse = [['flag', 'single-test']];
-                expectedResponse.forEach(([property, value]) =>
-                    expect(response.response).to.have.property(property, value),
+                expect(response.response).to.have.property(
+                    'flag',
+                    'single-test',
                 );
             },
         );
     });
     it('Should make multiple concurrent requests to headless browser', async () => {
-        const requests = Array.from(Array(10).keys()).map((flag) =>
+        const requests = Array.from(Array(5).keys()).map((flag) =>
             fetch(`${apiUrl}/headless-browser/test/${flag}`),
         );
 
