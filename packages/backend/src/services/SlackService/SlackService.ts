@@ -1,20 +1,23 @@
 import { analytics } from '../../analytics/client';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
 
 const puppeteer = require('puppeteer');
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
+const nanoid = '[\\w-]{21}';
+const nanoidRegex = new RegExp(nanoid);
 
 type SlackServiceDependencies = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
+    shareModel: ShareModel;
 };
 
 const notifySlackError = async (
@@ -139,16 +142,20 @@ export class SlackService {
 
     spaceModel: SpaceModel;
 
+    shareModel: ShareModel;
+
     constructor({
         lightdashConfig,
         dashboardModel,
         savedChartModel,
         spaceModel,
+        shareModel,
     }: SlackServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
+        this.shareModel = shareModel;
     }
 
     private async unfurlChart(url: string, imageUrl: string): Promise<any> {
@@ -216,29 +223,58 @@ export class SlackService {
         return unfurls;
     }
 
+    private async getSharedUrl(linkUrl: string): Promise<string> {
+        return linkUrl;
+        // We currently don't support charts or dashboards with shared URL, so we don't need this right now
+        const [shareId] = linkUrl.match(nanoidRegex) || [];
+        const shareUrl = await this.shareModel.getSharedUrl(shareId);
+        return shareUrl.url || '';
+    }
+
+    private async parseUrl(
+        linkUrl: string,
+    ): Promise<{ isValid: boolean; isDashboard?: boolean; url: string }> {
+        if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
+            console.warn(
+                `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
+            );
+            return {
+                isValid: false,
+                url: linkUrl,
+            };
+        }
+
+        const shareUrl = new RegExp(`/share/${nanoid}`);
+        const url = linkUrl.match(shareUrl)
+            ? await this.getSharedUrl(linkUrl)
+            : linkUrl;
+
+        const dashboardUrl = new RegExp(`/projects/${uuid}/dashboards/${uuid}`);
+        const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
+
+        const isDashboard = url.match(dashboardUrl) !== null;
+        const isChart = url.match(chartUrl) !== null;
+        if (isDashboard || isChart) {
+            return {
+                isValid: true,
+                isDashboard,
+                url: linkUrl,
+            };
+        }
+        console.warn(`URL to unfurl ${url} is not valid`);
+        return {
+            isValid: false,
+            url,
+        };
+    }
+
     async unfurl(event: any, client: any, context: any): Promise<void> {
         event.links.map(async (l: any) => {
-            const { url } = l;
-            if (!url.startsWith(this.lightdashConfig.siteUrl)) {
-                console.warn(
-                    `URL to unfurl ${url} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
-                );
-                return;
-            }
-            const dashboardUrl = new RegExp(
-                `/projects/${uuid}/dashboards/${uuid}`,
-            );
-            const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
+            const { url: linkUrl } = l;
 
-            if (url.match(dashboardUrl)) {
-                // Continue
-            } else if (url.match(chartUrl)) {
-                console.warn('Chart unfurl not implemented');
-                return;
-            } else {
-                console.warn(
-                    'URL to unfurl does not match dashboards or charts',
-                );
+            const { isValid, isDashboard, url } = await this.parseUrl(linkUrl);
+
+            if (!isValid || isDashboard === undefined || url === undefined) {
                 return;
             }
 
@@ -246,7 +282,7 @@ export class SlackService {
                 event: 'share_slack.unfurl',
                 userId: event.user,
                 properties: {
-                    isDashboard: url.match(dashboardUrl) !== null,
+                    isDashboard,
                 },
             });
 
@@ -260,7 +296,7 @@ export class SlackService {
                     context,
                 );
 
-                const unfurls = await (url.match(dashboardUrl)
+                const unfurls = await (isDashboard
                     ? this.unfurlDashboard(url, imageUrl)
                     : this.unfurlChart(url, imageUrl));
                 client.chat

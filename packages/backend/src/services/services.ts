@@ -102,4 +102,5 @@ export const slackService = new SlackService({
     dashboardModel,
     savedChartModel,
     spaceModel,
+    shareModel,
 });
