@@ -19,10 +19,6 @@ describe('Lightdash headless browser', () => {
                 const response = resp.body;
                 const expectedRequest = [
                     ['browser', 'ws://headless-browser:3000'],
-                    [
-                        'url',
-                        'http://lightdash-dev:3000/api/v1/headless-browser/callback/single-test',
-                    ],
                     ['flag', 'single-test'],
                 ];
 
