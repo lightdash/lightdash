@@ -1111,13 +1111,17 @@ export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
     isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
 export const getItemLabel = (item: Field | TableCalculation) =>
     isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
-export const getItemIcon = (item: Field | TableCalculation) => {
+export const getItemIcon = (
+    item: Field | TableCalculation | AdditionalMetric,
+) => {
     if (isField(item)) {
         return isDimension(item) ? 'tag' : 'numerical';
     }
     return 'function';
 };
-export const getItemColor = (item: Field | TableCalculation) => {
+export const getItemColor = (
+    item: Field | TableCalculation | AdditionalMetric,
+) => {
     if (isField(item)) {
         return isDimension(item) ? '#0E5A8A' : '#A66321';
     }

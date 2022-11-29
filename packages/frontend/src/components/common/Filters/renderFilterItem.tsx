@@ -1,13 +1,17 @@
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer } from '@blueprintjs/select';
-import { FilterItem, getItemId } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    Field,
+    getItemId,
+    TableCalculation,
+} from '@lightdash/common';
 import FieldIcon from './FieldIcon';
 import FieldLabel from './FieldLabel';
 
-const renderFilterItem: ItemRenderer<FilterItem> = (
-    item,
-    { modifiers, handleClick, handleFocus },
-) => {
+const renderFilterItem: ItemRenderer<
+    Field | TableCalculation | AdditionalMetric
+> = (item, { modifiers, handleClick, handleFocus }) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }

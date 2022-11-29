@@ -1,9 +1,15 @@
-import { FilterItem, isField } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    Field,
+    isAdditionalMetric,
+    isField,
+    TableCalculation,
+} from '@lightdash/common';
 import { FC } from 'react';
 import styled from 'styled-components';
 
 interface FieldLabelProps {
-    item: FilterItem;
+    item: Field | TableCalculation | AdditionalMetric;
 }
 
 const BolderText = styled.span`
@@ -15,7 +21,9 @@ const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
         <span>
             {isField(item) ? `${item.tableLabel} ` : ''}
             <BolderText>
-                {isField(item) ? item.label : item.displayName}
+                {isField(item) || isAdditionalMetric(item)
+                    ? item.label
+                    : item.displayName}
             </BolderText>
         </span>
     );

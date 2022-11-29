@@ -2,8 +2,6 @@ import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { Suggest2 } from '@blueprintjs/select';
 import {
     Field,
-    FilterableField,
-    FilterItem,
     getItemId,
     getItemLabel,
     TableCalculation,
@@ -32,7 +30,7 @@ type FieldAutoCompleteProps<T> = {
     popoverProps?: Popover2Props;
 };
 
-const FieldAutoComplete = <T extends FilterItem>({
+const FieldAutoComplete = <T extends Field | TableCalculation>({
     disabled,
     autoFocus,
     activeField,
@@ -61,7 +59,7 @@ const FieldAutoComplete = <T extends FilterItem>({
             itemsEqual={(value, other) => {
                 return getItemId(value) === getItemId(other);
             }}
-            inputValueRenderer={(item: FilterItem) => {
+            inputValueRenderer={(item) => {
                 if (!activeField) {
                     return '';
                 }
@@ -79,12 +77,7 @@ const FieldAutoComplete = <T extends FilterItem>({
             selectedItem={activeField}
             noResults={<MenuItem2 disabled text="No results." />}
             onItemSelect={onChange}
-            itemPredicate={(
-                query: string,
-                item: FilterItem,
-                index?: undefined | number,
-                exactMatch?: undefined | false | true,
-            ) => {
+            itemPredicate={(query, item, index, exactMatch) => {
                 const label = getItemLabel(item);
                 if (exactMatch) {
                     return query.toLowerCase() === label.toLowerCase();
