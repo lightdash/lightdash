@@ -32,7 +32,7 @@ if (process.env.IS_PULL_REQUEST === 'true') {
             const hostname =
                 process.env.NODE_ENV === 'development'
                     ? 'lightdash-dev'
-                    : 'lightdash';
+                    : process.env.RENDER_SERVICE_NAME;
 
             const testUrl = `http://${hostname}:${
                 process.env.PORT || 3000
