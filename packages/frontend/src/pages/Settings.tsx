@@ -143,16 +143,20 @@ const Settings: FC = () => {
                             exact
                             to={`${basePath}/appearance`}
                         />
-
-                        {health.hasSlack && (
-                            <RouterMenuItem
-                                text="Slack"
-                                exact
-                                to={`${basePath}/slack`}
-                            />
-                        )}
                     </Menu>
                 </MenuWrapper>
+
+                {health.hasSlack && (
+                    <MenuWrapper>
+                        <MenuHeader>Integrations</MenuHeader>
+
+                        <RouterMenuItem
+                            text="Slack"
+                            exact
+                            to={`${basePath}/slack`}
+                        />
+                    </MenuWrapper>
+                )}
             </Sidebar>
 
             <Switch>
