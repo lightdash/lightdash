@@ -1,5 +1,6 @@
 import express from 'express';
 import passport from 'passport';
+import { setFlagsFromString } from 'v8';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     redirectOIDCFailure,
@@ -12,6 +13,7 @@ import { UserModel } from '../models/UserModel';
 import { healthService, userService } from '../services/services';
 import { sanitizeEmailParam, sanitizeStringParam } from '../utils';
 import { dashboardRouter } from './dashboardRouter';
+import { headlessBrowserRouter } from './headlessBrowser';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { jobsRouter } from './jobsRouter';
 import { organizationRouter } from './organizationRouter';
@@ -148,3 +150,4 @@ apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
 apiV1Router.use('/share', shareRouter);
+apiV1Router.use('/headless-browser', headlessBrowserRouter);

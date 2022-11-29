@@ -18,6 +18,7 @@
         "@testing-library/cypress": "^8.0.3",
         "cypress": "^10.1.0",
         "cypress-file-upload": "^5.0.8",
+        "node-fetch": "^2.6.1",
         "@lightdash/common": "^0.335.0"
     }
 }
