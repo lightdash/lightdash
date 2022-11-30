@@ -4,6 +4,9 @@ import MoveBetweenSpace from './assets/move-between-space.png';
 import AddModal from './assets/add-modal.png';
 import AccessSpaces from './assets/access-spaces.png';
 import RenameDeleteSpace from './assets/rename-delete-space.png';
+import RestrictedAccessSpace from './assets/restricted-access-space.png';
+import FullAccessSpace from './assets/full-access-space.png';
+import EditSpaceAccess from './assets/edit-space-access.png';
 
 # Spaces
 
@@ -42,3 +45,36 @@ You can rename or delete your Space on the homescreen by clicking on the three-d
 Deleting a Space will delete all of the content in that Space.
 
 :::
+
+## Managing access to a Space
+
+By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Full Access. 
+
+To edit access to a Space, navigate into the Space, then click the `share` icon. From there, you can choose to make a space `Restricted Access` or `Full Access`.
+
+<img src={RenameDeleteSpace} width="892" height="258" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+
+### Restricted Access Spaces
+
+Only members that are invited to a Space with Restricted Access have access to it. 
+
+For example, here I have a Space called `Finance` with Restricted Access. Only the invited members (Katie, who created the space, and Hamzah, who was invited) have access to this Space. No one else in Lightdash can see or interact with the content in this Space unless they're invited. 
+
+<img src={RestrictedAccessSpace} width="540" height="356" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Anyone with editor or admin permissions in your project who have access to a Restricted Space can invite other users to that Space. So, in my `Finance` Space example, Hamzah could invite Priyanka and she would get access to the `Finance` Space.
+
+You inherit your space permissions from your project permissions. So, in my example project, Hamzah is a project admin. This means when he's invited to the `Finance` Space, he inherits his project permissions and becomes an `admin` in that Space. So, he can edit the Space details, add/remove content to the Space, invite other users to the Space, and edit the Space access. If I invite Priyanka, who is a `viewer` in our project, then she will become a `viewer` in my `Finance` Space. This means she can't edit the Space details, can't add/remove content and she can't invite other users to the Space.
+
+### Full Access Spaces
+
+Eveyone who has access to the project your Space is in gets access to a Full Access Space.
+
+For example, here I have a Space called `Finance` with Full Access. Everyone who has access to my Project, "Lightdash analytics", will get access to the content in my `Finance` Space.
+
+<img src={RestrictedAccessSpace} width="543" height="175" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You inherit your space permissions from your project permissions. 
+
+So, if someone is an `editor` in my project, they will have `edit` permissions in my Space. If someone is a `viewer` in my project, they will have `view` permissions in my Space.
