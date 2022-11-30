@@ -434,10 +434,6 @@ Follow the instructions above to find your ODBC connection instructions.
 
 #### Personal Access Token
 
-You can create a personal access token (classic), or a fine-grained access token (beta). 
-
-##### Personal access token (classic)
-
 Your personal access token can be found in your user settings in databricks:
 
 1. Open `Settings` by clicking the cog ⚙️ in the sidebar and select `User settings`
@@ -445,31 +441,6 @@ Your personal access token can be found in your user settings in databricks:
 3. Copy the token
 
 <img src={DatabricksAccessScreenshot} width="1097" height="647" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-##### Fine-grained access token (beta) 
-
-Fine-grained access tokens are new special tokens that can only give access to individual repositories on your github account. 
-You can read more about it on the [Github docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-fine-grained-personal-access-token).
-
-1. Go to [settings > Developer access > Personal access tokens > fine-grained token](https://github.com/settings/personal-access-tokens/new)
-2. Add the name, expiration, description and owner (we'll need their username later)
-3. Add repository access, you might want to give access only to your `dbt` repository
-
-<img src={FineGrainedRepo} width="500" height="375" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-4. On repository permissions, select `Contents` 
-
-<img src={FineGrainedPermissions} width="800" height="91" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-5. Click `Generate token` and copy the token. 
-
-6. On create project page, add your [gihtub_username]:[token] into `Personal access token` field, like this: 
-
-<img src={FineGrainedProject} width="300" height="327" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-7. Create project 
-
-You could also replace your old tokens with new fine-grained tokens on project settings. 
 
 #### Database
 
@@ -527,12 +498,44 @@ We don't support connecting Lightdash to [dbt Cloud managed repositories](https:
 
 #### Personal access token
 
+
+You can create a personal access token (classic), or a fine-grained access token (beta). 
+
+##### Personal access token (classic)
+
 This is used to access your repo.
 See the [instructions for creating a personal access token here](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token).
 
 Select `repo` scope when you're creating the token.
 
 <img src={OauthScope} width="543" height="304" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+
+##### Fine-grained access token (beta) 
+
+Fine-grained access tokens are new special tokens that can only give access to individual repositories on your github account. 
+You can read more about it on the [Github docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-fine-grained-personal-access-token).
+
+1. Go to [settings > Developer access > Personal access tokens > fine-grained token](https://github.com/settings/personal-access-tokens/new)
+2. Add the name, expiration, description and owner (we'll need their username later)
+3. Add repository access, you might want to give access only to your `dbt` repository
+
+<img src={FineGrainedRepo} width="500" height="375" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+4. On repository permissions, select `Contents` 
+
+<img src={FineGrainedPermissions} width="800" height="91" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+5. Click `Generate token` and copy the token. 
+
+6. On create project page, add your [gihtub_username]:[token] into `Personal access token` field, like this: 
+
+<img src={FineGrainedProject} width="300" height="327" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+7. Create project 
+
+You could also replace your old tokens with new fine-grained tokens on project settings. 
+
 
 #### Repository
 
