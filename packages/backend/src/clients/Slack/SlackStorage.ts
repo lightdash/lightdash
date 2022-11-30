@@ -1,14 +1,12 @@
+import { Installation, InstallationQuery } from '@slack/bolt';
 import database from '../../database/database';
 
-const getTeamId = (payload: any) => {
+const getTeamId = (payload: Installation) => {
     if (payload.isEnterpriseInstall && payload.enterprise !== undefined) {
         return payload.enterprise.id;
     }
     if (payload.team !== undefined) {
         return payload.team.id;
-    }
-    if (payload.teamId !== undefined) {
-        return payload.teamId;
     }
 
     throw new Error('Could not find a valid team id in the payload request');
@@ -30,10 +28,9 @@ export const getOrganizationId = async (
     }
     return row.organization_id;
 };
-export const createInstallation = async (installation: any) => {
-    const organizationId = await getOrganizationId(
-        installation.metadata?.organizationUuid,
-    );
+export const createInstallation = async (installation: Installation) => {
+    const metadata = JSON.parse(installation.metadata || '{}');
+    const organizationId = await getOrganizationId(metadata.organizationUuid);
     const teamId = getTeamId(installation);
     await database('slack_auth_tokens')
         .insert({
@@ -44,8 +41,10 @@ export const createInstallation = async (installation: any) => {
         .onConflict('organization_id')
         .merge();
 };
-export const getInstallation = async (installQuery: any) => {
-    const teamId = getTeamId(installQuery);
+export const getInstallation = async (
+    installQuery: InstallationQuery<boolean>,
+) => {
+    const { teamId } = installQuery;
     const [row] = await database('slack_auth_tokens')
         .select('*')
         .where('slack_team_id', teamId);
