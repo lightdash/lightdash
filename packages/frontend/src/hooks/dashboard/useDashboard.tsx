@@ -1,10 +1,10 @@
 import {
     ApiError,
-    byDashbordChartTileType,
     CreateDashboard,
     Dashboard,
     DashboardTile,
     FilterableField,
+    isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
@@ -74,7 +74,7 @@ export const useDashboardTilesSavedQueryFilters = (
 ) => {
     const savedChartUuids = useMemo(() => {
         return tiles
-            .filter(byDashbordChartTileType)
+            .filter(isDashboardChartTileType)
             .map((tile) => tile.properties.savedChartUuid)
             .filter((uuid): uuid is string => !!uuid);
     }, [tiles]);

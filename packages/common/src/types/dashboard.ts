@@ -77,7 +77,7 @@ export type DashboardTile =
     | DashboardMarkdownTile
     | DashboardLoomTile;
 
-export const byDashbordChartTileType = (
+export const isDashboardChartTileType = (
     tile: DashboardTile,
 ): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
