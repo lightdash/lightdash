@@ -66,17 +66,13 @@ export type DashboardFieldTarget = {
     tableName: string;
 };
 
-export type TileFieldTargetOverride = DashboardFieldTarget & {
-    tileUuid: string;
-};
-
 export type DashboardFilterRule<
     O = FilterOperator,
     T = DashboardFieldTarget,
     V = any,
     S = any,
 > = FilterRule<O, T, V, S> & {
-    tileTargetOverride?: TileFieldTargetOverride[];
+    tileTargetOverride?: Record<string, DashboardFieldTarget>;
 };
 
 export type DateFilterRule = FilterRule<

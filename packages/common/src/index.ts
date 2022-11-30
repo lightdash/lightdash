@@ -34,7 +34,6 @@ import {
     FilterType,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
-    TileFieldTargetOverride,
     UnitOfTime,
 } from './types/filter';
 import {
@@ -408,25 +407,21 @@ export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
 const getDefaultTileFieldTargetOverride = (
     field: FilterableField,
     tilesSavedQueryFilters: Record<string, FilterableField[]>,
-): TileFieldTargetOverride[] =>
-    Object.entries(tilesSavedQueryFilters)
-        .map<TileFieldTargetOverride | undefined>(
-            ([tileUuid, savedQueryFilters]) => {
-                const filterableField = savedQueryFilters.find(
-                    matchFieldExact(field),
-                );
-                if (!filterableField) return undefined;
+) =>
+    Object.entries(tilesSavedQueryFilters).reduce<
+        Record<string, DashboardFieldTarget>
+    >((acc, [tileUuid, savedQueryFilters]) => {
+        const filterableField = savedQueryFilters.find(matchFieldExact(field));
+        if (!filterableField) return acc;
 
-                return {
-                    tileUuid,
-                    fieldId: fieldId(filterableField),
-                    tableName: filterableField.table,
-                };
+        return {
+            ...acc,
+            [tileUuid]: {
+                fieldId: fieldId(filterableField),
+                tableName: filterableField.table,
             },
-        )
-        .filter(
-            (tileConfig): tileConfig is TileFieldTargetOverride => !!tileConfig,
-        );
+        };
+    }, {});
 
 export const applyDefaultTileFieldTargetOverride = (
     filterRule: DashboardFilterRule<
@@ -456,11 +451,11 @@ export const createDashboardFilterRuleFromField = (
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(field, {
         id: uuidv4(),
+        operator: FilterOperator.EQUALS,
         target: {
             fieldId: fieldId(field),
             tableName: field.table,
         },
-        operator: FilterOperator.EQUALS,
         tileTargetOverride: getDefaultTileFieldTargetOverride(
             field,
             tilesSavedQueryFilters,

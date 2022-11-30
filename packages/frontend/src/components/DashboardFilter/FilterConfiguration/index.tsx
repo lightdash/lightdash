@@ -3,6 +3,7 @@ import { Classes, Popover2Props } from '@blueprintjs/popover2';
 
 import {
     applyDefaultTileFieldTargetOverride,
+    assertUnreachable,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
     DashboardTile,
@@ -96,36 +97,34 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     const handleChangeTileConfiguration = useCallback(
-        (
-            action: FilterActions,
-            tileUuid: string,
-            filterUuid?: FilterableField,
-        ) => {
-            const savedQuery = tilesSavedQueryFilters[tileUuid];
+        (action: FilterActions, tileUuid: string, filter?: FilterableField) => {
+            const filters = tilesSavedQueryFilters[tileUuid];
 
             setInternalFilterRule((prevState) =>
                 produce(prevState, (draftState) => {
                     draftState.tileTargetOverride =
-                        draftState.tileTargetOverride?.filter((tileConfig) => {
-                            return tileConfig.tileUuid !== tileUuid;
-                        }) || [];
-
-                    const filters = savedQuery;
+                        draftState.tileTargetOverride ?? {};
 
                     if (action === FilterActions.ADD) {
                         const filterableField =
-                            filterUuid ??
+                            filter ??
                             filters.find(matchFieldExact(field)) ??
                             filters.find(matchFieldByTypeAndName(field)) ??
                             filters.find(matchFieldByType(field));
 
                         if (!filterableField) return draftState;
 
-                        draftState.tileTargetOverride.push({
-                            tileUuid,
+                        draftState.tileTargetOverride[tileUuid] = {
                             fieldId: fieldId(filterableField),
                             tableName: filterableField.table,
-                        });
+                        };
+                    } else if (action === FilterActions.REMOVE) {
+                        delete draftState.tileTargetOverride[tileUuid];
+                    } else {
+                        return assertUnreachable(
+                            action,
+                            'Invalid FilterActions',
+                        );
                     }
                 }),
             );

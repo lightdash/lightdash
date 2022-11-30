@@ -1863,18 +1863,17 @@
                         "type": "object"
                     },
                     "tileTargetOverride": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "fieldId": {
-                                    "type": "string"
-                                },
-                                "tableName": {
-                                    "type": "string"
-                                },
-                                "tileUuid": {
-                                    "type": "string"
+                        "type": "object",
+                        "properties": {
+                            "tileUuid": {
+                                "type": "object",
+                                "properties": {
+                                    "fieldId": {
+                                        "type": "string"
+                                    },
+                                    "tableName": {
+                                        "type": "string"
+                                    }
                                 }
                             }
                         }
