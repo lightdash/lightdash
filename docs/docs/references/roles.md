@@ -31,3 +31,15 @@ Organization Admins can assign roles to organization members, which gives access
 | Edit **all** projects                      |         ✅          |          ✅          |          ❌          |          ❌          |
 | Admin for **all** projects                 |         ✅          |          ❌          |          ❌          |          ❌          |
 | Manage organization access and permissions |         ✅          |          ❌          |          ❌          |          ❌          |
+
+## Space Roles
+
+Space permissions are inherited from a user's project permissions. For example, if I'm a project viewer, I will get `viewer` access to a Space.
+
+| Action                                                   | Spaces Admin | Spaces Editor | Spaces Viewer |
+|:---------------------------------------------------------|:------------:|:-------------:|:-------------:|
+| Edit a Space's access (from Full to Restricted)          |      ✅       |       ✅      |       ❌      |
+| Invite users to a Restricted Space they have access to   |      ✅       |       ✅      |       ❌      |
+| Remove users from a Restricted Space they have access to |      ✅       |       ✅      |       ❌      |
+| Add/Remove content from the Space                        |      ✅       |       ✅      |       ❌      |
+| Edit the Space details (name, description, etc.)         |      ✅       |       ✅      |       ❌      |

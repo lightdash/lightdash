@@ -50,10 +50,11 @@ Deleting a Space will delete all of the content in that Space.
 
 By default, when you create a Space, it is restricted so only you can access it. You can edit a Space to make it Restricted Access or Full Access. 
 
-To edit access to a Space, navigate into the Space, then click the `share` icon. From there, you can choose to make a space `Restricted Access` or `Full Access`.
+To edit access to a Space, navigate into the Space, then click the `share` button. From there, you can choose to make a space `Restricted Access` or `Full Access`.
 
-<img src={RenameDeleteSpace} width="892" height="258" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={EditSpaceAccess} width="2024" height="400" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
+Users inherit their space permissions from their project permissions. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
 
 ### Restricted Access Spaces
 
@@ -63,9 +64,9 @@ For example, here I have a Space called `Finance` with Restricted Access. Only t
 
 <img src={RestrictedAccessSpace} width="540" height="356" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-Anyone with editor or admin permissions in your project who have access to a Restricted Space can invite other users to that Space. So, in my `Finance` Space example, Hamzah could invite Priyanka and she would get access to the `Finance` Space.
+Anyone with editor or admin permissions in your project who have access to a Restricted Space can invite other users to that Space. So, in my `Finance` Space example, Hamzah could invite Priyanka and she would get access to the `Finance` Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).
 
-You inherit your space permissions from your project permissions. So, in my example project, Hamzah is a project admin. This means when he's invited to the `Finance` Space, he inherits his project permissions and becomes an `admin` in that Space. So, he can edit the Space details, add/remove content to the Space, invite other users to the Space, and edit the Space access. If I invite Priyanka, who is a `viewer` in our project, then she will become a `viewer` in my `Finance` Space. This means she can't edit the Space details, can't add/remove content and she can't invite other users to the Space.
+You inherit your space permissions from your project permissions. So, in my example project, Hamzah is a project admin. This means when he's invited to the `Finance` Space, he inherits his project permissions and becomes an `admin` in that Space. If I invite Priyanka, who is a `viewer` in our project, then she will become a `viewer` in my `Finance` Space.
 
 ### Full Access Spaces
 
@@ -77,4 +78,4 @@ For example, here I have a Space called `Finance` with Full Access. Everyone who
 
 You inherit your space permissions from your project permissions. 
 
-So, if someone is an `editor` in my project, they will have `edit` permissions in my Space. If someone is a `viewer` in my project, they will have `view` permissions in my Space.
+So, if someone is an `editor` in my project, they will have `edit` permissions in my Space. If someone is a `viewer` in my project, they will have `view` permissions in my Space. For more details about actions you can take in a Space based on your role, [check out this table](/references/roles.mdx#space-roles).  
