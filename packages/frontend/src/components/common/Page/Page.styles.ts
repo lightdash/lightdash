@@ -28,7 +28,8 @@ export const PageContentContainer = styled.div<PageContentContainerProps>`
     padding: 10px 20px 10px
         ${({ hasDraggableSidebar }) => (hasDraggableSidebar ? 15 : 20)}px;
     display: flex;
-    flex-grow: 1;
+    width: 100%;
+    overflow: hidden;
     flex-direction: column;
 
     justify-content: flex-start;
