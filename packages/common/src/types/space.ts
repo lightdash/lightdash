@@ -13,7 +13,7 @@ export type Space = {
     access: SpaceShare[];
 };
 
-export type CreateSpace = Pick<Space, 'name'>;
+export type CreateSpace = Pick<Space, 'name' | 'isPrivate'>;
 
 export type UpdateSpace = Pick<Space, 'name' | 'isPrivate'>;
 

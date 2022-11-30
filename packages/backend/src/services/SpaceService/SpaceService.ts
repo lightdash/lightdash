@@ -91,6 +91,7 @@ export class SpaceService {
             projectUuid,
             space.name,
             user.userId,
+            space.isPrivate,
         );
 
         await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);

@@ -10,6 +10,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
+import { SpaceAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
@@ -129,12 +130,18 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     const { mutateAsync: deleteMutation, isLoading: isDeleting } =
         useDeleteMutation(projectUuid);
 
-    const handleSubmitForm = async (state?: Space) => {
+    const handleSubmitForm = async (state?: Space & { private: string }) => {
         if (actionType === ActionType.CREATE) {
-            const result = await createMutation({ name: state!.name });
+            const result = await createMutation({
+                name: state!.name,
+                isPrivate: state!.private === SpaceAccessType.PRIVATE,
+            });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.UPDATE) {
-            const result = await updateMutation({ name: state!.name });
+            const result = await updateMutation({
+                name: state!.name,
+                isPrivate: state!.isPrivate,
+            });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.DELETE) {
             const result = await deleteMutation(spaceUuid!);
