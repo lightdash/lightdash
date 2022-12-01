@@ -69,7 +69,7 @@ export const getQueryConfig = (savedChartUuid: string) => {
     };
 };
 
-export const useDashboardTilesSavedQueryFilters = (
+export const useDashboardAvailableTileFilters = (
     tiles: DashboardTile[] = [],
 ) => {
     const savedChartUuids = useMemo(() => {
@@ -115,7 +115,7 @@ export const useDashboardTilesSavedQueryFilters = (
 export const useAvailableDashboardFilterTargets = (
     tiles: DashboardTile[] = [],
 ) => {
-    const { isLoading, data } = useDashboardTilesSavedQueryFilters(tiles);
+    const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
 
     const availableFilters = useMemo(() => {
         if (isLoading || !data) return;

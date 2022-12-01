@@ -1,7 +1,7 @@
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useDashboardTilesSavedQueryFilters } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
@@ -30,12 +30,12 @@ const ActiveFilter: FC<Props> = ({
     onUpdate,
 }) => {
     const { dashboardTiles } = useDashboardContext();
-    const { data: tilesSavedQueryFilters, isLoading } =
-        useDashboardTilesSavedQueryFilters(dashboardTiles);
+    const { data: availableTileFilters, isLoading } =
+        useDashboardAvailableTileFilters(dashboardTiles);
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (isLoading || !tilesSavedQueryFilters) {
+    if (isLoading || !availableTileFilters) {
         return null;
     }
 
@@ -57,7 +57,7 @@ const ActiveFilter: FC<Props> = ({
                         selectedTabId={selectedTabId}
                         onTabChange={setSelectedTabId}
                         field={field}
-                        tilesSavedQueryFilters={tilesSavedQueryFilters}
+                        availableTileFilters={availableTileFilters}
                         filterRule={filterRule}
                         onSave={onUpdate}
                     />

@@ -226,12 +226,12 @@ export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
 
 const getDefaultTileTargets = (
     field: FilterableField,
-    tilesSavedQueryFilters: Record<string, FilterableField[]>,
+    availableTileFilters: Record<string, FilterableField[]>,
 ) =>
-    Object.entries(tilesSavedQueryFilters).reduce<
+    Object.entries(availableTileFilters).reduce<
         Record<string, DashboardFieldTarget>
-    >((acc, [tileUuid, savedQueryFilters]) => {
-        const filterableField = savedQueryFilters.find(matchFieldExact(field));
+    >((acc, [tileUuid, availableFilters]) => {
+        const filterableField = availableFilters.find(matchFieldExact(field));
         if (!filterableField) return acc;
 
         return {
@@ -251,12 +251,12 @@ export const applyDefaultTileTargets = (
         any
     >,
     field: FilterableField,
-    tilesSavedQueryFilters: Record<string, FilterableField[]>,
+    availableTileFilters: Record<string, FilterableField[]>,
 ) => {
     if (!filterRule.tileTargets) {
         return {
             ...filterRule,
-            tileTargets: getDefaultTileTargets(field, tilesSavedQueryFilters),
+            tileTargets: getDefaultTileTargets(field, availableTileFilters),
         };
     }
     return filterRule;
@@ -264,7 +264,7 @@ export const applyDefaultTileTargets = (
 
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
-    tilesSavedQueryFilters: Record<string, FilterableField[]>,
+    availableTileFilters: Record<string, FilterableField[]>,
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(field, {
         id: uuidv4(),
@@ -273,7 +273,7 @@ export const createDashboardFilterRuleFromField = (
             fieldId: fieldId(field),
             tableName: field.table,
         },
-        tileTargets: getDefaultTileTargets(field, tilesSavedQueryFilters),
+        tileTargets: getDefaultTileTargets(field, availableTileFilters),
     });
 
 type AddFilterRuleArgs = {

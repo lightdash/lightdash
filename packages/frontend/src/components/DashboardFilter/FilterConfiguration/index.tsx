@@ -43,7 +43,7 @@ export enum FilterActions {
 interface Props {
     tiles: DashboardTile[];
     field: FilterableField;
-    tilesSavedQueryFilters: Record<string, FilterableField[]>;
+    availableTileFilters: Record<string, FilterableField[]>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
@@ -56,7 +56,7 @@ const FilterConfiguration: FC<Props> = ({
     selectedTabId = DEFAULT_TAB,
     tiles,
     field,
-    tilesSavedQueryFilters,
+    availableTileFilters,
     filterRule,
     popoverProps,
     onSave,
@@ -69,11 +69,11 @@ const FilterConfiguration: FC<Props> = ({
                 ? applyDefaultTileTargets(
                       filterRule,
                       field,
-                      tilesSavedQueryFilters,
+                      availableTileFilters,
                   )
                 : createDashboardFilterRuleFromField(
                       field,
-                      tilesSavedQueryFilters,
+                      availableTileFilters,
                   ),
         );
 
@@ -98,7 +98,7 @@ const FilterConfiguration: FC<Props> = ({
 
     const handleChangeTileConfiguration = useCallback(
         (action: FilterActions, tileUuid: string, filter?: FilterableField) => {
-            const filters = tilesSavedQueryFilters[tileUuid];
+            const filters = availableTileFilters[tileUuid];
 
             setInternalFilterRule((prevState) =>
                 produce(prevState, (draftState) => {
@@ -128,7 +128,7 @@ const FilterConfiguration: FC<Props> = ({
                 }),
             );
         },
-        [field, tilesSavedQueryFilters],
+        [field, availableTileFilters],
     );
 
     const filterSettings = (
@@ -166,7 +166,7 @@ const FilterConfiguration: FC<Props> = ({
                                 filterRule={internalFilterRule}
                                 popoverProps={popoverProps}
                                 tiles={tiles}
-                                tilesSavedQueryFilters={tilesSavedQueryFilters}
+                                availableTileFilters={availableTileFilters}
                                 onChange={handleChangeTileConfiguration}
                             />
                         }

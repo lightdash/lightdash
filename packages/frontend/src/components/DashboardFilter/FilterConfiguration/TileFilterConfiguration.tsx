@@ -16,9 +16,9 @@ import { Title } from './FilterConfiguration.styled';
 
 interface TileFilterConfigurationProps {
     tiles: DashboardTile[];
+    availableTileFilters: Record<string, FilterableField[]>;
     field: FilterableField;
     filterRule: DashboardFilterRule;
-    tilesSavedQueryFilters: Record<string, FilterableField[]>;
     popoverProps?: Popover2Props;
     onChange: (
         action: FilterActions,
@@ -31,7 +31,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     tiles,
     field,
     filterRule,
-    tilesSavedQueryFilters,
+    availableTileFilters,
     popoverProps,
     onChange,
 }) => {
@@ -62,10 +62,10 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     );
 
     const sortedTileEntries = useMemo(() => {
-        return Object.entries(tilesSavedQueryFilters)
+        return Object.entries(availableTileFilters)
             .sort(([, a], [, b]) => tilesSortBy(matchFieldByTypeAndName, a, b))
             .sort(([, a], [, b]) => tilesSortBy(matchFieldExact, a, b));
-    }, [tilesSortBy, tilesSavedQueryFilters]);
+    }, [tilesSortBy, availableTileFilters]);
 
     return (
         <>
