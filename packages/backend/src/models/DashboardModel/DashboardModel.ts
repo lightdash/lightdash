@@ -6,7 +6,6 @@ import {
     DashboardChartTile,
     DashboardLoomTile,
     DashboardMarkdownTile,
-    DashboardTile,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -93,88 +92,110 @@ export class DashboardModel {
         await trx(DashboardViewsTableName).insert({
             dashboard_version_id: versionId.dashboard_version_id,
             name: 'Default',
-            filters: version.filters || {
-                dimensions: [],
-                metrics: [],
+            filters: {
+                dimensions: version.filters?.dimensions ?? [],
+                metrics: version.filters?.metrics ?? [],
             },
         });
 
-        const promises: Promise<any>[] = [];
-        version.tiles.forEach((tile) => {
+        const tilePromises = version.tiles.map(async (tile) => {
             const { uuid: dashboardTileId, type, w, h, x, y } = tile;
-            promises.push(
-                (async () => {
-                    const [insertedTile] = await trx(DashboardTilesTableName)
-                        .insert({
+
+            const [insertedTile] = await trx(DashboardTilesTableName)
+                .insert({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: dashboardTileId,
+                    type,
+                    height: h,
+                    width: w,
+                    x_offset: x,
+                    y_offset: y,
+                })
+                .returning('*');
+
+            switch (tile.type) {
+                case DashboardTileTypes.SAVED_CHART:
+                    if (tile.properties.savedChartUuid) {
+                        const [savedChart] = await trx(SavedChartsTableName)
+                            .select(['saved_query_id'])
+                            .where(
+                                'saved_query_uuid',
+                                tile.properties.savedChartUuid,
+                            )
+                            .limit(1);
+                        if (!savedChart) {
+                            throw new NotFoundError('Saved chart not found');
+                        }
+                        await trx(DashboardTileChartTableName).insert({
                             dashboard_version_id:
                                 versionId.dashboard_version_id,
-                            dashboard_tile_uuid: dashboardTileId,
-                            type,
-                            height: h,
-                            width: w,
-                            x_offset: x,
-                            y_offset: y,
-                        })
-                        .returning('*');
-                    switch (tile.type) {
-                        case DashboardTileTypes.SAVED_CHART:
-                            if (tile.properties.savedChartUuid) {
-                                const [savedChart] = await trx(
-                                    SavedChartsTableName,
-                                )
-                                    .select(['saved_query_id'])
-                                    .where(
-                                        'saved_query_uuid',
-                                        tile.properties.savedChartUuid,
-                                    )
-                                    .limit(1);
-                                if (!savedChart) {
-                                    throw new NotFoundError(
-                                        'Saved chart not found',
-                                    );
-                                }
-                                await trx(DashboardTileChartTableName).insert({
-                                    dashboard_version_id:
-                                        versionId.dashboard_version_id,
-                                    dashboard_tile_uuid:
-                                        insertedTile.dashboard_tile_uuid,
-                                    saved_chart_id: savedChart.saved_query_id,
-                                    hide_title: tile.properties.hideTitle,
-                                });
-                            }
-                            break;
-                        case DashboardTileTypes.MARKDOWN:
-                            await trx(DashboardTileMarkdownsTableName).insert({
-                                dashboard_version_id:
-                                    versionId.dashboard_version_id,
-                                dashboard_tile_uuid:
-                                    insertedTile.dashboard_tile_uuid,
-                                title: tile.properties.title,
-                                content: tile.properties.content,
-                            });
-                            break;
-                        case DashboardTileTypes.LOOM:
-                            await trx(DashboardTileLoomsTableName).insert({
-                                dashboard_version_id:
-                                    versionId.dashboard_version_id,
-                                dashboard_tile_uuid:
-                                    insertedTile.dashboard_tile_uuid,
-                                title: tile.properties.title,
-                                url: tile.properties.url,
-                                hide_title: tile.properties.hideTitle,
-                            });
-                            break;
-                        default: {
-                            const never: never = tile;
-                            throw new UnexpectedServerError(
-                                `Dashboard tile type "${type}" not recognised`,
-                            );
-                        }
+                            dashboard_tile_uuid:
+                                insertedTile.dashboard_tile_uuid,
+                            saved_chart_id: savedChart.saved_query_id,
+                            hide_title: tile.properties.hideTitle,
+                        });
                     }
-                })(),
-            );
+                    break;
+                case DashboardTileTypes.MARKDOWN:
+                    await trx(DashboardTileMarkdownsTableName).insert({
+                        dashboard_version_id: versionId.dashboard_version_id,
+                        dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
+                        title: tile.properties.title,
+                        content: tile.properties.content,
+                    });
+                    break;
+                case DashboardTileTypes.LOOM:
+                    await trx(DashboardTileLoomsTableName).insert({
+                        dashboard_version_id: versionId.dashboard_version_id,
+                        dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
+                        title: tile.properties.title,
+                        url: tile.properties.url,
+                        hide_title: tile.properties.hideTitle,
+                    });
+                    break;
+                default: {
+                    const never: never = tile;
+                    throw new UnexpectedServerError(
+                        `Dashboard tile type "${type}" not recognised`,
+                    );
+                }
+            }
+
+            return insertedTile;
         });
-        await Promise.all(promises);
+
+        const tiles = await Promise.all(tilePromises);
+        const tileUuids = tiles.map((tile) => tile.dashboard_tile_uuid);
+
+        // TODO: remove after resolving a problem with importing lodash-es in the backend
+        const pick = <T>(object: Record<string, T>, keys: string[]) =>
+            Object.keys(object)
+                .filter((key) => keys.includes(key))
+                .reduce<typeof object>(
+                    (obj, key) => ({ ...obj, [key]: object[key] }),
+                    {},
+                );
+
+        await trx(DashboardViewsTableName)
+            .where({ dashboard_version_id: versionId.dashboard_version_id })
+            .update({
+                filters: {
+                    dimensions:
+                        version.filters?.dimensions.map((filter) => ({
+                            ...filter,
+                            tileTargets: filter.tileTargets
+                                ? pick(filter.tileTargets, tileUuids)
+                                : undefined,
+                        })) ?? [],
+                    metrics:
+                        version.filters?.metrics.map((filter) => ({
+                            ...filter,
+                            tileTargets: filter.tileTargets
+                                ? pick(filter.tileTargets, tileUuids)
+                                : undefined,
+                        })) ?? [],
+                },
+            });
     }
 
     async getAllByProject(
