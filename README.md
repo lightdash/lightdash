@@ -100,7 +100,7 @@ production using our [community helm charts](https://github.com/lightdash/helm-c
 
 ### Sign up to Lightdash Cloud
 
-You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up to the waitlist for Lightdash Cloud Beta](https://lightdash.typeform.com/to/HFlicx4i#source=github) . We'll let you know once we're ready to bring you on board 🙂
+You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up for Lightdash Cloud Public Beta](https://lightdash.typeform.com/public-beta#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
 ## Getting started
 
