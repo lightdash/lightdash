@@ -21,13 +21,14 @@ const useDashboardFiltersForExplore = (
     const overrideTileFilters = useCallback(
         (rules: DashboardFilterRule[]) =>
             rules
-                .filter((f) => f.tileTargetOverride?.[tileUuid] ?? true)
+                .filter((f) => f.tileTargets?.[tileUuid] ?? true)
                 .map((filter) => {
-                    const tileConfig = filter.tileTargetOverride?.[tileUuid];
+                    const { tileTargets, ...rest } = filter;
+                    const tileConfig = tileTargets?.[tileUuid];
                     if (!tileConfig) return filter;
 
                     return {
-                        ...filter,
+                        ...rest,
                         target: {
                             fieldId: tileConfig.fieldId,
                             tableName: tileConfig.tableName,

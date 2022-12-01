@@ -2,7 +2,7 @@ import { Intent, Tab, Tabs } from '@blueprintjs/core';
 import { Classes, Popover2Props } from '@blueprintjs/popover2';
 
 import {
-    applyDefaultTileFieldTargetOverride,
+    applyDefaultTileTargets,
     assertUnreachable,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
@@ -66,7 +66,7 @@ const FilterConfiguration: FC<Props> = ({
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
             filterRule
-                ? applyDefaultTileFieldTargetOverride(
+                ? applyDefaultTileTargets(
                       filterRule,
                       field,
                       tilesSavedQueryFilters,
@@ -102,8 +102,7 @@ const FilterConfiguration: FC<Props> = ({
 
             setInternalFilterRule((prevState) =>
                 produce(prevState, (draftState) => {
-                    draftState.tileTargetOverride =
-                        draftState.tileTargetOverride ?? {};
+                    draftState.tileTargets = draftState.tileTargets ?? {};
 
                     if (action === FilterActions.ADD) {
                         const filterableField =
@@ -114,12 +113,12 @@ const FilterConfiguration: FC<Props> = ({
 
                         if (!filterableField) return draftState;
 
-                        draftState.tileTargetOverride[tileUuid] = {
+                        draftState.tileTargets[tileUuid] = {
                             fieldId: fieldId(filterableField),
                             tableName: filterableField.table,
                         };
                     } else if (action === FilterActions.REMOVE) {
-                        delete draftState.tileTargetOverride[tileUuid];
+                        delete draftState.tileTargets[tileUuid];
                     } else {
                         return assertUnreachable(
                             action,

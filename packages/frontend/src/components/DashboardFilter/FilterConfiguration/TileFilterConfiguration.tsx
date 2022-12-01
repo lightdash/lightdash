@@ -75,7 +75,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
 
             {sortedTileEntries.map(([tileUuid, filters]) => {
                 const tile = tiles.find((t) => t.uuid === tileUuid);
-                const tileConfig = filterRule.tileTargetOverride?.[tileUuid];
+                const tileConfig = filterRule.tileTargets?.[tileUuid];
 
                 const isAvailable = filters.some(matchFieldByType(field));
                 const isChecked = isAvailable && !!tileConfig;

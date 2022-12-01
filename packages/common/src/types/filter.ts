@@ -72,7 +72,7 @@ export type DashboardFilterRule<
     V = any,
     S = any,
 > = FilterRule<O, T, V, S> & {
-    tileTargetOverride?: Record<string, DashboardFieldTarget>;
+    tileTargets?: Record<string, DashboardFieldTarget>;
 };
 
 export type DateFilterRule = FilterRule<

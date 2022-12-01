@@ -224,7 +224,7 @@ export const matchFieldByTypeAndName =
 export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
     a.type === b.type;
 
-const getDefaultTileFieldTargetOverride = (
+const getDefaultTileTargets = (
     field: FilterableField,
     tilesSavedQueryFilters: Record<string, FilterableField[]>,
 ) =>
@@ -243,7 +243,7 @@ const getDefaultTileFieldTargetOverride = (
         };
     }, {});
 
-export const applyDefaultTileFieldTargetOverride = (
+export const applyDefaultTileTargets = (
     filterRule: DashboardFilterRule<
         FilterOperator,
         DashboardFieldTarget,
@@ -253,13 +253,10 @@ export const applyDefaultTileFieldTargetOverride = (
     field: FilterableField,
     tilesSavedQueryFilters: Record<string, FilterableField[]>,
 ) => {
-    if (!filterRule.tileTargetOverride) {
+    if (!filterRule.tileTargets) {
         return {
             ...filterRule,
-            tileTargetOverride: getDefaultTileFieldTargetOverride(
-                field,
-                tilesSavedQueryFilters,
-            ),
+            tileTargets: getDefaultTileTargets(field, tilesSavedQueryFilters),
         };
     }
     return filterRule;
@@ -276,10 +273,7 @@ export const createDashboardFilterRuleFromField = (
             fieldId: fieldId(field),
             tableName: field.table,
         },
-        tileTargetOverride: getDefaultTileFieldTargetOverride(
-            field,
-            tilesSavedQueryFilters,
-        ),
+        tileTargets: getDefaultTileTargets(field, tilesSavedQueryFilters),
     });
 
 type AddFilterRuleArgs = {

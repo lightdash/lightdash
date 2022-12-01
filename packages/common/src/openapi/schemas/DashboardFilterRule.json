@@ -26,7 +26,7 @@
         "settings": {
             "type": "object"
         },
-        "tileTargetOverride": {
+        "tileTargets": {
             "type": "object",
             "properties": {
                 "tileUuid": {
