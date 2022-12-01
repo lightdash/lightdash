@@ -22,7 +22,7 @@
         "@types/snowflake-sdk": "^1.6.1",
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
-        "knex-mock-client": "^1.6.0"
+        "knex-mock-client": "^1.11.0"
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
@@ -65,12 +65,12 @@
         "passport-strategy": "^1.0.0",
         "pg": "^8.7.1",
         "pg-connection-string": "^2.5.0",
+        "puppeteer": "^18.0.5",
         "redoc-express": "^1.0.0",
         "simple-git": "^3.5.0",
         "tempy": "^1.0.1",
         "uuid": "^8.3.2",
-        "winston": "^3.3.3",
-        "puppeteer": "^18.0.5"
+        "winston": "^3.3.3"
     },
     "scripts": {
         "dev": "HEADLESS=true nodemon src/index.ts",

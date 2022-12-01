@@ -89,12 +89,13 @@ export class DashboardModel {
             },
             ['dashboard_version_id', 'updated_by_user_uuid'],
         );
+
         await trx(DashboardViewsTableName).insert({
             dashboard_version_id: versionId.dashboard_version_id,
             name: 'Default',
-            filters: {
-                dimensions: version.filters?.dimensions ?? [],
-                metrics: version.filters?.metrics ?? [],
+            filters: version.filters || {
+                dimensions: [],
+                metrics: [],
             },
         });
 
@@ -177,7 +178,6 @@ export class DashboardModel {
                 );
 
         await trx(DashboardViewsTableName)
-            .where({ dashboard_version_id: versionId.dashboard_version_id })
             .update({
                 filters: {
                     dimensions:
@@ -195,7 +195,8 @@ export class DashboardModel {
                                 : undefined,
                         })) ?? [],
                 },
-            });
+            })
+            .where({ dashboard_version_id: versionId.dashboard_version_id });
     }
 
     async getAllByProject(
