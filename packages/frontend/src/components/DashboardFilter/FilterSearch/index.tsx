@@ -85,7 +85,6 @@ const FilterSearch: FC<Props> = ({
                 <FormGroup
                     style={{ marginBottom: 0 }}
                     label={<b>Select a dimension to filter</b>}
-                    helperText="Filters set on individual charts will be overridden."
                 >
                     <FieldAutoComplete
                         fields={fields}
