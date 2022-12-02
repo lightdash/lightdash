@@ -2,6 +2,7 @@ import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
 import startCase from 'lodash/startCase';
 import { FC, useMemo } from 'react';
+import UnitInput from '../../common/UnitInput';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionRow } from './Grid.styles';
 
@@ -92,33 +93,19 @@ const GridPanel: FC = () => {
                         label={startCase(position)}
                         labelFor={`${position}-input`}
                     >
-                        <InputGroup
-                            type="number"
-                            id={`${position}-input`}
+                        <UnitInput
                             name={position}
-                            placeholder={placeholder}
                             value={value || ''}
-                            onChange={(e) =>
-                                handleUpdate(
-                                    position,
-                                    e.target.value,
-                                    value ? unit : placeholderUnit,
-                                )
+                            placeholder={placeholder}
+                            nextUnit={nextUnit}
+                            placeholderUnit={placeholderUnit}
+                            unit={unit}
+                            units={Object.values(Units)}
+                            onChange={(newValue, newUnit) =>
+                                handleUpdate(position, newValue, newUnit)
                             }
-                            rightElement={
-                                <Button
-                                    minimal
-                                    small
-                                    disabled={!value}
-                                    onClick={() =>
-                                        handleUpdateUnit(
-                                            position,
-                                            value ? nextUnit : placeholderUnit,
-                                        )
-                                    }
-                                >
-                                    {unit || placeholderUnit}
-                                </Button>
+                            onUnitChange={(newUnit) =>
+                                handleUpdateUnit(position, newUnit)
                             }
                         />
                     </FormGroup>
