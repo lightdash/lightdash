@@ -64,8 +64,8 @@ const GridPanel: FC = () => {
                             labelFor={`${position}-input`}
                         >
                             <UnitInput
-                                units={units}
                                 name={position}
+                                units={units}
                                 value={config[position] || ''}
                                 defaultValue={defaultGrid[position]}
                                 onChange={(value) =>

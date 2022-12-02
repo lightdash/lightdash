@@ -1,19 +1,23 @@
-import { Button } from '@blueprintjs/core';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, InputGroupProps } from '@blueprintjs/core';
+import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import { StyledNumberInput } from './UnitInput.style';
 
-type UnitInputProps<T extends string> = {
+export type UnitInputProps = Omit<
+    InputGroupProps,
+    'name' | 'value' | 'defaultValue' | 'onChange'
+> & {
     name: string;
-    units: T[];
+    units: string[];
     value: string;
     defaultValue: string;
+    fallbackValue?: string;
     onChange: (value: string | undefined) => void;
 };
 
-export const getValueAndUnit = <T extends string>(
+export const getValueAndUnit = (
     valueWithUnit: string,
-    units: T[],
-): [string?, T?] => {
+    units: string[],
+): [string?, string?] => {
     if (!valueWithUnit || valueWithUnit === '') return [];
 
     const unit = units.find((u) => valueWithUnit.endsWith(u)) || units[0];
@@ -21,64 +25,93 @@ export const getValueAndUnit = <T extends string>(
     return [value, unit];
 };
 
-const UnitInput = <T extends string>({
-    name,
-    units,
-    value: valueWithUnit,
-    defaultValue: defaultValueWithUnit,
-    onChange,
-}: UnitInputProps<T>) => {
-    const [value, unit] = useMemo(
-        () => getValueAndUnit(valueWithUnit, units),
-        [valueWithUnit, units],
-    );
+const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
+    (
+        {
+            name,
+            units,
+            value: valueWithUnit,
+            defaultValue: defaultValueWithUnit,
+            fallbackValue,
+            onChange,
+            ...rest
+        },
+        ref,
+    ) => {
+        const inputRef = useRef<HTMLInputElement | null>(null);
 
-    const [defaultValue, defaultUnit] = useMemo(
-        () => getValueAndUnit(defaultValueWithUnit, units),
-        [defaultValueWithUnit, units],
-    );
+        const [value, unit] = useMemo(
+            () => getValueAndUnit(valueWithUnit, units),
+            [valueWithUnit, units],
+        );
 
-    const nextUnit = useMemo(() => {
-        if (!unit) return;
+        const [defaultValue, defaultUnit] = useMemo(
+            () => getValueAndUnit(defaultValueWithUnit, units),
+            [defaultValueWithUnit, units],
+        );
 
-        const currentIndex = units.indexOf(unit);
-        return units.concat(units[0])[currentIndex + 1];
-    }, [unit, units]);
+        const nextUnit = useMemo(() => {
+            if (!unit) return;
 
-    const handleChange = useCallback(
-        (newValue?: string, newUnit?: T) =>
-            onChange(
-                newValue && newValue !== '' && newUnit
-                    ? `${newValue}${newUnit}`
-                    : undefined,
-            ),
-        [onChange],
-    );
+            const currentIndex = units.indexOf(unit);
+            return units.concat(units[0])[currentIndex + 1];
+        }, [unit, units]);
 
-    return (
-        <StyledNumberInput
-            type="number"
-            id={`${name}-input`}
-            name={name}
-            placeholder={defaultValue}
-            value={value || ''}
-            onChange={(e) =>
-                handleChange(e.target.value, value ? unit : defaultUnit)
-            }
-            rightElement={
-                <Button
-                    minimal
-                    small
-                    disabled={!value}
-                    onClick={() =>
-                        handleChange(value, value ? nextUnit : defaultUnit)
+        const handleChange = useCallback(
+            (newValue?: string, newUnit?: string, trigger: boolean = false) => {
+                onChange(
+                    newValue && newValue !== '' && newUnit
+                        ? `${newValue}${newUnit}`
+                        : defaultValue,
+                );
+                if (trigger) {
+                    inputRef.current?.focus();
+                }
+            },
+            [onChange, defaultValue],
+        );
+
+        return (
+            <StyledNumberInput
+                inputRef={(input) => {
+                    if (!input) return;
+
+                    inputRef.current = input;
+
+                    if (typeof ref === 'function') {
+                        ref(input);
+                    } else if (ref) {
+                        ref.current = input;
                     }
-                >
-                    {unit || defaultUnit}
-                </Button>
-            }
-        />
-    );
-};
+                }}
+                type="number"
+                id={`${name}-input`}
+                name={name}
+                {...rest}
+                placeholder={defaultValue}
+                value={value || ''}
+                onChange={(e) =>
+                    handleChange(e.target.value, value ? unit : defaultUnit)
+                }
+                rightElement={
+                    <Button
+                        minimal
+                        small
+                        disabled={!value || value === defaultValue}
+                        onClick={() =>
+                            handleChange(
+                                value,
+                                value ? nextUnit : defaultUnit,
+                                true,
+                            )
+                        }
+                    >
+                        {unit || defaultUnit}
+                    </Button>
+                }
+            />
+        );
+    },
+);
 
 export default UnitInput;
