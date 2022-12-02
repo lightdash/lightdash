@@ -2,21 +2,21 @@ import { Colors } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
 
-export const FilterModalContainer = styled.div``;
+interface FilterModalContainerProps {
+    $wide?: boolean;
+}
 
-export const Title = styled.p`
-    font-weight: bold;
+export const FilterModalContainer = styled.div<FilterModalContainerProps>`
+    padding: 20px;
+    width: ${({ $wide }) => ($wide ? '500px' : '350px')};
+`;
+
+export const TileContainer = styled.div`
+    width: 500px;
 `;
 
 export const InputWrapper = styled.div`
     width: 20.5em;
-`;
-
-export const FilterFooter = styled.p`
-    color: ${Colors.GRAY2};
-    font-weight: 500;
-    font-size: 0.857em;
-    margin: 2.5em 0 0;
 `;
 
 export const DimensionLabel = styled(MenuItem2)`

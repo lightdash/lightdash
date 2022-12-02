@@ -2,8 +2,9 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
-    DashboardTileTypes,
+    DashboardTile,
     FilterableField,
+    isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
@@ -61,48 +62,75 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
         body: undefined,
     });
 
-export const useAvailableDashboardFilterTargets = (
-    availableTilesToFilter: Dashboard['tiles'],
-): { isLoading: boolean; data: FilterableField[] } => {
-    const queries = useMemo(() => {
-        const savedChartUuids = (availableTilesToFilter || [])
-            .map((tile) =>
-                tile.type === DashboardTileTypes.SAVED_CHART
-                    ? tile.properties.savedChartUuid
-                    : null,
-            )
-            .filter((id) => id !== null) as string[];
-        return savedChartUuids.map((savedChartUuid) => ({
-            queryKey: ['available_filters', savedChartUuid],
-            queryFn: () => getChartAvailableFilters(savedChartUuid),
-        }));
-    }, [availableTilesToFilter]);
-    const results = useQueries(queries) as UseQueryResult<
-        FilterableField[],
-        ApiError
-    >[]; // useQueries doesn't allow us to specify TError
+export const getQueryConfig = (savedChartUuid: string) => {
+    return {
+        queryKey: ['available_filters', savedChartUuid],
+        queryFn: () => getChartAvailableFilters(savedChartUuid),
+    };
+};
 
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [availableFilters, setAvailableFilters] = useState<FilterableField[]>(
-        [],
-    );
+export const useDashboardAvailableTileFilters = (
+    tiles: DashboardTile[] = [],
+) => {
+    const savedChartUuids = useMemo(() => {
+        return tiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => !!uuid);
+    }, [tiles]);
+
+    const tileUuids = useMemo(() => {
+        return tiles.map((tile) => tile.uuid);
+    }, [tiles]);
+
+    const queries = useQueries(
+        savedChartUuids.map((uuid) => getQueryConfig(uuid)),
+    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
+
+    const isLoading = queries.some((query) => query.isLoading);
+    const queryResults = queries.map((query) => query.data!);
+
+    const [data, setData] = useState<Record<string, FilterableField[]>>();
 
     useDeepCompareEffect(() => {
-        setIsLoading(results.some((q) => q.isLoading));
-        setAvailableFilters(
-            results
-                .flatMap((q) => q.data || [])
-                .filter(
-                    (field, index, allFields) =>
-                        index ===
-                        allFields.findIndex(
-                            (f) =>
-                                f.table === field.table &&
-                                f.name === field.name,
-                        ),
+        if (isLoading || queryResults.length === 0) return;
+
+        const results = queryResults.reduce<Record<string, FilterableField[]>>(
+            (acc, result, index) => ({
+                ...acc,
+                [tileUuids[index]]: result,
+            }),
+            {},
+        );
+
+        setData(results);
+    }, [isLoading, tileUuids, queryResults]);
+
+    return {
+        isLoading,
+        data,
+    };
+};
+
+export const useAvailableDashboardFilterTargets = (
+    tiles: DashboardTile[] = [],
+) => {
+    const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
+
+    const availableFilters = useMemo(() => {
+        if (isLoading || !data) return;
+
+        const allFilters = Object.values(data).flat();
+        if (allFilters.length === 0) return;
+
+        return allFilters.filter(
+            (field, index, allFields) =>
+                index ===
+                allFields.findIndex(
+                    (f) => f.table === field.table && f.name === field.name,
                 ),
         );
-    }, [results]);
+    }, [isLoading, data]);
 
     return {
         isLoading,
@@ -337,9 +365,9 @@ export const useDeleteMutation = () => {
 };
 
 export const appendNewTilesToBottom = (
-    existingTiles: Dashboard['tiles'] | [],
-    newTiles: Dashboard['tiles'],
-): Dashboard['tiles'] => {
+    existingTiles: DashboardTile[] | [],
+    newTiles: DashboardTile[],
+): DashboardTile[] => {
     const tilesY =
         existingTiles &&
         existingTiles.map(function (tile) {

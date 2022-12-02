@@ -8,6 +8,7 @@ import DashboardCellContextMenu from './DashboardCellContextMenu';
 
 type SimpleTableProps = {
     isDashboard: boolean;
+    tileUuid?: string;
     className?: string;
     $padding?: number;
     $shouldExpand?: boolean;
@@ -15,6 +16,7 @@ type SimpleTableProps = {
 
 const SimpleTable: FC<SimpleTableProps> = ({
     isDashboard,
+    tileUuid,
     className,
     $shouldExpand,
     $padding,
@@ -62,10 +64,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
             }}
             cellContextMenu={(props) => {
                 if (isSqlRunner) return <>{props.children}</>;
-                if (isDashboard)
+                if (isDashboard && tileUuid)
                     return (
                         <DashboardCellContextMenu
                             {...props}
+                            tileUuid={tileUuid}
                             explore={explore}
                         />
                     );

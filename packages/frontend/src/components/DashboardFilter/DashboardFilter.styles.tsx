@@ -1,11 +1,5 @@
 import { AnchorButton, Colors } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
-
-export const TriggerWrapper = styled(Popover2)`
-    width: fit-content;
-    align-self: baseline;
-`;
 
 export const FilterTrigger = styled(AnchorButton)`
     color: ${Colors.BLUE3} !important;
@@ -40,13 +34,7 @@ export const FilterTrigger = styled(AnchorButton)`
 `;
 
 export const DashboardFilterWrapper = styled.div`
-    display: grid;
+    display: flex;
+    gap: 8px;
     align-items: center;
-    grid-template-columns: 7.3em auto;
-    margin-bottom: 0.5em;
-`;
-
-export const Tooltip = styled.p`
-    padding: 0;
-    margin: 0;
 `;

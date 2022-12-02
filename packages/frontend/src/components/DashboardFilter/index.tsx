@@ -1,6 +1,6 @@
-import { Classes, Tooltip2 } from '@blueprintjs/popover2';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAvailableDashboardFilterTargets } from '../../hooks/dashboard/useDashboard';
 import { useProject } from '../../hooks/useProject';
@@ -10,8 +10,6 @@ import ActiveFilters from './ActiveFilters';
 import {
     DashboardFilterWrapper,
     FilterTrigger,
-    Tooltip,
-    TriggerWrapper,
 } from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
@@ -23,13 +21,11 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isOpen, setIsOpen] = useState(false);
     const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+
     const project = useProject(projectUuid);
-    const {
-        dashboard,
-        fieldsWithSuggestions,
-        dashboardFilters,
-        dashboardTiles,
-    } = useDashboardContext();
+    const { dashboardFilters, fieldsWithSuggestions, dashboardTiles } =
+        useDashboardContext();
+
     const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboardTiles);
 
@@ -50,37 +46,38 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
         >
             <DashboardFilterWrapper>
-                <TriggerWrapper
+                <Popover2
+                    disabled={!hasChartTiles || isLoading}
+                    canEscapeKeyClose={isSubmenuOpen ? false : true}
+                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
+                    placement="bottom-start"
+                    onOpened={() => setIsOpen(true)}
+                    onClose={handleClose}
                     content={
                         <FilterSearch
                             isEditMode={isEditMode}
-                            fields={filterableFields}
+                            fields={filterableFields || []}
                             popoverProps={{
                                 onOpened: () => setIsSubmenuOpen(true),
+                                onOpening: () => setIsSubmenuOpen(true),
                                 onClose: () => setIsSubmenuOpen(false),
+                                onClosing: () => setIsSubmenuOpen(false),
                             }}
                             onClose={handleClose}
                             onSelectField={handleClose}
                         />
                     }
-                    canEscapeKeyClose={isSubmenuOpen ? false : true}
-                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
-                    popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                    onOpened={() => setIsOpen(true)}
-                    onClose={handleClose}
-                    position="bottom-right"
-                    disabled={!hasChartTiles || isLoading}
                 >
                     <Tooltip2
+                        disabled={isOpen || isEditMode}
+                        placement="bottom-start"
+                        interactionKind="hover"
                         content={
-                            <Tooltip>
+                            <>
                                 Only filters added in <b>'edit'</b> mode will be
                                 saved
-                            </Tooltip>
+                            </>
                         }
-                        placement="bottom"
-                        interactionKind="hover"
-                        disabled={isOpen || isEditMode}
                     >
                         <FilterTrigger
                             minimal
@@ -91,7 +88,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                             Add filter
                         </FilterTrigger>
                     </Tooltip2>
-                </TriggerWrapper>
+                </Popover2>
 
                 {!isLoading && dashboardFilters && <ActiveFilters />}
             </DashboardFilterWrapper>

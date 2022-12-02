@@ -41,7 +41,6 @@ import { getFilterRuleLabel } from '../common/Filters/configs';
 import { TableColumn } from '../common/Table/types';
 import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
-import { Tooltip } from '../DashboardFilter/DashboardFilter.styles';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -53,13 +52,14 @@ import TileBase from './TileBase/index';
 import { FilterLabel } from './TileBase/TileBase.styles';
 
 const ValidDashboardChartTile: FC<{
+    tileUuid: string;
     data: SavedChart;
     project: string;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({ data, project, onSeriesContextMenu }) => {
+}> = ({ tileUuid, data, project, onSeriesContextMenu }) => {
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
@@ -93,7 +93,11 @@ const ValidDashboardChartTile: FC<{
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={data.tableConfig.columnOrder}
         >
-            <LightdashVisualization isDashboard $padding={0} />
+            <LightdashVisualization
+                isDashboard
+                tileUuid={tileUuid}
+                $padding={0}
+            />
         </VisualizationProvider>
     );
 };
@@ -138,6 +142,7 @@ const DashboardChartTile: FC<Props> = (props) => {
     const { track } = useTracking();
     const {
         tile: {
+            uuid: tileUuid,
             properties: { savedChartUuid },
         },
         isEditMode,
@@ -261,8 +266,10 @@ const DashboardChartTile: FC<Props> = (props) => {
     // TODO: move this logic out of component
     let savedQueryWithDashboardFilters: SavedChart | undefined;
 
-    const dashboardFiltersThatApplyToChart =
-        useDashboardFiltersForExplore(explore);
+    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
+        tileUuid,
+        explore,
+    );
 
     if (savedQuery) {
         const dimensionFilters: FilterGroup = {
@@ -310,10 +317,10 @@ const DashboardChartTile: FC<Props> = (props) => {
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
-                    <Tooltip key={field.name}>
+                    <div key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </Tooltip>
+                    </div>
                 );
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
@@ -339,7 +346,15 @@ const DashboardChartTile: FC<Props> = (props) => {
                     <div>
                         <Tooltip2
                             content={
-                                <>{appliedFilterRules.map(renderFilterRule)}</>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '4px',
+                                    }}
+                                >
+                                    {appliedFilterRules.map(renderFilterRule)}
+                                </div>
                             }
                             interactionKind="hover"
                             placement={'bottom-start'}
@@ -491,6 +506,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                         transitionDuration={100}
                     />
                     <ValidDashboardChartTile
+                        tileUuid={tileUuid}
                         data={savedQueryWithDashboardFilters}
                         project={projectUuid}
                         onSeriesContextMenu={onSeriesContextMenu}

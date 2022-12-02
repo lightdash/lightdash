@@ -1,50 +1,29 @@
-import { AnchorButton, Button, Colors } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ConfigureFilterWrapper = styled.div`
-    width: 20.5em;
     height: 100%;
     display: flex;
     flex-direction: column;
+    gap: 15px;
 `;
 
-export const Title = styled.p`
-    font-weight: bold;
+export const Title = styled.div`
+    font-weight: 600;
+    margin-bottom: 10px;
 `;
 
 export const InputsWrapper = styled.div`
     display: flex;
-    gap: 1.071em;
-    width: 20.5em;
     flex-direction: column;
-
-    select {
-        width: 100% !important;
-    }
+    gap: 10px;
 `;
 
-export const BackButton = styled(AnchorButton)`
-    color: ${Colors.BLUE3} !important;
-    padding: 0;
-    margin-bottom: 1.5em;
-    justify-content: flex-start;
-    font-size: 12px;
-    font-weight: 600;
-    :hover {
-        background: transparent !important;
-        span {
-            text-decoration: underline;
-        }
-    }
-    :focus {
-        outline: none;
-        span {
-            text-decoration: underline;
-        }
-    }
+export const ActionsWrapper = styled.div`
+    display: flex;
+    justify-content: space-between;
 `;
 
-export const ApplyFilterButton = styled(Button)`
-    margin: 1.714em 0 0 auto;
-    justify-self: flex-end;
+export const ApplyButton = styled(Button)`
+    margin-left: auto;
 `;

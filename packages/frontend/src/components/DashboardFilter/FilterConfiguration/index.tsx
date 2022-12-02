@@ -1,99 +1,198 @@
-import { HTMLSelect, Intent } from '@blueprintjs/core';
+import { Intent, Tab, Tabs } from '@blueprintjs/core';
 import { Classes, Popover2Props } from '@blueprintjs/popover2';
+
 import {
+    applyDefaultTileTargets,
+    assertUnreachable,
     createDashboardFilterRuleFromField,
     DashboardFilterRule,
+    DashboardTile,
+    fieldId,
     FilterableField,
     FilterOperator,
     FilterRule,
-    FilterType,
     getFilterRuleWithDefaultValue,
-    getFilterTypeFromField,
+    matchFieldByType,
+    matchFieldByTypeAndName,
+    matchFieldExact,
 } from '@lightdash/common';
-import React, { FC, useMemo, useState } from 'react';
-import { FilterTypeConfig } from '../../common/Filters/configs';
+import produce from 'immer';
+import { FC, useCallback, useState } from 'react';
+import FieldLabel from '../../common/Filters/FieldLabel';
+import SimpleButton from '../../common/SimpleButton';
 import {
-    ApplyFilterButton,
-    BackButton,
+    ActionsWrapper,
+    ApplyButton,
     ConfigureFilterWrapper,
-    InputsWrapper,
-    Title,
 } from './FilterConfiguration.styled';
+import FilterSettings from './FilterSettings';
+import TileFilterConfiguration from './TileFilterConfiguration';
+
+export enum FilterTabs {
+    SETTINGS = 'settings',
+    TILES = 'tiles',
+}
+
+const DEFAULT_TAB = FilterTabs.SETTINGS;
+
+export enum FilterActions {
+    ADD = 'add',
+    REMOVE = 'remove',
+}
 
 interface Props {
+    tiles: DashboardTile[];
     field: FilterableField;
+    availableTileFilters: Record<string, FilterableField[]>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
+    selectedTabId?: string;
+    onTabChange: (tabId: FilterTabs) => void;
     onSave: (value: DashboardFilterRule) => void;
     onBack?: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
+    selectedTabId = DEFAULT_TAB,
+    tiles,
     field,
+    availableTileFilters,
     filterRule,
     popoverProps,
     onSave,
     onBack,
+    onTabChange,
 }) => {
     const [internalFilterRule, setInternalFilterRule] =
         useState<DashboardFilterRule>(
-            filterRule || createDashboardFilterRuleFromField(field),
+            filterRule
+                ? applyDefaultTileTargets(
+                      filterRule,
+                      field,
+                      availableTileFilters,
+                  )
+                : createDashboardFilterRuleFromField(
+                      field,
+                      availableTileFilters,
+                  ),
         );
 
-    const filterType = field
-        ? getFilterTypeFromField(field)
-        : FilterType.STRING;
-    const filterConfig = useMemo(
-        () => FilterTypeConfig[filterType],
-        [filterType],
+    const handleChangeFilterRule = useCallback(
+        (newFilterRule: DashboardFilterRule) => {
+            setInternalFilterRule(newFilterRule);
+        },
+        [],
+    );
+
+    const handleChangeFilterOperator = useCallback(
+        (operator: FilterRule['operator']) => {
+            setInternalFilterRule((prevState) =>
+                getFilterRuleWithDefaultValue(field, {
+                    ...prevState,
+                    operator: operator,
+                }),
+            );
+        },
+        [field],
+    );
+
+    const handleChangeTileConfiguration = useCallback(
+        (action: FilterActions, tileUuid: string, filter?: FilterableField) => {
+            const filters = availableTileFilters[tileUuid];
+
+            setInternalFilterRule((prevState) =>
+                produce(prevState, (draftState) => {
+                    draftState.tileTargets = draftState.tileTargets ?? {};
+
+                    if (action === FilterActions.ADD) {
+                        const filterableField =
+                            filter ??
+                            filters.find(matchFieldExact(field)) ??
+                            filters.find(matchFieldByTypeAndName(field)) ??
+                            filters.find(matchFieldByType(field));
+
+                        if (!filterableField) return draftState;
+
+                        draftState.tileTargets[tileUuid] = {
+                            fieldId: fieldId(filterableField),
+                            tableName: filterableField.table,
+                        };
+                    } else if (action === FilterActions.REMOVE) {
+                        delete draftState.tileTargets[tileUuid];
+                    } else {
+                        return assertUnreachable(
+                            action,
+                            'Invalid FilterActions',
+                        );
+                    }
+                }),
+            );
+        },
+        [field, availableTileFilters],
     );
 
     return (
         <ConfigureFilterWrapper>
-            {onBack && (
-                <BackButton minimal onClick={onBack}>
-                    Back
-                </BackButton>
-            )}
-            <Title>{field.label}</Title>
-            <InputsWrapper>
-                <HTMLSelect
-                    fill
-                    onChange={(e) =>
-                        setInternalFilterRule((prevState) =>
-                            getFilterRuleWithDefaultValue(field, {
-                                ...prevState,
-                                operator: e.target
-                                    .value as FilterRule['operator'],
-                            }),
-                        )
-                    }
-                    options={filterConfig.operatorOptions}
-                    value={internalFilterRule.operator}
-                />
-                <filterConfig.inputs
-                    popoverProps={popoverProps}
-                    filterType={filterType}
-                    field={field}
-                    filterRule={internalFilterRule}
-                    onChange={setInternalFilterRule as any}
-                />
-            </InputsWrapper>
+            <FieldLabel item={field} />
 
-            <ApplyFilterButton
-                type="submit"
-                className={Classes.POPOVER2_DISMISS}
-                intent={Intent.PRIMARY}
-                text="Apply"
-                disabled={
-                    ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
-                        internalFilterRule.operator,
-                    ) &&
-                    (!internalFilterRule.values ||
-                        internalFilterRule.values.length <= 0)
-                }
-                onClick={() => onSave(internalFilterRule)}
-            />
+            <Tabs
+                selectedTabId={selectedTabId}
+                onChange={onTabChange}
+                renderActiveTabPanelOnly
+            >
+                <Tab
+                    id="settings"
+                    title="Settings"
+                    panel={
+                        <FilterSettings
+                            field={field}
+                            filterRule={internalFilterRule}
+                            onChangeFilterOperator={handleChangeFilterOperator}
+                            onChangeFilterRule={handleChangeFilterRule}
+                            popoverProps={popoverProps}
+                        />
+                    }
+                />
+
+                <Tab
+                    id="tiles"
+                    title="Tiles"
+                    panel={
+                        <TileFilterConfiguration
+                            field={field}
+                            filterRule={internalFilterRule}
+                            popoverProps={popoverProps}
+                            tiles={tiles}
+                            availableTileFilters={availableTileFilters}
+                            onChange={handleChangeTileConfiguration}
+                        />
+                    }
+                />
+            </Tabs>
+
+            <ActionsWrapper>
+                {onBack && (
+                    <SimpleButton small onClick={onBack}>
+                        Back
+                    </SimpleButton>
+                )}
+
+                <ApplyButton
+                    type="submit"
+                    className={Classes.POPOVER2_DISMISS}
+                    intent={Intent.PRIMARY}
+                    text="Apply"
+                    disabled={
+                        ![
+                            FilterOperator.NULL,
+                            FilterOperator.NOT_NULL,
+                        ].includes(internalFilterRule.operator) &&
+                        (!internalFilterRule.values ||
+                            internalFilterRule.values.length <= 0)
+                    }
+                    onClick={() => onSave(internalFilterRule)}
+                />
+            </ActionsWrapper>
         </ConfigureFilterWrapper>
     );
 };

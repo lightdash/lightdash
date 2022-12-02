@@ -71,7 +71,9 @@ export type DashboardFilterRule<
     T = DashboardFieldTarget,
     V = any,
     S = any,
-> = FilterRule<O, T, V, S>;
+> = FilterRule<O, T, V, S> & {
+    tileTargets?: Record<string, DashboardFieldTarget>;
+};
 
 export type DateFilterRule = FilterRule<
     FilterOperator,
@@ -124,46 +126,7 @@ export const isFilterGroup = (value: FilterGroupItem): value is FilterGroup =>
 export const isFilterRule = (value: FilterGroupItem): value is FilterRule =>
     'target' in value && 'operator' in value;
 
-export const getFilterRulesFromGroup = (
-    filterGroup: FilterGroup | undefined,
-): FilterRule[] => {
-    if (filterGroup) {
-        const items = isAndFilterGroup(filterGroup)
-            ? filterGroup.and
-            : filterGroup.or;
-        return items.reduce<FilterRule[]>(
-            (sum, item) =>
-                isFilterGroup(item)
-                    ? [...sum, ...getFilterRulesFromGroup(item)]
-                    : [...sum, item],
-            [],
-        );
-    }
-    return [];
-};
-
-export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
-    ...getFilterRulesFromGroup(filters.dimensions),
-    ...getFilterRulesFromGroup(filters.metrics),
-];
-
-export const countTotalFilterRules = (filters: Filters): number =>
-    getTotalFilterRules(filters).length;
-
-export const getItemsFromFilterGroup = (
-    filterGroup: FilterGroup | undefined,
-): FilterGroupItem[] => {
-    if (filterGroup) {
-        return isAndFilterGroup(filterGroup) ? filterGroup.and : filterGroup.or;
-    }
-    return [];
-};
-
-export const getFilterGroupItemsPropertyName = (
-    filterGroup: FilterGroup | undefined,
-): 'and' | 'or' => {
-    if (filterGroup) {
-        return isAndFilterGroup(filterGroup) ? 'and' : 'or';
-    }
-    return 'and';
-};
+export enum FilterGroupOperator {
+    and = 'and',
+    or = 'or',
+}
