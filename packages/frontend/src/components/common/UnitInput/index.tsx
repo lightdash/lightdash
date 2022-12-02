@@ -62,13 +62,13 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
                 onChange(
                     newValue && newValue !== '' && newUnit
                         ? `${newValue}${newUnit}`
-                        : defaultValue,
+                        : undefined,
                 );
                 if (trigger) {
                     inputRef.current?.focus();
                 }
             },
-            [onChange, defaultValue],
+            [onChange],
         );
 
         return (
