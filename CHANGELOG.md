@@ -1,3 +1,10 @@
+# [0.336.0](https://github.com/lightdash/lightdash/compare/0.335.1...0.336.0) (2022-12-02)
+
+
+### Features
+
+* tile filters ([#3786](https://github.com/lightdash/lightdash/issues/3786)) ([5489fc3](https://github.com/lightdash/lightdash/commit/5489fc3dbaf75ea81234a30d3fb6200d26fe2074))
+
 ## [0.335.1](https://github.com/lightdash/lightdash/compare/0.335.0...0.335.1) (2022-11-29)
 
 
