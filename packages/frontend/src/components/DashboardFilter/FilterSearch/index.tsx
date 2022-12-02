@@ -83,7 +83,7 @@ const FilterSearch: FC<Props> = ({
         >
             {!selectedField ? (
                 <FormGroup
-                    style={{ marginBottom: 0 }}
+                    style={{ marginBottom: '5px' }}
                     label={<b>Select a dimension to filter</b>}
                 >
                     <FieldAutoComplete
