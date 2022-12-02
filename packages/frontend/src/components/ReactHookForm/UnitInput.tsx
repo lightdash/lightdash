@@ -9,13 +9,7 @@ const UnitInput: FC<UnitInputWrapperProps> = ({ ...unitInputProps }) => (
     <InputWrapper
         {...unitInputProps}
         render={(props, { field }) => (
-            <UnitInputOriginal
-                {...unitInputProps}
-                {...field}
-                {...props}
-                value={field.value}
-                onChange={(value) => field.onChange(value)}
-            />
+            <UnitInputOriginal {...unitInputProps} {...field} {...props} />
         )}
     />
 );
