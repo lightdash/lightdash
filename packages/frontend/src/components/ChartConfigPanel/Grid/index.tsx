@@ -43,11 +43,8 @@ const GridPanel: FC = () => {
 
     const handleUpdate = (
         position: Positions,
-        value: string,
-        unit: Units = Units.Pixels,
+        newValue: string | undefined,
     ) => {
-        const newValue = value && value !== '' ? `${value}${unit}` : undefined;
-
         const newState = { ...config, [position]: newValue };
         setGrid(newState);
         return newState;
@@ -60,25 +57,23 @@ const GridPanel: FC = () => {
                 [Positions.Top, Positions.Bottom],
             ].map((positionGroup) => (
                 <SectionRow key={positionGroup.join(',')}>
-                    {positionGroup.map((position) => {
-                        return (
-                            <FormGroup
-                                key={position}
-                                label={startCase(position)}
-                                labelFor={`${position}-input`}
-                            >
-                                <UnitInput
-                                    units={units}
-                                    name={position}
-                                    value={config[position] || ''}
-                                    defaultValue={defaultGrid[position]}
-                                    onChange={(value, unit) =>
-                                        handleUpdate(position, value, unit)
-                                    }
-                                />
-                            </FormGroup>
-                        );
-                    })}
+                    {positionGroup.map((position) => (
+                        <FormGroup
+                            key={position}
+                            label={startCase(position)}
+                            labelFor={`${position}-input`}
+                        >
+                            <UnitInput
+                                units={units}
+                                name={position}
+                                value={config[position] || ''}
+                                defaultValue={defaultGrid[position]}
+                                onChange={(value) =>
+                                    handleUpdate(position, value)
+                                }
+                            />
+                        </FormGroup>
+                    ))}
                 </SectionRow>
             ))}
         </>

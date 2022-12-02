@@ -1,5 +1,5 @@
 import { Button } from '@blueprintjs/core';
-import { FC, useCallback, useMemo } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyledNumberInput } from './UnitInput.style';
 
 type UnitInputProps<T extends string> = {
@@ -7,7 +7,7 @@ type UnitInputProps<T extends string> = {
     units: T[];
     value: string;
     defaultValue: string;
-    onChange: (value: string, unit?: T) => void;
+    onChange: (value: string | undefined) => void;
 };
 
 export const getValueAndUnit = <T extends string>(
@@ -45,6 +45,16 @@ const UnitInput = <T extends string>({
         return units.concat(units[0])[currentIndex + 1];
     }, [unit, units]);
 
+    const handleChange = useCallback(
+        (newValue?: string, newUnit?: T) =>
+            onChange(
+                newValue && newValue !== '' && newUnit
+                    ? `${newValue}${newUnit}`
+                    : undefined,
+            ),
+        [onChange],
+    );
+
     return (
         <StyledNumberInput
             type="number"
@@ -53,7 +63,7 @@ const UnitInput = <T extends string>({
             placeholder={defaultValue}
             value={value || ''}
             onChange={(e) =>
-                onChange(e.target.value, value ? unit : defaultUnit)
+                handleChange(e.target.value, value ? unit : defaultUnit)
             }
             rightElement={
                 <Button
@@ -61,7 +71,7 @@ const UnitInput = <T extends string>({
                     small
                     disabled={!value}
                     onClick={() =>
-                        value && onChange(value, value ? nextUnit : defaultUnit)
+                        handleChange(value, value ? nextUnit : defaultUnit)
                     }
                 >
                     {unit || defaultUnit}
