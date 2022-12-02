@@ -21,16 +21,7 @@ enum Units {
     Percentage = '%',
 }
 
-const getValueAndUnit = (valueWithUnit?: string): [string?, Units?] => {
-    if (!valueWithUnit || valueWithUnit === '') return [];
-
-    const unit =
-        Object.values(Units).find((u) => valueWithUnit.endsWith(u)) ||
-        Units.Pixels;
-
-    const value = valueWithUnit.replace(unit, '');
-    return [value, unit];
-};
+const units = Object.values(Units);
 
 const GridPanel: FC = () => {
     const {
@@ -57,26 +48,9 @@ const GridPanel: FC = () => {
         return newState;
     };
 
-    const handleUpdateUnit = (
-        key: typeof positions[number],
-        nextUnit: Units = Units.Pixels,
-    ) => {
-        const originalValue = config[key];
-        const [value] = getValueAndUnit(originalValue);
-
-        if (!value || value === '') return;
-
-        handleUpdate(key, value, nextUnit);
-    };
-
     return (
         <SectionRow>
             {positions.map((position) => {
-                const [value, unit] = getValueAndUnit(config[position]);
-                const [placeholder, placeholderUnit] = getValueAndUnit(
-                    defaultGrid[position],
-                );
-
                 return (
                     <FormGroup
                         key={position}
@@ -84,17 +58,12 @@ const GridPanel: FC = () => {
                         labelFor={`${position}-input`}
                     >
                         <UnitInput
+                            units={units}
                             name={position}
-                            value={value || ''}
-                            placeholder={placeholder}
-                            placeholderUnit={placeholderUnit}
-                            unit={unit}
-                            units={Object.values(Units)}
-                            onChange={(newValue, newUnit) =>
-                                handleUpdate(position, newValue, newUnit)
-                            }
-                            onUnitChange={(newUnit) =>
-                                handleUpdateUnit(position, newUnit)
+                            value={config[position] || ''}
+                            defaultValue={defaultGrid[position]}
+                            onChange={(value, unit) =>
+                                handleUpdate(position, value, unit)
                             }
                         />
                     </FormGroup>

@@ -1,28 +1,43 @@
 import { Button } from '@blueprintjs/core';
-import { FC, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { StyledNumberInput } from './UnitInput.style';
 
-type UnitInputProps<T> = {
+type UnitInputProps<T extends string> = {
     name: string;
-    unit: T;
     units: T[];
     value: string;
-    placeholder?: string;
-    placeholderUnit?: T;
+    defaultValue: string;
     onChange: (value: string, unit?: T) => void;
-    onUnitChange: (unit?: T) => void;
 };
 
-const UnitInput = <T,>({
+export const getValueAndUnit = <T extends string>(
+    valueWithUnit: string,
+    units: T[],
+): [string?, T?] => {
+    if (!valueWithUnit || valueWithUnit === '') return [];
+
+    const unit = units.find((u) => valueWithUnit.endsWith(u)) || units[0];
+    const value = valueWithUnit.replace(unit, '');
+    return [value, unit];
+};
+
+const UnitInput = <T extends string>({
     name,
-    value,
     units,
-    unit,
-    placeholder,
-    placeholderUnit,
+    value: valueWithUnit,
+    defaultValue: defaultValueWithUnit,
     onChange,
-    onUnitChange,
 }: UnitInputProps<T>) => {
+    const [value, unit] = useMemo(
+        () => getValueAndUnit(valueWithUnit, units),
+        [valueWithUnit, units],
+    );
+
+    const [defaultValue, defaultUnit] = useMemo(
+        () => getValueAndUnit(defaultValueWithUnit, units),
+        [defaultValueWithUnit, units],
+    );
+
     const nextUnit = useMemo(() => {
         if (!unit) return;
 
@@ -35,10 +50,10 @@ const UnitInput = <T,>({
             type="number"
             id={`${name}-input`}
             name={name}
-            placeholder={placeholder}
+            placeholder={defaultValue}
             value={value || ''}
             onChange={(e) =>
-                onChange(e.target.value, value ? unit : placeholderUnit)
+                onChange(e.target.value, value ? unit : defaultUnit)
             }
             rightElement={
                 <Button
@@ -46,10 +61,10 @@ const UnitInput = <T,>({
                     small
                     disabled={!value}
                     onClick={() =>
-                        onUnitChange(value ? nextUnit : placeholderUnit)
+                        value && onChange(value, value ? nextUnit : defaultUnit)
                     }
                 >
-                    {unit || placeholderUnit}
+                    {unit || defaultUnit}
                 </Button>
             }
         />
