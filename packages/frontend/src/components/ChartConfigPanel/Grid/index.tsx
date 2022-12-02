@@ -1,4 +1,4 @@
-import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
+import { FormGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
 import startCase from 'lodash/startCase';
 import { FC, useMemo } from 'react';
@@ -14,7 +14,12 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 };
 
-const positions = ['top', 'bottom', 'left', 'right'] as const;
+enum Positions {
+    Left = 'left',
+    Right = 'right',
+    Top = 'top',
+    Bottom = 'bottom',
+}
 
 enum Units {
     Pixels = 'px',
@@ -37,7 +42,7 @@ const GridPanel: FC = () => {
     );
 
     const handleUpdate = (
-        position: typeof positions[number],
+        position: Positions,
         value: string,
         unit: Units = Units.Pixels,
     ) => {
@@ -49,27 +54,34 @@ const GridPanel: FC = () => {
     };
 
     return (
-        <SectionRow>
-            {positions.map((position) => {
-                return (
-                    <FormGroup
-                        key={position}
-                        label={startCase(position)}
-                        labelFor={`${position}-input`}
-                    >
-                        <UnitInput
-                            units={units}
-                            name={position}
-                            value={config[position] || ''}
-                            defaultValue={defaultGrid[position]}
-                            onChange={(value, unit) =>
-                                handleUpdate(position, value, unit)
-                            }
-                        />
-                    </FormGroup>
-                );
-            })}
-        </SectionRow>
+        <>
+            {[
+                [Positions.Left, Positions.Right],
+                [Positions.Top, Positions.Bottom],
+            ].map((positionGroup) => (
+                <SectionRow key={positionGroup.join(',')}>
+                    {positionGroup.map((position) => {
+                        return (
+                            <FormGroup
+                                key={position}
+                                label={startCase(position)}
+                                labelFor={`${position}-input`}
+                            >
+                                <UnitInput
+                                    units={units}
+                                    name={position}
+                                    value={config[position] || ''}
+                                    defaultValue={defaultGrid[position]}
+                                    onChange={(value, unit) =>
+                                        handleUpdate(position, value, unit)
+                                    }
+                                />
+                            </FormGroup>
+                        );
+                    })}
+                </SectionRow>
+            ))}
+        </>
     );
 };
 
