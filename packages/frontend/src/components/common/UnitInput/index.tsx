@@ -1,5 +1,5 @@
 import { Button } from '@blueprintjs/core';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import { StyledNumberInput } from './UnitInput.style';
 
 type UnitInputProps<T> = {
@@ -7,7 +7,6 @@ type UnitInputProps<T> = {
     unit: T;
     units: T[];
     value: string;
-    nextUnit: T;
     placeholder?: string;
     placeholderUnit?: T;
     onChange: (value: string, unit?: T) => void;
@@ -19,12 +18,18 @@ const UnitInput = <T,>({
     value,
     units,
     unit,
-    nextUnit,
     placeholder,
     placeholderUnit,
     onChange,
     onUnitChange,
 }: UnitInputProps<T>) => {
+    const nextUnit = useMemo(() => {
+        if (!unit) return;
+
+        const currentIndex = units.indexOf(unit);
+        return units.concat(units[0])[currentIndex + 1];
+    }, [unit, units]);
+
     return (
         <StyledNumberInput
             type="number"

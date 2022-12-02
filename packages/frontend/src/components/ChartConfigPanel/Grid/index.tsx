@@ -21,14 +21,6 @@ enum Units {
     Percentage = '%',
 }
 
-const getNextUnit = (current?: Units): Units | undefined => {
-    if (!current) return;
-
-    const units = Object.values(Units);
-    const currentIndex = units.indexOf(current);
-    return units.concat(units[0])[currentIndex + 1];
-};
-
 const getValueAndUnit = (valueWithUnit?: string): [string?, Units?] => {
     if (!valueWithUnit || valueWithUnit === '') return [];
 
@@ -85,8 +77,6 @@ const GridPanel: FC = () => {
                     defaultGrid[position],
                 );
 
-                const nextUnit = getNextUnit(unit);
-
                 return (
                     <FormGroup
                         key={position}
@@ -97,7 +87,6 @@ const GridPanel: FC = () => {
                             name={position}
                             value={value || ''}
                             placeholder={placeholder}
-                            nextUnit={nextUnit}
                             placeholderUnit={placeholderUnit}
                             unit={unit}
                             units={Object.values(Units)}
