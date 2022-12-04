@@ -73,8 +73,8 @@
         "winston": "^3.3.3"
     },
     "scripts": {
-        "dev": "HEADLESS=true nodemon src/index.ts",
-        "debug": "nodemon --exec \"node --inspect-brk=0.0.0.0:9229 --require ts-node/register src/index.ts\"",
+        "dev": "HEADLESS=true ts-node-dev --rs --respawn -- src/index.ts",
+        "debug": "ts-node-dev --rs --respawn --inspect-brk=0.0.0.0:9229 -- src/index.ts",
         "build": "tsc --build tsconfig.json",
         "postbuild": "copyfiles --error --up 1 src/**/*.html dist",
         "start": "node dist/index.js",
