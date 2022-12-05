@@ -34,7 +34,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         environment,
         cachedWarehouse,
     }: DbtGithubProjectAdapterArgs) {
-        const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@${
+        const remoteRepositoryUrl = `https://lightdash:${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
         }/${githubRepository}.git`;
         super({
