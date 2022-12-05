@@ -31,6 +31,16 @@ function parseIntArgument(value: string) {
     return parsedValue;
 }
 
+function parseStartOfWeekArgument(value: string) {
+    const number = parseIntArgument(value);
+    if (number <= 0 || number > 6) {
+        throw new InvalidArgumentError(
+            'Not a valid number. Please use a number from 0 (Monday) to 6 (Sunday)',
+        );
+    }
+    return number;
+}
+
 program
     .version(VERSION)
     .name(styles.title('⚡️lightdash'))
@@ -288,7 +298,7 @@ program
     .option(
         '--start-of-week <number>',
         'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
-        parseIntArgument,
+        parseStartOfWeekArgument,
     )
     .action(previewHandler);
 
@@ -334,7 +344,7 @@ program
     .option(
         '--start-of-week <number>',
         'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
-        parseIntArgument,
+        parseStartOfWeekArgument,
     )
     .action(startPreviewHandler);
 
@@ -389,7 +399,7 @@ program
     .option(
         '--start-of-week <number>',
         'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
-        parseIntArgument,
+        parseStartOfWeekArgument,
     )
     .action(deployHandler);
 
