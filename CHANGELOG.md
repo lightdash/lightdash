@@ -1,3 +1,10 @@
+## [0.336.1](https://github.com/lightdash/lightdash/compare/0.336.0...0.336.1) (2022-12-05)
+
+
+### Bug Fixes
+
+* dashboard filters missing tile titles ([#3904](https://github.com/lightdash/lightdash/issues/3904)) ([22508ef](https://github.com/lightdash/lightdash/commit/22508ef5048b15c6ace335cac6733a76fc578cc1))
+
 # [0.336.0](https://github.com/lightdash/lightdash/compare/0.335.1...0.336.0) (2022-12-02)
 
 
