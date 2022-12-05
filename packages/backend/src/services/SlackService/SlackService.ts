@@ -124,6 +124,7 @@ const fetchDashboardScreenshot = async (
 
             request.continue();
         });
+        console.debug('chrome url', url);
         await page.goto(url, {
             timeout: 100000,
             waitUntil: 'networkidle0',
@@ -147,8 +148,13 @@ const fetchDashboardScreenshot = async (
 const getUserCookie = async (userUuid: string): Promise<string> => {
     const token = getAuthenticationToken(userUuid);
 
+    const hostname =
+        process.env.NODE_ENV === 'development'
+            ? 'lightdash-dev'
+            : process.env.RENDER_SERVICE_NAME;
+
     const response = await fetch(
-        `http://127.0.0.1:3000/api/v1/headless-browser/login/${userUuid}`,
+        `http://${hostname}:3000/api/v1/headless-browser/login/${userUuid}`,
         {
             method: 'POST',
             headers: {
@@ -277,7 +283,10 @@ export class SlackService {
     private async parseUrl(
         linkUrl: string,
     ): Promise<{ isValid: boolean; isDashboard?: boolean; url: string }> {
-        /* if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
+        if (
+            process.env.NODE_ENV === 'development' ||
+            !linkUrl.startsWith(this.lightdashConfig.siteUrl)
+        ) {
             console.warn(
                 `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
             );
@@ -285,7 +294,7 @@ export class SlackService {
                 isValid: false,
                 url: linkUrl,
             };
-        } */
+        }
 
         const shareUrl = new RegExp(`/share/${nanoid}`);
         const url = linkUrl.match(shareUrl)
@@ -321,7 +330,7 @@ export class SlackService {
 
             const userUuid = await getUserUuid(context);
             const cookie = await getUserCookie(userUuid);
-
+            console.debug(`got cookie for user ${userUuid} : ${cookie}`);
             analytics.track({
                 event: 'share_slack.unfurl',
                 userId: event.user,
