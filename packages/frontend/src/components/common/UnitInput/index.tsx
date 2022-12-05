@@ -77,13 +77,6 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
             valueWithUnit === defaultValue;
         const isValueNumeric = !!(value || defaultValue)?.match(/^[0-9]+$/);
 
-        console.log({
-            value,
-            defaultValue,
-            valueWithUnit,
-            defaultValueWithUnit,
-        });
-
         return (
             <StyledNumberInput
                 inputRef={(input) => {

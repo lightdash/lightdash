@@ -8,11 +8,9 @@ type UnitInputWrapperProps = Omit<UnitInputProps, 'value' | 'onChange'> &
 const UnitInput: FC<UnitInputWrapperProps> = ({ ...unitInputProps }) => (
     <InputWrapper
         {...unitInputProps}
-        render={(props, { field }) =>
-            console.log(unitInputProps.defaultValue, field, props) || (
-                <UnitInputOriginal {...unitInputProps} {...field} {...props} />
-            )
-        }
+        render={(props, { field }) => (
+            <UnitInputOriginal {...unitInputProps} {...field} {...props} />
+        )}
     />
 );
 export default UnitInput;
