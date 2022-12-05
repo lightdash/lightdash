@@ -80,6 +80,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/filters';
 export * from './utils/formatting';
+export * from './utils/github';
 export * from './utils/timeFrames';
 
 export const validateEmail = (email: string): boolean => {
