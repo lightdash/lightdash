@@ -1,3 +1,10 @@
+# [0.337.0](https://github.com/lightdash/lightdash/compare/0.336.1...0.337.0) (2022-12-05)
+
+
+### Features
+
+* configure start of week in CLI commands ([#3808](https://github.com/lightdash/lightdash/issues/3808)) ([9ff583f](https://github.com/lightdash/lightdash/commit/9ff583f6f7e9330217c85e7762ffbe4affa40e1d))
+
 ## [0.336.1](https://github.com/lightdash/lightdash/compare/0.336.0...0.336.1) (2022-12-05)
 
 
