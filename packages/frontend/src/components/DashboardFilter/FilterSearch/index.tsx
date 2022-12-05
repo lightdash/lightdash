@@ -15,7 +15,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
-import { FilterModalContainer } from './FilterSearch.styles';
+import { BolderLabel, FilterModalContainer } from './FilterSearch.styles';
 
 type Props = {
     fields: FilterableField[];
@@ -84,9 +84,13 @@ const FilterSearch: FC<Props> = ({
             {!selectedField ? (
                 <FormGroup
                     style={{ marginBottom: '5px' }}
-                    label={<b>Select a dimension to filter</b>}
+                    label={
+                        <BolderLabel>Select a dimension to filter</BolderLabel>
+                    }
+                    labelFor="field-autocomplete"
                 >
                     <FieldAutoComplete
+                        id="field-autocomplete"
                         fields={fields}
                         onChange={handleChangeField}
                         popoverProps={{
