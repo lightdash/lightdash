@@ -33,6 +33,7 @@ const tileWithoutId: CreateDashboardChartTile = {
     w: 200,
     properties: {
         savedChartUuid: '123',
+        title: 'title 123',
     },
 };
 const tileWithId: DashboardChartTile = {
@@ -95,6 +96,7 @@ export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
             ...tileWithoutId,
             properties: {
                 savedChartUuid: null,
+                title: null,
             },
         },
     ],
