@@ -1,6 +1,6 @@
 import { Button, IconName, Intent } from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -10,6 +10,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
+import ShareSpaceDialog from '../ShareSpaceModal/ShareSpaceDialog';
 import { SpaceAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
@@ -121,6 +122,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         enabled: !!spaceUuid,
     });
 
+    const [createdSpaceUuid, setCreatedSpaceUuid] = useState<string>();
     const { mutateAsync: createMutation, isLoading: isCreating } =
         useCreateMutation(projectUuid);
 
@@ -136,28 +138,41 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
                 name: state!.name,
                 isPrivate: state!.private === SpaceAccessType.PRIVATE,
             });
+
             onSubmitForm?.(result);
+            if (state!.private === SpaceAccessType.PRIVATE) {
+                props.onClose?.();
+            } else {
+                setCreatedSpaceUuid(result.uuid);
+            }
         } else if (actionType === ActionType.UPDATE) {
             const result = await updateMutation({
                 name: state!.name,
                 isPrivate: state!.isPrivate,
             });
             onSubmitForm?.(result);
+            props.onClose?.();
         } else if (actionType === ActionType.DELETE) {
             const result = await deleteMutation(spaceUuid!);
             onSubmitForm?.(result);
+            props.onClose?.();
         } else {
             return assertUnreachable(actionType, 'Unexpected action in space');
         }
-
-        props.onClose?.();
     };
 
     if (isLoading) return null;
 
     const isWorking = isCreating || isUpdating || isDeleting;
 
-    return (
+    return createdSpaceUuid ? (
+        <ShareSpaceDialog
+            spaceUuid={createdSpaceUuid}
+            projectUuid={projectUuid}
+            isOpen={true}
+            onClose={() => props.onClose?.()}
+        />
+    ) : (
         <SpaceModal
             data={data}
             projectUuid={projectUuid}
