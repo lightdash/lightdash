@@ -1,6 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    validateGithubToken,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { CachedWarehouse } from '../types';
@@ -34,6 +35,10 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         environment,
         cachedWarehouse,
     }: DbtGithubProjectAdapterArgs) {
+        const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
+        if (!isValid) {
+            throw new Error(error);
+        }
         const remoteRepositoryUrl = `https://${githubPersonalAccessToken}@${
             hostDomain || DEFAULT_GITHUB_HOST_DOMAIN
         }/${githubRepository}.git`;

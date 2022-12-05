@@ -1,4 +1,4 @@
-import { validateEmail } from '@lightdash/common';
+import { validateEmail, validateGithubToken } from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -50,3 +50,11 @@ export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/\D/)
         ? `${fieldName} should only contain numbers`
         : undefined;
+
+export const isValidGithubToken: FieldValidator<string> =
+    (fieldName) => (value) => {
+        if (value) {
+            const [isValid, error] = validateGithubToken(value);
+            return error;
+        }
+    };
