@@ -21,7 +21,7 @@
         "uuid": "^8.3.2"
     },
     "scripts": {
-        "dev": "nodemon src/index.ts",
+        "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json",
         "build": "tsc --build tsconfig.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
