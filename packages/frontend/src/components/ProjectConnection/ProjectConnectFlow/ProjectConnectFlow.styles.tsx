@@ -58,6 +58,10 @@ export const StyledNonIdealState = styled(NonIdealState)`
 
     svg {
         fill-opacity: unset !important;
+        stroke-width: 0 !important;
+        // path: {
+        //     stroke-width: 0 !important;
+        // }
     }
 `;
 

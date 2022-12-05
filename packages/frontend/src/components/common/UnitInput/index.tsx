@@ -62,13 +62,13 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
                 onChange(
                     newValue && newValue !== '' && newUnit
                         ? `${newValue}${newUnit}`
-                        : undefined,
+                        : defaultValue,
                 );
                 if (trigger) {
                     inputRef.current?.focus();
                 }
             },
-            [onChange],
+            [onChange, defaultValue],
         );
 
         const isValueDefault =
@@ -76,6 +76,13 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
             valueWithUnit === '' ||
             valueWithUnit === defaultValue;
         const isValueNumeric = !!(value || defaultValue)?.match(/^[0-9]+$/);
+
+        console.log({
+            value,
+            defaultValue,
+            valueWithUnit,
+            defaultValueWithUnit,
+        });
 
         return (
             <StyledNumberInput
@@ -100,19 +107,20 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
                     handleChange(e.target.value, value ? unit : defaultUnit)
                 }
                 rightElement={
-                    isValueDefault && !isValueNumeric ? undefined : (
+                    !defaultUnit ||
+                    (isValueDefault && !isValueNumeric) ? undefined : (
                         <Button
                             minimal
                             small
                             onClick={() =>
                                 handleChange(
-                                    value,
-                                    value ? nextUnit : defaultUnit,
+                                    value || defaultValue,
+                                    nextUnit ?? defaultUnit,
                                     true,
                                 )
                             }
                         >
-                            {unit || defaultUnit}
+                            {unit ?? defaultUnit}
                         </Button>
                     )
                 }
