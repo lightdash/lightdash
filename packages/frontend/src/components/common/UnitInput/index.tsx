@@ -71,6 +71,12 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
             [onChange],
         );
 
+        const isValueDefault =
+            !valueWithUnit ||
+            valueWithUnit === '' ||
+            valueWithUnit === defaultValue;
+        const isValueNumeric = !!(value || defaultValue)?.match(/^[0-9]+$/);
+
         return (
             <StyledNumberInput
                 inputRef={(input) => {
@@ -89,25 +95,26 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
                 name={name}
                 {...rest}
                 placeholder={defaultValue}
-                value={value || ''}
+                value={!isValueDefault && isValueNumeric ? value : ''}
                 onChange={(e) =>
                     handleChange(e.target.value, value ? unit : defaultUnit)
                 }
                 rightElement={
-                    <Button
-                        minimal
-                        small
-                        disabled={!value || value === defaultValue}
-                        onClick={() =>
-                            handleChange(
-                                value,
-                                value ? nextUnit : defaultUnit,
-                                true,
-                            )
-                        }
-                    >
-                        {unit || defaultUnit}
-                    </Button>
+                    isValueDefault && !isValueNumeric ? undefined : (
+                        <Button
+                            minimal
+                            small
+                            onClick={() =>
+                                handleChange(
+                                    value,
+                                    value ? nextUnit : defaultUnit,
+                                    true,
+                                )
+                            }
+                        >
+                            {unit || defaultUnit}
+                        </Button>
+                    )
                 }
             />
         );
