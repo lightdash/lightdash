@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { LightdashError } from '@lightdash/common';
-import { program } from 'commander';
+import { InvalidArgumentError, program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
 import { compileHandler } from './handlers/compile';
@@ -22,6 +22,24 @@ const { version: VERSION } = require('../package.json');
 const defaultProjectDir = process.env.DBT_PROJECT_DIR || '.';
 const defaultProfilesDir =
     process.env.DBT_PROFILES_DIR || path.join(os.homedir(), '.dbt');
+
+function parseIntArgument(value: string) {
+    const parsedValue = parseInt(value, 10);
+    if (Number.isNaN(parsedValue)) {
+        throw new InvalidArgumentError('Not a number.');
+    }
+    return parsedValue;
+}
+
+function parseStartOfWeekArgument(value: string) {
+    const number = parseIntArgument(value);
+    if (number <= 0 || number > 6) {
+        throw new InvalidArgumentError(
+            'Not a valid number. Please use a number from 0 (Monday) to 6 (Sunday)',
+        );
+    }
+    return number;
+}
 
 program
     .version(VERSION)
@@ -277,7 +295,11 @@ program
     .option('--state <state>')
     .option('--full-refresh')
     .option('--verbose', undefined, false)
-
+    .option(
+        '--start-of-week <number>',
+        'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
+        parseStartOfWeekArgument,
+    )
     .action(previewHandler);
 
 program
@@ -319,7 +341,11 @@ program
     .option('--state <state>')
     .option('--full-refresh')
     .option('--verbose', undefined, false)
-
+    .option(
+        '--start-of-week <number>',
+        'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
+        parseStartOfWeekArgument,
+    )
     .action(startPreviewHandler);
 
 program
@@ -370,7 +396,11 @@ program
 
     .option('--create', 'Create a new project on your organization', false)
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
-
+    .option(
+        '--start-of-week <number>',
+        'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
+        parseStartOfWeekArgument,
+    )
     .action(deployHandler);
 
 program

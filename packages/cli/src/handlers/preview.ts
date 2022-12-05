@@ -25,6 +25,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     profile: string | undefined;
     name?: string;
     verbose: boolean;
+    startOfWeek?: number;
 };
 
 type StopPreviewHandlerOptions = {
