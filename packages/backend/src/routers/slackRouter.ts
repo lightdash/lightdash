@@ -69,7 +69,10 @@ slackRouter.get(
 
     async (req, res, next) => {
         try {
-            const metadata = { organizationUuid: req.params.organizationUuid };
+            const metadata = {
+                organizationUuid: req.params.organizationUuid,
+                userId: req.user?.userId,
+            };
             const options = {
                 redirectUri: slackOptions.redirectUri,
                 scopes: slackOptions.scopes,

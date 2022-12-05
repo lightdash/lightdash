@@ -1,9 +1,14 @@
+import { AuthorizationError } from '@lightdash/common';
+import fetch from 'node-fetch';
 import { analytics } from '../../analytics/client';
+import { getUserUuid } from '../../clients/Slack/SlackStorage';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { getAuthenticationToken } from '../../routers/headlessBrowser';
+import { EncryptionService } from '../EncryptionService/EncryptionService';
 
 const puppeteer = require('puppeteer');
 
@@ -18,6 +23,7 @@ type SlackServiceDependencies = {
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     shareModel: ShareModel;
+    encryptionService: EncryptionService;
 };
 
 const notifySlackError = async (
@@ -80,7 +86,10 @@ const uploadImage = async (
     return imageUrl;
 };
 
-const fetchDashboardScreenshot = async (url: string): Promise<Buffer> => {
+const fetchDashboardScreenshot = async (
+    url: string,
+    cookie: string,
+): Promise<Buffer> => {
     let browser;
 
     try {
@@ -90,6 +99,8 @@ const fetchDashboardScreenshot = async (url: string): Promise<Buffer> => {
         });
 
         const page = await browser.newPage();
+
+        await page.setExtraHTTPHeaders({ cookie });
 
         await page.setViewport({
             width: 1024,
@@ -133,6 +144,34 @@ const fetchDashboardScreenshot = async (url: string): Promise<Buffer> => {
     }
 };
 
+const getUserCookie = async (userUuid: string): Promise<string> => {
+    const token = getAuthenticationToken(userUuid);
+
+    const response = await fetch(
+        `http://127.0.0.1:3000/api/v1/headless-browser/login/${userUuid}`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token }),
+        },
+    );
+    if (response.status !== 200) {
+        throw new Error(
+            `Unable to get cookie for user ${userUuid}: ${await response.text()}`,
+        );
+    }
+    const header = response.headers.get('set-cookie');
+    if (header === null) {
+        const loginBody = await response.json();
+        throw new AuthorizationError(
+            `Cannot sign in:\n${JSON.stringify(loginBody)}`,
+        );
+    }
+    return header;
+};
+
 export class SlackService {
     lightdashConfig: LightdashConfig;
 
@@ -144,18 +183,22 @@ export class SlackService {
 
     shareModel: ShareModel;
 
+    encryptionService: EncryptionService;
+
     constructor({
         lightdashConfig,
         dashboardModel,
         savedChartModel,
         spaceModel,
         shareModel,
+        encryptionService,
     }: SlackServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
         this.shareModel = shareModel;
+        this.encryptionService = encryptionService;
     }
 
     private async unfurlChart(url: string, imageUrl: string): Promise<any> {
@@ -234,7 +277,7 @@ export class SlackService {
     private async parseUrl(
         linkUrl: string,
     ): Promise<{ isValid: boolean; isDashboard?: boolean; url: string }> {
-        if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
+        /* if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
             console.warn(
                 `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
             );
@@ -242,7 +285,7 @@ export class SlackService {
                 isValid: false,
                 url: linkUrl,
             };
-        }
+        } */
 
         const shareUrl = new RegExp(`/share/${nanoid}`);
         const url = linkUrl.match(shareUrl)
@@ -270,13 +313,14 @@ export class SlackService {
 
     async unfurl(event: any, client: any, context: any): Promise<void> {
         event.links.map(async (l: any) => {
-            const { url: linkUrl } = l;
-
-            const { isValid, isDashboard, url } = await this.parseUrl(linkUrl);
+            const { isValid, isDashboard, url } = await this.parseUrl(l.url);
 
             if (!isValid || isDashboard === undefined || url === undefined) {
                 return;
             }
+
+            const userUuid = await getUserUuid(context);
+            const cookie = await getUserCookie(userUuid);
 
             analytics.track({
                 event: 'share_slack.unfurl',
@@ -287,7 +331,7 @@ export class SlackService {
             });
 
             try {
-                const screenshot = await fetchDashboardScreenshot(url);
+                const screenshot = await fetchDashboardScreenshot(url, cookie);
 
                 const imageUrl = await uploadImage(
                     screenshot,

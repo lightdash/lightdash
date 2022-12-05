@@ -1,8 +1,42 @@
+import { ForbiddenError } from '@lightdash/common';
+import { createHmac } from 'crypto';
 import express from 'express';
+import { lightdashConfig } from '../config/lightdashConfig';
+import { userModel } from '../models/models';
+import { EncryptionService } from '../services/EncryptionService/EncryptionService';
 
 const puppeteer = require('puppeteer');
 
 export const headlessBrowserRouter = express.Router({ mergeParams: true });
+export const encryptionService = new EncryptionService({ lightdashConfig });
+
+export const getAuthenticationToken = (value: string) =>
+    createHmac('sha512', lightdashConfig.lightdashSecret)
+        .update(value)
+        .digest('hex');
+headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
+    try {
+        const { userUuid } = req.params;
+        const hash = getAuthenticationToken(userUuid);
+
+        if (hash !== req.body.token) {
+            throw new ForbiddenError();
+        }
+        const sessionUser = await userModel.findSessionUserByUUID(userUuid);
+
+        req.login(sessionUser, (err) => {
+            if (err) {
+                next(err);
+            }
+            res.json({
+                status: 'ok',
+                results: sessionUser,
+            });
+        });
+    } catch (e) {
+        next(e);
+    }
+});
 
 // Extra endpoints for headless-chrome testing on Render
 if (process.env.IS_PULL_REQUEST === 'true') {
@@ -10,6 +44,7 @@ if (process.env.IS_PULL_REQUEST === 'true') {
         // Returns json with the same argument specified in flag
         // Wait a random number of seconds between 0 an 1, to ensure the response can overlap with other requests.
         const delay = Math.floor(Math.random() * 1000);
+
         setTimeout(() => {
             res.json({
                 flag: req.params.flag,

@@ -20,6 +20,7 @@ import {
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
+import { EncryptionService } from './EncryptionService/EncryptionService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -32,6 +33,7 @@ import { SpaceService } from './SpaceService/SpaceService';
 import { UserService } from './UserService';
 
 const emailClient = new EmailClient({ lightdashConfig });
+const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({
     inviteLinkModel,
@@ -103,4 +105,5 @@ export const slackService = new SlackService({
     savedChartModel,
     spaceModel,
     shareModel,
+    encryptionService,
 });

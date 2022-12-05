@@ -31,10 +31,12 @@ export const getOrganizationId = async (
 export const createInstallation = async (installation: Installation) => {
     const metadata = JSON.parse(installation.metadata || '{}');
     const organizationId = await getOrganizationId(metadata.organizationUuid);
+
     const teamId = getTeamId(installation);
     await database('slack_auth_tokens')
         .insert({
             organization_id: organizationId,
+            created_by_user_id: metadata.userId,
             slack_team_id: teamId,
             installation,
         })
@@ -52,6 +54,22 @@ export const getInstallation = async (
         throw new Error(`Could not find an installation for team id ${teamId}`);
     }
     return row.installation;
+};
+
+export const getUserUuid = async (installQuery: InstallationQuery<boolean>) => {
+    const { teamId } = installQuery;
+    const [row] = await database('slack_auth_tokens')
+        .leftJoin(
+            'users',
+            'slack_auth_tokens.created_by_user_id',
+            'users.user_id',
+        )
+        .select('*')
+        .where('slack_team_id', teamId);
+    if (row === undefined) {
+        throw new Error(`Could not find an installation for team id ${teamId}`);
+    }
+    return row.user_uuid;
 };
 
 export const getInstallationFromOrganizationUuid = async (
