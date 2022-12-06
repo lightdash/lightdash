@@ -1,3 +1,10 @@
+# [0.339.0](https://github.com/lightdash/lightdash/compare/0.338.0...0.339.0) (2022-12-06)
+
+
+### Features
+
+* chart config unit input improvements ([#3899](https://github.com/lightdash/lightdash/issues/3899)) ([b12be40](https://github.com/lightdash/lightdash/commit/b12be40e3ebce33fe9936c639aff62196376ccb8))
+
 # [0.338.0](https://github.com/lightdash/lightdash/compare/0.337.0...0.338.0) (2022-12-06)
 
 
