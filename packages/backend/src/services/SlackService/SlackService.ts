@@ -135,7 +135,6 @@ const fetchScreenshot = async (
 
             request.continue();
         });
-        console.debug('chrome url', url);
         await page.goto(url, {
             timeout: 100000,
             waitUntil: 'networkidle0',
@@ -361,9 +360,7 @@ export class SlackService {
         );
     }
 
-    private async parseUrl(
-        linkUrl: string,
-    ): Promise<{
+    private async parseUrl(linkUrl: string): Promise<{
         isValid: boolean;
         lightdashPage?: LightdashPage;
         url: string;
@@ -372,7 +369,7 @@ export class SlackService {
             process.env.NODE_ENV !== 'development' &&
             !linkUrl.startsWith(this.lightdashConfig.siteUrl)
         ) {
-            console.warn(
+            console.debug(
                 `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
             );
             return {
@@ -412,7 +409,7 @@ export class SlackService {
             };
         }
 
-        console.warn(`URL to unfurl ${url} is not valid`);
+        console.debug(`URL to unfurl ${url} is not valid`);
         return {
             isValid: false,
             url,
