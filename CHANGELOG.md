@@ -1,3 +1,10 @@
+## [0.340.1](https://github.com/lightdash/lightdash/compare/0.340.0...0.340.1) (2022-12-06)
+
+
+### Bug Fixes
+
+* add dev set up command for error when running build script ([#3917](https://github.com/lightdash/lightdash/issues/3917)) ([8f79705](https://github.com/lightdash/lightdash/commit/8f797056bff8a5576d48226b30f5f400bacf5711))
+
 # [0.340.0](https://github.com/lightdash/lightdash/compare/0.339.0...0.340.0) (2022-12-06)
 
 
