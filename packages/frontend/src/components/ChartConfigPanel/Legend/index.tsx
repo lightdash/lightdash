@@ -1,15 +1,30 @@
 import { Collapse, Switch } from '@blueprintjs/core';
 import { EchartsLegend, friendlyName } from '@lightdash/common';
+import startCase from 'lodash-es/startCase';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
-import { InputTitle, SectionRow, SectionTitle } from './Legend.styles';
+import UnitInput from '../../ReactHookForm/UnitInput';
+import { SectionRow, SectionTitle } from './Legend.styles';
 
 const triggerSubmitFields = ['show', 'orient'];
+
+enum Positions {
+    Left = 'left',
+    Right = 'right',
+    Top = 'top',
+    Bottom = 'bottom',
+}
+
+enum Units {
+    Pixels = 'px',
+    Percentage = '%',
+}
+
+const units = Object.values(Units);
 
 const LegendPanel: FC = () => {
     const {
@@ -51,7 +66,7 @@ const LegendPanel: FC = () => {
                         : showDefault
                 }
             >
-                <InputTitle>Scroll</InputTitle>
+                <SectionTitle>Scroll</SectionTitle>
                 <Switch
                     large
                     checked={dirtyEchartsConfig?.legend?.type !== 'plain'}
@@ -65,17 +80,28 @@ const LegendPanel: FC = () => {
                     }}
                 />
                 <SectionTitle>Position</SectionTitle>
-                <SectionRow>
-                    <Input name="top" label="Top" placeholder={'auto'} />
-                    <Input name="bottom" label="Bottom" placeholder={'auto'} />
-                    <Input name="left" label="Left" placeholder={'auto'} />
-                    <Input name="right" label="Right" placeholder={'auto'} />
-                </SectionRow>
-                <SectionTitle>Appearance</SectionTitle>
+
+                {[
+                    [Positions.Left, Positions.Right],
+                    [Positions.Top, Positions.Bottom],
+                ].map((positionGroup) => (
+                    <SectionRow key={positionGroup.join(',')}>
+                        {positionGroup.map((position) => (
+                            <UnitInput
+                                key={position}
+                                label={startCase(position)}
+                                name={position}
+                                units={units}
+                                defaultValue="auto"
+                            />
+                        ))}
+                    </SectionRow>
+                ))}
+
+                <SectionTitle>Orientation</SectionTitle>
                 <SectionRow>
                     <Select
                         name="orient"
-                        label="Orientation"
                         options={['horizontal', 'vertical'].map((x) => ({
                             value: x,
                             label: friendlyName(x),

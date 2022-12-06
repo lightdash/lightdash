@@ -1,7 +1,8 @@
-import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
+import { FormGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
 import startCase from 'lodash/startCase';
 import { FC, useMemo } from 'react';
+import UnitInput from '../../common/UnitInput';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionRow } from './Grid.styles';
 
@@ -13,31 +14,19 @@ export const defaultGrid = {
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 };
 
-const positions = ['top', 'bottom', 'left', 'right'] as const;
+enum Positions {
+    Left = 'left',
+    Right = 'right',
+    Top = 'top',
+    Bottom = 'bottom',
+}
 
 enum Units {
     Pixels = 'px',
     Percentage = '%',
 }
 
-const getNextUnit = (current?: Units): Units | undefined => {
-    if (!current) return;
-
-    const units = Object.values(Units);
-    const currentIndex = units.indexOf(current);
-    return units.concat(units[0])[currentIndex + 1];
-};
-
-const getValueAndUnit = (valueWithUnit?: string): [string?, Units?] => {
-    if (!valueWithUnit || valueWithUnit === '') return [];
-
-    const unit =
-        Object.values(Units).find((u) => valueWithUnit.endsWith(u)) ||
-        Units.Pixels;
-
-    const value = valueWithUnit.replace(unit, '');
-    return [value, unit];
-};
+const units = Object.values(Units);
 
 const GridPanel: FC = () => {
     const {
@@ -53,78 +42,41 @@ const GridPanel: FC = () => {
     );
 
     const handleUpdate = (
-        position: typeof positions[number],
-        value: string,
-        unit: Units = Units.Pixels,
+        position: Positions,
+        newValue: string | undefined,
     ) => {
-        const newValue = value && value !== '' ? `${value}${unit}` : undefined;
-
         const newState = { ...config, [position]: newValue };
         setGrid(newState);
         return newState;
     };
 
-    const handleUpdateUnit = (
-        key: typeof positions[number],
-        nextUnit: Units = Units.Pixels,
-    ) => {
-        const originalValue = config[key];
-        const [value] = getValueAndUnit(originalValue);
-
-        if (!value || value === '') return;
-
-        handleUpdate(key, value, nextUnit);
-    };
-
     return (
-        <SectionRow>
-            {positions.map((position) => {
-                const [value, unit] = getValueAndUnit(config[position]);
-                const [placeholder, placeholderUnit] = getValueAndUnit(
-                    defaultGrid[position],
-                );
-
-                const nextUnit = getNextUnit(unit);
-
-                return (
-                    <FormGroup
-                        key={position}
-                        label={startCase(position)}
-                        labelFor={`${position}-input`}
-                    >
-                        <InputGroup
-                            type="number"
-                            id={`${position}-input`}
-                            name={position}
-                            placeholder={placeholder}
-                            value={value || ''}
-                            onChange={(e) =>
-                                handleUpdate(
-                                    position,
-                                    e.target.value,
-                                    value ? unit : placeholderUnit,
-                                )
-                            }
-                            rightElement={
-                                <Button
-                                    minimal
-                                    small
-                                    disabled={!value}
-                                    onClick={() =>
-                                        handleUpdateUnit(
-                                            position,
-                                            value ? nextUnit : placeholderUnit,
-                                        )
-                                    }
-                                >
-                                    {unit || placeholderUnit}
-                                </Button>
-                            }
-                        />
-                    </FormGroup>
-                );
-            })}
-        </SectionRow>
+        <>
+            {[
+                [Positions.Left, Positions.Right],
+                [Positions.Top, Positions.Bottom],
+            ].map((positionGroup) => (
+                <SectionRow key={positionGroup.join(',')}>
+                    {positionGroup.map((position) => (
+                        <FormGroup
+                            key={position}
+                            label={startCase(position)}
+                            labelFor={`${position}-input`}
+                        >
+                            <UnitInput
+                                name={position}
+                                units={units}
+                                value={config[position] || ''}
+                                defaultValue={defaultGrid[position]}
+                                onChange={(value) =>
+                                    handleUpdate(position, value)
+                                }
+                            />
+                        </FormGroup>
+                    ))}
+                </SectionRow>
+            ))}
+        </>
     );
 };
 

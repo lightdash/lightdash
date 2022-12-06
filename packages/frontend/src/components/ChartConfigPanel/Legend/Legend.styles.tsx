@@ -7,11 +7,6 @@ export const SectionTitle = styled.p`
     margin-bottom: 0.286em;
 `;
 
-export const InputTitle = styled.p`
-    font-weight: 500;
-    gap: 3px;
-}
-`;
 export const SectionRow = styled.div`
     display: inline-flex;
     gap: 10px;
