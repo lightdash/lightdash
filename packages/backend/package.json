@@ -41,7 +41,7 @@
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",
         "execa": "^5.0.0",
-        "express": "^4.17.1",
+        "express": "^4.17.3",
         "express-openapi-validator": "^4.13.5",
         "express-session": "^1.17.2",
         "fs-extra": "^10.0.0",
