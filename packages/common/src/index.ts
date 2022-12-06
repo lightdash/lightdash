@@ -639,23 +639,6 @@ export type PostgresCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
-// export interface Auth {
-//     readonly type: AuthType;
-// }
-// export declare class BasicAuth implements Auth {
-//     readonly username: string;
-//     readonly password?: string | undefined;
-//     readonly type: AuthType;
-//     constructor(username: string, password?: string | undefined);
-// }
-// export declare type Session = {
-//     [key: string]: string;
-// };
-// export declare type ExtraCredential = {
-//     [key: string]: string;
-// };
-// export declare type ConnectionOptions = {
-
 export type CreateTrinoCredentials = {
     type: WarehouseTypes.TRINO;
     host: string;

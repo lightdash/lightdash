@@ -18,6 +18,7 @@ import {
 import assertUnreachable from '../utils/assertUnreachable';
 import { renderFilterRuleSql } from './filtersCompiler';
 
+// TODO Configurar isso
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {
         case SupportedDbtAdapter.POSTGRES:
@@ -27,6 +28,7 @@ export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
             return '`';
+        case SupportedDbtAdapter.TRINO:
         default:
             return '"';
     }

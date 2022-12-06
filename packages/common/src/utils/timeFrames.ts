@@ -226,6 +226,7 @@ const databricksConfig: WarehouseConfig = {
     },
 };
 
+// TODO configurar esses convertores de data
 const trinoConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame: TimeFrames, originalSql: string) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
