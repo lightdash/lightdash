@@ -3,6 +3,7 @@ import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { DbtCloudMetric, TableBase } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { useMount } from 'react-use';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
@@ -179,6 +180,9 @@ const SqlRunnerPage = () => {
 
     return (
         <PageWithSidebar>
+            <Helmet>
+                <title>SQL Runner - Lightdash</title>
+            </Helmet>
             <Sidebar>
                 <StyledBreadcrumb items={[{ text: 'SQL Runner' }]} />
 

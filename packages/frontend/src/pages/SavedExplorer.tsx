@@ -1,5 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { useMemo } from 'react';
+import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
 import {
@@ -76,6 +77,9 @@ const SavedExplorer = () => {
             }
             savedChart={data}
         >
+            <Helmet>
+                <title>{data?.name} - Lightdash</title>
+            </Helmet>
             <SavedChartsHeader />
 
             <PageWrapper>

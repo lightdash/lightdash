@@ -9,6 +9,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
+import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
@@ -332,6 +333,9 @@ const Dashboard = () => {
 
     return (
         <>
+            <Helmet>
+                <title>{dashboardName || dashboard.name} - Lightdash</title>
+            </Helmet>
             <Alert
                 isOpen={isSaveWarningModalOpen}
                 cancelButtonText="Stay"

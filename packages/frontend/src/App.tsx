@@ -5,6 +5,7 @@ import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
 import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/select/lib/css/blueprint-select.css';
 import '@blueprintjs/table/lib/css/table.css';
+import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import {
@@ -71,6 +72,9 @@ FocusStyleManager.onlyShowFocusOnTabs();
 
 const App = () => (
     <>
+        <Helmet>
+            <title>Lightdash</title>
+        </Helmet>
         <AppStyle />
         <QueryClientProvider client={queryClient}>
             <HotkeysProvider>
