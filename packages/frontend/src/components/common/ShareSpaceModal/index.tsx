@@ -86,7 +86,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 <DialogFooter>
                     {sessionUser.data?.ability?.can('create', 'InviteLink') ? (
                         <>
-                            Can’t find a user? Saces can only be shared with{' '}
+                            Can’t find a user? Spaces can only be shared with{' '}
                             <Link
                                 to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                             >
