@@ -1,6 +1,12 @@
-import { ForbiddenError, SlackSettings } from '@lightdash/common';
+import {
+    ForbiddenError,
+    NotFoundError,
+    SlackSettings,
+} from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
+import * as fs from 'fs';
+import path from 'path';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackOptions } from '../clients/Slack/SlackOptions';
@@ -36,6 +42,22 @@ slackRouter.get(
                 status: 'ok',
                 results: response,
             });
+        } catch (error) {
+            next(error);
+        }
+    },
+);
+
+slackRouter.get(
+    '/image/:imageId',
+
+    async (req, res, next) => {
+        if (!req.params.imageId.startsWith('slack-image')) {
+            throw new NotFoundError(`File not found ${req.params.imageId}`);
+        }
+        try {
+            const filePath = path.join('/tmp', `${req.params.imageId}.png`);
+            res.sendFile(filePath);
         } catch (error) {
             next(error);
         }

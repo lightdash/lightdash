@@ -56,6 +56,24 @@ export const getInstallation = async (
     return row.installation;
 };
 
+export const getSlackUserId = async (
+    installQuery: InstallationQuery<boolean>,
+) => {
+    const { teamId } = installQuery;
+    const [row] = await database('slack_auth_tokens')
+        .leftJoin(
+            'users',
+            'slack_auth_tokens.created_by_user_id',
+            'users.user_id',
+        )
+        .select('*')
+        .where('slack_team_id', teamId);
+    if (row === undefined) {
+        throw new Error(`Could not find an installation for team id ${teamId}`);
+    }
+    return row.installation.user.id;
+};
+
 export const getUserUuid = async (installQuery: InstallationQuery<boolean>) => {
     const { teamId } = installQuery;
     const [row] = await database('slack_auth_tokens')

@@ -1,7 +1,7 @@
 import { assertUnreachable, AuthorizationError } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { analytics } from '../../analytics/client';
-import { getUserUuid } from '../../clients/Slack/SlackStorage';
+import { getSlackUserId, getUserUuid } from '../../clients/Slack/SlackStorage';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -76,14 +76,14 @@ const uploadImage = async (
     // uploads the image to the same thread, however, unfurl is called while the user is typing, not when the message is sent
     // so it is possible that the thread doesn't exist yet. Plus it is noisy (you get a notification when the image is uploaded)
     // Instead we upload the image to the user personal channel (@user), always there, not noisy.
+    const slackUserId = await getSlackUserId(context);
     const fileUpload = await client.files.upload({
-        channels: event.user, // event.channel
+        channels: slackUserId, // event.channel
         token: context.userToken,
         file: screenshot,
         filename: `dashboard-screenshot-${imageId}.png`,
         // thread_ts: event.message_ts, // Upload on thread
     });
-
     const publicImage = await client.files.sharedPublicURL({
         file: fileUpload.file.id,
         token: context.userToken,
@@ -96,7 +96,8 @@ const uploadImage = async (
     return imageUrl;
 };
 
-const fetchScreenshot = async (
+const saveScreenshot = async (
+    imageId: string,
     url: string,
     cookie: string,
     lightdashPage: LightdashPage,
@@ -139,7 +140,7 @@ const fetchScreenshot = async (
             timeout: 100000,
             waitUntil: 'networkidle0',
         });
-        const path = `/tmp/${encodeURIComponent(url)}.png`;
+        const path = `/tmp/${imageId}.png`;
 
         const selector =
             lightdashPage === LightdashPage.DASHBOARD
@@ -454,18 +455,21 @@ export class SlackService {
                     },
                 });
 
-                const screenshot = await fetchScreenshot(
+                const imageId = `slack-image-${context.teamId}-${event.unfurl_id}`;
+                saveScreenshot(
+                    imageId,
                     url.replace('local.lightdash.cloud', 'lightdash-dev:3000'),
                     cookie,
                     lightdashPage,
                 );
 
-                const imageUrl = await uploadImage(
+                /* const imageUrl = await uploadImage(
                     screenshot,
                     client,
                     event,
                     context,
-                );
+                ); */
+                const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}`;
 
                 const unfurls = await this.unfurlPage(
                     l.url,

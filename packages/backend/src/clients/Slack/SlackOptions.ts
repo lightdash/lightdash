@@ -31,6 +31,6 @@ export const slackOptions = {
     installerOptions: {
         directInstall: true,
         redirectUriPath: '/slack/oauth_redirect',
-        userScopes: ['files:write', 'files:read'],
+        userScopes: ['identify', 'files:write', 'files:read'],
     },
 };
