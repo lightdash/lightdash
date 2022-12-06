@@ -32,6 +32,7 @@ export const TabWrapper = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    margin-bottom: 10px;
 
     .bp4-tabs {
         .bp4-tab {
@@ -40,7 +41,7 @@ export const TabWrapper = styled.div`
 
         .bp4-tab-indicator {
             height: 2px !important;
-            bottom: -2px !important;
+            bottom: -4px !important;
         }
     }
 `;

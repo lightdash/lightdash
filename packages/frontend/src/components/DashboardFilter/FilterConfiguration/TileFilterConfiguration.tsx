@@ -12,7 +12,7 @@ import {
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
 import FieldSelect from '../../common/Filters/FieldSelect';
-import { Title } from './FilterConfiguration.styled';
+import { BolderLabel } from '../FilterSearch/FilterSearch.styles';
 
 interface TileFilterConfigurationProps {
     tiles: DashboardTile[];
@@ -69,9 +69,9 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
 
     return (
         <>
-            <Title>
+            <BolderLabel>
                 Select tiles to apply filter to and which field to filter by
-            </Title>
+            </BolderLabel>
 
             {sortedTileEntries.map(([tileUuid, filters]) => {
                 const tile = tiles.find((t) => t.uuid === tileUuid);
@@ -91,7 +91,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                 return (
                     <FormGroup key={tileUuid}>
                         <Checkbox
-                            label={tile?.properties.title}
+                            label={tile?.properties.title ?? undefined}
                             disabled={!isAvailable}
                             checked={isChecked}
                             onChange={() => {
