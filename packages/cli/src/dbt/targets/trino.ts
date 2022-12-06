@@ -59,7 +59,7 @@ export const convertTrinoSchema = (target: Target): CreateTrinoCredentials => {
     const validate = ajv.compile<TrinoTarget>(trinoSchema);
 
     if (validate(target)) {
-        const teste: CreateTrinoCredentials = {
+        return {
             type: WarehouseTypes.TRINO,
             schema: target.schema,
             host: target.host,
@@ -67,9 +67,8 @@ export const convertTrinoSchema = (target: Target): CreateTrinoCredentials => {
             password: target.password,
             port: target.port,
             dbname: target.database,
+            http_scheme: target.http_scheme,
         };
-
-        return teste;
     }
 
     const errs = betterAjvErrors(trinoSchema, target, validate.errors || []);

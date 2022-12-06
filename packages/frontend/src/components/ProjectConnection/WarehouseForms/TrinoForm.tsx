@@ -102,62 +102,18 @@ const TrinoForm: FC<{
                         required: 'Required field',
                     }}
                     disabled={disabled}
-                    defaultValue={5432}
-                />
-                <NumericInput
-                    name="warehouse.keepalivesIdle"
-                    label="Keep alive idle (seconds)"
-                    labelHelp={
-                        <p>
-                            This specifies the amount of seconds with no network
-                            activity after which the operating system should
-                            send a TCP keepalive message to the client. You can
-                            see more details in{' '}
-                            <a
-                                target="_blank"
-                                href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
-                                rel="noreferrer"
-                            >
-                                postgresqlco documentation
-                            </a>
-                            .
-                        </p>
-                    }
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={disabled}
-                    defaultValue={0}
-                />
-                <Input
-                    name="warehouse.searchPath"
-                    label="Search path"
-                    labelHelp={
-                        <p>
-                            This controls the Postgres "search path". You can
-                            see more details in{' '}
-                            <a
-                                target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
-                                rel="noreferrer"
-                            >
-                                dbt documentation
-                            </a>
-                            .
-                        </p>
-                    }
-                    disabled={disabled}
+                    defaultValue={8080}
                 />
                 <Select
-                    name="warehouse.sslmode"
+                    name="warehouse.http_scheme"
                     label="SSL mode"
                     labelHelp={
                         <p>
-                            This controls how dbt connects to Postgres databases
+                            This controls how dbt connects to Trino database
                             using SSL. You can see more details in
                             <a
                                 target="_blank"
-                                href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
+                                href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
                                 rel="noreferrer"
                             >
                                 dbt documentation
@@ -165,19 +121,13 @@ const TrinoForm: FC<{
                             .
                         </p>
                     }
-                    options={[
-                        'disable',
-                        'no-verify',
-                        'allow',
-                        'prefer',
-                        'require',
-                        'verify-ca',
-                        'verify-full',
-                    ].map((x) => ({ value: x, label: x }))}
-                    defaultValue="prefer"
+                    options={['http', 'https'].map((x) => ({
+                        value: x,
+                        label: x,
+                    }))}
+                    defaultValue="https"
                     disabled={disabled}
                 />
-                <Input name="warehouse.role" label="Role" disabled={disabled} />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

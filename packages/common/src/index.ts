@@ -656,13 +656,6 @@ export type PostgresCredentials = Omit<
 // };
 // export declare type ConnectionOptions = {
 
-//     readonly source?: string;
-//     readonly catalog?: string;
-//     readonly schema?: string;
-//     readonly auth?: Auth;
-//     readonly session?: Session;
-//     readonly extraCredential?: ExtraCredential;
-
 export type CreateTrinoCredentials = {
     type: WarehouseTypes.TRINO;
     host: string;
@@ -671,11 +664,7 @@ export type CreateTrinoCredentials = {
     port: number;
     dbname: string;
     schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    searchPath?: string;
-    role?: string;
-    sslmode?: string;
+    http_scheme: string;
 };
 
 export type TrinoCredentials = Omit<

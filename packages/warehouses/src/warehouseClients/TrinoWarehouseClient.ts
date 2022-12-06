@@ -7,7 +7,6 @@ import {
 import * as _ from 'lodash';
 import {
     BasicAuth,
-    Columns,
     ConnectionOptions,
     Iterator,
     QueryData,
@@ -106,7 +105,6 @@ const handlerVals = (val: string | string[][]): string => val[0][0]!;
 const catalogToSchema = (catalog: string[][][]): WarehouseCatalog => {
     const schema: WarehouseCatalog = {};
     const groupSchema = customGroup(_.first(catalog));
-    // TODO tem alguma forma mais elegante de fazer isso?
     Object.entries(groupSchema).map((db) => {
         const dbKey: string = keyName(db);
         const dbValue: CatalogItemGroup = customGroup(_.last(db));
@@ -161,13 +159,13 @@ export class TrinoWarehouseClient implements WarehouseClient {
         port,
         dbname,
         schema,
+        http_scheme,
     }: CreateTrinoCredentials) {
-        // TODO improve authentication parameters
         this.connectionOptions = {
             auth: new BasicAuth(user, password),
             catalog: dbname,
             schema,
-            server: `https://${host}:${port}`,
+            server: `${http_scheme}://${host}:${port}`,
         };
     }
 
@@ -183,7 +181,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
         return {
             session,
             close: async () => {
-                console.warn('Close trino connection');
+                console.log('Close trino connection');
             },
         };
     }
@@ -195,6 +193,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
         try {
             query = await session.query(sql);
             const result: QueryData = (await query.next()).value.data ?? [];
+            console.log(result);
             const schema: {
                 name: string;
                 type: string;
@@ -236,7 +235,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
                 try {
                     query = await session.query(queryTableSchema(request));
                     const result = (await query.next()).value.data ?? [];
-
                     return result;
                 } catch (e: any) {
                     throw new WarehouseQueryError(e.message);
@@ -249,7 +247,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
         } finally {
             await close();
         }
-
         return catalogToSchema(results);
     }
 }
