@@ -1,3 +1,10 @@
+# [0.340.0](https://github.com/lightdash/lightdash/compare/0.339.0...0.340.0) (2022-12-06)
+
+
+### Features
+
+* fine grain github token ([#3908](https://github.com/lightdash/lightdash/issues/3908)) ([41d2b32](https://github.com/lightdash/lightdash/commit/41d2b321511940e59f6db2f9804e7ac55d2857a3))
+
 # [0.339.0](https://github.com/lightdash/lightdash/compare/0.338.0...0.339.0) (2022-12-06)
 
 
