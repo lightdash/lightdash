@@ -1,4 +1,4 @@
-import { AuthorizationError } from '@lightdash/common';
+import { assertUnreachable, AuthorizationError } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { analytics } from '../../analytics/client';
 import { getUserUuid } from '../../clients/Slack/SlackStorage';
@@ -16,6 +16,12 @@ const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
+
+export enum LightdashPage {
+    DASHBOARD = 'dashboard',
+    CHART = 'chart',
+    EXPLORE = 'explore',
+}
 
 type SlackServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -93,7 +99,7 @@ const uploadImage = async (
 const fetchScreenshot = async (
     url: string,
     cookie: string,
-    isDashboard: boolean,
+    lightdashPage: LightdashPage,
 ): Promise<Buffer> => {
     let browser;
 
@@ -136,13 +142,14 @@ const fetchScreenshot = async (
         });
         const path = `/tmp/${encodeURIComponent(url)}.png`;
 
-        const selector = isDashboard
-            ? '.react-grid-layout'
-            : '.echarts-for-react';
+        const selector =
+            lightdashPage === LightdashPage.DASHBOARD
+                ? '.react-grid-layout'
+                : `.echarts-for-react, [data-testid="visualization"]`; // Get .echarts-for-react, otherwise fallsback to data-testid (tables and bignumbers)
         await page.waitForSelector(selector);
         const element = await page.$(selector);
 
-        if (isDashboard) {
+        if (lightdashPage === LightdashPage.DASHBOARD) {
             // Remove navbar from screenshot
             await page.evaluate((sel: any) => {
                 // @ts-ignore
@@ -192,6 +199,39 @@ const getUserCookie = async (userUuid: string): Promise<string> => {
         );
     }
     return header;
+};
+
+const unfurlExplore = async (url: string, imageUrl: string) => {
+    const unfurls = {
+        [url]: {
+            blocks: [
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `Exploring`,
+                    },
+                    accessory: {
+                        type: 'button',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open in Lightdash',
+                            emoji: true,
+                        },
+                        value: 'click_me_123',
+                        url,
+                        action_id: 'button-action',
+                    },
+                },
+                {
+                    type: 'image',
+                    image_url: imageUrl,
+                    alt_text: 'Explore screenshot',
+                },
+            ],
+        },
+    };
+    return unfurls;
 };
 
 export class SlackService {
@@ -312,16 +352,22 @@ export class SlackService {
     }
 
     private async getSharedUrl(linkUrl: string): Promise<string> {
-        return linkUrl;
-        // We currently don't support charts or dashboards with shared URL, so we don't need this right now
         const [shareId] = linkUrl.match(nanoidRegex) || [];
         const shareUrl = await this.shareModel.getSharedUrl(shareId);
-        return shareUrl.url || '';
+
+        return (
+            `http://local.lightdash.cloud${shareUrl.path}${shareUrl.params}` ||
+            ''
+        );
     }
 
     private async parseUrl(
         linkUrl: string,
-    ): Promise<{ isValid: boolean; isDashboard?: boolean; url: string }> {
+    ): Promise<{
+        isValid: boolean;
+        lightdashPage?: LightdashPage;
+        url: string;
+    }> {
         if (
             process.env.NODE_ENV !== 'development' &&
             !linkUrl.startsWith(this.lightdashConfig.siteUrl)
@@ -342,16 +388,30 @@ export class SlackService {
 
         const dashboardUrl = new RegExp(`/projects/${uuid}/dashboards/${uuid}`);
         const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
+        const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
 
-        const isDashboard = url.match(dashboardUrl) !== null;
-        const isChart = url.match(chartUrl) !== null;
-        if (isDashboard || isChart) {
+        if (url.match(dashboardUrl) !== null) {
             return {
                 isValid: true,
-                isDashboard,
+                lightdashPage: LightdashPage.DASHBOARD,
                 url: linkUrl,
             };
         }
+        if (url.match(chartUrl) !== null) {
+            return {
+                isValid: true,
+                lightdashPage: LightdashPage.CHART,
+                url: linkUrl,
+            };
+        }
+        if (url.match(exploreUrl) !== null) {
+            return {
+                isValid: true,
+                lightdashPage: LightdashPage.EXPLORE,
+                url: linkUrl,
+            };
+        }
+
         console.warn(`URL to unfurl ${url} is not valid`);
         return {
             isValid: false,
@@ -359,29 +419,48 @@ export class SlackService {
         };
     }
 
+    async unfurlPage(
+        url: string,
+        lightdashPage: LightdashPage,
+        imageUrl: string,
+    ) {
+        switch (lightdashPage) {
+            case LightdashPage.DASHBOARD:
+                return this.unfurlDashboard(url, imageUrl);
+            case LightdashPage.CHART:
+                return this.unfurlChart(url, imageUrl);
+            case LightdashPage.EXPLORE:
+                return unfurlExplore(url, imageUrl);
+            default:
+                return assertUnreachable(
+                    lightdashPage,
+                    `No lightdash page Slack unfurl implemented`,
+                );
+        }
+    }
+
     async unfurl(event: any, client: any, context: any): Promise<void> {
         event.links.map(async (l: any) => {
-            const { isValid, isDashboard, url } = await this.parseUrl(l.url);
+            const { isValid, lightdashPage, url } = await this.parseUrl(l.url);
 
-            if (!isValid || isDashboard === undefined || url === undefined) {
+            if (!isValid || lightdashPage === undefined || url === undefined) {
                 return;
             }
             try {
                 const userUuid = await getUserUuid(context);
                 const cookie = await getUserCookie(userUuid);
-                console.debug(`got cookie for user ${userUuid} : ${cookie}`);
                 analytics.track({
                     event: 'share_slack.unfurl',
                     userId: event.user,
                     properties: {
-                        isDashboard,
+                        pageType: lightdashPage,
                     },
                 });
 
                 const screenshot = await fetchScreenshot(
                     url.replace('local.lightdash.cloud', 'lightdash-dev:3000'),
                     cookie,
-                    isDashboard,
+                    lightdashPage,
                 );
 
                 const imageUrl = await uploadImage(
@@ -391,9 +470,11 @@ export class SlackService {
                     context,
                 );
 
-                const unfurls = await (isDashboard
-                    ? this.unfurlDashboard(url, imageUrl)
-                    : this.unfurlChart(url, imageUrl));
+                const unfurls = await this.unfurlPage(
+                    l.url,
+                    lightdashPage,
+                    imageUrl,
+                );
                 client.chat
                     .unfurl({
                         ts: event.message_ts,

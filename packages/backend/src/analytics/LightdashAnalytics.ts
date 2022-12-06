@@ -395,7 +395,7 @@ type ShareSlack = BaseTrack & {
     userId?: string;
     anonymousId?: string;
     properties: {
-        isDashboard?: boolean;
+        pageType?: string;
         error?: string;
         organizationUuid?: string;
     };
