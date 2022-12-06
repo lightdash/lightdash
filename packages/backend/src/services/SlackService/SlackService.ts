@@ -148,13 +148,8 @@ const fetchDashboardScreenshot = async (
 const getUserCookie = async (userUuid: string): Promise<string> => {
     const token = getAuthenticationToken(userUuid);
 
-    const hostname =
-        process.env.NODE_ENV === 'development'
-            ? 'lightdash-dev'
-            : process.env.RENDER_SERVICE_NAME;
-
     const response = await fetch(
-        `http://${hostname}:3000/api/v1/headless-browser/login/${userUuid}`,
+        `${process.env.SITE_URL}/api/v1/headless-browser/login/${userUuid}`,
         {
             method: 'POST',
             headers: {
@@ -327,19 +322,18 @@ export class SlackService {
             if (!isValid || isDashboard === undefined || url === undefined) {
                 return;
             }
-
-            const userUuid = await getUserUuid(context);
-            const cookie = await getUserCookie(userUuid);
-            console.debug(`got cookie for user ${userUuid} : ${cookie}`);
-            analytics.track({
-                event: 'share_slack.unfurl',
-                userId: event.user,
-                properties: {
-                    isDashboard,
-                },
-            });
-
             try {
+                const userUuid = await getUserUuid(context);
+                const cookie = await getUserCookie(userUuid);
+                console.debug(`got cookie for user ${userUuid} : ${cookie}`);
+                analytics.track({
+                    event: 'share_slack.unfurl',
+                    userId: event.user,
+                    properties: {
+                        isDashboard,
+                    },
+                });
+
                 const screenshot = await fetchDashboardScreenshot(url, cookie);
 
                 const imageUrl = await uploadImage(
