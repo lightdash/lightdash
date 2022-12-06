@@ -27,3 +27,20 @@ export const ActionsWrapper = styled.div`
 export const ApplyButton = styled(Button)`
     margin-left: auto;
 `;
+
+export const TabWrapper = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    .bp4-tabs {
+        .bp4-tab {
+            line-height: unset;
+        }
+
+        .bp4-tab-indicator {
+            height: 2px !important;
+            bottom: -2px !important;
+        }
+    }
+`;

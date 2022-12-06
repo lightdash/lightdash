@@ -24,6 +24,7 @@ import {
     ActionsWrapper,
     ApplyButton,
     ConfigureFilterWrapper,
+    TabWrapper,
 } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -133,42 +134,39 @@ const FilterConfiguration: FC<Props> = ({
 
     return (
         <ConfigureFilterWrapper>
-            <FieldLabel item={field} />
+            <TabWrapper>
+                <FieldLabel item={field} />
 
-            <Tabs
-                selectedTabId={selectedTabId}
-                onChange={onTabChange}
-                renderActiveTabPanelOnly
-            >
-                <Tab
-                    id="settings"
-                    title="Settings"
-                    panel={
-                        <FilterSettings
-                            field={field}
-                            filterRule={internalFilterRule}
-                            onChangeFilterOperator={handleChangeFilterOperator}
-                            onChangeFilterRule={handleChangeFilterRule}
-                            popoverProps={popoverProps}
-                        />
-                    }
-                />
+                <Tabs
+                    selectedTabId={selectedTabId}
+                    onChange={onTabChange}
+                    renderActiveTabPanelOnly
+                >
+                    <Tab id="settings" title="Settings" />
+                    <Tab id="tiles" title="Tiles" />
+                </Tabs>
+            </TabWrapper>
 
-                <Tab
-                    id="tiles"
-                    title="Tiles"
-                    panel={
-                        <TileFilterConfiguration
-                            field={field}
-                            filterRule={internalFilterRule}
-                            popoverProps={popoverProps}
-                            tiles={tiles}
-                            availableTileFilters={availableTileFilters}
-                            onChange={handleChangeTileConfiguration}
-                        />
-                    }
+            {selectedTabId === FilterTabs.SETTINGS && (
+                <FilterSettings
+                    field={field}
+                    filterRule={internalFilterRule}
+                    onChangeFilterOperator={handleChangeFilterOperator}
+                    onChangeFilterRule={handleChangeFilterRule}
+                    popoverProps={popoverProps}
                 />
-            </Tabs>
+            )}
+
+            {selectedTabId === FilterTabs.TILES && (
+                <TileFilterConfiguration
+                    field={field}
+                    filterRule={internalFilterRule}
+                    popoverProps={popoverProps}
+                    tiles={tiles}
+                    availableTileFilters={availableTileFilters}
+                    onChange={handleChangeTileConfiguration}
+                />
+            )}
 
             <ActionsWrapper>
                 {onBack && (
