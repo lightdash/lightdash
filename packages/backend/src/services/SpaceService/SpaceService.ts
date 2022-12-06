@@ -94,6 +94,12 @@ export class SpaceService {
             space.isPrivate,
         );
 
+        space.access.map(async (access) => {
+            await this.spaceModel.addSpaceAccess(
+                newSpace.uuid,
+                access.userUuid,
+            );
+        });
         await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
         analytics.track({
             event: 'space.created',

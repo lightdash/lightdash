@@ -1,7 +1,7 @@
-import { Button, IconName, Intent } from '@blueprintjs/core';
+import { Button, Dialog, IconName, Intent } from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormReturn, useWatch } from 'react-hook-form';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
@@ -10,7 +10,9 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
+import { ShareSpaceAddUser } from '../ShareSpaceModal/ShareSpaceAddUser';
 import ShareSpaceDialog from '../ShareSpaceModal/ShareSpaceDialog';
+import { DialogBody } from '../ShareSpaceModal/ShareSpaceModal.style';
 import { SpaceAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
@@ -40,6 +42,13 @@ export interface SpaceModalBody {
     data?: Space;
 }
 
+export interface CreateSpaceModalBody {
+    data?: Space;
+    modalStep: number;
+    form: UseFormReturn<Space, object>;
+    setIsShared: (isShared: boolean) => void;
+}
+
 const SpaceModal: FC<ActionModalProps> = ({
     data,
     icon,
@@ -54,7 +63,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     const { showToastError } = useToaster();
 
     const form = useForm<Space>({
-        mode: 'onChange',
+        mode: 'all',
         defaultValues: data,
     });
 
@@ -69,6 +78,9 @@ const SpaceModal: FC<ActionModalProps> = ({
         }
     };
 
+    const [modalStep, setModalStep] = useState<number>(0);
+    const [isShared, setIsShared] = useState<boolean>(false);
+
     return (
         <BaseModal
             isOpen
@@ -81,7 +93,14 @@ const SpaceModal: FC<ActionModalProps> = ({
             renderBody={() => {
                 switch (actionType) {
                     case ActionType.CREATE:
-                        return <CreateSpaceModalContent data={data} />;
+                        return (
+                            <CreateSpaceModalContent
+                                data={data}
+                                modalStep={modalStep}
+                                form={form}
+                                setIsShared={setIsShared}
+                            />
+                        );
                     case ActionType.UPDATE:
                         return <UpdateSpaceModalContent data={data} />;
                     case ActionType.DELETE:
@@ -97,14 +116,36 @@ const SpaceModal: FC<ActionModalProps> = ({
                 <>
                     <Button onClick={onClose}>Cancel</Button>
 
-                    <Button
-                        data-cy="submit-base-modal"
-                        type="submit"
-                        disabled={isDisabled || !form.formState.isValid}
-                        intent={confirmButtonIntent}
-                        text={confirmButtonLabel}
-                        loading={isDisabled}
-                    />
+                    {actionType === ActionType.CREATE && modalStep === 1 && (
+                        <Button
+                            text="Back"
+                            onClick={(ev) => {
+                                setModalStep(0);
+                                ev.preventDefault();
+                            }}
+                        />
+                    )}
+                    {actionType === ActionType.CREATE &&
+                    modalStep === 0 &&
+                    isShared ? (
+                        <Button
+                            text="Continue"
+                            disabled={isDisabled || !form.formState.isValid}
+                            onClick={(ev) => {
+                                setModalStep(1);
+                                ev.preventDefault();
+                            }}
+                        />
+                    ) : (
+                        <Button
+                            data-cy="submit-base-modal"
+                            type="submit"
+                            disabled={isDisabled || !form.formState.isValid}
+                            intent={confirmButtonIntent}
+                            text={confirmButtonLabel}
+                            loading={isDisabled}
+                        />
+                    )}
                 </>
             )}
         />
@@ -118,11 +159,10 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     onSubmitForm,
     ...props
 }) => {
-    const { data, isLoading, isStale } = useSpace(projectUuid, spaceUuid!, {
+    const { data, isLoading } = useSpace(projectUuid, spaceUuid!, {
         enabled: !!spaceUuid,
     });
 
-    const [createdSpaceUuid, setCreatedSpaceUuid] = useState<string>();
     const { mutateAsync: createMutation, isLoading: isCreating } =
         useCreateMutation(projectUuid);
 
@@ -132,47 +172,34 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     const { mutateAsync: deleteMutation, isLoading: isDeleting } =
         useDeleteMutation(projectUuid);
 
-    const handleSubmitForm = async (state?: Space & { private: string }) => {
+    const handleSubmitForm = async (state?: Space) => {
         if (actionType === ActionType.CREATE) {
             const result = await createMutation({
                 name: state!.name,
-                isPrivate: state!.private === SpaceAccessType.PRIVATE,
+                isPrivate: state!.isPrivate,
+                access: state!.access,
             });
-
             onSubmitForm?.(result);
-            if (state!.private === SpaceAccessType.PRIVATE) {
-                props.onClose?.();
-            } else {
-                setCreatedSpaceUuid(result.uuid);
-            }
         } else if (actionType === ActionType.UPDATE) {
             const result = await updateMutation({
                 name: state!.name,
                 isPrivate: state!.isPrivate,
             });
             onSubmitForm?.(result);
-            props.onClose?.();
         } else if (actionType === ActionType.DELETE) {
             const result = await deleteMutation(spaceUuid!);
             onSubmitForm?.(result);
-            props.onClose?.();
         } else {
             return assertUnreachable(actionType, 'Unexpected action in space');
         }
+        props.onClose?.();
     };
 
     if (isLoading) return null;
 
     const isWorking = isCreating || isUpdating || isDeleting;
 
-    return createdSpaceUuid ? (
-        <ShareSpaceDialog
-            spaceUuid={createdSpaceUuid}
-            projectUuid={projectUuid}
-            isOpen={true}
-            onClose={() => props.onClose?.()}
-        />
-    ) : (
+    return (
         <SpaceModal
             data={data}
             projectUuid={projectUuid}
