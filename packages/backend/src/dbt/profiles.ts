@@ -104,7 +104,7 @@ const credentialsTarget = (
                     port: credentials.port,
                     database: credentials.dbname,
                     schema: credentials.schema,
-                    http_scheme: 'https',
+                    http_scheme: credentials.http_scheme,
                 },
                 environment: {
                     [envVar('user')]: credentials.user,

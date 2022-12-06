@@ -16,6 +16,7 @@ export type TrinoTarget = {
     port: number;
     database: string;
     schema: string;
+    http_scheme: string;
 };
 
 export const trinoSchema: JSONSchemaType<TrinoTarget> = {
@@ -43,6 +44,9 @@ export const trinoSchema: JSONSchemaType<TrinoTarget> = {
         database: {
             type: 'string',
         },
+        http_scheme: {
+            type: 'string',
+        },
     },
     required: [
         'type',
@@ -52,6 +56,7 @@ export const trinoSchema: JSONSchemaType<TrinoTarget> = {
         'password',
         'port',
         'database',
+        'http_scheme',
     ],
 };
 
