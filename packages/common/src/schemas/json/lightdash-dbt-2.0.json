@@ -139,7 +139,8 @@
                                                                 "usd",
                                                                 "gbp",
                                                                 "eur",
-                                                                "percent"
+                                                                "percent",
+                                                                "id"
                                                             ]
                                                         }
                                                     },
@@ -174,7 +175,8 @@
                                                         "usd",
                                                         "gbp",
                                                         "eur",
-                                                        "percent"
+                                                        "percent",
+                                                        "id"
                                                     ]
                                                 },
                                                 "time_intervals": {
@@ -288,7 +290,8 @@
                                     "usd",
                                     "gbp",
                                     "eur",
-                                    "percent"
+                                    "percent",
+                                    "id"
                                 ]
                             }
                         }
