@@ -56,7 +56,7 @@ slackRouter.get(
             throw new NotFoundError(`File not found ${req.params.imageId}`);
         }
         try {
-            const filePath = path.join('/tmp', `${req.params.imageId}.png`);
+            const filePath = path.join('/tmp', req.params.imageId);
             res.sendFile(filePath);
         } catch (error) {
             next(error);

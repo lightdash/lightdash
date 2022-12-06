@@ -469,13 +469,15 @@ export class SlackService {
                     event,
                     context,
                 ); */
-                const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}`;
-
+                const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
+                console.warn('imageUrl', imageUrl);
                 const unfurls = await this.unfurlPage(
                     l.url,
                     lightdashPage,
                     imageUrl,
                 );
+                console.warn('unfurls', JSON.stringify(unfurls));
+
                 client.chat
                     .unfurl({
                         ts: event.message_ts,

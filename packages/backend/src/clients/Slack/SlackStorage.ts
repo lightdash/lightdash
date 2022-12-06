@@ -69,7 +69,7 @@ export const getSlackUserId = async (
         .select('*')
         .where('slack_team_id', teamId);
     if (row === undefined) {
-        throw new Error(`Could not find an installation for team id ${teamId}`);
+        throw new Error(`Could not find slack user id ${teamId}`);
     }
     return row.installation.user.id;
 };
@@ -85,7 +85,7 @@ export const getUserUuid = async (installQuery: InstallationQuery<boolean>) => {
         .select('*')
         .where('slack_team_id', teamId);
     if (row === undefined) {
-        throw new Error(`Could not find an installation for team id ${teamId}`);
+        throw new Error(`Could not find user uuid id ${teamId}`);
     }
     return row.user_uuid;
 };
