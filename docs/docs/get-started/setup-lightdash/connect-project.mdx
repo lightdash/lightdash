@@ -17,7 +17,6 @@ import ProjectConnectionSettings from './assets/project-connection-settings.jpg'
 import DbtConnectionSettings from './assets/dbt-connection-settings.jpg';
 import FineGrainedRepo from './assets/fine-grained-repo.png';
 import FineGrainedPermissions from './assets/fine-grained-permissions.png';
-import FineGrainedProject from './assets/fine-grained-project.png';
 
 # Update your project connection
 
@@ -499,7 +498,7 @@ We don't support connecting Lightdash to [dbt Cloud managed repositories](https:
 #### Personal access token
 
 
-You can create a personal access token (classic), or a fine-grained access token (beta). 
+You can create a personal access token (classic), or a fine-grained access token (beta).
 
 ##### Personal access token (classic)
 
@@ -511,9 +510,9 @@ Select `repo` scope when you're creating the token.
 <img src={OauthScope} width="543" height="304" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 
-##### Fine-grained access token (beta) 
+##### Fine-grained access token (beta)
 
-Fine-grained access tokens are new special tokens that can only give access to individual repositories on your github account. 
+Fine-grained access tokens are new special tokens that can only give access to individual repositories on your github account.
 You can read more about it on the [Github docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-fine-grained-personal-access-token).
 
 1. Go to [settings > Developer access > Personal access tokens > fine-grained token](https://github.com/settings/personal-access-tokens/new)
@@ -522,19 +521,13 @@ You can read more about it on the [Github docs](https://docs.github.com/en/authe
 
 <img src={FineGrainedRepo} width="500" height="375" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-4. On repository permissions, select `Contents` 
+4. On repository permissions, select `Contents`
 
 <img src={FineGrainedPermissions} width="800" height="91" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-5. Click `Generate token` and copy the token. 
+5. Click `Generate token` and copy the token.
 
-6. On create project page, add your [gihtub_username]:[token] into `Personal access token` field, like this: 
-
-<img src={FineGrainedProject} width="300" height="327" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-7. Create project 
-
-You could also replace your old tokens with new fine-grained tokens on project settings. 
+You could also replace your old tokens with new fine-grained tokens on project settings.
 
 
 #### Repository
