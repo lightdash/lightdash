@@ -1,3 +1,10 @@
+# [0.338.0](https://github.com/lightdash/lightdash/compare/0.337.0...0.338.0) (2022-12-06)
+
+
+### Features
+
+* add id format ([#3914](https://github.com/lightdash/lightdash/issues/3914)) ([376e294](https://github.com/lightdash/lightdash/commit/376e294b33a2228fd434d45209e030ccd8d69e14))
+
 # [0.337.0](https://github.com/lightdash/lightdash/compare/0.336.1...0.337.0) (2022-12-05)
 
 
