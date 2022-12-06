@@ -64,14 +64,18 @@ const uploadImage = async (
     event: any,
     context: any,
 ): Promise<string> => {
-    // https://github.com/slackapi/node-slack-sdk/issues/1561
     const imageId = event.message_ts;
 
+    // channel: event.channel and thread_ts:event.message_ts
+    // uploads the image to the same thread, however, unfurl is called while the user is typing, not when the message is sent
+    // so it is possible that the thread doesn't exist yet. Plus it is noisy (you get a notification when the image is uploaded)
+    // Instead we upload the image to the user personal channel (@user), always there, not noisy.
     const fileUpload = await client.files.upload({
-        channels: event.channel,
+        channels: event.user, // event.channel
+        token: context.userToken,
         file: screenshot,
         filename: `dashboard-screenshot-${imageId}.png`,
-        thread_ts: event.message_ts, // Upload on thread
+        // thread_ts: event.message_ts, // Upload on thread
     });
 
     const publicImage = await client.files.sharedPublicURL({
@@ -205,16 +209,39 @@ export class SlackService {
     private async unfurlChart(url: string, imageUrl: string): Promise<any> {
         const [projectUuid, chartUuid] = (await url.match(uuidRegex)) || [];
 
-        const chart = this.savedChartModel.get(chartUuid);
+        const chart = await this.savedChartModel.get(chartUuid);
         return {
             [url]: {
                 blocks: [
                     {
+                        type: 'header',
+                        text: {
+                            type: 'plain_text',
+                            text: chart.name,
+                        },
+                    },
+                    {
                         type: 'section',
                         text: {
                             type: 'mrkdwn',
-                            text: 'Chart unfurls not implemented',
+                            text: `${chart.description || '-'}`,
                         },
+                        accessory: {
+                            type: 'button',
+                            text: {
+                                type: 'plain_text',
+                                text: 'Open in Lightdash',
+                                emoji: true,
+                            },
+                            value: 'click_me_123',
+                            url,
+                            action_id: 'button-action',
+                        },
+                    },
+                    {
+                        type: 'image',
+                        image_url: imageUrl,
+                        alt_text: chart.name,
                     },
                 ],
             },
@@ -279,7 +306,7 @@ export class SlackService {
         linkUrl: string,
     ): Promise<{ isValid: boolean; isDashboard?: boolean; url: string }> {
         if (
-            process.env.NODE_ENV === 'development' ||
+            process.env.NODE_ENV !== 'development' &&
             !linkUrl.startsWith(this.lightdashConfig.siteUrl)
         ) {
             console.warn(
@@ -334,7 +361,10 @@ export class SlackService {
                     },
                 });
 
-                const screenshot = await fetchDashboardScreenshot(url, cookie);
+                const screenshot = await fetchDashboardScreenshot(
+                    url.replace('local.lightdash.cloud', 'lightdash-dev:3000'),
+                    cookie,
+                );
 
                 const imageUrl = await uploadImage(
                     screenshot,
