@@ -114,7 +114,11 @@ function roundNumber(
             : new Intl.NumberFormat('en-US').format(Number(value));
     }
     const isValidFormat =
-        !!format && format !== 'km' && format !== 'mi' && format !== 'percent';
+        !!format &&
+        format !== 'km' &&
+        format !== 'mi' &&
+        format !== 'percent' &&
+        format !== 'id';
 
     const validFractionDigits = invalidRound
         ? {}
@@ -183,6 +187,8 @@ export function formatValue(
         case 'gbp':
         case 'eur':
             return `${styledValue}`;
+        case 'id':
+            return `${value}`;
         case 'percent':
             if (valueIsNaN(value)) {
                 return `${value}`;
