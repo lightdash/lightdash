@@ -90,9 +90,10 @@ const uploadImage = async (
     return imageUrl;
 };
 
-const fetchDashboardScreenshot = async (
+const fetchScreenshot = async (
     url: string,
     cookie: string,
+    isDashboard: boolean,
 ): Promise<Buffer> => {
     let browser;
 
@@ -107,7 +108,7 @@ const fetchDashboardScreenshot = async (
         await page.setExtraHTTPHeaders({ cookie });
 
         await page.setViewport({
-            width: 1024,
+            width: 1400,
             height: 768, // hardcoded
         });
 
@@ -134,12 +135,28 @@ const fetchDashboardScreenshot = async (
             waitUntil: 'networkidle0',
         });
         const path = `/tmp/${encodeURIComponent(url)}.png`;
-        const imageBuffer = await page.screenshot({
+
+        const selector = isDashboard
+            ? '.react-grid-layout'
+            : '.echarts-for-react';
+        await page.waitForSelector(selector);
+        const element = await page.$(selector);
+
+        if (isDashboard) {
+            // Remove navbar from screenshot
+            await page.evaluate((sel: any) => {
+                // @ts-ignore
+                const elements = document.querySelectorAll(sel);
+                elements.forEach((el) => el.parentNode.removeChild(el));
+            }, '.bp4-navbar');
+        }
+
+        const imageBuffer = await element.screenshot({
             path,
-            clip: { x: 0, y: 0, width: 1024, height: 768 },
         });
 
         return imageBuffer;
+
         // return path
     } catch (e) {
         console.error(`Unable to fetch screenshots from headless chromeo ${e}`);
@@ -361,9 +378,10 @@ export class SlackService {
                     },
                 });
 
-                const screenshot = await fetchDashboardScreenshot(
+                const screenshot = await fetchScreenshot(
                     url.replace('local.lightdash.cloud', 'lightdash-dev:3000'),
                     cookie,
+                    isDashboard,
                 );
 
                 const imageUrl = await uploadImage(
