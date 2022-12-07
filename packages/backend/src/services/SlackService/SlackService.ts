@@ -384,10 +384,7 @@ export class SlackService {
         lightdashPage?: LightdashPage;
         url: string;
     }> {
-        if (
-            process.env.NODE_ENV !== 'development' &&
-            !linkUrl.startsWith(this.lightdashConfig.siteUrl)
-        ) {
+        if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
             Logger.debug(
                 `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
             );
@@ -475,25 +472,15 @@ export class SlackService {
                 });
 
                 const imageId = `slack-image-${context.teamId}-${event.unfurl_id}`;
-                await saveScreenshot(
-                    imageId,
-                    url.replace('local.lightdash.cloud', 'lightdash-dev:3000'),
-                    cookie,
-                    lightdashPage,
-                );
+                await saveScreenshot(imageId, url, cookie, lightdashPage);
 
-                const imageUrl =
-                    process.env.NODE_ENV === 'development'
-                        ? `https://docs.lightdash.com/assets/images/home-page-0e316cf8414ff691460fd1a996aa83b7.png` // Sample imag
-                        : `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
-                console.warn('imageUrl', imageUrl); // TODO remove
+                const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
                 const unfurls = await this.unfurlPage(
                     l.url,
                     url,
                     lightdashPage,
                     imageUrl,
                 );
-                console.warn('unfurls', JSON.stringify(unfurls)); // TODO remove
 
                 client.chat
                     .unfurl({
@@ -510,7 +497,7 @@ export class SlackService {
                             },
                         });
                         Logger.error(
-                            `Unable to unfurl url ${url}: ${JSON.stringify(e)}`,
+                            `Unable to unfurl ${unfurls}: ${JSON.stringify(e)}`,
                         );
                     });
             } catch (e) {
