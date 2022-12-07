@@ -11,6 +11,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
+import SimpleButton from '../SimpleButton';
 
 import CreateSpaceModalContent, {
     CreateModalStep,
@@ -123,8 +124,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                     {actionType === ActionType.CREATE &&
                         modalStep === CreateModalStep.SET_ACCESS && (
                             <>
-                                <Button
-                                    minimal={true}
+                                <SimpleButton
                                     text="Back"
                                     onClick={(ev) => {
                                         setModalStep(CreateModalStep.SET_NAME);
