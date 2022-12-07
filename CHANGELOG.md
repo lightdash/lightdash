@@ -1,3 +1,10 @@
+## [0.343.1](https://github.com/lightdash/lightdash/compare/0.343.0...0.343.1) (2022-12-07)
+
+
+### Bug Fixes
+
+* user management settings badge updated ([#3931](https://github.com/lightdash/lightdash/issues/3931)) ([1fb0f5f](https://github.com/lightdash/lightdash/commit/1fb0f5ff5f8c5c629a9c11085b81ccb85200c2a0))
+
 # [0.343.0](https://github.com/lightdash/lightdash/compare/0.342.0...0.343.0) (2022-12-07)
 
 
