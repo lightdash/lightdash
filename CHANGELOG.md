@@ -1,3 +1,10 @@
+# [0.342.0](https://github.com/lightdash/lightdash/compare/0.341.1...0.342.0) (2022-12-07)
+
+
+### Features
+
+* share in slack unfurl ([#3852](https://github.com/lightdash/lightdash/issues/3852)) ([3c712b2](https://github.com/lightdash/lightdash/commit/3c712b20c59f07172cbc43e3f3af7004fff88d59))
+
 ## [0.341.1](https://github.com/lightdash/lightdash/compare/0.341.0...0.341.1) (2022-12-07)
 
 
