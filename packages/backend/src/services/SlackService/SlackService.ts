@@ -454,7 +454,7 @@ export class SlackService {
     }
 
     async unfurl(event: any, client: any, context: any): Promise<void> {
-        event.links.map(async (l: any) => {
+        event.links.map(async (l: any, index: number) => {
             const { isValid, lightdashPage, url } = await this.parseUrl(l.url);
 
             if (!isValid || lightdashPage === undefined || url === undefined) {
@@ -470,8 +470,7 @@ export class SlackService {
                         pageType: lightdashPage,
                     },
                 });
-
-                const imageId = `slack-image-${context.teamId}-${event.unfurl_id}`;
+                const imageId = `slack-image-${context.teamId}-${event.unfurl_id}-${index}`;
                 await saveScreenshot(imageId, url, cookie, lightdashPage);
 
                 const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
