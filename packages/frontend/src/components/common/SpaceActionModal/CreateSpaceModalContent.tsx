@@ -85,22 +85,23 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         }}
                     />
 
-                    {sessionUser && (
-                        <FlexWrapper key={sessionUser.userUuid}>
-                            <UserCircle>
-                                {sessionUser.firstName.substr(0, 1) +
-                                    sessionUser.lastName.substr(0, 1)}
-                            </UserCircle>
+                    {sessionUser &&
+                        selectedAccess?.value === SpaceAccessType.PRIVATE && (
+                            <FlexWrapper key={sessionUser.userUuid}>
+                                <UserCircle>
+                                    {sessionUser.firstName.substr(0, 1) +
+                                        sessionUser.lastName.substr(0, 1)}
+                                </UserCircle>
 
-                            <PrimaryText>
-                                {sessionUser.firstName +
-                                    ' ' +
-                                    sessionUser.lastName}
-                                <YouLabel> (you)</YouLabel>
-                            </PrimaryText>
-                            <UserRole>{sessionUser.role}</UserRole>
-                        </FlexWrapper>
-                    )}
+                                <PrimaryText>
+                                    {sessionUser.firstName +
+                                        ' ' +
+                                        sessionUser.lastName}
+                                    <YouLabel> (you)</YouLabel>
+                                </PrimaryText>
+                                <UserRole>{sessionUser.role}</UserRole>
+                            </FlexWrapper>
+                        )}
                 </ShareSpaceWrapper>
             );
     }
