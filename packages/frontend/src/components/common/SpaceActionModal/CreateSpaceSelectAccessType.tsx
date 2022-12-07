@@ -22,15 +22,15 @@ import { ShareCircle } from './SpaceActionModal.style';
 
 interface ShareSpaceAccessTypeProps {
     selectedAccess: AccessOption;
+    projectUuid: string;
     setSelectedAccess: (access: AccessOption) => void;
 }
 
 export const CreateSpaceSelectAccessType: FC<ShareSpaceAccessTypeProps> = ({
     selectedAccess,
+    projectUuid,
     setSelectedAccess,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
     const { data: project } = useProject(projectUuid);
 
     return (

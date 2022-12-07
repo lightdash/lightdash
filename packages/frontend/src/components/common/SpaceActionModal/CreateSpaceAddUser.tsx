@@ -18,11 +18,14 @@ import {
 import { getInitials, getUserNameOrEmail } from '../ShareSpaceModal/Utils';
 
 interface CreateSpaceAddUserProps {
+    projectUuid: string;
     form?: UseFormReturn<Space, object>;
 }
 
-export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({ form }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
+    projectUuid,
+    form,
+}) => {
     const {
         user: { data: sessionUser },
     } = useApp();

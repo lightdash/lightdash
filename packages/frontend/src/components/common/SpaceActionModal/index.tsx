@@ -46,6 +46,7 @@ export interface SpaceModalBody {
 export interface CreateSpaceModalBody {
     data?: Space;
     modalStep: CreateModalStep;
+    projectUuid: string;
     form: UseFormReturn<Space, object>;
     setIsShared: (isShared: boolean) => void;
 }
@@ -58,6 +59,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     confirmButtonIntent = Intent.PRIMARY,
     isDisabled,
     actionType,
+    projectUuid,
     onClose = () => {},
     onSubmitForm,
 }) => {
@@ -98,6 +100,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                     case ActionType.CREATE:
                         return (
                             <CreateSpaceModalContent
+                                projectUuid={projectUuid}
                                 data={data}
                                 modalStep={modalStep}
                                 form={form}

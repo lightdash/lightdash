@@ -26,6 +26,7 @@ export enum CreateModalStep {
 }
 const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     modalStep,
+    projectUuid,
     form,
     setIsShared,
 }) => {
@@ -75,10 +76,14 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
             return (
                 <ShareSpaceWrapper>
                     {selectedAccess?.value === SpaceAccessType.PRIVATE && (
-                        <CreateSpaceAddUser form={form} />
+                        <CreateSpaceAddUser
+                            projectUuid={projectUuid}
+                            form={form}
+                        />
                     )}
 
                     <CreateSpaceSelectAccessType
+                        projectUuid={projectUuid}
                         selectedAccess={selectedAccess}
                         setSelectedAccess={(access) => {
                             form?.setValue(
