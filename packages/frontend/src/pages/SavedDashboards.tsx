@@ -2,6 +2,7 @@ import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import {
@@ -73,6 +74,9 @@ const SavedDashboards = () => {
 
     return (
         <Page>
+            <Helmet>
+                <title>Dashboards - Lightdash</title>
+            </Helmet>
             <PageContentWrapper>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>

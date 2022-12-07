@@ -1,5 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -51,6 +52,9 @@ const Space: FC = () => {
 
     return (
         <Page>
+            <Helmet>
+                <title>{data?.name} - Lightdash</title>
+            </Helmet>
             <SpacePanel space={data}></SpacePanel>
         </Page>
     );

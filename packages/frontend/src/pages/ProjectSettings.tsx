@@ -1,6 +1,7 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
+import { Helmet } from 'react-helmet';
 import {
     Redirect,
     Route,
@@ -68,6 +69,9 @@ const ProjectSettings: FC = () => {
 
     return (
         <>
+            <Helmet>
+                <title>Project Settings - Lightdash</title>
+            </Helmet>
             <Breadcrumbs2
                 items={[
                     {

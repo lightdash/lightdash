@@ -3,6 +3,7 @@ import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { FC } from 'react';
+import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import {
@@ -48,6 +49,9 @@ const SavedQueries: FC = () => {
 
     return (
         <Page>
+            <Helmet>
+                <title>Saved charts - Lightdash</title>
+            </Helmet>
             <PageContentWrapper>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
