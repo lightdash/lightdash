@@ -1,8 +1,7 @@
 import { AnchorButton, Button, Icon, Spinner } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
-import { useApp } from '../../../providers/AppProvider';
-import slackSvg from './slack.svg';
+import slackSvg from '../../../svgs/slack.svg';
 import {
     Actions,
     AppearancePanelWrapper,
@@ -17,9 +16,7 @@ const SlackSettingsPanel: FC = () => {
     const { data, isError, isLoading } = useGetSlack();
     const { mutate: deleteSlack } = useDeleteSlack();
 
-    const { user } = useApp();
-
-    const installUrl = `/api/v1/slack/install/${user.data?.organizationUuid}`;
+    const installUrl = `/api/v1/slack/install/`;
 
     if (isLoading) {
         return <Spinner />;
@@ -59,7 +56,7 @@ const SlackSettingsPanel: FC = () => {
                     <Button
                         icon="delete"
                         intent="danger"
-                        onClick={deleteSlack}
+                        onClick={() => deleteSlack(undefined)}
                         text="Remove"
                     />
                 </Actions>

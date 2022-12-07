@@ -71,6 +71,14 @@ slackRouter.delete(
 
     async (req, res, next) => {
         try {
+            analytics.track({
+                event: 'share_slack.delete',
+                userId: req.user?.userUuid,
+                properties: {
+                    organizationUuid: req.params.organizationUuid,
+                },
+            });
+
             const organizationUuid = req.user?.organizationUuid;
             if (!organizationUuid) throw new ForbiddenError();
             await deleteInstallationFromOrganizationUuid(organizationUuid);
@@ -85,14 +93,14 @@ slackRouter.delete(
 );
 
 slackRouter.get(
-    '/install/:organizationUuid',
+    '/install/',
     isAuthenticated,
     unauthorisedInDemo,
 
     async (req, res, next) => {
         try {
             const metadata = {
-                organizationUuid: req.params.organizationUuid,
+                organizationUuid: req.user?.organizationUuid,
                 userId: req.user?.userId,
             };
             const options = {
@@ -104,9 +112,6 @@ slackRouter.get(
             analytics.track({
                 event: 'share_slack.install',
                 userId: req.user?.userUuid,
-                anonymousId: !req.user?.userUuid
-                    ? LightdashAnalytics.anonymousId
-                    : undefined,
                 properties: {
                     organizationUuid: req.params.organizationUuid,
                 },

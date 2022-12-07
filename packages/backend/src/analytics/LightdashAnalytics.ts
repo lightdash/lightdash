@@ -391,7 +391,8 @@ type ShareSlack = BaseTrack & {
         | 'share_slack.unfurl'
         | 'share_slack.unfurl_error'
         | 'share_slack.install'
-        | 'share_slack.install_error';
+        | 'share_slack.install_error'
+        | 'share_slack.delete';
     userId?: string;
     anonymousId?: string;
     properties: {

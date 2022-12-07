@@ -202,6 +202,8 @@ const getUserCookie = async (userUuid: string): Promise<string> => {
 };
 
 const unfurlExplore = async (url: string, imageUrl: string) => {
+    const urlWithoutParams = url.split('?')[0];
+    const model = urlWithoutParams.split('/tables/')[1];
     const unfurls = {
         [url]: {
             blocks: [
@@ -209,7 +211,7 @@ const unfurlExplore = async (url: string, imageUrl: string) => {
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: `Exploring`,
+                        text: model ? `Exploring ${model}` : `Explore`,
                     },
                     accessory: {
                         type: 'button',
@@ -218,7 +220,6 @@ const unfurlExplore = async (url: string, imageUrl: string) => {
                             text: 'Open in Lightdash',
                             emoji: true,
                         },
-                        value: 'click_me_123',
                         url,
                         action_id: 'button-action',
                     },
@@ -290,7 +291,6 @@ export class SlackService {
                                 text: 'Open in Lightdash',
                                 emoji: true,
                             },
-                            value: 'click_me_123',
                             url,
                             action_id: 'button-action',
                         },
@@ -335,7 +335,6 @@ export class SlackService {
                                 text: 'Open in Lightdash',
                                 emoji: true,
                             },
-                            value: 'click_me_123',
                             url,
                             action_id: 'button-action',
                         },

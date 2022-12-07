@@ -32,7 +32,7 @@ const deleteSlack = async () =>
 export const useDeleteSlack = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteSlack, {
+    return useMutation<undefined, ApiError, undefined>(deleteSlack, {
         onSuccess: async () => {
             await queryClient.invalidateQueries('slack');
 

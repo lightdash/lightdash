@@ -149,12 +149,13 @@ const Settings: FC = () => {
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
                     <MenuWrapper>
                         <MenuHeader>Integrations</MenuHeader>
-
-                        <RouterMenuItem
-                            text="Slack"
-                            exact
-                            to={`${basePath}/slack`}
-                        />
+                        <Menu>
+                            <RouterMenuItem
+                                text="Slack"
+                                exact
+                                to={`${basePath}/slack`}
+                            />
+                        </Menu>
                     </MenuWrapper>
                 )}
             </Sidebar>
