@@ -13,10 +13,7 @@ import {
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
-import {
-    default as ShareSpaceModal,
-    default as ShareSpaceModalWithButton,
-} from '../common/ShareSpaceModal';
+import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
@@ -88,7 +85,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             projectUuid,
                         })}
                     >
-                        <ShareSpaceModalWithButton
+                        <ShareSpaceModal
                             space={space}
                             projectUuid={projectUuid}
                         />
