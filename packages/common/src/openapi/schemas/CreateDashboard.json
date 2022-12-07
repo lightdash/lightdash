@@ -1,6 +1,11 @@
 {
     "type": "object",
     "properties": {
+        "spaceUuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The UUID of the space to which the dashboard belongs."
+        },
         "name": {
             "type": "string"
         },
@@ -16,6 +21,16 @@
         },
         "filters": {
             "$ref": "./DashboardFilters.json"
+        },
+        "updatedByUser": {
+            "type": "object",
+            "properties": {
+                "userUuid": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
         }
-    }
+    },
+    "required": ["name", "tiles"]
 }

@@ -2,6 +2,14 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
+        "organizationUuid": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "projectUuid": {
+            "type": "string",
+            "format": "uuid"
+        },
         "uuid": {
             "type": "string",
             "format": "uuid"
@@ -27,7 +35,8 @@
             "$ref": "./DashboardFilters.json"
         },
         "spaceUuid": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
         },
         "spaceName": {
             "type": "string"
@@ -37,6 +46,8 @@
         }
     },
     "required": [
+        "organizationUuid",
+        "projectUuid",
         "uuid",
         "tiles",
         "name",
