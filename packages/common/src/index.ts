@@ -41,6 +41,8 @@ import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
+import { SlackSettings } from './types/slackSettings';
+
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -72,6 +74,7 @@ export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/search';
 export * from './types/share';
+export * from './types/slackSettings';
 export * from './types/space';
 export * from './types/table';
 export * from './types/timeFrames';
@@ -464,7 +467,8 @@ type ApiResults =
     | Space
     | DbtCloudMetadataResponseMetrics
     | DbtCloudIntegration
-    | ShareUrl;
+    | ShareUrl
+    | SlackSettings;
 
 export type ApiResponse = {
     status: 'ok';
@@ -543,6 +547,7 @@ export type HealthState = {
     query: {
         maxLimit: number;
     };
+    hasSlack: boolean;
 };
 
 export enum DBFieldTypes {

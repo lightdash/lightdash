@@ -143,16 +143,21 @@ const Settings: FC = () => {
                             exact
                             to={`${basePath}/appearance`}
                         />
+                    </Menu>
+                </MenuWrapper>
 
-                        {localStorage.getItem('slack') && (
+                {health.hasSlack && user.ability.can('manage', 'Organization') && (
+                    <MenuWrapper>
+                        <MenuHeader>Integrations</MenuHeader>
+                        <Menu>
                             <RouterMenuItem
                                 text="Slack"
                                 exact
                                 to={`${basePath}/slack`}
                             />
-                        )}
-                    </Menu>
-                </MenuWrapper>
+                        </Menu>
+                    </MenuWrapper>
+                )}
             </Sidebar>
 
             <Switch>
@@ -255,13 +260,15 @@ const Settings: FC = () => {
                         </ContentWrapper>
                     </Content>
                 </Route>
-                <Route exact path={`/generalSettings/slack`}>
-                    <Content>
-                        <CardContainer>
-                            <SlackSettingsPanel />
-                        </CardContainer>
-                    </Content>
-                </Route>
+                {health.hasSlack && user.ability.can('manage', 'Organization') && (
+                    <Route exact path={`/generalSettings/slack`}>
+                        <Content>
+                            <CardContainer>
+                                <SlackSettingsPanel />
+                            </CardContainer>
+                        </Content>
+                    </Route>
+                )}
                 <Route exact path={`/generalSettings`}>
                     <Content>
                         <CardContainer>

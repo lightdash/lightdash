@@ -1,59 +1,77 @@
 import { AnchorButton, Button, Icon, Spinner } from '@blueprintjs/core';
-import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import { FC, useCallback, useEffect, useState } from 'react';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
-import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
-import { useApp } from '../../../providers/AppProvider';
+import { FC } from 'react';
+import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
+import slackSvg from '../../../svgs/slack.svg';
 import {
+    Actions,
     AppearancePanelWrapper,
-    SlackButton,
+    Description,
+    SlackIcon,
+    SlackName,
+    SlackSettingsWrapper,
     Title,
 } from './SlackSettingsPanel.styles';
 
 const SlackSettingsPanel: FC = () => {
-    const { isLoading: isOrgLoading, data } = useOrganisation();
-    const updateMutation = useOrganisationUpdateMutation();
-    let [colors, setColors] = useState<string[]>(
-        data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
-    );
+    const { data, isError, isLoading } = useGetSlack();
+    const { mutate: deleteSlack } = useDeleteSlack();
 
-    const { user } = useApp();
+    const installUrl = `/api/v1/slack/install/`;
 
-    const update = useCallback(() => {
-        if (data)
-            updateMutation.mutate({
-                ...data,
-                chartColors: colors,
-            });
-    }, [colors, data, updateMutation]);
-
-    useEffect(() => {
-        if (data?.chartColors) {
-            setColors(data.chartColors);
-        }
-    }, [data]);
-
-    if (isOrgLoading) {
+    if (isLoading) {
         return <Spinner />;
     }
 
+    const isValidSlack = data?.slackTeamName !== undefined && !isError;
     return (
-        <AppearancePanelWrapper>
-            <Title>Slack</Title>
-            <div>
-                <SlackButton
-                    minimal={true}
-                    href={`/api/v1/slack/install/${user.data?.organizationUuid}`}
-                    target="_blank"
-                    icon={
-                        <img
-                            alt="Add to Slack"
-                            src="https://platform.slack-edge.com/img/add_to_slack.png"
-                        />
-                    }
-                />
-            </div>
-        </AppearancePanelWrapper>
+        <SlackSettingsWrapper>
+            <SlackIcon src={slackSvg} />
+            <AppearancePanelWrapper>
+                <Title> Slack integration</Title>
+
+                {isValidSlack && (
+                    <Description>
+                        Added to the <SlackName>{data.slackTeamName}</SlackName>{' '}
+                        slack workspace.
+                    </Description>
+                )}
+
+                <Description>
+                    Sharing in Slack allows you to unfurl Lightdash URLs in your
+                    workspace.{' '}
+                    <a href="https://docs.lightdash.com/guides/sharing-in-slack">
+                        View docs
+                    </a>
+                </Description>
+            </AppearancePanelWrapper>
+            {isValidSlack ? (
+                <Actions>
+                    <AnchorButton
+                        target="_blank"
+                        intent="primary"
+                        href={installUrl}
+                    >
+                        Reinstall
+                    </AnchorButton>
+                    <Button
+                        icon="delete"
+                        intent="danger"
+                        onClick={() => deleteSlack(undefined)}
+                        text="Remove"
+                    />
+                </Actions>
+            ) : (
+                <Actions>
+                    <AnchorButton
+                        intent="primary"
+                        target="_blank"
+                        href={installUrl}
+                    >
+                        Add to Slack
+                    </AnchorButton>
+                </Actions>
+            )}
+        </SlackSettingsWrapper>
     );
 };
 

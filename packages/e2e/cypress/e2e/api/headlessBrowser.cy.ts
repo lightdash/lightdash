@@ -29,7 +29,7 @@ describe('Lightdash headless browser', () => {
             },
         );
     });
-    it('Should make multiple concurrent requests to headless browser', async () => {
+    it.skip('Should make multiple concurrent requests to headless browser', async () => {
         const requests = Array.from(Array(5).keys()).map((flag) =>
             fetch(`${apiUrl}/headless-browser/test/${flag}`),
         );
