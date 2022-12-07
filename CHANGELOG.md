@@ -1,3 +1,10 @@
+# [0.343.0](https://github.com/lightdash/lightdash/compare/0.342.0...0.343.0) (2022-12-07)
+
+
+### Features
+
+* set private space on creation ([#3880](https://github.com/lightdash/lightdash/issues/3880)) ([e04e8ed](https://github.com/lightdash/lightdash/commit/e04e8ed8e74c5734e3bda05c792654d25f972acd))
+
 # [0.342.0](https://github.com/lightdash/lightdash/compare/0.341.1...0.342.0) (2022-12-07)
 
 
