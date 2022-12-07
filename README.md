@@ -298,6 +298,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <tr>
       <td align="center"><a href="https://github.com/kailin-lu"><img src="https://avatars.githubusercontent.com/u/31902827?v=4?s=100" width="100px;" alt="Kailin L"/><br /><sub><b>Kailin L</b></sub></a><br /><a href="#ideas-kailin-lu" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center"><a href="https://www.linkedin.com/in/metin-karakus-b586b6132"><img src="https://avatars.githubusercontent.com/u/61006227?v=4?s=100" width="100px;" alt="Metin Karakus"/><br /><sub><b>Metin Karakus</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=m-karakus" title="Code">💻</a></td>
+      <td align="center"><a href="https://github.com/yasmin-e"><img src="https://avatars.githubusercontent.com/u/67699259?v=4?s=100" width="100px;" alt="Yasmine"/><br /><sub><b>Yasmine</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=yasmin-e" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
