@@ -146,41 +146,30 @@ const SpaceModal: FC<ActionModalProps> = ({
                     {actionType === ActionType.CREATE &&
                         modalStep === CreateModalStep.SET_NAME &&
                         isShared && (
-                            <>
-                                <Button onClick={onClose}>Cancel</Button>
-                                <Button
-                                    text="Continue"
-                                    disabled={
-                                        isDisabled || !form.formState.isValid
-                                    }
-                                    onClick={(ev) => {
-                                        setModalStep(
-                                            CreateModalStep.SET_ACCESS,
-                                        );
-                                        ev.preventDefault();
-                                    }}
-                                />
-                            </>
+                            <Button
+                                text="Continue"
+                                disabled={isDisabled || !form.formState.isValid}
+                                onClick={(ev) => {
+                                    setModalStep(CreateModalStep.SET_ACCESS);
+                                    ev.preventDefault();
+                                }}
+                            />
                         )}
 
                     {actionType !== ActionType.CREATE ||
                         (actionType === ActionType.CREATE &&
                             modalStep === CreateModalStep.SET_NAME &&
                             !isShared && (
-                                <>
-                                    <Button onClick={onClose}>Cancel</Button>
-                                    <Button
-                                        data-cy="submit-base-modal"
-                                        type="submit"
-                                        disabled={
-                                            isDisabled ||
-                                            !form.formState.isValid
-                                        }
-                                        intent={confirmButtonIntent}
-                                        text={confirmButtonLabel}
-                                        loading={isDisabled}
-                                    />
-                                </>
+                                <Button
+                                    data-cy="submit-base-modal"
+                                    type="submit"
+                                    disabled={
+                                        isDisabled || !form.formState.isValid
+                                    }
+                                    intent={confirmButtonIntent}
+                                    text={confirmButtonLabel}
+                                    loading={isDisabled}
+                                />
                             ))}
                 </>
             )}
