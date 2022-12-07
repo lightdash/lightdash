@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import { analytics } from '../../analytics/client';
 import { getSlackUserId, getUserUuid } from '../../clients/Slack/SlackStorage';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -38,7 +39,7 @@ const notifySlackError = async (
     client: any,
     event: any,
 ): Promise<void> => {
-    console.error(`Unable to unfurl url ${JSON.stringify(error)}`);
+    Logger.error(`Unable to unfurl url ${JSON.stringify(error)}`);
 
     const unfurls = {
         [url]: {
@@ -60,10 +61,11 @@ const notifySlackError = async (
             unfurls,
         })
         .catch((er: any) =>
-            console.error(`Unable to unfurl url ${JSON.stringify(er)}`),
+            Logger.error(`Unable to unfurl url ${JSON.stringify(er)}`),
         );
 };
 
+// This method can only be used on Slack PRO
 const uploadImage = async (
     screenshot: Buffer,
     client: any,
@@ -166,7 +168,7 @@ const saveScreenshot = async (
 
         // return path
     } catch (e) {
-        console.error(`Unable to fetch screenshots from headless chromeo ${e}`);
+        Logger.error(`Unable to fetch screenshots from headless chromeo ${e}`);
         return e;
     } finally {
         if (browser) await browser.close();
@@ -369,7 +371,7 @@ export class SlackService {
             process.env.NODE_ENV !== 'development' &&
             !linkUrl.startsWith(this.lightdashConfig.siteUrl)
         ) {
-            console.debug(
+            Logger.debug(
                 `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
             );
             return {
@@ -409,7 +411,7 @@ export class SlackService {
             };
         }
 
-        console.debug(`URL to unfurl ${url} is not valid`);
+        Logger.debug(`URL to unfurl ${url} is not valid`);
         return {
             isValid: false,
             url,
@@ -455,27 +457,21 @@ export class SlackService {
                 });
 
                 const imageId = `slack-image-${context.teamId}-${event.unfurl_id}`;
-                saveScreenshot(
+                await saveScreenshot(
                     imageId,
                     url.replace('local.lightdash.cloud', 'lightdash-dev:3000'),
                     cookie,
                     lightdashPage,
                 );
 
-                /* const imageUrl = await uploadImage(
-                    screenshot,
-                    client,
-                    event,
-                    context,
-                ); */
                 const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
-                console.warn('imageUrl', imageUrl);
+                console.warn('imageUrl', imageUrl); // TODO remove
                 const unfurls = await this.unfurlPage(
                     l.url,
                     lightdashPage,
                     imageUrl,
                 );
-                console.warn('unfurls', JSON.stringify(unfurls));
+                console.warn('unfurls', JSON.stringify(unfurls)); // TODO remove
 
                 client.chat
                     .unfurl({
@@ -491,7 +487,7 @@ export class SlackService {
                                 error: `${e}`,
                             },
                         });
-                        console.error(
+                        Logger.error(
                             `Unable to unfurl url ${url}: ${JSON.stringify(e)}`,
                         );
                     });
