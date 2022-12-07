@@ -96,7 +96,9 @@ const UserListItem: FC<{
                             {email && <PendingEmail>{email}</PendingEmail>}
                             <div>
                                 <PendingTag intent="warning">
-                                    {!isInviteExpired ? 'Pending' : 'Expired'}
+                                    {!isInviteExpired
+                                        ? 'Pending'
+                                        : 'Link expired'}
                                 </PendingTag>
                                 {user.data?.ability?.can(
                                     'create',
