@@ -39,6 +39,10 @@ const notifySlackError = async (
     client: any,
     event: any,
 ): Promise<void> => {
+    /** Expected slack errors:
+     * - cannot_parse_attachment: Means the image on the blocks is not accessible from slack, is the URL public ?
+     *
+     */
     Logger.error(`Unable to unfurl url ${JSON.stringify(error)}`);
 
     const unfurls = {
@@ -357,7 +361,7 @@ export class SlackService {
         const shareUrl = await this.shareModel.getSharedUrl(shareId);
 
         return (
-            `http://local.lightdash.cloud${shareUrl.path}${shareUrl.params}` ||
+            `${this.lightdashConfig.siteUrl}${shareUrl.path}${shareUrl.params}` ||
             ''
         );
     }
@@ -464,7 +468,10 @@ export class SlackService {
                     lightdashPage,
                 );
 
-                const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
+                const imageUrl =
+                    process.env.NODE_ENV === 'development'
+                        ? `https://docs.lightdash.com/assets/images/home-page-0e316cf8414ff691460fd1a996aa83b7.png` // Sample imag
+                        : `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
                 console.warn('imageUrl', imageUrl); // TODO remove
                 const unfurls = await this.unfurlPage(
                     l.url,
