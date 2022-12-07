@@ -67,7 +67,7 @@
         "pg-connection-string": "^2.5.0",
         "puppeteer": "^18.0.5",
         "redoc-express": "^1.0.0",
-        "simple-git": "^3.5.0",
+        "simple-git": "^3.15.0",
         "tempy": "^1.0.1",
         "uuid": "^8.3.2",
         "winston": "^3.3.3"
