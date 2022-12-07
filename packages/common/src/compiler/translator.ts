@@ -36,7 +36,6 @@ import {
 } from '../utils/timeFrames';
 import { compileExplore } from './exploreCompiler';
 
-// TODO verificar isso
 const convertTimezone = (
     timestampSql: string,
     default_source_tz: string,

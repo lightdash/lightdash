@@ -226,7 +226,6 @@ const databricksConfig: WarehouseConfig = {
     },
 };
 
-// TODO configurar esses convertores de data
 const trinoConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame: TimeFrames, originalSql: string) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
@@ -235,23 +234,28 @@ const trinoConfig: WarehouseConfig = {
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
-        return `DATE_PART('${datePart}', ${originalSql})`;
+        return `EXTRACT(${datePart} FROM ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
-        // https://docs.databricks.com/spark/latest/spark-sql/language-manual/functions/date_format.html
-        const timeFrameExpressions: Record<TimeFrames, string | null> = {
+        // https://docs.snowflake.com/en/sql-reference/functions/to_char.html
+        const timeFrameExpressionsFn: Record<
+            TimeFrames,
+            (() => string) | null
+        > = {
             ...nullTimeFrameMap,
-            [TimeFrames.DAY_OF_WEEK_NAME]: 'EEEE',
-            [TimeFrames.MONTH_NAME]: 'MMMM',
-            [TimeFrames.QUARTER_NAME]: 'QQQ',
+            [TimeFrames.DAY_OF_WEEK_NAME]: () =>
+                `date_format(${originalSql}, '%W')`,
+            [TimeFrames.MONTH_NAME]: () => `date_format(${originalSql}, '%M')`,
+            [TimeFrames.QUARTER_NAME]: () =>
+                `CONCAT('Q', cast(extract(QUARTER from ${originalSql}) as varchar))`,
         };
-        const formatExpression = timeFrameExpressions[timeFrame];
-        if (!formatExpression) {
+        const formatExpressionFn = timeFrameExpressionsFn[timeFrame];
+        if (!formatExpressionFn) {
             throw new ParseError(
                 `Cannot recognise format expression for ${timeFrame}`,
             );
         }
-        return `DATE_FORMAT(${originalSql}, '${formatExpression}')`;
+        return formatExpressionFn();
     },
 };
 

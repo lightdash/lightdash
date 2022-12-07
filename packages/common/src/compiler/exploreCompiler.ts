@@ -18,7 +18,6 @@ import {
 import assertUnreachable from '../utils/assertUnreachable';
 import { renderFilterRuleSql } from './filtersCompiler';
 
-// TODO Configurar isso
 export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
     switch (targetDatabase) {
         case SupportedDbtAdapter.POSTGRES:
