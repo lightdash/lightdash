@@ -16,7 +16,7 @@ There are two ways to add metrics to your project in Lightdash:
 1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
 2. [Using dbt's `metrics` tag](#using-dbts-metrics-tag) (this is still an Alpha feature)
 
-### 1. Using the `meta` tag (Suggested)
+### 1. Using the column `meta` tag (Suggested)
 
 To add a metric to Lightdash using the `meta` tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.
 
@@ -36,7 +36,23 @@ models:
 
 Once you've got the hang of what these metrics look like, read more about the [metric types you can use below.](#metric-types)
 
-### 2. Using dbt's `metrics` tag
+### 2. Using the model `meta` tag
+
+Sometimes a metric references many columns, in these cases you can define the metric at the model level:
+
+```yaml
+version: 2
+
+models:
+  - name: my_model
+    meta:
+      metrics:
+        num_unique_user_ids:
+          type: count_distinct
+          sql: ${TABLE}.user_id
+```
+
+### 3. Using dbt's `metrics` tag
 
 You can also add some metric to Lightdash using dbt's `metrics` tag in your model's `.yml` file. Here's a tutorial explaining how to do it:
 
