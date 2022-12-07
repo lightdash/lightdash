@@ -1,3 +1,10 @@
+## [0.341.1](https://github.com/lightdash/lightdash/compare/0.341.0...0.341.1) (2022-12-07)
+
+
+### Bug Fixes
+
+* show underlying data for table calculation in big number visualization ([#3919](https://github.com/lightdash/lightdash/issues/3919)) ([8359545](https://github.com/lightdash/lightdash/commit/835954538e2af56711fd8a45315f0a0c4ab6fd29))
+
 # [0.341.0](https://github.com/lightdash/lightdash/compare/0.340.1...0.341.0) (2022-12-07)
 
 
