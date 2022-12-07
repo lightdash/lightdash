@@ -1,7 +1,7 @@
-import { Button, Dialog, IconName, Intent } from '@blueprintjs/core';
+import { Button, IconName, Intent } from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useForm, UseFormReturn, useWatch } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
@@ -10,10 +10,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
-import { ShareSpaceAddUser } from '../ShareSpaceModal/ShareSpaceAddUser';
-import ShareSpaceDialog from '../ShareSpaceModal/ShareSpaceDialog';
-import { DialogBody } from '../ShareSpaceModal/ShareSpaceModal.style';
-import { SpaceAccessType } from '../ShareSpaceModal/ShareSpaceSelect';
+
 import CreateSpaceModalContent from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';

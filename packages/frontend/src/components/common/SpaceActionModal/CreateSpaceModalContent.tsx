@@ -1,11 +1,10 @@
-import { Label, Radio } from '@blueprintjs/core';
+import { Radio } from '@blueprintjs/core';
 import { FC, useState } from 'react';
-import { CreateSpaceModalBody, SpaceModalBody } from '.';
+import { CreateSpaceModalBody } from '.';
 import { useApp } from '../../../providers/AppProvider';
 import Input from '../../ReactHookForm/Input';
 import RadioGroup from '../../ReactHookForm/RadioGroup';
 import {
-    DialogBody,
     FlexWrapper,
     PrimaryText,
     UserCircle,

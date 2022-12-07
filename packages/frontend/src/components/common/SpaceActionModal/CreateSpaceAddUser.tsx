@@ -1,17 +1,12 @@
 import { Classes, Label } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import {
-    OrganizationMemberProfile,
-    OrganizationMemberRole,
-    Space,
-} from '@lightdash/common';
+import { OrganizationMemberRole, Space } from '@lightdash/common';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import {
     FlexWrapper,
@@ -21,7 +16,6 @@ import {
     UserCircle,
 } from '../ShareSpaceModal/ShareSpaceModal.style';
 import { getInitials, getUserNameOrEmail } from '../ShareSpaceModal/Utils';
-import { AddUserLabel } from './SpaceActionModal.style';
 
 interface CreateSpaceAddUserProps {
     form?: UseFormReturn<Space, object>;

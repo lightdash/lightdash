@@ -1,10 +1,8 @@
 import { Icon } from '@blueprintjs/core';
 import { Select2 } from '@blueprintjs/select';
-import { Space } from '@lightdash/common';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../../hooks/useProject';
-import { useUpdateMutation } from '../../../hooks/useSpaces';
 import {
     AccessRole,
     ChangeAccessButton,
