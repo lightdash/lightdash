@@ -169,8 +169,6 @@ const saveScreenshot = async (
         });
 
         return imageBuffer;
-
-        // return path
     } catch (e) {
         Logger.error(`Unable to fetch screenshots from headless chromeo ${e}`);
         return e;
@@ -207,9 +205,14 @@ const getUserCookie = async (userUuid: string): Promise<string> => {
     return header;
 };
 
-const unfurlExplore = async (url: string, imageUrl: string) => {
-    const urlWithoutParams = url.split('?')[0];
+const unfurlExplore = async (
+    url: string,
+    sharedUrl: string,
+    imageUrl: string,
+) => {
+    const urlWithoutParams = sharedUrl.split('?')[0];
     const model = urlWithoutParams.split('/tables/')[1];
+
     const unfurls = {
         [url]: {
             blocks: [
@@ -270,8 +273,13 @@ export class SlackService {
         this.encryptionService = encryptionService;
     }
 
-    private async unfurlChart(url: string, imageUrl: string): Promise<any> {
-        const [projectUuid, chartUuid] = (await url.match(uuidRegex)) || [];
+    private async unfurlChart(
+        url: string,
+        sharedUrl: string,
+        imageUrl: string,
+    ): Promise<any> {
+        const [projectUuid, chartUuid] =
+            (await sharedUrl.match(uuidRegex)) || [];
 
         const chart = await this.savedChartModel.get(chartUuid);
         return {
@@ -311,8 +319,13 @@ export class SlackService {
         };
     }
 
-    private async unfurlDashboard(url: string, imageUrl: string): Promise<any> {
-        const [projectUuid, dashboardUuid] = (await url.match(uuidRegex)) || [];
+    private async unfurlDashboard(
+        url: string,
+        sharedUrl: string,
+        imageUrl: string,
+    ): Promise<any> {
+        const [projectUuid, dashboardUuid] =
+            (await sharedUrl.match(uuidRegex)) || [];
 
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -360,10 +373,10 @@ export class SlackService {
         const [shareId] = linkUrl.match(nanoidRegex) || [];
         const shareUrl = await this.shareModel.getSharedUrl(shareId);
 
-        return (
-            `${this.lightdashConfig.siteUrl}${shareUrl.path}${shareUrl.params}` ||
-            ''
-        );
+        const fullUrl = `${this.lightdashConfig.siteUrl}${shareUrl.path}${shareUrl.params}`;
+        Logger.debug(`Shared url ${shareId}: ${fullUrl}`);
+
+        return fullUrl;
     }
 
     private async parseUrl(linkUrl: string): Promise<{
@@ -397,21 +410,21 @@ export class SlackService {
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.DASHBOARD,
-                url: linkUrl,
+                url,
             };
         }
         if (url.match(chartUrl) !== null) {
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.CHART,
-                url: linkUrl,
+                url,
             };
         }
         if (url.match(exploreUrl) !== null) {
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.EXPLORE,
-                url: linkUrl,
+                url,
             };
         }
 
@@ -423,17 +436,18 @@ export class SlackService {
     }
 
     async unfurlPage(
-        url: string,
+        unfurlUrl: string,
+        sharedUrl: string,
         lightdashPage: LightdashPage,
         imageUrl: string,
     ) {
         switch (lightdashPage) {
             case LightdashPage.DASHBOARD:
-                return this.unfurlDashboard(url, imageUrl);
+                return this.unfurlDashboard(unfurlUrl, sharedUrl, imageUrl);
             case LightdashPage.CHART:
-                return this.unfurlChart(url, imageUrl);
+                return this.unfurlChart(unfurlUrl, sharedUrl, imageUrl);
             case LightdashPage.EXPLORE:
-                return unfurlExplore(url, imageUrl);
+                return unfurlExplore(unfurlUrl, sharedUrl, imageUrl);
             default:
                 return assertUnreachable(
                     lightdashPage,
@@ -475,6 +489,7 @@ export class SlackService {
                 console.warn('imageUrl', imageUrl); // TODO remove
                 const unfurls = await this.unfurlPage(
                     l.url,
+                    url,
                     lightdashPage,
                     imageUrl,
                 );
