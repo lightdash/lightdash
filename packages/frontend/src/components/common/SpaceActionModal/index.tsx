@@ -1,7 +1,8 @@
-import { Button, IconName, Intent } from '@blueprintjs/core';
+import { AnchorButton, Button, IconName, Intent } from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { FC, useState } from 'react';
+import { useForm, UseFormReturn } from 'react-hook-form';
+import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
@@ -10,8 +11,13 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
-import CreateSpaceModalContent from './CreateSpaceModalContent';
+import SimpleButton from '../SimpleButton';
+
+import CreateSpaceModalContent, {
+    CreateModalStep,
+} from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
+import { BackButton } from './SpaceActionModal.style';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
 
 export enum ActionType {
@@ -38,6 +44,14 @@ export interface SpaceModalBody {
     data?: Space;
 }
 
+export interface CreateSpaceModalBody {
+    data?: Space;
+    modalStep: CreateModalStep;
+    projectUuid: string;
+    form: UseFormReturn<Space, object>;
+    setIsShared: (isShared: boolean) => void;
+}
+
 const SpaceModal: FC<ActionModalProps> = ({
     data,
     icon,
@@ -46,13 +60,14 @@ const SpaceModal: FC<ActionModalProps> = ({
     confirmButtonIntent = Intent.PRIMARY,
     isDisabled,
     actionType,
+    projectUuid,
     onClose = () => {},
     onSubmitForm,
 }) => {
     const { showToastError } = useToaster();
 
     const form = useForm<Space>({
-        mode: 'onChange',
+        mode: 'all',
         defaultValues: data,
     });
 
@@ -67,6 +82,11 @@ const SpaceModal: FC<ActionModalProps> = ({
         }
     };
 
+    const [modalStep, setModalStep] = useState<CreateModalStep>(
+        CreateModalStep.SET_NAME,
+    );
+    const [isShared, setIsShared] = useState<boolean>(false);
+
     return (
         <BaseModal
             isOpen
@@ -79,7 +99,15 @@ const SpaceModal: FC<ActionModalProps> = ({
             renderBody={() => {
                 switch (actionType) {
                     case ActionType.CREATE:
-                        return <CreateSpaceModalContent data={data} />;
+                        return (
+                            <CreateSpaceModalContent
+                                projectUuid={projectUuid}
+                                data={data}
+                                modalStep={modalStep}
+                                form={form}
+                                setIsShared={setIsShared}
+                            />
+                        );
                     case ActionType.UPDATE:
                         return <UpdateSpaceModalContent data={data} />;
                     case ActionType.DELETE:
@@ -93,16 +121,56 @@ const SpaceModal: FC<ActionModalProps> = ({
             }}
             renderFooter={() => (
                 <>
-                    <Button onClick={onClose}>Cancel</Button>
+                    {actionType === ActionType.CREATE &&
+                        modalStep === CreateModalStep.SET_ACCESS && (
+                            <>
+                                <SimpleButton
+                                    text="Back"
+                                    onClick={(ev) => {
+                                        setModalStep(CreateModalStep.SET_NAME);
+                                        ev.preventDefault();
+                                    }}
+                                />
+                                <Button
+                                    data-cy="submit-base-modal"
+                                    type="submit"
+                                    disabled={
+                                        isDisabled || !form.formState.isValid
+                                    }
+                                    intent={confirmButtonIntent}
+                                    text={confirmButtonLabel}
+                                    loading={isDisabled}
+                                />
+                            </>
+                        )}
+                    {actionType === ActionType.CREATE &&
+                        modalStep === CreateModalStep.SET_NAME &&
+                        isShared && (
+                            <Button
+                                text="Continue"
+                                disabled={isDisabled || !form.formState.isValid}
+                                onClick={(ev) => {
+                                    setModalStep(CreateModalStep.SET_ACCESS);
+                                    ev.preventDefault();
+                                }}
+                            />
+                        )}
 
-                    <Button
-                        data-cy="submit-base-modal"
-                        type="submit"
-                        disabled={isDisabled || !form.formState.isValid}
-                        intent={confirmButtonIntent}
-                        text={confirmButtonLabel}
-                        loading={isDisabled}
-                    />
+                    {actionType !== ActionType.CREATE ||
+                        (actionType === ActionType.CREATE &&
+                            modalStep === CreateModalStep.SET_NAME &&
+                            !isShared && (
+                                <Button
+                                    data-cy="submit-base-modal"
+                                    type="submit"
+                                    disabled={
+                                        isDisabled || !form.formState.isValid
+                                    }
+                                    intent={confirmButtonIntent}
+                                    text={confirmButtonLabel}
+                                    loading={isDisabled}
+                                />
+                            ))}
                 </>
             )}
         />
@@ -116,12 +184,18 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     onSubmitForm,
     ...props
 }) => {
-    const { data, isLoading, isStale } = useSpace(projectUuid, spaceUuid!, {
+    const { data, isLoading } = useSpace(projectUuid, spaceUuid!, {
         enabled: !!spaceUuid,
     });
+    const history = useHistory();
 
+    // Redirect to space on creation
     const { mutateAsync: createMutation, isLoading: isCreating } =
-        useCreateMutation(projectUuid);
+        useCreateMutation(projectUuid, {
+            onSuccess: (space) => {
+                history.push(`/projects/${projectUuid}/spaces/${space.uuid}`);
+            },
+        });
 
     const { mutateAsync: updateMutation, isLoading: isUpdating } =
         useUpdateMutation(projectUuid, spaceUuid!);
@@ -131,10 +205,17 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
 
     const handleSubmitForm = async (state?: Space) => {
         if (actionType === ActionType.CREATE) {
-            const result = await createMutation({ name: state!.name });
+            const result = await createMutation({
+                name: state!.name,
+                isPrivate: state!.isPrivate,
+                access: state!.access,
+            });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.UPDATE) {
-            const result = await updateMutation({ name: state!.name });
+            const result = await updateMutation({
+                name: state!.name,
+                isPrivate: state!.isPrivate,
+            });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.DELETE) {
             const result = await deleteMutation(spaceUuid!);
@@ -142,7 +223,6 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         } else {
             return assertUnreachable(actionType, 'Unexpected action in space');
         }
-
         props.onClose?.();
     };
 
