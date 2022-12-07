@@ -20,6 +20,10 @@ import { CreateSpaceAddUser } from './CreateSpaceAddUser';
 import { CreateSpaceSelectAccessType } from './CreateSpaceSelectAccessType';
 import { RadioDescription, ShareSpaceWrapper } from './SpaceActionModal.style';
 
+export enum CreateModalStep {
+    SET_NAME = 'first',
+    SET_ACCESS = 'second',
+}
 const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     modalStep,
     form,
@@ -33,7 +37,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     );
 
     switch (modalStep) {
-        case 0:
+        case CreateModalStep.SET_NAME:
             return (
                 <>
                     <Input

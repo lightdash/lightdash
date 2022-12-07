@@ -10,7 +10,6 @@ import {
     PrimaryAndSecondaryTextWrapper,
     PrimaryText,
     SecondaryText,
-    ShareCircle,
     UserRole,
 } from '../ShareSpaceModal/ShareSpaceModal.style';
 import {
@@ -19,6 +18,7 @@ import {
     SpaceAccessOptions,
     SpaceAccessType,
 } from '../ShareSpaceModal/ShareSpaceSelect';
+import { ShareCircle } from './SpaceActionModal.style';
 
 interface ShareSpaceAccessTypeProps {
     selectedAccess: AccessOption;

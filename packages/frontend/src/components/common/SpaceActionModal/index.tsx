@@ -2,6 +2,7 @@ import { Button, IconName, Intent } from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
+import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
@@ -11,8 +12,11 @@ import {
 } from '../../../hooks/useSpaces';
 import BaseModal from '../modal/BaseModal';
 
-import CreateSpaceModalContent from './CreateSpaceModalContent';
+import CreateSpaceModalContent, {
+    CreateModalStep,
+} from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
+import { BackButton } from './SpaceActionModal.style';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
 
 export enum ActionType {
@@ -41,7 +45,7 @@ export interface SpaceModalBody {
 
 export interface CreateSpaceModalBody {
     data?: Space;
-    modalStep: number;
+    modalStep: CreateModalStep;
     form: UseFormReturn<Space, object>;
     setIsShared: (isShared: boolean) => void;
 }
@@ -75,7 +79,9 @@ const SpaceModal: FC<ActionModalProps> = ({
         }
     };
 
-    const [modalStep, setModalStep] = useState<number>(0);
+    const [modalStep, setModalStep] = useState<CreateModalStep>(
+        CreateModalStep.SET_NAME,
+    );
     const [isShared, setIsShared] = useState<boolean>(false);
 
     return (
@@ -111,38 +117,67 @@ const SpaceModal: FC<ActionModalProps> = ({
             }}
             renderFooter={() => (
                 <>
-                    <Button onClick={onClose}>Cancel</Button>
-
-                    {actionType === ActionType.CREATE && modalStep === 1 && (
-                        <Button
-                            text="Back"
-                            onClick={(ev) => {
-                                setModalStep(0);
-                                ev.preventDefault();
-                            }}
-                        />
-                    )}
                     {actionType === ActionType.CREATE &&
-                    modalStep === 0 &&
-                    isShared ? (
-                        <Button
-                            text="Continue"
-                            disabled={isDisabled || !form.formState.isValid}
-                            onClick={(ev) => {
-                                setModalStep(1);
-                                ev.preventDefault();
-                            }}
-                        />
-                    ) : (
-                        <Button
-                            data-cy="submit-base-modal"
-                            type="submit"
-                            disabled={isDisabled || !form.formState.isValid}
-                            intent={confirmButtonIntent}
-                            text={confirmButtonLabel}
-                            loading={isDisabled}
-                        />
-                    )}
+                        modalStep === CreateModalStep.SET_ACCESS && (
+                            <>
+                                <BackButton
+                                    text="Back"
+                                    onClick={(ev) => {
+                                        setModalStep(CreateModalStep.SET_NAME);
+                                        ev.preventDefault();
+                                    }}
+                                />
+                                <Button
+                                    data-cy="submit-base-modal"
+                                    type="submit"
+                                    disabled={
+                                        isDisabled || !form.formState.isValid
+                                    }
+                                    intent={confirmButtonIntent}
+                                    text={confirmButtonLabel}
+                                    loading={isDisabled}
+                                />
+                            </>
+                        )}
+                    {actionType === ActionType.CREATE &&
+                        modalStep === CreateModalStep.SET_NAME &&
+                        isShared && (
+                            <>
+                                <Button onClick={onClose}>Cancel</Button>
+                                <Button
+                                    text="Continue"
+                                    disabled={
+                                        isDisabled || !form.formState.isValid
+                                    }
+                                    onClick={(ev) => {
+                                        setModalStep(
+                                            CreateModalStep.SET_ACCESS,
+                                        );
+                                        ev.preventDefault();
+                                    }}
+                                />
+                            </>
+                        )}
+
+                    {actionType !== ActionType.CREATE ||
+                        (actionType === ActionType.CREATE &&
+                            modalStep === CreateModalStep.SET_NAME &&
+                            !isShared && (
+                                <>
+                                    <Button onClick={onClose}>Cancel</Button>
+                                    <Button
+                                        data-cy="submit-base-modal"
+                                        type="submit"
+                                        disabled={
+                                            isDisabled ||
+                                            !form.formState.isValid
+                                        }
+                                        intent={confirmButtonIntent}
+                                        text={confirmButtonLabel}
+                                        loading={isDisabled}
+                                    />
+                                </>
+                            ))}
                 </>
             )}
         />
@@ -159,9 +194,15 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     const { data, isLoading } = useSpace(projectUuid, spaceUuid!, {
         enabled: !!spaceUuid,
     });
+    const history = useHistory();
 
+    // Redirect to space on creation
     const { mutateAsync: createMutation, isLoading: isCreating } =
-        useCreateMutation(projectUuid);
+        useCreateMutation(projectUuid, {
+            onSuccess: (space) => {
+                history.push(`/projects/${projectUuid}/spaces/${space.uuid}`);
+            },
+        });
 
     const { mutateAsync: updateMutation, isLoading: isUpdating } =
         useUpdateMutation(projectUuid, spaceUuid!);
