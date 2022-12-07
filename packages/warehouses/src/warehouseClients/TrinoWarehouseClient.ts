@@ -171,6 +171,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
 
     private async getSession() {
         const client = Trino;
+
         let session: Trino;
         try {
             session = await client.create(this.connectionOptions);
@@ -189,16 +190,18 @@ export class TrinoWarehouseClient implements WarehouseClient {
     async runQuery(sql: string) {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
-
         try {
             query = await session.query(sql);
-            const result: QueryData = (await query.next()).value.data ?? [];
-            console.log(result);
+
+            const queryResult = await query.next();
+
+            const result: QueryData = queryResult.value.data ?? [];
+
             const schema: {
                 name: string;
                 type: string;
                 typeSignature: { rawType: string };
-            }[] = (await query.next()).value.columns ?? [];
+            }[] = queryResult.value.columns ?? [];
 
             const fields = schema.reduce(
                 (acc, column) => ({
