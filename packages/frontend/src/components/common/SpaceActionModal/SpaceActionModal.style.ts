@@ -29,8 +29,3 @@ export const ShareCircle = styled.div`
     background-color: ${Colors.LIGHT_GRAY2};
     color: ${Colors.GRAY1};
 `;
-
-export const BackButton = styled(Button)`
-    margin-left: 0px !important;
-    margin-right: auto;
-`;

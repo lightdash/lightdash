@@ -149,43 +149,41 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
     );
 
     return (
-        <>
-            <FlexWrapper>
-                <MultiSelect2
-                    fill
-                    itemPredicate={filterUser}
-                    itemRenderer={renderUserShare}
-                    items={userUuids || []}
-                    noResults={<MenuItem2 disabled text="No suggestions." />}
-                    onItemSelect={(select) => {
-                        setUsersSelected([...usersSelected, select]);
-                        setSearchQuery('');
-                    }}
-                    query={searchQuery}
-                    onQueryChange={setSearchQuery}
-                    tagRenderer={(userUuid) =>
-                        getUserNameOrEmail(userUuid, organizationUsers)
-                    }
-                    resetOnQuery={true}
-                    popoverProps={{
+        <FlexWrapper>
+            <MultiSelect2
+                fill
+                itemPredicate={filterUser}
+                itemRenderer={renderUserShare}
+                items={userUuids || []}
+                noResults={<MenuItem2 disabled text="No suggestions." />}
+                onItemSelect={(select) => {
+                    setUsersSelected([...usersSelected, select]);
+                    setSearchQuery('');
+                }}
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                tagRenderer={(userUuid) =>
+                    getUserNameOrEmail(userUuid, organizationUsers)
+                }
+                resetOnQuery={true}
+                popoverProps={{
+                    minimal: true,
+                    matchTargetWidth: true,
+                    onClosing: () => setSearchQuery(''),
+                }}
+                tagInputProps={{
+                    placeholder: 'Start typing to search for users...',
+                    addOnBlur: false,
+                    tagProps: {
                         minimal: true,
-                        matchTargetWidth: true,
-                        onClosing: () => setSearchQuery(''),
-                    }}
-                    tagInputProps={{
-                        placeholder: 'Start typing to search for users...',
-                        addOnBlur: false,
-                        tagProps: {
-                            minimal: true,
-                        },
-                        onRemove: (e) => {
-                            setSearchQuery('');
-                            handleRemove(e);
-                        },
-                    }}
-                    selectedItems={usersSelected}
-                />
-            </FlexWrapper>
-        </>
+                    },
+                    onRemove: (e) => {
+                        setSearchQuery('');
+                        handleRemove(e);
+                    },
+                }}
+                selectedItems={usersSelected}
+            />
+        </FlexWrapper>
     );
 };

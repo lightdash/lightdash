@@ -1,4 +1,4 @@
-import { Button, IconName, Intent } from '@blueprintjs/core';
+import { AnchorButton, Button, IconName, Intent } from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
@@ -123,7 +123,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                     {actionType === ActionType.CREATE &&
                         modalStep === CreateModalStep.SET_ACCESS && (
                             <>
-                                <BackButton
+                                <Button
+                                    minimal={true}
                                     text="Back"
                                     onClick={(ev) => {
                                         setModalStep(CreateModalStep.SET_NAME);
