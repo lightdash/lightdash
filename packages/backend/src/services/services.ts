@@ -97,6 +97,7 @@ export const spaceService = new SpaceService({
 export const searchService = new SearchService({
     projectModel,
     searchModel,
+    spaceModel,
 });
 
 export const slackService = new SlackService({
