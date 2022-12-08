@@ -1,3 +1,10 @@
+# [0.344.0](https://github.com/lightdash/lightdash/compare/0.343.3...0.344.0) (2022-12-08)
+
+
+### Features
+
+* filter charts, dashboards and spaces on global search ([#3943](https://github.com/lightdash/lightdash/issues/3943)) ([1bfa048](https://github.com/lightdash/lightdash/commit/1bfa04862c4547553d3594850816b2bd3a0d0094))
+
 ## [0.343.3](https://github.com/lightdash/lightdash/compare/0.343.2...0.343.3) (2022-12-08)
 
 
