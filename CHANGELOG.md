@@ -1,3 +1,10 @@
+## [0.343.3](https://github.com/lightdash/lightdash/compare/0.343.2...0.343.3) (2022-12-08)
+
+
+### Bug Fixes
+
+* revert tile base missing title ([4c5f469](https://github.com/lightdash/lightdash/commit/4c5f469bd27dffca9dfd3cfe5e7f1d14c1fceab9))
+
 ## [0.343.2](https://github.com/lightdash/lightdash/compare/0.343.1...0.343.2) (2022-12-08)
 
 
