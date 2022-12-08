@@ -460,6 +460,8 @@ export class SlackService {
             if (!isValid || lightdashPage === undefined || url === undefined) {
                 return;
             }
+            Logger.debug(`Unfurling URL ${url}`);
+
             try {
                 const userUuid = await getUserUuid(context);
                 const cookie = await getUserCookie(userUuid);
