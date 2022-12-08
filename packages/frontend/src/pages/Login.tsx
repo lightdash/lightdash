@@ -7,6 +7,7 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
@@ -172,6 +173,9 @@ const Login: FC = () => {
 
     return (
         <Page isFullHeight>
+            <Helmet>
+                <title>Login - Lightdash</title>
+            </Helmet>
             <FormWrapper>
                 <LogoWrapper>
                     <Logo src={LightdashLogo} alt="lightdash logo" />

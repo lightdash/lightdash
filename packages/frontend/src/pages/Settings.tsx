@@ -1,5 +1,6 @@
 import { Menu, NonIdealState } from '@blueprintjs/core';
-import { FC } from 'react';
+import React, { FC } from 'react';
+import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import { PageWithSidebar } from '../components/common/Page/Page.styles';
@@ -75,6 +76,9 @@ const Settings: FC = () => {
 
     return (
         <PageWithSidebar alignItems="flex-start">
+            <Helmet>
+                <title>Settings - Lightdash</title>
+            </Helmet>
             <Sidebar title="Settings">
                 <MenuWrapper>
                     <MenuHeader>User settings</MenuHeader>
