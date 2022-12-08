@@ -70,6 +70,7 @@ export class SearchModel {
                 { uuid: 'dashboard_uuid' },
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
+                { spaceUuid: 'space_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .andWhere((qB) =>
@@ -105,6 +106,7 @@ export class SearchModel {
                 { uuid: 'saved_query_uuid' },
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
+                { spaceUuid: 'space_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .andWhere((qB) =>
