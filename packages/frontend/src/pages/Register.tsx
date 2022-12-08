@@ -98,7 +98,7 @@ const Register: FC = () => {
     return (
         <Page isFullHeight>
             <Helmet>
-                <title>Sign up - Lightdash</title>
+                <title>Register - Lightdash</title>
             </Helmet>
             <FormWrapper>
                 <LogoWrapper>
