@@ -408,7 +408,6 @@ export type OnbordingRecord = {
 };
 
 export type OnboardingStatus = {
-    isComplete: boolean;
     ranQuery: boolean;
 };
 
