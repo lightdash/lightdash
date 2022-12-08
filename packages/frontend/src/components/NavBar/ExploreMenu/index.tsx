@@ -68,7 +68,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
         <>
             <Popover2
                 isOpen={isOpen}
-                interactionKind={PopoverInteractionKind.CLICK_TARGET_ONLY}
+                interactionKind={PopoverInteractionKind.CLICK}
+                onClose={() => setIsOpen(false)}
                 content={
                     <MenuWrapper>
                         <ButtonWrapper
@@ -80,23 +81,31 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <ExploreItem
                                 icon="th"
                                 title="Query from tables"
-                                description="Build queries from your tables to turn them into saved charts."
+                                description="Build queries and save them as charts."
                             />
                         </ButtonWrapper>
-                        <ButtonWrapper
-                            onClick={() => {
-                                setIsOpen(false);
-                                history.push(
-                                    `/projects/${projectUuid}/sqlRunner`,
-                                );
-                            }}
+                        <Can
+                            I="manage"
+                            this={subject('SqlRunner', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
                         >
-                            <ExploreItem
-                                icon="console"
-                                title="Query using SQL runner"
-                                description="Directly access your database to run & visualize ad-hoc queries."
-                            />
-                        </ButtonWrapper>
+                            <ButtonWrapper
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    history.push(
+                                        `/projects/${projectUuid}/sqlRunner`,
+                                    );
+                                }}
+                            >
+                                <ExploreItem
+                                    icon="console"
+                                    title="Query using SQL runner"
+                                    description="Access your database to run ad-hoc queries."
+                                />
+                            </ButtonWrapper>
+                        </Can>
                         <Can
                             I="manage"
                             this={subject('Dashboard', {
