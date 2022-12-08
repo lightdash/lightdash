@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
-import { UseQueryResult } from 'react-query/types/react/types';
+import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
@@ -62,10 +62,14 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
         body: undefined,
     });
 
-export const getQueryConfig = (savedChartUuid: string) => {
+export const getQueryConfig = (
+    savedChartUuid: string,
+    queryOptions?: Omit<UseQueryOptions, 'queryKey' | 'queryFn'>,
+): UseQueryOptions => {
     return {
         queryKey: ['available_filters', savedChartUuid],
         queryFn: () => getChartAvailableFilters(savedChartUuid),
+        ...queryOptions,
     };
 };
 
@@ -84,18 +88,24 @@ export const useDashboardAvailableTileFilters = (
     }, [tiles]);
 
     const queries = useQueries(
-        savedChartUuids.map((uuid) => getQueryConfig(uuid)),
+        savedChartUuids.map((uuid) => getQueryConfig(uuid, { retry: false })),
     ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
 
-    const isLoading = queries.some((query) => query.isLoading);
-    const queryResults = queries.map((query) => query.data!);
+    const results = queries.map((query) =>
+        query.isSuccess ? query.data : undefined,
+    );
 
-    const [data, setData] = useState<Record<string, FilterableField[]>>();
+    const isFetched = queries.every((query) => query.isFetched);
+
+    const [data, setData] =
+        useState<Record<string, FilterableField[] | undefined>>();
 
     useDeepCompareEffect(() => {
-        if (isLoading || queryResults.length === 0) return;
+        if (!isFetched) return;
 
-        const results = queryResults.reduce<Record<string, FilterableField[]>>(
+        const newData = results.reduce<
+            Record<string, FilterableField[] | undefined>
+        >(
             (acc, result, index) => ({
                 ...acc,
                 [tileUuids[index]]: result,
@@ -103,13 +113,16 @@ export const useDashboardAvailableTileFilters = (
             {},
         );
 
-        setData(results);
-    }, [isLoading, tileUuids, queryResults]);
+        setData(newData);
+    }, [results]);
 
-    return {
-        isLoading,
-        data,
-    };
+    return useMemo(
+        () => ({
+            isLoading: !isFetched,
+            data,
+        }),
+        [isFetched, data],
+    );
 };
 
 export const useAvailableDashboardFilterTargets = (
@@ -120,7 +133,9 @@ export const useAvailableDashboardFilterTargets = (
     const availableFilters = useMemo(() => {
         if (isLoading || !data) return;
 
-        const allFilters = Object.values(data).flat();
+        const allFilters = Object.values(data)
+            .flat()
+            .filter((f): f is FilterableField => !!f);
         if (allFilters.length === 0) return;
 
         return allFilters.filter(
@@ -132,10 +147,13 @@ export const useAvailableDashboardFilterTargets = (
         );
     }, [isLoading, data]);
 
-    return {
-        isLoading,
-        data: availableFilters,
-    };
+    return useMemo(
+        () => ({
+            isLoading,
+            data: availableFilters,
+        }),
+        [isLoading, availableFilters],
+    );
 };
 
 export const useDashboardQuery = (id?: string) => {

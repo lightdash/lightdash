@@ -226,11 +226,13 @@ export const matchFieldByType = (a: FilterableField) => (b: FilterableField) =>
 
 const getDefaultTileTargets = (
     field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[]>,
+    availableTileFilters: Record<string, FilterableField[] | undefined>,
 ) =>
     Object.entries(availableTileFilters).reduce<
         Record<string, DashboardFieldTarget>
     >((acc, [tileUuid, availableFilters]) => {
+        if (!availableFilters) return acc;
+
         const filterableField = availableFilters.find(matchFieldExact(field));
         if (!filterableField) return acc;
 
@@ -251,7 +253,7 @@ export const applyDefaultTileTargets = (
         any
     >,
     field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[]>,
+    availableTileFilters: Record<string, FilterableField[] | undefined>,
 ) => {
     if (!filterRule.tileTargets) {
         return {
@@ -264,7 +266,7 @@ export const applyDefaultTileTargets = (
 
 export const createDashboardFilterRuleFromField = (
     field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[]>,
+    availableTileFilters: Record<string, FilterableField[] | undefined>,
 ): DashboardFilterRule =>
     getFilterRuleWithDefaultValue(field, {
         id: uuidv4(),
