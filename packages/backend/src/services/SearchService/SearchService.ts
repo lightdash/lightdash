@@ -52,9 +52,13 @@ export class SearchService {
         }
         const results = await this.searchModel.search(projectUuid, query);
         const spaceUuids = [
-            ...new Set(
-                results.dashboards.map((dashboard) => dashboard.spaceUuid),
-            ),
+            ...new Set([
+                ...results.dashboards.map((dashboard) => dashboard.spaceUuid),
+                ...results.savedCharts.map(
+                    (savedChart) => savedChart.spaceUuid,
+                ),
+                ...results.spaces.map((space) => space.uuid),
+            ]),
         ];
         const spaces = await Promise.all(
             spaceUuids.map((spaceUuid) =>
@@ -79,7 +83,6 @@ export class SearchService {
             savedCharts: results.savedCharts.filter(filterItem),
             spaces: results.spaces.filter(filterItem),
         };
-
         analytics.track({
             event: 'project.search',
             userId: user.userUuid,
