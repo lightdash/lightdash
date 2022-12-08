@@ -1,3 +1,10 @@
+## [0.343.2](https://github.com/lightdash/lightdash/compare/0.343.1...0.343.2) (2022-12-08)
+
+
+### Bug Fixes
+
+* fix space submit button on modals ([0f4c8d2](https://github.com/lightdash/lightdash/commit/0f4c8d2475358e9917294f2717824ff66a204bb9))
+
 ## [0.343.1](https://github.com/lightdash/lightdash/compare/0.343.0...0.343.1) (2022-12-07)
 
 

@@ -156,21 +156,19 @@ const SpaceModal: FC<ActionModalProps> = ({
                             />
                         )}
 
-                    {actionType !== ActionType.CREATE ||
+                    {(actionType !== ActionType.CREATE ||
                         (actionType === ActionType.CREATE &&
                             modalStep === CreateModalStep.SET_NAME &&
-                            !isShared && (
-                                <Button
-                                    data-cy="submit-base-modal"
-                                    type="submit"
-                                    disabled={
-                                        isDisabled || !form.formState.isValid
-                                    }
-                                    intent={confirmButtonIntent}
-                                    text={confirmButtonLabel}
-                                    loading={isDisabled}
-                                />
-                            ))}
+                            !isShared)) && (
+                        <Button
+                            data-cy="submit-base-modal"
+                            type="submit"
+                            disabled={isDisabled || !form.formState.isValid}
+                            intent={confirmButtonIntent}
+                            text={confirmButtonLabel}
+                            loading={isDisabled}
+                        />
+                    )}
                 </>
             )}
         />
