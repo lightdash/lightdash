@@ -52,6 +52,22 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     return (
         <TileBaseWrapper className={isLoading ? Classes.SKELETON : undefined}>
             <HeaderContainer>
+                <HeaderWrapper>
+                    {!hideTitle && (
+                        <TitleWrapper>
+                            <Title className="non-draggable">{title}</Title>
+                            {description && (
+                                <Tooltip2
+                                    content={description}
+                                    position="bottom"
+                                >
+                                    <Button icon="info-sign" minimal />
+                                </Tooltip2>
+                            )}
+                        </TitleWrapper>
+                    )}
+                    {extraHeaderElement}
+                </HeaderWrapper>
                 {(isEditMode || (!isEditMode && extraMenuItems)) && (
                     <Popover2
                         className="non-draggable"
