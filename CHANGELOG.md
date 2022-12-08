@@ -1,3 +1,10 @@
+## [0.344.1](https://github.com/lightdash/lightdash/compare/0.344.0...0.344.1) (2022-12-08)
+
+
+### Bug Fixes
+
+* contributing documentation for dockerless dev set up ([#3942](https://github.com/lightdash/lightdash/issues/3942)) ([55047a1](https://github.com/lightdash/lightdash/commit/55047a1fc9bd6767b8136e69a5a0a2b43d3e5563))
+
 # [0.344.0](https://github.com/lightdash/lightdash/compare/0.343.3...0.344.0) (2022-12-08)
 
 
