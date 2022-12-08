@@ -7,10 +7,6 @@ export const MenuWrapper = styled(Menu)`
     flex-direction: column;
 `;
 
-export const LinkWrapper = styled.a`
-    text-decoration: none !important;
-`;
-
 export const ButtonWrapper = styled.button`
     background: transparent;
     border: none;
@@ -73,25 +69,4 @@ export const ItemCTA = styled.p`
 export const ItemDescription = styled.p`
     color: ${Colors.GRAY5} !important;
     margin: 0;
-`;
-
-export const NotificationWrapper = styled.div`
-    padding: 0.357em 0.571em;
-    border-radius: 0.214em;
-    position: relative;
-    color: ${Colors.GRAY5} !important;
-
-    :hover {
-        cursor: pointer;
-        background: rgba(138, 155, 168, 0.15) !important;
-    }
-`;
-export const NotificationWidget = styled.div`
-    position: absolute;
-    left: 0.571em;
-    top: 0.214em;
-
-    .HW_badge.HW_softHidden {
-        background: transparent;
-    }
 `;

@@ -2,34 +2,25 @@ import {
     Button,
     Icon,
     IconName,
-    Menu,
     PopoverInteractionKind,
     Position,
-    Spinner,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { FC, memo, useState } from 'react';
-import { Redirect, useHistory } from 'react-router-dom';
-import { useIntercom } from 'react-use-intercom';
+import { useHistory } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useApp } from '../../../providers/AppProvider';
-import { useTracking } from '../../../providers/TrackingProvider';
 import { Can } from '../../common/Authorization';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import NavLink from '../../NavLink';
-import { FirstItem, NavbarMenuItem, SpinnerWrapper } from '../NavBar.styles';
 import {
     ButtonWrapper,
     HelpItem,
     IconContainer,
     ItemCTA,
     ItemDescription,
-    LinkWrapper,
     MenuWrapper,
-    NotificationWidget,
-    NotificationWrapper,
 } from './ExploreMenu.styles';
 
 interface Props {
