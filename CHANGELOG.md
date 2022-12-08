@@ -1,3 +1,10 @@
+# [0.345.0](https://github.com/lightdash/lightdash/compare/0.344.1...0.345.0) (2022-12-08)
+
+
+### Features
+
+* update window titles ([#3950](https://github.com/lightdash/lightdash/issues/3950)) ([76b17dd](https://github.com/lightdash/lightdash/commit/76b17dd80c4efe5b6c2a48b99d22109f7e3de86d))
+
 ## [0.344.1](https://github.com/lightdash/lightdash/compare/0.344.0...0.344.1) (2022-12-08)
 
 
