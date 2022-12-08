@@ -3,6 +3,8 @@ import styled from 'styled-components';
 
 export const MenuWrapper = styled(Menu)`
     padding: 1.214em 0.571em;
+    display: flex;
+    flex-direction: column;
 `;
 
 export const LinkWrapper = styled.a`

@@ -9,11 +9,15 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { FC, memo } from 'react';
+import { FC, memo, useState } from 'react';
+import { Redirect, useHistory } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
+import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { Can } from '../../common/Authorization';
+import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 import NavLink from '../../NavLink';
 import { FirstItem, NavbarMenuItem, SpinnerWrapper } from '../NavBar.styles';
 import {
@@ -52,49 +56,124 @@ const ExploreItem: FC<ExploreItemProps> = ({ icon, title, description }) => {
 };
 const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const { user } = useApp();
+    const history = useHistory();
+    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const {
+        isLoading: isCreatingDashboard,
+        isSuccess: hasCreatedDashboard,
+        mutate: createDashboard,
+        data: newDashboard,
+        reset,
+    } = useCreateMutation(projectUuid);
+    const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState<boolean>(false);
 
+    if (!isCreatingDashboard && hasCreatedDashboard && newDashboard) {
+        history.push(
+            `/projects/${projectUuid}/dashboards/${newDashboard.uuid}`,
+        );
+        reset();
+    }
     return (
-        <Popover2
-            interactionKind={PopoverInteractionKind.CLICK_TARGET_ONLY}
-            content={
-                <MenuWrapper>
-                    <NavLink to={`/projects/${projectUuid}/tables`}>
-                        <ExploreItem
-                            icon="th"
-                            title="Query from tables"
-                            description="Build queries from your tables, visualize them & turn them into saved charts."
-                        />
-                    </NavLink>
-                    <NavLink to={`/projects/${projectUuid}/sqlRunner`}>
-                        <ExploreItem
-                            icon="console"
-                            title="Query using SQL runner"
-                            description="Directly access your database to run & visualize ad-hoc queries."
-                        />
-                    </NavLink>
-                    <NavLink to={`/projects/${projectUuid}/sqlRunner`}>
-                        <ExploreItem
-                            icon="control"
-                            title="Dashboard"
-                            description="Arrange multiple charts into a single view."
-                        />
-                    </NavLink>
-
-                    <NavLink to={`/projects/${projectUuid}/sqlRunner`}>
-                        <ExploreItem
-                            icon="folder-new"
-                            title="Space"
-                            description="Organize your saved charts and dashboards."
-                        />
-                    </NavLink>
-                </MenuWrapper>
-            }
-            position={Position.BOTTOM_LEFT}
-        >
-            <Button minimal icon="add">
-                New
-            </Button>
-        </Popover2>
+        <>
+            <Popover2
+                isOpen={isOpen}
+                interactionKind={PopoverInteractionKind.CLICK_TARGET_ONLY}
+                content={
+                    <MenuWrapper>
+                        <ButtonWrapper
+                            onClick={() => {
+                                setIsOpen(false);
+                                history.push(`/projects/${projectUuid}/tables`);
+                            }}
+                        >
+                            <ExploreItem
+                                icon="th"
+                                title="Query from tables"
+                                description="Build queries from your tables to turn them into saved charts."
+                            />
+                        </ButtonWrapper>
+                        <ButtonWrapper
+                            onClick={() => {
+                                setIsOpen(false);
+                                history.push(
+                                    `/projects/${projectUuid}/sqlRunner`,
+                                );
+                            }}
+                        >
+                            <ExploreItem
+                                icon="console"
+                                title="Query using SQL runner"
+                                description="Directly access your database to run & visualize ad-hoc queries."
+                            />
+                        </ButtonWrapper>
+                        <Can
+                            I="manage"
+                            this={subject('Dashboard', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <ButtonWrapper
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    createDashboard({
+                                        name: DEFAULT_DASHBOARD_NAME,
+                                        tiles: [],
+                                    });
+                                }}
+                            >
+                                <ExploreItem
+                                    icon="control"
+                                    title="Dashboard"
+                                    description="Arrange multiple charts into a single view."
+                                />
+                            </ButtonWrapper>
+                        </Can>
+                        <Can
+                            I="manage"
+                            this={subject('Space', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <ButtonWrapper
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    setIsCreateSpaceOpen(true);
+                                }}
+                            >
+                                <ExploreItem
+                                    icon="folder-new"
+                                    title="Space"
+                                    description="Organize your saved charts and dashboards."
+                                />
+                            </ButtonWrapper>
+                        </Can>
+                    </MenuWrapper>
+                }
+                position={Position.BOTTOM_LEFT}
+            >
+                <Button minimal icon="add" onClick={() => setIsOpen(!isOpen)}>
+                    New
+                </Button>
+            </Popover2>
+            {isCreateSpaceOpen && (
+                <SpaceActionModal
+                    projectUuid={projectUuid}
+                    actionType={ActionType.CREATE}
+                    title="Create new space"
+                    confirmButtonLabel="Create"
+                    icon="folder-close"
+                    onClose={() => setIsCreateSpaceOpen(false)}
+                    onSubmitForm={(space) => {
+                        if (space)
+                            history.push(
+                                `/projects/${projectUuid}/spaces/${space.uuid}`,
+                            );
+                    }}
+                />
+            )}
+        </>
     );
 });
 export default ExploreMenu;
