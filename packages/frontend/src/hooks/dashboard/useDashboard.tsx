@@ -76,19 +76,16 @@ export const getQueryConfig = (
 export const useDashboardAvailableTileFilters = (
     tiles: DashboardTile[] = [],
 ) => {
-    const savedChartUuids = useMemo(() => {
+    const savedChartTiles = useMemo(() => {
         return tiles
             .filter(isDashboardChartTileType)
-            .map((tile) => tile.properties.savedChartUuid)
-            .filter((uuid): uuid is string => !!uuid);
-    }, [tiles]);
-
-    const tileUuids = useMemo(() => {
-        return tiles.map((tile) => tile.uuid);
+            .filter((tile) => !!tile.properties.savedChartUuid);
     }, [tiles]);
 
     const queries = useQueries(
-        savedChartUuids.map((uuid) => getQueryConfig(uuid, { retry: false })),
+        savedChartTiles.map((tile) =>
+            getQueryConfig(tile.properties.savedChartUuid!, { retry: false }),
+        ),
     ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
 
     const results = queries.map((query) =>
@@ -108,7 +105,7 @@ export const useDashboardAvailableTileFilters = (
         >(
             (acc, result, index) => ({
                 ...acc,
-                [tileUuids[index]]: result,
+                [savedChartTiles[index].uuid]: result,
             }),
             {},
         );
