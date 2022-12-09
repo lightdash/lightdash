@@ -350,6 +350,7 @@ export const convertModelMetric = ({
     hidden: !!metric.hidden,
     round: metric.round,
     compact: metric.compact,
+    format: metric.format,
     groupLabel: metric.group_label,
     showUnderlyingValues: metric.show_underlying_values,
     filters: parseFilters(metric.filters),
