@@ -94,17 +94,19 @@ type DrillDownExploreUrlArgs = {
     tableName: string;
     metricQuery: MetricQuery;
     row: ResultRow;
+    drillByMetric: FieldId;
     drillByDimension: FieldId;
     dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
     pivotReference?: PivotReference;
 };
 
-export const drillDownExploreUrl = ({
+const drillDownExploreUrl = ({
     projectUuid,
     tableName,
     metricQuery,
     row,
+    drillByMetric,
     drillByDimension,
     dashboardFilters,
     extraFilters,
@@ -113,8 +115,9 @@ export const drillDownExploreUrl = ({
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
         metricQuery: {
-            ...metricQuery,
-            dimensions: [drillByDimension, ...metricQuery.dimensions],
+            tableCalculations: [],
+            dimensions: [drillByDimension],
+            metrics: [drillByMetric],
             filters: combineFilters({
                 metricQuery,
                 row,
@@ -123,6 +126,8 @@ export const drillDownExploreUrl = ({
                 pivotReference,
             }),
             limit: 500,
+            additionalMetrics: metricQuery.additionalMetrics,
+            sorts: [{ fieldId: drillByDimension, descending: false }],
         },
         pivotConfig: undefined,
         tableConfig: {
@@ -144,9 +149,17 @@ export const DrillDownMenuItem: FC<{
     explore: Explore;
     metricQuery: MetricQuery;
     row: ResultRow;
+    drillByMetric: FieldId;
     dashboardFilters?: DashboardFilters;
     pivotReference?: PivotReference;
-}> = ({ explore, metricQuery, row, dashboardFilters, pivotReference }) => {
+}> = ({
+    explore,
+    metricQuery,
+    row,
+    drillByMetric,
+    dashboardFilters,
+    pivotReference,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     return (
         <MenuItem2 text="Drill by" icon="path">
@@ -164,6 +177,7 @@ export const DrillDownMenuItem: FC<{
                                     tableName: explore.name,
                                     metricQuery,
                                     row,
+                                    drillByMetric,
                                     drillByDimension: getItemId(dimension),
                                     dashboardFilters,
                                     pivotReference,

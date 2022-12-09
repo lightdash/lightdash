@@ -16,6 +16,7 @@ import {
     friendlyName,
     getDimensions,
     getFields,
+    getItemId,
     getItemMap,
     getResultValues,
     getVisibleFields,
@@ -452,6 +453,10 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                 metricQuery={
                                                     savedQuery?.metricQuery
                                                 }
+                                                drillByMetric={getItemId(
+                                                    viewUnderlyingDataOptions
+                                                        ?.meta?.item,
+                                                )}
                                                 pivotReference={
                                                     viewUnderlyingDataOptions?.pivotReference
                                                 }

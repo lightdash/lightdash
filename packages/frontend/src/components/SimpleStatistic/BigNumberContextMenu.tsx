@@ -1,6 +1,6 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
-import { isField, isMetric, ResultRow } from '@lightdash/common';
+import { getItemId, isField, isMetric, ResultRow } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { useExplore } from '../../hooks/useExplore';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -64,6 +64,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                                 row={resultsData.rows[0]}
                                 explore={explore}
                                 metricQuery={resultsData.metricQuery}
+                                drillByMetric={getItemId(selectedItem)}
                             />
                         )}
                 </Menu>

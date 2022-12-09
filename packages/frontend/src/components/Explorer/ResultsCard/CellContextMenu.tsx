@@ -2,6 +2,7 @@ import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
+    getItemId,
     isField,
     isFilterableField,
     isMetric,
@@ -75,6 +76,7 @@ const CellContextMenu: FC<
                     row={cell.row.original || {}}
                     explore={explore}
                     metricQuery={metricQuery}
+                    drillByMetric={getItemId(item)}
                 />
             )}
         </Menu>

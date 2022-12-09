@@ -4,7 +4,7 @@ import {
     Popover2,
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
-import { getItemMap, isField, isMetric } from '@lightdash/common';
+import { getItemId, getItemMap, isField, isMetric } from '@lightdash/common';
 import React, {
     FC,
     memo,
@@ -128,6 +128,9 @@ export const SeriesContextMenu: FC<{
                                     row={underlyingData.row}
                                     explore={explore}
                                     metricQuery={metricQuery}
+                                    drillByMetric={getItemId(
+                                        underlyingData?.meta?.item,
+                                    )}
                                     pivotReference={
                                         underlyingData?.pivotReference
                                     }

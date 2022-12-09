@@ -107,6 +107,7 @@ const DashboardCellContextMenu: FC<
                     metricQuery={metricQuery}
                     dashboardFilters={dashboardFiltersThatApplyToChart}
                     pivotReference={meta?.pivotReference}
+                    drillByMetric={getItemId(item)}
                 />
             )}
             {filters.length > 0 && (
