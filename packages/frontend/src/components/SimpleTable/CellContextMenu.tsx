@@ -8,10 +8,9 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import React, { FC } from 'react';
-import { useParams } from 'react-router-dom';
 import { CellContextMenuProps } from '../common/Table/types';
-import DrillDownMenuItem from '../DrillDownMenuItem';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
 const CellContextMenu: FC<
@@ -20,7 +19,6 @@ const CellContextMenu: FC<
         metricQuery?: MetricQuery;
     }
 > = ({ cell, explore, metricQuery }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { viewData } = useUnderlyingDataContext();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -48,7 +46,6 @@ const CellContextMenu: FC<
             />
             {isField(item) && isMetric(item) && explore && metricQuery && (
                 <DrillDownMenuItem
-                    projectUuid={projectUuid}
                     row={cell.row.original || {}}
                     explore={explore}
                     metricQuery={metricQuery}

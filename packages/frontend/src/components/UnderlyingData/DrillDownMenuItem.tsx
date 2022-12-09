@@ -15,6 +15,7 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { FC } from 'react';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 
@@ -140,20 +141,13 @@ export const drillDownExploreUrl = ({
 };
 
 export const DrillDownMenuItem: FC<{
-    projectUuid: string;
     explore: Explore;
     metricQuery: MetricQuery;
     row: ResultRow;
     dashboardFilters?: DashboardFilters;
     pivotReference?: PivotReference;
-}> = ({
-    projectUuid,
-    explore,
-    metricQuery,
-    row,
-    dashboardFilters,
-    pivotReference,
-}) => {
+}> = ({ explore, metricQuery, row, dashboardFilters, pivotReference }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     return (
         <MenuItem2 text="Drill by" icon="path">
             {Object.values(explore.tables).map((table) => (

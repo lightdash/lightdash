@@ -16,12 +16,11 @@ import {
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
 import React, { FC } from 'react';
-import { useParams } from 'react-router-dom';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
-import DrillDownMenuItem from '../DrillDownMenuItem';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
 const DashboardCellContextMenu: FC<
@@ -31,7 +30,6 @@ const DashboardCellContextMenu: FC<
         metricQuery?: MetricQuery;
     }
 > = ({ cell, explore, tileUuid, metricQuery }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { viewData } = useUnderlyingDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
@@ -104,7 +102,6 @@ const DashboardCellContextMenu: FC<
             />
             {isField(item) && isMetric(item) && explore && metricQuery && (
                 <DrillDownMenuItem
-                    projectUuid={projectUuid}
                     row={cell.row.original || {}}
                     explore={explore}
                     metricQuery={metricQuery}

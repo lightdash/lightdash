@@ -10,13 +10,12 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC } from 'react';
-import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps } from '../../common/Table/types';
-import DrillDownMenuItem from '../../DrillDownMenuItem';
+import DrillDownMenuItem from '../../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 import UrlMenuItems from './UrlMenuItems';
 
@@ -26,7 +25,6 @@ const CellContextMenu: FC<
         metricQuery: MetricQuery;
     }
 > = ({ cell, isEditMode, itemsMap, metricQuery }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { addFilter } = useFilters();
     const { viewData, tableName } = useUnderlyingDataContext();
     const { track } = useTracking();
@@ -74,7 +72,6 @@ const CellContextMenu: FC<
 
             {isField(item) && isMetric(item) && explore && (
                 <DrillDownMenuItem
-                    projectUuid={projectUuid}
                     row={cell.row.original || {}}
                     explore={explore}
                     metricQuery={metricQuery}

@@ -43,10 +43,10 @@ import { getFilterRuleLabel } from '../common/Filters/configs';
 import { TableColumn } from '../common/Table/types';
 import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
-import DrillDownMenuItem from '../DrillDownMenuItem';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
     useUnderlyingDataContext,
@@ -445,7 +445,6 @@ const DashboardChartTile: FC<Props> = (props) => {
                                         explore &&
                                         savedQuery?.metricQuery && (
                                             <DrillDownMenuItem
-                                                projectUuid={projectUuid}
                                                 row={
                                                     viewUnderlyingDataOptions.row
                                                 }

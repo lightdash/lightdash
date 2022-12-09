@@ -13,13 +13,12 @@ import React, {
     useMemo,
     useState,
 } from 'react';
-import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import DrillDownMenuItem from '../../DrillDownMenuItem';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
+import DrillDownMenuItem from '../../UnderlyingData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
     useUnderlyingDataContext,
@@ -30,7 +29,6 @@ export const SeriesContextMenu: FC<{
     dimensions: string[] | undefined;
     series: EChartSeries[] | undefined;
 }> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -127,7 +125,6 @@ export const SeriesContextMenu: FC<{
                             explore &&
                             metricQuery && (
                                 <DrillDownMenuItem
-                                    projectUuid={projectUuid}
                                     row={underlyingData.row}
                                     explore={explore}
                                     metricQuery={metricQuery}
