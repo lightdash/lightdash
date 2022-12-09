@@ -19,7 +19,9 @@ import {
     getItemMap,
     getResultValues,
     getVisibleFields,
+    isField,
     isFilterableField,
+    isMetric,
     PivotReference,
     ResultRow,
     SavedChart,
@@ -41,6 +43,7 @@ import { getFilterRuleLabel } from '../common/Filters/configs';
 import { TableColumn } from '../common/Table/types';
 import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
+import DrillDownMenuItem from '../DrillDownMenuItem';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -431,7 +434,33 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             }
                                         }}
                                     />
-
+                                    {viewUnderlyingDataOptions?.meta?.item &&
+                                        isField(
+                                            viewUnderlyingDataOptions.meta.item,
+                                        ) &&
+                                        isMetric(
+                                            viewUnderlyingDataOptions.meta
+                                                ?.item,
+                                        ) &&
+                                        explore &&
+                                        savedQuery?.metricQuery && (
+                                            <DrillDownMenuItem
+                                                projectUuid={projectUuid}
+                                                row={
+                                                    viewUnderlyingDataOptions.row
+                                                }
+                                                explore={explore}
+                                                metricQuery={
+                                                    savedQuery?.metricQuery
+                                                }
+                                                pivotReference={
+                                                    viewUnderlyingDataOptions?.pivotReference
+                                                }
+                                                dashboardFilters={
+                                                    dashboardFiltersThatApplyToChart
+                                                }
+                                            />
+                                        )}
                                     <MenuItem2
                                         icon="filter"
                                         text="Filter dashboard to..."

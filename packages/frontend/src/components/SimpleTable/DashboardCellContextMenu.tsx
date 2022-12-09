@@ -10,13 +10,17 @@ import {
     getItemId,
     isDimension,
     isField,
+    isMetric,
+    MetricQuery,
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
-import { FC } from 'react';
+import React, { FC } from 'react';
+import { useParams } from 'react-router-dom';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
+import DrillDownMenuItem from '../DrillDownMenuItem';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
@@ -24,8 +28,10 @@ const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
         explore: Explore | undefined;
         tileUuid: string;
+        metricQuery?: MetricQuery;
     }
-> = ({ cell, explore, tileUuid }) => {
+> = ({ cell, explore, tileUuid, metricQuery }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { viewData } = useUnderlyingDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
@@ -96,6 +102,16 @@ const DashboardCellContextMenu: FC<
                     );
                 }}
             />
+            {isField(item) && isMetric(item) && explore && metricQuery && (
+                <DrillDownMenuItem
+                    projectUuid={projectUuid}
+                    row={cell.row.original || {}}
+                    explore={explore}
+                    metricQuery={metricQuery}
+                    dashboardFilters={dashboardFiltersThatApplyToChart}
+                    pivotReference={meta?.pivotReference}
+                />
+            )}
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">
                     {filters.map((filter) => {

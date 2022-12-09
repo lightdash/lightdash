@@ -24,6 +24,9 @@ export const ExplorerResults = memo(() => {
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+    const metricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
+    );
     const dimensions = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
     );
@@ -70,9 +73,10 @@ export const ExplorerResults = memo(() => {
                 isEditMode={isEditMode}
                 {...props}
                 itemsMap={itemsMap}
+                metricQuery={metricQuery}
             />
         ),
-        [isEditMode, itemsMap],
+        [isEditMode, itemsMap, metricQuery],
     );
 
     const IdleState: FC = useCallback(() => {
