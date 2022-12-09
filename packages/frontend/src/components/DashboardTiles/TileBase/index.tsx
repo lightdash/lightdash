@@ -10,6 +10,7 @@ import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
 import { TileModal } from '../TileForms/TileModal';
 import {
+    ButtonsWrapper,
     ChartContainer,
     HeaderContainer,
     HeaderWrapper,
@@ -50,86 +51,87 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             ? tile.properties.hideTitle
             : false;
     return (
-        <TileBaseWrapper className={isLoading ? Classes.SKELETON : undefined}>
-            <HeaderContainer>
+        <TileBaseWrapper
+            className={isLoading ? Classes.SKELETON : undefined}
+            isEditMode={isEditMode}
+        >
+            <HeaderContainer isEditMode={isEditMode}>
                 <HeaderWrapper>
                     {!hideTitle && (
                         <TitleWrapper>
                             <Title className="non-draggable">{title}</Title>
-                            {description && (
-                                <Tooltip2
-                                    content={description}
-                                    position="bottom"
-                                >
-                                    <Button icon="info-sign" minimal />
-                                </Tooltip2>
-                            )}
                         </TitleWrapper>
                     )}
                     {extraHeaderElement}
                 </HeaderWrapper>
-                {(isEditMode || (!isEditMode && extraMenuItems)) && (
-                    <Popover2
-                        className="non-draggable"
-                        content={
-                            <Menu>
-                                {extraMenuItems}
-                                {isEditMode && extraMenuItems && (
-                                    <MenuDivider />
-                                )}
-                                {isEditMode && (
-                                    <>
-                                        <MenuItem2
-                                            icon="edit"
-                                            text="Edit tile"
-                                            onClick={() => setIsEditing(true)}
-                                        />
-                                        {tile.type !==
-                                            DashboardTileTypes.MARKDOWN && (
+                <ButtonsWrapper>
+                    {description && (
+                        <Tooltip2 content={description} position="bottom">
+                            <Button icon="info-sign" minimal />
+                        </Tooltip2>
+                    )}
+                    {(isEditMode || (!isEditMode && extraMenuItems)) && (
+                        <Popover2
+                            className="non-draggable"
+                            content={
+                                <Menu>
+                                    {extraMenuItems}
+                                    {isEditMode && extraMenuItems && (
+                                        <MenuDivider />
+                                    )}
+                                    {isEditMode && (
+                                        <>
                                             <MenuItem2
-                                                icon={
-                                                    hideTitle
-                                                        ? 'eye-open'
-                                                        : 'eye-off'
-                                                }
-                                                text={`${
-                                                    hideTitle ? 'Show' : 'Hide'
-                                                } title`}
+                                                icon="edit"
+                                                text="Edit tile"
                                                 onClick={() =>
-                                                    onEdit({
-                                                        ...tile,
-                                                        properties: {
-                                                            ...tile.properties,
-                                                            hideTitle:
-                                                                !hideTitle,
-                                                        },
-                                                    })
+                                                    setIsEditing(true)
                                                 }
                                             />
-                                        )}
-
-                                        <MenuDivider />
-
-                                        <MenuItem2
-                                            icon="delete"
-                                            intent="danger"
-                                            text="Remove tile"
-                                            onClick={() => onDelete(tile)}
-                                        />
-                                    </>
-                                )}
-                            </Menu>
-                        }
-                        position={PopoverPosition.BOTTOM_RIGHT}
-                        lazy
-                    >
-                        <Tooltip2 content="Tile configuration">
+                                            {tile.type !==
+                                                DashboardTileTypes.MARKDOWN && (
+                                                <MenuItem2
+                                                    icon={
+                                                        hideTitle
+                                                            ? 'eye-open'
+                                                            : 'eye-off'
+                                                    }
+                                                    text={`${
+                                                        hideTitle
+                                                            ? 'Show'
+                                                            : 'Hide'
+                                                    } title`}
+                                                    onClick={() =>
+                                                        onEdit({
+                                                            ...tile,
+                                                            properties: {
+                                                                ...tile.properties,
+                                                                hideTitle:
+                                                                    !hideTitle,
+                                                            },
+                                                        })
+                                                    }
+                                                />
+                                            )}
+                                            <MenuDivider />
+                                            <MenuItem2
+                                                icon="delete"
+                                                intent="danger"
+                                                text="Remove tile"
+                                                onClick={() => onDelete(tile)}
+                                            />
+                                        </>
+                                    )}
+                                </Menu>
+                            }
+                            position={PopoverPosition.BOTTOM_RIGHT}
+                            lazy
+                        >
                             <Button minimal icon="more" />
-                        </Tooltip2>
-                    </Popover2>
-                )}
+                        </Popover2>
+                    )}
+                </ButtonsWrapper>
             </HeaderContainer>
-
             <ChartContainer className="non-draggable cohere-block">
                 {children}
             </ChartContainer>
