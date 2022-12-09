@@ -7,7 +7,7 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { GridSettings, SectionTitle } from './Legend.styles';
@@ -70,45 +70,44 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         selectedMarklineAxis !== undefined,
     );
 
-    useEffect(() => {
-        if (value && selectedField) {
-            const fieldId = isField(selectedField)
-                ? getFieldId(selectedField)
-                : selectedField.name;
+    const updateMarkLine = useCallback(
+        (updateValue, updateField) => {
+            if (updateValue && updateField) {
+                const fieldId = isField(updateField)
+                    ? getFieldId(updateField)
+                    : updateField.name;
 
-            if (dirtyEchartsConfig?.series) {
-                let alreadyAdded = false; // flag to avoid duplication on Xaxis
-                const series = dirtyEchartsConfig?.series.map((serie) => {
-                    const axisRef =
-                        dirtyLayout?.xField === fieldId
-                            ? serie.encode.xRef
-                            : serie.encode.yRef;
-                    if (axisRef.field === fieldId && !alreadyAdded) {
-                        alreadyAdded = true;
-                        const axis =
-                            dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis';
-                        return {
-                            ...serie,
-                            markLine: { data: [{ [axis]: value }] },
-                        };
-                    } else {
-                        // Remove markLine for the rest of series
-                        return {
-                            ...serie,
-                            markLine: undefined,
-                        };
-                    }
-                });
-                updateSeries(series);
+                if (dirtyEchartsConfig?.series) {
+                    let alreadyAdded = false; // flag to avoid duplication on Xaxis
+                    const series = dirtyEchartsConfig?.series.map((serie) => {
+                        const axisRef =
+                            dirtyLayout?.xField === fieldId
+                                ? serie.encode.xRef
+                                : serie.encode.yRef;
+                        if (axisRef.field === fieldId && !alreadyAdded) {
+                            alreadyAdded = true;
+                            const axis =
+                                dirtyLayout?.xField === fieldId
+                                    ? 'xAxis'
+                                    : 'yAxis';
+                            return {
+                                ...serie,
+                                markLine: { data: [{ [axis]: updateValue }] },
+                            };
+                        } else {
+                            // Remove markLine for the rest of series
+                            return {
+                                ...serie,
+                                markLine: undefined,
+                            };
+                        }
+                    });
+                    updateSeries(series);
+                }
             }
-        }
-    }, [
-        value,
-        selectedField,
-        updateSeries,
-        dirtyEchartsConfig?.series,
-        dirtyLayout?.xField,
-    ]);
+        },
+        [updateSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
+    );
 
     return (
         <>
@@ -129,6 +128,8 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         activeField={selectedField}
                         onChange={(item) => {
                             setSelectedField(item);
+
+                            updateMarkLine(value, item);
                         }}
                     />
                 </GridSettings>
@@ -144,7 +145,10 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                                 : 'Selected field must be of type Number'
                         }
                         value={value}
-                        onChange={(e) => setValue(e.target.value)}
+                        onChange={(e) => {
+                            setValue(e.target.value);
+                            updateMarkLine(e.target.value, selectedField);
+                        }}
                         placeholder="Add value for the reference line"
                     />
                 </GridSettings>
