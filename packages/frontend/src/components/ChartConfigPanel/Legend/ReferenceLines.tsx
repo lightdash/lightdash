@@ -1,10 +1,4 @@
-import {
-    Checkbox,
-    Collapse,
-    InputGroup,
-    Label,
-    NumericInput,
-} from '@blueprintjs/core';
+import { Checkbox, Collapse, InputGroup, Label } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -66,7 +60,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             const fieldId = isField(field) ? getFieldId(field) : field.name;
             return fieldId === selectedFieldId;
         });
-    }, [fieldsInAxes]);
+    }, [fieldsInAxes, selectedMarklineAxis, selectedFieldId]);
 
     const [selectedField, setSelectedField] = useState<
         Field | TableCalculation | CompiledDimension | undefined
@@ -108,7 +102,13 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 updateSeries(series);
             }
         }
-    }, [value, selectedField, updateSeries]);
+    }, [
+        value,
+        selectedField,
+        updateSeries,
+        dirtyEchartsConfig?.series,
+        dirtyLayout?.xField,
+    ]);
 
     return (
         <>

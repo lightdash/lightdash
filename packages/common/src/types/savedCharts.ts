@@ -77,7 +77,7 @@ export type Series = {
     smooth?: boolean;
     markLine?: {
         data: Record<string, string>[];
-    }; // TODO improve typing
+    };
 };
 
 export type EchartsLegend = {
