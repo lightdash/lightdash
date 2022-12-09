@@ -1,8 +1,4 @@
-import {
-    createInstallation,
-    deleteInstallation,
-    getInstallation,
-} from './SlackStorage';
+import { slackAuthenticationModel } from '../../models/models';
 
 export const slackOptions = {
     signingSecret: process.env.SLACK_SIGNING_SECRET || '',
@@ -17,11 +13,6 @@ export const slackOptions = {
         'channels:read',
     ],
 
-    installationStore: {
-        storeInstallation: createInstallation,
-        fetchInstallation: getInstallation,
-        deleteInstallation,
-    },
     // Slack only allow https on redirections
     // When testing locally on http://localhost:3000, replace again https:// with http:// after redirection happens
     redirectUri: `${(process.env.SITE_URL || '').replace(

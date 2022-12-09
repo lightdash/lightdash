@@ -1,4 +1,5 @@
 import EmailClient from '../clients/EmailClient/EmailClient';
+import { SlackService } from '../clients/Slack/Slackbot';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     dashboardModel,
@@ -16,6 +17,7 @@ import {
     searchModel,
     sessionModel,
     shareModel,
+    slackAuthenticationModel,
     spaceModel,
     userModel,
 } from '../models/models';
@@ -28,8 +30,8 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
-import { SlackService } from './SlackService/SlackService';
 import { SpaceService } from './SpaceService/SpaceService';
+import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserService } from './UserService';
 
 const emailClient = new EmailClient({ lightdashConfig });
@@ -100,11 +102,16 @@ export const searchService = new SearchService({
     spaceModel,
 });
 
-export const slackService = new SlackService({
+export const unfurlService = new UnfurlService({
     lightdashConfig,
     dashboardModel,
     savedChartModel,
     spaceModel,
     shareModel,
     encryptionService,
+});
+
+export const slackService = new SlackService({
+    slackAuthenticationModel,
+    unfurlService,
 });
