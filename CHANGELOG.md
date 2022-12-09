@@ -1,3 +1,15 @@
+# [0.346.0](https://github.com/lightdash/lightdash/compare/0.345.0...0.346.0) (2022-12-09)
+
+
+### Bug Fixes
+
+* fix scrap authentication error psycopg2 ([#3953](https://github.com/lightdash/lightdash/issues/3953)) ([75f221c](https://github.com/lightdash/lightdash/commit/75f221cccc4c4a02941c95b67577eeeebef7eccf))
+
+
+### Features
+
+* new explore menu ([#3944](https://github.com/lightdash/lightdash/issues/3944)) ([b761de3](https://github.com/lightdash/lightdash/commit/b761de36e04358d9bb6ae5b0e5bde6b06a3e1528))
+
 # [0.345.0](https://github.com/lightdash/lightdash/compare/0.344.1...0.345.0) (2022-12-08)
 
 
