@@ -1,3 +1,10 @@
+## [0.346.1](https://github.com/lightdash/lightdash/compare/0.346.0...0.346.1) (2022-12-09)
+
+
+### Bug Fixes
+
+* remove pivot when changing to table vizualisation ([#3946](https://github.com/lightdash/lightdash/issues/3946)) ([2ceb4ee](https://github.com/lightdash/lightdash/commit/2ceb4eef6344b485eb71cb93060694a0cf09cdda))
+
 # [0.346.0](https://github.com/lightdash/lightdash/compare/0.345.0...0.346.0) (2022-12-09)
 
 
