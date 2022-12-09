@@ -75,6 +75,7 @@ export type Series = {
     areaStyle?: {};
     showSymbol?: boolean;
     smooth?: boolean;
+    markLine?: any; // TODO improve typing
 };
 
 export type EchartsLegend = {

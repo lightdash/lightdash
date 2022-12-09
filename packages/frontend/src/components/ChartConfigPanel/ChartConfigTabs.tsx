@@ -366,7 +366,11 @@ const ChartConfigTabs: FC = () => {
                         </>
                     }
                 />
-                <Tab id="legend" title="Legend" panel={<LegendPanel />} />
+                <Tab
+                    id="legend"
+                    title="Legend"
+                    panel={<LegendPanel items={items} />}
+                />
                 <Tab id="grid" title="Margins" panel={<GridPanel />} />
             </Tabs>
         </Wrapper>
