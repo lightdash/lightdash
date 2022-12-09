@@ -92,7 +92,16 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                                     : 'yAxis';
                             return {
                                 ...serie,
-                                markLine: { data: [{ [axis]: updateValue }] },
+                                markLine: {
+                                    symbol: 'none',
+                                    lineStyle: {
+                                        color: '#000',
+                                        width: 3,
+                                        type: 'solid',
+                                    },
+                                    label: {},
+                                    data: [{ [axis]: updateValue }],
+                                },
                             };
                         } else {
                             // Remove markLine for the rest of series
