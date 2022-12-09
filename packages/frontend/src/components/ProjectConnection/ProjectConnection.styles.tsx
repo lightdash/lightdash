@@ -3,18 +3,26 @@ import styled from 'styled-components';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
 
-export const FormContainer = styled(Form)`
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-`;
+const CONTENT_WIDTH = 800;
+const BIG_BUTTON_HEIGHT = 40;
+const CARD_PADDING = 20;
+const CARD_GAP = 20;
 
-export const FormWrapper = styled.div`
+interface FormContainerProps {
+    hasPaddingBottom: boolean;
+}
+
+export const FormContainer = styled(Form)<FormContainerProps>`
+    width: ${CONTENT_WIDTH}px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
-    width: 800px;
-    margin: 0 auto;
+    gap: ${CARD_GAP}px;
+
+    ${({ hasPaddingBottom }) =>
+        hasPaddingBottom
+            ? `padding-bottom: ${CARD_PADDING * 2 + BIG_BUTTON_HEIGHT}px;`
+            : ''}
 `;
 
 export const CompileProjectButton = styled(Button)`
@@ -31,7 +39,6 @@ export const AdvancedButton = styled(SimpleButton)`
 `;
 
 export const ProjectConnectionCard = styled(Card)`
-    margin-bottom: 20px;
     display: flex;
     flex-direction: row;
     gap: 20px;
@@ -57,4 +64,12 @@ export const LeftPanelTitle = styled.div`
 
 export const LeftPanelMessage = styled.p`
     color: ${Colors.GRAY1};
+`;
+
+export const FloatingCard = styled(Card)`
+    position: fixed;
+    justify-content: flex-end;
+    display: flex;
+    width: ${CONTENT_WIDTH}px;
+    bottom: 0;
 `;

@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
@@ -31,8 +31,8 @@ import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
 import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
+    FloatingCard,
     FormContainer,
-    FormWrapper,
     LeftPanel,
     LeftPanelMessage,
     LeftPanelTitle,
@@ -227,23 +227,21 @@ export const UpdateProjectConnection: FC<{
 
     if (data?.type === ProjectType.PREVIEW) {
         return (
-            <FormWrapper>
-                <Callout intent="warning">
-                    <p>
-                        Developer previews are temporary Lightdash projects
-                        where settings cannot be changed.
-                    </p>
-                    Read docs{' '}
-                    <a
-                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        here
-                    </a>{' '}
-                    to know more.
-                </Callout>
-            </FormWrapper>
+            <Callout intent="warning">
+                <p>
+                    Developer previews are temporary Lightdash projects where
+                    settings cannot be changed.
+                </p>
+                Read docs{' '}
+                <a
+                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    here
+                </a>{' '}
+                to know more.
+            </Callout>
         );
     }
 
@@ -253,31 +251,34 @@ export const UpdateProjectConnection: FC<{
             methods={methods}
             onSubmit={onSubmit}
             onError={onError}
+            hasPaddingBottom
         >
             <ProjectFormProvider savedProject={data}>
-                <FormWrapper>
-                    <ProjectForm
-                        showGeneralSettings
-                        isProjectUpdate
-                        disabled={isDisabled}
-                        defaultType={health.data?.defaultProject?.type}
-                    />
-                </FormWrapper>
+                <ProjectForm
+                    showGeneralSettings
+                    isProjectUpdate
+                    disabled={isDisabled}
+                    defaultType={health.data?.defaultProject?.type}
+                />
             </ProjectFormProvider>
+
             {!isIdle && (
                 <ProjectStatusCallout
                     style={{ marginBottom: '20px' }}
                     mutation={updateMutation}
                 />
             )}
-            <CompileProjectButton
-                large
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Test &amp; compile project"
-                loading={isSaving}
-                disabled={isDisabled}
-            />
+
+            <FloatingCard>
+                <CompileProjectButton
+                    large
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    text="Test &amp; compile project"
+                    loading={isSaving}
+                    disabled={isDisabled}
+                />
+            </FloatingCard>
         </FormContainer>
     );
 };
@@ -344,22 +345,20 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             onError={onError}
         >
             <ProjectFormProvider>
-                <FormWrapper>
-                    <ProjectForm
-                        showGeneralSettings={!isCreatingFirstProject}
-                        disabled={isSaving || !!activeJobIsRunning}
-                        defaultType={health.data?.defaultProject?.type}
-                        selectedWarehouse={selectedWarehouse}
-                    />
+                <ProjectForm
+                    showGeneralSettings={!isCreatingFirstProject}
+                    disabled={isSaving || !!activeJobIsRunning}
+                    defaultType={health.data?.defaultProject?.type}
+                    selectedWarehouse={selectedWarehouse}
+                />
 
-                    <CompileProjectButton
-                        large
-                        type="submit"
-                        intent={Intent.PRIMARY}
-                        text="Test &amp; compile project"
-                        loading={isSaving || activeJobIsRunning}
-                    />
-                </FormWrapper>
+                <CompileProjectButton
+                    large
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    text="Test &amp; compile project"
+                    loading={isSaving || activeJobIsRunning}
+                />
             </ProjectFormProvider>
         </FormContainer>
     );
