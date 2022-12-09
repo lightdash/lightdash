@@ -15,6 +15,7 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { SlackService } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
 import {
     apiKeyPassportStrategy,
@@ -25,9 +26,10 @@ import {
 import database from './database/database';
 import { errorHandler } from './errors';
 import Logger from './logger';
-import { userModel } from './models/models';
+import { slackAuthenticationModel, userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
 import { apiV1Router } from './routers/apiV1Router';
+import { unfurlService } from './services/services';
 import { VERSION } from './version';
 
 // @ts-ignore
@@ -245,4 +247,9 @@ passport.deserializeUser(async (id: string, done) => {
     const user = await userModel.findSessionUserByUUID(id);
     // Store that user on the request (`req`) object
     done(null, user);
+});
+
+export const slackService = new SlackService({
+    slackAuthenticationModel,
+    unfurlService,
 });

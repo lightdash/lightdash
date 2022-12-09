@@ -106,7 +106,7 @@ slackRouter.get(
             const options = {
                 redirectUri: slackOptions.redirectUri,
                 scopes: slackOptions.scopes,
-                userScopes: ['files:write'],
+                userScopes: slackOptions.installerOptions.userScopes,
                 metadata: JSON.stringify(metadata),
             };
             analytics.track({

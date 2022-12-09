@@ -1,5 +1,4 @@
 import EmailClient from '../clients/EmailClient/EmailClient';
-import { SlackService } from '../clients/Slack/Slackbot';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     dashboardModel,
@@ -17,7 +16,6 @@ import {
     searchModel,
     sessionModel,
     shareModel,
-    slackAuthenticationModel,
     spaceModel,
     userModel,
 } from '../models/models';
@@ -109,9 +107,4 @@ export const unfurlService = new UnfurlService({
     spaceModel,
     shareModel,
     encryptionService,
-});
-
-export const slackService = new SlackService({
-    slackAuthenticationModel,
-    unfurlService,
 });

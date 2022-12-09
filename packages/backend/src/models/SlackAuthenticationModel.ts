@@ -1,3 +1,4 @@
+import { NotFoundError } from '@lightdash/common';
 import { Installation, InstallationQuery } from '@slack/bolt';
 import { Knex } from 'knex';
 
@@ -67,7 +68,7 @@ export class SlackAuthenticationModel {
             .select('*')
             .where('slack_team_id', teamId);
         if (row === undefined) {
-            throw new Error(
+            throw new NotFoundError(
                 `Could not find an installation for team id ${teamId}`,
             );
         }

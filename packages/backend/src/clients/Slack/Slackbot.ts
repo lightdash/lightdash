@@ -1,14 +1,10 @@
-import {
-    App,
-    ExpressReceiver,
-    Installation,
-    InstallationQuery,
-    LogLevel,
-} from '@slack/bolt';
-import express from 'express';
+import { App, ExpressReceiver, InstallationQuery, LogLevel } from '@slack/bolt';
+
 import { analytics } from '../../analytics/client';
+import database from '../../database/database';
 import Logger from '../../logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { apiV1Router } from '../../routers/apiV1Router';
 import {
     LightdashPage,
     UnfurlService,
@@ -56,16 +52,35 @@ type SlackServiceDependencies = {
     unfurlService: UnfurlService;
 };
 
+const slackAuthenticationModel = new SlackAuthenticationModel({
+    database,
+});
+const slackReceiver = new ExpressReceiver({
+    ...slackOptions,
+    installationStore: {
+        storeInstallation: slackAuthenticationModel.createInstallation,
+        fetchInstallation: slackAuthenticationModel.getInstallation,
+        deleteInstallation: slackAuthenticationModel.deleteInstallation,
+    },
+    router: apiV1Router,
+});
+
 export class SlackService {
     slackAuthenticationModel: SlackAuthenticationModel;
 
     unfurlService: UnfurlService;
 
     constructor({
-        slackAuthenticationModel,
+        slackAuthenticationModel: notworking,
         unfurlService,
     }: SlackServiceDependencies) {
-        this.slackAuthenticationModel = slackAuthenticationModel;
+        console.debug(
+            'SlackService constructor slackAuthenticationModel',
+            slackAuthenticationModel !== undefined,
+        );
+        this.slackAuthenticationModel = new SlackAuthenticationModel({
+            database,
+        });
         this.unfurlService = unfurlService;
         console.debug(
             'SlackService constructor',
@@ -83,19 +98,6 @@ export class SlackService {
     async start() {
         if (process.env.SLACK_APP_TOKEN) {
             try {
-                const slackReceiver = new ExpressReceiver({
-                    ...slackOptions,
-                    installationStore: {
-                        storeInstallation:
-                            this.slackAuthenticationModel.createInstallation,
-                        fetchInstallation:
-                            this.slackAuthenticationModel.getInstallation,
-                        deleteInstallation:
-                            this.slackAuthenticationModel.deleteInstallation,
-                    },
-                    router: express.Router(),
-                });
-
                 await slackReceiver.start(parseInt('4001', 10));
 
                 const app = new App({
