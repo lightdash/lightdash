@@ -75,7 +75,9 @@ export type Series = {
     areaStyle?: {};
     showSymbol?: boolean;
     smooth?: boolean;
-    markLine?: any; // TODO improve typing
+    markLine?: {
+        data: Record<string, string>[];
+    }; // TODO improve typing
 };
 
 export type EchartsLegend = {
