@@ -16,13 +16,10 @@ import {
     friendlyName,
     getDimensions,
     getFields,
-    getItemId,
     getItemMap,
     getResultValues,
     getVisibleFields,
-    isField,
     isFilterableField,
-    isMetric,
     PivotReference,
     ResultRow,
     SavedChart,
@@ -435,36 +432,20 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             }
                                         }}
                                     />
-                                    {viewUnderlyingDataOptions?.meta?.item &&
-                                        isField(
-                                            viewUnderlyingDataOptions.meta.item,
-                                        ) &&
-                                        isMetric(
-                                            viewUnderlyingDataOptions.meta
-                                                ?.item,
-                                        ) &&
-                                        explore &&
-                                        savedQuery?.metricQuery && (
-                                            <DrillDownMenuItem
-                                                row={
-                                                    viewUnderlyingDataOptions.row
-                                                }
-                                                explore={explore}
-                                                metricQuery={
-                                                    savedQuery?.metricQuery
-                                                }
-                                                drillByMetric={getItemId(
-                                                    viewUnderlyingDataOptions
-                                                        ?.meta?.item,
-                                                )}
-                                                pivotReference={
-                                                    viewUnderlyingDataOptions?.pivotReference
-                                                }
-                                                dashboardFilters={
-                                                    dashboardFiltersThatApplyToChart
-                                                }
-                                            />
-                                        )}
+                                    <DrillDownMenuItem
+                                        row={viewUnderlyingDataOptions?.row}
+                                        metricQuery={savedQuery?.metricQuery}
+                                        selectedItem={
+                                            viewUnderlyingDataOptions?.meta
+                                                ?.item
+                                        }
+                                        pivotReference={
+                                            viewUnderlyingDataOptions?.pivotReference
+                                        }
+                                        dashboardFilters={
+                                            dashboardFiltersThatApplyToChart
+                                        }
+                                    />
                                     <MenuItem2
                                         icon="filter"
                                         text="Filter dashboard to..."

@@ -10,7 +10,6 @@ import {
     getItemId,
     isDimension,
     isField,
-    isMetric,
     MetricQuery,
     ResultRow,
 } from '@lightdash/common';
@@ -100,16 +99,13 @@ const DashboardCellContextMenu: FC<
                     );
                 }}
             />
-            {isField(item) && isMetric(item) && explore && metricQuery && (
-                <DrillDownMenuItem
-                    row={cell.row.original || {}}
-                    explore={explore}
-                    metricQuery={metricQuery}
-                    dashboardFilters={dashboardFiltersThatApplyToChart}
-                    pivotReference={meta?.pivotReference}
-                    drillByMetric={getItemId(item)}
-                />
-            )}
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                metricQuery={metricQuery}
+                dashboardFilters={dashboardFiltersThatApplyToChart}
+                pivotReference={meta?.pivotReference}
+                selectedItem={item}
+            />
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">
                     {filters.map((filter) => {

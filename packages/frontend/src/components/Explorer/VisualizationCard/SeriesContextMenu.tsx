@@ -4,7 +4,7 @@ import {
     Popover2,
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
-import { getItemId, getItemMap, isField, isMetric } from '@lightdash/common';
+import { getItemMap } from '@lightdash/common';
 import React, {
     FC,
     memo,
@@ -72,7 +72,7 @@ export const SeriesContextMenu: FC<{
         }
     }, [echartSeriesClickEvent, explore, metricQuery, series]);
 
-    const viewUnderlyingData = useCallback(() => {
+    const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
             viewData(
                 underlyingData.value,
@@ -100,13 +100,6 @@ export const SeriesContextMenu: FC<{
         [],
     );
 
-    const onViewUnderlyingData = useCallback(
-        (e) => {
-            viewUnderlyingData();
-        },
-        [viewUnderlyingData],
-    );
-
     const onClose = useCallback(() => setContextMenuIsOpen(false), []);
 
     return (
@@ -119,23 +112,12 @@ export const SeriesContextMenu: FC<{
                             icon={'layers'}
                             onClick={onViewUnderlyingData}
                         />
-                        {underlyingData?.meta?.item &&
-                            isField(underlyingData.meta.item) &&
-                            isMetric(underlyingData.meta?.item) &&
-                            explore &&
-                            metricQuery && (
-                                <DrillDownMenuItem
-                                    row={underlyingData.row}
-                                    explore={explore}
-                                    metricQuery={metricQuery}
-                                    drillByMetric={getItemId(
-                                        underlyingData?.meta?.item,
-                                    )}
-                                    pivotReference={
-                                        underlyingData?.pivotReference
-                                    }
-                                />
-                            )}
+                        <DrillDownMenuItem
+                            row={underlyingData?.row}
+                            metricQuery={metricQuery}
+                            selectedItem={underlyingData?.meta?.item}
+                            pivotReference={underlyingData?.pivotReference}
+                        />
                     </Menu>
                 </div>
             }

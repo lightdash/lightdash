@@ -1,5 +1,6 @@
 import {
     DashboardFilters,
+    Explore,
     Field,
     Filters,
     getItemId,
@@ -17,6 +18,7 @@ import React, {
     useState,
 } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import { useExplore } from '../../hooks/useExplore';
 import { TableColumn } from '../common/Table/types';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
@@ -31,6 +33,7 @@ type UnderlyingDataConfig = {
 
 type UnderlyingDataContext = {
     tableName: string;
+    explore: Explore | undefined;
     filters?: Filters;
     config: UnderlyingDataConfig | undefined;
     isModalOpen: boolean;
@@ -101,7 +104,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
 }) => {
     const [config, setConfig] = useState<UnderlyingDataConfig>();
     const [isModalOpen, setModalOpen] = useState<boolean>(false);
-
+    const { data: explore } = useExplore(tableName);
     const closeModal = useCallback(() => {
         setModalOpen(false);
     }, []);
@@ -138,6 +141,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 viewData,
                 isModalOpen,
                 closeModal,
+                explore,
             }}
         >
             {children}

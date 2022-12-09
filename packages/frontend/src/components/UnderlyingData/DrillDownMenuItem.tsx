@@ -3,21 +3,25 @@ import {
     ChartType,
     CreateSavedChartVersion,
     DashboardFilters,
-    Explore,
+    Field,
     FieldId,
     FilterGroupItem,
     FilterOperator,
     FilterRule,
     Filters,
     getItemId,
+    isField,
+    isMetric,
     MetricQuery,
     PivotReference,
     ResultRow,
+    TableCalculation,
 } from '@lightdash/common';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useUnderlyingDataContext } from './UnderlyingDataProvider';
 
 type CombineFiltersArgs = {
     metricQuery: MetricQuery;
@@ -146,49 +150,52 @@ const drillDownExploreUrl = ({
 };
 
 export const DrillDownMenuItem: FC<{
-    explore: Explore;
-    metricQuery: MetricQuery;
-    row: ResultRow;
-    drillByMetric: FieldId;
+    metricQuery: MetricQuery | undefined;
+    row: ResultRow | undefined;
+    selectedItem: Field | TableCalculation | undefined;
     dashboardFilters?: DashboardFilters;
     pivotReference?: PivotReference;
-}> = ({
-    explore,
-    metricQuery,
-    row,
-    drillByMetric,
-    dashboardFilters,
-    pivotReference,
-}) => {
+}> = ({ metricQuery, row, selectedItem, dashboardFilters, pivotReference }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    return (
-        <MenuItem2 text="Drill by" icon="path">
-            {Object.values(explore.tables).map((table) => (
-                <MenuItem2 key={table.name} text={table.label}>
-                    {Object.values(table.dimensions)
-                        .filter((dimension) => !dimension.hidden)
-                        .sort((a, b) => a.label.localeCompare(b.label))
-                        .map((dimension) => (
-                            <MenuItem2
-                                key={getItemId(dimension)}
-                                text={dimension.label}
-                                href={drillDownExploreUrl({
-                                    projectUuid,
-                                    tableName: explore.name,
-                                    metricQuery,
-                                    row,
-                                    drillByMetric,
-                                    drillByDimension: getItemId(dimension),
-                                    dashboardFilters,
-                                    pivotReference,
-                                })}
-                                target="_blank"
-                            />
-                        ))}
-                </MenuItem2>
-            ))}
-        </MenuItem2>
-    );
+    const { explore } = useUnderlyingDataContext();
+    if (
+        selectedItem &&
+        isField(selectedItem) &&
+        isMetric(selectedItem) &&
+        explore &&
+        row &&
+        metricQuery
+    ) {
+        return (
+            <MenuItem2 text="Drill by" icon="path">
+                {Object.values(explore.tables).map((table) => (
+                    <MenuItem2 key={table.name} text={table.label}>
+                        {Object.values(table.dimensions)
+                            .filter((dimension) => !dimension.hidden)
+                            .sort((a, b) => a.label.localeCompare(b.label))
+                            .map((dimension) => (
+                                <MenuItem2
+                                    key={getItemId(dimension)}
+                                    text={dimension.label}
+                                    href={drillDownExploreUrl({
+                                        projectUuid,
+                                        tableName: explore.name,
+                                        metricQuery,
+                                        row,
+                                        drillByMetric: getItemId(selectedItem),
+                                        drillByDimension: getItemId(dimension),
+                                        dashboardFilters,
+                                        pivotReference,
+                                    })}
+                                    target="_blank"
+                                />
+                            ))}
+                    </MenuItem2>
+                ))}
+            </MenuItem2>
+        );
+    }
+    return null;
 };
 
 export default DrillDownMenuItem;

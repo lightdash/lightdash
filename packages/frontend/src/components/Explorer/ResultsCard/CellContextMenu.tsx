@@ -2,16 +2,13 @@ import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
-    getItemId,
     isField,
     isFilterableField,
-    isMetric,
     MetricQuery,
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
 import React, { FC } from 'react';
-import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -27,9 +24,8 @@ const CellContextMenu: FC<
     }
 > = ({ cell, isEditMode, itemsMap, metricQuery }) => {
     const { addFilter } = useFilters();
-    const { viewData, tableName } = useUnderlyingDataContext();
+    const { viewData } = useUnderlyingDataContext();
     const { track } = useTracking();
-    const { data: explore } = useExplore(tableName);
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -70,15 +66,11 @@ const CellContextMenu: FC<
                     }}
                 />
             )}
-
-            {isField(item) && isMetric(item) && explore && (
-                <DrillDownMenuItem
-                    row={cell.row.original || {}}
-                    explore={explore}
-                    metricQuery={metricQuery}
-                    drillByMetric={getItemId(item)}
-                />
-            )}
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                metricQuery={metricQuery}
+                selectedItem={item}
+            />
         </Menu>
     );
 };

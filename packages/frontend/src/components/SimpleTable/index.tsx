@@ -78,7 +78,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     <CellContextMenu
                         {...props}
                         metricQuery={resultsData?.metricQuery}
-                        explore={explore}
                     />
                 );
             }}
