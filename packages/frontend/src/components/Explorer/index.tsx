@@ -1,10 +1,16 @@
 import { Button } from '@blueprintjs/core';
+import {
+    CompiledDimension,
+    DimensionType,
+    fieldId as getFieldId,
+} from '@lightdash/common';
 import { FC, memo, useEffect } from 'react';
 import { useExplore } from '../../hooks/useExplore';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../providers/ExplorerProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import UnderlyingDataModal from '../UnderlyingData/UnderlyingDataModal';
 import UnderlyingDataProvider from '../UnderlyingData/UnderlyingDataProvider';
 import ExplorerHeader from './ExplorerHeader';
@@ -42,33 +48,66 @@ const Explorer: FC = memo(() => {
     );
     const { data } = useExplore(tableId);
 
-    let message;
+    console.log('data', data);
 
-    switch (tableId) {
-        case 'orders':
-            message = (
-                <p>
-                    It looks like you're trying to make a chart about{' '}
-                    <b>orders</b>. Why don't you cross <b>Order date</b> and{' '}
-                    <b>order amount</b> grouped by <b>status</b>?
-                </p>
+    const dimensions = data?.tables[tableId].dimensions || {};
+    const metrics = data?.tables[tableId].metrics || {};
+
+    const dimensionMap = Object.entries(dimensions);
+    let xAxis = dimensionMap.find(
+        (dimension) => dimension[1].type === DimensionType.DATE,
+    );
+    if (!xAxis)
+        xAxis = dimensionMap.find(
+            (dimension) => dimension[1].type === DimensionType.TIMESTAMP,
+        );
+
+    if (!xAxis)
+        xAxis = dimensionMap.find(
+            (dimension) => dimension[1].type === DimensionType.BOOLEAN,
+        );
+    if (!xAxis)
+        xAxis = dimensionMap.find(
+            (dimension) => dimension[1].type === DimensionType.STRING,
+        );
+
+    const metricsMap = Object.entries(metrics);
+
+    console.log('metrics', metrics);
+    let yAxis = metricsMap.find((metric) => metric[1].name.includes('total'));
+    if (!yAxis)
+        yAxis = metricsMap.find((metric) => metric[1].name.includes('count'));
+    if (!yAxis) yAxis = metricsMap[0];
+    console.log('y axis', yAxis);
+
+    let group: [string, CompiledDimension] | undefined;
+    if (xAxis?.[1].type === DimensionType.DATE) {
+        group = dimensionMap.find(
+            (dimension) => dimension[1].type === DimensionType.BOOLEAN,
+        );
+        if (!group)
+            group = dimensionMap.find(
+                (dimension) => dimension[1].type === DimensionType.STRING,
             );
-            break;
-        case 'customers':
-            message = (
-                <p>
-                    It looks like you're trying to make a chart about{' '}
-                    <b>customers</b>. Why don't you cross <b>created date</b>{' '}
-                    and <b>customer count</b>?
-                </p>
-            );
-            break;
     }
+    // If no metrics:  dimensionMap.find(dimension => dimension[0].includes('id'))
+    // TODO count unique ids
+    // IF !yAxis sum numeric
+    let message = (
+        <p style={{ marginTop: 10 }}>
+            It looks like you're trying to make a chart about{' '}
+            <b>{data?.label}</b>. Why don't you try plotting{' '}
+            <b>{xAxis?.[1].label}</b> by <b>{yAxis?.[1].label}</b>
+            {group !== undefined ? ` grouped by ${group[1].label}` : ''}?
+        </p>
+    );
+
     console.log('isValidQuery ', isValidQuery);
     useEffect(() => {
         fetchResults();
     }, [isValidQuery]);
-    return isValidQuery || message === undefined ? (
+
+    return isValidQuery || (xAxis === undefined && yAxis === undefined) ? (
         <>
             <ExplorerHeader />
             <FiltersCard />
@@ -93,31 +132,21 @@ const Explorer: FC = memo(() => {
             }}
         >
             <img
-                style={{ height: 50 }}
-                alt="clippy"
-                src="https://i.kym-cdn.com/entries/icons/mobile/000/001/180/5018904-clippy-black-tar-heroin-memes-png-image-transparent-png-free-clippy-transparent-820_502.jpg"
+                style={{ marginRight: 10 }}
+                alt="cloudy"
+                src="https://user-images.githubusercontent.com/1983672/207565915-dfce1e0e-fc77-4343-8187-9373358865e5.png"
             />
             {message}
             <Button
                 style={{ width: 150, height: 25, marginLeft: 20 }}
                 onClick={() => {
-                    switch (tableId) {
-                        case 'orders':
-                            toggleActiveField('orders_order_date_day', true);
-                            toggleActiveField('orders_status', true);
-                            toggleActiveField(
-                                'orders_total_order_amount',
-                                false,
-                            );
-                            break;
-                        case 'customers':
-                            toggleActiveField('customers_created_day', true);
-                            toggleActiveField(
-                                'customers_unique_customer_count',
-                                false,
-                            );
-                            break;
+                    if (xAxis) toggleActiveField(getFieldId(xAxis?.[1]), true);
+                    if (yAxis) toggleActiveField(getFieldId(yAxis?.[1]), false);
+                    if (group !== undefined) {
+                        //TODO set stacking
+                        toggleActiveField(getFieldId(group?.[1]), true);
                     }
+
                     // Open chart
 
                     toggleExpandedSection(ExplorerSection.VISUALIZATION);
