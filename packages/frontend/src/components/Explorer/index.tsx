@@ -98,7 +98,15 @@ const Explorer: FC = memo(() => {
             It looks like you're trying to make a chart about{' '}
             <b>{data?.label}</b>. Why don't you try plotting{' '}
             <b>{xAxis?.[1].label}</b> by <b>{yAxis?.[1].label}</b>
-            {group !== undefined ? ` grouped by ${group[1].label}` : ''}?
+            {group !== undefined ? (
+                <>
+                    {' '}
+                    grouped by <b>{group[1].label}</b>
+                </>
+            ) : (
+                ''
+            )}
+            ?
         </p>
     );
 
@@ -138,7 +146,12 @@ const Explorer: FC = memo(() => {
             />
             {message}
             <Button
-                style={{ width: 150, height: 25, marginLeft: 20 }}
+                style={{
+                    width: 150,
+                    marginTop: 13,
+                    height: 25,
+                    marginLeft: 20,
+                }}
                 onClick={() => {
                     if (xAxis) toggleActiveField(getFieldId(xAxis?.[1]), true);
                     if (yAxis) toggleActiveField(getFieldId(yAxis?.[1]), false);
