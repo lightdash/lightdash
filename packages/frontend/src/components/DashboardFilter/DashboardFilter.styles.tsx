@@ -35,6 +35,7 @@ export const FilterTrigger = styled(AnchorButton)`
 
 export const DashboardFilterWrapper = styled.div`
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
     margin-bottom: 10px;
