@@ -1,3 +1,10 @@
+# [0.348.0](https://github.com/lightdash/lightdash/compare/0.347.1...0.348.0) (2022-12-16)
+
+
+### Features
+
+* add metrics to model configuration ([#3930](https://github.com/lightdash/lightdash/issues/3930)) ([8df0eb4](https://github.com/lightdash/lightdash/commit/8df0eb474b60226c2030f575fced47a8205317df))
+
 ## [0.347.1](https://github.com/lightdash/lightdash/compare/0.347.0...0.347.1) (2022-12-16)
 
 
