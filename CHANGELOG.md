@@ -1,3 +1,10 @@
+## [0.350.1](https://github.com/lightdash/lightdash/compare/0.350.0...0.350.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* script bash preinstall script if fails on windows ([#3970](https://github.com/lightdash/lightdash/issues/3970)) ([65ec9cd](https://github.com/lightdash/lightdash/commit/65ec9cd396f72dab3ed2eb0f5b0af23ab63c5906))
+
 # [0.350.0](https://github.com/lightdash/lightdash/compare/0.349.1...0.350.0) (2022-12-16)
 
 
