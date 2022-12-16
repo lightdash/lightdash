@@ -4,6 +4,7 @@ import {
     Field,
     isField,
     isFilterableField,
+    MetricQuery,
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
@@ -12,18 +13,19 @@ import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps } from '../../common/Table/types';
+import DrillDownMenuItem from '../../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
         itemsMap: Record<string, Field | TableCalculation>;
+        metricQuery: MetricQuery;
     }
-> = ({ cell, isEditMode, itemsMap }) => {
+> = ({ cell, isEditMode, itemsMap, metricQuery }) => {
     const { addFilter } = useFilters();
     const { viewData } = useUnderlyingDataContext();
     const { track } = useTracking();
-
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -64,6 +66,11 @@ const CellContextMenu: FC<
                     }}
                 />
             )}
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                metricQuery={metricQuery}
+                selectedItem={item}
+            />
         </Menu>
     );
 };

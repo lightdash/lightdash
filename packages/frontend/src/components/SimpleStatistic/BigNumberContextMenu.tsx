@@ -1,9 +1,10 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { useExplore } from '../../hooks/useExplore';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
 interface BigNumberContextMenuProps {
@@ -16,6 +17,14 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { resultsData, bigNumberConfig } = useVisualizationContext();
     const { viewData, tableName } = useUnderlyingDataContext();
     const { data: explore } = useExplore(tableName);
+
+    const selectedItem = useMemo(
+        () =>
+            bigNumberConfig?.selectedField
+                ? bigNumberConfig.getField(bigNumberConfig.selectedField)
+                : undefined,
+        [bigNumberConfig],
+    );
 
     const viewUnderlyingData = useCallback(() => {
         if (
@@ -46,6 +55,11 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                         onClick={() => {
                             viewUnderlyingData();
                         }}
+                    />
+                    <DrillDownMenuItem
+                        row={resultsData?.rows[0]}
+                        metricQuery={resultsData?.metricQuery}
+                        selectedItem={selectedItem}
                     />
                 </Menu>
             }

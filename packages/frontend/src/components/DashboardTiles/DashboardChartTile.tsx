@@ -44,6 +44,7 @@ import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.sty
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
     useUnderlyingDataContext,
@@ -431,7 +432,20 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             }
                                         }}
                                     />
-
+                                    <DrillDownMenuItem
+                                        row={viewUnderlyingDataOptions?.row}
+                                        metricQuery={savedQuery?.metricQuery}
+                                        selectedItem={
+                                            viewUnderlyingDataOptions?.meta
+                                                ?.item
+                                        }
+                                        pivotReference={
+                                            viewUnderlyingDataOptions?.pivotReference
+                                        }
+                                        dashboardFilters={
+                                            dashboardFiltersThatApplyToChart
+                                        }
+                                    />
                                     <MenuItem2
                                         icon="filter"
                                         text="Filter dashboard to..."

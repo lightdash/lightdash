@@ -10,22 +10,25 @@ import {
     getItemId,
     isDimension,
     isField,
+    MetricQuery,
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
-import { FC } from 'react';
+import React, { FC } from 'react';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
 const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
         explore: Explore | undefined;
         tileUuid: string;
+        metricQuery?: MetricQuery;
     }
-> = ({ cell, explore, tileUuid }) => {
+> = ({ cell, explore, tileUuid, metricQuery }) => {
     const { viewData } = useUnderlyingDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
@@ -95,6 +98,13 @@ const DashboardCellContextMenu: FC<
                         dashboardFiltersThatApplyToChart,
                     );
                 }}
+            />
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                metricQuery={metricQuery}
+                dashboardFilters={dashboardFiltersThatApplyToChart}
+                pivotReference={meta?.pivotReference}
+                selectedItem={item}
             />
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">

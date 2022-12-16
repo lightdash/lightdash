@@ -1,14 +1,18 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { isField, ResultRow } from '@lightdash/common';
+import { isField, MetricQuery, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
 import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
 
-const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
+const CellContextMenu: FC<
+    Pick<CellContextMenuProps, 'cell'> & {
+        metricQuery?: MetricQuery;
+    }
+> = ({ cell, metricQuery }) => {
     const { viewData } = useUnderlyingDataContext();
-
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -32,6 +36,12 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                         meta?.pivotReference,
                     );
                 }}
+            />
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                metricQuery={metricQuery}
+                pivotReference={meta?.pivotReference}
+                selectedItem={item}
             />
         </Menu>
     );
