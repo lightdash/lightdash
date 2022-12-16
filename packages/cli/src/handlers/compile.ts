@@ -83,13 +83,13 @@ ${errors.join('')}
         `> Validated dbt metrics: ${metrics.map((m) => m.name).join(', ')}`,
     );
 
+    GlobalState.debug(
+        `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
+    );
+
     // Ideally we'd skip this potentially expensive step
     const catalog = await warehouseClient.getCatalog(
         getSchemaStructureFromDbtModels(models),
-    );
-
-    GlobalState.debug(
-        `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
     );
 
     const typedModels = attachTypesToModels(models, catalog, false);
