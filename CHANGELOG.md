@@ -1,3 +1,10 @@
+# [0.350.0](https://github.com/lightdash/lightdash/compare/0.349.1...0.350.0) (2022-12-16)
+
+
+### Features
+
+* drill by dimension ([#3967](https://github.com/lightdash/lightdash/issues/3967)) ([ae8f17f](https://github.com/lightdash/lightdash/commit/ae8f17f81f8d185bcece4e4c6bc3bc00d6b74705))
+
 ## [0.349.1](https://github.com/lightdash/lightdash/compare/0.349.0...0.349.1) (2022-12-16)
 
 
