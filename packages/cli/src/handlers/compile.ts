@@ -88,11 +88,11 @@ ${errors.join('')}
         getSchemaStructureFromDbtModels(models),
     );
 
-    const typedModels = attachTypesToModels(models, catalog, false);
-
     GlobalState.debug(
         `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
     );
+
+    const typedModels = attachTypesToModels(models, catalog, false);
 
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         await LightdashAnalytics.track({
