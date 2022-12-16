@@ -17,6 +17,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
+import { validateDbtMetrics, validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
@@ -29,6 +30,7 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
     startOfWeek?: number;
 };
+
 export const compile = async (options: GenerateHandlerOptions) => {
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -55,8 +57,30 @@ export const compile = async (options: GenerateHandlerOptions) => {
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
 
+    const adapterType = manifest.metadata.adapter_type;
+
+    const [validModels, failedExplores] = validateDbtModel(adapterType, models);
+    if (failedExplores.length > 0) {
+        const errors = failedExplores.map((failedExplore) =>
+            failedExplore.errors.map((error) => `- ${error.message}\n`),
+        );
+        throw new ParseError(
+            `Found ${failedExplores.length} errors when validating dbt model:
+${errors.join('')}
+            `,
+        );
+    } else {
+        GlobalState.debug(
+            `> Validated dbt models: ${validModels
+                .map((m) => m.name)
+                .join(', ')}`,
+        );
+    }
+
+    // Validate metrics in the manifest - compile fails if any invalid
+    const metrics = validateDbtMetrics(Object.values(manifest.metrics));
     GlobalState.debug(
-        `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
+        `> Validated dbt metrics: ${metrics.map((m) => m.name).join(', ')}`,
     );
 
     // Ideally we'd skip this potentially expensive step
@@ -65,6 +89,11 @@ export const compile = async (options: GenerateHandlerOptions) => {
     );
 
     const typedModels = attachTypesToModels(models, catalog, false);
+
+    GlobalState.debug(
+        `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
+    );
+
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         await LightdashAnalytics.track({
             event: 'compile.error',

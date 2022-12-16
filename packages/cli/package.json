@@ -13,6 +13,7 @@
         "@lightdash/common": "^0.346.1",
         "@lightdash/warehouses": "^0.346.1",
         "ajv": "^8.11.0",
+        "ajv-formats": "^2.1.1",
         "better-ajv-errors": "^1.2.0",
         "chalk": "4.1.2",
         "chokidar": "^3.5.3",
