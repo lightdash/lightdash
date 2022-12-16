@@ -43,7 +43,7 @@
         "fix-lint": "yarn run linter ./src --fix",
         "format": "yarn run formatter ./src --check",
         "fix-format": "yarn run formatter ./src --write",
-        "preinstall": "bash track.sh started",
-        "postinstall": "bash track.sh completed"
+        "preinstall": "bash track.sh started || echo 'skipping preinstall'",
+        "postinstall": "bash track.sh completed || echo 'skipping postinstall'"
     }
 }
