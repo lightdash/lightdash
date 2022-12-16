@@ -1,3 +1,10 @@
+## [0.347.1](https://github.com/lightdash/lightdash/compare/0.347.0...0.347.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* available filters permissions and fetching ([#3952](https://github.com/lightdash/lightdash/issues/3952)) ([b451ca6](https://github.com/lightdash/lightdash/commit/b451ca6c64e36cbac4c96cc14c5eeb94e227561c))
+
 # [0.347.0](https://github.com/lightdash/lightdash/compare/0.346.1...0.347.0) (2022-12-16)
 
 
