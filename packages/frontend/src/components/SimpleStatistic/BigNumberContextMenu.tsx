@@ -58,7 +58,6 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                     />
                     <DrillDownMenuItem
                         row={resultsData?.rows[0]}
-                        metricQuery={resultsData?.metricQuery}
                         selectedItem={selectedItem}
                     />
                 </Menu>

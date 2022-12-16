@@ -434,7 +434,6 @@ const DashboardChartTile: FC<Props> = (props) => {
                                     />
                                     <DrillDownMenuItem
                                         row={viewUnderlyingDataOptions?.row}
-                                        metricQuery={savedQuery?.metricQuery}
                                         selectedItem={
                                             viewUnderlyingDataOptions?.meta
                                                 ?.item

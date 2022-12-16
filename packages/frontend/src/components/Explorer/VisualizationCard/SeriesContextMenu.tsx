@@ -114,7 +114,6 @@ export const SeriesContextMenu: FC<{
                         />
                         <DrillDownMenuItem
                             row={underlyingData?.row}
-                            metricQuery={metricQuery}
                             selectedItem={underlyingData?.meta?.item}
                             pivotReference={underlyingData?.pivotReference}
                         />

@@ -10,7 +10,6 @@ import {
     getItemId,
     isDimension,
     isField,
-    MetricQuery,
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
@@ -26,9 +25,8 @@ const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
         explore: Explore | undefined;
         tileUuid: string;
-        metricQuery?: MetricQuery;
     }
-> = ({ cell, explore, tileUuid, metricQuery }) => {
+> = ({ cell, explore, tileUuid }) => {
     const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
@@ -101,7 +99,6 @@ const DashboardCellContextMenu: FC<
             />
             <DrillDownMenuItem
                 row={cell.row.original || {}}
-                metricQuery={metricQuery}
                 dashboardFilters={dashboardFiltersThatApplyToChart}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}

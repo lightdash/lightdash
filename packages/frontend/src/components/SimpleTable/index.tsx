@@ -32,7 +32,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
             showColumnCalculation,
             hideRowNumbers,
         },
-        resultsData,
         isSqlRunner,
         explore,
     } = useVisualizationContext();
@@ -71,15 +70,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             {...props}
                             tileUuid={tileUuid}
                             explore={explore}
-                            metricQuery={resultsData?.metricQuery}
                         />
                     );
-                return (
-                    <CellContextMenu
-                        {...props}
-                        metricQuery={resultsData?.metricQuery}
-                    />
-                );
+                return <CellContextMenu {...props} />;
             }}
             {...rest}
         />

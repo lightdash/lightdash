@@ -4,7 +4,6 @@ import {
     Field,
     isField,
     isFilterableField,
-    MetricQuery,
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
@@ -20,9 +19,8 @@ import UrlMenuItems from './UrlMenuItems';
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
         itemsMap: Record<string, Field | TableCalculation>;
-        metricQuery: MetricQuery;
     }
-> = ({ cell, isEditMode, itemsMap, metricQuery }) => {
+> = ({ cell, isEditMode, itemsMap }) => {
     const { addFilter } = useFilters();
     const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { track } = useTracking();
@@ -72,7 +70,6 @@ const CellContextMenu: FC<
             )}
             <DrillDownMenuItem
                 row={cell.row.original || {}}
-                metricQuery={metricQuery}
                 selectedItem={item}
             />
         </Menu>

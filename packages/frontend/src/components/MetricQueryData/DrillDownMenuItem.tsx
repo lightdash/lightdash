@@ -150,14 +150,13 @@ const drillDownExploreUrl = ({
 };
 
 export const DrillDownMenuItem: FC<{
-    metricQuery: MetricQuery | undefined;
     row: ResultRow | undefined;
     selectedItem: Field | TableCalculation | undefined;
     dashboardFilters?: DashboardFilters;
     pivotReference?: PivotReference;
-}> = ({ metricQuery, row, selectedItem, dashboardFilters, pivotReference }) => {
+}> = ({ row, selectedItem, dashboardFilters, pivotReference }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { explore } = useMetricQueryDataContext();
+    const { explore, metricQuery } = useMetricQueryDataContext();
     if (
         selectedItem &&
         isField(selectedItem) &&
