@@ -23,8 +23,8 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplor
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
 import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import { HeaderRightContent } from './UnderlyingDataModal.styles';
-import { useUnderlyingDataContext } from './UnderlyingDataProvider';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 
 interface Props {}
@@ -41,7 +41,7 @@ const defaultMetricQuery: MetricQuery = {
 
 const UnderlyingDataModalContent: FC<Props> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { tableName, filters, config } = useUnderlyingDataContext();
+    const { tableName, metricQuery, config } = useMetricQueryDataContext();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
 
@@ -95,7 +95,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         [showUnderlyingValues, allDimensions],
     );
 
-    const metricQuery = useMemo<MetricQuery>(() => {
+    const underlyingDataMetricQuery = useMemo<MetricQuery>(() => {
         if (!config) return defaultMetricQuery;
         const { meta, row, pivotReference, dimensions, value } = config;
         if (meta?.item === undefined) return defaultMetricQuery;
@@ -190,7 +190,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 };
             }) || [];
         const exploreFilters =
-            filters?.dimensions !== undefined ? [filters?.dimensions] : [];
+            metricQuery?.filters?.dimensions !== undefined
+                ? [metricQuery.filters.dimensions]
+                : [];
 
         const dashboardFilters = config.dashboardFilters
             ? config.dashboardFilters.dimensions
@@ -233,7 +235,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         };
     }, [
         config,
-        filters,
+        metricQuery,
         tableName,
         allFields,
         allDimensions,
@@ -242,7 +244,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     ]);
 
     const fieldsMap: Record<string, Field> = useMemo(() => {
-        const selectedDimensions = metricQuery.dimensions;
+        const selectedDimensions = underlyingDataMetricQuery.dimensions;
         const dimensions = explore ? getDimensions(explore) : [];
         return dimensions.reduce((acc, dimension) => {
             const fieldId = isField(dimension) ? getFieldId(dimension) : '';
@@ -253,16 +255,18 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 };
             else return acc;
         }, {});
-    }, [explore, metricQuery]);
+    }, [explore, underlyingDataMetricQuery]);
 
     const exploreFromHereUrl = useMemo(() => {
         const showDimensions =
-            showUnderlyingValues !== undefined ? metricQuery.dimensions : [];
+            showUnderlyingValues !== undefined
+                ? underlyingDataMetricQuery.dimensions
+                : [];
 
         const createSavedChartVersion: CreateSavedChartVersion = {
             tableName,
             metricQuery: {
-                ...metricQuery,
+                ...underlyingDataMetricQuery,
                 dimensions: showDimensions,
                 metrics: [],
             },
@@ -280,13 +284,18 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             createSavedChartVersion,
         );
         return `${pathname}?${search}`;
-    }, [tableName, metricQuery, projectUuid, showUnderlyingValues]);
+    }, [
+        tableName,
+        underlyingDataMetricQuery,
+        projectUuid,
+        showUnderlyingValues,
+    ]);
 
     const {
         error,
         data: resultsData,
         isLoading,
-    } = useUnderlyingDataResults(tableName, metricQuery);
+    } = useUnderlyingDataResults(tableName, underlyingDataMetricQuery);
 
     if (error) {
         return (

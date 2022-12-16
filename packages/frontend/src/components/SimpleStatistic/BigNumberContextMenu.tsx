@@ -4,8 +4,8 @@ import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { useExplore } from '../../hooks/useExplore';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 interface BigNumberContextMenuProps {
     renderTarget: Popover2Props['renderTarget'];
@@ -15,7 +15,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     renderTarget,
 }) => {
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { viewData, tableName } = useUnderlyingDataContext();
+    const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
     const selectedItem = useMemo(
@@ -37,9 +37,9 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
 
             const row: ResultRow = resultsData?.rows?.[0] || {};
             const value = row[bigNumberConfig.selectedField]?.value;
-            viewData(value, meta, row);
+            openUnderlyingDataModel(value, meta, row);
         }
-    }, [explore, resultsData, bigNumberConfig, viewData]);
+    }, [explore, resultsData, bigNumberConfig, openUnderlyingDataModel]);
 
     return (
         <Popover2

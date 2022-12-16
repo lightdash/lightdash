@@ -1,7 +1,7 @@
 import { FC, memo } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import UnderlyingDataModal from '../UnderlyingData/UnderlyingDataModal';
-import UnderlyingDataProvider from '../UnderlyingData/UnderlyingDataProvider';
+import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
+import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -12,23 +12,21 @@ const Explorer: FC = memo(() => {
     const unsavedChartVersionTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const unsavedChartVersionFilters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.filters,
+    const unsavedChartVersionMetricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
     );
     return (
-        <>
+        <MetricQueryDataProvider
+            metricQuery={unsavedChartVersionMetricQuery}
+            tableName={unsavedChartVersionTableName}
+        >
             <ExplorerHeader />
             <FiltersCard />
-            <UnderlyingDataProvider
-                filters={unsavedChartVersionFilters}
-                tableName={unsavedChartVersionTableName}
-            >
-                <VisualizationCard />
-                <UnderlyingDataModal />
-            </UnderlyingDataProvider>
+            <VisualizationCard />
             <ResultsCard />
             <SqlCard />
-        </>
+            <UnderlyingDataModal />
+        </MetricQueryDataProvider>
     );
 });
 

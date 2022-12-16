@@ -17,12 +17,12 @@ import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { EchartSeriesClickEvent } from '../../SimpleChart';
-import DrillDownMenuItem from '../../UnderlyingData/DrillDownMenuItem';
+import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
-    useUnderlyingDataContext,
-} from '../../UnderlyingData/UnderlyingDataProvider';
+    useMetricQueryDataContext,
+} from '../../MetricQueryData/MetricQueryDataProvider';
+import { EchartSeriesClickEvent } from '../../SimpleChart';
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
@@ -37,7 +37,7 @@ export const SeriesContextMenu: FC<{
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { viewData } = useUnderlyingDataContext();
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -74,7 +74,7 @@ export const SeriesContextMenu: FC<{
 
     const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
-            viewData(
+            openUnderlyingDataModel(
                 underlyingData.value,
                 underlyingData.meta,
                 underlyingData.row,
@@ -82,7 +82,7 @@ export const SeriesContextMenu: FC<{
                 underlyingData.pivotReference,
             );
         }
-    }, [viewData, dimensions, underlyingData]);
+    }, [openUnderlyingDataModel, dimensions, underlyingData]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>

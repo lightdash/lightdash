@@ -21,7 +21,7 @@ import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useUnderlyingDataContext } from './UnderlyingDataProvider';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
     metricQuery: MetricQuery;
@@ -157,7 +157,7 @@ export const DrillDownMenuItem: FC<{
     pivotReference?: PivotReference;
 }> = ({ metricQuery, row, selectedItem, dashboardFilters, pivotReference }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { explore } = useUnderlyingDataContext();
+    const { explore } = useMetricQueryDataContext();
     if (
         selectedItem &&
         isField(selectedItem) &&

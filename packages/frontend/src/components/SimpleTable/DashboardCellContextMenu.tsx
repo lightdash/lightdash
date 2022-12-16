@@ -19,8 +19,8 @@ import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFil
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
@@ -29,7 +29,7 @@ const DashboardCellContextMenu: FC<
         metricQuery?: MetricQuery;
     }
 > = ({ cell, explore, tileUuid, metricQuery }) => {
-    const { viewData } = useUnderlyingDataContext();
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -89,7 +89,7 @@ const DashboardCellContextMenu: FC<
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(
+                    openUnderlyingDataModel(
                         value,
                         meta,
                         cell.row.original || {},

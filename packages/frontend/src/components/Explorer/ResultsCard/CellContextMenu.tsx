@@ -13,8 +13,8 @@ import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps } from '../../common/Table/types';
-import DrillDownMenuItem from '../../UnderlyingData/DrillDownMenuItem';
-import { useUnderlyingDataContext } from '../../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
 import UrlMenuItems from './UrlMenuItems';
 
 const CellContextMenu: FC<
@@ -24,7 +24,7 @@ const CellContextMenu: FC<
     }
 > = ({ cell, isEditMode, itemsMap, metricQuery }) => {
     const { addFilter } = useFilters();
-    const { viewData } = useUnderlyingDataContext();
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { track } = useTracking();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -46,7 +46,11 @@ const CellContextMenu: FC<
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(value, meta, cell.row.original || {});
+                    openUnderlyingDataModel(
+                        value,
+                        meta,
+                        cell.row.original || {},
+                    );
                 }}
             />
 
