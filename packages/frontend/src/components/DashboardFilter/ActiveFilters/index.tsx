@@ -2,6 +2,7 @@ import { FieldId, fieldId, FilterableField } from '@lightdash/common';
 import { FC } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { ActiveDashboardFiltersWrapper } from '../DashboardFilter.styles';
 import ActiveFilter from './ActiveFilter';
 
 const ActiveFilters: FC = () => {
@@ -23,7 +24,7 @@ const ActiveFilters: FC = () => {
     );
 
     return (
-        <>
+        <ActiveDashboardFiltersWrapper>
             {dashboardFilters.dimensions.map((item, index) => (
                 <ActiveFilter
                     key={item.id}
@@ -50,7 +51,7 @@ const ActiveFilters: FC = () => {
                     }
                 />
             ))}
-        </>
+        </ActiveDashboardFiltersWrapper>
     );
 };
 
