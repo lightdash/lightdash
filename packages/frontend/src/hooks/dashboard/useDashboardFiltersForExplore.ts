@@ -24,8 +24,10 @@ const useDashboardFiltersForExplore = (
                 .filter((f) => f.tileTargets?.[tileUuid] ?? true)
                 .map((filter) => {
                     const { tileTargets, ...rest } = filter;
-                    const tileConfig = tileTargets?.[tileUuid];
-                    if (!tileConfig) return filter;
+                    if (!tileTargets) return filter;
+
+                    const tileConfig = tileTargets[tileUuid];
+                    if (!tileConfig) return null;
 
                     return {
                         ...rest,
@@ -35,6 +37,7 @@ const useDashboardFiltersForExplore = (
                         },
                     };
                 })
+                .filter((f): f is DashboardFilterRule => f !== null)
                 .filter((f) => tables.includes(f.target.tableName)),
         [tables, tileUuid],
     );
