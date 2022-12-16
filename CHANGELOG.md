@@ -1,3 +1,10 @@
+## [0.350.3](https://github.com/lightdash/lightdash/compare/0.350.2...0.350.3) (2022-12-16)
+
+
+### Bug Fixes
+
+* message on invite user success is confusing ([#3993](https://github.com/lightdash/lightdash/issues/3993)) ([a0300fe](https://github.com/lightdash/lightdash/commit/a0300feb5bd006bb141dab088bf1586fbbcd674f))
+
 ## [0.350.2](https://github.com/lightdash/lightdash/compare/0.350.1...0.350.2) (2022-12-16)
 
 
