@@ -44,11 +44,12 @@ You can use the following environment variables to authenticate yourself on each
 
 - **LIGHTDASH_API_KEY** a personal access token you can generate in the app under the user settings
 - **LIGHTDASH_URL** address for your running Lightdash instance
+- **LIGHTDASH_PROXY_AUTHENTICATION** if your Lightdash instance is behind a proxy like (Cloud IAP)[https://cloud.google.com/iap] you can set here `Proxy-Authentication` header value
 
 Example:
 
   ```shell
-  LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" lightdash preview
+  LIGHTDASH_API_KEY=946fedb74003405646867dcacf1ad345 LIGHTDASH_URL="https://app.lightdash.cloud" LIGHTDASH_PROXY_AUTHENTICATION="Bearer <JWT_TOKEN>" lightdash preview
   ```
 
 </details>
