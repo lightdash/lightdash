@@ -25,7 +25,7 @@ export enum LightdashPage {
 export type Unfurl = {
     title: string;
     description?: string;
-    imageUrl: string;
+    imageUrl: string | undefined;
     pageType: LightdashPage;
 };
 
@@ -52,7 +52,7 @@ const saveScreenshot = async (
     imageId: string,
     cookie: string,
     parsedUrl: ParsedUrl,
-): Promise<Buffer> => {
+): Promise<Buffer | undefined> => {
     let browser;
 
     try {
@@ -115,8 +115,8 @@ const saveScreenshot = async (
 
         return imageBuffer;
     } catch (e) {
-        Logger.error(`Unable to fetch screenshots from headless chromeo ${e}`);
-        return e;
+        Logger.error(`Unable to fetch screenshots from headless chrome ${e}`);
+        return undefined;
     } finally {
         if (browser) await browser.close();
     }
@@ -312,13 +312,15 @@ export class UnfurlService {
 
         const cookie = await getUserCookie(authUserUuid);
 
-        await saveScreenshot(imageId, cookie, parsedUrl);
-
-        const imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
-
         const { title, description } = await this.getTitleAndDescription(
             parsedUrl,
         );
+
+        const buffer = await saveScreenshot(imageId, cookie, parsedUrl);
+        const imageUrl =
+            buffer !== undefined
+                ? `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`
+                : undefined;
 
         return {
             title,
