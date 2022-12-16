@@ -16,7 +16,7 @@ import { Title } from './FilterConfiguration.styled';
 
 interface TileFilterConfigurationProps {
     tiles: DashboardTile[];
-    availableTileFilters: Record<string, FilterableField[]>;
+    availableTileFilters: Record<string, FilterableField[] | undefined>;
     field: FilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
@@ -38,9 +38,11 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     const tilesSortBy = useCallback(
         (
             matcher: (a: FilterableField) => (b: FilterableField) => boolean,
-            a: FilterableField[],
-            b: FilterableField[],
+            a: FilterableField[] | undefined,
+            b: FilterableField[] | undefined,
         ) => {
+            if (!a || !b) return 0;
+
             const matchA = a.some(matcher(field));
             const matchB = b.some(matcher(field));
             return matchA === matchB ? 0 : matchA ? -1 : 1;
@@ -74,6 +76,8 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
             </Title>
 
             {sortedTileEntries.map(([tileUuid, filters]) => {
+                if (!filters) return null;
+
                 const tile = tiles.find((t) => t.uuid === tileUuid);
                 const tileConfig = filterRule.tileTargets?.[tileUuid];
 
@@ -91,7 +95,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                 return (
                     <FormGroup key={tileUuid}>
                         <Checkbox
-                            label={tile?.properties.title}
+                            label={tile?.properties.title || undefined}
                             disabled={!isAvailable}
                             checked={isChecked}
                             onChange={() => {

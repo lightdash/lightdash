@@ -64,6 +64,7 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -1136,6 +1137,12 @@ export class ProjectService {
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
+
+        const space = await this.spaceModel.getFullSpace(savedChart.spaceUuid);
+        if (!hasSpaceAccess(space, user.userUuid)) {
+            throw new ForbiddenError();
+        }
+
         const explore = await this.getExplore(
             user,
             savedChart.projectUuid,

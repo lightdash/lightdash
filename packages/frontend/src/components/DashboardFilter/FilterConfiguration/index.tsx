@@ -43,7 +43,7 @@ export enum FilterActions {
 interface Props {
     tiles: DashboardTile[];
     field: FilterableField;
-    availableTileFilters: Record<string, FilterableField[]>;
+    availableTileFilters: Record<string, FilterableField[] | undefined>;
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
@@ -99,6 +99,7 @@ const FilterConfiguration: FC<Props> = ({
     const handleChangeTileConfiguration = useCallback(
         (action: FilterActions, tileUuid: string, filter?: FilterableField) => {
             const filters = availableTileFilters[tileUuid];
+            if (!filters) return;
 
             setInternalFilterRule((prevState) =>
                 produce(prevState, (draftState) => {
