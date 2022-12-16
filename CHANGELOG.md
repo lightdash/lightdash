@@ -1,3 +1,10 @@
+## [0.349.1](https://github.com/lightdash/lightdash/compare/0.349.0...0.349.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* dashboard filters wrapping ([#3982](https://github.com/lightdash/lightdash/issues/3982)) ([c84386d](https://github.com/lightdash/lightdash/commit/c84386d0c10799cf7f07e87cb6d0da83033a65ba))
+
 # [0.349.0](https://github.com/lightdash/lightdash/compare/0.348.0...0.349.0) (2022-12-16)
 
 
