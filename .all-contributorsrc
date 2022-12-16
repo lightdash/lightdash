@@ -840,6 +840,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "pilis",
+      "name": "Piotr Pilis",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29205792?v=4",
+      "profile": "https://piotr.pilis.pl/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
