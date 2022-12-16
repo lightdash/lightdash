@@ -20,6 +20,8 @@ import ConfigureLayout from './assets/configure-layout.png';
 import ConfigureSeries from './assets/series-configure.png';
 import ConfigureMultipleSeries from './assets/multiple-series-configure.png';
 import PivotTable from './assets/pivot-table-config.jpg';
+import AddReferenceLine from './assets/add-reference-line.png';
+import ReferenceLineConfig from './assets/reference-line-config.png';
 
 # Visualizing your results
 
@@ -223,9 +225,27 @@ You have the options to:
 
 <img src={ConfigureAxesRange} width="286" height="315" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### Legend
+#### Display 
 
-This tab is where you're able to control the legend in your chart. You can:
+This tab is where you're able to control the legend and reference lines in your chart. 
+
+You can add reference lines to your charts to easily visualize goals or thresholds. 
+
+<img src={AddReferenceLine} width="286" height="315" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+To add a reference line, you just need to tick the `add reference line` box, then configure your reference line in the drop-down. 
+
+You can:
+- select a field you want to apply your reference line to
+- select the value you want to set your line at
+
+<img src={ReferenceLineConfig} width="286" height="315" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+If you select a field plotted on your x-axis, then your line will be vertical. If you select a field plotted on your y-axis, then your line will be horizontal.
+
+Reference lines can only be applied to numeric fields in your chart. 
+
+For your legend, you can:
 
 - Show/hide the legend
 - Adjust the position of the legend on your chart
