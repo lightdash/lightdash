@@ -1,14 +1,20 @@
 import { Collapse, Switch } from '@blueprintjs/core';
-import { EchartsLegend, friendlyName } from '@lightdash/common';
+import {
+    CompiledDimension,
+    EchartsLegend,
+    friendlyName,
+    TableCalculation,
+} from '@lightdash/common';
 import startCase from 'lodash-es/startCase';
 import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { Field, useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
 import Select from '../../ReactHookForm/Select';
 import UnitInput from '../../ReactHookForm/UnitInput';
 import { SectionRow, SectionTitle } from './Legend.styles';
+import { ReferenceLines } from './ReferenceLines';
 
 const triggerSubmitFields = ['show', 'orient'];
 
@@ -25,8 +31,10 @@ enum Units {
 }
 
 const units = Object.values(Units);
-
-const LegendPanel: FC = () => {
+type Props = {
+    items: (Field | TableCalculation | CompiledDimension)[];
+};
+const LegendPanel: FC<Props> = ({ items }) => {
     const {
         cartesianConfig: { dirtyEchartsConfig, setLegend },
     } = useVisualizationContext();
@@ -110,6 +118,7 @@ const LegendPanel: FC = () => {
                     />
                 </SectionRow>
             </Collapse>
+            <ReferenceLines items={items} />
         </Form>
     );
 };
