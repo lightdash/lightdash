@@ -23,9 +23,10 @@ const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
         if (health.data?.hasEmailClient) {
             return (
                 <>
-                    <b>{invite.email}</b> has been invited! You can also share
-                    this link with them and they can join your organization.
-                    This link will expire in {days} days.
+                    We've just sent <b>{invite.email}</b> an email with their
+                    invite! You can also share their invite link with them to
+                    join your organization. This link will expire in {days}{' '}
+                    days.
                 </>
             );
         }
