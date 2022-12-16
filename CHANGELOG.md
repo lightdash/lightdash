@@ -1,3 +1,10 @@
+# [0.349.0](https://github.com/lightdash/lightdash/compare/0.348.0...0.349.0) (2022-12-16)
+
+
+### Features
+
+* add Proxy-Authorization header support ([#3969](https://github.com/lightdash/lightdash/issues/3969)) ([4bd75f8](https://github.com/lightdash/lightdash/commit/4bd75f8fa714f62301cb6a784e93ee5b52cf7043))
+
 # [0.348.0](https://github.com/lightdash/lightdash/compare/0.347.1...0.348.0) (2022-12-16)
 
 
