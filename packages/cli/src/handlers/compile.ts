@@ -17,7 +17,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
-import { validateDbtMetrics, validateDbtModel } from '../dbt/validation';
+import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
@@ -76,12 +76,6 @@ ${errors.join('')}
                 .join(', ')}`,
         );
     }
-
-    // Validate metrics in the manifest - compile fails if any invalid
-    const metrics = validateDbtMetrics(Object.values(manifest.metrics));
-    GlobalState.debug(
-        `> Validated dbt metrics: ${metrics.map((m) => m.name).join(', ')}`,
-    );
 
     GlobalState.debug(
         `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,

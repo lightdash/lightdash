@@ -1,5 +1,4 @@
 import {
-    DbtMetric,
     DbtModelNode,
     DbtRawModelNode,
     ExploreError,
@@ -13,21 +12,10 @@ import {
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
-import dbtManifestSchema from '../manifestv7.json';
 import lightdashDbtSchema from '../schema.json';
 
-const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
+const ajv = new Ajv({ schemas: [lightdashDbtSchema] });
 addFormats(ajv);
-
-const getMetricValidator = () => {
-    const metricValidator = ajv.getSchema<DbtMetric>(
-        'https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric',
-    );
-    if (metricValidator === undefined) {
-        throw new ParseError('Could not parse dbt schema.');
-    }
-    return metricValidator;
-};
 
 const getModelValidator = () => {
     const modelValidator = ajv.getSchema<DbtRawModelNode>(
@@ -82,20 +70,4 @@ export const validateDbtModel = (
         },
         [[] as DbtModelNode[], [] as ExploreError[]],
     );
-};
-
-export const validateDbtMetrics = (metrics: DbtMetric[]): DbtMetric[] => {
-    const validator = getMetricValidator();
-    metrics.forEach((metric) => {
-        const isValid = validator(metric);
-        if (isValid !== true) {
-            throw new ParseError(
-                `Could not parse dbt metric with id ${
-                    metric.unique_id
-                }: ${formatAjvErrors(validator)}`,
-                {},
-            );
-        }
-    });
-    return metrics;
 };
