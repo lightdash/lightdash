@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.350.1",
+    "version": "0.350.2",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
     "dependencies": {
         "@databricks/sql": "1.0.0",
         "@google-cloud/bigquery": "^5.9.1",
-        "@lightdash/common": "^0.350.1",
+        "@lightdash/common": "^0.350.2",
         "pg": "^8.7.1",
         "snowflake-sdk": "^1.6.4"
     },

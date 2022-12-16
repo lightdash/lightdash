@@ -1,3 +1,10 @@
+## [0.350.2](https://github.com/lightdash/lightdash/compare/0.350.1...0.350.2) (2022-12-16)
+
+
+### Bug Fixes
+
+* dashboard tile filter is not being removed ([#3994](https://github.com/lightdash/lightdash/issues/3994)) ([5a4d0a8](https://github.com/lightdash/lightdash/commit/5a4d0a8054e86e66750b08887f3205a3a974d341))
+
 ## [0.350.1](https://github.com/lightdash/lightdash/compare/0.350.0...0.350.1) (2022-12-16)
 
 
