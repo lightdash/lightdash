@@ -380,6 +380,7 @@ PGPORT=5432
 PGUSER=pg_user *OR* machine username if no prior postgres set up
 PGPASSWORD=pg_password *OR* blank if no prior postgres set up
 PGDATABASE=postgres
+PGSSLMODE=disable
 DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
 

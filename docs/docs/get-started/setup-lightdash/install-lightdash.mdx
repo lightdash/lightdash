@@ -116,6 +116,7 @@ Name | Type | Default | Required | Description
 **PGUSER** | string | postgres | false | Postgres user
 **PGPASSWORD** | string |  | true | Postgres password
 **PGDATABASE** | string | postgres | false | Postgres database name
+**PGSSLMODE** | string | disable | false | Handling the postgres conectivity secured
 **SECURE_COOKIES** | boolean | false | false | Secure cookies
 **TRUST_PROXY** | boolean | false | false | Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto" header)
 **LIGHTDASH_SECRET** | string | | true | This is the secret used to sign the session ID cookie and to encrypt sensitive information. **Do not share this secret!**
@@ -177,6 +178,7 @@ Name | Type | Default | Required | Description
 **PGUSER** | string |  | true | Postgres user
 **PGPASSWORD** | string |  | true | Postgres password
 **PGDATABASE** | string |  | true | Postgres database name
+**PGSSLMODE** | string | disable | false | Handling the postgres conectivity secured
 **LIGHTDASH_SECRET** | string | | true | This is the secret used to sign the session ID cookie and to encrypt sensitive information. **Do not share this secret!**
 **SECURE_COOKIES** | boolean | false | false | Secure cookies
 **TRUST_PROXY** | boolean | false | false | Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto" header)

@@ -47,6 +47,7 @@ jobs:
           PGPORT: 5432
           PGUSER: postgres
           PGDATABASE: postgres
+          PGSSLMODE: disable
       ## Install packages and lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install

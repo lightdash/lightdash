@@ -12,6 +12,7 @@ services:
       - PGUSER=postgres
       - PGPORT=5432
       - PGDATABASE=postgres
+      - PGSSLMODE=disable
       - SECURE_COOKIES=false
       - TRUST_PROXY=false
       - LIGHTDASH_SECRET='not very secret'

@@ -10,6 +10,7 @@ services:
       - PGUSER=${PGUSER:-postgres}
       - PGPASSWORD=${PGPASSWORD}
       - PGDATABASE=${PGDATABASE:-postgres}
+      - PGSSLMODE=${PGSSLMODE:-disable}
       - SECURE_COOKIES=${SECURE_COOKIES:-false}
       - TRUST_PROXY=${TRUST_PROXY:-false}
       - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}

@@ -141,7 +141,7 @@ export async function seed(knex: Knex): Promise<void> {
             user: process.env.PGUSER,
             password: process.env.PGPASSWORD,
             dbname: process.env.PGDATABASE,
-            sslmode: 'disable',
+            sslmode: process.env.PGSSLMODE,
         };
         encryptedCredentials = enc.encrypt(JSON.stringify(creds));
     } else {
@@ -156,7 +156,7 @@ export async function seed(knex: Knex): Promise<void> {
                 password: process.env.PGPASSWORD,
                 dbname: process.env.PGDATABASE,
                 keepalivesIdle: 0,
-                sslmode: 'disable',
+                sslmode: process.env.PGSSLMODE,
                 threads: 1,
             }),
         );

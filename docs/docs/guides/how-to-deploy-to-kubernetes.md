@@ -33,6 +33,7 @@ configMap:
   PGPORT: 5432
   PGUSER: lightdash
   PGDATABASE: lightdash
+  PGSSLMODE: disable
   
   # If you know the public url of the finished Lightdash installation add it here
   # you may have to return later and change this
@@ -96,6 +97,7 @@ configMap:
   PGPORT: 5432
   PGUSER: lightdash
   PGDATABASE: lightdash
+  PGSSLMODE: disable
 
   # https url of your public Lightdash instance - Change me!
   SITE_URL: https://lightdash.myorg.com
