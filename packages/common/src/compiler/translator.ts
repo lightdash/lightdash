@@ -1,6 +1,7 @@
 import {
     buildModelGraph,
-    convertMetric,
+    convertColumnMetric,
+    convertModelMetric,
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
@@ -304,7 +305,7 @@ export const convertTable = (
                 Object.entries(column.meta.metrics || {}).map(
                     ([name, metric]) => [
                         name,
-                        convertMetric({
+                        convertColumnMetric({
                             modelName: model.name,
                             dimensionName: dimension.name,
                             dimensionSql: dimension.sql,
@@ -328,13 +329,25 @@ export const convertTable = (
         [{}, {}],
     );
 
+    const modelMetrics = Object.fromEntries(
+        Object.entries(model.meta.metrics || {}).map(([name, metric]) => [
+            name,
+            convertModelMetric({
+                modelName: model.name,
+                name,
+                metric,
+                tableLabel,
+            }),
+        ]),
+    );
+
     const convertedDbtMetrics = Object.fromEntries(
         dbtMetrics.map((metric) => [
             metric.name,
             convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
         ]),
     );
-    const allMetrics = { ...convertedDbtMetrics, ...metrics }; // Model-level metric names take priority
+    const allMetrics = { ...convertedDbtMetrics, ...modelMetrics, ...metrics }; // Model-level metric names take priority
 
     const duplicatedNames = Object.keys(allMetrics).filter((metric) =>
         Object.keys(dimensions).includes(metric),
