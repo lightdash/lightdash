@@ -1,4 +1,4 @@
-import moment, { MomentInput } from 'moment';
+import moment, { isMoment, Moment, MomentInput } from 'moment';
 import {
     CompactOrAlias,
     DimensionType,
@@ -38,6 +38,12 @@ export const getDateFormat = (
     }
     return dateForm;
 };
+
+const isMomentInput = (value: unknown): value is MomentInput =>
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    value instanceof Date ||
+    isMoment(value);
 
 export function formatDate(
     date: MomentInput,
@@ -234,17 +240,21 @@ export function formatFieldValue(
             return formatBoolean(value);
         case DimensionType.DATE:
         case MetricType.DATE:
-            return formatDate(
-                value,
-                isDimension(field) ? field.timeInterval : undefined,
-                convertToUTC,
-            );
+            return isMomentInput(value)
+                ? formatDate(
+                      value,
+                      isDimension(field) ? field.timeInterval : undefined,
+                      convertToUTC,
+                  )
+                : 'NaT';
         case DimensionType.TIMESTAMP:
-            return formatTimestamp(
-                value,
-                isDimension(field) ? field.timeInterval : undefined,
-                convertToUTC,
-            );
+            return isMomentInput(value)
+                ? formatTimestamp(
+                      value,
+                      isDimension(field) ? field.timeInterval : undefined,
+                      convertToUTC,
+                  )
+                : 'NaT';
         case MetricType.MAX:
         case MetricType.MIN: {
             if (value instanceof Date) {

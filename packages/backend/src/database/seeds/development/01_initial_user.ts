@@ -174,10 +174,18 @@ export async function seed(knex: Knex): Promise<void> {
         project_id: projectId,
     });
 
-    const explores = await projectService.refreshAllTables(
-        { userUuid: SEED_ORG_1_ADMIN.user_uuid },
-        SEED_PROJECT.project_uuid,
-        RequestMethod.UNKNOWN,
-    );
-    await projectModel.saveExploresToCache(SEED_PROJECT.project_uuid, explores);
+    try {
+        const explores = await projectService.refreshAllTables(
+            { userUuid: SEED_ORG_1_ADMIN.user_uuid },
+            SEED_PROJECT.project_uuid,
+            RequestMethod.UNKNOWN,
+        );
+        await projectModel.saveExploresToCache(
+            SEED_PROJECT.project_uuid,
+            explores,
+        );
+    } catch (e) {
+        console.log(e);
+        throw e;
+    }
 }
