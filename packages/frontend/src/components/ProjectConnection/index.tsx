@@ -31,7 +31,8 @@ import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
 import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
-    FloatingCard,
+    FloatingFixedCard,
+    FloatingFixedWidth,
     FormContainer,
     LeftPanel,
     LeftPanelMessage,
@@ -246,40 +247,44 @@ export const UpdateProjectConnection: FC<{
     }
 
     return (
-        <FormContainer
-            name="update_project"
-            methods={methods}
-            onSubmit={onSubmit}
-            onError={onError}
-            hasPaddingBottom
-        >
-            <ProjectFormProvider savedProject={data}>
-                <ProjectForm
-                    showGeneralSettings
-                    isProjectUpdate
-                    disabled={isDisabled}
-                    defaultType={health.data?.defaultProject?.type}
-                />
-            </ProjectFormProvider>
+        <>
+            <FormContainer
+                name="update_project"
+                methods={methods}
+                onSubmit={onSubmit}
+                onError={onError}
+                hasPaddingBottom
+            >
+                <ProjectFormProvider savedProject={data}>
+                    <ProjectForm
+                        showGeneralSettings
+                        isProjectUpdate
+                        disabled={isDisabled}
+                        defaultType={health.data?.defaultProject?.type}
+                    />
+                </ProjectFormProvider>
 
-            {!isIdle && (
-                <ProjectStatusCallout
-                    style={{ marginBottom: '20px' }}
-                    mutation={updateMutation}
-                />
-            )}
+                {!isIdle && (
+                    <ProjectStatusCallout
+                        style={{ marginBottom: '20px' }}
+                        mutation={updateMutation}
+                    />
+                )}
 
-            <FloatingCard>
-                <CompileProjectButton
-                    large
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Test &amp; compile project"
-                    loading={isSaving}
-                    disabled={isDisabled}
-                />
-            </FloatingCard>
-        </FormContainer>
+                <FloatingFixedCard>
+                    <FloatingFixedWidth>
+                        <CompileProjectButton
+                            large
+                            type="submit"
+                            intent={Intent.PRIMARY}
+                            text="Test &amp; compile project"
+                            loading={isSaving}
+                            disabled={isDisabled}
+                        />
+                    </FloatingFixedWidth>
+                </FloatingFixedCard>
+            </FormContainer>
+        </>
     );
 };
 

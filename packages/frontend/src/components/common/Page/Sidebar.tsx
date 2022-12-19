@@ -5,9 +5,11 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 
+export const SIDEBAR_WIDTH = 400;
+
 const SidebarWrapper = styled(Card)`
     height: calc(100vh - 50px);
-    flex-basis: 400px;
+    flex-basis: ${SIDEBAR_WIDTH}px;
     flex-shrink: 0;
     flex-grow: 0;
     overflow: hidden;

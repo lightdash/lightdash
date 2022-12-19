@@ -1,5 +1,6 @@
 import { Button, Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import { SIDEBAR_WIDTH } from '../common/Page/Sidebar';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
 
@@ -66,10 +67,22 @@ export const LeftPanelMessage = styled.p`
     color: ${Colors.GRAY1};
 `;
 
-export const FloatingCard = styled(Card)`
+export const FloatingFixedCard = styled(Card)`
+    padding: 0;
+    padding-left: ${SIDEBAR_WIDTH}px;
     position: fixed;
-    justify-content: flex-end;
     display: flex;
-    width: ${CONTENT_WIDTH}px;
+    z-index: 1;
+    width: 100%;
     bottom: 0;
+    left: 0;
+    right: 0;
+`;
+
+export const FloatingFixedWidth = styled.div`
+    padding: 20px 0;
+    width: ${CONTENT_WIDTH}px;
+    margin: auto;
+    display: flex;
+    justify-content: flex-end;
 `;
