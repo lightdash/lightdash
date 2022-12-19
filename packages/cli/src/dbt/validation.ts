@@ -12,9 +12,10 @@ import {
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
+import dbtManifestSchema from '../manifestv7.json';
 import lightdashDbtSchema from '../schema.json';
 
-const ajv = new Ajv({ schemas: [lightdashDbtSchema] });
+const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
 addFormats(ajv);
 
 const getModelValidator = () => {
