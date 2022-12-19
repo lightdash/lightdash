@@ -19,6 +19,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
+import DrillDownModal from '../components/MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
@@ -76,6 +77,7 @@ const GridTile: FC<
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
+                    <DrillDownModal />
                 </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:

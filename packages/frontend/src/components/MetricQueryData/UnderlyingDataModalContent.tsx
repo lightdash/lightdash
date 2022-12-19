@@ -41,7 +41,8 @@ const defaultMetricQuery: MetricQuery = {
 
 const UnderlyingDataModalContent: FC<Props> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { tableName, metricQuery, config } = useMetricQueryDataContext();
+    const { tableName, metricQuery, underlyingDataConfig } =
+        useMetricQueryDataContext();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
 
@@ -63,12 +64,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     );
 
     const showUnderlyingValues: string[] | undefined = useMemo(() => {
-        return config?.meta !== undefined &&
-            isField(config?.meta?.item) &&
-            isMetric(config?.meta.item)
-            ? config?.meta.item.showUnderlyingValues
+        return underlyingDataConfig?.meta !== undefined &&
+            isField(underlyingDataConfig?.meta?.item) &&
+            isMetric(underlyingDataConfig?.meta.item)
+            ? underlyingDataConfig?.meta.item.showUnderlyingValues
             : undefined;
-    }, [config?.meta]);
+    }, [underlyingDataConfig?.meta]);
 
     const sortByUnderlyingValues = useCallback(
         (columnA: TableColumn, columnB: TableColumn) => {
@@ -96,8 +97,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     );
 
     const underlyingDataMetricQuery = useMemo<MetricQuery>(() => {
-        if (!config) return defaultMetricQuery;
-        const { meta, row, pivotReference, dimensions, value } = config;
+        if (!underlyingDataConfig) return defaultMetricQuery;
+        const { meta, row, pivotReference, dimensions, value } =
+            underlyingDataConfig;
         if (meta?.item === undefined) return defaultMetricQuery;
 
         // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
@@ -194,8 +196,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 ? [metricQuery.filters.dimensions]
                 : [];
 
-        const dashboardFilters = config.dashboardFilters
-            ? config.dashboardFilters.dimensions
+        const dashboardFilters = underlyingDataConfig.dashboardFilters
+            ? underlyingDataConfig.dashboardFilters.dimensions
             : [];
         const combinedFilters = [
             ...exploreFilters,
@@ -234,7 +236,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             filters: allFilters,
         };
     }, [
-        config,
+        underlyingDataConfig,
         metricQuery,
         tableName,
         allFields,

@@ -1,5 +1,6 @@
 import { FC, memo } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
+import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import ExplorerHeader from './ExplorerHeader';
@@ -26,6 +27,7 @@ const Explorer: FC = memo(() => {
             <ResultsCard />
             <SqlCard />
             <UnderlyingDataModal />
+            <DrillDownModal />
         </MetricQueryDataProvider>
     );
 });
