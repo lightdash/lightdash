@@ -1,5 +1,6 @@
 import { assertUnreachable, AuthorizationError } from '@lightdash/common';
 import fetch from 'node-fetch';
+import puppeteer from 'puppeteer';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -9,12 +10,23 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
 
-const puppeteer = require('puppeteer');
-
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
+
+const viewport = {
+    width: 1400,
+    height: 768,
+};
+
+const blockedUrls = [
+    'headwayapp.co',
+    'rudderlabs.com',
+    'analytics.lightdash.com',
+    'cohere.so',
+    'intercom.io',
+];
 
 export enum LightdashPage {
     DASHBOARD = 'dashboard',
@@ -52,7 +64,7 @@ const saveScreenshot = async (
     imageId: string,
     cookie: string,
     parsedUrl: ParsedUrl,
-): Promise<Buffer | undefined> => {
+): Promise<string | Buffer | undefined> => {
     let browser;
 
     try {
@@ -65,18 +77,8 @@ const saveScreenshot = async (
 
         await page.setExtraHTTPHeaders({ cookie });
 
-        await page.setViewport({
-            width: 1400,
-            height: 768, // hardcoded
-        });
+        await page.setViewport(viewport);
 
-        const blockedUrls = [
-            'headwayapp.co',
-            'rudderlabs.com',
-            'analytics.lightdash.com',
-            'cohere.so',
-            'intercom.io',
-        ];
         await page.setRequestInterception(true);
         page.on('request', (request: any) => {
             const requestUrl = request.url();
@@ -88,7 +90,7 @@ const saveScreenshot = async (
             request.continue();
         });
         await page.goto(parsedUrl.url, {
-            timeout: 100000,
+            timeout: 180000,
             waitUntil: 'networkidle0',
         });
         const path = `/tmp/${imageId}.png`;
@@ -100,6 +102,11 @@ const saveScreenshot = async (
         await page.waitForSelector(selector);
         const element = await page.$(selector);
 
+        if (!element) {
+            Logger.error(`Can't find element ${selector} on page`);
+
+            return undefined;
+        }
         if (parsedUrl.lightdashPage === LightdashPage.DASHBOARD) {
             // Remove navbar from screenshot
             await page.evaluate((sel: any) => {
@@ -181,6 +188,8 @@ export class UnfurlService {
 
     private async getSharedUrl(linkUrl: string): Promise<string> {
         const [shareId] = linkUrl.match(nanoidRegex) || [];
+        if (!shareId) return linkUrl;
+
         const shareUrl = await this.shareModel.getSharedUrl(shareId);
 
         const fullUrl = `${this.lightdashConfig.siteUrl}${shareUrl.path}${shareUrl.params}`;

@@ -20,15 +20,9 @@ export class SlackAuthenticationModel {
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
-        console.debug(
-            'SlackAuthenticationModel constructor',
-            this.database !== undefined,
-        );
     }
 
     async getOrganizationId(organizationUuid: string | undefined) {
-        console.debug('getOrganizationId', this.database);
-
         if (organizationUuid === undefined)
             throw new Error(
                 `Could not find organization with uuid ${organizationUuid}`,
