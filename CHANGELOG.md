@@ -1,3 +1,10 @@
+# [0.351.0](https://github.com/lightdash/lightdash/compare/0.350.5...0.351.0) (2022-12-19)
+
+
+### Features
+
+* add schema validation to CLI ([#3983](https://github.com/lightdash/lightdash/issues/3983)) ([fe8b66d](https://github.com/lightdash/lightdash/commit/fe8b66d4a1356f7955489fde9371ba1fde71b211))
+
 ## [0.350.5](https://github.com/lightdash/lightdash/compare/0.350.4...0.350.5) (2022-12-19)
 
 
