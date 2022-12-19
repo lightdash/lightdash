@@ -1,3 +1,10 @@
+## [0.350.4](https://github.com/lightdash/lightdash/compare/0.350.3...0.350.4) (2022-12-19)
+
+
+### Bug Fixes
+
+* remove extra fields from ShareModel ([#3996](https://github.com/lightdash/lightdash/issues/3996)) ([e743b40](https://github.com/lightdash/lightdash/commit/e743b408fd51d9620291cab915cfc7d249b25313))
+
 ## [0.350.3](https://github.com/lightdash/lightdash/compare/0.350.2...0.350.3) (2022-12-16)
 
 
