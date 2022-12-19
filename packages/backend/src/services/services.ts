@@ -1,3 +1,4 @@
+import { S3Service } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
@@ -107,4 +108,8 @@ export const slackService = new SlackService({
     spaceModel,
     shareModel,
     encryptionService,
+});
+
+export const s3Service = new S3Service({
+    lightdashConfig,
 });

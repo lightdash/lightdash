@@ -52,8 +52,15 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
     };
+    s3: S3Config;
 };
 
+export type S3Config = {
+    accessKey?: string;
+    secretKey?: string;
+    endpoint?: string;
+    bucket?: string;
+};
 export type IntercomConfig = {
     appId: string;
     apiBase: string;
@@ -228,6 +235,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',
                 ) || 5000,
+        },
+        s3: {
+            accessKey: process.env.S3_ACCESS_KEY,
+            secretKey: process.env.S3_SECRET_KEY,
+            bucket: process.env.S3_BUCKET,
+            endpoint: process.env.S3_ENDPOINT,
         },
     };
 };
