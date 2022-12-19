@@ -9,6 +9,7 @@ export const NavBarWrapper = styled(Navbar)`
     position: sticky;
     top: 0;
     height: ${NAVBAR_HEIGHT}px;
+    z-index: 1000;
 `;
 
 export const ProjectDropdown = styled(HTMLSelect)`
