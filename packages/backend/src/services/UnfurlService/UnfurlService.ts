@@ -129,34 +129,6 @@ const saveScreenshot = async (
     }
 };
 
-const getUserCookie = async (userUuid: string): Promise<string> => {
-    const token = getAuthenticationToken(userUuid);
-
-    const response = await fetch(
-        `${process.env.SITE_URL}/api/v1/headless-browser/login/${userUuid}`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token }),
-        },
-    );
-    if (response.status !== 200) {
-        throw new Error(
-            `Unable to get cookie for user ${userUuid}: ${await response.text()}`,
-        );
-    }
-    const header = response.headers.get('set-cookie');
-    if (header === null) {
-        const loginBody = await response.json();
-        throw new AuthorizationError(
-            `Cannot sign in:\n${JSON.stringify(loginBody)}`,
-        );
-    }
-    return header;
-};
-
 export class UnfurlService {
     lightdashConfig: LightdashConfig;
 
@@ -303,6 +275,36 @@ export class UnfurlService {
         }
     }
 
+    private static getUserCookie = async (
+        userUuid: string,
+    ): Promise<string> => {
+        const token = getAuthenticationToken(userUuid);
+
+        const response = await fetch(
+            `${process.env.SITE_URL}/api/v1/headless-browser/login/${userUuid}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token }),
+            },
+        );
+        if (response.status !== 200) {
+            throw new Error(
+                `Unable to get cookie for user ${userUuid}: ${await response.text()}`,
+            );
+        }
+        const header = response.headers.get('set-cookie');
+        if (header === null) {
+            const loginBody = await response.json();
+            throw new AuthorizationError(
+                `Cannot sign in:\n${JSON.stringify(loginBody)}`,
+            );
+        }
+        return header;
+    };
+
     async unfurl(
         originUrl: string,
         imageId: string,
@@ -319,7 +321,7 @@ export class UnfurlService {
         }
         Logger.debug(`Unfurling URL ${parsedUrl.url}`);
 
-        const cookie = await getUserCookie(authUserUuid);
+        const cookie = await UnfurlService.getUserCookie(authUserUuid);
 
         const { title, description } = await this.getTitleAndDescription(
             parsedUrl,
