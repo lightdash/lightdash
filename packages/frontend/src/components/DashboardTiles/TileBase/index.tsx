@@ -45,6 +45,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [isHovering, setIsHovering] = useState(false);
 
     const hideTitle =
         tile.type !== DashboardTileTypes.MARKDOWN
@@ -54,8 +55,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
             isEditMode={isEditMode}
+            isHovering={isHovering}
         >
-            <HeaderContainer isEditMode={isEditMode}>
+            <HeaderContainer
+                isEditMode={isEditMode}
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+            >
                 <HeaderWrapper>
                     {!hideTitle && (
                         <TitleWrapper>

@@ -1,9 +1,23 @@
 import { Card, Colors, H5 } from '@blueprintjs/core';
-import styled from 'styled-components';
+import styled, { createGlobalStyle } from 'styled-components';
 
 interface HeaderContainerProps {
     isEditMode: boolean;
+    isHovering?: boolean;
 }
+
+export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    ${(props) =>
+        props.isEditMode && props.isHovering
+            ? `
+                box-shadow: 0 0 0 1px ${Colors.GRAY4};
+            `
+            : ''}
+`;
 
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
@@ -16,37 +30,22 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
     ${(props) =>
         props.isEditMode
             ? `
-      &:hover {
-          cursor: grab;
-         
-      }
-      &:active, &:focus {
-        cursor: grabbing;
-      }
-    `
+                &:hover {
+                    cursor: grab;
+                }
+                &:active, &:focus {
+                    cursor: grabbing;
+                }
+            `
             : ''}
 `;
-export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
-    height: 100%;
-    display: flex;
-    flex-direction: column;
 
-    ${(props) =>
-        props.isEditMode
-            ? `
-    ${HeaderContainer}:hover {
-        box-shadow: 0 0 0 1px ${Colors.GRAY4};
-    }
-
-    ${HeaderContainer}:focus {
-        box-shadow: 0 0 0 1px ${Colors.BLUE4};
-    }
-
-    ${HeaderContainer}:active {
-        box-shadow: 0 0 0 1px ${Colors.BLUE4};
-    }`
-            : ``}
+export const GlobalTileStyles = createGlobalStyle`
+  .react-draggable.react-draggable-dragging ${TileBaseWrapper} {
+    box-shadow: 0 0 0 1px ${Colors.BLUE4};
+  }
 `;
+
 export const TitleWrapper = styled.div`
     display: flex;
     flex-direction: row;
