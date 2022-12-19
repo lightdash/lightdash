@@ -1,3 +1,10 @@
+## [0.350.5](https://github.com/lightdash/lightdash/compare/0.350.4...0.350.5) (2022-12-19)
+
+
+### Bug Fixes
+
+* clean up dashboard tiles ([#3965](https://github.com/lightdash/lightdash/issues/3965)) ([58e04fe](https://github.com/lightdash/lightdash/commit/58e04fee47615a75e25bdf5b51fc0ce155e7cf09))
+
 ## [0.350.4](https://github.com/lightdash/lightdash/compare/0.350.3...0.350.4) (2022-12-19)
 
 
