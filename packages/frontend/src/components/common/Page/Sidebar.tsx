@@ -6,10 +6,12 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 
 export const SIDEBAR_WIDTH = 400;
+export const SIDEBAR_Z_INDEX = 1;
 
 const SidebarWrapper = styled(Card)`
     height: calc(100vh - 50px);
     flex-basis: ${SIDEBAR_WIDTH}px;
+    z-index: ${SIDEBAR_Z_INDEX};
     flex-shrink: 0;
     flex-grow: 0;
     overflow: hidden;

@@ -46,7 +46,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         justifyContent: 'space-between',
                         width: '100%',
                         maxWidth: maxWidth || 768,
-                        height: 75,
+                        height: 80,
                     }}
                 >
                     <Button
