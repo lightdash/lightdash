@@ -22,7 +22,7 @@ export const FormContainer = styled(Form)<FormContainerProps>`
 
     ${({ hasPaddingBottom }) =>
         hasPaddingBottom
-            ? `padding-bottom: ${CARD_PADDING * 2 + BIG_BUTTON_HEIGHT}px;`
+            ? `padding-bottom: ${CARD_PADDING * 3 + BIG_BUTTON_HEIGHT}px;`
             : ''}
 `;
 
