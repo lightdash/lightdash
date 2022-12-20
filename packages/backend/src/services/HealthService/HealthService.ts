@@ -30,7 +30,7 @@ export class HealthService {
 
     private hasSlackConfig(): boolean {
         return (
-            this.lightdashConfig.slack.appToken !== undefined &&
+            this.lightdashConfig.slack?.appToken !== undefined &&
             this.lightdashConfig.slack.signingSecret !== undefined
         );
     }
