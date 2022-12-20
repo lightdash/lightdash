@@ -5,19 +5,16 @@ import {
 } from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
-import * as fs from 'fs';
 import path from 'path';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackOptions } from '../clients/Slack/SlackOptions';
-import {
-    deleteInstallationFromOrganizationUuid,
-    getInstallationFromOrganizationUuid,
-} from '../clients/Slack/SlackStorage';
+
 import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { slackAuthenticationModel } from '../models/models';
 
 export const slackRouter = express.Router({ mergeParams: true });
 
@@ -30,9 +27,10 @@ slackRouter.get(
         try {
             const organizationUuid = req.user?.organizationUuid;
             if (!organizationUuid) throw new ForbiddenError();
-            const slackAuth = await getInstallationFromOrganizationUuid(
-                organizationUuid,
-            );
+            const slackAuth =
+                await slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    organizationUuid,
+                );
             const response: SlackSettings = {
                 organizationUuid,
                 slackTeamName: slackAuth.installation?.team?.name || 'Slack',
@@ -81,7 +79,9 @@ slackRouter.delete(
 
             const organizationUuid = req.user?.organizationUuid;
             if (!organizationUuid) throw new ForbiddenError();
-            await deleteInstallationFromOrganizationUuid(organizationUuid);
+            await slackAuthenticationModel.deleteInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
 
             res.json({
                 status: 'ok',
@@ -106,7 +106,7 @@ slackRouter.get(
             const options = {
                 redirectUri: slackOptions.redirectUri,
                 scopes: slackOptions.scopes,
-                userScopes: ['files:write'],
+                userScopes: slackOptions.installerOptions.userScopes,
                 metadata: JSON.stringify(metadata),
             };
             analytics.track({

@@ -1,3 +1,45 @@
+# [0.351.0](https://github.com/lightdash/lightdash/compare/0.350.5...0.351.0) (2022-12-19)
+
+
+### Features
+
+* add schema validation to CLI ([#3983](https://github.com/lightdash/lightdash/issues/3983)) ([fe8b66d](https://github.com/lightdash/lightdash/commit/fe8b66d4a1356f7955489fde9371ba1fde71b211))
+
+## [0.350.5](https://github.com/lightdash/lightdash/compare/0.350.4...0.350.5) (2022-12-19)
+
+
+### Bug Fixes
+
+* clean up dashboard tiles ([#3965](https://github.com/lightdash/lightdash/issues/3965)) ([58e04fe](https://github.com/lightdash/lightdash/commit/58e04fee47615a75e25bdf5b51fc0ce155e7cf09))
+
+## [0.350.4](https://github.com/lightdash/lightdash/compare/0.350.3...0.350.4) (2022-12-19)
+
+
+### Bug Fixes
+
+* remove extra fields from ShareModel ([#3996](https://github.com/lightdash/lightdash/issues/3996)) ([e743b40](https://github.com/lightdash/lightdash/commit/e743b408fd51d9620291cab915cfc7d249b25313))
+
+## [0.350.3](https://github.com/lightdash/lightdash/compare/0.350.2...0.350.3) (2022-12-16)
+
+
+### Bug Fixes
+
+* message on invite user success is confusing ([#3993](https://github.com/lightdash/lightdash/issues/3993)) ([a0300fe](https://github.com/lightdash/lightdash/commit/a0300feb5bd006bb141dab088bf1586fbbcd674f))
+
+## [0.350.2](https://github.com/lightdash/lightdash/compare/0.350.1...0.350.2) (2022-12-16)
+
+
+### Bug Fixes
+
+* dashboard tile filter is not being removed ([#3994](https://github.com/lightdash/lightdash/issues/3994)) ([5a4d0a8](https://github.com/lightdash/lightdash/commit/5a4d0a8054e86e66750b08887f3205a3a974d341))
+
+## [0.350.1](https://github.com/lightdash/lightdash/compare/0.350.0...0.350.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* script bash preinstall script if fails on windows ([#3970](https://github.com/lightdash/lightdash/issues/3970)) ([65ec9cd](https://github.com/lightdash/lightdash/commit/65ec9cd396f72dab3ed2eb0f5b0af23ab63c5906))
+
 # [0.350.0](https://github.com/lightdash/lightdash/compare/0.349.1...0.350.0) (2022-12-16)
 
 
