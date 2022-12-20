@@ -136,11 +136,11 @@ export class UnfurlService {
                     : `.echarts-for-react, [data-testid="visualization"]`; // Get .echarts-for-react, otherwise fallsback to data-testid (tables and bignumbers)
             let element;
             try {
-                await page.waitForSelector(selector, { timeout: 5000 });
+                await page.waitForSelector(selector, { timeout: 30000 });
                 element = await page.$(selector);
             } catch (e) {
                 Logger.info(
-                    `Can't find element ${selector} on page, returning body`,
+                    `Can't find element ${selector} on page ${e}, returning body`,
                 );
                 element = await page.$('body');
             }
@@ -186,6 +186,16 @@ export class UnfurlService {
     }
 
     private async parseUrl(linkUrl: string): Promise<ParsedUrl> {
+        if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
+            Logger.debug(
+                `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
+            );
+            return {
+                isValid: false,
+                url: linkUrl,
+            };
+        }
+
         const shareUrl = new RegExp(`/share/${nanoid}`);
         const url = linkUrl.match(shareUrl)
             ? await this.getSharedUrl(linkUrl)
