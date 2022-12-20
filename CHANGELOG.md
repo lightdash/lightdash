@@ -1,3 +1,10 @@
+# [0.352.0](https://github.com/lightdash/lightdash/compare/0.351.0...0.352.0) (2022-12-20)
+
+
+### Features
+
+* add s3 client to upload images to slack ([#4009](https://github.com/lightdash/lightdash/issues/4009)) ([0fd5d99](https://github.com/lightdash/lightdash/commit/0fd5d99345067156196744c61d3a028e013b1017))
+
 # [0.351.0](https://github.com/lightdash/lightdash/compare/0.350.5...0.351.0) (2022-12-19)
 
 
