@@ -43,12 +43,12 @@ import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
-import { EchartSeriesClickEvent } from '../SimpleChart';
-import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
-    useUnderlyingDataContext,
-} from '../UnderlyingData/UnderlyingDataProvider';
+    useMetricQueryDataContext,
+} from '../MetricQueryData/MetricQueryDataProvider';
+import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
 import { FilterLabel, GlobalTileStyles } from './TileBase/TileBase.styles';
 
@@ -162,8 +162,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         left: number;
         top: number;
     }>();
-    const { viewData } = useUnderlyingDataContext();
-
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
@@ -431,7 +430,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         dimensions,
                                                         pivotReference,
                                                     } = viewUnderlyingDataOptions;
-                                                    viewData(
+                                                    openUnderlyingDataModel(
                                                         value,
                                                         meta,
                                                         row,
@@ -444,9 +443,6 @@ const DashboardChartTile: FC<Props> = (props) => {
                                         />
                                         <DrillDownMenuItem
                                             row={viewUnderlyingDataOptions?.row}
-                                            metricQuery={
-                                                savedQuery?.metricQuery
-                                            }
                                             selectedItem={
                                                 viewUnderlyingDataOptions?.meta
                                                     ?.item

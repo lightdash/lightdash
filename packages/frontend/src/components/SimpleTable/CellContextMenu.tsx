@@ -1,18 +1,14 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { isField, MetricQuery, ResultRow } from '@lightdash/common';
+import { isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
-const CellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell'> & {
-        metricQuery?: MetricQuery;
-    }
-> = ({ cell, metricQuery }) => {
-    const { viewData } = useUnderlyingDataContext();
+const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -28,7 +24,7 @@ const CellContextMenu: FC<
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(
+                    openUnderlyingDataModel(
                         value,
                         meta,
                         cell.row.original || {},
@@ -39,7 +35,6 @@ const CellContextMenu: FC<
             />
             <DrillDownMenuItem
                 row={cell.row.original || {}}
-                metricQuery={metricQuery}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
             />

@@ -11,8 +11,6 @@ import CollapsableCard from '../../common/CollapsableCard';
 import DownloadCsvPopup from '../../DownloadCsvPopup';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
-import UnderlyingDataModal from '../../UnderlyingData/UnderlyingDataModal';
-import UnderlyingDataProvider from '../../UnderlyingData/UnderlyingDataProvider';
 import { ExplorerResults } from './ExplorerResults';
 
 const ResultsCard: FC = memo(() => {
@@ -24,9 +22,6 @@ const ResultsCard: FC = memo(() => {
     );
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
-    );
-    const filters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.filters,
     );
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
@@ -100,10 +95,7 @@ const ResultsCard: FC = memo(() => {
                 )
             }
         >
-            <UnderlyingDataProvider tableName={tableName} filters={filters}>
-                <ExplorerResults />
-                <UnderlyingDataModal />
-            </UnderlyingDataProvider>
+            <ExplorerResults />
         </CollapsableCard>
     );
 });

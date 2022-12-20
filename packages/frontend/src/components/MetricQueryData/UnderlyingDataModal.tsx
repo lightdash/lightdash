@@ -1,17 +1,18 @@
 import { Dialog } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 import UnderlyingDataModalContent from './UnderlyingDataModalContent';
-import { useUnderlyingDataContext } from './UnderlyingDataProvider';
 
 interface Props {}
 
 const UnderlyingDataModal: FC<Props> = () => {
-    const { isModalOpen, closeModal } = useUnderlyingDataContext();
+    const { isUnderlyingDataModalOpen, closeUnderlyingDataModal } =
+        useMetricQueryDataContext();
 
     return (
         <Dialog
-            isOpen={isModalOpen}
-            onClose={closeModal}
+            isOpen={isUnderlyingDataModalOpen}
+            onClose={closeUnderlyingDataModal}
             lazy
             title={`View underlying data`}
             style={{

@@ -10,7 +10,6 @@ import {
     getItemId,
     isDimension,
     isField,
-    MetricQuery,
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
@@ -19,17 +18,16 @@ import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFil
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import DrillDownMenuItem from '../UnderlyingData/DrillDownMenuItem';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 const DashboardCellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell'> & {
         explore: Explore | undefined;
         tileUuid: string;
-        metricQuery?: MetricQuery;
     }
-> = ({ cell, explore, tileUuid, metricQuery }) => {
-    const { viewData } = useUnderlyingDataContext();
+> = ({ cell, explore, tileUuid }) => {
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -89,7 +87,7 @@ const DashboardCellContextMenu: FC<
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(
+                    openUnderlyingDataModel(
                         value,
                         meta,
                         cell.row.original || {},
@@ -101,7 +99,6 @@ const DashboardCellContextMenu: FC<
             />
             <DrillDownMenuItem
                 row={cell.row.original || {}}
-                metricQuery={metricQuery}
                 dashboardFilters={dashboardFiltersThatApplyToChart}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
