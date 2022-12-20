@@ -14,6 +14,7 @@ export const getAuthenticationToken = (value: string) =>
     createHmac('sha512', lightdashConfig.lightdashSecret)
         .update(value)
         .digest('hex');
+
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
         const { userUuid } = req.params;

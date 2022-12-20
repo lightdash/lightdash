@@ -1,0 +1,161 @@
+{
+    "definitions": {
+        "LightdashDimension": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_]+$"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                },
+                "dimension": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "time_intervals": {
+                    "oneOf": [
+                        {
+                            "const": "default"
+                        },
+                        {
+                            "const": "OFF"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "hidden": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "LightdashMetric": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "average",
+                        "count",
+                        "count_distinct",
+                        "sum",
+                        "min",
+                        "max",
+                        "number",
+                        "string",
+                        "date",
+                        "boolean"
+                    ]
+                },
+                "description": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "LightdashColumnMetadata": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "dimension": {
+                    "$ref": "#/definitions/LightdashDimension"
+                },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/LightdashMetric"
+                    },
+                    "default": {}
+                }
+            }
+        },
+        "LightdashModelMetadata": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "joins": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["join", "sql_on"],
+                        "properties": {
+                            "join": {
+                                "type": "string"
+                            },
+                            "sql_on": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "default": {}
+        },
+        "LightdashNodeConfig": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/NodeConfig"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "#/definitions/LightdashModelMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashColumnInfo": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ColumnInfo"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "#/definitions/LightdashColumnMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashCompiledModelNode": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/CompiledModelNode"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "#/definitions/LightdashModelMetadata"
+                        },
+                        "config": {
+                            "$ref": "#/definitions/LightdashNodeConfig"
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/dbt/manifest/v7.json"
+}
