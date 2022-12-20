@@ -111,14 +111,12 @@ export class SlackService {
     async unfurlSlackUrls(message: any) {
         const { event, client, context } = message;
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
-        event.links.map(async (l: any, index: number) => {
+        event.links.map(async (l: any) => {
             const eventUserId = context.botUserId;
 
             try {
                 const { teamId } = context;
-                const imageId = `slack-image-${context.teamId}-${
-                    event.unfurl_id
-                }-${nanoid()}-${index}`;
+                const imageId = `slack-image-${nanoid()}`;
                 const authUserUuid =
                     await this.slackAuthenticationModel.getUserUuid(teamId);
 
