@@ -101,6 +101,10 @@ export const searchService = new SearchService({
     spaceModel,
 });
 
+export const s3Service = new S3Service({
+    lightdashConfig,
+});
+
 export const unfurlService = new UnfurlService({
     lightdashConfig,
     dashboardModel,
@@ -108,8 +112,5 @@ export const unfurlService = new UnfurlService({
     spaceModel,
     shareModel,
     encryptionService,
-});
-
-export const s3Service = new S3Service({
-    lightdashConfig,
+    s3Service,
 });

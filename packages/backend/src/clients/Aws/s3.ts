@@ -49,4 +49,8 @@ export class S3Service {
         const data = await this.s3.upload(params).promise();
         return data.Location;
     }
+
+    isEnabled(): boolean {
+        return this.s3 !== undefined;
+    }
 }

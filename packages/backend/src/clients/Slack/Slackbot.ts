@@ -1,6 +1,8 @@
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 
+import { nanoid } from 'nanoid';
 import { analytics } from '../../analytics/client';
+import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { apiV1Router } from '../../routers/apiV1Router';
@@ -46,18 +48,25 @@ const notifySlackError = async (
 
 type SlackServiceDependencies = {
     slackAuthenticationModel: SlackAuthenticationModel;
+    lightdashConfig: LightdashConfig;
 };
 
 export class SlackService {
     slackAuthenticationModel: SlackAuthenticationModel;
 
-    constructor({ slackAuthenticationModel }: SlackServiceDependencies) {
+    lightdashConfig: LightdashConfig;
+
+    constructor({
+        slackAuthenticationModel,
+        lightdashConfig,
+    }: SlackServiceDependencies) {
+        this.lightdashConfig = lightdashConfig;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.start();
     }
 
     async start() {
-        if (process.env.SLACK_APP_TOKEN) {
+        if (this.lightdashConfig.slack.appToken) {
             try {
                 const slackReceiver = new ExpressReceiver({
                     ...slackOptions,
@@ -72,7 +81,7 @@ export class SlackService {
                     router: apiV1Router,
                 });
 
-                await slackReceiver.start(parseInt('4001', 10));
+                await slackReceiver.start(parseInt('4352', 10));
 
                 const app = new App({
                     ...slackOptions,
@@ -83,9 +92,9 @@ export class SlackService {
                             this.slackAuthenticationModel.getInstallation(i),
                     },
                     logLevel: LogLevel.INFO,
-                    port: parseInt(process.env.SLACK_PORT || '4000', 10),
+                    port: this.lightdashConfig.slack.port,
                     socketMode: true,
-                    appToken: process.env.SLACK_APP_TOKEN,
+                    appToken: this.lightdashConfig.slack.appToken,
                 });
 
                 app.event('link_shared', (m) => this.unfurlSlackUrls(m));
@@ -107,7 +116,9 @@ export class SlackService {
 
             try {
                 const { teamId } = context;
-                const imageId = `slack-image-${context.teamId}-${event.unfurl_id}-${index}`;
+                const imageId = `slack-image-${context.teamId}-${
+                    event.unfurl_id
+                }-${nanoid()}-${index}`;
                 const authUserUuid =
                     await this.slackAuthenticationModel.getUserUuid(teamId);
 

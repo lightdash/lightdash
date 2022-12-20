@@ -15,10 +15,6 @@ type HealthServiceDependencies = {
     organizationModel: OrganizationModel;
 };
 
-const hasSlackConfig = (): boolean =>
-    process.env.SLACK_APP_TOKEN !== undefined &&
-    process.env.SLACK_SIGNING_SECRET !== undefined;
-
 export class HealthService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -30,6 +26,13 @@ export class HealthService {
     }: HealthServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
+    }
+
+    private hasSlackConfig(): boolean {
+        return (
+            this.lightdashConfig.slack.appToken !== undefined &&
+            this.lightdashConfig.slack.signingSecret !== undefined
+        );
     }
 
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
@@ -65,7 +68,7 @@ export class HealthService {
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             query: this.lightdashConfig.query,
-            hasSlack: hasSlackConfig(),
+            hasSlack: this.hasSlackConfig(),
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,
