@@ -66,7 +66,7 @@ export class SlackService {
     }
 
     async start() {
-        if (this.lightdashConfig.slack.appToken) {
+        if (this.lightdashConfig.slack?.appToken) {
             try {
                 const slackReceiver = new ExpressReceiver({
                     ...slackOptions,

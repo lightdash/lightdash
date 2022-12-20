@@ -103,7 +103,7 @@ export class UnfurlService {
         let browser;
 
         try {
-            const browserWSEndpoint = `ws://${this.lightdashConfig.headlessBrowser.host}:${this.lightdashConfig.headlessBrowser.port}`;
+            const browserWSEndpoint = `ws://${this.lightdashConfig.headlessBrowser?.host}:${this.lightdashConfig.headlessBrowser?.port}`;
             browser = await puppeteer.connect({
                 browserWSEndpoint,
             });

@@ -15,7 +15,7 @@ export class S3Service {
         this.lightdashConfig = lightdashConfig;
 
         if (
-            lightdashConfig.s3.accessKey &&
+            lightdashConfig.s3?.accessKey &&
             lightdashConfig.s3.secretKey &&
             lightdashConfig.s3.endpoint
         ) {
@@ -35,7 +35,7 @@ export class S3Service {
     }
 
     async uploadImage(image: Buffer, imageId: string): Promise<string> {
-        if (!this.lightdashConfig.s3.bucket || this.s3 === undefined) {
+        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
             throw new Error(
                 "Missing S3 bucket configuration, can't upload image",
             );

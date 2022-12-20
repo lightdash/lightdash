@@ -1,10 +1,10 @@
 import { lightdashConfig } from '../../config/lightdashConfig';
 
 export const slackOptions = {
-    signingSecret: lightdashConfig.slack.signingSecret || '',
-    clientId: lightdashConfig.slack.clientId || '',
-    clientSecret: lightdashConfig.slack.clientSecret || '',
-    stateSecret: lightdashConfig.slack.stateSecret,
+    signingSecret: lightdashConfig.slack?.signingSecret || '',
+    clientId: lightdashConfig.slack?.clientId || '',
+    clientSecret: lightdashConfig.slack?.clientSecret || '',
+    stateSecret: lightdashConfig.slack?.stateSecret,
     scopes: ['links:read', 'links:write'],
 
     // Slack only allow https on redirections

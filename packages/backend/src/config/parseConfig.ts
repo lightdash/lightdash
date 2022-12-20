@@ -52,9 +52,9 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
     };
-    s3: S3Config;
-    headlessBrowser: HeadlessBrowserConfig;
-    slack: SlackConfig;
+    s3?: S3Config;
+    headlessBrowser?: HeadlessBrowserConfig;
+    slack?: SlackConfig;
 };
 
 export type SlackConfig = {
