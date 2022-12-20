@@ -1,3 +1,10 @@
+## [0.352.1](https://github.com/lightdash/lightdash/compare/0.352.0...0.352.1) (2022-12-20)
+
+
+### Bug Fixes
+
+* do not unfurl COMPOSER messages on slack ([#4017](https://github.com/lightdash/lightdash/issues/4017)) ([5b4020d](https://github.com/lightdash/lightdash/commit/5b4020d0d9e4d63c0569252e1392935156c16d58))
+
 # [0.352.0](https://github.com/lightdash/lightdash/compare/0.351.0...0.352.0) (2022-12-20)
 
 
