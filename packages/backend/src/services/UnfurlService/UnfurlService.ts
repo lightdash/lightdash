@@ -1,6 +1,7 @@
 import { assertUnreachable, AuthorizationError } from '@lightdash/common';
 import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
+import { S3Service } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -58,75 +59,7 @@ type UnfurlServiceDependencies = {
     spaceModel: SpaceModel;
     shareModel: ShareModel;
     encryptionService: EncryptionService;
-};
-
-const saveScreenshot = async (
-    imageId: string,
-    cookie: string,
-    parsedUrl: ParsedUrl,
-): Promise<string | Buffer | undefined> => {
-    let browser;
-
-    try {
-        const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
-        browser = await puppeteer.connect({
-            browserWSEndpoint,
-        });
-
-        const page = await browser.newPage();
-
-        await page.setExtraHTTPHeaders({ cookie });
-
-        await page.setViewport(viewport);
-
-        await page.setRequestInterception(true);
-        page.on('request', (request: any) => {
-            const requestUrl = request.url();
-            if (blockedUrls.includes(requestUrl)) {
-                request.abort();
-                return;
-            }
-
-            request.continue();
-        });
-        await page.goto(parsedUrl.url, {
-            timeout: 180000,
-            waitUntil: 'networkidle0',
-        });
-        const path = `/tmp/${imageId}.png`;
-
-        const selector =
-            parsedUrl.lightdashPage === LightdashPage.DASHBOARD
-                ? '.react-grid-layout'
-                : `.echarts-for-react, [data-testid="visualization"]`; // Get .echarts-for-react, otherwise fallsback to data-testid (tables and bignumbers)
-        await page.waitForSelector(selector);
-        const element = await page.$(selector);
-
-        if (!element) {
-            Logger.error(`Can't find element ${selector} on page`);
-
-            return undefined;
-        }
-        if (parsedUrl.lightdashPage === LightdashPage.DASHBOARD) {
-            // Remove navbar from screenshot
-            await page.evaluate((sel: any) => {
-                // @ts-ignore
-                const elements = document.querySelectorAll(sel);
-                elements.forEach((el) => el.parentNode.removeChild(el));
-            }, '.bp4-navbar');
-        }
-
-        const imageBuffer = await element.screenshot({
-            path,
-        });
-
-        return imageBuffer;
-    } catch (e) {
-        Logger.error(`Unable to fetch screenshots from headless chrome ${e}`);
-        return undefined;
-    } finally {
-        if (browser) await browser.close();
-    }
+    s3Service: S3Service;
 };
 
 export class UnfurlService {
@@ -142,6 +75,8 @@ export class UnfurlService {
 
     encryptionService: EncryptionService;
 
+    s3Service: S3Service;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -149,6 +84,7 @@ export class UnfurlService {
         spaceModel,
         shareModel,
         encryptionService,
+        s3Service,
     }: UnfurlServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
@@ -156,6 +92,85 @@ export class UnfurlService {
         this.spaceModel = spaceModel;
         this.shareModel = shareModel;
         this.encryptionService = encryptionService;
+        this.s3Service = s3Service;
+    }
+
+    private async saveScreenshot(
+        imageId: string,
+        cookie: string,
+        parsedUrl: ParsedUrl,
+    ): Promise<Buffer | undefined> {
+        let browser;
+
+        try {
+            const browserWSEndpoint = `ws://${this.lightdashConfig.headlessBrowser?.host}:${this.lightdashConfig.headlessBrowser?.port}`;
+            browser = await puppeteer.connect({
+                browserWSEndpoint,
+            });
+
+            const page = await browser.newPage();
+
+            await page.setExtraHTTPHeaders({ cookie });
+
+            await page.setViewport(viewport);
+
+            await page.setRequestInterception(true);
+            page.on('request', (request: any) => {
+                const requestUrl = request.url();
+                if (blockedUrls.includes(requestUrl)) {
+                    request.abort();
+                    return;
+                }
+
+                request.continue();
+            });
+            await page.goto(parsedUrl.url, {
+                timeout: 180000,
+                waitUntil: 'networkidle0',
+            });
+            const path = `/tmp/${imageId}.png`;
+
+            const selector =
+                parsedUrl.lightdashPage === LightdashPage.DASHBOARD
+                    ? '.react-grid-layout'
+                    : `.echarts-for-react, [data-testid="visualization"]`; // Get .echarts-for-react, otherwise fallsback to data-testid (tables and bignumbers)
+            let element;
+            try {
+                await page.waitForSelector(selector, { timeout: 30000 });
+                element = await page.$(selector);
+            } catch (e) {
+                Logger.info(
+                    `Can't find element ${selector} on page ${e}, returning body`,
+                );
+                element = await page.$('body');
+            }
+
+            if (parsedUrl.lightdashPage === LightdashPage.DASHBOARD) {
+                // Remove navbar from screenshot
+                await page.evaluate((sel: any) => {
+                    // @ts-ignore
+                    const elements = document.querySelectorAll(sel);
+                    elements.forEach((el) => el.parentNode.removeChild(el));
+                }, '.bp4-navbar');
+            }
+
+            if (!element) {
+                Logger.warn(`Can't find element on page`);
+                return undefined;
+            }
+            const imageBuffer = (await element.screenshot({
+                path,
+            })) as Buffer;
+
+            return imageBuffer;
+        } catch (e) {
+            Logger.error(
+                `Unable to fetch screenshots from headless chrome ${e.message}`,
+            );
+            return undefined;
+        } finally {
+            if (browser) await browser.close();
+        }
     }
 
     private async getSharedUrl(linkUrl: string): Promise<string> {
@@ -275,13 +290,11 @@ export class UnfurlService {
         }
     }
 
-    private static getUserCookie = async (
-        userUuid: string,
-    ): Promise<string> => {
+    private async getUserCookie(userUuid: string): Promise<string> {
         const token = getAuthenticationToken(userUuid);
 
         const response = await fetch(
-            `${process.env.SITE_URL}/api/v1/headless-browser/login/${userUuid}`,
+            `${this.lightdashConfig.siteUrl}/api/v1/headless-browser/login/${userUuid}`,
             {
                 method: 'POST',
                 headers: {
@@ -303,7 +316,7 @@ export class UnfurlService {
             );
         }
         return header;
-    };
+    }
 
     async unfurl(
         originUrl: string,
@@ -321,17 +334,23 @@ export class UnfurlService {
         }
         Logger.debug(`Unfurling URL ${parsedUrl.url}`);
 
-        const cookie = await UnfurlService.getUserCookie(authUserUuid);
+        const cookie = await this.getUserCookie(authUserUuid);
 
         const { title, description } = await this.getTitleAndDescription(
             parsedUrl,
         );
 
-        const buffer = await saveScreenshot(imageId, cookie, parsedUrl);
-        const imageUrl =
-            buffer !== undefined
-                ? `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`
-                : undefined;
+        const buffer = await this.saveScreenshot(imageId, cookie, parsedUrl);
+
+        let imageUrl;
+        if (buffer !== undefined) {
+            if (this.s3Service.isEnabled() !== undefined) {
+                imageUrl = await this.s3Service.uploadImage(buffer, imageId);
+            } else {
+                // We will share the image saved by puppetteer on our lightdash enpdoint
+                imageUrl = `${this.lightdashConfig.siteUrl}/api/v1/slack/image/${imageId}.png`;
+            }
+        }
 
         return {
             title,

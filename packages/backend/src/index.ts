@@ -251,4 +251,5 @@ passport.deserializeUser(async (id: string, done) => {
 
 export const slackService = new SlackService({
     slackAuthenticationModel,
+    lightdashConfig,
 });

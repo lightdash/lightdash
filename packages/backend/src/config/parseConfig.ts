@@ -52,8 +52,29 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
     };
+    s3?: S3Config;
+    headlessBrowser?: HeadlessBrowserConfig;
+    slack?: SlackConfig;
 };
 
+export type SlackConfig = {
+    appToken?: string;
+    port: number;
+    signingSecret?: string;
+    clientId?: string;
+    clientSecret?: string;
+    stateSecret: string;
+};
+export type HeadlessBrowserConfig = {
+    host?: string;
+    port?: string;
+};
+export type S3Config = {
+    accessKey?: string;
+    secretKey?: string;
+    endpoint?: string;
+    bucket?: string;
+};
 export type IntercomConfig = {
     appId: string;
     apiBase: string;
@@ -228,6 +249,24 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',
                 ) || 5000,
+        },
+        s3: {
+            accessKey: process.env.S3_ACCESS_KEY,
+            secretKey: process.env.S3_SECRET_KEY,
+            bucket: process.env.S3_BUCKET,
+            endpoint: process.env.S3_ENDPOINT,
+        },
+        headlessBrowser: {
+            port: process.env.HEADLESS_BROWSER_PORT,
+            host: process.env.HEADLESS_BROWSER_HOST,
+        },
+        slack: {
+            appToken: process.env.SLACK_APP_TOKEN,
+            port: parseInt(process.env.SLACK_PORT || '4351', 10),
+            signingSecret: process.env.SLACK_SIGNING_SECRET,
+            clientId: process.env.SLACK_CLIENT_ID,
+            clientSecret: process.env.SLACK_CLIENT_SECRET,
+            stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
         },
     };
 };

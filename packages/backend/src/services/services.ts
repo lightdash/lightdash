@@ -1,3 +1,4 @@
+import { S3Service } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
@@ -100,6 +101,10 @@ export const searchService = new SearchService({
     spaceModel,
 });
 
+export const s3Service = new S3Service({
+    lightdashConfig,
+});
+
 export const unfurlService = new UnfurlService({
     lightdashConfig,
     dashboardModel,
@@ -107,4 +112,5 @@ export const unfurlService = new UnfurlService({
     spaceModel,
     shareModel,
     encryptionService,
+    s3Service,
 });
