@@ -77,7 +77,7 @@ export const NotificationWrapper = styled.div`
     padding: 0.357em 0.571em;
     border-radius: 0.214em;
     position: relative;
-    color: ${Colors.GRAY5} !important;
+    color: ${Colors.GRAY4} !important;
 
     :hover {
         cursor: pointer;
