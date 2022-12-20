@@ -110,7 +110,11 @@ export class SlackService {
 
     async unfurlSlackUrls(message: any) {
         const { event, client, context } = message;
+
+        if (event.channel === 'COMPOSER') return; // Do not unfurl urls when typing, only when message is sent
+
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
+
         event.links.map(async (l: any) => {
             const eventUserId = context.botUserId;
 
