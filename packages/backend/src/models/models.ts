@@ -17,6 +17,7 @@ import { SavedChartModel } from './SavedChartModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
+import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
 import { UserModel } from './UserModel';
 
@@ -55,5 +56,9 @@ export const searchModel = new SearchModel({
 export const dbtCloudMetricsModel = new DbtCloudMetricsModel();
 
 export const shareModel = new ShareModel({
+    database,
+});
+
+export const slackAuthenticationModel = new SlackAuthenticationModel({
     database,
 });
