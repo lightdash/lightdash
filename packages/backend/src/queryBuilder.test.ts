@@ -6,6 +6,8 @@ import {
     METRIC_QUERY,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
+    METRIC_QUERY_NESTED_METRIC,
+    METRIC_QUERY_NESTED_METRIC_SQL,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
     METRIC_QUERY_SQL_WITH_NO_LIMIT,
@@ -57,6 +59,14 @@ describe('Query builder', () => {
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
 
+    test('Should build metric query with nested metric', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_NESTED_METRIC,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_NESTED_METRIC_SQL);
+    });
     test('Should build metric query where a field references another table', () => {
         expect(
             buildQuery({
