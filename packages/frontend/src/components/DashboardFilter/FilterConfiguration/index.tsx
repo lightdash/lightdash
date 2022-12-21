@@ -1,5 +1,5 @@
 import { Intent, Tab, Tabs } from '@blueprintjs/core';
-import { Classes, Popover2Props } from '@blueprintjs/popover2';
+import { Classes, Popover2Props, Tooltip2 } from '@blueprintjs/popover2';
 
 import {
     applyDefaultTileTargets,
@@ -143,7 +143,14 @@ const FilterConfiguration: FC<Props> = ({
             >
                 <Tab
                     id="settings"
-                    title="Settings"
+                    title={
+                        <Tooltip2
+                            content="Select the value you want to filter your dimension by"
+                            position="bottom"
+                        >
+                            Settings
+                        </Tooltip2>
+                    }
                     panel={
                         <FilterSettings
                             field={field}
@@ -157,7 +164,14 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tab
                     id="tiles"
-                    title="Tiles"
+                    title={
+                        <Tooltip2
+                            content="Select tiles to apply filter to and which field to filter by"
+                            position="bottom"
+                        >
+                            Tiles
+                        </Tooltip2>
+                    }
                     panel={
                         <TileFilterConfiguration
                             field={field}
