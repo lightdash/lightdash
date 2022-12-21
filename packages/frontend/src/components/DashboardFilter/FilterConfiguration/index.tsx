@@ -18,12 +18,14 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import { FC, useCallback, useState } from 'react';
+import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import SimpleButton from '../../common/SimpleButton';
 import {
     ActionsWrapper,
     ApplyButton,
     ConfigureFilterWrapper,
+    FieldLabelAndIconWrapper,
 } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -134,7 +136,10 @@ const FilterConfiguration: FC<Props> = ({
 
     return (
         <ConfigureFilterWrapper>
-            <FieldLabel item={field} />
+            <FieldLabelAndIconWrapper>
+                <FieldIcon item={field} />
+                <FieldLabel item={field} />
+            </FieldLabelAndIconWrapper>
 
             <Tabs
                 selectedTabId={selectedTabId}

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
+import { BolderLabel } from '../FilterSearch/FilterSearch.styles';
 
 interface FilterSettingsProps {
     field: FilterableField;
@@ -36,7 +37,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     return (
         <>
-            <FormGroup label="Value">
+            <FormGroup label={<BolderLabel>Value</BolderLabel>}>
                 <HTMLSelect
                     fill
                     onChange={(e) =>

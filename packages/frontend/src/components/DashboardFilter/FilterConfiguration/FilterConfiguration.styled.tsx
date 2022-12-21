@@ -8,6 +8,12 @@ export const ConfigureFilterWrapper = styled.div`
     gap: 15px;
 `;
 
+export const FieldLabelAndIconWrapper = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+`;
+
 export const ActionsWrapper = styled.div`
     display: flex;
     justify-content: space-between;
