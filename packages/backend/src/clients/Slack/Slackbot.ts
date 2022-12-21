@@ -111,7 +111,7 @@ export class SlackService {
         }
     }
 
-    private static async unfurl(
+    private static async sendUnfurl(
         event: any,
         originalUrl: string,
         unfurl: Unfurl,
@@ -167,7 +167,12 @@ export class SlackService {
                 if (details) {
                     Logger.debug(`Unfurling URL ${l.url}`);
 
-                    await SlackService.unfurl(event, l.url, details, client);
+                    await SlackService.sendUnfurl(
+                        event,
+                        l.url,
+                        details,
+                        client,
+                    );
 
                     const imageId = `slack-image-${nanoid()}`;
                     const authUserUuid =
@@ -181,7 +186,7 @@ export class SlackService {
                     );
 
                     if (imageUrl) {
-                        await this.unfurl(
+                        await SlackService.sendUnfurl(
                             event,
                             l.url,
                             { ...details, imageUrl },
