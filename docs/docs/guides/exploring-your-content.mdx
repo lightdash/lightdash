@@ -5,6 +5,9 @@ import SearchBar from './assets/search-bar.png';
 import ExploreFromHere from './assets/explore-from-here.jpg';
 import SelectTable from './assets/select-table.jpg';
 import UnderlyingData from './assets/underlying-data.jpg';
+import DrillByActionMenu from './assets/drill-by-action-menu.png';
+import DrillByModal from './assets/drill-by-modal.png';
+import DrillBySourceExample from './assets/drill-by-source-example.png';
 
 # Exploring your content
 
@@ -50,7 +53,25 @@ If you don't want all of the fields from your Table shown, then you can specify 
 
 Check out the [metric](/references/metrics.mdx#show-underlying-values) reference docs to see how to do this in your Table's `.yml` file.
 
-By default, when you click `Explore from here` from the `view underlying data` table, you're brought to an Explore view with no fields selected. If you specify fields in `show underlying data`, then these fields will be automatically added to the results table, so users won't `Explore from here` into an empty results table. 
+By default, when you click `Explore from here` from the `view underlying data` table, you're brought to an Explore view with no fields selected. If you specify fields in `show underlying data`, then these fields will be automatically added to the results table, so users won't `Explore from here` into an empty results table.
+
+### Drill into a metric in a chart or your results table using `drill by`
+
+You can drill into a metric in your chart or results table to better understand a point in your chart. Selecting `drill by` lets you group your metric by a dimension, like the total revenue segmented by (or grouped by) product type. Note that `drill by` only works for metrics, not for dimensions or table calculations.
+
+For example, here I have a chart with the total number of page views (a metric) over time. You can see, there's a spike in October, so I want to drill into that data point and see where this traffic is coming from...
+
+To do this, I click on the data point in my chart, then click `drill by` in the action menu:
+
+<img src={DrillByActionMenu} width="629" height="305" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+I then select the dimension I want to segment my metric by (or "drill by"). In this example, I'm interested in grouping the total page views by the `source` so I can figure out where this traffic is coming from. 
+
+<img src={DrillByModal} width="416" height="344" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Once I've selected the dimension I want to group by, I click `open in new tab` and see a chart with my metric, grouped by `Source`. Now I can uncover where this spike in web traffic was coming from 👀
+
+<img src={DrillBySourceExample} width="1006" height="247" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ## Exploring data in a dashboard
 

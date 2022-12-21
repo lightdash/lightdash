@@ -1,6 +1,9 @@
 import CrossFilteringImage from './assets/cross-filtering.png';
 import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
 import UnderlyingChart from './assets/underlying-chart-data.jpg';
+import DrillByActionMenu from './assets/drill-by-action-menu.png';
+import DrillByModal from './assets/drill-by-modal.png';
+import DrillBySourceExample from './assets/drill-by-source-example.png';
 
 # Interacting with your dashboards
 
@@ -33,3 +36,21 @@ You can see which tiles had the filter applied by hovering over the `dashboard f
 The filters you add using cross-filtering won't be saved unless you're in `edit` mode (i.e. you've clicked `edit` in your dashboard) and you save the filters you applied. 
 
 Otherwise, you can cross-filter away without any worry that you'll be changing the chart for everyone else! 😊
+
+### Drill into a metric in a chart or your results table using `drill by`
+
+You can drill into a metric in your chart or results table to better understand a point in your chart. Selecting `drill by` lets you group your metric by a dimension, like the total revenue segmented by (or grouped by) product type. Note that `drill by` only works for metrics, not for dimensions or table calculations.
+
+For example, here I have a chart with the total number of page views (a metric) over time. You can see, there's a spike in October, so I want to drill into that data point and see where this traffic is coming from...
+
+To do this, I click on the data point in my chart, then click `drill by` in the action menu:
+
+<img src={DrillByActionMenu} width="629" height="305" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+I then select the dimension I want to segment my metric by (or "drill by"). In this example, I'm interested in grouping the total page views by the `source` so I can figure out where this traffic is coming from. 
+
+<img src={DrillByModal} width="416" height="344" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Once I've selected the dimension I want to group by, I click `open in new tab` and see a chart with my metric, grouped by `Source`. Now I can uncover where this spike in web traffic was coming from 👀
+
+<img src={DrillBySourceExample} width="1006" height="247" style={{display: "block", margin: "0 auto 20px auto"}}/>
