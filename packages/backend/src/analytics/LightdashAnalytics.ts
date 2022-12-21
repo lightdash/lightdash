@@ -389,6 +389,7 @@ type ShareUrl = BaseTrack & {
 type ShareSlack = BaseTrack & {
     event:
         | 'share_slack.unfurl'
+        | 'share_slack.unfurl_completed'
         | 'share_slack.unfurl_error'
         | 'share_slack.install'
         | 'share_slack.install_error'
