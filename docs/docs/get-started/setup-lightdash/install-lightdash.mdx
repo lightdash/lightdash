@@ -13,7 +13,7 @@ Choose your preferred environment to self-host Lightdash:
 2. [Deploy **Lightdash to Heroku** with 1-click](#deploy-to-heroku) to get a cloud deployment for your whole team with minimum effort.
 3. [Manually install **Lightdash in production**](#deploy-manually) to setup Lightdash in your preferred production environment.
 
-----
+---
 
 ## Getting set up on Lightdash Cloud
 
@@ -26,13 +26,13 @@ and you don't have to worry about any of the setup for hosting the instance your
 this container, Heroku and cloud-platforms business, or you're just not interested in the overhead of hosting your BI yourself,
 then [Lightdash Cloud](https://lightdash.typeform.com/public-beta#source=docs) might be a good option for you :)
 
-----
+---
 
 ## Deploy locally with our installation script
 
 Our installation script is the simplest way to install Lightdash if you only want to run Lightdash on your local
 machine (that means, you won't be able to share the things you build in
- Lightdash with anyone else):
+Lightdash with anyone else):
 
 :::caution Production deployments
 
@@ -62,7 +62,7 @@ cd lightdash
 When running the install script you have two choices:
 
 1. **Fast install (recommended)**: will automatically configure Lightdash with sensible defaults. You must host your
-dbt project on github/gitlab to use this method.
+   dbt project on github/gitlab to use this method.
 2. **Custom install**: gives more customisation including connecting Lightdash to a dbt project on your local machine.
 
 ```bash
@@ -75,7 +75,7 @@ If you have a Windows machine and get the error **Error response from daemon: i/
 Go to **Docker > Settings > General** and enable the option **Expose daemon on tcp://localhost:2375 without TLS**
 :::
 
-----
+---
 
 ## Deploy to Heroku
 
@@ -97,9 +97,9 @@ your Lightdash app.
 #### 3. Setup your admin account and Lightdash project
 
 As the first user for Lightdash, you'll be prompted to create an admin account to secure your instance. Then, you'll get started with creating your Lightdash project.
-You can follow along with the instructions for setting up your Lightdash project here: #page to instructions for Lightdash project setup guide
+You can follow along with the instructions for [creating your first project in Lightdash](./get-project-lightdash-ready)
 
-----
+---
 
 ## Deploy manually
 
@@ -109,18 +109,18 @@ This is the recommended way to install and run Lightdash in production.
 
 Lightdash docker compose main environment variables:
 
-Name | Type | Default | Required | Description
----|---|---|---|---
-**PGHOST** | string | *auto generated* | false | postgres hostname
-**PGPORT** | number | 5432 | false | Postgres port
-**PGUSER** | string | postgres | false | Postgres user
-**PGPASSWORD** | string |  | true | Postgres password
-**PGDATABASE** | string | postgres | false | Postgres database name
-**SECURE_COOKIES** | boolean | false | false | Secure cookies
-**TRUST_PROXY** | boolean | false | false | Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto" header)
-**LIGHTDASH_SECRET** | string | | true | This is the secret used to sign the session ID cookie and to encrypt sensitive information. **Do not share this secret!**
-**PORT** | number | 8080 | false | Port for Lightdash
-**DBT_PROJECT_DIR** | string | . | false | Path to your local dbt project. Only set this value if you want to use a dbt project from the same machine
+| Name                 | Type    | Default          | Required | Description                                                                                                               |
+| -------------------- | ------- | ---------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **PGHOST**           | string  | _auto generated_ | false    | postgres hostname                                                                                                         |
+| **PGPORT**           | number  | 5432             | false    | Postgres port                                                                                                             |
+| **PGUSER**           | string  | postgres         | false    | Postgres user                                                                                                             |
+| **PGPASSWORD**       | string  |                  | true     | Postgres password                                                                                                         |
+| **PGDATABASE**       | string  | postgres         | false    | Postgres database name                                                                                                    |
+| **SECURE_COOKIES**   | boolean | false            | false    | Secure cookies                                                                                                            |
+| **TRUST_PROXY**      | boolean | false            | false    | Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto" header)                                  |
+| **LIGHTDASH_SECRET** | string  |                  | true     | This is the secret used to sign the session ID cookie and to encrypt sensitive information. **Do not share this secret!** |
+| **PORT**             | number  | 8080             | false    | Port for Lightdash                                                                                                        |
+| **DBT_PROJECT_DIR**  | string  | .                | false    | Path to your local dbt project. Only set this value if you want to use a dbt project from the same machine                |
 
 Check all the possible environment variables [here](../../references/environmentVariables.md)
 
@@ -170,16 +170,17 @@ docker run --name lightdash-db -p "5432:5432" \
 
 Lightdash environment variables:
 
-Name | Type | Default | Required | Description
----|---|---|---|---
-**PGHOST** | string |  | true | Postgres hostname
-**PGPORT** | number |  | true | Postgres port
-**PGUSER** | string |  | true | Postgres user
-**PGPASSWORD** | string |  | true | Postgres password
-**PGDATABASE** | string |  | true | Postgres database name
-**LIGHTDASH_SECRET** | string | | true | This is the secret used to sign the session ID cookie and to encrypt sensitive information. **Do not share this secret!**
-**SECURE_COOKIES** | boolean | false | false | Secure cookies
-**TRUST_PROXY** | boolean | false | false | Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto" header)
+| Name                 | Type    | Default | Required | Description                                                                                                               |
+| -------------------- | ------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **PGHOST**           | string  |         | true     | Postgres hostname                                                                                                         |
+| **PGPORT**           | number  |         | true     | Postgres port                                                                                                             |
+| **PGUSER**           | string  |         | true     | Postgres user                                                                                                             |
+| **PGPASSWORD**       | string  |         | true     | Postgres password                                                                                                         |
+| **PGDATABASE**       | string  |         | true     | Postgres database name                                                                                                    |
+| **LIGHTDASH_SECRET** | string  |         | true     | This is the secret used to sign the session ID cookie and to encrypt sensitive information. **Do not share this secret!** |
+| **SECURE_COOKIES**   | boolean | false   | false    | Secure cookies                                                                                                            |
+| **TRUST_PROXY**      | boolean | false   | false    | Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto" header)                                  |
+
 :::info
 
 If you want to use a dbt project from the same machine, you will need to set a volume to **/usr/app/dbt**. Example:
