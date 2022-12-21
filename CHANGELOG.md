@@ -1,3 +1,10 @@
+## [0.352.4](https://github.com/lightdash/lightdash/compare/0.352.3...0.352.4) (2022-12-21)
+
+
+### Bug Fixes
+
+* show warning on validation errors on CLI ([#4024](https://github.com/lightdash/lightdash/issues/4024)) ([4910ec0](https://github.com/lightdash/lightdash/commit/4910ec04a11ef48159895d6043ade8fc87e1cbbc))
+
 ## [0.352.3](https://github.com/lightdash/lightdash/compare/0.352.2...0.352.3) (2022-12-21)
 
 
