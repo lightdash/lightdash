@@ -1,3 +1,11 @@
+## [0.352.2](https://github.com/lightdash/lightdash/compare/0.352.1...0.352.2) (2022-12-21)
+
+
+### Bug Fixes
+
+* browse menu items should not be underlined ([#4002](https://github.com/lightdash/lightdash/issues/4002)) ([dbe87c1](https://github.com/lightdash/lightdash/commit/dbe87c18232fa9021e80ad2796f5e0bde1082a99))
+* notifications icon styles ([#4022](https://github.com/lightdash/lightdash/issues/4022)) ([2d6a17d](https://github.com/lightdash/lightdash/commit/2d6a17d43de84925e62f599b3da896b87339ae9e))
+
 ## [0.352.1](https://github.com/lightdash/lightdash/compare/0.352.0...0.352.1) (2022-12-20)
 
 
