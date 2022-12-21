@@ -166,6 +166,7 @@ export async function seed(knex: Knex): Promise<void> {
                         },
                         values: [true],
                         operator: FilterOperator.EQUALS,
+                        label: undefined,
                     },
                     {
                         id: '6d28a3a5-c01f-46d8-9f6b-74a9ab1efd99',
@@ -176,6 +177,7 @@ export async function seed(knex: Knex): Promise<void> {
                         values: [5],
                         operator: FilterOperator.IN_THE_PAST,
                         settings: { completed: true, unitOfTime: 'years' },
+                        label: undefined,
                     },
                 ],
                 metrics: [],
