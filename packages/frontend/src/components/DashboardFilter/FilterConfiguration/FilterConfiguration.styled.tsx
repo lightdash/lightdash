@@ -8,15 +8,10 @@ export const ConfigureFilterWrapper = styled.div`
     gap: 15px;
 `;
 
-export const Title = styled.div`
-    font-weight: 600;
-    margin-bottom: 10px;
-`;
-
-export const InputsWrapper = styled.div`
+export const FieldLabelAndIconWrapper = styled.div`
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    gap: 6px;
 `;
 
 export const ActionsWrapper = styled.div`

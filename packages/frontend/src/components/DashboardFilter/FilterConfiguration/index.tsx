@@ -1,5 +1,5 @@
 import { Intent, Tab, Tabs } from '@blueprintjs/core';
-import { Classes, Popover2Props } from '@blueprintjs/popover2';
+import { Classes, Popover2Props, Tooltip2 } from '@blueprintjs/popover2';
 
 import {
     applyDefaultTileTargets,
@@ -18,12 +18,14 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import { FC, useCallback, useState } from 'react';
+import FieldIcon from '../../common/Filters/FieldIcon';
 import FieldLabel from '../../common/Filters/FieldLabel';
 import SimpleButton from '../../common/SimpleButton';
 import {
     ActionsWrapper,
     ApplyButton,
     ConfigureFilterWrapper,
+    FieldLabelAndIconWrapper,
 } from './FilterConfiguration.styled';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -134,7 +136,10 @@ const FilterConfiguration: FC<Props> = ({
 
     return (
         <ConfigureFilterWrapper>
-            <FieldLabel item={field} />
+            <FieldLabelAndIconWrapper>
+                <FieldIcon item={field} />
+                <FieldLabel item={field} />
+            </FieldLabelAndIconWrapper>
 
             <Tabs
                 selectedTabId={selectedTabId}
@@ -143,7 +148,14 @@ const FilterConfiguration: FC<Props> = ({
             >
                 <Tab
                     id="settings"
-                    title="Settings"
+                    title={
+                        <Tooltip2
+                            content="Select the value you want to filter your dimension by"
+                            position="bottom"
+                        >
+                            Settings
+                        </Tooltip2>
+                    }
                     panel={
                         <FilterSettings
                             field={field}
@@ -157,7 +169,14 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tab
                     id="tiles"
-                    title="Tiles"
+                    title={
+                        <Tooltip2
+                            content="Select tiles to apply filter to and which field to filter by"
+                            position="bottom"
+                        >
+                            Tiles
+                        </Tooltip2>
+                    }
                     panel={
                         <TileFilterConfiguration
                             field={field}

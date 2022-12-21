@@ -12,7 +12,6 @@ import {
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
 import FieldSelect from '../../common/Filters/FieldSelect';
-import { Title } from './FilterConfiguration.styled';
 
 interface TileFilterConfigurationProps {
     tiles: DashboardTile[];
@@ -71,10 +70,6 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
 
     return (
         <>
-            <Title>
-                Select tiles to apply filter to and which field to filter by
-            </Title>
-
             {sortedTileEntries.map(([tileUuid, filters]) => {
                 if (!filters) return null;
 
