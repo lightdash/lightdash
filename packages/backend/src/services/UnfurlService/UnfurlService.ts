@@ -98,7 +98,8 @@ export class UnfurlService {
     private async saveScreenshot(
         imageId: string,
         cookie: string,
-        parsedUrl: ParsedUrl,
+        url: string,
+        lightdashPage: LightdashPage,
     ): Promise<Buffer | undefined> {
         let browser;
 
@@ -124,14 +125,14 @@ export class UnfurlService {
 
                 request.continue();
             });
-            await page.goto(parsedUrl.url, {
+            await page.goto(url, {
                 timeout: 180000,
                 waitUntil: 'networkidle0',
             });
             const path = `/tmp/${imageId}.png`;
 
             const selector =
-                parsedUrl.lightdashPage === LightdashPage.DASHBOARD
+                lightdashPage === LightdashPage.DASHBOARD
                     ? '.react-grid-layout'
                     : `.echarts-for-react, [data-testid="visualization"]`; // Get .echarts-for-react, otherwise fallsback to data-testid (tables and bignumbers)
             let element;
@@ -145,7 +146,7 @@ export class UnfurlService {
                 element = await page.$('body');
             }
 
-            if (parsedUrl.lightdashPage === LightdashPage.DASHBOARD) {
+            if (lightdashPage === LightdashPage.DASHBOARD) {
                 // Remove navbar from screenshot
                 await page.evaluate((sel: any) => {
                     // @ts-ignore
@@ -186,16 +187,6 @@ export class UnfurlService {
     }
 
     private async parseUrl(linkUrl: string): Promise<ParsedUrl> {
-        if (!linkUrl.startsWith(this.lightdashConfig.siteUrl)) {
-            Logger.debug(
-                `URL to unfurl ${linkUrl} does not belong to this siteUrl ${this.lightdashConfig.siteUrl}, ignoring.`,
-            );
-            return {
-                isValid: false,
-                url: linkUrl,
-            };
-        }
-
         const shareUrl = new RegExp(`/share/${nanoid}`);
         const url = linkUrl.match(shareUrl)
             ? await this.getSharedUrl(linkUrl)
@@ -318,11 +309,7 @@ export class UnfurlService {
         return header;
     }
 
-    async unfurl(
-        originUrl: string,
-        imageId: string,
-        authUserUuid: string,
-    ): Promise<Unfurl | undefined> {
+    async unfurlDetails(originUrl: string): Promise<Unfurl | undefined> {
         const parsedUrl = await this.parseUrl(originUrl);
 
         if (
@@ -332,15 +319,33 @@ export class UnfurlService {
         ) {
             return undefined;
         }
-        Logger.debug(`Unfurling URL ${parsedUrl.url}`);
-
-        const cookie = await this.getUserCookie(authUserUuid);
 
         const { title, description } = await this.getTitleAndDescription(
             parsedUrl,
         );
 
-        const buffer = await this.saveScreenshot(imageId, cookie, parsedUrl);
+        return {
+            title,
+            description,
+            pageType: parsedUrl.lightdashPage,
+            imageUrl: undefined,
+        };
+    }
+
+    async unfurlImage(
+        url: string,
+        lightdashPage: LightdashPage,
+        imageId: string,
+        authUserUuid: string,
+    ): Promise<string | undefined> {
+        const cookie = await this.getUserCookie(authUserUuid);
+
+        const buffer = await this.saveScreenshot(
+            imageId,
+            cookie,
+            url,
+            lightdashPage,
+        );
 
         let imageUrl;
         if (buffer !== undefined) {
@@ -352,11 +357,6 @@ export class UnfurlService {
             }
         }
 
-        return {
-            title,
-            description,
-            pageType: parsedUrl.lightdashPage,
-            imageUrl,
-        };
+        return imageUrl;
     }
 }
