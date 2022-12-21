@@ -300,6 +300,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center"><a href="https://www.linkedin.com/in/metin-karakus-b586b6132"><img src="https://avatars.githubusercontent.com/u/61006227?v=4?s=100" width="100px;" alt="Metin Karakus"/><br /><sub><b>Metin Karakus</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=m-karakus" title="Code">💻</a></td>
       <td align="center"><a href="https://github.com/yasmin-e"><img src="https://avatars.githubusercontent.com/u/67699259?v=4?s=100" width="100px;" alt="Yasmine"/><br /><sub><b>Yasmine</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=yasmin-e" title="Code">💻</a></td>
       <td align="center"><a href="https://piotr.pilis.pl/"><img src="https://avatars.githubusercontent.com/u/29205792?v=4?s=100" width="100px;" alt="Piotr Pilis"/><br /><sub><b>Piotr Pilis</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=pilis" title="Code">💻</a></td>
+      <td align="center"><a href="https://github.com/judahrand"><img src="https://avatars.githubusercontent.com/u/17158624?v=4?s=100" width="100px;" alt="Judah Rand"/><br /><sub><b>Judah Rand</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Ajudahrand" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>
