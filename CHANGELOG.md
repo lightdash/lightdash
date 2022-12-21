@@ -1,3 +1,10 @@
+## [0.352.3](https://github.com/lightdash/lightdash/compare/0.352.2...0.352.3) (2022-12-21)
+
+
+### Bug Fixes
+
+* docs missing link to project creation ([#4020](https://github.com/lightdash/lightdash/issues/4020)) ([a46ef09](https://github.com/lightdash/lightdash/commit/a46ef09db175dfa40b904eedf20ac998173d1b44))
+
 ## [0.352.2](https://github.com/lightdash/lightdash/compare/0.352.1...0.352.2) (2022-12-21)
 
 
