@@ -73,6 +73,7 @@ export type DashboardFilterRule<
     S = any,
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardFieldTarget>;
+    label: undefined | string;
 };
 
 export type DateFilterRule = FilterRule<

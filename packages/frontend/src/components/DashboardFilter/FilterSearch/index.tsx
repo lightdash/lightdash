@@ -104,6 +104,7 @@ const FilterSearch: FC<Props> = ({
                 </FormGroup>
             ) : (
                 <FilterConfiguration
+                    isEditMode={isEditMode}
                     selectedTabId={selectedTabId}
                     onTabChange={setSelectedTabId}
                     tiles={dashboardTiles}

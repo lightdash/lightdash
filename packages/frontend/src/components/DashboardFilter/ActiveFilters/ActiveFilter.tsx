@@ -13,6 +13,7 @@ import {
 } from './ActiveFilters.styles';
 
 type Props = {
+    isEditMode: boolean;
     fieldId: string;
     field: FilterableField | undefined;
     filterRule: DashboardFilterRule;
@@ -22,6 +23,7 @@ type Props = {
 };
 
 const ActiveFilter: FC<Props> = ({
+    isEditMode,
     fieldId,
     field,
     filterRule,
@@ -53,6 +55,7 @@ const ActiveFilter: FC<Props> = ({
             content={
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>
                     <FilterConfiguration
+                        isEditMode={isEditMode}
                         tiles={dashboardTiles}
                         selectedTabId={selectedTabId}
                         onTabChange={setSelectedTabId}
@@ -71,7 +74,8 @@ const ActiveFilter: FC<Props> = ({
                     content={`Table: ${field.tableLabel}`}
                 >
                     <>
-                        {`${filterRuleLabels.field}: ${filterRuleLabels.operator} `}
+                        {filterRule.label || filterRuleLabels.field}:{' '}
+                        {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
                     </>
                 </Tooltip2>

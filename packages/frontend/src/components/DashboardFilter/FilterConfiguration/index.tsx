@@ -49,12 +49,14 @@ interface Props {
     filterRule?: DashboardFilterRule;
     popoverProps?: Popover2Props;
     selectedTabId?: string;
+    isEditMode: boolean;
     onTabChange: (tabId: FilterTabs) => void;
     onSave: (value: DashboardFilterRule) => void;
     onBack?: () => void;
 }
 
 const FilterConfiguration: FC<Props> = ({
+    isEditMode,
     selectedTabId = DEFAULT_TAB,
     tiles,
     field,
@@ -158,6 +160,7 @@ const FilterConfiguration: FC<Props> = ({
                     }
                     panel={
                         <FilterSettings
+                            isEditMode={isEditMode}
                             field={field}
                             filterRule={internalFilterRule}
                             onChangeFilterOperator={handleChangeFilterOperator}

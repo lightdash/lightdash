@@ -90,7 +90,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     </Tooltip2>
                 </Popover2>
 
-                {!isLoading && dashboardFilters && <ActiveFilters />}
+                {!isLoading && dashboardFilters && (
+                    <ActiveFilters isEditMode={isEditMode} />
+                )}
             </DashboardFilterWrapper>
         </FiltersProvider>
     );

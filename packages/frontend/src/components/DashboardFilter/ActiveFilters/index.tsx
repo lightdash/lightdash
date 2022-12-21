@@ -5,7 +5,11 @@ import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { ActiveDashboardFiltersWrapper } from '../DashboardFilter.styles';
 import ActiveFilter from './ActiveFilter';
 
-const ActiveFilters: FC = () => {
+interface ActiveFiltersProps {
+    isEditMode: boolean;
+}
+
+const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
     const {
         dashboardFilters,
         dashboardTemporaryFilters,
@@ -28,6 +32,7 @@ const ActiveFilters: FC = () => {
             {dashboardFilters.dimensions.map((item, index) => (
                 <ActiveFilter
                     key={item.id}
+                    isEditMode={isEditMode}
                     fieldId={item.target.fieldId}
                     field={fieldMap[item.target.fieldId]}
                     filterRule={item}
@@ -42,6 +47,7 @@ const ActiveFilters: FC = () => {
             {dashboardTemporaryFilters.dimensions.map((item, index) => (
                 <ActiveFilter
                     key={item.id}
+                    isEditMode={isEditMode}
                     fieldId={item.target.fieldId}
                     field={fieldMap[item.target.fieldId]}
                     filterRule={item}

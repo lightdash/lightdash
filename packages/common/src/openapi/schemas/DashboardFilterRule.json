@@ -26,6 +26,9 @@
         "settings": {
             "type": "object"
         },
+        "label": {
+            "type": "string"
+        },
         "tileTargets": {
             "type": "object",
             "properties": {

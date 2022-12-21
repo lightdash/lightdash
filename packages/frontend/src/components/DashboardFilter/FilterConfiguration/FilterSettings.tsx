@@ -12,6 +12,7 @@ import { FilterTypeConfig } from '../../common/Filters/configs';
 import { BolderLabel } from '../FilterSearch/FilterSearch.styles';
 
 interface FilterSettingsProps {
+    isEditMode: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Popover2Props;
@@ -20,6 +21,7 @@ interface FilterSettingsProps {
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
+    isEditMode,
     field,
     filterRule,
     popoverProps,
@@ -61,6 +63,22 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     }
                 />
             </FormGroup>
+
+            {isEditMode && (
+                <FormGroup label={<BolderLabel>Label</BolderLabel>}>
+                    <InputGroup
+                        fill
+                        onChange={(e) =>
+                            onChangeFilterRule({
+                                ...filterRule,
+                                label: e.target.value || undefined,
+                            })
+                        }
+                        placeholder={`Defaults to "${field.label}"`}
+                        value={filterRule.label || ''}
+                    />
+                </FormGroup>
+            )}
         </>
     );
 };
