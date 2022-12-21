@@ -1,3 +1,10 @@
+# [0.353.0](https://github.com/lightdash/lightdash/compare/0.352.4...0.353.0) (2022-12-21)
+
+
+### Features
+
+* dynamic slack unfurl ([#4026](https://github.com/lightdash/lightdash/issues/4026)) ([888eacc](https://github.com/lightdash/lightdash/commit/888eacc14222fcc2a6bf834c63f173998ec62336))
+
 ## [0.352.4](https://github.com/lightdash/lightdash/compare/0.352.3...0.352.4) (2022-12-21)
 
 
