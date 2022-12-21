@@ -8,12 +8,6 @@ export const ConfigureFilterWrapper = styled.div`
     gap: 15px;
 `;
 
-export const InputsWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-`;
-
 export const ActionsWrapper = styled.div`
     display: flex;
     justify-content: space-between;

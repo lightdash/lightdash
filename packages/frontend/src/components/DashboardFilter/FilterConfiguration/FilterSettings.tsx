@@ -1,4 +1,4 @@
-import { HTMLSelect } from '@blueprintjs/core';
+import { FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
-import { InputsWrapper } from './FilterConfiguration.styled';
 
 interface FilterSettingsProps {
     field: FilterableField;
@@ -36,28 +35,32 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     );
 
     return (
-        <InputsWrapper>
-            <HTMLSelect
-                fill
-                onChange={(e) =>
-                    onChangeFilterOperator(
-                        e.target.value as FilterRule['operator'],
-                    )
-                }
-                options={filterConfig.operatorOptions}
-                value={filterRule.operator}
-            />
+        <>
+            <FormGroup label="Value">
+                <HTMLSelect
+                    fill
+                    onChange={(e) =>
+                        onChangeFilterOperator(
+                            e.target.value as FilterRule['operator'],
+                        )
+                    }
+                    options={filterConfig.operatorOptions}
+                    value={filterRule.operator}
+                />
+            </FormGroup>
 
-            <filterConfig.inputs
-                popoverProps={popoverProps}
-                filterType={filterType}
-                field={field}
-                filterRule={filterRule}
-                onChange={(newFilterRule) =>
-                    onChangeFilterRule(newFilterRule as DashboardFilterRule)
-                }
-            />
-        </InputsWrapper>
+            <FormGroup>
+                <filterConfig.inputs
+                    popoverProps={popoverProps}
+                    filterType={filterType}
+                    field={field}
+                    filterRule={filterRule}
+                    onChange={(newFilterRule) =>
+                        onChangeFilterRule(newFilterRule as DashboardFilterRule)
+                    }
+                />
+            </FormGroup>
+        </>
     );
 };
 
