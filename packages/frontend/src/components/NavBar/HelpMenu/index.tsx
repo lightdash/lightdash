@@ -70,7 +70,7 @@ const HelpMenu: FC = () => {
         <>
             <NotificationWrapper>
                 <Icon icon="notifications" />
-                <NotificationWidget id="headway-badge"></NotificationWidget>
+                <NotificationWidget id="headway-badge" />
             </NotificationWrapper>
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
