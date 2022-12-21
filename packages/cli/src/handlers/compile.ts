@@ -64,10 +64,11 @@ export const compile = async (options: GenerateHandlerOptions) => {
         const errors = failedExplores.map((failedExplore) =>
             failedExplore.errors.map((error) => `- ${error.message}\n`),
         );
-        throw new ParseError(
-            `Found ${failedExplores.length} errors when validating dbt model:
-${errors.join('')}
-            `,
+        console.error(
+            styles.warning(`Found ${
+                failedExplores.length
+            } errors when validating dbt model:
+${errors.join('')}`),
         );
     } else {
         GlobalState.debug(
