@@ -172,35 +172,36 @@ const FieldButtons: FC<{
                     <WarningIcon icon={'warning-sign'} intent="warning" />
                 </Tooltip2>
             )}
-            {menuItems.length > 0 && (isHovered || isSelected || isMenuOpen) && (
-                <Popover2
-                    content={<Menu>{menuItems}</Menu>}
-                    autoFocus={false}
-                    position={PopoverPosition.BOTTOM_RIGHT}
-                    minimal
-                    lazy
-                    interactionKind="click"
-                    renderTarget={({ isOpen, ref, ...targetProps }) => (
-                        <Tooltip2
-                            content="View options"
-                            hoverCloseDelay={500}
-                            onClosed={(e) => setIsMenuOpen(false)}
-                        >
-                            <Button
-                                {...targetProps}
-                                elementRef={ref === null ? undefined : ref}
-                                icon="more"
-                                minimal
-                                onClick={(e) => {
-                                    (targetProps as any).onClick(e);
-                                    e.stopPropagation();
-                                    setIsMenuOpen(true);
-                                }}
-                            />
-                        </Tooltip2>
-                    )}
-                />
-            )}
+            {menuItems.length > 0 &&
+                (isHovered || isSelected || isMenuOpen) && (
+                    <Popover2
+                        content={<Menu>{menuItems}</Menu>}
+                        autoFocus={false}
+                        position={PopoverPosition.BOTTOM_RIGHT}
+                        minimal
+                        lazy
+                        interactionKind="click"
+                        renderTarget={({ isOpen, ref, ...targetProps }) => (
+                            <Tooltip2
+                                content="View options"
+                                hoverCloseDelay={500}
+                                onClosed={(e) => setIsMenuOpen(false)}
+                            >
+                                <Button
+                                    {...targetProps}
+                                    elementRef={ref === null ? undefined : ref}
+                                    icon="more"
+                                    minimal
+                                    onClick={(e) => {
+                                        (targetProps as any).onClick(e);
+                                        e.stopPropagation();
+                                        setIsMenuOpen(true);
+                                    }}
+                                />
+                            </Tooltip2>
+                        )}
+                    />
+                )}
 
             {isFiltered && !isHovered && !isSelected && !isMenuOpen && (
                 <Placeholder />

@@ -1,4 +1,4 @@
-import moment, { isMoment, Moment, MomentInput } from 'moment';
+import moment, { isMoment, MomentInput } from 'moment';
 import {
     CompactOrAlias,
     DimensionType,
