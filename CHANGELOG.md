@@ -1,3 +1,10 @@
+## [0.353.1](https://github.com/lightdash/lightdash/compare/0.353.0...0.353.1) (2022-12-22)
+
+
+### Bug Fixes
+
+* remove undefined error from friendlyName ([#4051](https://github.com/lightdash/lightdash/issues/4051)) ([06913cb](https://github.com/lightdash/lightdash/commit/06913cb21daee83ccb2400ef96e2a975f0b95b7d))
+
 # [0.353.0](https://github.com/lightdash/lightdash/compare/0.352.4...0.353.0) (2022-12-21)
 
 
