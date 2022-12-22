@@ -278,22 +278,6 @@ const useCartesianChartConfig = ({
         [dirtyLayout?.yField, updateAllGroupedSeries, pivotKeys],
     );
 
-    const setReferenceLines = useCallback((data) => {
-        setDirtyEchartsConfig((prev) => {
-            if (prev) {
-                return {
-                    ...prev,
-                    series: (prev?.series || []).map((currentSeries, index) =>
-                        index === 0
-                            ? { ...currentSeries, markLine: { data } }
-                            : currentSeries,
-                    ),
-                };
-            }
-            return prev;
-        });
-    }, []);
-
     const sortedDimensions = useMemo(() => {
         return sortDimensions(
             resultsData?.metricQuery.dimensions || [],
@@ -546,7 +530,6 @@ const useCartesianChartConfig = ({
         setShowGridY,
         setInverseX,
         updateSeries,
-        setReferenceLines,
     };
 };
 
