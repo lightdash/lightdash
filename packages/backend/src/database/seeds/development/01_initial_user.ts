@@ -185,7 +185,7 @@ export async function seed(knex: Knex): Promise<void> {
             explores,
         );
     } catch (e) {
-        console.log(e);
+        console.error(e);
         throw e;
     }
 }

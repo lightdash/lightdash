@@ -57,6 +57,8 @@ export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
 export * from './types/api';
+export * from './types/api/errors';
+export * from './types/api/share';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
