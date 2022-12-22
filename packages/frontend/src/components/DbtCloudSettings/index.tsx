@@ -4,6 +4,7 @@ import React, { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
     useProjectDbtCloud,
+    useProjectDbtCloudDeleteMutation,
     useProjectDbtCloudUpdateMutation,
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
 import { Subtitle } from '../../pages/CreateProject.styles';
@@ -26,6 +27,7 @@ interface DbtCloudSettingsProps {
 const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     const dbtCloudSettings = useProjectDbtCloud(projectUuid);
     const update = useProjectDbtCloudUpdateMutation(projectUuid);
+    const doDelete = useProjectDbtCloudDeleteMutation(projectUuid);
     const methods = useForm<CreateDbtCloudIntegration>({
         mode: 'onSubmit',
         defaultValues: {
@@ -44,6 +46,13 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
     const handleSubmit = (data: CreateDbtCloudIntegration) => {
         update.mutate(data);
     };
+
+    const handleClear = () => {
+        doDelete.mutate(undefined, {
+            onSuccess: () => methods.reset({ metricsJobId: undefined }),
+        });
+    };
+
     return (
         <>
             <Header>
@@ -93,6 +102,12 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                             labelHelp="Your Job ID can be found by clicking Deploy > Jobs in the top bar in dbt Cloud. The Job ID in is the number in the URL after /jobs/12345."
                         />
                         <ButtonsWrapper>
+                            {dbtCloudSettings.data?.metricsJobId && (
+                                <SaveButton
+                                    text="Clear"
+                                    onClick={() => doDelete.mutate()}
+                                />
+                            )}
                             <SaveButton
                                 type="submit"
                                 intent={Intent.PRIMARY}

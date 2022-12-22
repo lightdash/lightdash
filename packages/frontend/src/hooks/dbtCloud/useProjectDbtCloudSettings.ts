@@ -34,6 +34,44 @@ const post = async (projectUuid: string, data: CreateDbtCloudIntegration) =>
         body: JSON.stringify(data),
     });
 
+const doDelete = async (projectUuid: string) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/integrations/dbt-cloud/settings`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useProjectDbtCloudDeleteMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    if (projectUuid === undefined) {
+        throw new Error(
+            'Must use useProjectDbtCloudDeleteMutation hook under react-router path with projectUuid available',
+        );
+    }
+    return useMutation<undefined, ApiError, undefined>(
+        () => doDelete(projectUuid),
+        {
+            mutationKey: ['updated-dbt-cloud', projectUuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'dbt-cloud-metrics',
+                    projectUuid,
+                ]);
+                showToastSuccess({
+                    title: `Success! Integration to dbt cloud was updated.`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update integration`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};
+
 export const useProjectDbtCloudUpdateMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();

@@ -1306,6 +1306,26 @@ export class ProjectService {
         return this.findDbtCloudIntegration(user, projectUuid);
     }
 
+    async deleteDbtCloudIntegration(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.deleteDbtCloudIntegration(projectUuid);
+        analytics.track({
+            event: 'dbt_cloud_integration.deleted',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+            },
+        });
+    }
+
     async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (

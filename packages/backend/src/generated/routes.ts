@@ -12,6 +12,8 @@ import {
     ValidationService,
 } from '@tsoa/runtime';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { DbtCloudIntegrationController } from './../controllers/dbtCloudIntegrationController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import type { RequestHandler } from 'express';
 import * as express from 'express';
 import { ShareController } from './../controllers/shareController';
@@ -35,6 +37,110 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['error'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDbtCloudIntegration.metricsJobId_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metricsJobId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtCloudIntegration: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_CreateDbtCloudIntegration.metricsJobId_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDbtCloudIntegrationSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DbtCloudIntegration' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDbtCloudSettingsDeleteSuccess: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { dataType: 'undefined', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtCloudMetric: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                label: { dataType: 'string', required: true },
+                timeGrains: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                description: { dataType: 'string', required: true },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                uniqueId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtCloudMetadataResponseMetrics: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DbtCloudMetric' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDbtCloudMetrics: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'DbtCloudMetadataResponseMetrics',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -97,6 +203,190 @@ export function RegisterRoutes(app: express.Router) {
     //  NOTE: If you do not see routes for all of your controllers in this file, then you might not have informed tsoa of where to look
     //      Please look into the "controllerPathGlobs" config option described in the readme: https://github.com/lukeautry/tsoa
     // ###########################################################################################################
+    app.get(
+        '/api/v1/projects/:projectUuid/integrations/dbt-cloud/settings',
+        ...fetchMiddlewares<RequestHandler>(DbtCloudIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            DbtCloudIntegrationController.prototype.getSettings,
+        ),
+
+        function DbtCloudIntegrationController_getSettings(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new DbtCloudIntegrationController();
+
+                const promise = controller.getSettings.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/projects/:projectUuid/integrations/dbt-cloud/settings',
+        ...fetchMiddlewares<RequestHandler>(DbtCloudIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            DbtCloudIntegrationController.prototype.updateSettings,
+        ),
+
+        function DbtCloudIntegrationController_updateSettings(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new DbtCloudIntegrationController();
+
+                const promise = controller.updateSettings.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/projects/:projectUuid/integrations/dbt-cloud/settings',
+        ...fetchMiddlewares<RequestHandler>(DbtCloudIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            DbtCloudIntegrationController.prototype.deleteSettings,
+        ),
+
+        function DbtCloudIntegrationController_deleteSettings(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new DbtCloudIntegrationController();
+
+                const promise = controller.deleteSettings.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/integrations/dbt-cloud/metrics',
+        ...fetchMiddlewares<RequestHandler>(DbtCloudIntegrationController),
+        ...fetchMiddlewares<RequestHandler>(
+            DbtCloudIntegrationController.prototype.getMetrics,
+        ),
+
+        function DbtCloudIntegrationController_getMetrics(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new DbtCloudIntegrationController();
+
+                const promise = controller.getMetrics.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
         '/api/v1/share/:nanoId',
         ...fetchMiddlewares<RequestHandler>(ShareController),

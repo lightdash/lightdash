@@ -58,6 +58,7 @@ export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-
 export * from './templating/template';
 export * from './types/api';
 export * from './types/api/errors';
+export * from './types/api/integrations';
 export * from './types/api/share';
 export * from './types/dashboard';
 export * from './types/dbt';
