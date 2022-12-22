@@ -191,8 +191,10 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                     <Label>Label</Label>
 
                     <InputGroup
+                        fill
                         disabled={!isNumericItem(selectedField)}
                         value={label}
+                        placeholder={value}
                         onChange={(e) => {
                             setLabel(e.target.value);
                             debouncedUpdateLabel(e.target.value);
