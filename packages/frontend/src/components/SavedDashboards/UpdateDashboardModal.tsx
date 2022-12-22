@@ -49,6 +49,7 @@ const UpdateDashboardModal: FC<Props> = ({
             onClose={() => onClose?.()}
             lazy
             title="Rename your dashboard"
+            canOutsideClickClose={false}
         >
             <Form
                 name="rename_dashboard"

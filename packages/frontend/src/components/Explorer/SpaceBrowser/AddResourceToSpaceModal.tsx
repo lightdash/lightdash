@@ -168,6 +168,7 @@ const AddResourceToSpaceModal: FC<Props> = ({
             onClose={closeModal}
             lazy
             title={`Add ${resourceType} to '${space?.name}' space`}
+            canOutsideClickClose={false}
         >
             <Form
                 name="add_items_to_space"

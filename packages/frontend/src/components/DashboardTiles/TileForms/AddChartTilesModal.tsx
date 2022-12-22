@@ -94,6 +94,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
 
     return (
         <Dialog
+            canOutsideClickClose={false}
             isOpen={true}
             onClose={onClose}
             lazy

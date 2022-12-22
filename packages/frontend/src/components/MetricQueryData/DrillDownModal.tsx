@@ -200,6 +200,7 @@ const DrillDownModal: FC = () => {
             onClose={closeDrillDownModal}
             lazy
             title={`Drill by dimension`}
+            canOutsideClickClose={false}
         >
             <form>
                 <div className={Classes.DIALOG_BODY}>

@@ -39,6 +39,7 @@ const SourceDialog: FC<{ source: Source; onClose: () => void }> = ({
     const [copied, setCopied] = useState(false);
     return (
         <Dialog
+            canOutsideClickClose={false}
             isOpen
             icon="console"
             onClose={onClose}

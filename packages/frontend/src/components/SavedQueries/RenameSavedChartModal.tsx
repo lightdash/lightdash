@@ -48,6 +48,7 @@ const RenameSavedChartModal: FC<Props> = ({
             onClose={onClose}
             lazy
             title="Rename your chart"
+            canOutsideClickClose={false}
         >
             <Form
                 name="rename_saved_chart"

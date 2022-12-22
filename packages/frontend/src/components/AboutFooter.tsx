@@ -82,6 +82,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     </div>
                 </footer>
                 <Dialog
+                    canOutsideClickClose={false}
                     isOpen={isOpen}
                     onClose={() => setIsOpen(false)}
                     icon="info-sign"

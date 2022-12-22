@@ -146,6 +146,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             onClose={onClose}
             lazy
             title="Add chart to dashboard"
+            canOutsideClickClose={false}
         >
             <form>
                 <div className={Classes.DIALOG_BODY}>

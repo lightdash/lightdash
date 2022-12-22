@@ -72,6 +72,7 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
             onClose={onClose}
             lazy
             title={`Move ${isChart ? 'chart' : 'dashboard'} to space`}
+            canOutsideClickClose={false}
         >
             <div className={Classes.DIALOG_BODY}>
                 <p>

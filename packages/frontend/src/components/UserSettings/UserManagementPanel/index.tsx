@@ -151,6 +151,7 @@ const UserListItem: FC<{
                 {inviteLink.data && <InviteSuccess invite={inviteLink.data} />}
             </ItemContent>
             <Dialog
+                canOutsideClickClose={false}
                 isOpen={isDeleteDialogOpen}
                 icon="person"
                 onClose={() =>
@@ -158,7 +159,6 @@ const UserListItem: FC<{
                 }
                 title="Delete user"
                 lazy
-                canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>Are you sure you want to delete this user ?</p>

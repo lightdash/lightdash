@@ -76,6 +76,7 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
             icon="delete"
             onClose={onClose}
             title={`Delete ${isChart ? 'chart' : 'dashboard'}`}
+            canOutsideClickClose={false}
         >
             <div className={Classes.DIALOG_BODY}>
                 <p>

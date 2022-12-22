@@ -56,6 +56,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}
                 lazy
+                canOutsideClickClose={false}
             >
                 <DialogBody>
                     {selectedAccess.value === SpaceAccessType.PRIVATE ? (

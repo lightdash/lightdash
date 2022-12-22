@@ -36,7 +36,13 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create dashboard">
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            lazy
+            title="Create dashboard"
+            canOutsideClickClose={false}
+        >
             <form>
                 <div className={Classes.DIALOG_BODY}>
                     <FormGroup label="Name" labelFor="chart-name">

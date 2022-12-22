@@ -78,7 +78,13 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
     }, [hasCreateSpace, newSpace, createSavedChart, reset]);
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Save chart">
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            lazy
+            title="Save chart"
+            canOutsideClickClose={false}
+        >
             <form>
                 <div className={Classes.DIALOG_BODY}>
                     <FormGroupWrapper

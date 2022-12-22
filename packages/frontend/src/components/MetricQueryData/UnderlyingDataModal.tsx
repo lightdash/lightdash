@@ -15,6 +15,7 @@ const UnderlyingDataModal: FC<Props> = () => {
             onClose={closeUnderlyingDataModal}
             lazy
             title={`View underlying data`}
+            canOutsideClickClose={false}
             style={{
                 width: '90%',
                 height: '90vh',
