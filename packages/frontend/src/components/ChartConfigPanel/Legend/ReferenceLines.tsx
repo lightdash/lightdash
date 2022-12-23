@@ -7,12 +7,10 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
-import { debounce } from 'lodash';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { useDebounce } from 'react-use';
+import debounce from 'lodash/debounce';
+import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { InputField } from '../../UserCompletionModal/UserCompletionModal.styles';
 import { GridSettings, SectionTitle } from './Legend.styles';
 
 type Props = {
