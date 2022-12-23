@@ -59,12 +59,12 @@ export const useProjectDbtCloudDeleteMutation = (projectUuid: string) => {
                     projectUuid,
                 ]);
                 showToastSuccess({
-                    title: `Success! Integration to dbt cloud was updated.`,
+                    title: `Success! Integration to dbt Cloud was deleted.`,
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to update integration`,
+                    title: `Failed to delete integration`,
                     subtitle: error.error.message,
                 });
             },
@@ -92,7 +92,7 @@ export const useProjectDbtCloudUpdateMutation = (projectUuid: string) => {
                 projectUuid,
             ]);
             showToastSuccess({
-                title: `Success! Integration to dbt cloud was updated.`,
+                title: `Success! Integration to dbt Cloud was updated.`,
             });
         },
         onError: (error) => {
