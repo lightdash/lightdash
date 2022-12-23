@@ -1,6 +1,6 @@
 import { Card, Intent, NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
     useProjectDbtCloud,
@@ -10,13 +10,11 @@ import {
 import { Subtitle } from '../../pages/CreateProject.styles';
 import {
     ButtonsWrapper,
-    ContentContainer,
     Header,
     SaveButton,
     Title,
     TitleWrapper,
 } from '../../pages/ProjectSettings.styles';
-import Content from '../common/Page/Content';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import PasswordInput from '../ReactHookForm/PasswordInput';
@@ -25,32 +23,28 @@ interface DbtCloudSettingsProps {
     projectUuid: string;
 }
 const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
-    const dbtCloudSettings = useProjectDbtCloud(projectUuid);
-    const update = useProjectDbtCloudUpdateMutation(projectUuid);
-    const doDelete = useProjectDbtCloudDeleteMutation(projectUuid);
-    const methods = useForm<CreateDbtCloudIntegration>({
+    const form = useForm<CreateDbtCloudIntegration>({
         mode: 'onSubmit',
         defaultValues: {
-            metricsJobId: dbtCloudSettings.data?.metricsJobId,
+            metricsJobId: '',
+            serviceToken: '',
         },
     });
 
-    const { setValue } = methods;
-
-    useEffect(() => {
-        if (dbtCloudSettings.data) {
-            setValue('metricsJobId', dbtCloudSettings.data?.metricsJobId);
-        }
-    }, [dbtCloudSettings, setValue]);
+    const dbtCloudSettings = useProjectDbtCloud(projectUuid, {
+        onSuccess: (data) => {
+            form.setValue('metricsJobId', data?.metricsJobId ?? '');
+        },
+    });
+    const updateDbtCloud = useProjectDbtCloudUpdateMutation(projectUuid);
+    const deletDbtCloud = useProjectDbtCloudDeleteMutation(projectUuid);
 
     const handleSubmit = (data: CreateDbtCloudIntegration) => {
-        update.mutate(data);
+        updateDbtCloud.mutate(data);
     };
 
-    const handleClear = () => {
-        doDelete.mutate(undefined, {
-            onSuccess: () => methods.reset({ metricsJobId: undefined }),
-        });
+    const handleClear = async () => {
+        deletDbtCloud.mutate(undefined);
     };
 
     return (
@@ -78,7 +72,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                 ) : (
                     <Form
                         name="integration_dbt_cloud"
-                        methods={methods}
+                        methods={form}
                         onSubmit={handleSubmit}
                     >
                         <PasswordInput
@@ -105,7 +99,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                             {dbtCloudSettings.data?.metricsJobId && (
                                 <SaveButton
                                     text="Clear"
-                                    onClick={() => doDelete.mutate()}
+                                    onClick={() => handleClear()}
                                 />
                             )}
                             <SaveButton
