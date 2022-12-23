@@ -1,5 +1,5 @@
 import { Button, InputGroupProps } from '@blueprintjs/core';
-import { forwardRef, useCallback, useMemo, useRef } from 'react';
+import { ChangeEvent, forwardRef, useCallback, useMemo, useRef } from 'react';
 import { StyledNumberInput } from './UnitInput.style';
 
 export type UnitInputProps = Omit<
@@ -79,7 +79,7 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
 
         return (
             <StyledNumberInput
-                inputRef={(input) => {
+                inputRef={(input: HTMLInputElement) => {
                     if (!input) return;
 
                     inputRef.current = input;
@@ -96,7 +96,7 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
                 {...rest}
                 placeholder={defaultValue}
                 value={!isValueDefault && isValueNumeric ? value : ''}
-                onChange={(e) =>
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     handleChange(e.target.value, value ? unit : defaultUnit)
                 }
                 rightElement={

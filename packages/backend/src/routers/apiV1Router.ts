@@ -20,7 +20,6 @@ import { organizationRouter } from './organizationRouter';
 import { passwordResetLinksRouter } from './passwordResetLinksRouter';
 import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
-import { shareRouter } from './shareRouter';
 import { slackRouter } from './slackRouter';
 import { userRouter } from './userRouter';
 
@@ -150,6 +149,5 @@ apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards/:dashboardUuid', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);
 apiV1Router.use('/jobs', jobsRouter);
-apiV1Router.use('/share', shareRouter);
 apiV1Router.use('/slack', slackRouter);
 apiV1Router.use('/headless-browser', headlessBrowserRouter);

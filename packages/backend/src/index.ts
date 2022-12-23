@@ -25,6 +25,7 @@ import {
 } from './controllers/authentication';
 import database from './database/database';
 import { errorHandler } from './errors';
+import { RegisterRoutes } from './generated/routes';
 import Logger from './logger';
 import { slackAuthenticationModel, userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
@@ -154,6 +155,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 // api router
 app.use('/api/v1', apiV1Router);
+RegisterRoutes(app);
 
 // Api docs
 if (

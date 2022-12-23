@@ -438,6 +438,16 @@ yarn lint
 yarn format
 ```
 
+#### Developing API endpoints
+
+API endpoints are written in controllers, which are located in `packages/backend/src/controllers`. Controllers are 
+then registered in `packages/backend/src/index.ts` but in order to be made available you'll need to regenerate the 
+`routes.ts` file by executing:
+
+```shell
+yarn workspace backend run tsoa routes
+```
+
 ## Join The Lightdash Team
 
 If you are interested in joining our team, check
