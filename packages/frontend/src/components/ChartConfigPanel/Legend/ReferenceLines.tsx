@@ -7,7 +7,8 @@ import {
     isNumericItem,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import debounce from 'lodash/debounce';
+import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { GridSettings, SectionTitle } from './Legend.styles';
@@ -33,25 +34,35 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         });
     }, [items, dirtyLayout]);
 
-    const [selectedMarklineAxis, selectedMarklineValue, selectedFieldId] =
-        useMemo(() => {
-            const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
-                (serie) => serie.markLine?.data[0] !== undefined,
-            );
+    const [
+        selectedMarklineAxis,
+        selectedMarklineValue,
+        selectedFieldId,
+        selectedMarklineLabel,
+    ] = useMemo(() => {
+        const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
+            (serie) => serie.markLine?.data[0] !== undefined,
+        );
 
-            const markLine = serieWithMarkLine?.markLine?.data[0];
-            if (markLine === undefined)
-                return [undefined, undefined, undefined];
-            const [markLineKey, markLineValue] = Object.entries(markLine)[0];
-            const fieldId =
-                markLineKey === 'xAxis'
-                    ? serieWithMarkLine?.encode.xRef.field
-                    : serieWithMarkLine?.encode.yRef.field;
-            return [markLineKey, markLineValue, fieldId];
-        }, [dirtyEchartsConfig?.series]);
+        const markLine = serieWithMarkLine?.markLine?.data[0];
+        if (markLine === undefined) return [undefined, undefined, undefined];
+        const [markLineKey, markLineValue] = Object.entries(markLine)[0];
+        const fieldId =
+            markLineKey === 'xAxis'
+                ? serieWithMarkLine?.encode.xRef.field
+                : serieWithMarkLine?.encode.yRef.field;
+        const label = serieWithMarkLine?.markLine?.label.formatter;
+        return [markLineKey, markLineValue, fieldId, label];
+    }, [dirtyEchartsConfig?.series]);
 
     const [value, setValue] = useState<string | undefined>(
         selectedMarklineValue,
+    );
+
+    const [debouncedLabel, setDebouncedLabel] = useState<string>();
+
+    const [label, setLabel] = useState<string | undefined>(
+        selectedMarklineLabel,
     );
 
     const selectedFieldDefault = useMemo(() => {
@@ -71,7 +82,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
     );
 
     const updateMarkLine = useCallback(
-        (updateValue, updateField) => {
+        (updateValue, updateField, updateLabel) => {
             if (updateValue && updateField) {
                 const fieldId = isField(updateField)
                     ? getFieldId(updateField)
@@ -99,7 +110,9 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                                         width: 3,
                                         type: 'solid',
                                     },
-                                    label: {},
+                                    label: updateLabel
+                                        ? { formatter: updateLabel }
+                                        : {},
                                     data: [{ [axis]: updateValue }],
                                 },
                             };
@@ -117,12 +130,30 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
         [updateSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
     );
+    const removeMarkLine = useCallback(() => {
+        if (!dirtyEchartsConfig?.series) return;
+        const series = dirtyEchartsConfig?.series.map((serie) => ({
+            ...serie,
+            markLine: undefined,
+        }));
+        updateSeries(series);
+    }, [updateSeries, dirtyEchartsConfig?.series]);
 
+    const debouncedUpdateLabel = useCallback(
+        debounce((updatedLabel: string) => {
+            updateMarkLine(value, selectedField, updatedLabel);
+        }, 500),
+        [value, selectedField],
+    );
     return (
         <>
             <Checkbox
                 name="show"
-                onChange={() => setIsOpen(!isOpen)}
+                onChange={() => {
+                    if (isOpen) removeMarkLine();
+                    else updateMarkLine(value, selectedField, label);
+                    setIsOpen(!isOpen);
+                }}
                 checked={isOpen}
             >
                 Include reference line
@@ -138,7 +169,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         onChange={(item) => {
                             setSelectedField(item);
 
-                            updateMarkLine(value, item);
+                            updateMarkLine(value, item, label);
                         }}
                     />
                 </GridSettings>
@@ -156,9 +187,28 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         value={value}
                         onChange={(e) => {
                             setValue(e.target.value);
-                            updateMarkLine(e.target.value, selectedField);
+                            updateMarkLine(
+                                e.target.value,
+                                selectedField,
+                                label,
+                            );
                         }}
                         placeholder="Add value for the reference line"
+                    />
+                </GridSettings>
+
+                <GridSettings>
+                    <Label>Label</Label>
+
+                    <InputGroup
+                        fill
+                        disabled={!isNumericItem(selectedField)}
+                        value={label}
+                        placeholder={value}
+                        onChange={(e) => {
+                            setLabel(e.target.value);
+                            debouncedUpdateLabel(e.target.value);
+                        }}
                     />
                 </GridSettings>
             </Collapse>
