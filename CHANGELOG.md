@@ -1,3 +1,10 @@
+## [0.357.1](https://github.com/lightdash/lightdash/compare/0.357.0...0.357.1) (2022-12-23)
+
+
+### Bug Fixes
+
+* do not show divide calculation warning ([#4057](https://github.com/lightdash/lightdash/issues/4057)) ([a069a9a](https://github.com/lightdash/lightdash/commit/a069a9af679834be6bc3821ae6cc67f95d2e6b16))
+
 # [0.357.0](https://github.com/lightdash/lightdash/compare/0.356.0...0.357.0) (2022-12-23)
 
 
