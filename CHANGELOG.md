@@ -1,3 +1,10 @@
+# [0.356.0](https://github.com/lightdash/lightdash/compare/0.355.0...0.356.0) (2022-12-23)
+
+
+### Features
+
+* dashboard filters should be an icon and description should appear on title hover ([#4035](https://github.com/lightdash/lightdash/issues/4035)) ([75f7fb9](https://github.com/lightdash/lightdash/commit/75f7fb9274db3e5b4820cdb41ba39b6683e7f044))
+
 # [0.355.0](https://github.com/lightdash/lightdash/compare/0.354.0...0.355.0) (2022-12-23)
 
 
