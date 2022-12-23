@@ -55,7 +55,7 @@ type PersonalAccessTokenEvent = BaseTrack & {
 };
 
 type DbtCloudIntegration = BaseTrack & {
-    event: 'dbt_cloud_integration.updated';
+    event: 'dbt_cloud_integration.updated' | 'dbt_cloud_integration.deleted';
     properties: {
         projectId: string;
     };

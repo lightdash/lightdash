@@ -23,7 +23,6 @@ import {
     searchService,
     spaceService,
 } from '../services/services';
-import { integrationsRouter } from './integrations/intergrationsRouter';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -656,5 +655,3 @@ projectRouter.delete(
         }
     },
 );
-
-projectRouter.use('/integrations', integrationsRouter);

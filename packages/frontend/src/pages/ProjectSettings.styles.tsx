@@ -44,6 +44,7 @@ export const ProjectConnectionContainer = styled.div`
 export const ButtonsWrapper = styled.div`
     display: flex;
     justify-content: flex-end;
+    gap: 10px;
 `;
 
 export const SaveButton = styled(BigButton)`
