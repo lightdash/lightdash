@@ -276,6 +276,7 @@ export const createDashboardFilterRuleFromField = (
             tableName: field.table,
         },
         tileTargets: getDefaultTileTargets(field, availableTileFilters),
+        label: undefined,
     });
 
 type AddFilterRuleArgs = {
