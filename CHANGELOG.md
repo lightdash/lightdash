@@ -1,3 +1,10 @@
+# [0.358.0](https://github.com/lightdash/lightdash/compare/0.357.1...0.358.0) (2022-12-23)
+
+
+### Features
+
+* delete dbt cloud config ([#4050](https://github.com/lightdash/lightdash/issues/4050)) ([02eb09a](https://github.com/lightdash/lightdash/commit/02eb09a24701b82659a34503dbbe524693b63af5))
+
 ## [0.357.1](https://github.com/lightdash/lightdash/compare/0.357.0...0.357.1) (2022-12-23)
 
 

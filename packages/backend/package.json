@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.357.1",
+    "version": "0.358.0",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -26,8 +26,8 @@
     },
     "dependencies": {
         "@casl/ability": "^5.4.3",
-        "@lightdash/common": "^0.357.1",
-        "@lightdash/warehouses": "^0.357.1",
+        "@lightdash/common": "^0.358.0",
+        "@lightdash/warehouses": "^0.358.0",
         "@rudderstack/rudder-sdk-node": "^1.1.3",
         "@sentry/node": "^6.12.0",
         "@sentry/tracing": "^6.12.0",
