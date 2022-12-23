@@ -1,4 +1,4 @@
-import moment, { MomentInput } from 'moment';
+import moment, { isMoment, MomentInput } from 'moment';
 import {
     CompactOrAlias,
     DimensionType,
@@ -43,7 +43,7 @@ const isMomentInput = (value: unknown): value is MomentInput =>
     typeof value === 'string' ||
     typeof value === 'number' ||
     value instanceof Date ||
-    value instanceof moment;
+    isMoment(value);
 
 export function formatDate(
     date: MomentInput,
