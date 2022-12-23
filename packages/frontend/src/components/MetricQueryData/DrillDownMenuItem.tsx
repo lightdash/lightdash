@@ -2,6 +2,7 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     DashboardFilters,
     Field,
+    fieldId as getFieldId,
     isField,
     isMetric,
     PivotReference,
@@ -19,6 +20,7 @@ export const DrillDownMenuItem: FC<{
 }> = ({ row, selectedItem, dashboardFilters, pivotReference }) => {
     const { explore, metricQuery, openDrillDownModel } =
         useMetricQueryDataContext();
+
     if (
         selectedItem &&
         isField(selectedItem) &&
@@ -27,9 +29,11 @@ export const DrillDownMenuItem: FC<{
         row &&
         metricQuery
     ) {
+        const value = row[getFieldId(selectedItem)]?.value.formatted;
+
         return (
             <MenuItem2
-                text="Drill by"
+                text={`Drill into "${value}"`}
                 icon="path"
                 onClick={() =>
                     openDrillDownModel({

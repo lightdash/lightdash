@@ -12,6 +12,7 @@ import {
     CreateSavedChartVersion,
     DashboardFilters,
     FieldId,
+    fieldId as getFieldId,
     FilterGroupItem,
     FilterOperator,
     FilterRule,
@@ -19,6 +20,7 @@ import {
     getDimensions,
     getItemId,
     isField,
+    isMetric,
     MetricQuery,
     PivotReference,
     ResultRow,
@@ -175,6 +177,13 @@ const DrillDownModal: FC = () => {
         }
         return [];
     }, [explore]);
+
+    const value = useMemo(() => {
+        if (drillDownConfig && isField(drillDownConfig.selectedItem))
+            return drillDownConfig.row[getFieldId(drillDownConfig.selectedItem)]
+                ?.value.formatted;
+    }, [drillDownConfig]);
+
     const url = useMemo(() => {
         if (selectedDimension && metricQuery && explore && drillDownConfig) {
             return drillDownExploreUrl({
@@ -199,12 +208,12 @@ const DrillDownModal: FC = () => {
             isOpen={isDrillDownModalOpen}
             onClose={closeDrillDownModal}
             lazy
-            title={`Drill by dimension`}
+            title={`Drill into "${value}"`}
         >
             <form>
                 <div className={Classes.DIALOG_BODY}>
                     <FormGroup
-                        label="Pick a dimension to drill by"
+                        label="Pick a dimension to segment your metric by"
                         labelFor="chart-name"
                     >
                         <FieldAutoComplete
