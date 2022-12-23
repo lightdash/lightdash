@@ -19,7 +19,7 @@ export const useProjectDbtCloudMetrics = () => {
         );
     }
     return useQuery<DbtCloudMetadataResponseMetrics, ApiError>({
-        queryKey: ['dbt-cloud-metrics', projectUuid],
+        queryKey: ['dbt-cloud', projectUuid],
         queryFn: () => get(projectUuid),
         onError: useQueryError(),
     });
