@@ -6,6 +6,10 @@ interface HeaderContainerProps {
     isHovering?: boolean;
 }
 
+interface TitleWrapperProps {
+    hasDescription: boolean;
+}
+
 export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
     height: 100%;
     display: flex;
@@ -24,7 +28,7 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
     flex-direction: row;
     justify-content: space-between;
     align-items: baseline;
-    min-height: 80px;
+    margin-bottom: 15px;
     flex-wrap: wrap;
 
     ${(props) =>
@@ -46,10 +50,17 @@ export const GlobalTileStyles = createGlobalStyle`
   }
 `;
 
-export const TitleWrapper = styled.div`
+export const TitleWrapper = styled.div<TitleWrapperProps>`
     display: flex;
     flex-direction: row;
     align-items: center;
+
+    ${(props) =>
+        props.hasDescription
+            ? `
+                &:hover { cursor: pointer }
+            `
+            : ''}
 `;
 
 export const Title = styled(H5)`
@@ -68,16 +79,39 @@ export const ButtonsWrapper = styled.div`
     justify-content: flex-end;
 `;
 
-export const FilterLabel = styled.span`
-    color: ${Colors.GRAY2};
-    font-weight: 500;
-    font-size: 0.857em;
-    line-height: 1.583em;
-    margin: 0.5em 0 1em;
-`;
-
 export const ChartContainer = styled.div`
     flex: 1;
     overflow: hidden;
     display: flex;
+`;
+
+export const TooltipContent = styled.p`
+    max-width: 400px;
+    margin: 0;
+`;
+
+export const FilterIcon = styled.div`
+    border-radius: 2px;
+    box-sizing: border-box;
+    position: relative;
+    color: ${Colors.GRAY1} !important;
+    padding: 6px 7px;
+
+    :hover {
+        cursor: pointer;
+        background: rgba(143, 153, 168, 0.15) !important;
+    }
+`;
+
+export const FilterWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+`;
+
+export const FilterLabel = styled.p`
+    margin-bottom: 5px;
+    color: ${Colors.GRAY5};
+    font-size: 12px;
+    font-weight: 500;
 `;

@@ -17,12 +17,14 @@ import {
     TileBaseWrapper,
     Title,
     TitleWrapper,
+    TooltipContent,
 } from './TileBase.styles';
 
 type Props<T> = {
     isEditMode: boolean;
     title: string;
     description?: string;
+    hasDescription: boolean;
     tile: T;
     isLoading?: boolean;
     extraMenuItems?: React.ReactNode;
@@ -43,6 +45,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onEdit,
     children,
     extraHeaderElement,
+    hasDescription,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -63,19 +66,25 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 onMouseLeave={() => setIsHovering(false)}
             >
                 <HeaderWrapper>
-                    {!hideTitle && (
-                        <TitleWrapper>
+                    {!hideTitle && description ? (
+                        <Tooltip2
+                            content={
+                                <TooltipContent>{description}</TooltipContent>
+                            }
+                            position="bottom-left"
+                        >
+                            <TitleWrapper hasDescription={true}>
+                                <Title className="non-draggable">{title}</Title>
+                            </TitleWrapper>
+                        </Tooltip2>
+                    ) : !hideTitle ? (
+                        <TitleWrapper hasDescription={hasDescription}>
                             <Title className="non-draggable">{title}</Title>
                         </TitleWrapper>
-                    )}
-                    {extraHeaderElement}
+                    ) : null}
                 </HeaderWrapper>
                 <ButtonsWrapper>
-                    {description && (
-                        <Tooltip2 content={description} position="bottom">
-                            <Button icon="info-sign" minimal />
-                        </Tooltip2>
-                    )}
+                    {extraHeaderElement}
                     {(isEditMode || (!isEditMode && extraMenuItems)) && (
                         <Popover2
                             className="non-draggable"
@@ -156,6 +165,7 @@ TileBase.defaultProps = {
     isLoading: false,
     extraMenuItems: null,
     description: null,
+    hasDescription: false,
     hasFilters: false,
 };
 

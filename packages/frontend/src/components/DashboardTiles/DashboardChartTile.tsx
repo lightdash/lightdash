@@ -1,4 +1,11 @@
-import { Menu, NonIdealState, Portal } from '@blueprintjs/core';
+import {
+    Colors,
+    Icon,
+    Menu,
+    NonIdealState,
+    Portal,
+    Tag,
+} from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -50,7 +57,12 @@ import {
 } from '../MetricQueryData/MetricQueryDataProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
-import { FilterLabel, GlobalTileStyles } from './TileBase/TileBase.styles';
+import {
+    FilterIcon,
+    FilterLabel,
+    FilterWrapper,
+    GlobalTileStyles,
+} from './TileBase/TileBase.styles';
 
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
@@ -318,8 +330,13 @@ const DashboardChartTile: FC<Props> = (props) => {
                 const filterRuleLabels = getFilterRuleLabel(filterRule, field);
                 return (
                     <div key={field.name}>
-                        {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}
-                        <FilterValues>{filterRuleLabels.value}</FilterValues>
+                        <Tag minimal style={{ color: 'white' }}>
+                            {filterRuleLabels.field}:{' '}
+                            {filterRuleLabels.operator}{' '}
+                            <FilterValues>
+                                {filterRuleLabels.value}
+                            </FilterValues>
+                        </Tag>
                     </div>
                 );
             }
@@ -349,28 +366,25 @@ const DashboardChartTile: FC<Props> = (props) => {
                         <div>
                             <Tooltip2
                                 content={
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '4px',
-                                        }}
-                                    >
+                                    <FilterWrapper>
+                                        <FilterLabel>
+                                            Dashboard filter
+                                            {appliedFilterRules.length > 1
+                                                ? 's'
+                                                : ''}{' '}
+                                            applied:
+                                        </FilterLabel>
                                         {appliedFilterRules.map(
                                             renderFilterRule,
                                         )}
-                                    </div>
+                                    </FilterWrapper>
                                 }
                                 interactionKind="hover"
-                                placement={'bottom-start'}
+                                placement="bottom-end"
                             >
-                                <FilterLabel>
-                                    Dashboard filter
-                                    {appliedFilterRules.length > 1
-                                        ? 's'
-                                        : ''}{' '}
-                                    applied
-                                </FilterLabel>
+                                <FilterIcon>
+                                    <Icon icon="filter" />
+                                </FilterIcon>
                             </Tooltip2>
                         </div>
                     )
