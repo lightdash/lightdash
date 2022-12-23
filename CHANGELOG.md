@@ -1,3 +1,10 @@
+# [0.357.0](https://github.com/lightdash/lightdash/compare/0.356.0...0.357.0) (2022-12-23)
+
+
+### Features
+
+* dashboard filter labels ([#4032](https://github.com/lightdash/lightdash/issues/4032)) ([92c6243](https://github.com/lightdash/lightdash/commit/92c6243cf58aa2856bce14421f46b1ce590daa55))
+
 # [0.356.0](https://github.com/lightdash/lightdash/compare/0.355.0...0.356.0) (2022-12-23)
 
 
