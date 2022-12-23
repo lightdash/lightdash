@@ -8,7 +8,6 @@ import React, { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useExplore } from '../../hooks/useExplore';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import Input from '../ReactHookForm/Input';
@@ -69,7 +68,6 @@ const TableCalculationModal: FC<Props> = ({
     onClose,
 }) => {
     const [isFullscreen, toggleFullscreen] = useToggle(false);
-    const [isDividing, setIsDividing] = useState(false);
     const { showToastError } = useToaster();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
@@ -85,7 +83,6 @@ const TableCalculationModal: FC<Props> = ({
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
     const { setAceEditor } = useExplorerAceEditorCompleter();
-    const { data: { targetDatabase } = {} } = useExplore(tableName);
     const methods = useForm<TableCalculationFormInputs>({
         mode: 'onSubmit',
         defaultValues: {
@@ -121,19 +118,14 @@ const TableCalculationModal: FC<Props> = ({
                 onSubmit={(data: TableCalculationFormInputs) => {
                     const { name, sql } = data;
                     try {
-                        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                        sql?.includes('/') &&
-                        (targetDatabase === 'postgres' ||
-                            targetDatabase === 'redshift')
-                            ? setIsDividing(true)
-                            : onSave({
-                                  name: getUniqueTableCalculationName(
-                                      name,
-                                      tableCalculations,
-                                  ),
-                                  displayName: name,
-                                  sql,
-                              });
+                        onSave({
+                            name: getUniqueTableCalculationName(
+                                name,
+                                tableCalculations,
+                            ),
+                            displayName: name,
+                            sql,
+                        });
                     } catch (e: any) {
                         showToastError({
                             title: 'Error saving',
@@ -175,27 +167,6 @@ const TableCalculationModal: FC<Props> = ({
                             },
                         }}
                     />
-                    {isDividing && (
-                        <Callout
-                            intent="none"
-                            icon="info-sign"
-                            style={{ marginTop: 20, marginBottom: 20 }}
-                        >
-                            <p>
-                                {' '}
-                                Since you&apos;re using {targetDatabase},
-                                dividing and taking the average of two integers
-                                won&apos;t return decimals.
-                                <div style={{ marginTop: '5px' }}>
-                                    If you want to see all the digits, you have
-                                    to cast one of your integers as a decimal:{' '}
-                                    <span style={{ color: 'grey' }}>
-                                        $&#123;table_name.field_name&#125;::decimal/$&#123;table_name.field_name&#125;
-                                    </span>
-                                </div>
-                            </p>
-                        </Callout>
-                    )}
                     <TableCalculationSqlInputWrapper
                         $isFullScreen={isFullscreen}
                     >
