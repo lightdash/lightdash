@@ -429,8 +429,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         row,
                                                         dimensions,
                                                         pivotReference,
-                                                    } =
-                                                        viewUnderlyingDataOptions;
+                                                    } = viewUnderlyingDataOptions;
                                                     openUnderlyingDataModel(
                                                         value,
                                                         meta,
