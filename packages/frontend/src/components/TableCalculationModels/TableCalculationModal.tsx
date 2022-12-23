@@ -8,7 +8,6 @@ import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useExplore } from '../../hooks/useExplore';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import Input from '../ReactHookForm/Input';
@@ -84,7 +83,6 @@ const TableCalculationModal: FC<Props> = ({
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
     const { setAceEditor } = useExplorerAceEditorCompleter();
-    const { data: { targetDatabase } = {} } = useExplore(tableName);
     const methods = useForm<TableCalculationFormInputs>({
         mode: 'onSubmit',
         defaultValues: {
@@ -169,28 +167,6 @@ const TableCalculationModal: FC<Props> = ({
                             },
                         }}
                     />
-                    {(targetDatabase === 'postgres' ||
-                        targetDatabase === 'redshift') && (
-                        <Callout
-                            intent="none"
-                            icon="info-sign"
-                            style={{ marginTop: 20, marginBottom: 20 }}
-                        >
-                            <p>
-                                {' '}
-                                Since you&apos;re using {targetDatabase},
-                                dividing and taking the average of two integers
-                                won&apos;t return decimals.
-                                <div style={{ marginTop: '5px' }}>
-                                    If you want to see all the digits, you have
-                                    to cast one of your integers as a decimal:{' '}
-                                    <span style={{ color: 'grey' }}>
-                                        $&#123;table_name.field_name&#125;::decimal/$&#123;table_name.field_name&#125;
-                                    </span>
-                                </div>
-                            </p>
-                        </Callout>
-                    )}
                     <TableCalculationSqlInputWrapper
                         $isFullScreen={isFullscreen}
                     >
