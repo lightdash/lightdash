@@ -1,3 +1,10 @@
+# [0.355.0](https://github.com/lightdash/lightdash/compare/0.354.0...0.355.0) (2022-12-23)
+
+
+### Features
+
+* update drill down modal copy ([#4052](https://github.com/lightdash/lightdash/issues/4052)) ([b8aa987](https://github.com/lightdash/lightdash/commit/b8aa9876098b9c80558df210f475500ecdbbc16e))
+
 # [0.354.0](https://github.com/lightdash/lightdash/compare/0.353.1...0.354.0) (2022-12-23)
 
 
