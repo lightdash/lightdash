@@ -4,7 +4,7 @@ import {
     snakeCaseName,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
