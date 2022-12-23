@@ -36,10 +36,6 @@ services:
         fromDatabase:
           name: jaffle_db
           property: password
-      - key: PGSSLMODE
-        fromDatabase:
-          name: jaffle_ssl
-          property: sslmode
       - fromGroup: rudder-settings
       - key: LIGHTDASH_SECRET
         generateValue: true

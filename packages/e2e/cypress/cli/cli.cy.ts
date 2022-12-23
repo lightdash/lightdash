@@ -28,7 +28,6 @@ describe('CLI', () => {
                     PGUSER: 'postgres',
                     PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
                     PGDATABASE: 'postgres',
-                    PGSSLMODE: 'disable',
                 },
             },
         )
@@ -49,7 +48,6 @@ describe('CLI', () => {
                     PGUSER: 'postgres',
                     PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
                     PGDATABASE: 'postgres',
-                    PGSSLMODE: 'disable',
                 },
             },
         )
@@ -70,7 +68,6 @@ describe('CLI', () => {
                     PGUSER: 'postgres',
                     PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
                     PGDATABASE: 'postgres',
-                    PGSSLMODE: 'disable',
                 },
             },
         )
@@ -109,7 +106,6 @@ describe('CLI', () => {
                         PGUSER: 'postgres',
                         PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
                         PGDATABASE: 'postgres',
-                        PGSSLMODE: 'disable',
                     },
                 },
             )
@@ -135,7 +131,6 @@ describe('CLI', () => {
                         PGUSER: 'postgres',
                         PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
                         PGDATABASE: 'postgres',
-                        PGSSLMODE: 'disable',
                     },
                 },
             )
