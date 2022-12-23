@@ -1,3 +1,10 @@
+# [0.354.0](https://github.com/lightdash/lightdash/compare/0.353.1...0.354.0) (2022-12-23)
+
+
+### Features
+
+* add label to markline ([#4041](https://github.com/lightdash/lightdash/issues/4041)) ([10e9cab](https://github.com/lightdash/lightdash/commit/10e9cab835c5c7d2e03e7a6bd7e49eff4f7c5b48))
+
 ## [0.353.1](https://github.com/lightdash/lightdash/compare/0.353.0...0.353.1) (2022-12-22)
 
 
