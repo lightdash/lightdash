@@ -130,6 +130,14 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
         [updateSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
     );
+    const removeMarkLine = useCallback(() => {
+        if (!dirtyEchartsConfig?.series) return;
+        const series = dirtyEchartsConfig?.series.map((serie) => ({
+            ...serie,
+            markLine: undefined,
+        }));
+        updateSeries(series);
+    }, [updateSeries, dirtyEchartsConfig?.series]);
 
     const debouncedUpdateLabel = useCallback(
         debounce((updatedLabel: string) => {
@@ -141,7 +149,11 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         <>
             <Checkbox
                 name="show"
-                onChange={() => setIsOpen(!isOpen)}
+                onChange={() => {
+                    if (isOpen) removeMarkLine();
+                    else updateMarkLine(value, selectedField, label);
+                    setIsOpen(!isOpen);
+                }}
                 checked={isOpen}
             >
                 Include reference line
