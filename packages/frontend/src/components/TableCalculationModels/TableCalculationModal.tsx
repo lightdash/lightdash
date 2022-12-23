@@ -4,7 +4,7 @@ import {
     snakeCaseName,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -69,6 +69,7 @@ const TableCalculationModal: FC<Props> = ({
     onClose,
 }) => {
     const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const [isDividing, setIsDividing] = useState(false);
     const { showToastError } = useToaster();
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
@@ -120,14 +121,19 @@ const TableCalculationModal: FC<Props> = ({
                 onSubmit={(data: TableCalculationFormInputs) => {
                     const { name, sql } = data;
                     try {
-                        onSave({
-                            name: getUniqueTableCalculationName(
-                                name,
-                                tableCalculations,
-                            ),
-                            displayName: name,
-                            sql,
-                        });
+                        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                        sql?.includes('/') &&
+                        (targetDatabase === 'postgres' ||
+                            targetDatabase === 'redshift')
+                            ? setIsDividing(true)
+                            : onSave({
+                                  name: getUniqueTableCalculationName(
+                                      name,
+                                      tableCalculations,
+                                  ),
+                                  displayName: name,
+                                  sql,
+                              });
                     } catch (e: any) {
                         showToastError({
                             title: 'Error saving',
@@ -169,8 +175,7 @@ const TableCalculationModal: FC<Props> = ({
                             },
                         }}
                     />
-                    {(targetDatabase === 'postgres' ||
-                        targetDatabase === 'redshift') && (
+                    {isDividing && (
                         <Callout
                             intent="none"
                             icon="info-sign"
