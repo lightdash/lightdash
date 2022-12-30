@@ -858,6 +858,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "annebelleo",
+      "name": "Annebelle Olminkhof",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20630578?v=4",
+      "profile": "https://annebelleo.github.io",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
