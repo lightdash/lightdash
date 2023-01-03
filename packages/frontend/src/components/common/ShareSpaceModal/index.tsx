@@ -84,7 +84,8 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 </DialogBody>
 
                 <DialogFooter>
-                    {sessionUser.data?.ability?.can('create', 'InviteLink') ? (
+                    {selectedAccess.value === SpaceAccessType.PRIVATE &&
+                    sessionUser.data?.ability?.can('create', 'InviteLink') ? (
                         <>
                             Can’t find a user? Spaces can only be shared with{' '}
                             <Link
