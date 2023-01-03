@@ -1,4 +1,5 @@
 import {
+    DashboardFilterRule,
     DimensionType,
     FilterableField,
     FilterOperator,
@@ -8,8 +9,11 @@ import {
     formatDate,
     formatTimestamp,
     getFilterTypeFromField,
+    isDashboardFilterRule,
     isDimension,
 } from '@lightdash/common';
+import capitalize from 'lodash-es/capitalize';
+import uniq from 'lodash-es/uniq';
 import { FC } from 'react';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
 import DateFilterInputs from './FilterInputs/DateFilterInputs';
@@ -166,4 +170,20 @@ export const getFilterRuleLabel = (
         operator: operationLabel,
         value: valuesText,
     };
+};
+
+export const getFilterRuleTables = (
+    filterRule: FilterRule | DashboardFilterRule,
+    field: FilterableField,
+): string[] => {
+    if (isDashboardFilterRule(filterRule) && filterRule.tileTargets) {
+        return Object.values(filterRule.tileTargets).reduce<string[]>(
+            (tables, tileTarget) => {
+                return uniq([...tables, capitalize(tileTarget.tableName)]);
+            },
+            [],
+        );
+    } else {
+        return [capitalize(field.tableLabel)];
+    }
 };
