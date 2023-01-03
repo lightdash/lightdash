@@ -105,6 +105,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.REDSHIFT:
             if (model.database === null) {
                 throw new ParseError(
@@ -114,8 +115,6 @@ export const normaliseModelDatabase = (
             }
             return { ...model, database: model.database as string };
         case SupportedDbtAdapter.DATABRICKS:
-            return { ...model, database: model.database || 'DEFAULT' };
-        case SupportedDbtAdapter.TRINO:
             return { ...model, database: model.database || 'DEFAULT' };
         default:
             return assertUnreachable(

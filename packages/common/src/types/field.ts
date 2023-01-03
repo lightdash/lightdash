@@ -264,7 +264,7 @@ export const friendlyName = (text: string): string => {
         return text;
     }
     return [
-        capitalize(first.toLowerCase()),
+        capitalize(first!.toLowerCase()),
         ...rest.map((word) => word.toLowerCase()),
     ].join(' ');
 };
