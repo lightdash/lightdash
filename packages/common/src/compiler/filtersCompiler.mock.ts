@@ -2,6 +2,31 @@ import { FilterOperator, UnitOfTime } from '../types/filter';
 
 export const DimensionSqlMock = 'customers.created';
 
+export const InTheCurrentFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_THE_CURRENT,
+    values: [1],
+    settings: {
+        unitOfTime: UnitOfTime.days,
+        completed: false,
+    },
+};
+
+export const ExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`,
+    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`,
+    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:00') AND (customers.created) <= ('2020-04-04 06:12:59'))`,
+    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:00:00') AND (customers.created) <= ('2020-04-04 06:59:59'))`,
+    [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-03-29 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
+    [UnitOfTime.months]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-04-30 23:59:59'))`,
+    [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-06-30 23:59:59'))`,
+    [UnitOfTime.years]: `((customers.created) >= ('2020-01-01 00:00:00') AND (customers.created) <= ('2020-12-31 23:59:59'))`,
+};
+
 export const InTheLast1DayFilter = {
     id: 'id',
     target: {
@@ -95,7 +120,7 @@ export const InTheLast1HourFilter = {
     },
 };
 
-export const InTheLast1HourFilterSQL = `((customers.created) >= ('2020-04-03 23:12:00') AND (customers.created) <= ('2020-04-04 00:12:00'))`;
+export const InTheLast1HourFilterSQL = `((customers.created) >= ('2020-04-04 05:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`;
 
 export const InTheLast1CompletedHourFilter = {
     ...InTheLast1DayFilter,
@@ -105,7 +130,7 @@ export const InTheLast1CompletedHourFilter = {
     },
 };
 
-export const InTheLast1CompletedHourFilterSQL = `((customers.created) >= ('2020-04-03 23:00:00') AND (customers.created) < ('2020-04-04 00:00:00'))`;
+export const InTheLast1CompletedHourFilterSQL = `((customers.created) >= ('2020-04-04 05:00:00') AND (customers.created) < ('2020-04-04 06:00:00'))`;
 
 export const InTheLast1MinuteFilter = {
     ...InTheLast1DayFilter,
@@ -115,7 +140,7 @@ export const InTheLast1MinuteFilter = {
     },
 };
 
-export const InTheLast1MinuteFilterSQL = `((customers.created) >= ('2020-04-04 00:11:00') AND (customers.created) <= ('2020-04-04 00:12:00'))`;
+export const InTheLast1MinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`;
 
 export const InTheLast1CompletedMinuteFilter = {
     ...InTheLast1DayFilter,
@@ -125,7 +150,7 @@ export const InTheLast1CompletedMinuteFilter = {
     },
 };
 
-export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 00:11:00') AND (customers.created) < ('2020-04-04 00:12:00'))`;
+export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:00') AND (customers.created) < ('2020-04-04 06:12:00'))`;
 
 const stringSingleValueFilter = {
     id: '701b6520-1b19-4051-a553-7615aee0b03d',
