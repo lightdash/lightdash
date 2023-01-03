@@ -210,6 +210,31 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                     />
                 </MultipleInputsWrapper>
             );
+        case FilterOperator.IN_THE_CURRENT:
+            return (
+                <MultipleInputsWrapper>
+                    <UnitOfTimeAutoComplete
+                        disabled={disabled}
+                        isTimestamp={isTimestamp}
+                        unitOfTime={
+                            filterRule.settings?.unitOfTime || UnitOfTime.days
+                        }
+                        showOptionsInPlural={false}
+                        showCompletedOptions={false}
+                        completed={false}
+                        popoverProps={popoverProps}
+                        onChange={(value) =>
+                            onChange({
+                                ...filterRule,
+                                settings: {
+                                    unitOfTime: value.unitOfTime,
+                                    completed: false,
+                                },
+                            })
+                        }
+                    />
+                </MultipleInputsWrapper>
+            );
         default: {
             return <DefaultFilterInputs {...props} />;
         }

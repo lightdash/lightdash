@@ -126,7 +126,10 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 const value = values ? values[0] : undefined;
 
                 const isTimestamp = field.type === DimensionType.TIMESTAMP;
-                if (filterRule.operator === FilterOperator.IN_THE_PAST) {
+                if (
+                    filterRule.operator === FilterOperator.IN_THE_PAST ||
+                    filterRule.operator === FilterOperator.IN_THE_CURRENT
+                ) {
                     const numberValue =
                         value === undefined || typeof value !== 'number'
                             ? 1

@@ -128,7 +128,7 @@ export const renderDateFilterSql = (
             return `(${dimensionSql}) <= ('${dateFormatter(
                 filter.values?.[0],
             )}')`;
-        case FilterOperator.IN_THE_PAST:
+        case FilterOperator.IN_THE_PAST: {
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
@@ -152,6 +152,18 @@ export const renderDateFilterSql = (
             return `((${dimensionSql}) >= ('${dateFormatter(
                 moment().subtract(filter.values?.[0], unitOfTime).toDate(),
             )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
+        }
+        case FilterOperator.IN_THE_CURRENT: {
+            const unitOfTime: UnitOfTime =
+                filter.settings?.unitOfTime || UnitOfTime.days;
+            const fromDate = dateFormatter(
+                moment().startOf(unitOfTime).toDate(),
+            );
+            const untilDate = dateFormatter(
+                moment().endOf(unitOfTime).toDate(),
+            );
+            return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
+        }
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
