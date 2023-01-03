@@ -12,6 +12,7 @@ services:
   - type: web
     env: docker
     name: lightdash
+    plan: standard
     dockerContext: .
     dockerfilePath: dockerfile-prs
     initialDeployHook: /usr/bin/renderDeployHook.sh
