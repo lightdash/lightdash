@@ -181,7 +181,6 @@ organizationRouter.get(
                 req.user!,
             );
             const results: OnboardingStatus = {
-                isComplete: !!onboarding.shownSuccessAt,
                 ranQuery: !!onboarding.ranQueryAt,
             };
             res.json({

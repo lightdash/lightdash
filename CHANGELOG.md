@@ -1,3 +1,359 @@
+# [0.358.0](https://github.com/lightdash/lightdash/compare/0.357.1...0.358.0) (2022-12-23)
+
+
+### Features
+
+* delete dbt cloud config ([#4050](https://github.com/lightdash/lightdash/issues/4050)) ([02eb09a](https://github.com/lightdash/lightdash/commit/02eb09a24701b82659a34503dbbe524693b63af5))
+
+## [0.357.1](https://github.com/lightdash/lightdash/compare/0.357.0...0.357.1) (2022-12-23)
+
+
+### Bug Fixes
+
+* do not show divide calculation warning ([#4057](https://github.com/lightdash/lightdash/issues/4057)) ([a069a9a](https://github.com/lightdash/lightdash/commit/a069a9af679834be6bc3821ae6cc67f95d2e6b16))
+
+# [0.357.0](https://github.com/lightdash/lightdash/compare/0.356.0...0.357.0) (2022-12-23)
+
+
+### Features
+
+* dashboard filter labels ([#4032](https://github.com/lightdash/lightdash/issues/4032)) ([92c6243](https://github.com/lightdash/lightdash/commit/92c6243cf58aa2856bce14421f46b1ce590daa55))
+
+# [0.356.0](https://github.com/lightdash/lightdash/compare/0.355.0...0.356.0) (2022-12-23)
+
+
+### Features
+
+* dashboard filters should be an icon and description should appear on title hover ([#4035](https://github.com/lightdash/lightdash/issues/4035)) ([75f7fb9](https://github.com/lightdash/lightdash/commit/75f7fb9274db3e5b4820cdb41ba39b6683e7f044))
+
+# [0.355.0](https://github.com/lightdash/lightdash/compare/0.354.0...0.355.0) (2022-12-23)
+
+
+### Features
+
+* update drill down modal copy ([#4052](https://github.com/lightdash/lightdash/issues/4052)) ([b8aa987](https://github.com/lightdash/lightdash/commit/b8aa9876098b9c80558df210f475500ecdbbc16e))
+
+# [0.354.0](https://github.com/lightdash/lightdash/compare/0.353.1...0.354.0) (2022-12-23)
+
+
+### Features
+
+* add label to markline ([#4041](https://github.com/lightdash/lightdash/issues/4041)) ([10e9cab](https://github.com/lightdash/lightdash/commit/10e9cab835c5c7d2e03e7a6bd7e49eff4f7c5b48))
+
+## [0.353.1](https://github.com/lightdash/lightdash/compare/0.353.0...0.353.1) (2022-12-22)
+
+
+### Bug Fixes
+
+* remove undefined error from friendlyName ([#4051](https://github.com/lightdash/lightdash/issues/4051)) ([06913cb](https://github.com/lightdash/lightdash/commit/06913cb21daee83ccb2400ef96e2a975f0b95b7d))
+
+# [0.353.0](https://github.com/lightdash/lightdash/compare/0.352.4...0.353.0) (2022-12-21)
+
+
+### Features
+
+* dynamic slack unfurl ([#4026](https://github.com/lightdash/lightdash/issues/4026)) ([888eacc](https://github.com/lightdash/lightdash/commit/888eacc14222fcc2a6bf834c63f173998ec62336))
+
+## [0.352.4](https://github.com/lightdash/lightdash/compare/0.352.3...0.352.4) (2022-12-21)
+
+
+### Bug Fixes
+
+* show warning on validation errors on CLI ([#4024](https://github.com/lightdash/lightdash/issues/4024)) ([4910ec0](https://github.com/lightdash/lightdash/commit/4910ec04a11ef48159895d6043ade8fc87e1cbbc))
+
+## [0.352.3](https://github.com/lightdash/lightdash/compare/0.352.2...0.352.3) (2022-12-21)
+
+
+### Bug Fixes
+
+* docs missing link to project creation ([#4020](https://github.com/lightdash/lightdash/issues/4020)) ([a46ef09](https://github.com/lightdash/lightdash/commit/a46ef09db175dfa40b904eedf20ac998173d1b44))
+
+## [0.352.2](https://github.com/lightdash/lightdash/compare/0.352.1...0.352.2) (2022-12-21)
+
+
+### Bug Fixes
+
+* browse menu items should not be underlined ([#4002](https://github.com/lightdash/lightdash/issues/4002)) ([dbe87c1](https://github.com/lightdash/lightdash/commit/dbe87c18232fa9021e80ad2796f5e0bde1082a99))
+* notifications icon styles ([#4022](https://github.com/lightdash/lightdash/issues/4022)) ([2d6a17d](https://github.com/lightdash/lightdash/commit/2d6a17d43de84925e62f599b3da896b87339ae9e))
+
+## [0.352.1](https://github.com/lightdash/lightdash/compare/0.352.0...0.352.1) (2022-12-20)
+
+
+### Bug Fixes
+
+* do not unfurl COMPOSER messages on slack ([#4017](https://github.com/lightdash/lightdash/issues/4017)) ([5b4020d](https://github.com/lightdash/lightdash/commit/5b4020d0d9e4d63c0569252e1392935156c16d58))
+
+# [0.352.0](https://github.com/lightdash/lightdash/compare/0.351.0...0.352.0) (2022-12-20)
+
+
+### Features
+
+* add s3 client to upload images to slack ([#4009](https://github.com/lightdash/lightdash/issues/4009)) ([0fd5d99](https://github.com/lightdash/lightdash/commit/0fd5d99345067156196744c61d3a028e013b1017))
+
+# [0.351.0](https://github.com/lightdash/lightdash/compare/0.350.5...0.351.0) (2022-12-19)
+
+
+### Features
+
+* add schema validation to CLI ([#3983](https://github.com/lightdash/lightdash/issues/3983)) ([fe8b66d](https://github.com/lightdash/lightdash/commit/fe8b66d4a1356f7955489fde9371ba1fde71b211))
+
+## [0.350.5](https://github.com/lightdash/lightdash/compare/0.350.4...0.350.5) (2022-12-19)
+
+
+### Bug Fixes
+
+* clean up dashboard tiles ([#3965](https://github.com/lightdash/lightdash/issues/3965)) ([58e04fe](https://github.com/lightdash/lightdash/commit/58e04fee47615a75e25bdf5b51fc0ce155e7cf09))
+
+## [0.350.4](https://github.com/lightdash/lightdash/compare/0.350.3...0.350.4) (2022-12-19)
+
+
+### Bug Fixes
+
+* remove extra fields from ShareModel ([#3996](https://github.com/lightdash/lightdash/issues/3996)) ([e743b40](https://github.com/lightdash/lightdash/commit/e743b408fd51d9620291cab915cfc7d249b25313))
+
+## [0.350.3](https://github.com/lightdash/lightdash/compare/0.350.2...0.350.3) (2022-12-16)
+
+
+### Bug Fixes
+
+* message on invite user success is confusing ([#3993](https://github.com/lightdash/lightdash/issues/3993)) ([a0300fe](https://github.com/lightdash/lightdash/commit/a0300feb5bd006bb141dab088bf1586fbbcd674f))
+
+## [0.350.2](https://github.com/lightdash/lightdash/compare/0.350.1...0.350.2) (2022-12-16)
+
+
+### Bug Fixes
+
+* dashboard tile filter is not being removed ([#3994](https://github.com/lightdash/lightdash/issues/3994)) ([5a4d0a8](https://github.com/lightdash/lightdash/commit/5a4d0a8054e86e66750b08887f3205a3a974d341))
+
+## [0.350.1](https://github.com/lightdash/lightdash/compare/0.350.0...0.350.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* script bash preinstall script if fails on windows ([#3970](https://github.com/lightdash/lightdash/issues/3970)) ([65ec9cd](https://github.com/lightdash/lightdash/commit/65ec9cd396f72dab3ed2eb0f5b0af23ab63c5906))
+
+# [0.350.0](https://github.com/lightdash/lightdash/compare/0.349.1...0.350.0) (2022-12-16)
+
+
+### Features
+
+* drill by dimension ([#3967](https://github.com/lightdash/lightdash/issues/3967)) ([ae8f17f](https://github.com/lightdash/lightdash/commit/ae8f17f81f8d185bcece4e4c6bc3bc00d6b74705))
+
+## [0.349.1](https://github.com/lightdash/lightdash/compare/0.349.0...0.349.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* dashboard filters wrapping ([#3982](https://github.com/lightdash/lightdash/issues/3982)) ([c84386d](https://github.com/lightdash/lightdash/commit/c84386d0c10799cf7f07e87cb6d0da83033a65ba))
+
+# [0.349.0](https://github.com/lightdash/lightdash/compare/0.348.0...0.349.0) (2022-12-16)
+
+
+### Features
+
+* add Proxy-Authorization header support ([#3969](https://github.com/lightdash/lightdash/issues/3969)) ([4bd75f8](https://github.com/lightdash/lightdash/commit/4bd75f8fa714f62301cb6a784e93ee5b52cf7043))
+
+# [0.348.0](https://github.com/lightdash/lightdash/compare/0.347.1...0.348.0) (2022-12-16)
+
+
+### Features
+
+* add metrics to model configuration ([#3930](https://github.com/lightdash/lightdash/issues/3930)) ([8df0eb4](https://github.com/lightdash/lightdash/commit/8df0eb474b60226c2030f575fced47a8205317df))
+
+## [0.347.1](https://github.com/lightdash/lightdash/compare/0.347.0...0.347.1) (2022-12-16)
+
+
+### Bug Fixes
+
+* available filters permissions and fetching ([#3952](https://github.com/lightdash/lightdash/issues/3952)) ([b451ca6](https://github.com/lightdash/lightdash/commit/b451ca6c64e36cbac4c96cc14c5eeb94e227561c))
+
+# [0.347.0](https://github.com/lightdash/lightdash/compare/0.346.1...0.347.0) (2022-12-16)
+
+
+### Features
+
+* reference lines ([#3960](https://github.com/lightdash/lightdash/issues/3960)) ([eb25de5](https://github.com/lightdash/lightdash/commit/eb25de529b953531fb2e03650aa4c1fe57481358))
+
+## [0.346.1](https://github.com/lightdash/lightdash/compare/0.346.0...0.346.1) (2022-12-09)
+
+
+### Bug Fixes
+
+* remove pivot when changing to table vizualisation ([#3946](https://github.com/lightdash/lightdash/issues/3946)) ([2ceb4ee](https://github.com/lightdash/lightdash/commit/2ceb4eef6344b485eb71cb93060694a0cf09cdda))
+
+# [0.346.0](https://github.com/lightdash/lightdash/compare/0.345.0...0.346.0) (2022-12-09)
+
+
+### Bug Fixes
+
+* fix scrap authentication error psycopg2 ([#3953](https://github.com/lightdash/lightdash/issues/3953)) ([75f221c](https://github.com/lightdash/lightdash/commit/75f221cccc4c4a02941c95b67577eeeebef7eccf))
+
+
+### Features
+
+* new explore menu ([#3944](https://github.com/lightdash/lightdash/issues/3944)) ([b761de3](https://github.com/lightdash/lightdash/commit/b761de36e04358d9bb6ae5b0e5bde6b06a3e1528))
+
+# [0.345.0](https://github.com/lightdash/lightdash/compare/0.344.1...0.345.0) (2022-12-08)
+
+
+### Features
+
+* update window titles ([#3950](https://github.com/lightdash/lightdash/issues/3950)) ([76b17dd](https://github.com/lightdash/lightdash/commit/76b17dd80c4efe5b6c2a48b99d22109f7e3de86d))
+
+## [0.344.1](https://github.com/lightdash/lightdash/compare/0.344.0...0.344.1) (2022-12-08)
+
+
+### Bug Fixes
+
+* contributing documentation for dockerless dev set up ([#3942](https://github.com/lightdash/lightdash/issues/3942)) ([55047a1](https://github.com/lightdash/lightdash/commit/55047a1fc9bd6767b8136e69a5a0a2b43d3e5563))
+
+# [0.344.0](https://github.com/lightdash/lightdash/compare/0.343.3...0.344.0) (2022-12-08)
+
+
+### Features
+
+* filter charts, dashboards and spaces on global search ([#3943](https://github.com/lightdash/lightdash/issues/3943)) ([1bfa048](https://github.com/lightdash/lightdash/commit/1bfa04862c4547553d3594850816b2bd3a0d0094))
+
+## [0.343.3](https://github.com/lightdash/lightdash/compare/0.343.2...0.343.3) (2022-12-08)
+
+
+### Bug Fixes
+
+* revert tile base missing title ([4c5f469](https://github.com/lightdash/lightdash/commit/4c5f469bd27dffca9dfd3cfe5e7f1d14c1fceab9))
+
+## [0.343.2](https://github.com/lightdash/lightdash/compare/0.343.1...0.343.2) (2022-12-08)
+
+
+### Bug Fixes
+
+* fix space submit button on modals ([0f4c8d2](https://github.com/lightdash/lightdash/commit/0f4c8d2475358e9917294f2717824ff66a204bb9))
+
+## [0.343.1](https://github.com/lightdash/lightdash/compare/0.343.0...0.343.1) (2022-12-07)
+
+
+### Bug Fixes
+
+* user management settings badge updated ([#3931](https://github.com/lightdash/lightdash/issues/3931)) ([1fb0f5f](https://github.com/lightdash/lightdash/commit/1fb0f5ff5f8c5c629a9c11085b81ccb85200c2a0))
+
+# [0.343.0](https://github.com/lightdash/lightdash/compare/0.342.0...0.343.0) (2022-12-07)
+
+
+### Features
+
+* set private space on creation ([#3880](https://github.com/lightdash/lightdash/issues/3880)) ([e04e8ed](https://github.com/lightdash/lightdash/commit/e04e8ed8e74c5734e3bda05c792654d25f972acd))
+
+# [0.342.0](https://github.com/lightdash/lightdash/compare/0.341.1...0.342.0) (2022-12-07)
+
+
+### Features
+
+* share in slack unfurl ([#3852](https://github.com/lightdash/lightdash/issues/3852)) ([3c712b2](https://github.com/lightdash/lightdash/commit/3c712b20c59f07172cbc43e3f3af7004fff88d59))
+
+## [0.341.1](https://github.com/lightdash/lightdash/compare/0.341.0...0.341.1) (2022-12-07)
+
+
+### Bug Fixes
+
+* show underlying data for table calculation in big number visualization ([#3919](https://github.com/lightdash/lightdash/issues/3919)) ([8359545](https://github.com/lightdash/lightdash/commit/835954538e2af56711fd8a45315f0a0c4ab6fd29))
+
+# [0.341.0](https://github.com/lightdash/lightdash/compare/0.340.1...0.341.0) (2022-12-07)
+
+
+### Features
+
+* window titles updated with corresponding page title ([#3923](https://github.com/lightdash/lightdash/issues/3923)) ([0f0c17b](https://github.com/lightdash/lightdash/commit/0f0c17bd70d8457aaa95bd07c046d12bbb9587bd))
+
+## [0.340.1](https://github.com/lightdash/lightdash/compare/0.340.0...0.340.1) (2022-12-06)
+
+
+### Bug Fixes
+
+* add dev set up command for error when running build script ([#3917](https://github.com/lightdash/lightdash/issues/3917)) ([8f79705](https://github.com/lightdash/lightdash/commit/8f797056bff8a5576d48226b30f5f400bacf5711))
+
+# [0.340.0](https://github.com/lightdash/lightdash/compare/0.339.0...0.340.0) (2022-12-06)
+
+
+### Features
+
+* fine grain github token ([#3908](https://github.com/lightdash/lightdash/issues/3908)) ([41d2b32](https://github.com/lightdash/lightdash/commit/41d2b321511940e59f6db2f9804e7ac55d2857a3))
+
+# [0.339.0](https://github.com/lightdash/lightdash/compare/0.338.0...0.339.0) (2022-12-06)
+
+
+### Features
+
+* chart config unit input improvements ([#3899](https://github.com/lightdash/lightdash/issues/3899)) ([b12be40](https://github.com/lightdash/lightdash/commit/b12be40e3ebce33fe9936c639aff62196376ccb8))
+
+# [0.338.0](https://github.com/lightdash/lightdash/compare/0.337.0...0.338.0) (2022-12-06)
+
+
+### Features
+
+* add id format ([#3914](https://github.com/lightdash/lightdash/issues/3914)) ([376e294](https://github.com/lightdash/lightdash/commit/376e294b33a2228fd434d45209e030ccd8d69e14))
+
+# [0.337.0](https://github.com/lightdash/lightdash/compare/0.336.1...0.337.0) (2022-12-05)
+
+
+### Features
+
+* configure start of week in CLI commands ([#3808](https://github.com/lightdash/lightdash/issues/3808)) ([9ff583f](https://github.com/lightdash/lightdash/commit/9ff583f6f7e9330217c85e7762ffbe4affa40e1d))
+
+## [0.336.1](https://github.com/lightdash/lightdash/compare/0.336.0...0.336.1) (2022-12-05)
+
+
+### Bug Fixes
+
+* dashboard filters missing tile titles ([#3904](https://github.com/lightdash/lightdash/issues/3904)) ([22508ef](https://github.com/lightdash/lightdash/commit/22508ef5048b15c6ace335cac6733a76fc578cc1))
+
+# [0.336.0](https://github.com/lightdash/lightdash/compare/0.335.1...0.336.0) (2022-12-02)
+
+
+### Features
+
+* tile filters ([#3786](https://github.com/lightdash/lightdash/issues/3786)) ([5489fc3](https://github.com/lightdash/lightdash/commit/5489fc3dbaf75ea81234a30d3fb6200d26fe2074))
+
+## [0.335.1](https://github.com/lightdash/lightdash/compare/0.335.0...0.335.1) (2022-11-29)
+
+
+### Bug Fixes
+
+* explore container overflow ([#3868](https://github.com/lightdash/lightdash/issues/3868)) ([38a079b](https://github.com/lightdash/lightdash/commit/38a079b513187a32caa80dbc9e181da78dd2bd64))
+
+# [0.335.0](https://github.com/lightdash/lightdash/compare/0.334.0...0.335.0) (2022-11-25)
+
+
+### Features
+
+* configurable max age for cookies ([#3850](https://github.com/lightdash/lightdash/issues/3850)) ([3ca7f14](https://github.com/lightdash/lightdash/commit/3ca7f14a7b547913bcfd64a613bea1f13f9cf52f))
+
+# [0.334.0](https://github.com/lightdash/lightdash/compare/0.333.0...0.334.0) (2022-11-25)
+
+
+### Features
+
+* space created_by_user_id and hide users when space is public ([#3840](https://github.com/lightdash/lightdash/issues/3840)) ([131b8f2](https://github.com/lightdash/lightdash/commit/131b8f2a3e1416dbfa2cbb38c2c6e560d1c96081))
+
+# [0.333.0](https://github.com/lightdash/lightdash/compare/0.332.0...0.333.0) (2022-11-25)
+
+
+### Features
+
+* cell copy to clipboard ([#3839](https://github.com/lightdash/lightdash/issues/3839)) ([546d32c](https://github.com/lightdash/lightdash/commit/546d32cf2d4c3adb2355a3574914b8be2b95fcc2))
+
+# [0.332.0](https://github.com/lightdash/lightdash/compare/0.331.0...0.332.0) (2022-11-25)
+
+
+### Features
+
+* share slackbot ([#3462](https://github.com/lightdash/lightdash/issues/3462)) ([e966feb](https://github.com/lightdash/lightdash/commit/e966feb79853e3eb64bc84812d29092a2b12ff00))
+
+# [0.331.0](https://github.com/lightdash/lightdash/compare/0.330.0...0.331.0) (2022-11-24)
+
+
+### Features
+
+* arch linux installation update ([#3773](https://github.com/lightdash/lightdash/issues/3773)) ([163fc74](https://github.com/lightdash/lightdash/commit/163fc74ede1504e644c2bc16c534f429a7c4297d))
+
 # [0.330.0](https://github.com/lightdash/lightdash/compare/0.329.1...0.330.0) (2022-11-23)
 
 

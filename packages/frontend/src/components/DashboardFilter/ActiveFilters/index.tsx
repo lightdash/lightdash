@@ -1,21 +1,26 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
+import { ActiveDashboardFiltersWrapper } from '../DashboardFilter.styles';
 import ActiveFilter from './ActiveFilter';
-import { TagsWrapper } from './ActiveFilters.styles';
 
-const ActiveFilters: FC = () => {
+interface ActiveFiltersProps {
+    isEditMode: boolean;
+}
+
+const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
     const {
-        dashboard,
         dashboardFilters,
         dashboardTemporaryFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         dashboardTiles,
     } = useDashboardContext();
-    const { data: filterableFields } =
+    const { isLoading, data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboardTiles);
+
+    if (isLoading || !filterableFields) return null;
 
     const fieldMap = filterableFields.reduce<Record<FieldId, FilterableField>>(
         (acc, field) => ({ ...acc, [fieldId(field)]: field }),
@@ -23,10 +28,11 @@ const ActiveFilters: FC = () => {
     );
 
     return (
-        <TagsWrapper>
+        <ActiveDashboardFiltersWrapper>
             {dashboardFilters.dimensions.map((item, index) => (
                 <ActiveFilter
                     key={item.id}
+                    isEditMode={isEditMode}
                     fieldId={item.target.fieldId}
                     field={fieldMap[item.target.fieldId]}
                     filterRule={item}
@@ -41,6 +47,7 @@ const ActiveFilters: FC = () => {
             {dashboardTemporaryFilters.dimensions.map((item, index) => (
                 <ActiveFilter
                     key={item.id}
+                    isEditMode={isEditMode}
                     fieldId={item.target.fieldId}
                     field={fieldMap[item.target.fieldId]}
                     filterRule={item}
@@ -50,7 +57,7 @@ const ActiveFilters: FC = () => {
                     }
                 />
             ))}
-        </TagsWrapper>
+        </ActiveDashboardFiltersWrapper>
     );
 };
 

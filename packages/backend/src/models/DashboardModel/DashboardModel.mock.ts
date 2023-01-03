@@ -33,6 +33,7 @@ const tileWithoutId: CreateDashboardChartTile = {
     w: 200,
     properties: {
         savedChartUuid: '123',
+        title: 'title 123',
     },
 };
 const tileWithId: DashboardChartTile = {
@@ -95,6 +96,7 @@ export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
             ...tileWithoutId,
             properties: {
                 savedChartUuid: null,
+                title: null,
             },
         },
     ],
@@ -191,14 +193,14 @@ export const dashboardTileWithSavedChartEntry = {
 export const loomTileEntry = {
     ...dashboardTileEntry,
     type: DashboardTileTypes.LOOM,
-    loomTitle: 'my loom title',
+    title: 'my loom title',
     url: 'my loom url',
 };
 
 export const markdownTileEntry = {
     ...dashboardTileEntry,
     type: DashboardTileTypes.MARKDOWN,
-    markdownTitle: 'my markdown title',
+    title: 'my markdown title',
     content: 'my markdown content',
 };
 
@@ -222,6 +224,8 @@ export const expectedDashboard: Dashboard = {
             type: dashboardTileEntry.type,
             properties: {
                 savedChartUuid: savedChartEntry.saved_query_uuid,
+                hideTitle: false,
+                title: '',
             },
             x: dashboardTileEntry.x_offset,
             y: dashboardTileEntry.y_offset,
@@ -232,7 +236,8 @@ export const expectedDashboard: Dashboard = {
             uuid: dashboardTileEntry.dashboard_tile_uuid,
             type: DashboardTileTypes.LOOM,
             properties: {
-                title: loomTileEntry.loomTitle,
+                title: loomTileEntry.title,
+                hideTitle: false,
                 url: loomTileEntry.url,
             },
             x: dashboardTileEntry.x_offset,
@@ -244,8 +249,9 @@ export const expectedDashboard: Dashboard = {
             uuid: dashboardTileEntry.dashboard_tile_uuid,
             type: DashboardTileTypes.MARKDOWN,
             properties: {
-                title: markdownTileEntry.markdownTitle,
+                title: markdownTileEntry.title,
                 content: markdownTileEntry.content,
+                hideTitle: false,
             },
             x: dashboardTileEntry.x_offset,
             y: dashboardTileEntry.y_offset,

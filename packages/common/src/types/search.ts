@@ -4,14 +4,14 @@ import { Dimension, Metric } from './field';
 import { SavedChart } from './savedCharts';
 import { Space } from './space';
 
-export type SpaceSearchResult = Pick<Space, 'uuid' | 'name'>;
+export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
 export type DashboardSearchResult = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description'
+    'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 export type SavedChartSearchResult = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description'
+    'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 export type TableSearchResult = Pick<
     Table,

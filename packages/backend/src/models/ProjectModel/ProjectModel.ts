@@ -687,4 +687,15 @@ export class ProjectModel {
             .onConflict('project_id')
             .merge();
     }
+
+    async deleteDbtCloudIntegration(projectUuid: string): Promise<void> {
+        await this.database.raw(
+            `
+            DELETE FROM dbt_cloud_integrations AS i
+            USING projects AS p
+                   WHERE p.project_id = i.project_id
+                   AND p.project_uuid = ?`,
+            [projectUuid],
+        );
+    }
 }

@@ -9,6 +9,7 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
+import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import Page from '../components/common/Page/Page';
@@ -18,8 +19,9 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
-import UnderlyingDataModal from '../components/UnderlyingData/UnderlyingDataModal';
-import UnderlyingDataProvider from '../components/UnderlyingData/UnderlyingDataProvider';
+import DrillDownModal from '../components/MetricQueryData/DrillDownModal';
+import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
+import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
     useDashboardQuery,
@@ -69,13 +71,14 @@ const GridTile: FC<
                     </TileBase>
                 );
             return (
-                <UnderlyingDataProvider
-                    filters={savedQuery?.metricQuery.filters}
+                <MetricQueryDataProvider
+                    metricQuery={savedQuery?.metricQuery}
                     tableName={savedQuery?.tableName || ''}
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
-                </UnderlyingDataProvider>
+                    <DrillDownModal />
+                </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:
             return <MarkdownTile {...props} tile={tile} />;
@@ -332,6 +335,9 @@ const Dashboard = () => {
 
     return (
         <>
+            <Helmet>
+                <title>{dashboardName || dashboard.name} - Lightdash</title>
+            </Helmet>
             <Alert
                 isOpen={isSaveWarningModalOpen}
                 cancelButtonText="Stay"

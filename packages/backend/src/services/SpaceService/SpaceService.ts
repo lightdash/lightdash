@@ -90,8 +90,19 @@ export class SpaceService {
         const newSpace = await this.spaceModel.createSpace(
             projectUuid,
             space.name,
+            user.userId,
+            space.isPrivate !== false,
         );
 
+        if (space.access)
+            await Promise.all(
+                space.access.map((access) =>
+                    this.spaceModel.addSpaceAccess(
+                        newSpace.uuid,
+                        access.userUuid,
+                    ),
+                ),
+            );
         await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
         analytics.track({
             event: 'space.created',

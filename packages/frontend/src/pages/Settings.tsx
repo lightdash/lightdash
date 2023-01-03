@@ -1,5 +1,6 @@
 import { Menu, NonIdealState } from '@blueprintjs/core';
-import { FC } from 'react';
+import React, { FC } from 'react';
+import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import { PageWithSidebar } from '../components/common/Page/Page.styles';
@@ -12,6 +13,7 @@ import OrganisationPanel from '../components/UserSettings/OrganisationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
+import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
@@ -74,6 +76,9 @@ const Settings: FC = () => {
 
     return (
         <PageWithSidebar alignItems="flex-start">
+            <Helmet>
+                <title>Settings - Lightdash</title>
+            </Helmet>
             <Sidebar title="Settings">
                 <MenuWrapper>
                     <MenuHeader>User settings</MenuHeader>
@@ -144,6 +149,19 @@ const Settings: FC = () => {
                         />
                     </Menu>
                 </MenuWrapper>
+
+                {health.hasSlack && user.ability.can('manage', 'Organization') && (
+                    <MenuWrapper>
+                        <MenuHeader>Integrations</MenuHeader>
+                        <Menu>
+                            <RouterMenuItem
+                                text="Slack"
+                                exact
+                                to={`${basePath}/slack`}
+                            />
+                        </Menu>
+                    </MenuWrapper>
+                )}
             </Sidebar>
 
             <Switch>
@@ -246,7 +264,15 @@ const Settings: FC = () => {
                         </ContentWrapper>
                     </Content>
                 </Route>
-
+                {health.hasSlack && user.ability.can('manage', 'Organization') && (
+                    <Route exact path={`/generalSettings/slack`}>
+                        <Content>
+                            <CardContainer>
+                                <SlackSettingsPanel />
+                            </CardContainer>
+                        </Content>
+                    </Route>
+                )}
                 <Route exact path={`/generalSettings`}>
                     <Content>
                         <CardContainer>

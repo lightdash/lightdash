@@ -1,12 +1,22 @@
 import { subject } from '@casl/ability';
-import { ForbiddenError, SearchResults, SessionUser } from '@lightdash/common';
+import {
+    DashboardSearchResult,
+    ForbiddenError,
+    SavedChartSearchResult,
+    SearchResults,
+    SessionUser,
+    SpaceSearchResult,
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
+import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     searchModel: SearchModel;
     projectModel: ProjectModel;
+    spaceModel: SpaceModel;
 };
 
 export class SearchService {
@@ -14,9 +24,12 @@ export class SearchService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly spaceModel: SpaceModel;
+
     constructor(dependencies: Dependencies) {
         this.searchModel = dependencies.searchModel;
         this.projectModel = dependencies.projectModel;
+        this.spaceModel = dependencies.spaceModel;
     }
 
     async getSearchResults(
@@ -38,18 +51,50 @@ export class SearchService {
             throw new ForbiddenError();
         }
         const results = await this.searchModel.search(projectUuid, query);
+        const spaceUuids = [
+            ...new Set([
+                ...results.dashboards.map((dashboard) => dashboard.spaceUuid),
+                ...results.savedCharts.map(
+                    (savedChart) => savedChart.spaceUuid,
+                ),
+                ...results.spaces.map((space) => space.uuid),
+            ]),
+        ];
+        const spaces = await Promise.all(
+            spaceUuids.map((spaceUuid) =>
+                this.spaceModel.getFullSpace(spaceUuid),
+            ),
+        );
+        const filterItem = (
+            item:
+                | DashboardSearchResult
+                | SpaceSearchResult
+                | SavedChartSearchResult,
+        ) => {
+            const spaceUuid: string =
+                'spaceUuid' in item ? item.spaceUuid : item.uuid;
+            const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
+            return itemSpace && hasSpaceAccess(itemSpace, user.userUuid);
+        };
+
+        const filteredResults = {
+            ...results,
+            dashboards: results.dashboards.filter(filterItem),
+            savedCharts: results.savedCharts.filter(filterItem),
+            spaces: results.spaces.filter(filterItem),
+        };
         analytics.track({
             event: 'project.search',
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                spacesResultsCount: results.spaces.length,
-                dashboardsResultsCount: results.dashboards.length,
-                savedChartsResultsCount: results.savedCharts.length,
-                tablesResultsCount: results.tables.length,
-                fieldsResultsCount: results.fields.length,
+                spacesResultsCount: filteredResults.spaces.length,
+                dashboardsResultsCount: filteredResults.dashboards.length,
+                savedChartsResultsCount: filteredResults.savedCharts.length,
+                tablesResultsCount: filteredResults.tables.length,
+                fieldsResultsCount: filteredResults.fields.length,
             },
         });
-        return results;
+        return filteredResults;
     }
 }

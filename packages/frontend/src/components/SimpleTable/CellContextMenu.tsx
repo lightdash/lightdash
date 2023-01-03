@@ -4,11 +4,11 @@ import { isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
-    const { viewData } = useUnderlyingDataContext();
-
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -24,7 +24,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(
+                    openUnderlyingDataModel(
                         value,
                         meta,
                         cell.row.original || {},
@@ -32,6 +32,11 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                         meta?.pivotReference,
                     );
                 }}
+            />
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                pivotReference={meta?.pivotReference}
+                selectedItem={item}
             />
         </Menu>
     );

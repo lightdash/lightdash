@@ -1,5 +1,6 @@
 import { Card } from '@blueprintjs/core';
 import { memo } from 'react';
+import { Helmet } from 'react-helmet';
 import {
     CardContent,
     PageContentContainer,
@@ -10,17 +11,32 @@ import {
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { useExplore } from '../hooks/useExplore';
 import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
 import useSidebarResize from '../hooks/useSidebarResize';
 import { useApp } from '../providers/AppProvider';
-import { ExplorerProvider } from '../providers/ExplorerProvider';
+import {
+    ExplorerProvider,
+    useExplorerContext,
+} from '../providers/ExplorerProvider';
 
 const ExplorerWithUrlParams = memo(() => {
     useExplorerRoute();
-    return <Explorer />;
+    const tableId = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const { data } = useExplore(tableId);
+    return (
+        <>
+            <Helmet>
+                <title>{data ? data?.label : 'Tables'} - Lightdash</title>
+            </Helmet>
+            <Explorer />
+        </>
+    );
 });
 
 const ExplorerPage = memo(() => {

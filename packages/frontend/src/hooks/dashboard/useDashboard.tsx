@@ -2,14 +2,15 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
-    DashboardTileTypes,
+    DashboardTile,
     FilterableField,
+    isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
-import { UseQueryResult } from 'react-query/types/react/types';
+import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
@@ -61,53 +62,95 @@ export const getChartAvailableFilters = async (savedChartUuid: string) =>
         body: undefined,
     });
 
-export const useAvailableDashboardFilterTargets = (
-    availableTilesToFilter: Dashboard['tiles'],
-): { isLoading: boolean; data: FilterableField[] } => {
-    const queries = useMemo(() => {
-        const savedChartUuids = (availableTilesToFilter || [])
-            .map((tile) =>
-                tile.type === DashboardTileTypes.SAVED_CHART
-                    ? tile.properties.savedChartUuid
-                    : null,
-            )
-            .filter((id) => id !== null) as string[];
-        return savedChartUuids.map((savedChartUuid) => ({
-            queryKey: ['available_filters', savedChartUuid],
-            queryFn: () => getChartAvailableFilters(savedChartUuid),
-        }));
-    }, [availableTilesToFilter]);
-    const results = useQueries(queries) as UseQueryResult<
-        FilterableField[],
-        ApiError
-    >[]; // useQueries doesn't allow us to specify TError
+export const getQueryConfig = (
+    savedChartUuid: string,
+    queryOptions?: Omit<UseQueryOptions, 'queryKey' | 'queryFn'>,
+): UseQueryOptions => {
+    return {
+        queryKey: ['available_filters', savedChartUuid],
+        queryFn: () => getChartAvailableFilters(savedChartUuid),
+        ...queryOptions,
+    };
+};
 
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [availableFilters, setAvailableFilters] = useState<FilterableField[]>(
-        [],
+export const useDashboardAvailableTileFilters = (
+    tiles: DashboardTile[] = [],
+) => {
+    const savedChartTiles = useMemo(() => {
+        return tiles
+            .filter(isDashboardChartTileType)
+            .filter((tile) => !!tile.properties.savedChartUuid);
+    }, [tiles]);
+
+    const queries = useQueries(
+        savedChartTiles.map((tile) =>
+            getQueryConfig(tile.properties.savedChartUuid!, { retry: false }),
+        ),
+    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
+
+    const results = queries.map((query) =>
+        query.isSuccess ? query.data : undefined,
     );
 
+    const isFetched = queries.every((query) => query.isFetched);
+
+    const [data, setData] =
+        useState<Record<string, FilterableField[] | undefined>>();
+
     useDeepCompareEffect(() => {
-        setIsLoading(results.some((q) => q.isLoading));
-        setAvailableFilters(
-            results
-                .flatMap((q) => q.data || [])
-                .filter(
-                    (field, index, allFields) =>
-                        index ===
-                        allFields.findIndex(
-                            (f) =>
-                                f.table === field.table &&
-                                f.name === field.name,
-                        ),
-                ),
+        if (!isFetched) return;
+
+        const newData = results.reduce<
+            Record<string, FilterableField[] | undefined>
+        >(
+            (acc, result, index) => ({
+                ...acc,
+                [savedChartTiles[index].uuid]: result,
+            }),
+            {},
         );
+
+        setData(newData);
     }, [results]);
 
-    return {
-        isLoading,
-        data: availableFilters,
-    };
+    return useMemo(
+        () => ({
+            isLoading: !isFetched,
+            data,
+        }),
+        [isFetched, data],
+    );
+};
+
+export const useAvailableDashboardFilterTargets = (
+    tiles: DashboardTile[] = [],
+) => {
+    const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
+
+    const availableFilters = useMemo(() => {
+        if (isLoading || !data) return;
+
+        const allFilters = Object.values(data)
+            .flat()
+            .filter((f): f is FilterableField => !!f);
+        if (allFilters.length === 0) return;
+
+        return allFilters.filter(
+            (field, index, allFields) =>
+                index ===
+                allFields.findIndex(
+                    (f) => f.table === field.table && f.name === field.name,
+                ),
+        );
+    }, [isLoading, data]);
+
+    return useMemo(
+        () => ({
+            isLoading,
+            data: availableFilters,
+        }),
+        [isLoading, availableFilters],
+    );
 };
 
 export const useDashboardQuery = (id?: string) => {
@@ -337,9 +380,9 @@ export const useDeleteMutation = () => {
 };
 
 export const appendNewTilesToBottom = (
-    existingTiles: Dashboard['tiles'] | [],
-    newTiles: Dashboard['tiles'],
-): Dashboard['tiles'] => {
+    existingTiles: DashboardTile[] | [],
+    newTiles: DashboardTile[],
+): DashboardTile[] => {
     const tilesY =
         existingTiles &&
         existingTiles.map(function (tile) {

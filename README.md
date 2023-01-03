@@ -100,7 +100,7 @@ production using our [community helm charts](https://github.com/lightdash/helm-c
 
 ### Sign up to Lightdash Cloud
 
-You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up to the waitlist for Lightdash Cloud Beta](https://lightdash.typeform.com/to/HFlicx4i#source=github) . We'll let you know once we're ready to bring you on board 🙂
+You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up for Lightdash Cloud Public Beta](https://lightdash.typeform.com/public-beta#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
 ## Getting started
 
@@ -294,7 +294,14 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center"><a href="https://github.com/phillipwilhelm"><img src="https://avatars.githubusercontent.com/u/5200312?v=4?s=100" width="100px;" alt="Phillip W."/><br /><sub><b>Phillip W.</b></sub></a><br /><a href="#ideas-phillipwilhelm" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center"><a href="https://github.com/XiaozhouWang85"><img src="https://avatars.githubusercontent.com/u/42941066?v=4?s=100" width="100px;" alt="XiaozhouWang85"/><br /><sub><b>XiaozhouWang85</b></sub></a><br /><a href="#ideas-XiaozhouWang85" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center"><a href="http://rebeccasanjabi.com"><img src="https://avatars.githubusercontent.com/u/47192430?v=4?s=100" width="100px;" alt="Rebecca Sanjabi"/><br /><sub><b>Rebecca Sanjabi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Arsanjabi" title="Bug reports">🐛</a></td>
+    </tr>
+    <tr>
       <td align="center"><a href="https://github.com/kailin-lu"><img src="https://avatars.githubusercontent.com/u/31902827?v=4?s=100" width="100px;" alt="Kailin L"/><br /><sub><b>Kailin L</b></sub></a><br /><a href="#ideas-kailin-lu" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center"><a href="https://www.linkedin.com/in/metin-karakus-b586b6132"><img src="https://avatars.githubusercontent.com/u/61006227?v=4?s=100" width="100px;" alt="Metin Karakus"/><br /><sub><b>Metin Karakus</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=m-karakus" title="Code">💻</a></td>
+      <td align="center"><a href="https://github.com/yasmin-e"><img src="https://avatars.githubusercontent.com/u/67699259?v=4?s=100" width="100px;" alt="Yasmine"/><br /><sub><b>Yasmine</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=yasmin-e" title="Code">💻</a></td>
+      <td align="center"><a href="https://piotr.pilis.pl/"><img src="https://avatars.githubusercontent.com/u/29205792?v=4?s=100" width="100px;" alt="Piotr Pilis"/><br /><sub><b>Piotr Pilis</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=pilis" title="Code">💻</a></td>
+      <td align="center"><a href="https://github.com/judahrand"><img src="https://avatars.githubusercontent.com/u/17158624?v=4?s=100" width="100px;" alt="Judah Rand"/><br /><sub><b>Judah Rand</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Ajudahrand" title="Bug reports">🐛</a></td>
+      <td align="center"><a href="https://annebelleo.github.io"><img src="https://avatars.githubusercontent.com/u/20630578?v=4?s=100" width="100px;" alt="Annebelle Olminkhof"/><br /><sub><b>Annebelle Olminkhof</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=annebelleo" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>

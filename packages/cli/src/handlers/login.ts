@@ -15,14 +15,23 @@ type LoginOptions = {
     verbose: boolean;
 };
 
-const loginWithToken = async (url: string, token: string) => {
+const loginWithToken = async (
+    url: string,
+    token: string,
+    proxyAuthorization?: string,
+) => {
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
+    const proxyAuthorizationHeader = proxyAuthorization
+        ? { 'Proxy-Authorization': proxyAuthorization }
+        : undefined;
+    const headers = {
+        Authorization: `ApiKey ${token}`,
+        'Content-Type': 'application/json',
+        ...proxyAuthorizationHeader,
+    };
     const response = await fetch(userInfoUrl, {
         method: 'GET',
-        headers: {
-            Authorization: `ApiKey ${token}`,
-            'Content-Type': 'application/json',
-        },
+        headers,
     });
 
     if (response.status !== 200) {
@@ -114,8 +123,9 @@ export const login = async (url: string, options: LoginOptions) => {
             )} ?\n`,
         );
     }
+    const proxyAuthorization = process.env.LIGHTDASH_PROXY_AUTHORIZATION;
     const { userUuid, token } = options.token
-        ? await loginWithToken(url, options.token)
+        ? await loginWithToken(url, options.token, proxyAuthorization)
         : await loginWithPassword(url);
 
     GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);

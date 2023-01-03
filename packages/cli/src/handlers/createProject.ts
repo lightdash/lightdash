@@ -1,6 +1,7 @@
 import {
     CreateProject,
     DbtProjectType,
+    isWeekDay,
     Project,
     ProjectType,
     WarehouseTypes,
@@ -70,6 +71,7 @@ type CreateProjectOptions = {
     target: string | undefined;
     profile: string | undefined;
     type: ProjectType;
+    startOfWeek?: number;
 };
 export const createProject = async (
     options: CreateProjectOptions,
@@ -119,7 +121,12 @@ export const createProject = async (
     const project: CreateProject = {
         name: options.name,
         type: options.type,
-        warehouseConnection: credentials,
+        warehouseConnection: {
+            ...credentials,
+            startOfWeek: isWeekDay(options.startOfWeek)
+                ? options.startOfWeek
+                : undefined,
+        },
         dbtConnection: {
             type: DbtProjectType.NONE,
             target: targetName,

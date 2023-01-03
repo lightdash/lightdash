@@ -55,6 +55,60 @@
                                     },
                                     "required": ["join", "sql_on"]
                                 }
+                            },
+                            "metrics": {
+                                "type": "object",
+                                "patternProperties": {
+                                    "^[a-z0-9_]+$": {
+                                        "type": "object",
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "average",
+                                                    "boolean",
+                                                    "count",
+                                                    "count_distinct",
+                                                    "date",
+                                                    "max",
+                                                    "min",
+                                                    "number",
+                                                    "string",
+                                                    "sum"
+                                                ]
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            },
+                                            "description": {
+                                                "type": "string"
+                                            },
+                                            "sql": {
+                                                "type": "string"
+                                            },
+                                            "hidden": {
+                                                "type": "boolean"
+                                            },
+                                            "round": {
+                                                "type": "number",
+                                                "minimum": 0
+                                            },
+                                            "format": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "km",
+                                                    "mi",
+                                                    "usd",
+                                                    "gbp",
+                                                    "eur",
+                                                    "percent",
+                                                    "id"
+                                                ]
+                                            }
+                                        },
+                                        "required": ["type", "sql"]
+                                    }
+                                }
                             }
                         }
                     },
@@ -139,7 +193,8 @@
                                                                 "usd",
                                                                 "gbp",
                                                                 "eur",
-                                                                "percent"
+                                                                "percent",
+                                                                "id"
                                                             ]
                                                         }
                                                     },
@@ -174,7 +229,8 @@
                                                         "usd",
                                                         "gbp",
                                                         "eur",
-                                                        "percent"
+                                                        "percent",
+                                                        "id"
                                                     ]
                                                 },
                                                 "time_intervals": {
@@ -288,7 +344,8 @@
                                     "usd",
                                     "gbp",
                                     "eur",
-                                    "percent"
+                                    "percent",
+                                    "id"
                                 ]
                             }
                         }

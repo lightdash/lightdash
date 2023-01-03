@@ -822,6 +822,51 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "m-karakus",
+      "name": "Metin Karakus",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61006227?v=4",
+      "profile": "https://www.linkedin.com/in/metin-karakus-b586b6132",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "yasmin-e",
+      "name": "Yasmine",
+      "avatar_url": "https://avatars.githubusercontent.com/u/67699259?v=4",
+      "profile": "https://github.com/yasmin-e",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "pilis",
+      "name": "Piotr Pilis",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29205792?v=4",
+      "profile": "https://piotr.pilis.pl/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "judahrand",
+      "name": "Judah Rand",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17158624?v=4",
+      "profile": "https://github.com/judahrand",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "annebelleo",
+      "name": "Annebelle Olminkhof",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20630578?v=4",
+      "profile": "https://annebelleo.github.io",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

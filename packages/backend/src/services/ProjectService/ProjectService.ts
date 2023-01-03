@@ -64,6 +64,7 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -1136,6 +1137,12 @@ export class ProjectService {
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
+
+        const space = await this.spaceModel.getFullSpace(savedChart.spaceUuid);
+        if (!hasSpaceAccess(space, user.userUuid)) {
+            throw new ForbiddenError();
+        }
+
         const explore = await this.getExplore(
             user,
             savedChart.projectUuid,
@@ -1297,6 +1304,26 @@ export class ProjectService {
             },
         });
         return this.findDbtCloudIntegration(user, projectUuid);
+    }
+
+    async deleteDbtCloudIntegration(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.deleteDbtCloudIntegration(projectUuid);
+        analytics.track({
+            event: 'dbt_cloud_integration.deleted',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+            },
+        });
     }
 
     async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {

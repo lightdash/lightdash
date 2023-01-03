@@ -6,6 +6,7 @@ import {
     LightdashUser,
 } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -178,6 +179,9 @@ const Signup: FC = () => {
 
     return (
         <Page isFullHeight>
+            <Helmet>
+                <title>Register - Lightdash</title>
+            </Helmet>
             <FormWrapper>
                 <LogoWrapper>
                     <Logo src={LightdashLogo} alt="lightdash logo" />

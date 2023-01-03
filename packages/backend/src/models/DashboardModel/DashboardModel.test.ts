@@ -2,6 +2,7 @@ import {
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
     DashboardChartTile,
+    deepEqual,
     LightdashMode,
     NotFoundError,
 } from '@lightdash/common';
@@ -56,7 +57,7 @@ function queryMatcher(
         sql.includes(tableName) &&
         params.length === bindings.length &&
         params.reduce(
-            (valid, arg, index) => valid && bindings[index] === arg,
+            (valid, arg, index) => valid && deepEqual(bindings[index], arg),
             true,
         );
 }
@@ -217,6 +218,15 @@ describe('DashboardModel', () => {
                 loomTileEntry,
                 markdownTileEntry,
             ]);
+        tracker.on
+            .update(
+                queryMatcher(DashboardViewsTableName, [
+                    addDashboardVersionWithoutChart.filters,
+                    dashboardVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([]);
+
         jest.spyOn(model, 'getById').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
@@ -225,6 +235,7 @@ describe('DashboardModel', () => {
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(5);
+        expect(tracker.history.update).toHaveLength(1);
     });
     test('should update dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
@@ -419,6 +430,15 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        tracker.on
+            .update(
+                queryMatcher(DashboardViewsTableName, [
+                    addDashboardVersionWithoutChart.filters,
+                    dashboardVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([]);
+
         jest.spyOn(model, 'getById').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
@@ -431,6 +451,7 @@ describe('DashboardModel', () => {
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(8);
+        expect(tracker.history.update).toHaveLength(1);
     });
     test('should create dashboard version with ids', async () => {
         tracker.on
@@ -486,6 +507,15 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([]);
+        tracker.on
+            .update(
+                queryMatcher(DashboardViewsTableName, [
+                    addDashboardVersionWithoutChart.filters,
+                    dashboardVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([]);
+
         jest.spyOn(model, 'getById').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
@@ -498,6 +528,7 @@ describe('DashboardModel', () => {
 
         expect(tracker.history.select).toHaveLength(2);
         expect(tracker.history.insert).toHaveLength(4);
+        expect(tracker.history.update).toHaveLength(1);
     });
     test('should create dashboard version without a chart', async () => {
         tracker.on
@@ -534,6 +565,16 @@ describe('DashboardModel', () => {
                 ]),
             )
             .response([dashboardTileEntry]);
+
+        tracker.on
+            .update(
+                queryMatcher(DashboardViewsTableName, [
+                    addDashboardVersionWithoutChart.filters,
+                    dashboardVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([]);
+
         jest.spyOn(model, 'getById').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
@@ -546,6 +587,7 @@ describe('DashboardModel', () => {
 
         expect(tracker.history.select).toHaveLength(1);
         expect(tracker.history.insert).toHaveLength(3);
+        expect(tracker.history.update).toHaveLength(1);
     });
     test("should error on create dashboard version if saved chart isn't found", async () => {
         tracker.on

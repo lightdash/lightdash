@@ -55,7 +55,7 @@ type PersonalAccessTokenEvent = BaseTrack & {
 };
 
 type DbtCloudIntegration = BaseTrack & {
-    event: 'dbt_cloud_integration.updated';
+    event: 'dbt_cloud_integration.updated' | 'dbt_cloud_integration.deleted';
     properties: {
         projectId: string;
     };
@@ -386,6 +386,23 @@ type ShareUrl = BaseTrack & {
     };
 };
 
+type ShareSlack = BaseTrack & {
+    event:
+        | 'share_slack.unfurl'
+        | 'share_slack.unfurl_completed'
+        | 'share_slack.unfurl_error'
+        | 'share_slack.install'
+        | 'share_slack.install_error'
+        | 'share_slack.delete';
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        pageType?: string;
+        error?: string;
+        organizationUuid?: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -418,7 +435,8 @@ type Track =
     | SavedChartUpdateMultiple
     | FieldValueSearch
     | PermissionsUpdated
-    | ShareUrl;
+    | ShareUrl
+    | ShareSlack;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

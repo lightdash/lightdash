@@ -204,6 +204,7 @@ const VisualizationCardOptions: FC = memo(() => {
                         icon="panel-table"
                         onClick={() => {
                             setChartType(ChartType.TABLE);
+                            setPivotDimensions(undefined);
                             setIsOpen(false);
                         }}
                         disabled={disabled}

@@ -118,16 +118,16 @@ const testCompile = () => {
 
 const testRunQuery = () => {
     // Open SQL runner
-    cy.findByText('Explore').click();
-    cy.findByText('SQL Runner').click();
+    cy.contains('New').click();
+    cy.findByText('Query using SQL runner').click();
     cy.url().should('include', '/sqlRunner', { timeout: 30000 });
 
     cy.contains('payments').click();
 };
 
 const testQuery = () => {
-    cy.findByText('Explore').click();
-    cy.findByText('Tables').click();
+    cy.contains('New').click();
+    cy.findByText('Query from tables').click();
     cy.url().should('include', '/tables', { timeout: 30000 });
 
     cy.contains('Orders').click();
@@ -158,8 +158,8 @@ const defaultRowValues = [
 ];
 
 const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
-    cy.findByText('Explore').click();
-    cy.findByText('Tables').click();
+    cy.contains('New').click();
+    cy.findByText('Query from tables').click();
     cy.url().should('include', '/tables', { timeout: 30000 });
 
     cy.contains('Events').click();

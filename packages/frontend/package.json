@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.330.0",
+    "version": "0.358.0",
     "private": true,
     "dependencies": {
         "@blueprintjs/core": "^4.7.0",
@@ -12,7 +12,7 @@
         "@casl/ability": "^5.4.4",
         "@casl/react": "^3.0.0",
         "@hookform/error-message": "^2.0.0",
-        "@lightdash/common": "^0.330.0",
+        "@lightdash/common": "^0.358.0",
         "@sentry/react": "^6.17.6",
         "@sentry/tracing": "^6.17.6",
         "@tanstack/react-table": "^8.5.11",
@@ -40,6 +40,7 @@
         "react-csv": "^2.2.2",
         "react-dom": "^17.0.2",
         "react-grid-layout": "^1.3.3",
+        "react-helmet": "^6.1.0",
         "react-hook-form": "^7.26.1",
         "react-query": "^3.34.14",
         "react-router-dom": "^5.2.0",
@@ -76,6 +77,7 @@
         "@types/react-csv": "^1.1.2",
         "@types/react-dom": "^17.0.2",
         "@types/react-grid-layout": "^1.3.1",
+        "@types/react-helmet": "^6.1.6",
         "@types/react-router-dom": "^5.3.3",
         "@types/react-syntax-highlighter": "^13.5.2",
         "@types/react-transition-group": "^4.4.4",

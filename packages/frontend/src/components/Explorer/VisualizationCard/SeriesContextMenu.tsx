@@ -5,16 +5,24 @@ import {
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
 import { getItemMap } from '@lightdash/common';
-import { FC, memo, useCallback, useEffect, useState } from 'react';
+import React, {
+    FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import { EchartSeriesClickEvent } from '../../SimpleChart';
+import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
-    useUnderlyingDataContext,
-} from '../../UnderlyingData/UnderlyingDataProvider';
+    useMetricQueryDataContext,
+} from '../../MetricQueryData/MetricQueryDataProvider';
+import { EchartSeriesClickEvent } from '../../SimpleChart';
 
 export const SeriesContextMenu: FC<{
     echartSeriesClickEvent: EchartSeriesClickEvent | undefined;
@@ -29,7 +37,7 @@ export const SeriesContextMenu: FC<{
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { viewData } = useUnderlyingDataContext();
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -48,7 +56,7 @@ export const SeriesContextMenu: FC<{
         }
     }, [echartSeriesClickEvent]);
 
-    const viewUnderlyingData = useCallback(() => {
+    const underlyingData = useMemo(() => {
         if (explore !== undefined && echartSeriesClickEvent !== undefined) {
             const allItemsMap = getItemMap(
                 explore,
@@ -56,13 +64,17 @@ export const SeriesContextMenu: FC<{
                 metricQuery?.tableCalculations,
             );
 
-            const underlyingData = getDataFromChartClick(
+            return getDataFromChartClick(
                 echartSeriesClickEvent,
                 allItemsMap,
                 series || [],
             );
+        }
+    }, [echartSeriesClickEvent, explore, metricQuery, series]);
 
-            viewData(
+    const onViewUnderlyingData = useCallback(() => {
+        if (underlyingData !== undefined) {
+            openUnderlyingDataModel(
                 underlyingData.value,
                 underlyingData.meta,
                 underlyingData.row,
@@ -70,14 +82,7 @@ export const SeriesContextMenu: FC<{
                 underlyingData.pivotReference,
             );
         }
-    }, [
-        explore,
-        echartSeriesClickEvent,
-        metricQuery,
-        series,
-        viewData,
-        dimensions,
-    ]);
+    }, [openUnderlyingDataModel, dimensions, underlyingData]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
@@ -95,13 +100,6 @@ export const SeriesContextMenu: FC<{
         [],
     );
 
-    const onViewUnderlyingData = useCallback(
-        (e) => {
-            viewUnderlyingData();
-        },
-        [viewUnderlyingData],
-    );
-
     const onClose = useCallback(() => setContextMenuIsOpen(false), []);
 
     return (
@@ -113,6 +111,11 @@ export const SeriesContextMenu: FC<{
                             text={`View underlying data`}
                             icon={'layers'}
                             onClick={onViewUnderlyingData}
+                        />
+                        <DrillDownMenuItem
+                            row={underlyingData?.row}
+                            selectedItem={underlyingData?.meta?.item}
+                            pivotReference={underlyingData?.pivotReference}
                         />
                     </Menu>
                 </div>

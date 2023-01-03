@@ -1,10 +1,11 @@
 import {
     DashboardFilters,
+    Explore,
     Field,
-    Filters,
     getItemId,
     hashFieldReference,
     isDimension,
+    MetricQuery,
     PivotReference,
     ResultRow,
     TableCalculation,
@@ -17,10 +18,11 @@ import React, {
     useState,
 } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import { useExplore } from '../../hooks/useExplore';
 import { TableColumn } from '../common/Table/types';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
-type UnderlyingDataConfig = {
+type MetricQueryDataConfig = {
     value: ResultRow[0]['value'];
     meta: TableColumn['meta'];
     row: ResultRow;
@@ -29,12 +31,20 @@ type UnderlyingDataConfig = {
     dashboardFilters?: DashboardFilters;
 };
 
-type UnderlyingDataContext = {
+type DrillDownConfig = {
+    row: ResultRow;
+    selectedItem: Field | TableCalculation;
+    pivotReference?: PivotReference;
+    dashboardFilters?: DashboardFilters;
+};
+
+type MetricQueryDataContext = {
     tableName: string;
-    filters?: Filters;
-    config: UnderlyingDataConfig | undefined;
-    isModalOpen: boolean;
-    viewData: (
+    explore: Explore | undefined;
+    metricQuery?: MetricQuery;
+    underlyingDataConfig: MetricQueryDataConfig | undefined;
+    isUnderlyingDataModalOpen: boolean;
+    openUnderlyingDataModel: (
         value: ResultRow[0]['value'],
         meta: TableColumn['meta'],
         row: ResultRow,
@@ -42,14 +52,19 @@ type UnderlyingDataContext = {
         pivotReference?: PivotReference,
         dashboardFilters?: DashboardFilters,
     ) => void;
-    closeModal: () => void;
+    closeUnderlyingDataModal: () => void;
+
+    drillDownConfig: DrillDownConfig | undefined;
+    isDrillDownModalOpen: boolean;
+    openDrillDownModel: (config: DrillDownConfig) => void;
+    closeDrillDownModal: () => void;
 };
 
 export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
-): UnderlyingDataConfig => {
+): MetricQueryDataConfig => {
     const pivotReference = series[e.seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
@@ -87,26 +102,41 @@ export const getDataFromChartClick = (
         pivotReference,
     };
 };
-const Context = createContext<UnderlyingDataContext | undefined>(undefined);
+const Context = createContext<MetricQueryDataContext | undefined>(undefined);
 
 type Props = {
     tableName: string;
-    filters?: Filters;
+    metricQuery: MetricQuery | undefined;
 };
 
-export const UnderlyingDataProvider: FC<Props> = ({
+export const MetricQueryDataProvider: FC<Props> = ({
     tableName,
-    filters,
+    metricQuery,
     children,
 }) => {
-    const [config, setConfig] = useState<UnderlyingDataConfig>();
-    const [isModalOpen, setModalOpen] = useState<boolean>(false);
-
-    const closeModal = useCallback(() => {
-        setModalOpen(false);
+    const [underlyingDataConfig, setUnderlyingDataConfig] =
+        useState<MetricQueryDataConfig>();
+    const [drillDownConfig, setDrillDownConfig] = useState<DrillDownConfig>();
+    const [isUnderlyingDataModalOpen, setIsUnderlyingDataModalOpen] =
+        useState<boolean>(false);
+    const [isDrillDownModalOpen, setIsDrillDownModalOpen] =
+        useState<boolean>(false);
+    const { data: explore } = useExplore(tableName);
+    const openDrillDownModel = useCallback(
+        (config: DrillDownConfig) => {
+            setDrillDownConfig(config);
+            setIsDrillDownModalOpen(true);
+        },
+        [setDrillDownConfig],
+    );
+    const closeDrillDownModal = useCallback(() => {
+        setIsDrillDownModalOpen(false);
+    }, []);
+    const closeUnderlyingDataModal = useCallback(() => {
+        setIsUnderlyingDataModalOpen(false);
     }, []);
 
-    const viewData = useCallback(
+    const openUnderlyingDataModel = useCallback(
         (
             value: ResultRow[0]['value'],
             meta: TableColumn['meta'],
@@ -115,7 +145,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
             pivotReference?: PivotReference,
             dashboardFilters?: DashboardFilters,
         ) => {
-            setConfig({
+            setUnderlyingDataConfig({
                 value,
                 meta,
                 row,
@@ -124,20 +154,25 @@ export const UnderlyingDataProvider: FC<Props> = ({
                 dashboardFilters,
             });
 
-            setModalOpen(true);
+            setIsUnderlyingDataModalOpen(true);
         },
-        [setConfig],
+        [setUnderlyingDataConfig],
     );
 
     return (
         <Context.Provider
             value={{
                 tableName,
-                filters,
-                config,
-                viewData,
-                isModalOpen,
-                closeModal,
+                metricQuery,
+                underlyingDataConfig,
+                openUnderlyingDataModel,
+                isUnderlyingDataModalOpen,
+                closeUnderlyingDataModal,
+                isDrillDownModalOpen,
+                drillDownConfig,
+                openDrillDownModel,
+                closeDrillDownModal,
+                explore,
             }}
         >
             {children}
@@ -145,7 +180,7 @@ export const UnderlyingDataProvider: FC<Props> = ({
     );
 };
 
-export function useUnderlyingDataContext(): UnderlyingDataContext {
+export function useMetricQueryDataContext(): MetricQueryDataContext {
     const context = useContext(Context);
     if (context === undefined) {
         throw new Error(
@@ -155,4 +190,4 @@ export function useUnderlyingDataContext(): UnderlyingDataContext {
     return context;
 }
 
-export default UnderlyingDataProvider;
+export default MetricQueryDataProvider;

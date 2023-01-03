@@ -1,8 +1,11 @@
-import { Classes, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC, useState } from 'react';
+import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { getFilterRuleLabel } from '../../common/Filters/configs';
-import FilterConfiguration from '../FilterConfiguration';
+import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
+import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
 import {
     FilterValues,
     InvalidFilterTag,
@@ -10,6 +13,7 @@ import {
 } from './ActiveFilters.styles';
 
 type Props = {
+    isEditMode: boolean;
     fieldId: string;
     field: FilterableField | undefined;
     filterRule: DashboardFilterRule;
@@ -19,6 +23,7 @@ type Props = {
 };
 
 const ActiveFilter: FC<Props> = ({
+    isEditMode,
     fieldId,
     field,
     filterRule,
@@ -26,6 +31,16 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
+    const { dashboardTiles } = useDashboardContext();
+    const { data: availableTileFilters, isLoading } =
+        useDashboardAvailableTileFilters(dashboardTiles);
+
+    const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
+
+    if (isLoading || !availableTileFilters) {
+        return null;
+    }
+
     if (!field) {
         return (
             <InvalidFilterTag onRemove={onRemove}>
@@ -36,24 +51,31 @@ const ActiveFilter: FC<Props> = ({
     const filterRuleLabels = getFilterRuleLabel(filterRule, field);
     return (
         <Popover2
+            placement="bottom-start"
             content={
-                <FilterConfiguration
-                    field={field}
-                    filterRule={filterRule}
-                    onSave={onUpdate}
-                />
+                <FilterModalContainer $wide={selectedTabId === 'tiles'}>
+                    <FilterConfiguration
+                        isEditMode={isEditMode}
+                        tiles={dashboardTiles}
+                        selectedTabId={selectedTabId}
+                        onTabChange={setSelectedTabId}
+                        field={field}
+                        availableTileFilters={availableTileFilters}
+                        filterRule={filterRule}
+                        onSave={onUpdate}
+                    />
+                </FilterModalContainer>
             }
-            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-            position="bottom"
         >
             <TagContainer interactive onRemove={onRemove} onClick={onClick}>
                 <Tooltip2
-                    content={`Table: ${field.tableLabel}`}
                     interactionKind="hover"
-                    placement={'bottom-start'}
+                    placement="bottom-start"
+                    content={`Table: ${field.tableLabel}`}
                 >
                     <>
-                        {`${filterRuleLabels.field}: ${filterRuleLabels.operator} `}
+                        {filterRule.label || filterRuleLabels.field}:{' '}
+                        {filterRuleLabels.operator}{' '}
                         <FilterValues>{filterRuleLabels.value}</FilterValues>
                     </>
                 </Tooltip2>

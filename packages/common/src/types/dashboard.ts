@@ -31,16 +31,17 @@ export type DashboardLoomTileProperties = {
     type: DashboardTileTypes.LOOM;
     properties: {
         title: string;
-        url: string;
         hideTitle?: boolean;
+        url: string;
     };
 };
 
 export type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
-        savedChartUuid: string | null;
+        title: string | null;
         hideTitle?: boolean;
+        savedChartUuid: string | null;
     };
 };
 
@@ -71,6 +72,15 @@ export type CreateDashboard = {
     spaceUuid?: string;
 };
 
+export type DashboardTile =
+    | DashboardChartTile
+    | DashboardMarkdownTile
+    | DashboardLoomTile;
+
+export const isDashboardChartTileType = (
+    tile: DashboardTile,
+): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
+
 export type Dashboard = {
     organizationUuid: string;
     projectUuid: string;
@@ -78,9 +88,7 @@ export type Dashboard = {
     name: string;
     description?: string;
     updatedAt: Date;
-    tiles: Array<
-        DashboardChartTile | DashboardMarkdownTile | DashboardLoomTile
-    >;
+    tiles: Array<DashboardTile>;
     filters: DashboardFilters;
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;

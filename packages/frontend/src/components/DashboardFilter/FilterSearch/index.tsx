@@ -1,16 +1,21 @@
+import { FormGroup } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
-import { FilterableField, isField, isFilterableField } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import {
+    DashboardFieldTarget,
+    DashboardFilterRule,
+    FilterableField,
+    FilterOperator,
+    isField,
+    isFilterableField,
+} from '@lightdash/common';
+import { FC, useState } from 'react';
+import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
-import FilterConfiguration from '../FilterConfiguration';
-import {
-    FilterFooter,
-    FilterModalContainer,
-    Title,
-} from './FilterSearch.styles';
+import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
+import { BolderLabel, FilterModalContainer } from './FilterSearch.styles';
 
 type Props = {
     fields: FilterableField[];
@@ -27,55 +32,92 @@ const FilterSearch: FC<Props> = ({
     onSelectField,
     popoverProps,
 }) => {
-    const [selectedField, setSelectedField] = useState<FilterableField>();
-    const { addDimensionDashboardFilter } = useDashboardContext();
     const { track } = useTracking();
+    const { dashboardTiles } = useDashboardContext();
+    const { data: availableTileFilters, isLoading } =
+        useDashboardAvailableTileFilters(dashboardTiles);
+    const { addDimensionDashboardFilter } = useDashboardContext();
+
+    const [selectedField, setSelectedField] = useState<FilterableField>();
+    const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
+
+    if (isLoading || !availableTileFilters) {
+        return null;
+    }
+
+    const handleChangeField = (field: FilterableField) => {
+        if (isField(field) && isFilterableField(field)) {
+            setSelectedField(field);
+            onSelectField(field);
+        }
+    };
+
+    const handleSave = (
+        value: DashboardFilterRule<
+            FilterOperator,
+            DashboardFieldTarget,
+            any,
+            any
+        >,
+    ) => {
+        track({
+            name: EventName.ADD_FILTER_CLICKED,
+            properties: {
+                mode: isEditMode ? 'edit' : 'viewer',
+            },
+        });
+        setSelectedField(undefined);
+        addDimensionDashboardFilter(value, !isEditMode);
+        setSelectedTabId(undefined);
+        onClose();
+    };
+
+    const handleBack = () => {
+        setSelectedTabId(undefined);
+        setSelectedField(undefined);
+    };
 
     return (
-        <FilterModalContainer>
+        <FilterModalContainer
+            $wide={!!selectedField && selectedTabId === 'tiles'}
+        >
             {!selectedField ? (
-                <>
-                    <Title>Select a dimension to filter</Title>
-
+                <FormGroup
+                    style={{ marginBottom: '5px' }}
+                    label={
+                        <BolderLabel>Select a dimension to filter</BolderLabel>
+                    }
+                    labelFor="field-autocomplete"
+                >
                     <FieldAutoComplete
+                        id="field-autocomplete"
                         fields={fields}
-                        onChange={(field) => {
-                            if (isField(field) && isFilterableField(field)) {
-                                setSelectedField(field);
-                                onSelectField(field);
-                            }
-                        }}
+                        onChange={handleChangeField}
                         popoverProps={{
+                            lazy: true,
                             matchTargetWidth: true,
                             captureDismiss: !popoverProps?.isOpen,
                             canEscapeKeyClose: !popoverProps?.isOpen,
                             ...popoverProps,
                         }}
                     />
-                    <FilterFooter>
-                        Filters set on individual charts will be overridden.
-                    </FilterFooter>
-                </>
+                </FormGroup>
             ) : (
                 <FilterConfiguration
+                    isEditMode={isEditMode}
+                    selectedTabId={selectedTabId}
+                    onTabChange={setSelectedTabId}
+                    tiles={dashboardTiles}
                     field={selectedField}
+                    availableTileFilters={availableTileFilters}
                     popoverProps={{
-                        captureDismiss: true,
-                        canEscapeKeyClose: true,
+                        lazy: true,
+                        captureDismiss: !popoverProps?.isOpen,
+                        canEscapeKeyClose: !popoverProps?.isOpen,
                         ...popoverProps,
                     }}
-                    onSave={(value) => {
-                        track({
-                            name: EventName.ADD_FILTER_CLICKED,
-                            properties: {
-                                mode: isEditMode ? 'edit' : 'viewer',
-                            },
-                        });
-                        setSelectedField(undefined);
-                        addDimensionDashboardFilter(value, !isEditMode);
-                        onClose();
-                    }}
-                    onBack={() => setSelectedField(undefined)}
+                    onSave={handleSave}
+                    onBack={handleBack}
                 />
             )}
         </FilterModalContainer>

@@ -7,13 +7,14 @@ import { useVisualizationContext } from './VisualizationProvider';
 
 interface LightdashVisualizationProps {
     isDashboard?: boolean;
+    tileUuid?: string;
     className?: string;
     $padding?: number;
     'data-testid'?: string;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard, className, ...props }) => {
+    ({ isDashboard, tileUuid, className, ...props }) => {
         const { chartType } = useVisualizationContext();
 
         switch (chartType) {
@@ -28,6 +29,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.TABLE:
                 return (
                     <SimpleTable
+                        tileUuid={tileUuid}
                         isDashboard={!!isDashboard}
                         className={className}
                         $shouldExpand

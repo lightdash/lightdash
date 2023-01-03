@@ -28,6 +28,13 @@ export class HealthService {
         this.organizationModel = organizationModel;
     }
 
+    private hasSlackConfig(): boolean {
+        return (
+            this.lightdashConfig.slack?.appToken !== undefined &&
+            this.lightdashConfig.slack.signingSecret !== undefined
+        );
+    }
+
     async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
         const { isComplete, currentVersion } = await getMigrationStatus();
 
@@ -61,6 +68,7 @@ export class HealthService {
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             query: this.lightdashConfig.query,
+            hasSlack: this.hasSlackConfig(),
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,

@@ -1,5 +1,6 @@
 import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
 import React, { FC } from 'react';
+import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -96,6 +97,9 @@ const Register: FC = () => {
     );
     return (
         <Page isFullHeight>
+            <Helmet>
+                <title>Register - Lightdash</title>
+            </Helmet>
             <FormWrapper>
                 <LogoWrapper>
                     <Logo src={LightdashLogo} alt="lightdash logo" />

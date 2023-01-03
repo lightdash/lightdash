@@ -74,14 +74,15 @@ export const ItemDescription = styled.p`
 `;
 
 export const NotificationWrapper = styled.div`
-    padding: 0.357em 0.571em;
-    border-radius: 0.214em;
+    border-radius: 2px;
+    box-sizing: border-box;
     position: relative;
-    color: ${Colors.GRAY5} !important;
+    color: ${Colors.GRAY4} !important;
+    padding: 6px 7px;
 
     :hover {
         cursor: pointer;
-        background: rgba(138, 155, 168, 0.15) !important;
+        background: rgba(143, 153, 168, 0.15) !important;
     }
 `;
 export const NotificationWidget = styled.div`

@@ -27,6 +27,7 @@ export const BaseResponse = {
     cohere: undefined,
     rudder: undefined,
     sentry: undefined,
+    hasSlack: false,
 };
 
 export const Config = {

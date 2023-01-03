@@ -4,6 +4,7 @@ import {
     getSchemaStructureFromDbtModels,
     isExploreError,
     isSupportedDbtAdapter,
+    isWeekDay,
     ParseError,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
@@ -16,6 +17,7 @@ import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
+import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
@@ -26,7 +28,9 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     target: string | undefined;
     profile: string | undefined;
     verbose: boolean;
+    startOfWeek?: number;
 };
+
 export const compile = async (options: GenerateHandlerOptions) => {
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -53,6 +57,27 @@ export const compile = async (options: GenerateHandlerOptions) => {
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
 
+    const adapterType = manifest.metadata.adapter_type;
+
+    const [validModels, failedExplores] = validateDbtModel(adapterType, models);
+    if (failedExplores.length > 0) {
+        const errors = failedExplores.map((failedExplore) =>
+            failedExplore.errors.map((error) => `- ${error.message}\n`),
+        );
+        console.error(
+            styles.warning(`Found ${
+                failedExplores.length
+            } errors when validating dbt model:
+${errors.join('')}`),
+        );
+    } else {
+        GlobalState.debug(
+            `> Validated dbt models: ${validModels
+                .map((m) => m.name)
+                .join(', ')}`,
+        );
+    }
+
     GlobalState.debug(
         `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
     );
@@ -63,6 +88,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
     );
 
     const typedModels = attachTypesToModels(models, catalog, false);
+
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         await LightdashAnalytics.track({
             event: 'compile.error',
@@ -84,6 +110,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
         false,
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
+        isWeekDay(options.startOfWeek) ? options.startOfWeek : undefined,
     );
     console.error('');
 

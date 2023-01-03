@@ -17,6 +17,7 @@ export type Config = {
         serverUrl?: string;
         project?: string;
         apiKey?: string;
+        proxyAuthorization?: string;
     };
     answers?: {
         permissionToStoreWarehouseCredentials?: boolean;
@@ -67,6 +68,9 @@ export const getConfig = async (): Promise<Config> => {
                 process.env.LIGHTDASH_PROJECT || rawConfig.context?.project,
             serverUrl:
                 process.env.LIGHTDASH_URL || rawConfig.context?.serverUrl,
+            proxyAuthorization:
+                process.env.LIGHTDASH_PROXY_AUTHORIZATION ||
+                rawConfig.context?.proxyAuthorization,
         },
     };
 };

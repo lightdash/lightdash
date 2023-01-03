@@ -1,7 +1,11 @@
 import {
+    assertUnreachable,
     CreateDashboard,
     Dashboard,
     DashboardBasicDetails,
+    DashboardChartTile,
+    DashboardLoomTile,
+    DashboardMarkdownTile,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -85,6 +89,7 @@ export class DashboardModel {
             },
             ['dashboard_version_id', 'updated_by_user_uuid'],
         );
+
         await trx(DashboardViewsTableName).insert({
             dashboard_version_id: versionId.dashboard_version_id,
             name: 'Default',
@@ -94,82 +99,104 @@ export class DashboardModel {
             },
         });
 
-        const promises: Promise<any>[] = [];
-        version.tiles.forEach((tile) => {
+        const tilePromises = version.tiles.map(async (tile) => {
             const { uuid: dashboardTileId, type, w, h, x, y } = tile;
-            promises.push(
-                (async () => {
-                    const [insertedTile] = await trx(DashboardTilesTableName)
-                        .insert({
+
+            const [insertedTile] = await trx(DashboardTilesTableName)
+                .insert({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: dashboardTileId,
+                    type,
+                    height: h,
+                    width: w,
+                    x_offset: x,
+                    y_offset: y,
+                })
+                .returning('*');
+
+            switch (tile.type) {
+                case DashboardTileTypes.SAVED_CHART:
+                    if (tile.properties.savedChartUuid) {
+                        const [savedChart] = await trx(SavedChartsTableName)
+                            .select(['saved_query_id'])
+                            .where(
+                                'saved_query_uuid',
+                                tile.properties.savedChartUuid,
+                            )
+                            .limit(1);
+                        if (!savedChart) {
+                            throw new NotFoundError('Saved chart not found');
+                        }
+                        await trx(DashboardTileChartTableName).insert({
                             dashboard_version_id:
                                 versionId.dashboard_version_id,
-                            dashboard_tile_uuid: dashboardTileId,
-                            type,
-                            height: h,
-                            width: w,
-                            x_offset: x,
-                            y_offset: y,
-                        })
-                        .returning('*');
-                    switch (tile.type) {
-                        case DashboardTileTypes.SAVED_CHART:
-                            if (tile.properties.savedChartUuid) {
-                                const [savedChart] = await trx(
-                                    SavedChartsTableName,
-                                )
-                                    .select(['saved_query_id'])
-                                    .where(
-                                        'saved_query_uuid',
-                                        tile.properties.savedChartUuid,
-                                    )
-                                    .limit(1);
-                                if (!savedChart) {
-                                    throw new NotFoundError(
-                                        'Saved chart not found',
-                                    );
-                                }
-                                await trx(DashboardTileChartTableName).insert({
-                                    dashboard_version_id:
-                                        versionId.dashboard_version_id,
-                                    dashboard_tile_uuid:
-                                        insertedTile.dashboard_tile_uuid,
-                                    saved_chart_id: savedChart.saved_query_id,
-                                    hide_title: tile.properties.hideTitle,
-                                });
-                            }
-                            break;
-                        case DashboardTileTypes.MARKDOWN:
-                            await trx(DashboardTileMarkdownsTableName).insert({
-                                dashboard_version_id:
-                                    versionId.dashboard_version_id,
-                                dashboard_tile_uuid:
-                                    insertedTile.dashboard_tile_uuid,
-                                title: tile.properties.title,
-                                content: tile.properties.content,
-                            });
-                            break;
-                        case DashboardTileTypes.LOOM:
-                            await trx(DashboardTileLoomsTableName).insert({
-                                dashboard_version_id:
-                                    versionId.dashboard_version_id,
-                                dashboard_tile_uuid:
-                                    insertedTile.dashboard_tile_uuid,
-                                title: tile.properties.title,
-                                url: tile.properties.url,
-                                hide_title: tile.properties.hideTitle,
-                            });
-                            break;
-                        default: {
-                            const never: never = tile;
-                            throw new UnexpectedServerError(
-                                `Dashboard tile type "${type}" not recognised`,
-                            );
-                        }
+                            dashboard_tile_uuid:
+                                insertedTile.dashboard_tile_uuid,
+                            saved_chart_id: savedChart.saved_query_id,
+                            hide_title: tile.properties.hideTitle,
+                        });
                     }
-                })(),
-            );
+                    break;
+                case DashboardTileTypes.MARKDOWN:
+                    await trx(DashboardTileMarkdownsTableName).insert({
+                        dashboard_version_id: versionId.dashboard_version_id,
+                        dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
+                        title: tile.properties.title,
+                        content: tile.properties.content,
+                    });
+                    break;
+                case DashboardTileTypes.LOOM:
+                    await trx(DashboardTileLoomsTableName).insert({
+                        dashboard_version_id: versionId.dashboard_version_id,
+                        dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
+                        title: tile.properties.title,
+                        url: tile.properties.url,
+                        hide_title: tile.properties.hideTitle,
+                    });
+                    break;
+                default: {
+                    const never: never = tile;
+                    throw new UnexpectedServerError(
+                        `Dashboard tile type "${type}" not recognised`,
+                    );
+                }
+            }
+
+            return insertedTile;
         });
-        await Promise.all(promises);
+
+        const tiles = await Promise.all(tilePromises);
+        const tileUuids = tiles.map((tile) => tile.dashboard_tile_uuid);
+
+        // TODO: remove after resolving a problem with importing lodash-es in the backend
+        const pick = <T>(object: Record<string, T>, keys: string[]) =>
+            Object.keys(object)
+                .filter((key) => keys.includes(key))
+                .reduce<typeof object>(
+                    (obj, key) => ({ ...obj, [key]: object[key] }),
+                    {},
+                );
+
+        await trx(DashboardViewsTableName)
+            .update({
+                filters: {
+                    dimensions:
+                        version.filters?.dimensions.map((filter) => ({
+                            ...filter,
+                            tileTargets: filter.tileTargets
+                                ? pick(filter.tileTargets, tileUuids)
+                                : undefined,
+                        })) ?? [],
+                    metrics:
+                        version.filters?.metrics.map((filter) => ({
+                            ...filter,
+                            tileTargets: filter.tileTargets
+                                ? pick(filter.tileTargets, tileUuids)
+                                : undefined,
+                        })) ?? [],
+                },
+            })
+            .where({ dashboard_version_id: versionId.dashboard_version_id });
     }
 
     async getAllByProject(
@@ -357,14 +384,12 @@ export class DashboardModel {
                     height: number;
                     dashboard_tile_uuid: string;
                     saved_query_uuid: string | null;
-                    loomTitle: string | null;
                     url: string | null;
-                    markdownTitle: string | null;
                     content: string | null;
-                    loomHideTitle: boolean | false;
-                    chartHideTitle: boolean | false;
+                    hide_title: boolean | null;
+                    title: string | null;
                 }[]
-            >([
+            >(
                 `${DashboardTilesTableName}.x_offset`,
                 `${DashboardTilesTableName}.y_offset`,
                 `${DashboardTilesTableName}.type`,
@@ -372,13 +397,22 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
-                `${DashboardTileLoomsTableName}.title as loomTitle`,
+                this.database.raw(
+                    `COALESCE(
+                        ${SavedChartsTableName}.name,
+                        ${DashboardTileLoomsTableName}.title,
+                        ${DashboardTileMarkdownsTableName}.title
+                    ) AS title`,
+                ),
+                this.database.raw(
+                    `COALESCE(
+                        ${DashboardTileLoomsTableName}.hide_title,
+                        ${DashboardTileChartTableName}.hide_title
+                    ) AS hide_title`,
+                ),
                 `${DashboardTileLoomsTableName}.url`,
-                `${DashboardTileMarkdownsTableName}.title as markdownTitle`,
                 `${DashboardTileMarkdownsTableName}.content`,
-                `${DashboardTileLoomsTableName}.hide_title as loomHideTitle`,
-                `${DashboardTileChartTableName}.hide_title as chartHideTitle`,
-            ])
+            )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
                     `${DashboardTileChartTableName}.dashboard_tile_uuid`,
@@ -441,12 +475,10 @@ export class DashboardModel {
                     y_offset,
                     dashboard_tile_uuid,
                     saved_query_uuid,
-                    loomTitle,
+                    title,
+                    hide_title,
                     url,
-                    markdownTitle,
                     content,
-                    loomHideTitle,
-                    chartHideTitle,
                 }) => {
                     const base: Omit<
                         Dashboard['tiles'][number],
@@ -459,39 +491,45 @@ export class DashboardModel {
                         w: width,
                     };
 
+                    const commonProperties = {
+                        title: title ?? '',
+                        hideTitle: hide_title ?? false,
+                    };
+
                     switch (type) {
                         case DashboardTileTypes.SAVED_CHART:
-                            return {
+                            return <DashboardChartTile>{
                                 ...base,
                                 type: DashboardTileTypes.SAVED_CHART,
                                 properties: {
+                                    ...commonProperties,
                                     savedChartUuid: saved_query_uuid,
-                                    hideTitle: chartHideTitle,
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
-                            return {
+                            return <DashboardMarkdownTile>{
                                 ...base,
                                 type: DashboardTileTypes.MARKDOWN,
                                 properties: {
-                                    title: markdownTitle || '',
+                                    ...commonProperties,
                                     content: content || '',
                                 },
                             };
                         case DashboardTileTypes.LOOM:
-                            return {
+                            return <DashboardLoomTile>{
                                 ...base,
                                 type: DashboardTileTypes.LOOM,
                                 properties: {
-                                    title: loomTitle || '',
+                                    ...commonProperties,
                                     url: url || '',
-                                    hideTitle: loomHideTitle,
                                 },
                             };
                         default: {
-                            const never: never = type;
-                            throw new UnexpectedServerError(
-                                `Dashboard tile type "${type}" not recognised`,
+                            return assertUnreachable(
+                                type,
+                                new UnexpectedServerError(
+                                    `Dashboard tile type "${type}" not recognised`,
+                                ),
                             );
                         }
                     }

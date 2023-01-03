@@ -18,15 +18,22 @@ import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFil
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import { useUnderlyingDataContext } from '../UnderlyingData/UnderlyingDataProvider';
+import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 const DashboardCellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell'> & { explore: Explore | undefined }
-> = ({ cell, explore }) => {
-    const { viewData } = useUnderlyingDataContext();
+    Pick<CellContextMenuProps, 'cell'> & {
+        explore: Explore | undefined;
+        tileUuid: string;
+    }
+> = ({ cell, explore, tileUuid }) => {
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
-    const dashboardFiltersThatApplyToChart =
-        useDashboardFiltersForExplore(explore);
+    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
+        tileUuid,
+        explore,
+    );
+
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -80,7 +87,7 @@ const DashboardCellContextMenu: FC<
                 text="View underlying data"
                 icon="layers"
                 onClick={() => {
-                    viewData(
+                    openUnderlyingDataModel(
                         value,
                         meta,
                         cell.row.original || {},
@@ -89,6 +96,12 @@ const DashboardCellContextMenu: FC<
                         dashboardFiltersThatApplyToChart,
                     );
                 }}
+            />
+            <DrillDownMenuItem
+                row={cell.row.original || {}}
+                dashboardFilters={dashboardFiltersThatApplyToChart}
+                pivotReference={meta?.pivotReference}
+                selectedItem={item}
             />
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">

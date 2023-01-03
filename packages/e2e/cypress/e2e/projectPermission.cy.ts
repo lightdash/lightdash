@@ -6,7 +6,7 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByTestId('settings-menu').should('exist');
-        cy.contains('Explore');
+        cy.contains('Browse');
         cy.contains('Welcome, David');
     });
 
@@ -27,7 +27,7 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByTestId('settings-menu').should('not.exist');
-        cy.contains('Explore');
+        cy.contains('Browse');
         cy.contains('Welcome, test');
     });
     it('Organization editors without project permission can still see projects', () => {
@@ -35,7 +35,7 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByTestId('settings-menu').should('not.exist');
-        cy.contains('Explore');
+        cy.contains('Browse');
         cy.contains('Welcome, test');
     });
 
@@ -44,7 +44,7 @@ describe('Project Permissions', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
         cy.findByTestId('settings-menu').should('exist');
-        cy.contains('Explore');
+        cy.contains('Browse');
         cy.contains('Welcome, test');
     });
 });

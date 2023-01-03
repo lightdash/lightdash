@@ -1,3 +1,4 @@
+import { S3Service } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
@@ -20,6 +21,7 @@ import {
     userModel,
 } from '../models/models';
 import { DashboardService } from './DashboardService/DashboardService';
+import { EncryptionService } from './EncryptionService/EncryptionService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -28,9 +30,11 @@ import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
+import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserService } from './UserService';
 
 const emailClient = new EmailClient({ lightdashConfig });
+const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({
     inviteLinkModel,
@@ -94,4 +98,19 @@ export const spaceService = new SpaceService({
 export const searchService = new SearchService({
     projectModel,
     searchModel,
+    spaceModel,
+});
+
+export const s3Service = new S3Service({
+    lightdashConfig,
+});
+
+export const unfurlService = new UnfurlService({
+    lightdashConfig,
+    dashboardModel,
+    savedChartModel,
+    spaceModel,
+    shareModel,
+    encryptionService,
+    s3Service,
 });

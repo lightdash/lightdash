@@ -16,7 +16,7 @@ There are two ways to add metrics to your project in Lightdash:
 1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
 2. [Using dbt's `metrics` tag](#using-dbts-metrics-tag) (this is still an Alpha feature)
 
-### 1. Using the `meta` tag (Suggested)
+### 1. Using the column `meta` tag (Suggested)
 
 To add a metric to Lightdash using the `meta` tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.
 
@@ -36,7 +36,23 @@ models:
 
 Once you've got the hang of what these metrics look like, read more about the [metric types you can use below.](#metric-types)
 
-### 2. Using dbt's `metrics` tag
+### 2. Using the model `meta` tag
+
+Sometimes a metric references many columns, in these cases you can define the metric at the model level:
+
+```yaml
+version: 2
+
+models:
+  - name: my_model
+    meta:
+      metrics:
+        num_unique_user_ids:
+          type: count_distinct
+          sql: ${TABLE}.user_id
+```
+
+### 3. Using dbt's `metrics` tag
 
 You can also add some metric to Lightdash using dbt's `metrics` tag in your model's `.yml` file. Here's a tutorial explaining how to do it:
 
@@ -52,8 +68,8 @@ metrics:
     label: DBT METRIC!
     model: ref('customers')
     description: "A NEW DBT METRIC nuuuuuts"
-    type: count_distinct
-    sql: customer_id # must be a simple column name that you want to apply this metric to
+    calculation_method: count_distinct
+    expression: customer_id # must be a simple column name that you want to apply this metric to
     meta:
       hidden: false
 ```
@@ -64,7 +80,7 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 
 :::
 
-- **The `sql` field must be a simple column name.**
+- **The `expression` field must be a simple column name.**
 
   It should be the column name that you want to apply your metric to (e.g. `customer_id` for the metric `total_customers`). Itcannot be anything more than a column name.
 
@@ -81,8 +97,8 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
   ``` yaml
   metrics:
     - name: customer_count
-      type: count_distinct
-      sql: customer_id
+      calculation_method: count_distinct
+      expression: customer_id
       model: customers
   ```
 
@@ -99,7 +115,7 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 
   The second metric has the same name `customer_count` on the same model `customers` but the first uses type: count_distinct and the second uses type: count. Because the second metric is defined on the column `meta:` tag, it'll take priority over the first.
 
-- The `type` must be [one of the Lightdash types](#metric-types).
+- The `calculation_method` must be [one of the Lightdash types](#metric-types).
 - `timestamp`, `time_grains`, and `dimensions` are all ignored because metrics get all dimensions of the model.
 
 ## Metric Categories
@@ -162,8 +178,8 @@ Here are all of the properties you can customize:
 | [sql](#using-custom-sql-in-aggregate-metrics)       | No       | string                         | Custom SQL used to define the metric.                                                                                                                                                                                                                |
 | hidden                                              | No       | boolean                        | If set to `true`, the metric is hidden from Lightdash. By default, this is set to `false` if you don't include this property.                                                                                                                        |
 | round                                               | No       | number                         | Rounds a number to a specified number of digits                                                                                                                                                                                                      |
-| format                                              | No       | string                         | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent']`                                                                                 |
-| [compact](#compact-values)                          | No       | string                         | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                        |
+| format                                              | No       | string                         | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent', 'id']`                                                                           |
+| [compact](#compact-values)                          | No       | string                         | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                       |
 | group_label                                         | No       | string                         | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                              |
 | [urls](./dimensions.mdx#urls)                       | No       | Array of { url, label }        | Adding urls to a metric allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
 | [show_underlying_values](#show-underlying-values)   | No       | Array of dimension names       | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                            |
@@ -507,7 +523,7 @@ models:
 
 These filters do not appear in the `Filters` tab in the Explore view, instead, they are applied automatically in the SQL query that fetches your results. That means filters added using the `filter` parameter can't be removed in the UI and won't be visible to users unless they look at the SQL query.
 
-### Here are the filter types we support
+### Available filter types
 
 |       Type                  | Example (in English)                           | Example (as code)     |
 |:---------------------------:| ---------------------------------------------- | --------------------- |

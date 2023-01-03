@@ -25,6 +25,25 @@
         },
         "settings": {
             "type": "object"
+        },
+        "label": {
+            "type": "string"
+        },
+        "tileTargets": {
+            "type": "object",
+            "properties": {
+                "tileUuid": {
+                    "type": "object",
+                    "properties": {
+                        "fieldId": {
+                            "type": "string"
+                        },
+                        "tableName": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "required": ["id", "target", "operator"]

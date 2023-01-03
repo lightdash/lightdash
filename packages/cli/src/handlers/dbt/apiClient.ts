@@ -31,7 +31,9 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
-
+    const proxyAuthorizationHeader = config.context.proxyAuthorization
+        ? { 'Proxy-Authorization': config.context.proxyAuthorization }
+        : undefined;
     const headers = {
         'Content-Type': 'application/json',
         Authorization: `ApiKey ${config.context.apiKey}`,
@@ -39,6 +41,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             process.env.CI === 'true'
                 ? RequestMethod.CLI_CI
                 : RequestMethod.CLI,
+        ...proxyAuthorizationHeader,
     };
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP query to: ${fullUrl}`);

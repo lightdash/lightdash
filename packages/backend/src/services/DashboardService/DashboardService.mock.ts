@@ -73,6 +73,7 @@ export const dashboard: Dashboard = {
             type: DashboardTileTypes.SAVED_CHART,
             properties: {
                 savedChartUuid: 'savedChartUuid',
+                title: 'savedChartName',
             },
             x: 4,
             y: 3,
@@ -108,6 +109,7 @@ const createTile: CreateDashboardChartTile = {
     w: 200,
     properties: {
         savedChartUuid: '123',
+        title: 'title 123',
     },
 };
 

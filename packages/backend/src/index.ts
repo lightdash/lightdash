@@ -15,6 +15,7 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { SlackService } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
 import {
     apiKeyPassportStrategy,
@@ -24,10 +25,12 @@ import {
 } from './controllers/authentication';
 import database from './database/database';
 import { errorHandler } from './errors';
+import { RegisterRoutes } from './generated/routes';
 import Logger from './logger';
-import { userModel } from './models/models';
+import { slackAuthenticationModel, userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
 import { apiV1Router } from './routers/apiV1Router';
+import { unfurlService } from './services/services';
 import { VERSION } from './version';
 
 // @ts-ignore
@@ -137,7 +140,7 @@ app.use(
         proxy: lightdashConfig.trustProxy,
         rolling: true,
         cookie: {
-            maxAge: 86400000, // 1 day
+            maxAge: (lightdashConfig.cookiesMaxAgeHours || 24) * 60 * 60 * 1000, // in ms
             secure: lightdashConfig.secureCookies,
             httpOnly: true,
             sameSite: 'lax',
@@ -152,6 +155,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 // api router
 app.use('/api/v1', apiV1Router);
+RegisterRoutes(app);
 
 // Api docs
 if (
@@ -245,4 +249,9 @@ passport.deserializeUser(async (id: string, done) => {
     const user = await userModel.findSessionUserByUUID(id);
     // Store that user on the request (`req`) object
     done(null, user);
+});
+
+export const slackService = new SlackService({
+    slackAuthenticationModel,
+    lightdashConfig,
 });

@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
     isGitRepository,
+    isValidGithubToken,
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';
@@ -36,6 +37,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     required: requireSecrets ? 'Required field' : undefined,
                     validate: {
                         hasNoWhiteSpaces: hasNoWhiteSpaces(
+                            'Personal access token',
+                        ),
+                        isValidGithubToken: isValidGithubToken(
                             'Personal access token',
                         ),
                     },

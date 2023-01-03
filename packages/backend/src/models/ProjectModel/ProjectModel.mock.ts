@@ -18,6 +18,7 @@ export const lightdashConfigMock: LightdashConfig = {
     version: '1.0',
     lightdashSecret: 'secret',
     secureCookies: true,
+    cookiesMaxAgeHours: undefined,
     trustProxy: true,
     rudder: {
         writeKey: '',

@@ -1,16 +1,18 @@
+import { Icon } from '@blueprintjs/core';
 import { Select2 } from '@blueprintjs/select';
 import { Space } from '@lightdash/common';
 import { FC } from 'react';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import {
-    AccessDescription,
-    AccessName,
     AccessRole,
-    AccessWrapper,
     ChangeAccessButton,
-    MemberAccess,
-    ShareTag,
+    FlexWrapper,
+    PrimaryAndSecondaryTextWrapper,
+    PrimaryText,
+    SecondaryText,
+    ShareCircle,
+    UserRole,
 } from './ShareSpaceModal.style';
 import {
     AccessOption,
@@ -39,22 +41,22 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
         space.uuid,
     );
     return (
-        <AccessWrapper>
-            <ShareTag
-                round
-                large
-                icon={
-                    selectedAccess.value === SpaceAccessType.PRIVATE
-                        ? 'lock'
-                        : 'people'
-                }
-            />
-            <MemberAccess>
-                <AccessName>Members of {project?.name}</AccessName>
-                <AccessDescription>
-                    {selectedAccess.description}
-                </AccessDescription>
-            </MemberAccess>
+        <FlexWrapper>
+            <ShareCircle>
+                <Icon
+                    icon={
+                        selectedAccess.value === SpaceAccessType.PRIVATE
+                            ? 'lock'
+                            : 'people'
+                    }
+                />
+            </ShareCircle>
+
+            <PrimaryAndSecondaryTextWrapper>
+                <PrimaryText>Members of {project?.name}</PrimaryText>
+                <SecondaryText>{selectedAccess.description}</SecondaryText>
+            </PrimaryAndSecondaryTextWrapper>
+
             <AccessRole>
                 <Select2<AccessOption>
                     filterable={false}
@@ -76,16 +78,15 @@ export const ShareSpaceAccessType: FC<ShareSpaceAccessTypeProps> = ({
                         }
                     }}
                     popoverProps={{
-                        placement: 'bottom-end',
+                        minimal: true,
+                        position: 'bottom-right',
                     }}
                 >
-                    <ChangeAccessButton
-                        minimal
-                        text={selectedAccess.title}
-                        rightIcon="caret-down"
-                    />
+                    <ChangeAccessButton minimal rightIcon="caret-down">
+                        <UserRole>{selectedAccess.title}</UserRole>
+                    </ChangeAccessButton>
                 </Select2>
             </AccessRole>
-        </AccessWrapper>
+        </FlexWrapper>
     );
 };

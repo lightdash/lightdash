@@ -26,7 +26,8 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-redshift==1.3.0" \
     "dbt-snowflake==1.3.0" \
     "dbt-bigquery==1.3.0" \
-    "dbt-databricks==1.3.0"
+    "dbt-databricks==1.3.0" \ 
+    "psycopg2-binary==2.8.6"
 ENV PATH $PATH:/usr/local/venv/bin
 
 

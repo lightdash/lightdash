@@ -69,14 +69,21 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
 
     const handleSubmit = (formData: AddSavedChartsForm) => {
         onAddTiles(
-            formData.savedCharts.map(({ value }) => ({
-                uuid: uuid4(),
-                properties: {
-                    savedChartUuid: value,
-                },
-                type: DashboardTileTypes.SAVED_CHART,
-                ...defaultTileSize,
-            })),
+            formData.savedCharts.map(({ value: uuid }) => {
+                const savedChart = savedCharts?.find(
+                    (chart) => chart.uuid === uuid,
+                );
+
+                return {
+                    uuid: uuid4(),
+                    properties: {
+                        title: savedChart?.name,
+                        savedChartUuid: uuid,
+                    },
+                    type: DashboardTileTypes.SAVED_CHART,
+                    ...defaultTileSize,
+                };
+            }),
         );
         onClose();
     };

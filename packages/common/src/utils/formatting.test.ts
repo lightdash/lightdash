@@ -38,6 +38,9 @@ describe('Formatting', () => {
             expect(formatValue(5.999)).toEqual('5.999');
             expect(formatValue(5.9999)).toEqual('6');
             expect(formatValue(5.99999)).toEqual('6');
+
+            // ids are not comma separated
+            expect(formatValue(1019, { format: 'id' })).toEqual('1019');
         });
         test('formatValue should return the right round', async () => {
             const roundZeroOptions = {

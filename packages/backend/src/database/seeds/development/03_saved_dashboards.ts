@@ -12,11 +12,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { getSpaceWithQueries } from '../../entities/spaces';
 
-const markdownSample = `### Lightdash is an open source analytics for your dbt project. 
+const markdownSample = `### Lightdash is an open source analytics for your dbt project.
 
-We're kind of like Looker, but without the price tag. 
+We're kind of like Looker, but without the price tag.
 
-#### At Lightdash, our mission is simple: 
+#### At Lightdash, our mission is simple:
 
 > we want to enable everybody in your company to answer their own questions using data.
 
@@ -85,7 +85,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 24,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[0].uuid },
+        properties: { savedChartUuid: queries[0].uuid, title: queries[0].name },
     };
 
     const bigNumberTile: DashboardChartTile = {
@@ -95,7 +95,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 12,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[1].uuid },
+        properties: { savedChartUuid: queries[1].uuid, title: queries[1].name },
     };
 
     const lineChartTile: DashboardChartTile = {
@@ -105,7 +105,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 18,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[2].uuid },
+        properties: { savedChartUuid: queries[2].uuid, title: queries[2].name },
     };
 
     const barTile: DashboardChartTile = {
@@ -115,7 +115,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 18,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[3].uuid },
+        properties: { savedChartUuid: queries[3].uuid, title: queries[3].name },
     };
 
     const tableTile: DashboardChartTile = {
@@ -125,7 +125,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 36,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
-        properties: { savedChartUuid: queries[4].uuid },
+        properties: { savedChartUuid: queries[4].uuid, title: queries[4].name },
     };
 
     const markdownOrdersTile: DashboardMarkdownTile = {
@@ -166,6 +166,7 @@ export async function seed(knex: Knex): Promise<void> {
                         },
                         values: [true],
                         operator: FilterOperator.EQUALS,
+                        label: undefined,
                     },
                     {
                         id: '6d28a3a5-c01f-46d8-9f6b-74a9ab1efd99',
@@ -176,6 +177,7 @@ export async function seed(knex: Knex): Promise<void> {
                         values: [5],
                         operator: FilterOperator.IN_THE_PAST,
                         settings: { completed: true, unitOfTime: 'years' },
+                        label: undefined,
                     },
                 ],
                 metrics: [],
