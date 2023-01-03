@@ -10,8 +10,9 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { Helmet } from 'react-helmet';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
+import Error from '../components/common/Error';
 import Page from '../components/common/Page/Page';
 import DashboardFilter from '../components/DashboardFilter';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
@@ -324,7 +325,11 @@ const Dashboard = () => {
     ]);
 
     if (dashboardError) {
-        return <Redirect to="/no-access" />;
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <Error error={dashboardError.error} />
+            </div>
+        );
     }
     if (dashboard === undefined) {
         return <Spinner />;
