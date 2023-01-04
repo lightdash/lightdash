@@ -1,5 +1,5 @@
 import { HotkeyConfig, useHotkeys } from '@blueprintjs/core';
-import { ResultRow } from '@lightdash/common';
+import { ConditionalFormattingConfig, ResultRow } from '@lightdash/common';
 import {
     Cell,
     ColumnOrderState,
@@ -41,6 +41,7 @@ type Props = {
     };
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
+    conditionalFormattings?: ConditionalFormattingConfig[];
     footer?: {
         show?: boolean;
     };

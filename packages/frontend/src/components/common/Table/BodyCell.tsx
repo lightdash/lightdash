@@ -16,6 +16,7 @@ interface CommonBodyCellProps {
     cellContextMenu?: FC<CellContextMenuProps>;
     className?: string;
     style?: CSSProperties;
+    backgroundColor?: string;
     copying?: boolean;
     selected?: boolean;
     onSelect: () => void;
@@ -28,6 +29,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     cellContextMenu,
     children,
     className,
+    backgroundColor,
     copying = false,
     hasData,
     isNumericItem,
@@ -75,6 +77,9 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                         ...style,
                         ...(selected
                             ? { position: 'relative', zIndex: 21 }
+                            : {}),
+                        ...(backgroundColor
+                            ? { backgroundColor: backgroundColor }
                             : {}),
                     }}
                     ref={ref}

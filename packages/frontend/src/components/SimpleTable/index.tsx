@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { ConditionalFormattingConfig } from '@lightdash/common';
 import { FC } from 'react';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -30,6 +31,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             error,
             columns,
             showColumnCalculation,
+            conditionalFormattings,
             hideRowNumbers,
         },
         isSqlRunner,
@@ -59,6 +61,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             columnOrder={columnOrder}
             hideRowNumbers={hideRowNumbers}
             showColumnCalculation={showColumnCalculation}
+            conditionalFormattings={conditionalFormattings}
             footer={{
                 show: showColumnCalculation,
             }}
