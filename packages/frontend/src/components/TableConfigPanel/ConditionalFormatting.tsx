@@ -1,5 +1,6 @@
 import { CompiledField } from '@lightdash/common';
-import { FC } from 'react';
+import { FC, useState } from 'react';
+import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 
 interface ConditionalFormattingProps {
     numericFields: CompiledField[];
@@ -8,7 +9,21 @@ interface ConditionalFormattingProps {
 const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     numericFields,
 }) => {
-    console.log(numericFields);
-    return <>test</>;
+    const [activeField, setActiveField] = useState<CompiledField>();
+
+    return (
+        <>
+            <FieldAutoComplete
+                id="field-autocomplete"
+                fields={numericFields}
+                activeField={activeField}
+                onChange={setActiveField}
+                popoverProps={{
+                    lazy: true,
+                    matchTargetWidth: true,
+                }}
+            />
+        </>
+    );
 };
 export default ConditionalFormatting;
