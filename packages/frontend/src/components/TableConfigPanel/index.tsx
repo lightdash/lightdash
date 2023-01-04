@@ -218,7 +218,9 @@ export const TableConfigPanel: React.FC = () => {
                             title="Conditional formatting"
                             panel={
                                 <ConditionalFormatting
-                                    numericFields={visibleActiveNumericFields}
+                                    fields={visibleActiveNumericFields}
+                                    value={undefined}
+                                    onChange={() => {}}
                                 />
                             }
                         />

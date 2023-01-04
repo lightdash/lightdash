@@ -1,30 +1,38 @@
-import { FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
 import {
     CompiledField,
     createFilterRuleFromField,
     FilterOperator,
     FilterRule,
     FilterType,
+    getFilterTypeFromField,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
 import ColorInput from '../common/ColorInput';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import {
-    FieldsWithSuggestions,
-    FiltersProvider,
-} from '../common/Filters/FiltersProvider';
+import { FiltersProvider } from '../common/Filters/FiltersProvider';
 
 interface ConditionalFormattingProps {
-    numericFields: CompiledField[];
+    fields: CompiledField[];
+    value: ConditionalFormattingConfig | undefined;
+    onChange: (value: ConditionalFormattingConfig) => void;
+}
+
+interface ConditionalFormattingConfig {
+    field: CompiledField;
+    filter: FilterRule;
+    color: string;
 }
 
 const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
-    numericFields,
+    fields,
+    value,
+    onChange,
 }) => {
-    const [field, setField] = useState<CompiledField>();
-    const [color, setColor] = useState<string>();
-    const [filter, setFilter] = useState<FilterRule>();
+    const [field, setField] = useState<CompiledField | undefined>(value?.field);
+    const [color, setColor] = useState<string | undefined>(value?.color);
+    const [filter, setFilter] = useState<FilterRule | undefined>(value?.filter);
 
     const handleChangeField = (newField: CompiledField) => {
         setField(newField);
@@ -36,14 +44,22 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         setFilter({ ...filter, operator: newOperator });
     };
 
-    const config = FilterTypeConfig.number;
+    const handleChange = () => {
+        if (!field || !filter || !color) return;
+        onChange({ field, color, filter });
+    };
+
+    const fieldConfig =
+        FilterTypeConfig[
+            field ? getFilterTypeFromField(field) : FilterType.STRING
+        ];
 
     return (
         <FiltersProvider projectUuid="BLAH." fieldsMap={{}}>
             <FormGroup label="Select field">
                 <FieldAutoComplete
                     id="numeric-field-autocomplete"
-                    fields={numericFields}
+                    fields={fields}
                     activeField={field}
                     onChange={handleChangeField}
                     popoverProps={{
@@ -71,13 +87,13 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     e.target.value as FilterOperator,
                                 )
                             }
-                            options={config.operatorOptions}
+                            options={fieldConfig.operatorOptions}
                             value={filter?.operator}
                         />
                     </FormGroup>
 
                     <FormGroup>
-                        <config.inputs
+                        <fieldConfig.inputs
                             filterType={FilterType.NUMBER}
                             field={field}
                             filterRule={filter}
@@ -86,6 +102,21 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             }
                         />
                     </FormGroup>
+
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                        }}
+                    >
+                        <Button
+                            disabled={!field || !filter || !color}
+                            intent="primary"
+                            onClick={handleChange}
+                        >
+                            Apply
+                        </Button>
+                    </div>
                 </>
             )}
         </FiltersProvider>
