@@ -1,7 +1,8 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useHistory, useParams } from 'react-router-dom';
+import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import Form from '../components/ReactHookForm/Form';
@@ -54,10 +55,7 @@ const PasswordReset: FC = () => {
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     {error ? (
-                        <NonIdealState
-                            title={error.error.message}
-                            icon="error"
-                        />
+                        <ErrorState error={error.error} hasMarginTop={false} />
                     ) : (
                         <>
                             {!resetMutation.isSuccess ? (

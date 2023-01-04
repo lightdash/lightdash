@@ -1,6 +1,7 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect, useParams } from 'react-router-dom';
+import ErrorState from '../components/common/ErrorState';
 import { getLastProject, useProjects } from '../hooks/useProjects';
 
 export const Projects: FC = () => {
@@ -14,14 +15,7 @@ export const Projects: FC = () => {
         );
     }
     if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Unexpected error"
-                    description={error.error.message}
-                />
-            </div>
-        );
+        return <ErrorState error={error.error} />;
     }
     if (!data || data.length <= 0) {
         return <Redirect to="/no-access" />;

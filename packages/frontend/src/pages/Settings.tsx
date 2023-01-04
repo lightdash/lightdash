@@ -2,6 +2,7 @@ import { Menu, NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
+import ErrorState from '../components/common/ErrorState';
 import Content from '../components/common/Page/Content';
 import { PageWithSidebar } from '../components/common/Page/Page.styles';
 import Sidebar from '../components/common/Page/Sidebar';
@@ -51,16 +52,13 @@ const Settings: FC = () => {
 
     if (userError || healthError || organizationError) {
         return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Unexpected error"
-                    description={
-                        userError?.error.message ||
-                        healthError?.error.message ||
-                        organizationError?.error.message
-                    }
-                />
-            </div>
+            <ErrorState
+                error={
+                    userError?.error ||
+                    healthError?.error ||
+                    organizationError?.error
+                }
+            />
         );
     }
 

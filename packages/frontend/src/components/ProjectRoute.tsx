@@ -1,7 +1,7 @@
-import { NonIdealState } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import React, { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
+import ErrorState from '../components/common/ErrorState';
 import { useProjects } from '../hooks/useProjects';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -23,14 +23,7 @@ const ProjectRoute: FC<ComponentProps<typeof Route>> = ({
                 }
 
                 if (isError && error) {
-                    return (
-                        <div style={{ marginTop: '20px' }}>
-                            <NonIdealState
-                                title="Unexpected error"
-                                description={error.error.message}
-                            />
-                        </div>
-                    );
+                    return <ErrorState error={error.error} />;
                 }
 
                 if (!projects || projects.length <= 0) {

@@ -9,6 +9,7 @@ import {
     useHistory,
     useParams,
 } from 'react-router-dom';
+import ErrorState from '../components/common/ErrorState';
 import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -45,14 +46,7 @@ const ProjectSettings: FC = () => {
     };
 
     if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Error loading project"
-                    description={error.error.message}
-                />
-            </div>
-        );
+        return <ErrorState error={error.error} />;
     }
 
     if (!tab) {

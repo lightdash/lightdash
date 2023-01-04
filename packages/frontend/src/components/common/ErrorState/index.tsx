@@ -6,16 +6,29 @@ import {
     NotExistsError,
 } from '@lightdash/common';
 import { ComponentProps, FC, useMemo } from 'react';
+import styled from 'styled-components';
 
 const DEFAULT_ERROR_PROPS: ComponentProps<typeof NonIdealState> = {
     icon: 'error',
     title: 'Unexpected error',
+    description: 'Please contact support',
 };
 
-const Error: FC<{ error: LightdashError }> = ({ error }) => {
+export const StyledNonIdealState = styled(NonIdealState)<{
+    $hasMarginTop?: boolean;
+}>`
+    ${({ $hasMarginTop }) => $hasMarginTop && 'margin-top: 20px;'}
+`;
+
+const ErrorState: FC<{
+    error?: LightdashError | null;
+    hasMarginTop?: boolean;
+}> = ({ error, hasMarginTop = true }) => {
     const props = useMemo<ComponentProps<typeof NonIdealState>>(() => {
+        if (!error) {
+            return DEFAULT_ERROR_PROPS;
+        }
         try {
-            console.log('error', error);
             switch (error.name) {
                 case 'ForbiddenError':
                     return {
@@ -46,7 +59,7 @@ const Error: FC<{ error: LightdashError }> = ({ error }) => {
         }
     }, [error]);
 
-    return <NonIdealState {...props} />;
+    return <StyledNonIdealState $hasMarginTop={hasMarginTop} {...props} />;
 };
 
-export default Error;
+export default ErrorState;

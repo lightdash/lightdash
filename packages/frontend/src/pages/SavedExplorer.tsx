@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
-import Error from '../components/common/Error';
+import ErrorState from '../components/common/ErrorState';
 import {
     CardContent,
     Drawer,
@@ -48,11 +48,7 @@ const SavedExplorer = () => {
         );
     }
     if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <Error error={error.error} />
-            </div>
-        );
+        return <ErrorState error={error.error} />;
     }
 
     return (
