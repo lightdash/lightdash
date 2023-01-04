@@ -1,5 +1,6 @@
 import { CompiledField } from '@lightdash/common';
 import { FC, useState } from 'react';
+import ColorInput from '../common/ColorInput';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 
 interface ConditionalFormattingProps {
@@ -10,11 +11,12 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     numericFields,
 }) => {
     const [activeField, setActiveField] = useState<CompiledField>();
+    const [color, setColor] = useState<string>();
 
     return (
         <>
             <FieldAutoComplete
-                id="field-autocomplete"
+                id="numeric-field-autocomplete"
                 fields={numericFields}
                 activeField={activeField}
                 onChange={setActiveField}
@@ -23,6 +25,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                     matchTargetWidth: true,
                 }}
             />
+
+            {activeField && (
+                <ColorInput
+                    placeholder="Enter hex color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                />
+            )}
         </>
     );
 };

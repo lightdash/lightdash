@@ -1,55 +1,18 @@
-import { Colors, Icon, InputGroup, Intent, Spinner } from '@blueprintjs/core';
+import { Intent, Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
 import { Can, useAbilityContext } from '../../common/Authorization';
+import ColorInput from '../../common/ColorInput';
 import {
     AppearancePanelWrapper,
     ColorPalette,
-    ColorSquare,
-    ColorSquareInner,
     SaveButton,
     Title,
 } from './AppearancePanel.styles';
-
-interface AppearanceColorProps {
-    color: string;
-    index: number;
-    disabled: boolean;
-    onChange: (value: string) => void;
-}
-
-const AppearanceColor: FC<AppearanceColorProps> = ({
-    color,
-    index,
-    onChange,
-    disabled,
-}) => (
-    <InputWrapper label={`Color ${index + 1}`}>
-        <InputGroup
-            placeholder="Enter hex color"
-            value={color}
-            onChange={(e) => {
-                onChange(e.target.value);
-            }}
-            disabled={disabled}
-            leftElement={
-                <ColorSquare>
-                    <ColorSquareInner
-                        style={{
-                            backgroundColor: color,
-                        }}
-                    >
-                        {!color && <Icon icon="tint" color={Colors.GRAY3} />}
-                    </ColorSquareInner>
-                </ColorSquare>
-            }
-        />
-    </InputWrapper>
-);
 
 const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
@@ -82,24 +45,26 @@ const AppearancePanel: FC = () => {
             <Title>Default chart colors</Title>
             <ColorPalette>
                 {colors.map((color, index) => (
-                    <AppearanceColor
-                        key={index}
-                        color={color}
-                        index={index}
-                        disabled={ability.cannot(
-                            'update',
-                            subject('Organization', {
-                                organizationUuid: data?.organizationUuid,
-                            }),
-                        )}
-                        onChange={(colorChange) => {
-                            setColors(
-                                colors.map((c, i) =>
-                                    index === i ? colorChange : c,
-                                ),
-                            );
-                        }}
-                    />
+                    <InputWrapper key={index} label={`Color ${index + 1}`}>
+                        <ColorInput
+                            placeholder="Enter hex color"
+                            value={color}
+                            disabled={ability.cannot(
+                                'update',
+                                subject('Organization', {
+                                    organizationUuid: data?.organizationUuid,
+                                }),
+                            )}
+                            onChange={(e) => {
+                                console.log(e.target.value);
+                                setColors(
+                                    colors.map((c, i) =>
+                                        index === i ? e.target.value : c,
+                                    ),
+                                );
+                            }}
+                        />
+                    </InputWrapper>
                 ))}
             </ColorPalette>
             <div style={{ flex: 1 }} />
