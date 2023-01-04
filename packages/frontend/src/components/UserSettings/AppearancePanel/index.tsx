@@ -56,7 +56,6 @@ const AppearancePanel: FC = () => {
                                 }),
                             )}
                             onChange={(e) => {
-                                console.log(e.target.value);
                                 setColors(
                                     colors.map((c, i) =>
                                         index === i ? e.target.value : c,
