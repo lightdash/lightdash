@@ -37,6 +37,8 @@ export const TableConfigPanel: React.FC = () => {
             setShowTableName,
             setShowColumnCalculation,
             setHideRowNumbers,
+            conditionalFormattingConfigs,
+            onSetConditionalFormattingConfigs,
         },
         setPivotDimensions,
     } = useVisualizationContext();
@@ -46,18 +48,6 @@ export const TableConfigPanel: React.FC = () => {
     const {
         metricQuery: { dimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
-
-    const visibleActiveNumericFields = useMemo(
-        () =>
-            explore
-                ? getVisibleFields(explore).filter(
-                      (field) =>
-                          activeFields.has(fieldId(field)) &&
-                          field.type === 'number',
-                  )
-                : [],
-        [explore],
-    );
 
     const availableDimensions = useMemo(
         () =>
@@ -82,6 +72,16 @@ export const TableConfigPanel: React.FC = () => {
             (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
         [availableGroupByDimensions.length, pivotDimensions],
     );
+
+    const visibleActiveNumericFields = useMemo(() => {
+        return explore
+            ? getVisibleFields(explore).filter(
+                  (field) =>
+                      activeFields.has(fieldId(field)) &&
+                      field.type === 'number',
+              )
+            : [];
+    }, [explore, activeFields]);
 
     return (
         <Popover2
@@ -219,8 +219,13 @@ export const TableConfigPanel: React.FC = () => {
                             panel={
                                 <ConditionalFormatting
                                     fields={visibleActiveNumericFields}
-                                    value={undefined}
-                                    onChange={() => {}}
+                                    // TODO: support multiple conditional formatting configs
+                                    value={conditionalFormattingConfigs[0]}
+                                    onChange={(conditionalFormatting) =>
+                                        onSetConditionalFormattingConfigs([
+                                            conditionalFormatting,
+                                        ])
+                                    }
                                 />
                             }
                         />

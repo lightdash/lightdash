@@ -13,16 +13,16 @@ import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 
+export interface ConditionalFormattingConfig {
+    field: CompiledField;
+    filter: FilterRule;
+    color: string;
+}
+
 interface ConditionalFormattingProps {
     fields: CompiledField[];
     value: ConditionalFormattingConfig | undefined;
     onChange: (value: ConditionalFormattingConfig) => void;
-}
-
-interface ConditionalFormattingConfig {
-    field: CompiledField;
-    filter: FilterRule;
-    color: string;
 }
 
 const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
