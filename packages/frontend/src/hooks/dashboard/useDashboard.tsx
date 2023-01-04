@@ -304,6 +304,9 @@ export const useCreateMutation = (
                           }
                         : undefined,
                 });
+                history.push(
+                    `/projects/${projectUuid}/dashboards/${result.uuid}/edit`,
+                );
             },
             onError: (error) => {
                 showToastError({

@@ -2,6 +2,7 @@ import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -16,6 +17,7 @@ import {
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
+import CreateSavedDashboardModal from '../components/SavedDashboards/CreateSavedDashboardModal';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
@@ -27,6 +29,8 @@ const SavedDashboards = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
+    const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
+        useState<boolean>(false);
 
     const {
         isLoading: isCreatingDashboard,
@@ -66,10 +70,11 @@ const SavedDashboards = () => {
     }
 
     const handleCreateDashboard = () => {
-        createDashboard({
-            name: DEFAULT_DASHBOARD_NAME,
-            tiles: [],
-        });
+        setIsCreateDashboardOpen(true);
+        // createDashboard({
+        //     name: DEFAULT_DASHBOARD_NAME,
+        //     tiles: [],
+        // });
     };
 
     return (
@@ -128,6 +133,13 @@ const SavedDashboards = () => {
                             </Tooltip2>
                         )}
                 </PageHeader>
+                {isCreateDashboardOpen && (
+                    <CreateSavedDashboardModal
+                        isOpen={true}
+                        showRedirectButton={false}
+                        onClose={() => setIsCreateDashboardOpen(false)}
+                    />
+                )}
 
                 <ResourceList
                     resourceType="dashboard"

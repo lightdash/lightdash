@@ -14,7 +14,6 @@ import { useApp } from '../../providers/AppProvider';
 
 interface CreateSavedDashboardModalProps {
     isOpen: boolean;
-
     tiles?: Dashboard['tiles'];
     showRedirectButton?: boolean;
     onClose?: () => void;
@@ -30,6 +29,7 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     const useCreate = useCreateMutation(projectUuid, showRedirectButton);
     const { mutate, isLoading: isCreating } = useCreate;
     const [name, setName] = useState<string>('');
+    const [description, setDescription] = useState<string>('');
 
     const { user } = useApp();
 
@@ -39,13 +39,30 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
         <Dialog isOpen={isOpen} onClose={onClose} lazy title="Create dashboard">
             <form>
                 <div className={Classes.DIALOG_BODY}>
-                    <FormGroup label="Name" labelFor="chart-name">
+                    <FormGroup
+                        label="Name your dashboard"
+                        labelFor="chart-name"
+                    >
                         <InputGroup
                             id="chart-name"
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="eg. KPI dashboard"
+                        />
+                    </FormGroup>
+                </div>
+                <div className={Classes.DIALOG_BODY}>
+                    <FormGroup
+                        label="Dashboard description"
+                        labelFor="chart-description"
+                    >
+                        <InputGroup
+                            id="chart-description"
+                            type="text"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="A few words to give your team some context"
                         />
                     </FormGroup>
                 </div>
@@ -58,8 +75,11 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
                             text="Create"
                             type="submit"
                             onClick={(e) => {
-                                mutate({ tiles: tiles || [], name });
-
+                                mutate({
+                                    tiles: tiles || [],
+                                    name,
+                                    description,
+                                });
                                 if (onClose) onClose();
                                 e.preventDefault();
                             }}

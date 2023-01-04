@@ -14,6 +14,7 @@ import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
+import CreateSavedDashboardModal from '../../SavedDashboards/CreateSavedDashboardModal';
 import {
     ButtonWrapper,
     HelpItem,
@@ -32,6 +33,7 @@ interface ExploreItemProps {
     title: string;
     description: string;
 }
+
 const ExploreItem: FC<ExploreItemProps> = ({ icon, title, description }) => {
     return (
         <HelpItem>
@@ -57,6 +59,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
         reset,
     } = useCreateMutation(projectUuid);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState<boolean>(false);
+    const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
+        useState<boolean>(false);
 
     if (!isCreatingDashboard && hasCreatedDashboard && newDashboard) {
         history.push(
@@ -116,10 +120,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <ButtonWrapper
                                 onClick={() => {
                                     setIsOpen(false);
-                                    createDashboard({
-                                        name: DEFAULT_DASHBOARD_NAME,
-                                        tiles: [],
-                                    });
+                                    setIsCreateDashboardOpen(true);
                                 }}
                             >
                                 <ExploreItem
@@ -171,6 +172,13 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 `/projects/${projectUuid}/spaces/${space.uuid}`,
                             );
                     }}
+                />
+            )}
+            {isCreateDashboardOpen && (
+                <CreateSavedDashboardModal
+                    isOpen={true}
+                    showRedirectButton={false}
+                    onClose={() => setIsCreateDashboardOpen(false)}
                 />
             )}
         </>

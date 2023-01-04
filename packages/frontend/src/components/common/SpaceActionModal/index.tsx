@@ -17,7 +17,6 @@ import CreateSpaceModalContent, {
     CreateModalStep,
 } from './CreateSpaceModalContent';
 import DeleteSpaceModalContent from './DeleteSpaceModalContent';
-import { BackButton } from './SpaceActionModal.style';
 import UpdateSpaceModalContent from './UpdateSpaceModalContent';
 
 export enum ActionType {
