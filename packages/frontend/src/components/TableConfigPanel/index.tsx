@@ -37,8 +37,8 @@ export const TableConfigPanel: React.FC = () => {
             setShowTableName,
             setShowColumnCalculation,
             setHideRowNumbers,
-            conditionalFormattingConfigs,
-            onSetConditionalFormattingConfigs,
+            conditionalFormattings,
+            onSetConditionalFormattings,
         },
         setPivotDimensions,
     } = useVisualizationContext();
@@ -220,9 +220,9 @@ export const TableConfigPanel: React.FC = () => {
                                 <ConditionalFormatting
                                     fields={visibleActiveNumericFields}
                                     // TODO: support multiple conditional formatting configs
-                                    value={conditionalFormattingConfigs[0]}
+                                    value={conditionalFormattings[0]}
                                     onChange={(conditionalFormatting) =>
-                                        onSetConditionalFormattingConfigs([
+                                        onSetConditionalFormattings([
                                             conditionalFormatting,
                                         ])
                                     }

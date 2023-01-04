@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ColumnProperties,
+    ConditionalFormattingConfig,
     Explore,
     getItemLabel,
     getItemMap,
@@ -11,7 +12,6 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
-import { ConditionalFormattingConfig } from '../../components/TableConfigPanel/ConditionalFormatting';
 import getDataAndColumns from './getDataAndColumns';
 import getPivotDataAndColumns from './getPivotDataAndColumns';
 
@@ -21,14 +21,14 @@ const useTableConfig = (
     explore: Explore | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
-    conditionalFormatting: ConditionalFormattingConfig[] = [],
 ) => {
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
     );
 
-    const [conditionalFormattingConfigs, setConditionalFormattingConfigs] =
-        useState<ConditionalFormattingConfig[]>(conditionalFormatting);
+    const [conditionalFormattings, setConditionalFormattings] = useState<
+        ConditionalFormattingConfig[]
+    >(tableChartConfig?.conditionalFormattings ?? []);
 
     const [showTableNames, setShowTableName] = useState<boolean>(
         tableChartConfig?.showTableNames === undefined
@@ -180,9 +180,9 @@ const useTableConfig = (
         });
     };
 
-    const handleSetConditionalFormattingConfigs = useCallback(
+    const handleSetConditionalFormattings = useCallback(
         (configs: ConditionalFormattingConfig[]) => {
-            setConditionalFormattingConfigs(configs);
+            setConditionalFormattings(configs);
         },
         [],
     );
@@ -193,12 +193,14 @@ const useTableConfig = (
             showTableNames,
             columns: columnProperties,
             hideRowNumbers,
+            conditionalFormattings,
         }),
         [
             showColumnCalculation,
             hideRowNumbers,
             showTableNames,
             columnProperties,
+            conditionalFormattings,
         ],
     );
 
@@ -222,9 +224,8 @@ const useTableConfig = (
         getDefaultColumnLabel,
         isColumnVisible,
         isColumnFrozen,
-        conditionalFormattingConfigs,
-        onSetConditionalFormattingConfigs:
-            handleSetConditionalFormattingConfigs,
+        conditionalFormattings,
+        onSetConditionalFormattings: handleSetConditionalFormattings,
     };
 };
 

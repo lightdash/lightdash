@@ -1,3 +1,4 @@
+import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
@@ -23,11 +24,13 @@ export type ColumnProperties = {
     name?: string;
     frozen?: boolean;
 };
+
 export type TableChart = {
     showColumnCalculation?: boolean;
     showTableNames?: boolean;
     hideRowNumbers?: boolean;
     columns?: Record<string, ColumnProperties>;
+    conditionalFormattings?: ConditionalFormattingConfig[];
 };
 
 type TableChartConfig = {

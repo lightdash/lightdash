@@ -1,6 +1,7 @@
 import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
 import {
     CompiledField,
+    ConditionalFormattingConfig,
     createFilterRuleFromField,
     FilterOperator,
     FilterRule,
@@ -12,12 +13,6 @@ import ColorInput from '../common/ColorInput';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
-
-export interface ConditionalFormattingConfig {
-    field: CompiledField;
-    filter: FilterRule;
-    color: string;
-}
 
 interface ConditionalFormattingProps {
     fields: CompiledField[];

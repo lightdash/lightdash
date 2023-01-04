@@ -60,6 +60,7 @@ export * from './types/api';
 export * from './types/api/errors';
 export * from './types/api/integrations';
 export * from './types/api/share';
+export * from './types/conditionalFormatting';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
