@@ -1,3 +1,10 @@
+# [0.359.0](https://github.com/lightdash/lightdash/compare/0.358.0...0.359.0) (2023-01-04)
+
+
+### Features
+
+* "in the current" date filters ([#4071](https://github.com/lightdash/lightdash/issues/4071)) ([670ad24](https://github.com/lightdash/lightdash/commit/670ad2445534e72db5ba7c85a5e386d072213040))
+
 # [0.358.0](https://github.com/lightdash/lightdash/compare/0.357.1...0.358.0) (2022-12-23)
 
 
