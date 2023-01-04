@@ -11,7 +11,25 @@ type UnitOfTimeOption = {
     completed: boolean;
 };
 
-const UnitOfTimeOptions = (isTimestamp: boolean) => {
+type UnitOfTimeAutoCompleteProps = {
+    isTimestamp: boolean;
+    showCompletedOptions: boolean;
+    showOptionsInPlural: boolean;
+};
+
+const getUnitOfTimeLabel = (
+    unitOfTime: UnitOfTime,
+    isPlural: boolean,
+    isCompleted: boolean,
+) =>
+    `${isCompleted ? 'completed ' : ''}${
+        isPlural ? unitOfTime : unitOfTime.substring(0, unitOfTime.length - 1)
+    }`;
+const UnitOfTimeOptions = ({
+    isTimestamp,
+    showCompletedOptions,
+    showOptionsInPlural,
+}: UnitOfTimeAutoCompleteProps) => {
     const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
 
     // Filter unitTimes before Days if we are filtering Dates only
@@ -19,22 +37,35 @@ const UnitOfTimeOptions = (isTimestamp: boolean) => {
         ? Object.values(UnitOfTime)
         : Object.values(UnitOfTime).slice(dateIndex);
 
-    return unitsOfTime.reverse().reduce<UnitOfTimeOption[]>(
-        (sum, unitOfTime) => [
-            ...sum,
-            {
-                label: unitOfTime,
-                unitOfTime,
-                completed: false,
-            },
-            {
-                label: `completed ${unitOfTime}`,
-                unitOfTime,
-                completed: true,
-            },
-        ],
-        [],
-    );
+    return unitsOfTime
+        .reverse()
+        .reduce<UnitOfTimeOption[]>((sum, unitOfTime) => {
+            const newOptions = [
+                ...sum,
+                {
+                    label: getUnitOfTimeLabel(
+                        unitOfTime,
+                        showOptionsInPlural,
+                        false,
+                    ),
+                    unitOfTime,
+                    completed: false,
+                },
+            ];
+
+            if (showCompletedOptions) {
+                newOptions.push({
+                    label: getUnitOfTimeLabel(
+                        unitOfTime,
+                        showOptionsInPlural,
+                        true,
+                    ),
+                    unitOfTime,
+                    completed: true,
+                });
+            }
+            return newOptions;
+        }, []);
 };
 
 const FieldSuggest = Select2.ofType<UnitOfTimeOption>();
@@ -67,6 +98,8 @@ const renderItem: ItemRenderer<UnitOfTimeOption> = (
 type Props = {
     isTimestamp: boolean;
     unitOfTime: UnitOfTime;
+    showOptionsInPlural?: boolean;
+    showCompletedOptions?: boolean;
     completed: boolean;
     onChange: (value: UnitOfTimeOption) => void;
     onClosed?: () => void;
@@ -77,6 +110,8 @@ type Props = {
 const UnitOfTimeAutoComplete: FC<Props> = ({
     isTimestamp,
     unitOfTime,
+    showOptionsInPlural = true,
+    showCompletedOptions = true,
     completed,
     onChange,
     onClosed,
@@ -88,7 +123,11 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
         <FieldSuggest
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
-            items={UnitOfTimeOptions(isTimestamp)}
+            items={UnitOfTimeOptions({
+                isTimestamp,
+                showCompletedOptions,
+                showOptionsInPlural,
+            })}
             itemsEqual={(value, other) =>
                 value.unitOfTime === other.unitOfTime &&
                 value.completed === other.completed
@@ -102,7 +141,11 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
             }}
             itemRenderer={renderItem}
             activeItem={{
-                label: completed ? `completed ${unitOfTime}` : unitOfTime,
+                label: getUnitOfTimeLabel(
+                    unitOfTime,
+                    showOptionsInPlural,
+                    completed,
+                ),
                 unitOfTime,
                 completed,
             }}
@@ -124,7 +167,11 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
                 className={disabled ? 'disabled-filter' : ''}
                 disabled={disabled}
                 rightIcon="caret-down"
-                text={completed ? `completed ${unitOfTime}` : unitOfTime}
+                text={getUnitOfTimeLabel(
+                    unitOfTime,
+                    showOptionsInPlural,
+                    completed,
+                )}
                 fill
                 style={{
                     display: 'inline-flex',

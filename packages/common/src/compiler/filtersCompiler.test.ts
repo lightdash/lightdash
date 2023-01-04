@@ -1,7 +1,10 @@
 import moment from 'moment/moment';
+import { UnitOfTime } from '../types/filter';
 import { renderDateFilterSql, renderStringFilterSql } from './filtersCompiler';
 import {
     DimensionSqlMock,
+    ExpectedInTheCurrentFilterSQL,
+    InTheCurrentFilterBase,
     InTheLast1CompletedDayFilter,
     InTheLast1CompletedDayFilterSQL,
     InTheLast1CompletedHourFilter,
@@ -36,11 +39,28 @@ const formatTimestamp = (date: Date): string =>
 describe('Filter SQL', () => {
     beforeAll(() => {
         jest.useFakeTimers();
-        jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+        jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
     });
     afterAll(() => {
         jest.useFakeTimers();
     });
+    test.each(Object.values(UnitOfTime))(
+        'should return in the current %s filter sql',
+        (unitOfTime) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheCurrentFilterBase,
+                        settings: { unitOfTime },
+                    },
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(ExpectedInTheCurrentFilterSQL[unitOfTime]);
+        },
+    );
+
     test('should return in the last date filter sql', () => {
         expect(
             renderDateFilterSql(DimensionSqlMock, InTheLast1DayFilter),

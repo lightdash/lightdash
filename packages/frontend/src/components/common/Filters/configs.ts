@@ -30,6 +30,7 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.GREATER_THAN]: 'is greater than',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
     [FilterOperator.IN_THE_PAST]: 'in the last',
+    [FilterOperator.IN_THE_CURRENT]: 'in the current',
 };
 
 const getFilterOptions = <T extends FilterOperator>(
@@ -50,6 +51,7 @@ const timeFilterOptions: Array<{
         FilterOperator.EQUALS,
         FilterOperator.NOT_EQUALS,
         FilterOperator.IN_THE_PAST,
+        FilterOperator.IN_THE_CURRENT,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
