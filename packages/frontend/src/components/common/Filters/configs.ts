@@ -30,6 +30,7 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.GREATER_THAN]: 'is greater than',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
     [FilterOperator.IN_THE_PAST]: 'in the last',
+    [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
 };
 
@@ -51,6 +52,7 @@ const timeFilterOptions: Array<{
         FilterOperator.EQUALS,
         FilterOperator.NOT_EQUALS,
         FilterOperator.IN_THE_PAST,
+        FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
@@ -131,7 +133,10 @@ export const getFilterRuleLabel = (
             valuesText = filterRule.values?.map(formatBoolean).join(', ');
             break;
         case FilterType.DATE: {
-            if (filterRule.operator === FilterOperator.IN_THE_PAST) {
+            if (
+                filterRule.operator === FilterOperator.IN_THE_PAST ||
+                filterRule.operator === FilterOperator.IN_THE_NEXT
+            ) {
                 valuesText = `${filterRule.values?.[0]} ${
                     filterRule.settings.completed ? 'completed ' : ''
                 }${filterRule.settings.unitOfTime}`;

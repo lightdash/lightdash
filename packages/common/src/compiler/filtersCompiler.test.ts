@@ -4,6 +4,8 @@ import { renderDateFilterSql, renderStringFilterSql } from './filtersCompiler';
 import {
     DimensionSqlMock,
     ExpectedInTheCurrentFilterSQL,
+    ExpectedInTheNextCompleteFilterSQL,
+    ExpectedInTheNextFilterSQL,
     InTheCurrentFilterBase,
     InTheLast1CompletedDayFilter,
     InTheLast1CompletedDayFilterSQL,
@@ -29,6 +31,7 @@ import {
     InTheLast1WeekFilterSQL,
     InTheLast1YearFilter,
     InTheLast1YearFilterSQL,
+    InTheNextFilterBase,
     stringFilterDimension,
     stringFilterRuleMocks,
 } from './filtersCompiler.mock';
@@ -60,7 +63,38 @@ describe('Filter SQL', () => {
             ).toStrictEqual(ExpectedInTheCurrentFilterSQL[unitOfTime]);
         },
     );
-
+    test.each(Object.values(UnitOfTime))(
+        'should return in the next %s filter sql',
+        (unitOfTime) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: { unitOfTime },
+                    },
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(ExpectedInTheNextFilterSQL[unitOfTime]);
+        },
+    );
+    test.each(Object.values(UnitOfTime))(
+        'should return in the next complete %s filter sql',
+        (unitOfTime) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: { unitOfTime, completed: true },
+                    },
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(ExpectedInTheNextCompleteFilterSQL[unitOfTime]);
+        },
+    );
     test('should return in the last date filter sql', () => {
         expect(
             renderDateFilterSql(DimensionSqlMock, InTheLast1DayFilter),
