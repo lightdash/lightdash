@@ -3,6 +3,7 @@ import {
     DimensionType,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WeekDay,
 } from '@lightdash/common';
 import * as _ from 'lodash';
 import {
@@ -152,6 +153,8 @@ const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
 export class TrinoWarehouseClient implements WarehouseClient {
     connectionOptions: ConnectionOptions;
 
+    startOfWeek: WeekDay | null | undefined;
+
     constructor({
         host,
         user,
@@ -160,13 +163,19 @@ export class TrinoWarehouseClient implements WarehouseClient {
         dbname,
         schema,
         http_scheme,
+        startOfWeek,
     }: CreateTrinoCredentials) {
+        this.startOfWeek = startOfWeek;
         this.connectionOptions = {
             auth: new BasicAuth(user, password),
             catalog: dbname,
             schema,
             server: `${http_scheme}://${host}:${port}`,
-        };
+    }
+}
+
+    getStartOfWeek() {
+        return this.startOfWeek;
     }
 
     private async getSession() {
