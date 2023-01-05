@@ -17,7 +17,7 @@ const SavedChartsAvailable = () => (
     <EmptyStateWrapper>
         <EmptyStateIcon icon="grouped-bar-chart" size={59} />
         <Title>Start building your dashboard!</Title>
-        <AddTileButton onAddTiles={() => {}} />
+        <AddTileButton />
     </EmptyStateWrapper>
 );
 

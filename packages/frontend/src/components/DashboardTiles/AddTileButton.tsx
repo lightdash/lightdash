@@ -6,7 +6,7 @@ import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { AddTileModal } from './TileForms/TileModal';
 
 type Props = {
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void | null;
 };
 
 const AddTileButton: FC<Props> = ({ onAddTiles }) => {
@@ -15,7 +15,9 @@ const AddTileButton: FC<Props> = ({ onAddTiles }) => {
         useState<boolean>(false);
     const onAddTile = useCallback(
         (tile: Dashboard['tiles'][number]) => {
-            onAddTiles([tile]);
+            if (onAddTiles) {
+                onAddTiles([tile]);
+            }
         },
         [onAddTiles],
     );
@@ -64,7 +66,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles }) => {
             {isAddChartTilesModalOpen && (
                 <AddChartTilesModal
                     onClose={() => setIsAddChartTilesModalOpen(false)}
-                    onAddTiles={onAddTiles}
+                    onAddTiles={onAddTiles!}
                 />
             )}
             {addTileType && (
