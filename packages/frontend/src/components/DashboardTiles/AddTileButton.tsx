@@ -6,7 +6,7 @@ import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { AddTileModal } from './TileForms/TileModal';
 
 type Props = {
-    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void | null;
+    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
 };
 
 const AddTileButton: FC<Props> = ({ onAddTiles }) => {
