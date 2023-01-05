@@ -132,7 +132,7 @@ const SavedDashboards = () => {
                 {isCreateDashboardOpen && (
                     <CreateSavedDashboardModal
                         isOpen={true}
-                        showRedirectButton={false}
+                        redirectToEditDashboard={true}
                         onClose={() => setIsCreateDashboardOpen(false)}
                     />
                 )}

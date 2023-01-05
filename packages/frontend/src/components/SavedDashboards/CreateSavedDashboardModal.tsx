@@ -16,6 +16,7 @@ interface CreateSavedDashboardModalProps {
     isOpen: boolean;
     tiles?: Dashboard['tiles'];
     showRedirectButton?: boolean;
+    redirectToEditDashboard?: boolean;
     onClose?: () => void;
 }
 
@@ -23,6 +24,7 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     isOpen,
     tiles,
     showRedirectButton,
+    redirectToEditDashboard,
     onClose,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

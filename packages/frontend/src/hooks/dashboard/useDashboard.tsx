@@ -278,6 +278,7 @@ export const useUpdateDashboardName = (
 export const useCreateMutation = (
     projectUuid: string,
     showRedirectButton: boolean = false,
+    redirectToEditDashboard: boolean = false,
 ) => {
     const history = useHistory();
     const { showToastSuccess, showToastError } = useToaster();
@@ -304,9 +305,11 @@ export const useCreateMutation = (
                           }
                         : undefined,
                 });
-                history.push(
-                    `/projects/${projectUuid}/dashboards/${result.uuid}/edit`,
-                );
+                if (redirectToEditDashboard) {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${result.uuid}/edit`,
+                    );
+                }
             },
             onError: (error) => {
                 showToastError({
