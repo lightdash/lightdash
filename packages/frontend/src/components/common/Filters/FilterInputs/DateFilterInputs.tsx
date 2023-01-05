@@ -4,6 +4,7 @@ import {
     DateFilterRule,
     DimensionType,
     FilterOperator,
+    FilterRule,
     formatDate,
     isDimension,
     isWeekDay,
@@ -12,7 +13,7 @@ import {
     UnitOfTime,
 } from '@lightdash/common';
 import moment from 'moment';
-import React, { FC } from 'react';
+import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
 import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
 import YearInput from '../../YearInput';
@@ -24,7 +25,9 @@ import {
 } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
-const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
+const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
+    props: React.PropsWithChildren<FilterInputsProps<T>>,
+) => {
     const { field, filterRule, onChange, popoverProps, disabled } = props;
     const { startOfWeek } = useFiltersContext();
     const isTimestamp = field.type === DimensionType.TIMESTAMP;

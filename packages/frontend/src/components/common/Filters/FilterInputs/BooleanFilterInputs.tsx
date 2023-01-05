@@ -1,9 +1,10 @@
 import { HTMLSelect } from '@blueprintjs/core';
-import { FilterOperator } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FilterOperator, FilterRule } from '@lightdash/common';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
-const BooleanFilterInputs: FC<FilterInputsProps> = (props) => {
+const BooleanFilterInputs = <T extends FilterRule = FilterRule>(
+    props: React.PropsWithChildren<FilterInputsProps<T>>,
+) => {
     const { filterRule, onChange, disabled } = props;
     switch (filterRule.operator) {
         case FilterOperator.EQUALS: {

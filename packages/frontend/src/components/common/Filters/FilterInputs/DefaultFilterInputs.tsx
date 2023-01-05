@@ -7,7 +7,7 @@ import {
     FilterType,
 } from '@lightdash/common';
 import { isString } from 'lodash-es';
-import React, { FC } from 'react';
+import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
 
@@ -15,19 +15,19 @@ export type FilterInputsProps<T extends FilterRule = FilterRule> = {
     filterType: FilterType;
     field: FilterableField;
     filterRule: T;
-    onChange: (value: FilterRule) => void;
+    onChange: (value: T) => void;
     popoverProps?: Popover2Props;
     disabled?: boolean;
 };
 
-const DefaultFilterInputs: FC<FilterInputsProps> = ({
+const DefaultFilterInputs = <T extends FilterRule = FilterRule>({
     field,
     filterType,
     filterRule,
     popoverProps,
     disabled,
     onChange,
-}) => {
+}: React.PropsWithChildren<FilterInputsProps<T>>) => {
     const { getField } = useFiltersContext();
     const suggestions = getField(filterRule)?.suggestions;
     const filterOperator = filterRule.operator;

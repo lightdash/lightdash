@@ -68,11 +68,15 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
 ];
 
+type FilterInputPropType = <T extends FilterRule = FilterRule>(
+    props: React.PropsWithChildren<FilterInputsProps<T>>,
+) => JSX.Element;
+
 export const FilterTypeConfig: Record<
     FilterType,
     {
         operatorOptions: Array<{ value: FilterOperator; label: string }>;
-        inputs: FC<FilterInputsProps>;
+        inputs: FilterInputPropType;
     }
 > = {
     [FilterType.STRING]: {
