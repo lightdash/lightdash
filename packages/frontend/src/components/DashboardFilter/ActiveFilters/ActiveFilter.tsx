@@ -1,9 +1,18 @@
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
+import {
+    useAvailableDashboardFilterTargets,
+    useDashboardAvailableTileFilters,
+} from '../../../hooks/dashboard/useDashboard';
+import { useExplores } from '../../../hooks/useExplores';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { getFilterRuleLabel } from '../../common/Filters/configs';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import {
+    getFilterRuleLabel,
+    getFilterRuleTables,
+} from '../../common/Filters/configs';
+import { useTableContext } from '../../common/Table/TableProvider';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
 import {
@@ -32,12 +41,21 @@ const ActiveFilter: FC<Props> = ({
     onUpdate,
 }) => {
     const { dashboardTiles } = useDashboardContext();
-    const { data: availableTileFilters, isLoading } =
+    const { data: availableTileFilters, isLoading: isLoadingTileFilters } =
         useDashboardAvailableTileFilters(dashboardTiles);
+    const {
+        data: availableDashboardFilterTargets,
+        isLoading: isLoadingDashboardFilterTargets,
+    } = useAvailableDashboardFilterTargets(dashboardTiles);
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (isLoading || !availableTileFilters) {
+    if (
+        isLoadingTileFilters ||
+        isLoadingDashboardFilterTargets ||
+        !availableTileFilters ||
+        !availableDashboardFilterTargets
+    ) {
         return null;
     }
 
@@ -49,6 +67,12 @@ const ActiveFilter: FC<Props> = ({
         );
     }
     const filterRuleLabels = getFilterRuleLabel(filterRule, field);
+    const filterRuleTables = getFilterRuleTables(
+        filterRule,
+        field,
+        availableDashboardFilterTargets,
+    );
+
     return (
         <Popover2
             placement="bottom-start"
@@ -71,7 +95,11 @@ const ActiveFilter: FC<Props> = ({
                 <Tooltip2
                     interactionKind="hover"
                     placement="bottom-start"
-                    content={`Table: ${field.tableLabel}`}
+                    content={
+                        filterRuleTables.length === 0
+                            ? `Table: ${filterRuleTables[0]}`
+                            : `Tables: ${filterRuleTables.join(', ')}`
+                    }
                 >
                     <>
                         {filterRule.label || filterRuleLabels.field}:{' '}

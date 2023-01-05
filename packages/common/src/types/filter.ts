@@ -77,6 +77,10 @@ export type DashboardFilterRule<
     label: undefined | string;
 };
 
+export const isDashboardFilterRule = (
+    value: FilterRule,
+): value is DashboardFilterRule => 'tileTargets' in value;
+
 export type DateFilterRule = FilterRule<
     FilterOperator,
     FieldTarget,

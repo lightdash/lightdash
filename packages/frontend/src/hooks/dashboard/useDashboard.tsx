@@ -73,9 +73,7 @@ export const getQueryConfig = (
     };
 };
 
-export const useDashboardAvailableTileFilters = (
-    tiles: DashboardTile[] = [],
-) => {
+export const useDashboardAvailableTileFilters = (tiles: DashboardTile[]) => {
     const savedChartTiles = useMemo(() => {
         return tiles
             .filter(isDashboardChartTileType)
@@ -122,9 +120,7 @@ export const useDashboardAvailableTileFilters = (
     );
 };
 
-export const useAvailableDashboardFilterTargets = (
-    tiles: DashboardTile[] = [],
-) => {
+export const useAvailableDashboardFilterTargets = (tiles: DashboardTile[]) => {
     const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
 
     const availableFilters = useMemo(() => {
