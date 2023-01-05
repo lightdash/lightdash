@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
 import { useHistory } from 'react-router-dom';
@@ -299,7 +299,8 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 }) => {
     const history = useHistory();
     const { user, health } = useApp();
-    const { activeJobIsRunning, activeJob } = useActiveJob();
+    const [createProjectJobId, setCreateProjectJobId] = useState<string>();
+    const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
     const onError = useOnProjectError();
     const createMutation = useCreateMutation();
     const { isLoading: isSaving, mutateAsync } = createMutation;
@@ -322,7 +323,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
         });
         if (selectedWarehouse) {
-            await mutateAsync({
+            const data = await mutateAsync({
                 name: name || user.data?.organizationName || 'My project',
                 dbtConnection,
                 //@ts-ignore
@@ -331,16 +332,28 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type: selectedWarehouse,
                 },
             });
+            setCreateProjectJobId(data.jobUuid);
         }
     };
 
     useEffect(() => {
-        if (activeJob?.jobResults?.projectUuid) {
+        if (
+            createProjectJobId &&
+            createProjectJobId === activeJob?.jobUuid &&
+            activeJob?.jobResults?.projectUuid
+        ) {
             history.push({
                 pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
             });
         }
-    }, [activeJob, history]);
+    }, [activeJob, createProjectJobId, history]);
+
+    const isSavingProject = useMemo<boolean>(
+        () =>
+            isSaving ||
+            (!!activeJobIsRunning && activeJobId === createProjectJobId),
+        [activeJobId, activeJobIsRunning, createProjectJobId, isSaving],
+    );
 
     return (
         <FormContainer
@@ -352,7 +365,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             <ProjectFormProvider>
                 <ProjectForm
                     showGeneralSettings={!isCreatingFirstProject}
-                    disabled={isSaving || !!activeJobIsRunning}
+                    disabled={isSavingProject}
                     defaultType={health.data?.defaultProject?.type}
                     selectedWarehouse={selectedWarehouse}
                 />
@@ -362,7 +375,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type="submit"
                     intent={Intent.PRIMARY}
                     text="Test &amp; compile project"
-                    loading={isSaving || activeJobIsRunning}
+                    loading={isSavingProject}
                 />
             </ProjectFormProvider>
         </FormContainer>
