@@ -1,9 +1,10 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import { Button, Intent, NonIdealState } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import AddTileButton from '../AddTileButton';
 import {
     ButtonWrapper,
     CTA,
@@ -16,10 +17,7 @@ const SavedChartsAvailable = () => (
     <EmptyStateWrapper>
         <EmptyStateIcon icon="grouped-bar-chart" size={59} />
         <Title>Start building your dashboard!</Title>
-        <p>
-            Click ‘Edit dashboard’ to start adding charts and tiles. Don’t
-            forget to hit ‘Save’ when you’re done!
-        </p>
+        <AddTileButton onAddTiles={() => {}} />
     </EmptyStateWrapper>
 );
 
@@ -37,10 +35,6 @@ const NoSavedChartsAvailable = () => (
     <EmptyStateWrapper>
         <EmptyStateIcon icon="grouped-bar-chart" size={59} />
         <Title>You haven’t saved any charts yet.</Title>
-        <p>
-            Create a saved chart from your queries so you can add it to this
-            dashboard!
-        </p>
     </EmptyStateWrapper>
 );
 
