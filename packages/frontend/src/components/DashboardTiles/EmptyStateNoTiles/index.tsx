@@ -1,4 +1,4 @@
-import { Button, Intent, NonIdealState } from '@blueprintjs/core';
+import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSavedCharts } from '../../../hooks/useSpaces';
@@ -17,7 +17,10 @@ const SavedChartsAvailable = () => (
     <EmptyStateWrapper>
         <EmptyStateIcon icon="grouped-bar-chart" size={59} />
         <Title>Start building your dashboard!</Title>
-        <AddTileButton />
+        <AddTileButton
+            intent={Intent.PRIMARY}
+            popoverPosition={PopoverPosition.BOTTOM}
+        />
     </EmptyStateWrapper>
 );
 

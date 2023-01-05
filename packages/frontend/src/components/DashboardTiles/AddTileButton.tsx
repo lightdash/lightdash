@@ -1,4 +1,10 @@
-import { Button, Menu, MenuDivider, PopoverPosition } from '@blueprintjs/core';
+import {
+    Button,
+    Intent,
+    Menu,
+    MenuDivider,
+    PopoverPosition,
+} from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { FC, useCallback, useState } from 'react';
@@ -7,9 +13,11 @@ import { AddTileModal } from './TileForms/TileModal';
 
 type Props = {
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
+    intent?: Intent;
+    popoverPosition?: PopoverPosition;
 };
 
-const AddTileButton: FC<Props> = ({ onAddTiles }) => {
+const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -54,13 +62,18 @@ const AddTileButton: FC<Props> = ({ onAddTiles }) => {
                         />
                     </Menu>
                 }
-                position={PopoverPosition.BOTTOM_RIGHT}
+                position={
+                    popoverPosition
+                        ? popoverPosition
+                        : PopoverPosition.BOTTOM_RIGHT
+                }
                 lazy
             >
                 <Button
                     icon="plus"
                     style={{ marginLeft: '10px' }}
                     text="Add tile"
+                    intent={intent ? intent : 'none'}
                 />
             </Popover2>
             {isAddChartTilesModalOpen && (

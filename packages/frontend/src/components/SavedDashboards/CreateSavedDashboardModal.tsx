@@ -28,7 +28,11 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     onClose,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const useCreate = useCreateMutation(projectUuid, showRedirectButton);
+    const useCreate = useCreateMutation(
+        projectUuid,
+        showRedirectButton,
+        redirectToEditDashboard,
+    );
     const { mutate, isLoading: isCreating } = useCreate;
     const [name, setName] = useState<string>('');
     const [description, setDescription] = useState<string>('');
@@ -71,9 +75,10 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
                         <Button onClick={onClose}>Cancel</Button>
                         <Button
                             data-cy="submit-base-modal"
-                            intent={Intent.SUCCESS}
+                            intent={Intent.PRIMARY}
                             text="Create"
                             type="submit"
+                            loading={isCreating}
                             onClick={(e) => {
                                 mutate({
                                     tiles: tiles || [],
