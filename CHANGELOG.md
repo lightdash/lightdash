@@ -1,3 +1,15 @@
+# [0.360.0](https://github.com/lightdash/lightdash/compare/0.359.0...0.360.0) (2023-01-05)
+
+
+### Bug Fixes
+
+* create project after updating existing project ([#4089](https://github.com/lightdash/lightdash/issues/4089)) ([a4f4f56](https://github.com/lightdash/lightdash/commit/a4f4f56a36667a9730e044a2c799e2726632e7a0))
+
+
+### Features
+
+* add tooltip to show multiple tables for dashboard filters ([#4072](https://github.com/lightdash/lightdash/issues/4072)) ([173549e](https://github.com/lightdash/lightdash/commit/173549e20f722f8b7bbe8611236c4a1731131ca9))
+
 # [0.359.0](https://github.com/lightdash/lightdash/compare/0.358.0...0.359.0) (2023-01-04)
 
 
