@@ -1,24 +1,25 @@
-import { Colors, Icon, InputGroup, InputGroupProps2 } from '@blueprintjs/core';
+import { Colors, Icon, InputGroupProps2 } from '@blueprintjs/core';
 import { FC } from 'react';
-import { ColorSquare, ColorSquareInner } from './ColorInput.styles';
+import {
+    ColorSquare,
+    ColorSquareInner,
+    StyledColorInput,
+} from './ColorInput.styles';
+
 interface ColorInputProps extends Omit<InputGroupProps2, 'leftElement'> {}
 
 const ColorInput: FC<ColorInputProps> = ({ value: color, ...props }) => {
     return (
-        <InputGroup
+        <StyledColorInput
             value={color}
+            {...props}
             leftElement={
                 <ColorSquare>
-                    <ColorSquareInner
-                        style={{
-                            backgroundColor: color,
-                        }}
-                    >
+                    <ColorSquareInner style={{ backgroundColor: color }}>
                         {!color && <Icon icon="tint" color={Colors.GRAY3} />}
                     </ColorSquareInner>
                 </ColorSquare>
             }
-            {...props}
         />
     );
 };
