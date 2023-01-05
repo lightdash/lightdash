@@ -2,6 +2,7 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
+import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import { PageContentWrapper } from '../components/common/Page/Page.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -42,25 +43,11 @@ const Home: FC = () => {
     }
 
     if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Unexpected error"
-                    description={error.error.message}
-                />
-            </div>
-        );
+        return <ErrorState error={error.error} />;
     }
 
     if (!project.data || !onboarding.data) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Unexpected error"
-                    description="Please contact support"
-                />
-            </div>
-        );
+        return <ErrorState />;
     }
 
     return (

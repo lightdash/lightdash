@@ -2,6 +2,7 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
+import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import SpacePanel from '../components/SpacePanel';
@@ -29,14 +30,7 @@ const Space: FC = () => {
     }
 
     if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Unexpected error"
-                    description={error.error.message}
-                />
-            </div>
-        );
+        return <ErrorState error={error.error} />;
     }
 
     if (data === undefined) {

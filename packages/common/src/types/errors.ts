@@ -23,7 +23,7 @@ export class LightdashError extends Error {
 
 export class ForbiddenError extends LightdashError {
     constructor(
-        message = 'Forbidden error',
+        message = "You don't have access to this resource or action",
         data: { [key: string]: any } = {},
     ) {
         super({
@@ -37,7 +37,7 @@ export class ForbiddenError extends LightdashError {
 
 export class AuthorizationError extends LightdashError {
     constructor(
-        message = 'Authorization error',
+        message = "You don't have authorization to perform this action",
         data: { [key: string]: any } = {},
     ) {
         super({

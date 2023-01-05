@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
+import ErrorState from '../components/common/ErrorState';
 import {
     CardContent,
     Drawer,
@@ -47,14 +48,7 @@ const SavedExplorer = () => {
         );
     }
     if (error) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState
-                    title="Unexpected error"
-                    description={error.error.message}
-                />
-            </div>
-        );
+        return <ErrorState error={error.error} />;
     }
 
     return (
