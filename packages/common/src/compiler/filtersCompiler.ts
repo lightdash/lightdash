@@ -153,6 +153,30 @@ export const renderDateFilterSql = (
                 moment().subtract(filter.values?.[0], unitOfTime).toDate(),
             )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         }
+        case FilterOperator.IN_THE_NEXT: {
+            const unitOfTime: UnitOfTime =
+                filter.settings?.unitOfTime || UnitOfTime.days;
+            const completed: boolean = !!filter.settings?.completed;
+
+            if (completed) {
+                const fromDate = moment(
+                    moment().add(1, unitOfTime).startOf(unitOfTime),
+                ).toDate();
+                const toDate = dateFormatter(
+                    moment(fromDate)
+                        .add(filter.values?.[0], unitOfTime)
+                        .toDate(),
+                );
+                return `((${dimensionSql}) >= ('${dateFormatter(
+                    fromDate,
+                )}') AND (${dimensionSql}) < ('${toDate}'))`;
+            }
+            const fromDate = dateFormatter(moment().toDate());
+            const toDate = dateFormatter(
+                moment().add(filter.values?.[0], unitOfTime).toDate(),
+            );
+            return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${toDate}'))`;
+        }
         case FilterOperator.IN_THE_CURRENT: {
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;

@@ -16,7 +16,7 @@ export const InTheCurrentFilterBase = {
 };
 
 export const ExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`, // note that all milliseconds filters are working incorrectly #4074
     [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`,
     [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:00') AND (customers.created) <= ('2020-04-04 06:12:59'))`,
     [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:00:00') AND (customers.created) <= ('2020-04-04 06:59:59'))`,
@@ -25,6 +25,43 @@ export const ExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
     [UnitOfTime.months]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-04-30 23:59:59'))`,
     [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-06-30 23:59:59'))`,
     [UnitOfTime.years]: `((customers.created) >= ('2020-01-01 00:00:00') AND (customers.created) <= ('2020-12-31 23:59:59'))`,
+};
+
+export const InTheNextFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_THE_NEXT,
+    values: [1],
+    settings: {
+        unitOfTime: UnitOfTime.days,
+        completed: false,
+    },
+};
+
+export const ExpectedInTheNextFilterSQL: Record<UnitOfTime, string> = {
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:31'))`,
+    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:13:30'))`,
+    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 07:12:30'))`,
+    [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-05 06:12:30'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-11 06:12:30'))`,
+    [UnitOfTime.months]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-05-04 06:12:30'))`,
+    [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-07-04 06:12:30'))`,
+    [UnitOfTime.years]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2021-04-04 06:12:30'))`,
+};
+
+export const ExpectedInTheNextCompleteFilterSQL: Record<UnitOfTime, string> = {
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) < ('2020-04-04 06:12:30'))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:31') AND (customers.created) < ('2020-04-04 06:12:32'))`,
+    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:13:00') AND (customers.created) < ('2020-04-04 06:14:00'))`,
+    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 07:00:00') AND (customers.created) < ('2020-04-04 08:00:00'))`,
+    [UnitOfTime.days]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-06 00:00:00'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-12 00:00:00'))`,
+    [UnitOfTime.months]: `((customers.created) >= ('2020-05-01 00:00:00') AND (customers.created) < ('2020-06-01 00:00:00'))`,
+    [UnitOfTime.quarters]: `((customers.created) >= ('2020-07-01 00:00:00') AND (customers.created) < ('2020-10-01 00:00:00'))`,
+    [UnitOfTime.years]: `((customers.created) >= ('2021-01-01 00:00:00') AND (customers.created) < ('2022-01-01 00:00:00'))`,
 };
 
 export const InTheLast1DayFilter = {

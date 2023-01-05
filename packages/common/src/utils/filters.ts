@@ -128,6 +128,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 const isTimestamp = field.type === DimensionType.TIMESTAMP;
                 if (
                     filterRule.operator === FilterOperator.IN_THE_PAST ||
+                    filterRule.operator === FilterOperator.IN_THE_NEXT ||
                     filterRule.operator === FilterOperator.IN_THE_CURRENT
                 ) {
                     const numberValue =

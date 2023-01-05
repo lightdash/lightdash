@@ -174,6 +174,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 />
             );
         case FilterOperator.IN_THE_PAST:
+        case FilterOperator.IN_THE_NEXT:
             const parsedValue = parseInt(filterRule.values?.[0], 10);
             return (
                 <MultipleInputsWrapper>

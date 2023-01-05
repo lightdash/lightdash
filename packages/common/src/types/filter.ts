@@ -18,6 +18,8 @@ export enum FilterOperator {
     GREATER_THAN = 'greaterThan',
     GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
     IN_THE_PAST = 'inThePast',
+
+    IN_THE_NEXT = 'inTheNext',
     IN_THE_CURRENT = 'inTheCurrent',
 }
 

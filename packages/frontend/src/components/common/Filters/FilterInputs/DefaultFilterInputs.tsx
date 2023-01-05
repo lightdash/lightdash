@@ -85,6 +85,7 @@ const DefaultFilterInputs: FC<FilterInputsProps> = ({
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
         case FilterOperator.IN_THE_PAST:
+        case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
             const parsedValue = parseInt(filterRule.values?.[0], 10);
             return (
