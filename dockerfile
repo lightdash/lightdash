@@ -27,7 +27,7 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-snowflake==1.3.0" \
     "dbt-bigquery==1.3.0" \
     "dbt-databricks==1.3.0" \
-    "dbt-trino==1.3.1" \
+    "dbt-trino==1.3.0" \
     "psycopg2-binary==2.8.6"
 ENV PATH $PATH:/usr/local/venv/bin
 
