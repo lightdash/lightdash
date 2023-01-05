@@ -1,3 +1,10 @@
+# [0.361.0](https://github.com/lightdash/lightdash/compare/0.360.0...0.361.0) (2023-01-05)
+
+
+### Features
+
+* "in the next" date filters ([#4091](https://github.com/lightdash/lightdash/issues/4091)) ([3282bd2](https://github.com/lightdash/lightdash/commit/3282bd24dac53311528154f39531b2c547d131d3))
+
 # [0.360.0](https://github.com/lightdash/lightdash/compare/0.359.0...0.360.0) (2023-01-05)
 
 
