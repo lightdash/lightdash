@@ -51,8 +51,6 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
                             placeholder="eg. KPI dashboard"
                         />
                     </FormGroup>
-                </div>
-                <div className={Classes.DIALOG_BODY}>
                     <FormGroup
                         label="Dashboard description"
                         labelFor="chart-description"

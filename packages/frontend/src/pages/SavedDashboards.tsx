@@ -71,10 +71,6 @@ const SavedDashboards = () => {
 
     const handleCreateDashboard = () => {
         setIsCreateDashboardOpen(true);
-        // createDashboard({
-        //     name: DEFAULT_DASHBOARD_NAME,
-        //     tiles: [],
-        // });
     };
 
     return (
