@@ -65,9 +65,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
     }>();
 
     const { data: dashboard } = useDashboardQuery(dashboardUuid);
-    const [dashboardTiles, setDashboardTiles] = useState<
-        Dashboard['tiles'] | []
-    >([]);
+    const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
+        [],
+    );
     const { data: filterableFields } =
         useAvailableDashboardFilterTargets(dashboardTiles);
 

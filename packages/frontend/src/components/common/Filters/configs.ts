@@ -9,10 +9,11 @@ import {
     formatDate,
     formatTimestamp,
     getFilterTypeFromField,
+    getItemId,
     isDashboardFilterRule,
     isDimension,
 } from '@lightdash/common';
-import capitalize from 'lodash-es/capitalize';
+import isEmpty from 'lodash-es/isEmpty';
 import uniq from 'lodash-es/uniq';
 import { FC } from 'react';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
@@ -175,15 +176,27 @@ export const getFilterRuleLabel = (
 export const getFilterRuleTables = (
     filterRule: FilterRule | DashboardFilterRule,
     field: FilterableField,
+    filterableFields: FilterableField[],
 ): string[] => {
-    if (isDashboardFilterRule(filterRule) && filterRule.tileTargets) {
+    if (
+        isDashboardFilterRule(filterRule) &&
+        filterRule.tileTargets &&
+        !isEmpty(filterRule.tileTargets)
+    ) {
         return Object.values(filterRule.tileTargets).reduce<string[]>(
             (tables, tileTarget) => {
-                return uniq([...tables, capitalize(tileTarget.tableName)]);
+                const targetField = filterableFields.find(
+                    (f) =>
+                        f.table === tileTarget.tableName &&
+                        getItemId(f) === tileTarget.fieldId,
+                );
+                return targetField
+                    ? uniq([...tables, targetField.tableLabel])
+                    : tables;
             },
             [],
         );
     } else {
-        return [capitalize(field.tableLabel)];
+        return [field.tableLabel];
     }
 };
