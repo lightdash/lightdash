@@ -3,28 +3,40 @@ import {
     CompiledField,
     ConditionalFormattingConfig,
     createFilterRuleFromField,
+    fieldId,
     FilterOperator,
     FilterRule,
     FilterType,
     getFilterTypeFromField,
+    getVisibleFields,
 } from '@lightdash/common';
-import { FC, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import ColorInput from '../common/ColorInput';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
+import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
-interface ConditionalFormattingProps {
-    fields: CompiledField[];
-    value: ConditionalFormattingConfig | undefined;
-    onChange: (value: ConditionalFormattingConfig) => void;
-}
+const ConditionalFormatting: FC = () => {
+    const {
+        explore,
+        tableConfig: { conditionalFormattings, onSetConditionalFormattings },
+    } = useVisualizationContext();
 
-const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
-    fields,
-    value,
-    onChange,
-}) => {
+    const activeFields = useExplorerContext((c) => c.state.activeFields);
+    const visibleActiveNumericFields = useMemo(() => {
+        return explore
+            ? getVisibleFields(explore).filter(
+                  (field) =>
+                      activeFields.has(fieldId(field)) &&
+                      field.type === 'number',
+              )
+            : [];
+    }, [explore, activeFields]);
+
+    const value = conditionalFormattings[0];
+
     const [field, setField] = useState<CompiledField | undefined>(value?.field);
     const [color, setColor] = useState<string | undefined>(value?.color);
     const [filter, setFilter] = useState<FilterRule | undefined>(value?.filter);
@@ -41,7 +53,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
     const handleChange = () => {
         if (!field || !filter || !color) return;
-        onChange({ field, color, filter });
+
+        const newConfig: ConditionalFormattingConfig = {
+            field,
+            filter,
+            color,
+        };
+
+        onSetConditionalFormattings([newConfig]);
     };
 
     const fieldConfig =
@@ -54,7 +73,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
             <FormGroup label="Select field">
                 <FieldAutoComplete
                     id="numeric-field-autocomplete"
-                    fields={fields}
+                    fields={visibleActiveNumericFields}
                     activeField={field}
                     onChange={handleChangeField}
                     popoverProps={{
