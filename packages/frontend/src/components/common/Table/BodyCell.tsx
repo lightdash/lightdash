@@ -72,25 +72,18 @@ const BodyCell: FC<CommonBodyCellProps> = ({
             }
             renderTarget={({ ref }) => (
                 <Td
-                    className={className}
-                    style={{
-                        ...style,
-                        ...(selected
-                            ? { position: 'relative', zIndex: 21 }
-                            : {}),
-                        ...(backgroundColor
-                            ? { backgroundColor: backgroundColor }
-                            : {}),
-                    }}
                     ref={ref}
-                    onKeyDown={onKeyDown}
+                    className={className}
+                    style={style}
                     $rowIndex={rowIndex}
                     $isSelected={selected}
                     $isInteractive={hasContextMenu}
                     $isCopying={copying}
+                    $backgroundColor={backgroundColor}
                     $hasData={hasContextMenu}
                     $isNaN={!hasData || !isNumericItem}
                     onClick={selected ? handleDeselect : handleSelect}
+                    onKeyDown={onKeyDown}
                 >
                     <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
                         {children}

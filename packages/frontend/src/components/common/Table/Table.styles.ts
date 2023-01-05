@@ -120,6 +120,7 @@ export const Td = styled.td<{
     $isSelected: boolean;
     $isInteractive: boolean;
     $isCopying: boolean;
+    $backgroundColor?: string;
     $hasData: boolean;
 }>`
     ${CellStyles}
@@ -139,10 +140,31 @@ export const Td = styled.td<{
             `
             : ''}
 
+    ${({ $isSelected }) =>
+        $isSelected
+            ? `
+                position: relative;
+                z-index: 21;
+            `
+            : ''}
+
+    ${({ $backgroundColor }) =>
+        $backgroundColor
+            ? `
+                background-color: ${$backgroundColor};
+            `
+            : ''}
 
     transition: filter 0.15s linear;
 
-    filter: ${({ $isCopying }) => ($isCopying ? 'saturate(3)' : 'saturate(1)')};
+    ${({ $isCopying }) =>
+        $isCopying
+            ? `
+                filter: saturate(3);
+            `
+            : `
+                filter: saturate(1);
+            `}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`
