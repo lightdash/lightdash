@@ -1,16 +1,17 @@
-import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { FormGroup, HTMLSelect } from '@blueprintjs/core';
 import {
     CompiledField,
     ConditionalFormattingConfig,
-    createFilterRuleFromField,
+    ConditionalFormattingRule,
+    createConditionalFormatingRule,
     fieldId,
     FilterOperator,
-    FilterRule,
     FilterType,
     getFilterTypeFromField,
     getVisibleFields,
 } from '@lightdash/common';
-import { FC, useMemo, useState } from 'react';
+import produce from 'immer';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import ColorInput from '../common/ColorInput';
 import { FilterTypeConfig } from '../common/Filters/configs';
@@ -27,11 +28,9 @@ const ConditionalFormatting: FC = () => {
     const activeFields = useExplorerContext((c) => c.state.activeFields);
     const visibleActiveNumericFields = useMemo(() => {
         return explore
-            ? getVisibleFields(explore).filter(
-                  (field) =>
-                      activeFields.has(fieldId(field)) &&
-                      field.type === 'number',
-              )
+            ? getVisibleFields(explore)
+                  .filter((field) => activeFields.has(fieldId(field)))
+                  .filter((field) => field.type === 'number')
             : [];
     }, [explore, activeFields]);
 
@@ -39,31 +38,37 @@ const ConditionalFormatting: FC = () => {
 
     const [field, setField] = useState<CompiledField | undefined>(value?.field);
     const [color, setColor] = useState<string | undefined>(value?.color);
-    const [filter, setFilter] = useState<FilterRule | undefined>(value?.filter);
+    const [rules, setRules] = useState<ConditionalFormattingRule[]>(
+        value?.rules ?? [],
+    );
 
     const handleChangeField = (newField: CompiledField) => {
         setField(newField);
-        setFilter(createFilterRuleFromField(newField));
+        setRules([createConditionalFormatingRule(newField)]);
     };
 
     const handleChangeFilterOperator = (newOperator: FilterOperator) => {
-        if (!filter) return;
-        setFilter({ ...filter, operator: newOperator });
+        setRules(
+            produce(rules, (draft) => {
+                draft[0].operator = newOperator;
+                return draft;
+            }),
+        );
     };
 
-    const handleChange = () => {
-        if (!field || !filter || !color) return;
+    useEffect(() => {
+        if (!field || !color || rules.length === 0) return;
 
         const newConfig: ConditionalFormattingConfig = {
             field,
-            filter,
+            rules,
             color,
         };
 
         onSetConditionalFormattings([newConfig]);
-    };
+    }, [field, color, rules, onSetConditionalFormattings]);
 
-    const fieldConfig =
+    const filterConfig =
         FilterTypeConfig[
             field ? getFilterTypeFromField(field) : FilterType.STRING
         ];
@@ -83,56 +88,42 @@ const ConditionalFormatting: FC = () => {
                 />
             </FormGroup>
 
-            {field && filter && (
-                <>
-                    <FormGroup label="Set color">
-                        <ColorInput
-                            placeholder="Enter hex color"
-                            value={color}
-                            onChange={(e) => setColor(e.target.value)}
-                        />
-                    </FormGroup>
+            {field &&
+                rules.map((rule) => (
+                    <div key={rule.id}>
+                        <FormGroup label="Set color">
+                            <ColorInput
+                                placeholder="Enter hex color"
+                                value={color}
+                                onChange={(e) => setColor(e.target.value)}
+                            />
+                        </FormGroup>
 
-                    <FormGroup label="Value">
-                        <HTMLSelect
-                            fill
-                            onChange={(e) =>
-                                handleChangeFilterOperator(
-                                    e.target.value as FilterOperator,
-                                )
-                            }
-                            options={fieldConfig.operatorOptions}
-                            value={filter?.operator}
-                        />
-                    </FormGroup>
+                        <FormGroup label="Value">
+                            <HTMLSelect
+                                fill
+                                onChange={(e) =>
+                                    handleChangeFilterOperator(
+                                        e.target.value as FilterOperator,
+                                    )
+                                }
+                                options={filterConfig.operatorOptions}
+                                value={rules[0]?.operator}
+                            />
+                        </FormGroup>
 
-                    <FormGroup>
-                        <fieldConfig.inputs
-                            filterType={FilterType.NUMBER}
-                            field={field}
-                            filterRule={filter}
-                            onChange={(newFilterRule) =>
-                                setFilter(newFilterRule)
-                            }
-                        />
-                    </FormGroup>
-
-                    <div
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                        }}
-                    >
-                        <Button
-                            disabled={!field || !filter || !color}
-                            intent="primary"
-                            onClick={handleChange}
-                        >
-                            Apply
-                        </Button>
+                        <FormGroup>
+                            <filterConfig.inputs<ConditionalFormattingRule>
+                                filterType={FilterType.NUMBER}
+                                field={field}
+                                filterRule={rules[0]}
+                                onChange={(newFilterRule) =>
+                                    setRules([newFilterRule])
+                                }
+                            />
+                        </FormGroup>
                     </div>
-                </>
-            )}
+                ))}
         </FiltersProvider>
     );
 };
