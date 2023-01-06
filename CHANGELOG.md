@@ -1,3 +1,10 @@
+## [0.361.1](https://github.com/lightdash/lightdash/compare/0.361.0...0.361.1) (2023-01-06)
+
+
+### Bug Fixes
+
+* create dashboard flow same as create space flow ([#4084](https://github.com/lightdash/lightdash/issues/4084)) ([4cb725f](https://github.com/lightdash/lightdash/commit/4cb725fa962f1bbf964f3fe8e03749a79c5372a9))
+
 # [0.361.0](https://github.com/lightdash/lightdash/compare/0.360.0...0.361.0) (2023-01-05)
 
 
