@@ -32,12 +32,13 @@ const TableBody: FC = () => {
                         // TODO: extract all this
                         const fieldConditionalFormattings =
                             conditionalFormattings?.find((config) => {
-                                return (
-                                    getItemId(config.field) ===
-                                    (meta?.item
-                                        ? getItemId(meta.item)
-                                        : undefined)
-                                );
+                                if (!cellValue) return false;
+                                return config.target?.fieldId
+                                    ? config.target?.fieldId ===
+                                          (meta?.item
+                                              ? getItemId(meta.item)
+                                              : undefined)
+                                    : true;
                             });
 
                         const cellHasFormatting =

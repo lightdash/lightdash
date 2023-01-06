@@ -1,4 +1,4 @@
-import { FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
 import {
     CompiledField,
     ConditionalFormattingConfig,
@@ -7,7 +7,7 @@ import {
     fieldId,
     FilterOperator,
     FilterType,
-    getFilterTypeFromField,
+    getItemId,
     getVisibleFields,
 } from '@lightdash/common';
 import produce from 'immer';
@@ -34,96 +34,171 @@ const ConditionalFormatting: FC = () => {
             : [];
     }, [explore, activeFields]);
 
+    // TODO: this is intentional to support multiple conditional formattings
     const value = conditionalFormattings[0];
-
-    const [field, setField] = useState<CompiledField | undefined>(value?.field);
-    const [color, setColor] = useState<string | undefined>(value?.color);
-    const [rules, setRules] = useState<ConditionalFormattingRule[]>(
-        value?.rules ?? [],
+    const field = useMemo(
+        () =>
+            visibleActiveNumericFields.find(
+                (f) => getItemId(f) === value?.target?.fieldId,
+            ),
+        [],
     );
 
-    const handleChangeField = (newField: CompiledField) => {
-        setField(newField);
-        setRules([createConditionalFormatingRule(newField)]);
+    const [config, setConfig] = useState<ConditionalFormattingConfig | null>(
+        value,
+    );
+
+    const handleAddEmptyConditionalFormatting = () => {
+        setConfig({
+            target: null,
+            color: '#000000',
+            rules: [createConditionalFormatingRule()],
+        });
+    };
+
+    const handleRemoveConditionalFormatting = () => {
+        setConfig(null);
+    };
+
+    const handleChangeField = (newField: CompiledField | undefined) => {
+        if (!config) return;
+
+        setConfig({
+            ...config,
+            target: newField ? { fieldId: getItemId(newField) } : null,
+        });
     };
 
     const handleChangeFilterOperator = (newOperator: FilterOperator) => {
-        setRules(
-            produce(rules, (draft) => {
-                draft[0].operator = newOperator;
+        if (!config) return;
+
+        setConfig(
+            produce(config, (draft) => {
+                draft.rules[0].operator = newOperator;
+            }),
+        );
+    };
+
+    const handleChangeRule = (newRule: ConditionalFormattingRule) => {
+        if (!config) return;
+
+        setConfig(
+            produce(config, (draft) => {
+                draft.rules[0] = newRule;
                 return draft;
             }),
         );
     };
 
+    const handleChangeColor = (newColor: string) => {
+        if (!config) return;
+        setConfig({ ...config, color: newColor });
+    };
+
     useEffect(() => {
-        if (!field || !color || rules.length === 0) return;
+        onSetConditionalFormattings(config ? [config] : []);
+    }, [config, onSetConditionalFormattings]);
 
-        const newConfig: ConditionalFormattingConfig = {
-            field,
-            rules,
-            color,
-        };
+    // conditional formatting only supports number fields for now
+    const filterConfig = FilterTypeConfig[FilterType.NUMBER];
 
-        onSetConditionalFormattings([newConfig]);
-    }, [field, color, rules, onSetConditionalFormattings]);
-
-    const filterConfig =
-        FilterTypeConfig[
-            field ? getFilterTypeFromField(field) : FilterType.STRING
-        ];
-
+    // TODO: remove nonsense props
     return (
         <FiltersProvider projectUuid="BLAH." fieldsMap={{}}>
-            <FormGroup label="Select field">
-                <FieldAutoComplete
-                    id="numeric-field-autocomplete"
-                    fields={visibleActiveNumericFields}
-                    activeField={field}
-                    onChange={handleChangeField}
-                    popoverProps={{
-                        lazy: true,
-                        matchTargetWidth: true,
-                    }}
-                />
-            </FormGroup>
-
-            {field &&
-                rules.map((rule) => (
-                    <div key={rule.id}>
-                        <FormGroup label="Set color">
-                            <ColorInput
-                                placeholder="Enter hex color"
-                                value={color}
-                                onChange={(e) => setColor(e.target.value)}
-                            />
-                        </FormGroup>
-
-                        <FormGroup label="Value">
-                            <HTMLSelect
-                                fill
-                                onChange={(e) =>
-                                    handleChangeFilterOperator(
-                                        e.target.value as FilterOperator,
-                                    )
-                                }
-                                options={filterConfig.operatorOptions}
-                                value={rules[0]?.operator}
-                            />
-                        </FormGroup>
-
-                        <FormGroup>
-                            <filterConfig.inputs<ConditionalFormattingRule>
-                                filterType={FilterType.NUMBER}
-                                field={field}
-                                filterRule={rules[0]}
-                                onChange={(newFilterRule) =>
-                                    setRules([newFilterRule])
-                                }
-                            />
-                        </FormGroup>
+            {!config ? (
+                <FormGroup>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <Button
+                            icon="plus"
+                            onClick={handleAddEmptyConditionalFormatting}
+                        >
+                            Add conditional formatting
+                        </Button>
                     </div>
-                ))}
+                </FormGroup>
+            ) : (
+                <>
+                    <FormGroup label="Select field">
+                        <FieldAutoComplete
+                            id="numeric-field-autocomplete"
+                            fields={visibleActiveNumericFields}
+                            activeField={field}
+                            onChange={handleChangeField}
+                            popoverProps={{
+                                lazy: true,
+                                matchTargetWidth: true,
+                            }}
+                            inputProps={{
+                                rightElement: (
+                                    <Button
+                                        minimal
+                                        icon="cross"
+                                        onClick={() =>
+                                            handleChangeField(undefined)
+                                        }
+                                    />
+                                ),
+                            }}
+                        />
+                    </FormGroup>
+
+                    {config.rules.map((rule, index) => (
+                        <div key={index}>
+                            <FormGroup label="Set color">
+                                <ColorInput
+                                    placeholder="Enter hex color"
+                                    value={config.color}
+                                    onChange={(e) =>
+                                        handleChangeColor(e.target.value)
+                                    }
+                                />
+                            </FormGroup>
+
+                            <FormGroup label="Value">
+                                <HTMLSelect
+                                    fill
+                                    onChange={(e) =>
+                                        handleChangeFilterOperator(
+                                            e.target.value as FilterOperator,
+                                        )
+                                    }
+                                    options={filterConfig.operatorOptions}
+                                    value={rule.operator}
+                                />
+                            </FormGroup>
+
+                            <FormGroup>
+                                <filterConfig.inputs
+                                    filterType={FilterType.NUMBER}
+                                    field={
+                                        field ?? visibleActiveNumericFields[0]
+                                    }
+                                    rule={rule}
+                                    onChange={handleChangeRule}
+                                />
+                            </FormGroup>
+
+                            <FormGroup>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <Button
+                                        icon="cross"
+                                        onClick={
+                                            handleRemoveConditionalFormatting
+                                        }
+                                    >
+                                        Remove conditional formatting
+                                    </Button>
+                                </div>
+                            </FormGroup>
+                        </div>
+                    ))}
+                </>
+            )}
         </FiltersProvider>
     );
 };
