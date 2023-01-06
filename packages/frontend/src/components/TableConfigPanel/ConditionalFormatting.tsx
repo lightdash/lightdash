@@ -51,7 +51,7 @@ const ConditionalFormatting: FC = () => {
     const handleAddEmptyConditionalFormatting = () => {
         setConfig({
             target: null,
-            color: '#000000',
+            color: '#BBAAFF',
             rules: [createConditionalFormatingRule()],
         });
     };
