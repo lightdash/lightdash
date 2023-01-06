@@ -1,7 +1,6 @@
 import {
-    assertUnreachable,
-    FilterOperator,
     getItemId,
+    hasConditionalFormatting,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
@@ -41,62 +40,20 @@ const TableBody: FC = () => {
                                 );
                             });
 
-                        const hasFormatting = fieldConditionalFormattings?.rules
-                            ? fieldConditionalFormattings.rules.every((rule) =>
-                                  rule.values && rule.values.length > 0
-                                      ? rule.values.some((conditionalValue) => {
-                                            const operator = rule.operator;
-
-                                            const rawValue =
-                                                cellValue.value.raw;
-                                            const intValue =
-                                                parseInt(conditionalValue);
-
-                                            switch (operator) {
-                                                case FilterOperator.NULL:
-                                                    return rawValue === null;
-                                                case FilterOperator.NOT_NULL:
-                                                    return (
-                                                        rawValue !== intValue
-                                                    );
-                                                case FilterOperator.EQUALS:
-                                                    return (
-                                                        rawValue === intValue
-                                                    );
-                                                case FilterOperator.NOT_EQUALS:
-                                                    return (
-                                                        rawValue !== intValue
-                                                    );
-                                                case FilterOperator.LESS_THAN:
-                                                    return rawValue < intValue;
-                                                case FilterOperator.GREATER_THAN:
-                                                    return rawValue > intValue;
-                                                case FilterOperator.STARTS_WITH:
-                                                case FilterOperator.INCLUDE:
-                                                case FilterOperator.NOT_INCLUDE:
-                                                case FilterOperator.LESS_THAN_OR_EQUAL:
-                                                case FilterOperator.GREATER_THAN_OR_EQUAL:
-                                                case FilterOperator.IN_THE_PAST:
-                                                case FilterOperator.IN_THE_CURRENT:
-                                                    throw new Error(
-                                                        'Not implemented',
-                                                    );
-                                                default:
-                                                    return assertUnreachable(
-                                                        operator,
-                                                        'Unknown operator',
-                                                    );
-                                            }
-                                        })
-                                      : false,
-                              )
-                            : false;
+                        const cellHasFormatting =
+                            fieldConditionalFormattings?.rules &&
+                            fieldConditionalFormattings.rules.length > 0
+                                ? hasConditionalFormatting(
+                                      fieldConditionalFormattings.rules,
+                                      cellValue.value.raw as number,
+                                  )
+                                : false;
 
                         return (
                             <BodyCell
                                 style={meta?.style}
                                 backgroundColor={
-                                    hasFormatting
+                                    cellHasFormatting
                                         ? fieldConditionalFormattings?.color
                                         : undefined
                                 }
