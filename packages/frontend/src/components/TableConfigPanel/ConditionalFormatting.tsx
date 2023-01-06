@@ -105,7 +105,7 @@ const ConditionalFormatting: FC = () => {
 
     // TODO: remove nonsense props
     return (
-        <FiltersProvider projectUuid="BLAH." fieldsMap={{}}>
+        <FiltersProvider>
             {!config ? (
                 <FormGroup>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -130,7 +130,7 @@ const ConditionalFormatting: FC = () => {
                                 matchTargetWidth: true,
                             }}
                             inputProps={{
-                                rightElement: (
+                                rightElement: field ? (
                                     <Button
                                         minimal
                                         icon="cross"
@@ -138,7 +138,7 @@ const ConditionalFormatting: FC = () => {
                                             handleChangeField(undefined)
                                         }
                                     />
-                                ),
+                                ) : undefined,
                             }}
                         />
                     </FormGroup>
