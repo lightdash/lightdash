@@ -3,7 +3,10 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { ConditionalRule } from './conditionalRule';
 import { FieldTarget, FilterOperator } from './filter';
 
-export type ConditionalFormattingRule = ConditionalRule<FilterOperator, number>;
+export interface ConditionalFormattingRule<T = number>
+    extends ConditionalRule<FilterOperator, T> {
+    values: T[];
+}
 
 export interface ConditionalFormattingConfig {
     target: FieldTarget | null;
@@ -22,7 +25,7 @@ export const hasMatchingConditionalRules = (
     rules: ConditionalFormattingConfig['rules'],
 ) =>
     rules.every((rule) => {
-        if (!rule.values || rule.values.length === 0) {
+        if (rule.values.length === 0) {
             return false;
         }
 
