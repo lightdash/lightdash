@@ -49,6 +49,7 @@ export const hasMatchingConditionalRules = (
                 case FilterOperator.LESS_THAN_OR_EQUAL:
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
                 case FilterOperator.IN_THE_PAST:
+                case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                     throw new Error('Not implemented');
                 default:
