@@ -22,6 +22,10 @@ describe('Dashboard List', () => {
         cy.findByRole('menuitem', { name: 'All dashboards' }).click();
         cy.findByRole('button', { name: 'Create dashboard' }).click();
 
+        cy.findByLabelText('Name your dashboard').type('Untitled dashboard');
+        cy.findByLabelText('Dashboard description').type('Description');
+        cy.findByText('Create').click();
+
         cy.url().should(
             'match',
             /.*\/projects\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/dashboards\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,

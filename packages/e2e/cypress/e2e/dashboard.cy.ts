@@ -38,19 +38,19 @@ describe('Dashboard', () => {
         cy.findByLabelText('Dashboard description').type('Description');
         cy.findByText('Create').click();
 
-        cy.findByText('Add tile').click();
+        cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Saved chart').click();
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
         cy.contains('How much revenue').click();
         cy.findByText('Add').click();
 
-        cy.findByText('Add tile').click();
+        cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Markdown').click();
         cy.findByLabelText('Title').type('Title');
         cy.get('textarea').type('Content');
         cy.findByText('Add').click();
 
-        cy.findByText('Add tile').click();
+        cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Loom video').click();
 
         cy.findByLabelText('Title *').type('Title');
