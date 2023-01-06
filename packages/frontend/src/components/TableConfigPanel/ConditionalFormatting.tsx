@@ -84,7 +84,12 @@ const ConditionalFormatting: FC = () => {
 
         setConfig(
             produce(config, (draft) => {
+                // TODO: this is intentional to support multiple rules in the future
                 draft.rules[0] = newRule;
+                // TODO: check if we can fix this problem in number input
+                draft.rules[0].values = draft.rules[0].values.map((v) =>
+                    Number(v),
+                );
                 return draft;
             }),
         );
