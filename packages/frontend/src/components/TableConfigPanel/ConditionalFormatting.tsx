@@ -41,7 +41,7 @@ const ConditionalFormatting: FC = () => {
             visibleActiveNumericFields.find(
                 (f) => getItemId(f) === value?.target?.fieldId,
             ),
-        [],
+        [value, visibleActiveNumericFields],
     );
 
     const [config, setConfig] = useState<ConditionalFormattingConfig | null>(
