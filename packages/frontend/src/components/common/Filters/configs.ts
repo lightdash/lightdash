@@ -1,4 +1,5 @@
 import {
+    ConditionalRule,
     DashboardFilterRule,
     DimensionType,
     FilterableField,
@@ -15,7 +16,6 @@ import {
 } from '@lightdash/common';
 import isEmpty from 'lodash-es/isEmpty';
 import uniq from 'lodash-es/uniq';
-import { FC } from 'react';
 import BooleanFilterInputs from './FilterInputs/BooleanFilterInputs';
 import DateFilterInputs from './FilterInputs/DateFilterInputs';
 import DefaultFilterInputs, {
@@ -68,7 +68,7 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
 ];
 
-type FilterInputPropType = <T extends FilterRule = FilterRule>(
+type FilterInputPropType = <T extends ConditionalRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => JSX.Element;
 
