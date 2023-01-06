@@ -35,17 +35,17 @@ const ConditionalFormatting: FC = () => {
     }, [explore, activeFields]);
 
     // TODO: this is intentional to support multiple conditional formattings
-    const value = conditionalFormattings[0];
+    const conditionalFormatting = conditionalFormattings[0];
     const field = useMemo(
         () =>
             visibleActiveNumericFields.find(
-                (f) => getItemId(f) === value?.target?.fieldId,
+                (f) => getItemId(f) === conditionalFormatting?.target?.fieldId,
             ),
-        [value, visibleActiveNumericFields],
+        [conditionalFormatting, visibleActiveNumericFields],
     );
 
     const [config, setConfig] = useState<ConditionalFormattingConfig | null>(
-        value,
+        conditionalFormatting,
     );
 
     const handleAddEmptyConditionalFormatting = () => {
@@ -92,6 +92,7 @@ const ConditionalFormatting: FC = () => {
 
     const handleChangeColor = (newColor: string) => {
         if (!config) return;
+
         setConfig({ ...config, color: newColor });
     };
 
