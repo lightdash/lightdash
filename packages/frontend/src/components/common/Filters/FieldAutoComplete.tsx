@@ -29,6 +29,7 @@ type FieldAutoCompleteProps<T> = {
     onChange: (value: T) => void;
     onClosed?: () => void;
     popoverProps?: Popover2Props;
+    inputProps?: React.ComponentProps<typeof Suggest2>['inputProps'];
 };
 
 const FieldAutoComplete = <T extends Field | TableCalculation>({
@@ -42,6 +43,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     onClosed,
     placeholder,
     popoverProps,
+    inputProps,
 }: FieldAutoCompleteProps<T>) => {
     const sortedFields = useMemo(() => {
         return fields.sort((a, b) =>
@@ -62,6 +64,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                     autoFocus,
                     placeholder: placeholder || 'Search field...',
                     leftIcon: activeField && <FieldIcon item={activeField} />,
+                    ...inputProps,
                 }}
                 items={sortedFields}
                 itemsEqual={(value, other) => {
