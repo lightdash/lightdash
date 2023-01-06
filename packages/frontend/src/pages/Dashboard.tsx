@@ -423,7 +423,9 @@ const Dashboard = () => {
                         );
                     })}
                 </ResponsiveGridLayout>
-                {dashboardTiles.length <= 0 && <EmptyStateNoTiles />}
+                {dashboardTiles.length <= 0 && (
+                    <EmptyStateNoTiles onAddTiles={onAddTiles} />
+                )}
             </Page>
         </>
     );

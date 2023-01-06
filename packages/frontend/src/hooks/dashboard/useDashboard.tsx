@@ -274,6 +274,7 @@ export const useUpdateDashboardName = (
 export const useCreateMutation = (
     projectUuid: string,
     showRedirectButton: boolean = false,
+    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
 ) => {
     const history = useHistory();
     const { showToastSuccess, showToastError } = useToaster();
@@ -282,6 +283,7 @@ export const useCreateMutation = (
         (data) => createDashboard(projectUuid, data),
         {
             mutationKey: ['dashboard_create', projectUuid],
+            ...useQueryOptions,
             onSuccess: async (result) => {
                 await queryClient.invalidateQueries('dashboards');
                 await queryClient.invalidateQueries(
@@ -300,6 +302,8 @@ export const useCreateMutation = (
                           }
                         : undefined,
                 });
+
+                useQueryOptions?.onSuccess?.(result);
             },
             onError: (error) => {
                 showToastError({

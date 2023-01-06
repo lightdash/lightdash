@@ -1,9 +1,13 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
-import { FC } from 'react';
+import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
+import { Dashboard, Dashboard as IDashboard } from '@lightdash/common';
+import { FC, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
 import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import AddTileButton from '../AddTileButton';
 import {
     ButtonWrapper,
     CTA,
@@ -12,16 +16,25 @@ import {
     Title,
 } from './EmptyStateNoTiles.styles';
 
-const SavedChartsAvailable = () => (
-    <EmptyStateWrapper>
-        <EmptyStateIcon icon="grouped-bar-chart" size={59} />
-        <Title>Start building your dashboard!</Title>
-        <p>
-            Click ‘Edit dashboard’ to start adding charts and tiles. Don’t
-            forget to hit ‘Save’ when you’re done!
-        </p>
-    </EmptyStateWrapper>
-);
+interface SavedChartsAvailableProps {
+    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+}
+
+const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
+    onAddTiles,
+}) => {
+    return (
+        <EmptyStateWrapper>
+            <EmptyStateIcon icon="grouped-bar-chart" size={59} />
+            <Title>Start building your dashboard!</Title>
+            <AddTileButton
+                onAddTiles={onAddTiles}
+                intent={Intent.PRIMARY}
+                popoverPosition={PopoverPosition.BOTTOM}
+            />
+        </EmptyStateWrapper>
+    );
+};
 
 const RunQueryButton: FC<{ projectId: string }> = ({ projectId }) => (
     <ButtonWrapper>
@@ -37,14 +50,10 @@ const NoSavedChartsAvailable = () => (
     <EmptyStateWrapper>
         <EmptyStateIcon icon="grouped-bar-chart" size={59} />
         <Title>You haven’t saved any charts yet.</Title>
-        <p>
-            Create a saved chart from your queries so you can add it to this
-            dashboard!
-        </p>
     </EmptyStateWrapper>
 );
 
-const EmptyStateNoTiles: FC = () => {
+const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({ onAddTiles }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
@@ -56,7 +65,7 @@ const EmptyStateNoTiles: FC = () => {
                 <NonIdealState
                     description={
                         hasSavedCharts ? (
-                            <SavedChartsAvailable />
+                            <SavedChartsAvailable onAddTiles={onAddTiles} />
                         ) : (
                             <NoSavedChartsAvailable />
                         )
