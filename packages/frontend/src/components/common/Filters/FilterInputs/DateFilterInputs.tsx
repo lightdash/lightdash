@@ -1,12 +1,14 @@
 import { NumericInput } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
+    ConditionalRule,
     DateFilterRule,
     DimensionType,
     FilterOperator,
     FilterRule,
     formatDate,
     isDimension,
+    isFilterRule,
     isWeekDay,
     parseDate,
     TimeFrames,
@@ -25,14 +27,18 @@ import {
 } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
-const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
+const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
-    const { field, filterRule, onChange, popoverProps, disabled } = props;
+    const { field, rule, onChange, popoverProps, disabled } = props;
     const { startOfWeek } = useFiltersContext();
     const isTimestamp = field.type === DimensionType.TIMESTAMP;
 
-    switch (filterRule.operator) {
+    if (!isFilterRule(rule)) {
+        throw new Error('DateFilterInputs expects a FilterRule');
+    }
+
+    switch (rule.operator) {
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
         case FilterOperator.GREATER_THAN:
@@ -49,12 +55,12 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                                 </span>
                                 <WeekPicker
                                     disabled={disabled}
-                                    value={filterRule.values?.[0] || new Date()}
+                                    value={rule.values?.[0] || new Date()}
                                     popoverProps={popoverProps}
                                     startOfWeek={startOfWeek}
                                     onChange={(value: Date) => {
                                         onChange({
-                                            ...filterRule,
+                                            ...rule,
                                             values: [moment(value).toDate()],
                                         });
                                     }}
@@ -65,10 +71,10 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         return (
                             <MonthAndYearInput
                                 disabled={disabled}
-                                value={filterRule.values?.[0] || new Date()}
+                                value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
-                                        ...filterRule,
+                                        ...rule,
                                         values: [
                                             moment(value)
                                                 .startOf('month')
@@ -82,10 +88,10 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         return (
                             <YearInput
                                 disabled={disabled}
-                                value={filterRule.values?.[0] || new Date()}
+                                value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
                                     onChange({
-                                        ...filterRule,
+                                        ...rule,
                                         values: [
                                             moment(value)
                                                 .startOf('year')
@@ -109,8 +115,8 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         defaultTimezone="UTC"
                         showTimezoneSelect={false}
                         value={
-                            filterRule.values?.[0]
-                                ? new Date(filterRule.values?.[0]).toString()
+                            rule.values?.[0]
+                                ? new Date(rule.values?.[0]).toString()
                                 : new Date().toString()
                         }
                         timePrecision={'millisecond'}
@@ -124,7 +130,7 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         onChange={(value: string | null) => {
                             if (value) {
                                 onChange({
-                                    ...filterRule,
+                                    ...rule,
                                     values: [value],
                                 });
                             }
@@ -147,12 +153,8 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                     disabled={disabled}
                     fill
                     value={
-                        filterRule.values?.[0]
-                            ? formatDate(
-                                  filterRule.values?.[0],
-                                  undefined,
-                                  false,
-                              )
+                        rule.values?.[0]
+                            ? formatDate(rule.values?.[0], undefined, false)
                             : new Date().toString()
                     }
                     formatDate={(value: Date) =>
@@ -163,7 +165,7 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                     onChange={(value: string | null) => {
                         if (value) {
                             onChange({
-                                ...filterRule,
+                                ...rule,
                                 values: [formatDate(value, undefined, false)],
                             });
                         }
@@ -181,7 +183,7 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
             );
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
-            const parsedValue = parseInt(filterRule.values?.[0], 10);
+            const parsedValue = parseInt(rule.values?.[0], 10);
             return (
                 <MultipleInputsWrapper>
                     <NumericInput
@@ -192,7 +194,7 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         min={0}
                         onValueChange={(value) =>
                             onChange({
-                                ...filterRule,
+                                ...rule,
                                 values: [value],
                             })
                         }
@@ -201,13 +203,13 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         disabled={disabled}
                         isTimestamp={isTimestamp}
                         unitOfTime={
-                            filterRule.settings?.unitOfTime || UnitOfTime.days
+                            rule.settings?.unitOfTime || UnitOfTime.days
                         }
-                        completed={filterRule.settings?.completed || false}
+                        completed={rule.settings?.completed || false}
                         popoverProps={popoverProps}
                         onChange={(value) =>
                             onChange({
-                                ...filterRule,
+                                ...rule,
                                 settings: {
                                     unitOfTime: value.unitOfTime,
                                     completed: value.completed,
@@ -224,7 +226,7 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         disabled={disabled}
                         isTimestamp={isTimestamp}
                         unitOfTime={
-                            filterRule.settings?.unitOfTime || UnitOfTime.days
+                            rule.settings?.unitOfTime || UnitOfTime.days
                         }
                         showOptionsInPlural={false}
                         showCompletedOptions={false}
@@ -232,7 +234,7 @@ const DateFilterInputs = <T extends FilterRule = DateFilterRule>(
                         popoverProps={popoverProps}
                         onChange={(value) =>
                             onChange({
-                                ...filterRule,
+                                ...rule,
                                 settings: {
                                     unitOfTime: value.unitOfTime,
                                     completed: false,

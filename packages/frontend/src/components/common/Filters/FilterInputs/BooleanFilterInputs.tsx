@@ -1,12 +1,12 @@
 import { HTMLSelect } from '@blueprintjs/core';
-import { FilterOperator, FilterRule } from '@lightdash/common';
+import { ConditionalRule, FilterOperator } from '@lightdash/common';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
-const BooleanFilterInputs = <T extends FilterRule = FilterRule>(
+const BooleanFilterInputs = <T extends ConditionalRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
-    const { filterRule, onChange, disabled } = props;
-    switch (filterRule.operator) {
+    const { rule, onChange, disabled } = props;
+    switch (rule.operator) {
         case FilterOperator.EQUALS: {
             return (
                 <HTMLSelect
@@ -15,7 +15,7 @@ const BooleanFilterInputs = <T extends FilterRule = FilterRule>(
                     disabled={disabled}
                     onChange={(e) =>
                         onChange({
-                            ...filterRule,
+                            ...rule,
                             values: [e.currentTarget.value === 'true'],
                         })
                     }
@@ -23,7 +23,7 @@ const BooleanFilterInputs = <T extends FilterRule = FilterRule>(
                         { value: 'true', label: 'True' },
                         { value: 'false', label: 'False' },
                     ]}
-                    value={filterRule.values?.[0] ? 'true' : 'false'}
+                    value={rule.values?.[0] ? 'true' : 'false'}
                 />
             );
         }
