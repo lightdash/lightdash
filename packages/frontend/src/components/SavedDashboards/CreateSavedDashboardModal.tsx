@@ -8,7 +8,7 @@ import {
 } from '@blueprintjs/core';
 import { Dashboard } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
 import { useApp } from '../../providers/AppProvider';
 
@@ -27,12 +27,19 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     redirectToEditDashboard,
     onClose,
 }) => {
+    const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const useCreate = useCreateMutation(
-        projectUuid,
-        showRedirectButton,
-        redirectToEditDashboard,
-    );
+    const useCreate = useCreateMutation(projectUuid, showRedirectButton, {
+        onSuccess: (result) => {
+            if (redirectToEditDashboard) {
+                history.push(
+                    `/projects/${projectUuid}/dashboards/${result.uuid}/edit`,
+                );
+            }
+
+            if (onClose) onClose();
+        },
+    });
     const { mutate, isLoading: isCreating } = useCreate;
     const [name, setName] = useState<string>('');
     const [description, setDescription] = useState<string>('');
@@ -85,7 +92,6 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
                                     name,
                                     description,
                                 });
-                                if (onClose) onClose();
                                 e.preventDefault();
                             }}
                             disabled={isCreating || !name}
