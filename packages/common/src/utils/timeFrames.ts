@@ -237,7 +237,6 @@ const trinoConfig: WarehouseConfig = {
         return `EXTRACT(${datePart} FROM ${originalSql})`;
     },
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
-        // https://docs.snowflake.com/en/sql-reference/functions/to_char.html
         const timeFrameExpressionsFn: Record<
             TimeFrames,
             (() => string) | null

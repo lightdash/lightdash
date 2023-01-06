@@ -43,10 +43,6 @@ services:
       - HEADLESS_BROWSER_PORT=3000
     volumes:
       - "../:/usr/app"
-      - "../examples/schemas/compendio:/usr/app/dbt"
-      - "../examples/schemas/recargapay:/usr/app/recargapay"
-      - "../examples/schemas/facily:/usr/app/facily"
-      - "../examples/schemas/shared:/usr/app/shared"
       - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
     ports:
       - "${PORT}:8080"
