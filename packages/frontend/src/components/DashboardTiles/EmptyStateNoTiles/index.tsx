@@ -1,7 +1,10 @@
 import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
-import { FC } from 'react';
+import { Dashboard as IDashboard } from '@lightdash/common';
+import { FC, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
 import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AddTileButton from '../AddTileButton';
@@ -13,16 +16,18 @@ import {
     Title,
 } from './EmptyStateNoTiles.styles';
 
-const SavedChartsAvailable = () => (
-    <EmptyStateWrapper>
-        <EmptyStateIcon icon="grouped-bar-chart" size={59} />
-        <Title>Start building your dashboard!</Title>
-        <AddTileButton
-            intent={Intent.PRIMARY}
-            popoverPosition={PopoverPosition.BOTTOM}
-        />
-    </EmptyStateWrapper>
-);
+const SavedChartsAvailable = () => {
+    return (
+        <EmptyStateWrapper>
+            <EmptyStateIcon icon="grouped-bar-chart" size={59} />
+            <Title>Start building your dashboard!</Title>
+            <p>
+                Click 'Add tile' to start adding charts and markdown tiles.
+                Don’t forget to hit 'Save' when you’re done!
+            </p>
+        </EmptyStateWrapper>
+    );
+};
 
 const RunQueryButton: FC<{ projectId: string }> = ({ projectId }) => (
     <ButtonWrapper>

@@ -12,20 +12,16 @@ import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { AddTileModal } from './TileForms/TileModal';
 
 type Props = {
-    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
-    intent?: Intent;
-    popoverPosition?: PopoverPosition;
+    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
 };
 
-const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
+const AddTileButton: FC<Props> = ({ onAddTiles }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
     const onAddTile = useCallback(
         (tile: Dashboard['tiles'][number]) => {
-            if (onAddTiles) {
-                onAddTiles([tile]);
-            }
+            onAddTiles([tile]);
         },
         [onAddTiles],
     );
@@ -62,18 +58,10 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                         />
                     </Menu>
                 }
-                position={
-                    popoverPosition
-                        ? popoverPosition
-                        : PopoverPosition.BOTTOM_RIGHT
-                }
+                position={PopoverPosition.BOTTOM_RIGHT}
                 lazy
             >
-                <Button
-                    icon="plus"
-                    text="Add tile"
-                    intent={intent ? intent : 'none'}
-                />
+                <Button icon="plus" text="Add tile" />
             </Popover2>
             {isAddChartTilesModalOpen && (
                 <AddChartTilesModal
