@@ -1,6 +1,6 @@
 import {
     getItemId,
-    hasConditionalFormatting,
+    hasMatchingConditionalRules,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
@@ -44,9 +44,9 @@ const TableBody: FC = () => {
                         const cellHasFormatting =
                             fieldConditionalFormattings?.rules &&
                             fieldConditionalFormattings.rules.length > 0
-                                ? hasConditionalFormatting(
-                                      fieldConditionalFormattings.rules,
+                                ? hasMatchingConditionalRules(
                                       cellValue.value.raw as number,
+                                      fieldConditionalFormattings.rules,
                                   )
                                 : false;
 

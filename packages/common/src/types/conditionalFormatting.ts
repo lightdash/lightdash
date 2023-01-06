@@ -17,9 +17,9 @@ export const createConditionalFormatingRule =
         values: [],
     });
 
-export const hasConditionalFormatting = (
-    rules: ConditionalFormattingConfig['rules'],
+export const hasMatchingConditionalRules = (
     value: number,
+    rules: ConditionalFormattingConfig['rules'],
 ) =>
     rules.every((rule) => {
         if (!rule.values || rule.values.length === 0) {
