@@ -26,10 +26,8 @@ const TableBody: FC = () => {
                 <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => {
                         const meta = cell.column.columnDef.meta;
-                        // TODO: typedef
                         const cellValue = cell.getValue() as ResultRow[0];
 
-                        // TODO: extract all this
                         const fieldConditionalFormattings =
                             conditionalFormattings?.find((config) => {
                                 if (!cellValue) return false;
