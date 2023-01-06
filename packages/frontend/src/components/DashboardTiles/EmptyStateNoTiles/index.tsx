@@ -1,5 +1,5 @@
 import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
-import { Dashboard as IDashboard } from '@lightdash/common';
+import { Dashboard, Dashboard as IDashboard } from '@lightdash/common';
 import { FC, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { appendNewTilesToBottom } from '../../../hooks/dashboard/useDashboard';
@@ -16,15 +16,22 @@ import {
     Title,
 } from './EmptyStateNoTiles.styles';
 
-const SavedChartsAvailable = () => {
+interface SavedChartsAvailableProps {
+    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+}
+
+const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
+    onAddTiles,
+}) => {
     return (
         <EmptyStateWrapper>
             <EmptyStateIcon icon="grouped-bar-chart" size={59} />
             <Title>Start building your dashboard!</Title>
-            <p>
-                Click 'Add tile' to start adding charts and markdown tiles.
-                Don’t forget to hit 'Save' when you’re done!
-            </p>
+            <AddTileButton
+                onAddTiles={onAddTiles}
+                intent={Intent.PRIMARY}
+                popoverPosition={PopoverPosition.BOTTOM}
+            />
         </EmptyStateWrapper>
     );
 };
@@ -46,7 +53,7 @@ const NoSavedChartsAvailable = () => (
     </EmptyStateWrapper>
 );
 
-const EmptyStateNoTiles: FC = () => {
+const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({ onAddTiles }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
@@ -58,7 +65,7 @@ const EmptyStateNoTiles: FC = () => {
                 <NonIdealState
                     description={
                         hasSavedCharts ? (
-                            <SavedChartsAvailable />
+                            <SavedChartsAvailable onAddTiles={onAddTiles} />
                         ) : (
                             <NoSavedChartsAvailable />
                         )
