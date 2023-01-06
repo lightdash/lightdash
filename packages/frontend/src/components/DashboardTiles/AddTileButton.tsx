@@ -71,7 +71,6 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
             >
                 <Button
                     icon="plus"
-                    style={{ marginLeft: '10px' }}
                     text="Add tile"
                     intent={intent ? intent : 'none'}
                 />
