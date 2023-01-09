@@ -188,6 +188,18 @@ export const renderDateFilterSql = (
             );
             return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         }
+        case FilterOperator.IN_BETWEEN: {
+            const unitOfTime: UnitOfTime =
+                filter.settings?.unitOfTime || UnitOfTime.days;
+            const startDate = moment()
+                .subtract(filter.values?.[0], unitOfTime)
+                .toDate();
+            const endDate = moment()
+                .subtract(filter.values?.[1], unitOfTime)
+                .toDate();
+            return `((${dimensionSql}) >= ('${dateFormatter(startDate)}') 
+              AND (${dimensionSql}) <= ('${dateFormatter(endDate)}'))`;
+        }
         default:
             throw Error(
                 `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
