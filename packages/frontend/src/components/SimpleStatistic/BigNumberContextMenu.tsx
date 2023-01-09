@@ -37,7 +37,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         if (bigNumberConfig.selectedField) {
             return row[bigNumberConfig.selectedField]?.value;
         }
-    }, [resultsData, bigNumberConfig, bigNumberConfig]);
+    }, [row, bigNumberConfig]);
 
     const viewUnderlyingData = useCallback(() => {
         if (
