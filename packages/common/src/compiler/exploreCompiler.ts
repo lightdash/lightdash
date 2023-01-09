@@ -255,8 +255,8 @@ export const compileMetricSql = (
             );
             const dimensionField = tables[refTable]?.dimensions[refName];
             if (!dimensionField) {
-                throw new Error(
-                    `Filter has a reference to an unknown dimension: ${filter.target.fieldId}`,
+                throw new CompileError(
+                    `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${filter.target.fieldId}`,
                 );
             }
             const compiledDimension = compileDimension(
@@ -299,6 +299,18 @@ export const compileMetric = (
     quoteChar: string,
 ): CompiledMetric => {
     const compiledMetric = compileMetricSql(metric, tables, quoteChar);
+    metric.showUnderlyingValues?.forEach((dimReference) => {
+        const { refTable, refName } = getParsedReference(
+            dimReference,
+            metric.table,
+        );
+        const isValidReference = !!tables[refTable]?.dimensions[refName];
+        if (!isValidReference) {
+            throw new CompileError(
+                `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown dimension: ${dimReference}`,
+            );
+        }
+    });
     return {
         ...metric,
         compiledSql: compiledMetric.sql,

@@ -145,8 +145,10 @@ export const compileHandler = async (options: GenerateHandlerOptions) => {
     const explores = await compile(options);
     const errors = explores.filter((e) => isExploreError(e)).length;
     console.error('');
-    if (errors > 0)
+    if (errors > 0) {
         console.error(styles.warning(`Compiled project with ${errors} errors`));
-    else console.error(styles.success('Successfully compiled project'));
+    } else {
+        console.error(styles.success('Successfully compiled project'));
+    }
     console.error('');
 };
