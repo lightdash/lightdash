@@ -147,6 +147,9 @@ export const getFilterRuleLabel = (
                 valuesText = `${filterRule.values?.[0]} ${
                     filterRule.settings.completed ? 'completed ' : ''
                 }${filterRule.settings.unitOfTime}`;
+            }
+            if (filterRule.operator === FilterOperator.IN_BETWEEN) {
+                valuesText = `${filterRule.values?.[0]?.[0]} and ${filterRule.values?.[0]?.[1]}`;
             } else {
                 valuesText = filterRule.values
                     ?.map((value) => {

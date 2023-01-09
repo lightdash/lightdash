@@ -189,16 +189,13 @@ export const renderDateFilterSql = (
             return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         }
         case FilterOperator.IN_BETWEEN: {
-            const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
-            const startDate = moment()
-                .subtract(filter.values?.[0], unitOfTime)
-                .toDate();
-            const endDate = moment()
-                .subtract(filter.values?.[1], unitOfTime)
-                .toDate();
-            return `((${dimensionSql}) >= ('${dateFormatter(startDate)}') 
-              AND (${dimensionSql}) <= ('${dateFormatter(endDate)}'))`;
+            const filterDateRange = filter.values?.[0];
+
+            const startDate = dateFormatter(filterDateRange?.[0]);
+            const endDate = dateFormatter(filterDateRange?.[1]);
+
+            return `((${dimensionSql}) >= ('${startDate}') 
+              AND (${dimensionSql}) <= ('${endDate}'))`;
         }
         default:
             throw Error(
