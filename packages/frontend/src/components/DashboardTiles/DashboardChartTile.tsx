@@ -32,10 +32,12 @@ import {
     SavedChart,
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
@@ -152,6 +154,7 @@ type Props = Pick<
 > & { tile: IDashboardChartTile };
 
 const DashboardChartTile: FC<Props> = (props) => {
+    const { showToastSuccess } = useToaster();
     const { track } = useTracking();
     const {
         tile: {
@@ -429,6 +432,25 @@ const DashboardChartTile: FC<Props> = (props) => {
                             content={
                                 <div onContextMenu={cancelContextMenu}>
                                     <Menu>
+                                        {viewUnderlyingDataOptions?.value && (
+                                            <CopyToClipboard
+                                                text={
+                                                    viewUnderlyingDataOptions
+                                                        ?.value.formatted
+                                                }
+                                                onCopy={() => {
+                                                    showToastSuccess({
+                                                        title: 'Copied to clipboard!',
+                                                    });
+                                                }}
+                                            >
+                                                <MenuItem2
+                                                    text="Copy value"
+                                                    icon="duplicate"
+                                                />
+                                            </CopyToClipboard>
+                                        )}
+
                                         <MenuItem2
                                             text={`View underlying data`}
                                             icon={'layers'}

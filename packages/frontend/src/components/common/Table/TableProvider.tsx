@@ -19,6 +19,7 @@ import React, {
     useMemo,
     useState,
 } from 'react';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     CellContextMenuProps,
     DEFAULT_PAGE_SIZE,
@@ -73,6 +74,7 @@ export const TableProvider: FC<Props> = ({
     children,
     ...rest
 }) => {
+    const { showToastSuccess } = useToaster();
     const { data, columns, columnOrder, pagination } = rest;
     const [columnVisibility, setColumnVisibility] = useState({});
     const [tempColumnOrder, setTempColumnOrder] = useState<ColumnOrderState>([
@@ -192,6 +194,8 @@ export const TableProvider: FC<Props> = ({
                         .value;
 
                     copy(value.formatted);
+
+                    showToastSuccess({ title: 'Copied to clipboard!' });
 
                     setCopyingCellId((cellId) => {
                         if (cellId) return;
