@@ -40,6 +40,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         selectedMarklineValue,
         selectedFieldId,
         selectedMarklineLabel,
+        selectedColor,
     ] = useMemo(() => {
         const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
             (serie) => serie.markLine?.data[0] !== undefined,
@@ -53,7 +54,8 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 ? serieWithMarkLine?.encode.xRef.field
                 : serieWithMarkLine?.encode.yRef.field;
         const label = serieWithMarkLine?.markLine?.label.formatter;
-        return [markLineKey, markLineValue, fieldId, label];
+        const color = serieWithMarkLine?.markLine?.lineStyle.color;
+        return [markLineKey, markLineValue, fieldId, label, color];
     }, [dirtyEchartsConfig?.series]);
 
     const [value, setValue] = useState<string | undefined>(
@@ -64,7 +66,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         selectedMarklineLabel,
     );
 
-    const [lineColor, setLineColor] = useState<string>('#000');
+    const [lineColor, setLineColor] = useState<string>(selectedColor || '#000');
 
     const selectedFieldDefault = useMemo(() => {
         if (selectedMarklineAxis === undefined) return;
