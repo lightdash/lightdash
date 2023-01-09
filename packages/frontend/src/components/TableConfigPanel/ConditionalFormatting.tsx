@@ -108,7 +108,6 @@ const ConditionalFormatting: FC = () => {
     // conditional formatting only supports number fields for now
     const filterConfig = FilterTypeConfig[FilterType.NUMBER];
 
-    // TODO: remove nonsense props
     return (
         <FiltersProvider>
             {!config ? (
