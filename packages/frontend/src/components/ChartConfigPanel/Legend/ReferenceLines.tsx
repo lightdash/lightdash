@@ -158,7 +158,12 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 }
             }
         },
-        [updateSingleSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
+        [
+            updateSingleSeries,
+            dirtyEchartsConfig?.series,
+            dirtyLayout?.xField,
+            referenceLines,
+        ],
     );
     /* const removeMarkLine = useCallback(() => {
         if (!dirtyEchartsConfig?.series) return;
@@ -169,7 +174,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         updateSeries(series);
     }, [updateSeries, dirtyEchartsConfig?.series]);
 */
-    const addMarkline = useCallback(() => {
+    const referenceLine = useCallback(() => {
         const newReferenceLine: MarkLineData = {
             name: uuidv4(),
             lineStyle: {
@@ -181,9 +186,9 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             },*/
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
-    }, [updateSeries, dirtyEchartsConfig?.series, referenceLines]);
+    }, [referenceLines]);
 
-    const removeMarkline = useCallback(
+    const removeReferenceLine = useCallback(
         (index) => {
             const markLine = referenceLines[index];
 
@@ -222,19 +227,19 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             </Checkbox>
             <Collapse isOpen={isOpen}>
                 {referenceLines &&
-                    referenceLines.map((markLine, index) => {
+                    referenceLines.map((line, index) => {
                         return (
                             <ReferenceLine
                                 key={index}
                                 index={index + 1}
                                 items={items}
-                                markLine={markLine}
+                                referenceLine={line}
                                 updateReferenceLine={updateReferenceLine}
-                                removeMarkline={removeMarkline}
+                                removeReferenceLine={removeReferenceLine}
                             />
                         );
                     })}
-                <Button minimal onClick={addMarkline}>
+                <Button minimal onClick={referenceLine}>
                     + Add
                 </Button>
             </Collapse>

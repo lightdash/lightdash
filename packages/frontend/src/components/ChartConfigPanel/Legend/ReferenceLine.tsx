@@ -25,7 +25,7 @@ import { GridSettings, SectionTitle } from './Legend.styles';
 type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension)[];
-    markLine: MarkLineData;
+    referenceLine: MarkLineData;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension,
@@ -33,15 +33,15 @@ type Props = {
         lineColor: string,
         lineId: string,
     ) => void;
-    removeMarkline: (index: number) => void;
+    removeReferenceLine: (index: number) => void;
 };
 
 export const ReferenceLine: FC<Props> = ({
     index,
     items,
-    markLine,
+    referenceLine,
     updateReferenceLine,
-    removeMarkline,
+    removeReferenceLine,
 }) => {
     const {
         cartesianConfig: { dirtyLayout, dirtyEchartsConfig },
@@ -69,21 +69,21 @@ export const ReferenceLine: FC<Props> = ({
         const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
             (serie) =>
                 serie.markLine?.data.find(
-                    (data) => data.name === markLine.name,
+                    (data) => data.name === referenceLine.name,
                 ) !== undefined,
         );
 
         //  const markLine = serieWithMarkLine?.markLine?.data[0];
-        const markLineKey = 'xAxis' in markLine ? 'xAxis' : 'yAxis';
-        const markLineValue = markLine[markLineKey];
+        const markLineKey = 'xAxis' in referenceLine ? 'xAxis' : 'yAxis';
+        const markLineValue = referenceLine[markLineKey];
         const fieldId =
             markLineKey === 'xAxis'
                 ? serieWithMarkLine?.encode.xRef.field
                 : serieWithMarkLine?.encode.yRef.field;
-        const label = ''; //serieWithMarkLine?.markLine?.data?..formatter;
-        const color = ''; //serieWithMarkLine?.markLine?.lineStyle.color;
+        const label = referenceLine.label.formatter;
+        const color = referenceLine.lineStyle?.color;
         return [markLineKey, markLineValue, fieldId, label, color];
-    }, [dirtyEchartsConfig?.series, markLine]);
+    }, [dirtyEchartsConfig?.series, referenceLine]);
 
     const [value, setValue] = useState<string | undefined>(
         selectedMarklineValue,
@@ -120,10 +120,10 @@ export const ReferenceLine: FC<Props> = ({
                     updateField,
                     updateLabel || label,
                     updateColor || lineColor,
-                    markLine.name,
+                    referenceLine.name,
                 );
         },
-        [markLine.name, lineColor, label, updateReferenceLine],
+        [referenceLine.name, lineColor, label, updateReferenceLine],
     );
 
     const debouncedUpdateLabel = useCallback(
@@ -136,89 +136,100 @@ export const ReferenceLine: FC<Props> = ({
                     lineColor,
                 );
         }, 500),
-        [value, selectedField],
+        [value, selectedField, refreshReferenceLine],
     );
 
     return (
         <>
-            <SectionTitle>Line {index}</SectionTitle>
+            <Collapse isOpen={true}>
+                <SectionTitle>Line {index}</SectionTitle>
 
-            <GridSettings>
-                <Label>Field</Label>
-                <FieldAutoComplete
-                    fields={fieldsInAxes}
-                    activeField={selectedField}
-                    onChange={(item) => {
-                        setSelectedField(item);
+                <GridSettings>
+                    <Label>Field</Label>
+                    <FieldAutoComplete
+                        fields={fieldsInAxes}
+                        activeField={selectedField}
+                        onChange={(item) => {
+                            setSelectedField(item);
 
-                        if (value !== undefined)
-                            refreshReferenceLine(value, item, label, lineColor);
-                    }}
-                />
-            </GridSettings>
-            <GridSettings>
-                <Label>Value</Label>
+                            if (value !== undefined)
+                                refreshReferenceLine(
+                                    value,
+                                    item,
+                                    label,
+                                    lineColor,
+                                );
+                        }}
+                    />
+                </GridSettings>
+                <GridSettings>
+                    <Label>Value</Label>
 
-                <InputGroup
-                    fill
-                    disabled={!isNumericItem(selectedField)}
-                    title={
-                        isNumericItem(selectedField)
-                            ? ''
-                            : 'Selected field must be of type Number'
-                    }
-                    value={value}
-                    onChange={(e) => {
-                        setValue(e.target.value);
-                        if (selectedField !== undefined)
-                            refreshReferenceLine(
-                                e.target.value,
-                                selectedField,
-                                label,
-                                lineColor,
-                            );
-                    }}
-                    placeholder="Add value for the reference line"
-                />
-            </GridSettings>
+                    <InputGroup
+                        fill
+                        disabled={!isNumericItem(selectedField)}
+                        title={
+                            isNumericItem(selectedField)
+                                ? ''
+                                : 'Selected field must be of type Number'
+                        }
+                        value={value}
+                        onChange={(e) => {
+                            setValue(e.target.value);
+                            if (selectedField !== undefined)
+                                refreshReferenceLine(
+                                    e.target.value,
+                                    selectedField,
+                                    label,
+                                    lineColor,
+                                );
+                        }}
+                        placeholder="Add value for the reference line"
+                    />
+                </GridSettings>
 
-            <GridSettings>
-                <Label>Label</Label>
+                <GridSettings>
+                    <Label>Label</Label>
 
-                <InputGroup
-                    fill
-                    disabled={!isNumericItem(selectedField)}
-                    value={label}
-                    placeholder={value}
-                    onChange={(e) => {
-                        setLabel(e.target.value);
-                        debouncedUpdateLabel(e.target.value);
-                    }}
-                />
-            </GridSettings>
+                    <InputGroup
+                        fill
+                        disabled={!isNumericItem(selectedField)}
+                        value={label}
+                        placeholder={value}
+                        onChange={(e) => {
+                            setLabel(e.target.value);
+                            debouncedUpdateLabel(e.target.value);
+                        }}
+                    />
+                </GridSettings>
 
-            <GridSettings>
-                <Label>Color</Label>
+                <GridSettings>
+                    <Label>Color</Label>
 
-                <SeriesColorPicker
-                    color={lineColor}
-                    onChange={(color) => {
-                        setLineColor(color);
-                        if (value !== undefined && selectedField !== undefined)
-                            refreshReferenceLine(
-                                value,
-                                selectedField,
-                                label,
-                                color,
-                            );
-                    }}
-                />
-            </GridSettings>
-            <Button
-                minimal
-                icon="trash"
-                onClick={() => removeMarkline(index)}
-            />
+                    <SeriesColorPicker
+                        color={lineColor}
+                        onChange={(color) => {
+                            setLineColor(color);
+                            if (
+                                value !== undefined &&
+                                selectedField !== undefined
+                            )
+                                refreshReferenceLine(
+                                    value,
+                                    selectedField,
+                                    label,
+                                    color,
+                                );
+                        }}
+                    />
+                    <Button
+                        style={{ marginLeft: 'auto' }}
+                        minimal
+                        icon="trash"
+                        onClick={() => removeReferenceLine(index)}
+                    />
+                </GridSettings>
+            </Collapse>
         </>
     );
 };
