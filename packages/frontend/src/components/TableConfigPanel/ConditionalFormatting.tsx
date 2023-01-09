@@ -1,4 +1,5 @@
 import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledField,
     ConditionalFormattingConfig,
@@ -11,13 +12,18 @@ import {
     getVisibleFields,
 } from '@lightdash/common';
 import produce from 'immer';
-import { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import ColorInput from '../common/ColorInput';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { Icon } from '../Mobile/Mobile.styles';
+import {
+    ConditionalFormattingWrapper,
+    StyledCloseButton,
+} from './ConditionalFormatting.styles';
 
 const ConditionalFormatting: FC = () => {
     const {
@@ -112,17 +118,30 @@ const ConditionalFormatting: FC = () => {
         <FiltersProvider>
             {!config ? (
                 <FormGroup>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <Button
-                            icon="plus"
-                            onClick={handleAddEmptyConditionalFormatting}
-                        >
-                            Add conditional formatting
-                        </Button>
-                    </div>
+                    <Button
+                        icon="plus"
+                        onClick={handleAddEmptyConditionalFormatting}
+                    >
+                        Add new rule
+                    </Button>
                 </FormGroup>
             ) : (
-                <>
+                <ConditionalFormattingWrapper>
+                    <Tooltip2
+                        content="Remove rule"
+                        position="left"
+                        renderTarget={({ ref, ...tooltipProps }) => (
+                            <StyledCloseButton
+                                {...tooltipProps}
+                                elementRef={ref}
+                                minimal
+                                small
+                                icon="cross"
+                                onClick={handleRemoveConditionalFormatting}
+                            />
+                        )}
+                    />
+
                     <FormGroup label="Select field">
                         <FieldAutoComplete
                             id="numeric-field-autocomplete"
@@ -148,7 +167,7 @@ const ConditionalFormatting: FC = () => {
                     </FormGroup>
 
                     {config.rules.map((rule, index) => (
-                        <div key={index}>
+                        <React.Fragment key={index}>
                             <FormGroup label="Set color">
                                 <ColorInput
                                     placeholder="Enter hex color"
@@ -182,27 +201,9 @@ const ConditionalFormatting: FC = () => {
                                     onChange={handleChangeRule}
                                 />
                             </FormGroup>
-
-                            <FormGroup>
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    <Button
-                                        icon="cross"
-                                        onClick={
-                                            handleRemoveConditionalFormatting
-                                        }
-                                    >
-                                        Remove conditional formatting
-                                    </Button>
-                                </div>
-                            </FormGroup>
-                        </div>
+                        </React.Fragment>
                     ))}
-                </>
+                </ConditionalFormattingWrapper>
             )}
         </FiltersProvider>
     );
