@@ -84,7 +84,7 @@ ${errors.join('')}`),
 
     // Ideally we'd skip this potentially expensive step
     const catalog = await warehouseClient.getCatalog(
-        getSchemaStructureFromDbtModels(models),
+        getSchemaStructureFromDbtModels(validModels),
     );
 
     const typedModels = attachTypesToModels(models, catalog, false);
