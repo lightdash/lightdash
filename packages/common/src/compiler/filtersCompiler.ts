@@ -193,10 +193,8 @@ export const renderDateFilterSql = (
             return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         }
         case FilterOperator.IN_BETWEEN: {
-            const filterDateRange = filter.values?.[0];
-
-            const startDate = dateFormatter(filterDateRange?.[0]);
-            const endDate = dateFormatter(filterDateRange?.[1]);
+            const startDate = dateFormatter(filter.values?.[0]);
+            const endDate = dateFormatter(filter.values?.[1]);
 
             return `((${dimensionSql}) >= ('${startDate}') 
               AND (${dimensionSql}) <= ('${endDate}'))`;

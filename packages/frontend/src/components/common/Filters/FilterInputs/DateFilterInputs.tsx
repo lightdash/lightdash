@@ -253,11 +253,9 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         if (range) {
                             onChange({
                                 ...filterRule,
-                                values: [
-                                    range.map((value) =>
-                                        formatDate(value, undefined, false),
-                                    ),
-                                ],
+                                values: range.map((value) =>
+                                    formatDate(value, undefined, false),
+                                ),
                             });
                         }
                     }}

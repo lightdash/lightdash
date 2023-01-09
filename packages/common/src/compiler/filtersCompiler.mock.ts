@@ -214,6 +214,20 @@ export const InTheLast1CompletedMinuteFilter = {
 };
 
 export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:00') AND (customers.created) < ('2020-04-04 06:12:00'))`;
+export const InBetweenPastTwoYears = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_BETWEEN,
+    values: [
+        new Date('04 Apr 2021 00:00:00 GMT'),
+        new Date('04 Apr 2023 00:00:00 GMT'),
+    ],
+};
+
+export const InBetweenPastTwoYearsFilterSQL = `((customers.created) >= ('2021-04-04') AND (customers.created) <= ('2023-04-04'))`;
+export const InBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= ('2021-04-04 00:00:00') AND (customers.created) <= ('2023-04-04 00:00:00'))`;
 
 const stringSingleValueFilter = {
     id: '701b6520-1b19-4051-a553-7615aee0b03d',
