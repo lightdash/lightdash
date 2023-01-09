@@ -171,9 +171,9 @@ const DrillDownModal: FC = () => {
 
     const dimensionsAvailable = useMemo(() => {
         if (explore) {
-            return getDimensions(explore)
-                .filter((dimension) => !dimension.hidden)
-                .sort((a, b) => a.label.localeCompare(b.label));
+            return getDimensions(explore).filter(
+                (dimension) => !dimension.hidden,
+            );
         }
         return [];
     }, [explore]);
