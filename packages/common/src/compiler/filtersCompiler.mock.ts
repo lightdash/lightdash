@@ -1,6 +1,32 @@
 import { FilterOperator, UnitOfTime } from '../types/filter';
 
 export const DimensionSqlMock = 'customers.created';
+export const NumberDimensionMock = 'customers.age';
+
+export const NumberFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.EQUALS,
+    values: [1],
+};
+export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
+    [FilterOperator.NULL]: '(customers.age) IS NULL',
+    [FilterOperator.NOT_NULL]: '(customers.age) IS NOT NULL',
+    [FilterOperator.EQUALS]: '(customers.age) IN (1)',
+    [FilterOperator.NOT_EQUALS]: '(customers.age) NOT IN (1)',
+    [FilterOperator.STARTS_WITH]: null,
+    [FilterOperator.INCLUDE]: null,
+    [FilterOperator.NOT_INCLUDE]: null,
+    [FilterOperator.LESS_THAN]: '(customers.age) < (1)',
+    [FilterOperator.LESS_THAN_OR_EQUAL]: '(customers.age) <= (1)',
+    [FilterOperator.GREATER_THAN]: '(customers.age) > (1)',
+    [FilterOperator.GREATER_THAN_OR_EQUAL]: '(customers.age) >= (1)',
+    [FilterOperator.IN_THE_PAST]: null,
+    [FilterOperator.IN_THE_CURRENT]: null,
+    [FilterOperator.IN_THE_NEXT]: null,
+};
 
 export const InTheCurrentFilterBase = {
     id: 'id',
