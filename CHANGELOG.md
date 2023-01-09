@@ -1,3 +1,11 @@
+# [0.363.0](https://github.com/lightdash/lightdash/compare/0.362.0...0.363.0) (2023-01-09)
+
+
+### Features
+
+* add copy value to all context menus ([#4104](https://github.com/lightdash/lightdash/issues/4104)) ([6828ac9](https://github.com/lightdash/lightdash/commit/6828ac93460a6ca66d0be4a74dbb94cc78413579))
+* use field autocomplete for tile filters ([#4109](https://github.com/lightdash/lightdash/issues/4109)) ([73a2321](https://github.com/lightdash/lightdash/commit/73a2321a376851fcab8c0bab8df803d41a2bfc12))
+
 # [0.362.0](https://github.com/lightdash/lightdash/compare/0.361.2...0.362.0) (2023-01-09)
 
 
