@@ -13,7 +13,9 @@ import React, {
     useMemo,
     useState,
 } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -29,6 +31,8 @@ export const SeriesContextMenu: FC<{
     dimensions: string[] | undefined;
     series: EChartSeries[] | undefined;
 }> = memo(({ echartSeriesClickEvent, dimensions, series }) => {
+    const { showToastSuccess } = useToaster();
+
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -112,6 +116,20 @@ export const SeriesContextMenu: FC<{
                             icon={'layers'}
                             onClick={onViewUnderlyingData}
                         />
+
+                        {underlyingData?.value && (
+                            <CopyToClipboard
+                                text={underlyingData.value.formatted}
+                                onCopy={() => {
+                                    showToastSuccess({
+                                        title: 'Copied to clipboard!',
+                                    });
+                                }}
+                            >
+                                <MenuItem2 text="Copy value" icon="duplicate" />
+                            </CopyToClipboard>
+                        )}
+
                         <DrillDownMenuItem
                             row={underlyingData?.row}
                             selectedItem={underlyingData?.meta?.item}
