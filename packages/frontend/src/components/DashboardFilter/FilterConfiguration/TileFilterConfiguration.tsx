@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
-import FieldSelect from '../../common/Filters/FieldSelect';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 
 interface TileFilterConfigurationProps {
     tiles: DashboardTile[];
@@ -104,19 +104,23 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                         />
 
                         <div style={{ marginLeft: 24 }}>
-                            <FieldSelect
-                                available={isAvailable}
+                            <FieldAutoComplete
                                 disabled={!isAvailable || !isChecked}
-                                items={sortedFilters}
-                                activeItem={filter}
-                                onItemSelect={(newFilter) => {
+                                popoverProps={{
+                                    lazy: true,
+                                    minimal: true,
+                                    matchTargetWidth: true,
+                                    ...popoverProps,
+                                }}
+                                fields={sortedFilters}
+                                activeField={filter}
+                                onChange={(newFilter) => {
                                     onChange(
                                         FilterActions.ADD,
                                         tileUuid,
                                         newFilter,
                                     );
                                 }}
-                                popoverProps={popoverProps}
                             />
                         </div>
                     </FormGroup>
