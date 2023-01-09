@@ -1,5 +1,5 @@
 import { NumericInput } from '@blueprintjs/core';
-import { DateInput2 } from '@blueprintjs/datetime2';
+import { DateInput2, DateRangeInput2 } from '@blueprintjs/datetime2';
 import {
     DateFilterRule,
     DimensionType,
@@ -18,7 +18,10 @@ import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
-import { MultipleInputsWrapper } from './FilterInputs.styles';
+import {
+    DateRangeInputWrapper,
+    MultipleInputsWrapper,
+} from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
@@ -235,6 +238,47 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         }
                     />
                 </MultipleInputsWrapper>
+            );
+        case FilterOperator.IN_BETWEEN:
+            return (
+                <DateRangeInputWrapper>
+                    <DateRangeInput2
+                        className={disabled ? 'disabled-filter' : ''}
+                        disabled={disabled}
+                        // value={
+                        //     filterRule.values?.[0]
+                        //         ? formatDate(
+                        //               filterRule.values?.[0],
+                        //               undefined,
+                        //               false,
+                        //           )
+                        //         : new Date().toString()
+                        // }
+                        formatDate={(value: Date) =>
+                            formatDate(value, undefined, false)
+                        }
+                        parseDate={parseDate}
+                        // defaultValue={new Date().toString()}
+                        // onChange={(value: string | null) => {
+                        //     if (value) {
+                        //         onChange({
+                        //             ...filterRule,
+                        //             values: [formatDate(value, undefined, false)],
+                        //         });
+                        //     }
+                        // }}
+                        popoverProps={{
+                            placement: 'bottom',
+                            ...popoverProps,
+                        }}
+                        dayPickerProps={{
+                            firstDayOfWeek: isWeekDay(startOfWeek)
+                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                : undefined,
+                        }}
+                        closeOnSelection={true}
+                    />
+                </DateRangeInputWrapper>
             );
         default: {
             return <DefaultFilterInputs {...props} />;

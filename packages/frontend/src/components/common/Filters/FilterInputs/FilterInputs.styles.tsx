@@ -6,3 +6,7 @@ export const MultipleInputsWrapper = styled.div`
     gap: 10px;
     width: 100%;
 `;
+
+export const DateRangeInputWrapper = styled.div`
+    overflow: hidden;
+`;
