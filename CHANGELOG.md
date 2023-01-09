@@ -1,3 +1,10 @@
+# [0.362.0](https://github.com/lightdash/lightdash/compare/0.361.2...0.362.0) (2023-01-09)
+
+
+### Features
+
+* color reference line ([#4106](https://github.com/lightdash/lightdash/issues/4106)) ([5b350c3](https://github.com/lightdash/lightdash/commit/5b350c30aa05682b16bc0cbbfa8f6e9959e6267c))
+
 ## [0.361.2](https://github.com/lightdash/lightdash/compare/0.361.1...0.361.2) (2023-01-09)
 
 
