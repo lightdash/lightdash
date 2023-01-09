@@ -1,11 +1,16 @@
 import moment from 'moment/moment';
-import { UnitOfTime } from '../types/filter';
-import { renderDateFilterSql, renderStringFilterSql } from './filtersCompiler';
+import { FilterOperator, UnitOfTime } from '../types/filter';
+import {
+    renderDateFilterSql,
+    renderNumberFilterSql,
+    renderStringFilterSql,
+} from './filtersCompiler';
 import {
     DimensionSqlMock,
     ExpectedInTheCurrentFilterSQL,
     ExpectedInTheNextCompleteFilterSQL,
     ExpectedInTheNextFilterSQL,
+    ExpectedNumberFilterSQL,
     InTheCurrentFilterBase,
     InTheLast1CompletedDayFilter,
     InTheLast1CompletedDayFilterSQL,
@@ -32,6 +37,8 @@ import {
     InTheLast1YearFilter,
     InTheLast1YearFilterSQL,
     InTheNextFilterBase,
+    NumberDimensionMock,
+    NumberFilterBase,
     stringFilterDimension,
     stringFilterRuleMocks,
 } from './filtersCompiler.mock';
@@ -47,6 +54,26 @@ describe('Filter SQL', () => {
     afterAll(() => {
         jest.useFakeTimers();
     });
+    test.each(Object.values(FilterOperator))(
+        'should return number filter sql for operator %s',
+        (operator) => {
+            if (ExpectedNumberFilterSQL[operator]) {
+                expect(
+                    renderNumberFilterSql(NumberDimensionMock, {
+                        ...NumberFilterBase,
+                        operator,
+                    }),
+                ).toStrictEqual(ExpectedNumberFilterSQL[operator]);
+            } else {
+                expect(() => {
+                    renderNumberFilterSql(NumberDimensionMock, {
+                        ...NumberFilterBase,
+                        operator,
+                    });
+                }).toThrow();
+            }
+        },
+    );
     test.each(Object.values(UnitOfTime))(
         'should return in the current %s filter sql',
         (unitOfTime) => {
