@@ -1,3 +1,25 @@
+# [0.363.0](https://github.com/lightdash/lightdash/compare/0.362.0...0.363.0) (2023-01-09)
+
+
+### Features
+
+* add copy value to all context menus ([#4104](https://github.com/lightdash/lightdash/issues/4104)) ([6828ac9](https://github.com/lightdash/lightdash/commit/6828ac93460a6ca66d0be4a74dbb94cc78413579))
+* use field autocomplete for tile filters ([#4109](https://github.com/lightdash/lightdash/issues/4109)) ([73a2321](https://github.com/lightdash/lightdash/commit/73a2321a376851fcab8c0bab8df803d41a2bfc12))
+
+# [0.362.0](https://github.com/lightdash/lightdash/compare/0.361.2...0.362.0) (2023-01-09)
+
+
+### Features
+
+* color reference line ([#4106](https://github.com/lightdash/lightdash/issues/4106)) ([5b350c3](https://github.com/lightdash/lightdash/commit/5b350c30aa05682b16bc0cbbfa8f6e9959e6267c))
+
+## [0.361.2](https://github.com/lightdash/lightdash/compare/0.361.1...0.361.2) (2023-01-09)
+
+
+### Bug Fixes
+
+* ">=" and "<=" metric number filters ([48cf723](https://github.com/lightdash/lightdash/commit/48cf723dc038869a46c7814b3d8da5b9d62323c3))
+
 ## [0.361.1](https://github.com/lightdash/lightdash/compare/0.361.0...0.361.1) (2023-01-06)
 
 

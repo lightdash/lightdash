@@ -14,7 +14,9 @@ import {
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
 import React, { FC } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
@@ -27,6 +29,7 @@ const DashboardCellContextMenu: FC<
         tileUuid: string;
     }
 > = ({ cell, explore, tileUuid }) => {
+    const { showToastSuccess } = useToaster();
     const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
@@ -82,7 +85,18 @@ const DashboardCellContextMenu: FC<
             {item && value.raw && isField(item) && (
                 <UrlMenuItems urls={item.urls} cell={cell} />
             )}
+
             {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
+
+            <CopyToClipboard
+                text={value.formatted}
+                onCopy={() => {
+                    showToastSuccess({ title: 'Copied to clipboard!' });
+                }}
+            >
+                <MenuItem2 text="Copy value" icon="duplicate" />
+            </CopyToClipboard>
+
             <MenuItem2
                 text="View underlying data"
                 icon="layers"
@@ -97,12 +111,14 @@ const DashboardCellContextMenu: FC<
                     );
                 }}
             />
+
             <DrillDownMenuItem
                 row={cell.row.original || {}}
                 dashboardFilters={dashboardFiltersThatApplyToChart}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
             />
+
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">
                     {filters.map((filter) => {

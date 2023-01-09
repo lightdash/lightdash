@@ -1,4 +1,4 @@
-import { Menu, MenuDivider } from '@blueprintjs/core';
+import { Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
@@ -7,7 +7,9 @@ import {
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../hooks/useFilters';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -24,6 +26,7 @@ const CellContextMenu: FC<
     const { addFilter } = useFilters();
     const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const { track } = useTracking();
+    const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
@@ -39,6 +42,15 @@ const CellContextMenu: FC<
             )}
 
             {isField(item) && (item.urls || []).length > 0 && <MenuDivider />}
+
+            <CopyToClipboard
+                text={value.formatted}
+                onCopy={() => {
+                    showToastSuccess({ title: 'Copied to clipboard!' });
+                }}
+            >
+                <MenuItem2 text="Copy value" icon="duplicate" />
+            </CopyToClipboard>
 
             <MenuItem2
                 text="View underlying data"
