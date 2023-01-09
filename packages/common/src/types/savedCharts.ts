@@ -77,6 +77,11 @@ export type Series = {
     smooth?: boolean;
     markLine?: {
         data: Record<string, string>[];
+        lineStyle: {
+            color: string;
+            width: number;
+            type: string;
+        };
         label: {
             formatter?: string;
         };
