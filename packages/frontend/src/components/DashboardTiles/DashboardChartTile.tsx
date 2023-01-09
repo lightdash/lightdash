@@ -436,7 +436,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             <CopyToClipboard
                                                 text={
                                                     viewUnderlyingDataOptions
-                                                        ?.value.formatted
+                                                        .value.formatted
                                                 }
                                                 onCopy={() => {
                                                     showToastSuccess({
