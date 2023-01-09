@@ -1,10 +1,18 @@
-import { Checkbox, Collapse, InputGroup, Label } from '@blueprintjs/core';
+import {
+    Button,
+    Checkbox,
+    Collapse,
+    InputGroup,
+    Label,
+} from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
     fieldId as getFieldId,
     isField,
     isNumericItem,
+    MarkLine,
+    Series,
     TableCalculation,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
@@ -13,6 +21,7 @@ import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { GridSettings, SectionTitle } from './Legend.styles';
+import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
     items: (Field | TableCalculation | CompiledDimension)[];
@@ -20,79 +29,75 @@ type Props = {
 
 export const ReferenceLines: FC<Props> = ({ items }) => {
     const {
-        cartesianConfig: { dirtyLayout, dirtyEchartsConfig, updateSeries },
+        cartesianConfig: {
+            dirtyLayout,
+            dirtyEchartsConfig,
+            updateSeries,
+            updateSingleSeries,
+        },
     } = useVisualizationContext();
 
-    const fieldsInAxes = useMemo(() => {
-        const fieldNames = [
-            dirtyLayout?.xField,
-            ...(dirtyLayout?.yField || []),
-        ];
-        return items.filter((item) => {
-            const fieldId = isField(item) ? getFieldId(item) : item.name;
-            // Filter numeric fields (remove if we start supporting other types)
-            return fieldNames.includes(fieldId) && isNumericItem(item);
-        });
-    }, [items, dirtyLayout]);
-
-    const [
-        selectedMarklineAxis,
-        selectedMarklineValue,
-        selectedFieldId,
-        selectedMarklineLabel,
-        selectedColor,
-    ] = useMemo(() => {
-        const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
-            (serie) => serie.markLine?.data[0] !== undefined,
-        );
-
-        const markLine = serieWithMarkLine?.markLine?.data[0];
-        if (markLine === undefined) return [undefined, undefined, undefined];
-        const [markLineKey, markLineValue] = Object.entries(markLine)[0];
-        const fieldId =
-            markLineKey === 'xAxis'
-                ? serieWithMarkLine?.encode.xRef.field
-                : serieWithMarkLine?.encode.yRef.field;
-        const label = serieWithMarkLine?.markLine?.label.formatter;
-        const color = serieWithMarkLine?.markLine?.lineStyle.color;
-        return [markLineKey, markLineValue, fieldId, label, color];
+    const selectedReferenceLines: MarkLine[] | undefined = useMemo(() => {
+        return dirtyEchartsConfig?.series
+            ?.filter((serie) => serie.markLine !== undefined)
+            .map((serie) => serie.markLine!);
     }, [dirtyEchartsConfig?.series]);
-
-    const [value, setValue] = useState<string | undefined>(
-        selectedMarklineValue,
-    );
-
-    const [label, setLabel] = useState<string | undefined>(
-        selectedMarklineLabel,
-    );
-
-    const [lineColor, setLineColor] = useState<string>(selectedColor || '#000');
-
-    const selectedFieldDefault = useMemo(() => {
-        if (selectedMarklineAxis === undefined) return;
-        return fieldsInAxes.find((field) => {
-            const fieldId = isField(field) ? getFieldId(field) : field.name;
-            return fieldId === selectedFieldId;
-        });
-    }, [fieldsInAxes, selectedMarklineAxis, selectedFieldId]);
-
-    const [selectedField, setSelectedField] = useState<
-        Field | TableCalculation | CompiledDimension | undefined
-    >(selectedFieldDefault);
+    const [referenceLines, setReferenceLines] = useState<
+        MarkLine[] | undefined
+    >(selectedReferenceLines);
 
     const [isOpen, setIsOpen] = useState<boolean>(
-        selectedMarklineAxis !== undefined,
+        selectedReferenceLines !== undefined &&
+            selectedReferenceLines.length > 0,
     );
 
-    const updateMarkLine = useCallback(
-        (updateValue, updateField, updateLabel, updateColor) => {
+    const updateReferenceLine = useCallback(
+        (
+            updateValue: string,
+            updateField: Field | TableCalculation | CompiledDimension,
+            updateLabel: string | undefined,
+            updateColor: string,
+        ) => {
             if (updateValue && updateField) {
                 const fieldId = isField(updateField)
                     ? getFieldId(updateField)
                     : updateField.name;
 
                 if (dirtyEchartsConfig?.series) {
-                    let alreadyAdded = false; // flag to avoid duplication on Xaxis
+                    const getSerieFieldId = (serie: Series) => {
+                        const axisRef =
+                            dirtyLayout?.xField === fieldId
+                                ? serie.encode.xRef
+                                : serie.encode.yRef;
+                        return axisRef.field === fieldId;
+                    };
+                    const selectedSeries =
+                        dirtyEchartsConfig?.series.find(getSerieFieldId);
+                    if (selectedSeries === undefined) return;
+
+                    const axis =
+                        dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis';
+
+                    const existingData = selectedSeries.markLine?.data || [];
+                    //const appendData =
+                    const updatedSeries: Series = {
+                        ...selectedSeries,
+                        markLine: {
+                            symbol: 'none',
+                            lineStyle: {
+                                color: updateColor,
+                                width: 3,
+                                type: 'solid',
+                            },
+                            label: updateLabel
+                                ? { formatter: updateLabel }
+                                : {},
+                            data: [...existingData, { [axis]: updateValue }],
+                        },
+                    };
+                    updateSingleSeries(updatedSeries);
+                    /* const series = updatedSeries
+                    }
                     const series = dirtyEchartsConfig?.series.map((serie) => {
                         const axisRef =
                             dirtyLayout?.xField === fieldId
@@ -105,33 +110,13 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                                     ? 'xAxis'
                                     : 'yAxis';
                             return {
-                                ...serie,
-                                markLine: {
-                                    symbol: 'none',
-                                    lineStyle: {
-                                        color: updateColor,
-                                        width: 3,
-                                        type: 'solid',
-                                    },
-                                    label: updateLabel
-                                        ? { formatter: updateLabel }
-                                        : {},
-                                    data: [{ [axis]: updateValue }],
-                                },
-                            };
-                        } else {
-                            // Remove markLine for the rest of series
-                            return {
-                                ...serie,
-                                markLine: undefined,
-                            };
-                        }
+                        } 
                     });
-                    updateSeries(series);
+                    updateSeries(series);*/
                 }
             }
         },
-        [updateSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
+        [updateSingleSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
     );
     const removeMarkLine = useCallback(() => {
         if (!dirtyEchartsConfig?.series) return;
@@ -142,91 +127,53 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         updateSeries(series);
     }, [updateSeries, dirtyEchartsConfig?.series]);
 
-    const debouncedUpdateLabel = useCallback(
-        debounce((updatedLabel: string) => {
-            updateMarkLine(value, selectedField, updatedLabel, lineColor);
-        }, 500),
-        [value, selectedField],
-    );
+    const addMarkline = useCallback(() => {
+        const newReferenceLine = {
+            symbol: 'none',
+            data: [],
+            lineStyle: {
+                color: '#000',
+                width: 3,
+                type: 'solid',
+            },
+            label: {
+                formatter: undefined,
+            },
+        };
+        if (referenceLines !== undefined)
+            setReferenceLines([...referenceLines, newReferenceLine]);
+        else setReferenceLines([newReferenceLine]);
+    }, [updateSeries, dirtyEchartsConfig?.series, referenceLines]);
+
     return (
         <>
             <Checkbox
                 name="show"
                 onChange={() => {
                     if (isOpen) removeMarkLine();
-                    else updateMarkLine(value, selectedField, label, lineColor);
+                    //  else updateMarkLine(value, selectedField, label, lineColor);
                     setIsOpen(!isOpen);
                 }}
                 checked={isOpen}
             >
                 Include reference line
             </Checkbox>
-
             <Collapse isOpen={isOpen}>
-                <SectionTitle>Line 1</SectionTitle>
-                <GridSettings>
-                    <Label>Field</Label>
-                    <FieldAutoComplete
-                        fields={fieldsInAxes}
-                        activeField={selectedField}
-                        onChange={(item) => {
-                            setSelectedField(item);
-
-                            updateMarkLine(value, item, label, lineColor);
-                        }}
-                    />
-                </GridSettings>
-                <GridSettings>
-                    <Label>Value</Label>
-
-                    <InputGroup
-                        fill
-                        disabled={!isNumericItem(selectedField)}
-                        title={
-                            isNumericItem(selectedField)
-                                ? ''
-                                : 'Selected field must be of type Number'
-                        }
-                        value={value}
-                        onChange={(e) => {
-                            setValue(e.target.value);
-                            updateMarkLine(
-                                e.target.value,
-                                selectedField,
-                                label,
-                                lineColor,
-                            );
-                        }}
-                        placeholder="Add value for the reference line"
-                    />
-                </GridSettings>
-
-                <GridSettings>
-                    <Label>Label</Label>
-
-                    <InputGroup
-                        fill
-                        disabled={!isNumericItem(selectedField)}
-                        value={label}
-                        placeholder={value}
-                        onChange={(e) => {
-                            setLabel(e.target.value);
-                            debouncedUpdateLabel(e.target.value);
-                        }}
-                    />
-                </GridSettings>
-
-                <GridSettings>
-                    <Label>Color</Label>
-
-                    <SeriesColorPicker
-                        color={lineColor}
-                        onChange={(color) => {
-                            setLineColor(color);
-                            updateMarkLine(value, selectedField, label, color);
-                        }}
-                    />
-                </GridSettings>
+                {referenceLines &&
+                    referenceLines.map((markLine, index) => {
+                        return (
+                            <ReferenceLine
+                                key={index}
+                                items={items}
+                                markLine={markLine}
+                                index={index + 1}
+                                updateReferenceLine={updateReferenceLine}
+                            />
+                        );
+                    })}
+                <Button minimal onClick={addMarkline}>
+                    + Add
+                </Button>
             </Collapse>
         </>
     );

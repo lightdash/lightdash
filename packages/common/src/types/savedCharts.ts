@@ -52,6 +52,18 @@ export const isPivotReferenceWithValues = (
 ): value is Required<PivotReference> =>
     !!value.pivotValues && value.pivotValues.length > 0;
 
+export type MarkLine = {
+    data: Record<string, string>[];
+    symbol: string;
+    lineStyle: {
+        color: string;
+        width: number;
+        type: string;
+    };
+    label: {
+        formatter?: string;
+    };
+};
 export type Series = {
     encode: {
         xRef: PivotReference;
@@ -75,17 +87,7 @@ export type Series = {
     areaStyle?: {};
     showSymbol?: boolean;
     smooth?: boolean;
-    markLine?: {
-        data: Record<string, string>[];
-        lineStyle: {
-            color: string;
-            width: number;
-            type: string;
-        };
-        label: {
-            formatter?: string;
-        };
-    };
+    markLine?: MarkLine;
 };
 
 export type EchartsLegend = {
