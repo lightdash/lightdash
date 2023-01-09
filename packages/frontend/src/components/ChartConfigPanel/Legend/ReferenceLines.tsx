@@ -12,11 +12,13 @@ import {
     isField,
     isNumericItem,
     MarkLine,
+    MarkLineData,
     Series,
     TableCalculation,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
 import { FC, useCallback, useMemo, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
@@ -37,14 +39,25 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
     } = useVisualizationContext();
 
-    const selectedReferenceLines: MarkLine[] | undefined = useMemo(() => {
-        return dirtyEchartsConfig?.series
-            ?.filter((serie) => serie.markLine !== undefined)
-            .map((serie) => serie.markLine!);
+    const selectedReferenceLines: MarkLineData[] = useMemo(() => {
+        if (dirtyEchartsConfig?.series === undefined) return [];
+        return dirtyEchartsConfig.series.reduce<MarkLineData[]>(
+            (acc, serie) => {
+                const data = serie.markLine?.data;
+                if (data !== undefined) return [...acc, ...data];
+
+                return acc;
+            },
+            [],
+        );
+        /* .filter((serie) => serie.markLine?.data !== undefined)
+            .map((serie) => serie.markLine?.data);
+            return data*/
     }, [dirtyEchartsConfig?.series]);
-    const [referenceLines, setReferenceLines] = useState<
-        MarkLine[] | undefined
-    >(selectedReferenceLines);
+
+    const [referenceLines, setReferenceLines] = useState<MarkLineData[]>(
+        selectedReferenceLines,
+    );
 
     const [isOpen, setIsOpen] = useState<boolean>(
         selectedReferenceLines !== undefined &&
@@ -57,6 +70,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             updateField: Field | TableCalculation | CompiledDimension,
             updateLabel: string | undefined,
             updateColor: string,
+            lineId: string,
         ) => {
             if (updateValue && updateField) {
                 const fieldId = isField(updateField)
@@ -76,25 +90,53 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                     if (selectedSeries === undefined) return;
 
                     const axis =
-                        dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis';
+                        dirtyLayout?.xField === fieldId
+                            ? { xAxis: updateValue }
+                            : { yAxis: updateValue };
 
-                    const existingData = selectedSeries.markLine?.data || [];
+                    const currentMarkLineData =
+                        selectedSeries.markLine?.data || [];
+
+                    const updatedLabel = updateLabel
+                        ? { formatter: updateLabel }
+                        : {};
+                    const newData: MarkLineData = {
+                        ...axis,
+                        name: lineId,
+                        lineStyle: { color: updateColor },
+                        label: updatedLabel,
+                    };
+
+                    const updatedData = [
+                        ...currentMarkLineData.filter(
+                            (data) => data.name !== lineId,
+                        ),
+                        newData,
+                    ];
+
                     //const appendData =
                     const updatedSeries: Series = {
                         ...selectedSeries,
                         markLine: {
                             symbol: 'none',
                             lineStyle: {
-                                color: updateColor,
+                                color: '#000',
                                 width: 3,
                                 type: 'solid',
                             },
-                            label: updateLabel
-                                ? { formatter: updateLabel }
-                                : {},
-                            data: [...existingData, { [axis]: updateValue }],
+
+                            data: updatedData,
                         },
                     };
+
+                    const updatedReferenceLines: MarkLineData[] =
+                        referenceLines.map((line) => {
+                            if (line.name === lineId) return newData;
+                            else return line;
+                        });
+
+                    setReferenceLines(updatedReferenceLines);
+
                     updateSingleSeries(updatedSeries);
                     /* const series = updatedSeries
                     }
@@ -118,7 +160,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
         [updateSingleSeries, dirtyEchartsConfig?.series, dirtyLayout?.xField],
     );
-    const removeMarkLine = useCallback(() => {
+    /* const removeMarkLine = useCallback(() => {
         if (!dirtyEchartsConfig?.series) return;
         const series = dirtyEchartsConfig?.series.map((serie) => ({
             ...serie,
@@ -126,31 +168,51 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         }));
         updateSeries(series);
     }, [updateSeries, dirtyEchartsConfig?.series]);
-
+*/
     const addMarkline = useCallback(() => {
-        const newReferenceLine = {
-            symbol: 'none',
-            data: [],
+        const newReferenceLine: MarkLineData = {
+            name: uuidv4(),
             lineStyle: {
                 color: '#000',
-                width: 3,
-                type: 'solid',
             },
-            label: {
+            label: {},
+            /*label: {
                 formatter: undefined,
-            },
+            },*/
         };
-        if (referenceLines !== undefined)
-            setReferenceLines([...referenceLines, newReferenceLine]);
-        else setReferenceLines([newReferenceLine]);
+        setReferenceLines([...referenceLines, newReferenceLine]);
     }, [updateSeries, dirtyEchartsConfig?.series, referenceLines]);
+
+    const removeMarkline = useCallback(
+        (index) => {
+            const markLine = referenceLines[index];
+
+            if (!dirtyEchartsConfig?.series) return;
+            const series = dirtyEchartsConfig?.series.map((serie) => {
+                return {
+                    ...serie,
+                    markLine: {
+                        ...serie.markLine,
+                        data:
+                            serie.markLine?.data.filter(
+                                (data) => data.name !== markLine.name,
+                            ) || [],
+                    },
+                };
+            });
+            updateSeries(series);
+
+            setReferenceLines(referenceLines.splice(index, 1));
+        },
+        [updateSeries, dirtyEchartsConfig?.series, referenceLines],
+    );
 
     return (
         <>
             <Checkbox
                 name="show"
                 onChange={() => {
-                    if (isOpen) removeMarkLine();
+                    //if (isOpen) removeMarkLine();
                     //  else updateMarkLine(value, selectedField, label, lineColor);
                     setIsOpen(!isOpen);
                 }}
@@ -164,10 +226,11 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         return (
                             <ReferenceLine
                                 key={index}
+                                index={index + 1}
                                 items={items}
                                 markLine={markLine}
-                                index={index + 1}
                                 updateReferenceLine={updateReferenceLine}
+                                removeMarkline={removeMarkline}
                             />
                         );
                     })}

@@ -1,4 +1,10 @@
-import { Checkbox, Collapse, InputGroup, Label } from '@blueprintjs/core';
+import {
+    Button,
+    Checkbox,
+    Collapse,
+    InputGroup,
+    Label,
+} from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -6,6 +12,7 @@ import {
     isField,
     isNumericItem,
     MarkLine,
+    MarkLineData,
     TableCalculation,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
@@ -18,13 +25,15 @@ import { GridSettings, SectionTitle } from './Legend.styles';
 type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension)[];
-    markLine: MarkLine;
+    markLine: MarkLineData;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension,
         label: string | undefined,
         lineColor: string,
+        lineId: string,
     ) => void;
+    removeMarkline: (index: number) => void;
 };
 
 export const ReferenceLine: FC<Props> = ({
@@ -32,9 +41,10 @@ export const ReferenceLine: FC<Props> = ({
     items,
     markLine,
     updateReferenceLine,
+    removeMarkline,
 }) => {
     const {
-        cartesianConfig: { dirtyLayout, dirtyEchartsConfig, updateSeries },
+        cartesianConfig: { dirtyLayout, dirtyEchartsConfig },
     } = useVisualizationContext();
 
     const fieldsInAxes = useMemo(() => {
@@ -57,14 +67,15 @@ export const ReferenceLine: FC<Props> = ({
         selectedColor,
     ] = useMemo(() => {
         const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
-            (serie) => serie.markLine === markLine,
+            (serie) =>
+                serie.markLine?.data.find(
+                    (data) => data.name === markLine.name,
+                ) !== undefined,
         );
 
         //  const markLine = serieWithMarkLine?.markLine?.data[0];
-        if (markLine.data.length === 0) return [];
-        const [markLineKey, markLineValue] = Object.entries(
-            markLine.data[0],
-        )[0];
+        const markLineKey = 'xAxis' in markLine ? 'xAxis' : 'yAxis';
+        const markLineValue = markLine[markLineKey];
         const fieldId =
             markLineKey === 'xAxis'
                 ? serieWithMarkLine?.encode.xRef.field
@@ -96,10 +107,29 @@ export const ReferenceLine: FC<Props> = ({
         Field | TableCalculation | CompiledDimension | undefined
     >(selectedFieldDefault);
 
+    const refreshReferenceLine = useCallback(
+        (
+            updateValue: string,
+            updateField: Field | TableCalculation | CompiledDimension,
+            updateLabel: string | undefined,
+            updateColor: string | undefined,
+        ) => {
+            if (updateValue !== undefined && updateField !== undefined)
+                updateReferenceLine(
+                    updateValue,
+                    updateField,
+                    updateLabel || label,
+                    updateColor || lineColor,
+                    markLine.name,
+                );
+        },
+        [markLine.name, lineColor, label, updateReferenceLine],
+    );
+
     const debouncedUpdateLabel = useCallback(
         debounce((updatedLabel: string) => {
             if (value !== undefined && selectedField !== undefined)
-                updateReferenceLine(
+                refreshReferenceLine(
                     value,
                     selectedField,
                     updatedLabel,
@@ -108,6 +138,7 @@ export const ReferenceLine: FC<Props> = ({
         }, 500),
         [value, selectedField],
     );
+
     return (
         <>
             <SectionTitle>Line {index}</SectionTitle>
@@ -121,7 +152,7 @@ export const ReferenceLine: FC<Props> = ({
                         setSelectedField(item);
 
                         if (value !== undefined)
-                            updateReferenceLine(value, item, label, lineColor);
+                            refreshReferenceLine(value, item, label, lineColor);
                     }}
                 />
             </GridSettings>
@@ -140,7 +171,7 @@ export const ReferenceLine: FC<Props> = ({
                     onChange={(e) => {
                         setValue(e.target.value);
                         if (selectedField !== undefined)
-                            updateReferenceLine(
+                            refreshReferenceLine(
                                 e.target.value,
                                 selectedField,
                                 label,
@@ -174,7 +205,7 @@ export const ReferenceLine: FC<Props> = ({
                     onChange={(color) => {
                         setLineColor(color);
                         if (value !== undefined && selectedField !== undefined)
-                            updateReferenceLine(
+                            refreshReferenceLine(
                                 value,
                                 selectedField,
                                 label,
@@ -183,6 +214,11 @@ export const ReferenceLine: FC<Props> = ({
                     }}
                 />
             </GridSettings>
+            <Button
+                minimal
+                icon="trash"
+                onClick={() => removeMarkline(index)}
+            />
         </>
     );
 };
