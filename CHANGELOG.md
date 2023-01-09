@@ -1,3 +1,10 @@
+## [0.361.2](https://github.com/lightdash/lightdash/compare/0.361.1...0.361.2) (2023-01-09)
+
+
+### Bug Fixes
+
+* ">=" and "<=" metric number filters ([48cf723](https://github.com/lightdash/lightdash/commit/48cf723dc038869a46c7814b3d8da5b9d62323c3))
+
 ## [0.361.1](https://github.com/lightdash/lightdash/compare/0.361.0...0.361.1) (2023-01-06)
 
 
