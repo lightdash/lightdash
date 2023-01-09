@@ -1,3 +1,10 @@
+## [0.363.1](https://github.com/lightdash/lightdash/compare/0.363.0...0.363.1) (2023-01-09)
+
+
+### Bug Fixes
+
+* only get catalog for compiled models ([#4123](https://github.com/lightdash/lightdash/issues/4123)) ([5d79ae2](https://github.com/lightdash/lightdash/commit/5d79ae2019b27a53a76cfafedf9ab6010c6ad3d8))
+
 # [0.363.0](https://github.com/lightdash/lightdash/compare/0.362.0...0.363.0) (2023-01-09)
 
 
