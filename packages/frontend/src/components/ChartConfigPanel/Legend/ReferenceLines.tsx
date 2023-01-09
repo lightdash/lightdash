@@ -11,6 +11,7 @@ import debounce from 'lodash/debounce';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { GridSettings, SectionTitle } from './Legend.styles';
 
 type Props = {
@@ -59,11 +60,11 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         selectedMarklineValue,
     );
 
-    const [debouncedLabel, setDebouncedLabel] = useState<string>();
-
     const [label, setLabel] = useState<string | undefined>(
         selectedMarklineLabel,
     );
+
+    const [lineColor, setLineColor] = useState<string>('#000');
 
     const selectedFieldDefault = useMemo(() => {
         if (selectedMarklineAxis === undefined) return;
@@ -82,7 +83,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
     );
 
     const updateMarkLine = useCallback(
-        (updateValue, updateField, updateLabel) => {
+        (updateValue, updateField, updateLabel, updateColor) => {
             if (updateValue && updateField) {
                 const fieldId = isField(updateField)
                     ? getFieldId(updateField)
@@ -106,7 +107,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                                 markLine: {
                                     symbol: 'none',
                                     lineStyle: {
-                                        color: '#000',
+                                        color: updateColor,
                                         width: 3,
                                         type: 'solid',
                                     },
@@ -141,7 +142,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
 
     const debouncedUpdateLabel = useCallback(
         debounce((updatedLabel: string) => {
-            updateMarkLine(value, selectedField, updatedLabel);
+            updateMarkLine(value, selectedField, updatedLabel, lineColor);
         }, 500),
         [value, selectedField],
     );
@@ -151,7 +152,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 name="show"
                 onChange={() => {
                     if (isOpen) removeMarkLine();
-                    else updateMarkLine(value, selectedField, label);
+                    else updateMarkLine(value, selectedField, label, lineColor);
                     setIsOpen(!isOpen);
                 }}
                 checked={isOpen}
@@ -169,7 +170,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         onChange={(item) => {
                             setSelectedField(item);
 
-                            updateMarkLine(value, item, label);
+                            updateMarkLine(value, item, label, lineColor);
                         }}
                     />
                 </GridSettings>
@@ -191,6 +192,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                                 e.target.value,
                                 selectedField,
                                 label,
+                                lineColor,
                             );
                         }}
                         placeholder="Add value for the reference line"
@@ -208,6 +210,18 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         onChange={(e) => {
                             setLabel(e.target.value);
                             debouncedUpdateLabel(e.target.value);
+                        }}
+                    />
+                </GridSettings>
+
+                <GridSettings>
+                    <Label>Color</Label>
+
+                    <SeriesColorPicker
+                        color={lineColor}
+                        onChange={(color) => {
+                            setLineColor(color);
+                            updateMarkLine(value, selectedField, label, color);
                         }}
                     />
                 </GridSettings>
