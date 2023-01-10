@@ -59,7 +59,7 @@ export type MarkLineData = {
     lineStyle?: {
         color: string;
     };
-    label: {
+    label?: {
         formatter?: string;
     };
 };

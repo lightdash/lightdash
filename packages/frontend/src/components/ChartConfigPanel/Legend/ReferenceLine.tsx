@@ -1,18 +1,10 @@
-import {
-    Button,
-    Checkbox,
-    Collapse,
-    InputGroup,
-    Intent,
-    Label,
-} from '@blueprintjs/core';
+import { Collapse, InputGroup, Intent, Label } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
     fieldId as getFieldId,
     isField,
     isNumericItem,
-    MarkLine,
     MarkLineData,
     TableCalculation,
 } from '@lightdash/common';
@@ -76,14 +68,13 @@ export const ReferenceLine: FC<Props> = ({
                 ) !== undefined,
         );
 
-        //  const markLine = serieWithMarkLine?.markLine?.data[0];
         const markLineKey = 'xAxis' in referenceLine ? 'xAxis' : 'yAxis';
         const markLineValue = referenceLine[markLineKey];
         const fieldId =
             markLineKey === 'xAxis'
                 ? serieWithMarkLine?.encode.xRef.field
                 : serieWithMarkLine?.encode.yRef.field;
-        const label = referenceLine.label.formatter;
+        const label = referenceLine.label?.formatter;
         const color = referenceLine.lineStyle?.color;
         return [markLineKey, markLineValue, fieldId, label, color];
     }, [dirtyEchartsConfig?.series, referenceLine]);
@@ -110,36 +101,18 @@ export const ReferenceLine: FC<Props> = ({
         Field | TableCalculation | CompiledDimension | undefined
     >(selectedFieldDefault);
 
-    const refreshReferenceLine = useCallback(
-        (
-            updateValue: string,
-            updateField: Field | TableCalculation | CompiledDimension,
-            updateLabel: string | undefined,
-            updateColor: string | undefined,
-        ) => {
-            if (updateValue !== undefined && updateField !== undefined)
-                updateReferenceLine(
-                    updateValue,
-                    updateField,
-                    updateLabel,
-                    updateColor || lineColor,
-                    referenceLine.name,
-                );
-        },
-        [referenceLine.name, lineColor, label, updateReferenceLine],
-    );
-
     const debouncedUpdateLabel = useCallback(
         debounce((updatedLabel: string) => {
             if (value !== undefined && selectedField !== undefined)
-                refreshReferenceLine(
+                updateReferenceLine(
                     value,
                     selectedField,
                     updatedLabel,
                     lineColor,
+                    referenceLine.name,
                 );
         }, 500),
-        [value, selectedField, refreshReferenceLine],
+        [value, selectedField, updateReferenceLine],
     );
 
     return (
@@ -163,11 +136,12 @@ export const ReferenceLine: FC<Props> = ({
                             setSelectedField(item);
 
                             if (value !== undefined)
-                                refreshReferenceLine(
+                                updateReferenceLine(
                                     value,
                                     item,
                                     label,
                                     lineColor,
+                                    referenceLine.name,
                                 );
                         }}
                     />
@@ -187,11 +161,12 @@ export const ReferenceLine: FC<Props> = ({
                         onChange={(e) => {
                             setValue(e.target.value);
                             if (selectedField !== undefined)
-                                refreshReferenceLine(
+                                updateReferenceLine(
                                     e.target.value,
                                     selectedField,
                                     label,
                                     lineColor,
+                                    referenceLine.name,
                                 );
                         }}
                         placeholder="Add value for the reference line"
@@ -224,11 +199,12 @@ export const ReferenceLine: FC<Props> = ({
                                 value !== undefined &&
                                 selectedField !== undefined
                             )
-                                refreshReferenceLine(
+                                updateReferenceLine(
                                     value,
                                     selectedField,
                                     label,
                                     color,
+                                    referenceLine.name,
                                 );
                         }}
                     />
