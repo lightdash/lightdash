@@ -248,16 +248,16 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
-                    value={
-                        filterRule.values
-                            ? [
-                                  new Date(filterRule.values?.[0]),
-                                  new Date(filterRule.values?.[1]),
-                              ]
-                            : [null, null]
-                    }
-                    onChange={(range: [Date | null, Date | null]) => {
-                        if (range) {
+                    value={[
+                        filterRule.values?.[0]
+                            ? new Date(filterRule.values?.[0])
+                            : null,
+                        filterRule.values?.[1]
+                            ? new Date(filterRule.values?.[1])
+                            : null,
+                    ]}
+                    onChange={(range: [Date | null, Date | null] | null) => {
+                        if (range && range[0] && range[1]) {
                             onChange({
                                 ...filterRule,
                                 values: range.map((value) =>
