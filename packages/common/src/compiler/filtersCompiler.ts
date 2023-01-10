@@ -196,8 +196,7 @@ export const renderDateFilterSql = (
             const startDate = dateFormatter(filter.values?.[0]);
             const endDate = dateFormatter(filter.values?.[1]);
 
-            return `((${dimensionSql}) >= ('${startDate}') 
-              AND (${dimensionSql}) <= ('${endDate}'))`;
+            return `((${dimensionSql}) >= ('${startDate}') AND (${dimensionSql}) <= ('${endDate}'))`;
         }
         default:
             throw Error(

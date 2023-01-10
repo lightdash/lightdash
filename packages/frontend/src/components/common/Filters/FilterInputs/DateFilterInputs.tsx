@@ -11,7 +11,6 @@ import {
     TimeFrames,
     UnitOfTime,
 } from '@lightdash/common';
-import { filter } from 'lodash-es';
 import moment from 'moment';
 import React, { FC } from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
@@ -241,10 +240,6 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 </MultipleInputsWrapper>
             );
         case FilterOperator.IN_BETWEEN:
-            // const dateRange: [Date | null, Date | null] =
-            //     filterRule.values?.map((value) =>
-            //         formatDate(value, undefined, false),
-            //     );
             return (
                 <StyledDateRangeInput
                     className={disabled ? 'disabled-filter' : ''}
@@ -253,14 +248,16 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
-                    // value={dateRange ? dateRange : [new Date(), null]}
+                    defaultValue={[new Date(), null]}
                     onChange={(range: [Date | null, Date | null]) => {
                         if (range) {
                             onChange({
                                 ...filterRule,
-                                values: range.map((value) =>
-                                    formatDate(value, undefined, false),
-                                ),
+                                values: [
+                                    range.map((value) =>
+                                        formatDate(value, undefined, false),
+                                    ),
+                                ],
                             });
                         }
                     }}
