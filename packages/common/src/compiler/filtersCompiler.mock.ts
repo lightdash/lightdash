@@ -26,7 +26,6 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.IN_THE_PAST]: null,
     [FilterOperator.IN_THE_CURRENT]: null,
     [FilterOperator.IN_THE_NEXT]: null,
-    [FilterOperator.IN_BETWEEN]: null,
 };
 
 export const InTheCurrentFilterBase = {
@@ -215,7 +214,7 @@ export const InTheLast1CompletedMinuteFilter = {
 };
 
 export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:00') AND (customers.created) < ('2020-04-04 06:12:00'))`;
-export const InBetweenPastTwoYearsFilter = {
+export const InBetweenPastTwoYears = {
     id: 'id',
     target: {
         fieldId: 'fieldId',
