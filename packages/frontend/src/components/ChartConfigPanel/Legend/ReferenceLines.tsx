@@ -153,12 +153,10 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
     );
     const clearReferenceLines = useCallback(() => {
         if (!dirtyEchartsConfig?.series) return;
-        const series = dirtyEchartsConfig?.series.map((serie) => {
-            return {
-                ...serie,
-                markLine: undefined,
-            };
-        });
+        const series = dirtyEchartsConfig?.series.map((serie) => ({
+            ...serie,
+            markLine: undefined,
+        }));
 
         updateSeries(series);
 

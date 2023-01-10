@@ -7,5 +7,5 @@ export const CollapseButton = styled(Button)`
 
 export const DeleteButton = styled(Button)`
     margin-left: auto;
-    margin-bottom: 7px;
+    margin-bottom: 8px;
 `;

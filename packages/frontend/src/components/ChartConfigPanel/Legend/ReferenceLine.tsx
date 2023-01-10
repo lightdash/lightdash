@@ -209,9 +209,8 @@ export const ReferenceLine: FC<Props> = ({
                         }}
                     />
                     <DeleteButton
-                        minimal
-                        intent={Intent.DANGER}
-                        icon="trash"
+                        title="Remove reference line"
+                        icon="cross"
                         onClick={() => removeReferenceLine(referenceLine.name)}
                     />
                 </GridSettings>
