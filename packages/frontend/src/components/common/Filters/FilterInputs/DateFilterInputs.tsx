@@ -1,5 +1,5 @@
 import { NumericInput } from '@blueprintjs/core';
-import { DateInput2, DateRangeInput2 } from '@blueprintjs/datetime2';
+import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     DateFilterRule,
     DimensionType,
@@ -240,7 +240,6 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                 </MultipleInputsWrapper>
             );
         case FilterOperator.IN_BETWEEN:
-            // const dateRange = filterRule.values ? filterRule.values?.map((value) => formatDate(value, undefined, false)) : [null, null];
             return (
                 <StyledDateRangeInput
                     className={disabled ? 'disabled-filter' : ''}
@@ -249,7 +248,14 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                         formatDate(value, undefined, false)
                     }
                     parseDate={parseDate}
-                    // value={dateRange}
+                    value={
+                        filterRule.values
+                            ? [
+                                  new Date(filterRule.values?.[0]),
+                                  new Date(filterRule.values?.[1]),
+                              ]
+                            : [null, null]
+                    }
                     onChange={(range: [Date | null, Date | null]) => {
                         if (range) {
                             onChange({
