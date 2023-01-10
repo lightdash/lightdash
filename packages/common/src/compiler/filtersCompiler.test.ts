@@ -11,6 +11,9 @@ import {
     ExpectedInTheNextCompleteFilterSQL,
     ExpectedInTheNextFilterSQL,
     ExpectedNumberFilterSQL,
+    InBetweenPastTwoYearsFilter,
+    InBetweenPastTwoYearsFilterSQL,
+    InBetweenPastTwoYearsTimestampFilterSQL,
     InTheCurrentFilterBase,
     InTheLast1CompletedDayFilter,
     InTheLast1CompletedDayFilterSQL,
@@ -191,6 +194,22 @@ describe('Filter SQL', () => {
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
+    });
+
+    test('should return in between date filter sql', () => {
+        expect(
+            renderDateFilterSql(DimensionSqlMock, InBetweenPastTwoYearsFilter),
+        ).toStrictEqual(InBetweenPastTwoYearsFilterSQL);
+    });
+
+    test('should return in between date filter sql for timestamps', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InBetweenPastTwoYearsFilter,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(InBetweenPastTwoYearsTimestampFilterSQL);
     });
 
     test('should return single value in includes filter sql', () => {
