@@ -37,6 +37,7 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.IN_THE_PAST]: 'in the last',
     [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
+    [FilterOperator.IN_BETWEEN]: 'is between',
 };
 
 const getFilterOptions = <T extends FilterOperator>(
@@ -59,6 +60,7 @@ const timeFilterOptions: Array<{
         FilterOperator.IN_THE_PAST,
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
+        FilterOperator.IN_BETWEEN,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
@@ -145,6 +147,9 @@ export const getFilterRuleLabel = (
                 valuesText = `${filterRule.values?.[0]} ${
                     filterRule.settings.completed ? 'completed ' : ''
                 }${filterRule.settings.unitOfTime}`;
+            }
+            if (filterRule.operator === FilterOperator.IN_BETWEEN) {
+                valuesText = `${filterRule.values?.[0]} and ${filterRule.values?.[1]}`;
             } else {
                 valuesText = filterRule.values
                     ?.map((value) => {

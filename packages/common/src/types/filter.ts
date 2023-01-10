@@ -21,6 +21,7 @@ export enum FilterOperator {
 
     IN_THE_NEXT = 'inTheNext',
     IN_THE_CURRENT = 'inTheCurrent',
+    IN_BETWEEN = 'inBetween',
 }
 
 export enum UnitOfTime {
