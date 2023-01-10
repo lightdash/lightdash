@@ -56,10 +56,17 @@ const useCartesianChartConfig = ({
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
 
     const setLegend = useCallback((legend: EchartsLegend) => {
+        const removePropertiesWithAuto = Object.entries(
+            legend,
+        ).reduce<EchartsLegend>((acc, [key, value]) => {
+            if (value === 'auto') return acc;
+            return { ...acc, [key]: value };
+        }, {});
+
         setDirtyEchartsConfig((prevState) => {
             return {
                 ...prevState,
-                legend,
+                legend: removePropertiesWithAuto,
             };
         });
     }, []);
