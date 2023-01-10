@@ -1,3 +1,15 @@
+# [0.364.0](https://github.com/lightdash/lightdash/compare/0.363.1...0.364.0) (2023-01-10)
+
+
+### Bug Fixes
+
+* legend align left ([#4126](https://github.com/lightdash/lightdash/issues/4126)) ([a8d881a](https://github.com/lightdash/lightdash/commit/a8d881a983b109f557631bfe2d15c626dce3c4a6))
+
+
+### Features
+
+* field autocomplete - sort labels alphabetically ([#4110](https://github.com/lightdash/lightdash/issues/4110)) ([09a9846](https://github.com/lightdash/lightdash/commit/09a9846c0c975bfb605d0c30b3c0473edeaa1178))
+
 ## [0.363.1](https://github.com/lightdash/lightdash/compare/0.363.0...0.363.1) (2023-01-09)
 
 
