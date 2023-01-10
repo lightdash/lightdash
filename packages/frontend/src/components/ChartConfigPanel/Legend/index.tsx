@@ -100,11 +100,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                                 label={startCase(position)}
                                 name={position}
                                 units={units}
-                                defaultValue={
-                                    position === Positions.Left
-                                        ? 'center'
-                                        : 'auto'
-                                }
+                                defaultValue="auto"
                             />
                         ))}
                     </SectionRow>
