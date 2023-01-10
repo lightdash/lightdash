@@ -1,4 +1,4 @@
-import { Button, Checkbox, Collapse } from '@blueprintjs/core';
+import { Button, Checkbox, Collapse, Label } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -11,6 +11,7 @@ import {
 import { FC, useCallback, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { SectionTitle } from '../ChartConfigPanel.styles';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
@@ -42,11 +43,6 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
 
     const [referenceLines, setReferenceLines] = useState<MarkLineData[]>(
         selectedReferenceLines,
-    );
-
-    const [isOpen, setIsOpen] = useState<boolean>(
-        selectedReferenceLines !== undefined &&
-            selectedReferenceLines.length > 0,
     );
 
     const updateReferenceLine = useCallback(
@@ -151,49 +147,26 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
         [updateSeries, dirtyEchartsConfig?.series, referenceLines],
     );
-    const clearReferenceLines = useCallback(() => {
-        if (!dirtyEchartsConfig?.series) return;
-        const series = dirtyEchartsConfig?.series.map((serie) => ({
-            ...serie,
-            markLine: undefined,
-        }));
-
-        updateSeries(series);
-
-        setReferenceLines([]);
-    }, [updateSeries, dirtyEchartsConfig?.series, referenceLines]);
 
     return (
         <>
-            <Checkbox
-                name="show"
-                onChange={() => {
-                    if (isOpen && referenceLines.length > 0)
-                        clearReferenceLines();
-                    setIsOpen(!isOpen);
-                }}
-                checked={isOpen}
-            >
-                Include reference line
-            </Checkbox>
-            <Collapse isOpen={isOpen}>
-                {referenceLines &&
-                    referenceLines.map((line, index) => {
-                        return (
-                            <ReferenceLine
-                                key={line.name}
-                                index={index + 1}
-                                items={items}
-                                referenceLine={line}
-                                updateReferenceLine={updateReferenceLine}
-                                removeReferenceLine={removeReferenceLine}
-                            />
-                        );
-                    })}
-                <Button minimal onClick={addReferenceLine}>
-                    + Add
-                </Button>
-            </Collapse>
+            <SectionTitle>Reference lines</SectionTitle>
+            {referenceLines &&
+                referenceLines.map((line, index) => {
+                    return (
+                        <ReferenceLine
+                            key={line.name}
+                            index={index + 1}
+                            items={items}
+                            referenceLine={line}
+                            updateReferenceLine={updateReferenceLine}
+                            removeReferenceLine={removeReferenceLine}
+                        />
+                    );
+                })}
+            <Button minimal intent="primary" onClick={addReferenceLine}>
+                + Add
+            </Button>
         </>
     );
 };
