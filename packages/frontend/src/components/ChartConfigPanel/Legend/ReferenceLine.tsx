@@ -1,4 +1,4 @@
-import { Collapse, InputGroup, Intent, Label } from '@blueprintjs/core';
+import { Button, Collapse, InputGroup, Intent, Label } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -118,12 +118,17 @@ export const ReferenceLine: FC<Props> = ({
     return (
         <>
             <Flex>
-                <SectionTitle>Line {index}</SectionTitle>
-
-                <CollapseButton
+                <Button
                     minimal
                     icon={isOpen ? 'chevron-down' : 'chevron-right'}
                     onClick={() => setIsOpen(!isOpen)}
+                />
+                <SectionTitle>Line {index}</SectionTitle>
+
+                <DeleteButton
+                    title="Remove reference line"
+                    icon="cross"
+                    onClick={() => removeReferenceLine(referenceLine.name)}
                 />
             </Flex>
             <Collapse isOpen={isOpen}>
@@ -207,11 +212,6 @@ export const ReferenceLine: FC<Props> = ({
                                     referenceLine.name,
                                 );
                         }}
-                    />
-                    <DeleteButton
-                        title="Remove reference line"
-                        icon="cross"
-                        onClick={() => removeReferenceLine(referenceLine.name)}
                     />
                 </GridSettings>
             </Collapse>
