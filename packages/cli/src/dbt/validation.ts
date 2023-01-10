@@ -12,6 +12,7 @@ import {
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
+import GlobalState from '../globalState';
 import dbtManifestSchema from '../manifestv7.json';
 import lightdashDbtSchema from '../schema.json';
 
@@ -33,13 +34,23 @@ const formatAjvErrors = (validator: AnyValidateFunction): string =>
         .map((err) => `Field at "${err.instancePath}" ${err.message}`)
         .join('\n');
 
+type DbtModelsGroupedByState = {
+    valid: DbtModelNode[];
+    invalid: ExploreError[];
+    skipped: DbtRawModelNode[];
+};
 export const validateDbtModel = (
     adapterType: string,
     models: DbtRawModelNode[],
-): [DbtModelNode[], ExploreError[]] => {
+): DbtModelsGroupedByState => {
+    GlobalState.debug(`> Validating ${models.length} models from dbt manifest`);
     const validator = getModelValidator();
-    return models.reduce(
-        ([validModels, invalidModels], model) => {
+    const results = models.reduce<DbtModelsGroupedByState>(
+        (acc, model) => {
+            if (model.compiled === undefined) {
+                return { ...acc, skipped: [...acc.skipped, model] };
+            }
+
             let error: InlineError | undefined;
             // Match against json schema
             const isValid = validator(model);
@@ -60,15 +71,38 @@ export const validateDbtModel = (
                     label: model.meta.label || friendlyName(model.name),
                     errors: [error],
                 };
-                return [validModels, [...invalidModels, exploreError]];
+                return { ...acc, invalid: [...acc.invalid, exploreError] };
             }
             // Fix null databases
             const validatedModel = normaliseModelDatabase(
                 model,
                 adapterType as SupportedDbtAdapter,
             );
-            return [[...validModels, validatedModel], invalidModels];
+            return { ...acc, valid: [...acc.valid, validatedModel] };
         },
-        [[] as DbtModelNode[], [] as ExploreError[]],
+        { valid: [], invalid: [], skipped: [] },
     );
+    if (results.valid.length > 0) {
+        GlobalState.debug(
+            `> Valid compiled models (${results.valid.length}): ${results.valid
+                .map((m) => m.name)
+                .join(', ')}`,
+        );
+    }
+    if (results.skipped.length > 0) {
+        GlobalState.debug(
+            `> Skipped models (${results.skipped.length}): ${results.skipped
+                .map((m) => m.name)
+                .join(', ')}`,
+        );
+    }
+    if (results.invalid.length > 0) {
+        GlobalState.debug(
+            `> Invalid compiled models (${
+                results.invalid.length
+            }): ${results.invalid.map((m) => m.name).join(', ')}`,
+        );
+    }
+
+    return results;
 };

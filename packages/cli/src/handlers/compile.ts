@@ -59,35 +59,35 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const adapterType = manifest.metadata.adapter_type;
 
-    const [validModels, failedExplores] = validateDbtModel(adapterType, models);
+    const { valid: validModels, invalid: failedExplores } = validateDbtModel(
+        adapterType,
+        models,
+    );
+
     if (failedExplores.length > 0) {
         const errors = failedExplores.map((failedExplore) =>
-            failedExplore.errors.map((error) => `- ${error.message}\n`),
+            failedExplore.errors.map(
+                (error) => `- ${failedExplore.name}: ${error.message}\n`,
+            ),
         );
         console.error(
             styles.warning(`Found ${
                 failedExplores.length
-            } errors when validating dbt model:
+            } errors when validating dbt models:
 ${errors.join('')}`),
         );
-    } else {
-        GlobalState.debug(
-            `> Validated dbt models: ${validModels
-                .map((m) => m.name)
-                .join(', ')}`,
-        );
     }
-
-    GlobalState.debug(
-        `> Models from DBT manifest: ${models.map((m) => m.name).join(', ')}`,
-    );
 
     // Ideally we'd skip this potentially expensive step
     const catalog = await warehouseClient.getCatalog(
         getSchemaStructureFromDbtModels(validModels),
     );
 
-    const typedModels = attachTypesToModels(models, catalog, false);
+    const validModelsWithTypes = attachTypesToModels(
+        validModels,
+        catalog,
+        false,
+    );
 
     if (!isSupportedDbtAdapter(manifest.metadata)) {
         await LightdashAnalytics.track({
@@ -105,14 +105,16 @@ ${errors.join('')}`),
         `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
     );
 
-    const explores = await convertExplores(
-        typedModels,
+    const validExplores = await convertExplores(
+        validModelsWithTypes,
         false,
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
         isWeekDay(options.startOfWeek) ? options.startOfWeek : undefined,
     );
     console.error('');
+
+    const explores = [...validExplores, ...failedExplores];
 
     explores.forEach((e) => {
         const status = isExploreError(e)
