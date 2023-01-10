@@ -37,7 +37,7 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.IN_THE_PAST]: 'in the last',
     [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
-    [FilterOperator.IN_BETWEEN]: 'is between',
+    [FilterOperator.IN_BETWEEN]: 'custom range',
 };
 
 const getFilterOptions = <T extends FilterOperator>(
@@ -60,12 +60,12 @@ const timeFilterOptions: Array<{
         FilterOperator.IN_THE_PAST,
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
-        FilterOperator.IN_BETWEEN,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
     { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
+    { value: FilterOperator.IN_BETWEEN, label: 'custom range' },
 ];
 
 export const FilterTypeConfig: Record<
