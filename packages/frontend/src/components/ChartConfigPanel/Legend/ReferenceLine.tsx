@@ -1,4 +1,12 @@
-import { Button, Collapse, InputGroup, Intent, Label } from '@blueprintjs/core';
+import {
+    Button,
+    Collapse,
+    FormGroup,
+    InputGroup,
+    Intent,
+    Label,
+} from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledDimension,
     Field,
@@ -15,7 +23,7 @@ import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styl
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { GridSettings, SectionTitle } from './Legend.styles';
-import { CollapseButton, DeleteButton } from './ReferenceLine.styles';
+import { CollapseWrapper, DeleteButtonTooltip } from './ReferenceLine.styles';
 
 type Props = {
     index: number;
@@ -125,15 +133,16 @@ export const ReferenceLine: FC<Props> = ({
                 />
                 <SectionTitle>Line {index}</SectionTitle>
 
-                <DeleteButton
-                    title="Remove reference line"
-                    icon="cross"
-                    onClick={() => removeReferenceLine(referenceLine.name)}
-                />
+                <DeleteButtonTooltip content="Remove reference line">
+                    <Button
+                        small
+                        icon="cross"
+                        onClick={() => removeReferenceLine(referenceLine.name)}
+                    />
+                </DeleteButtonTooltip>
             </Flex>
-            <Collapse isOpen={isOpen}>
-                <GridSettings>
-                    <Label>Field</Label>
+            <CollapseWrapper isOpen={isOpen}>
+                <FormGroup label="Field">
                     <FieldAutoComplete
                         fields={fieldsInAxes}
                         activeField={selectedField}
@@ -150,10 +159,8 @@ export const ReferenceLine: FC<Props> = ({
                                 );
                         }}
                     />
-                </GridSettings>
-                <GridSettings>
-                    <Label>Value</Label>
-
+                </FormGroup>
+                <FormGroup label="Value">
                     <InputGroup
                         fill
                         disabled={!isNumericItem(selectedField)}
@@ -176,11 +183,9 @@ export const ReferenceLine: FC<Props> = ({
                         }}
                         placeholder="Add value for the reference line"
                     />
-                </GridSettings>
+                </FormGroup>
 
-                <GridSettings>
-                    <Label>Label</Label>
-
+                <FormGroup label="Label">
                     <InputGroup
                         fill
                         disabled={!isNumericItem(selectedField)}
@@ -191,11 +196,9 @@ export const ReferenceLine: FC<Props> = ({
                             debouncedUpdateLabel(e.target.value);
                         }}
                     />
-                </GridSettings>
+                </FormGroup>
 
-                <GridSettings>
-                    <Label>Color</Label>
-
+                <FormGroup label="Color">
                     <SeriesColorPicker
                         color={lineColor}
                         onChange={(color) => {
@@ -213,8 +216,8 @@ export const ReferenceLine: FC<Props> = ({
                                 );
                         }}
                     />
-                </GridSettings>
-            </Collapse>
+                </FormGroup>
+            </CollapseWrapper>
         </>
     );
 };
