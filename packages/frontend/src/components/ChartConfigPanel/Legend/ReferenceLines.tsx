@@ -189,9 +189,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
     }, [referenceLines]);
 
     const removeReferenceLine = useCallback(
-        (index) => {
-            const markLine = referenceLines[index];
-
+        (markLineId) => {
             if (!dirtyEchartsConfig?.series) return;
             const series = dirtyEchartsConfig?.series.map((serie) => {
                 return {
@@ -200,14 +198,17 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         ...serie.markLine,
                         data:
                             serie.markLine?.data.filter(
-                                (data) => data.name !== markLine.name,
+                                (data) => data.name !== markLineId,
                             ) || [],
                     },
                 };
             });
+
             updateSeries(series);
 
-            setReferenceLines(referenceLines.splice(index, 1));
+            setReferenceLines(
+                referenceLines.filter((line) => line.name !== markLineId),
+            );
         },
         [updateSeries, dirtyEchartsConfig?.series, referenceLines],
     );
@@ -230,7 +231,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                     referenceLines.map((line, index) => {
                         return (
                             <ReferenceLine
-                                key={index}
+                                key={line.name}
                                 index={index + 1}
                                 items={items}
                                 referenceLine={line}

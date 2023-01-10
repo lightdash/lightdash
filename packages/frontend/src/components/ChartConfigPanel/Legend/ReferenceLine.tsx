@@ -3,6 +3,7 @@ import {
     Checkbox,
     Collapse,
     InputGroup,
+    Intent,
     Label,
 } from '@blueprintjs/core';
 import {
@@ -18,9 +19,11 @@ import {
 import debounce from 'lodash/debounce';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styles';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { GridSettings, SectionTitle } from './Legend.styles';
+import { CollapseButton, DeleteButton } from './ReferenceLine.styles';
 
 type Props = {
     index: number;
@@ -33,7 +36,7 @@ type Props = {
         lineColor: string,
         lineId: string,
     ) => void;
-    removeReferenceLine: (index: number) => void;
+    removeReferenceLine: (lineId: string) => void;
 };
 
 export const ReferenceLine: FC<Props> = ({
@@ -92,7 +95,7 @@ export const ReferenceLine: FC<Props> = ({
     const [label, setLabel] = useState<string | undefined>(
         selectedMarklineLabel,
     );
-
+    const [isOpen, setIsOpen] = useState<boolean>(true);
     const [lineColor, setLineColor] = useState<string>(selectedColor || '#000');
 
     const selectedFieldDefault = useMemo(() => {
@@ -118,7 +121,7 @@ export const ReferenceLine: FC<Props> = ({
                 updateReferenceLine(
                     updateValue,
                     updateField,
-                    updateLabel || label,
+                    updateLabel,
                     updateColor || lineColor,
                     referenceLine.name,
                 );
@@ -141,9 +144,16 @@ export const ReferenceLine: FC<Props> = ({
 
     return (
         <>
-            <Collapse isOpen={true}>
+            <Flex>
                 <SectionTitle>Line {index}</SectionTitle>
 
+                <CollapseButton
+                    minimal
+                    icon={isOpen ? 'chevron-down' : 'chevron-right'}
+                    onClick={() => setIsOpen(!isOpen)}
+                />
+            </Flex>
+            <Collapse isOpen={isOpen}>
                 <GridSettings>
                     <Label>Field</Label>
                     <FieldAutoComplete
@@ -222,11 +232,11 @@ export const ReferenceLine: FC<Props> = ({
                                 );
                         }}
                     />
-                    <Button
-                        style={{ marginLeft: 'auto' }}
+                    <DeleteButton
                         minimal
+                        intent={Intent.DANGER}
                         icon="trash"
-                        onClick={() => removeReferenceLine(index)}
+                        onClick={() => removeReferenceLine(referenceLine.name)}
                     />
                 </GridSettings>
             </Collapse>
