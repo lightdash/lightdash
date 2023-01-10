@@ -33,8 +33,17 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         return dirtyEchartsConfig.series.reduce<MarkLineData[]>(
             (acc, serie) => {
                 const data = serie.markLine?.data;
-                if (data !== undefined) return [...acc, ...data];
+                if (data !== undefined) {
+                    const fullData = data.map((markData) => {
+                        return {
+                            label: serie.markLine?.label,
+                            lineStyle: serie.markLine?.lineStyle,
+                            ...markData,
+                        };
+                    });
 
+                    return [...acc, ...fullData];
+                }
                 return acc;
             },
             [],

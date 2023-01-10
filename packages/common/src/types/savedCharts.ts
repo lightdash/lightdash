@@ -71,6 +71,9 @@ export type MarkLine = {
         width: number;
         type: string;
     };
+    label?: {
+        formatter?: string;
+    };
 };
 export type Series = {
     encode: {
