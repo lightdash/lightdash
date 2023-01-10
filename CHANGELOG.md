@@ -1,3 +1,10 @@
+## [0.364.1](https://github.com/lightdash/lightdash/compare/0.364.0...0.364.1) (2023-01-10)
+
+
+### Bug Fixes
+
+* skip non-compiled models ([#4130](https://github.com/lightdash/lightdash/issues/4130)) ([e50d640](https://github.com/lightdash/lightdash/commit/e50d640efe3eafacf1b966e8b3be8de93594f8dc))
+
 # [0.364.0](https://github.com/lightdash/lightdash/compare/0.363.1...0.364.0) (2023-01-10)
 
 
