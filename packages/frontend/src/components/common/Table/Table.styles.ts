@@ -121,6 +121,7 @@ export const Td = styled.td<{
     $isInteractive: boolean;
     $isCopying: boolean;
     $backgroundColor?: string;
+    $fontColor?: string;
     $hasData: boolean;
 }>`
     ${CellStyles}
@@ -129,14 +130,6 @@ export const Td = styled.td<{
         $isInteractive && $hasData
             ? `
                 cursor: pointer;
-            `
-            : ''}
-
-    ${({ $isInteractive, $isSelected, $hasData }) =>
-        $isInteractive && $isSelected && $hasData
-            ? `
-                box-shadow: inset 0 0 0 1px #4170CB !important;
-                background-color: #ECF6FE;
             `
             : ''}
 
@@ -151,8 +144,23 @@ export const Td = styled.td<{
     ${({ $backgroundColor }) =>
         $backgroundColor
             ? `
-                background-color: ${$backgroundColor};
+                background-color: ${$backgroundColor} !important;
             `
+            : ''}
+
+    ${({ $fontColor }) =>
+        $fontColor
+            ? `
+                color: ${$fontColor} !important;
+            `
+            : ''}
+
+    ${({ $isInteractive, $isSelected, $hasData }) =>
+        $isInteractive && $isSelected && $hasData
+            ? `
+                    box-shadow: inset 0 0 0 1px #4170CB !important;
+                    background-color: #ECF6FE !important;
+                `
             : ''}
 
     transition: filter 0.15s linear;

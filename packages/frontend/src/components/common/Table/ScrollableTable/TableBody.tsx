@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import { FC } from 'react';
+import { readableColor } from '../../../../utils/colorUtils';
 import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 
@@ -39,6 +40,8 @@ const TableBody: FC = () => {
                                     : true;
                             });
 
+                        console.log(fieldConditionalFormattings?.color);
+
                         const cellHasFormatting =
                             fieldConditionalFormattings?.rules &&
                             fieldConditionalFormattings.rules.length > 0
@@ -54,6 +57,15 @@ const TableBody: FC = () => {
                                 backgroundColor={
                                     cellHasFormatting
                                         ? fieldConditionalFormattings?.color
+                                        : undefined
+                                }
+                                fontColor={
+                                    cellHasFormatting &&
+                                    fieldConditionalFormattings?.color &&
+                                    readableColor(
+                                        fieldConditionalFormattings.color,
+                                    ) === 'white'
+                                        ? 'white'
                                         : undefined
                                 }
                                 className={meta?.className}

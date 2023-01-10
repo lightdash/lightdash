@@ -14,7 +14,7 @@ import {
 import produce from 'immer';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import ColorInput from '../common/ColorInput';
+import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
@@ -169,11 +169,10 @@ const ConditionalFormatting: FC = () => {
                     {config.rules.map((rule, index) => (
                         <React.Fragment key={index}>
                             <FormGroup label="Set color">
-                                <ColorInput
-                                    placeholder="Enter hex color"
-                                    value={config.color}
-                                    onChange={(e) =>
-                                        handleChangeColor(e.target.value)
+                                <SeriesColorPicker
+                                    color={config.color}
+                                    onChange={(color) =>
+                                        handleChangeColor(color)
                                     }
                                 />
                             </FormGroup>

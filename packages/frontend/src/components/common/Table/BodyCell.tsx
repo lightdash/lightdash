@@ -17,6 +17,7 @@ interface CommonBodyCellProps {
     className?: string;
     style?: CSSProperties;
     backgroundColor?: string;
+    fontColor?: string;
     copying?: boolean;
     selected?: boolean;
     onSelect: () => void;
@@ -30,6 +31,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     children,
     className,
     backgroundColor,
+    fontColor,
     copying = false,
     hasData,
     isNumericItem,
@@ -80,6 +82,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                     $isInteractive={hasContextMenu}
                     $isCopying={copying}
                     $backgroundColor={backgroundColor}
+                    $fontColor={fontColor}
                     $hasData={hasContextMenu}
                     $isNaN={!hasData || !isNumericItem}
                     onClick={selected ? handleDeselect : handleSelect}
