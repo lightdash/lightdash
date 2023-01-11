@@ -1,3 +1,10 @@
+# [0.367.0](https://github.com/lightdash/lightdash/compare/0.366.2...0.367.0) (2023-01-11)
+
+
+### Features
+
+* multiple reference lines ([#4120](https://github.com/lightdash/lightdash/issues/4120)) ([42df5c8](https://github.com/lightdash/lightdash/commit/42df5c8b50b33358ab8d7dc4d8059e0235246587))
+
 ## [0.366.2](https://github.com/lightdash/lightdash/compare/0.366.1...0.366.2) (2023-01-11)
 
 
