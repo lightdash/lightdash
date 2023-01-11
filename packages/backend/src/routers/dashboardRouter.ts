@@ -47,6 +47,26 @@ dashboardRouter.patch(
     },
 );
 
+dashboardRouter.patch(
+    '/pinning',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.updatePinning(
+                    req.user!,
+                    req.params.dashboardUuid,
+                    req.body,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 dashboardRouter.delete(
     '/',
     isAuthenticated,

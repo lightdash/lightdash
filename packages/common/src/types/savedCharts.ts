@@ -224,9 +224,8 @@ export type CreateSavedChartVersion = Omit<
     | 'spaceName'
 >;
 
-export type UpdateSavedChart = Pick<
-    SavedChart,
-    'name' | 'description' | 'spaceUuid' | 'is_pinned'
+export type UpdateSavedChart = Partial<
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'is_pinned'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<

@@ -287,6 +287,71 @@ export class DashboardService {
         return this.getById(user, dashboardUuid);
     }
 
+    async updatePinning(
+        user: SessionUser,
+        dashboardUuid: string,
+        dashboard: UpdateDashboard,
+    ): Promise<Dashboard> {
+        const existingDashboard = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', existingDashboard),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                existingDashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        if (isDashboardUnversionedFields(dashboard)) {
+            const updatedDashboard = await this.dashboardModel.updatePinning(
+                dashboardUuid,
+                {
+                    isPinned: dashboard.isPinned,
+                    spaceUuid: dashboard.spaceUuid,
+                },
+            );
+
+            analytics.track({
+                event: 'dashboard.updated',
+                userId: user.userUuid,
+                properties: {
+                    dashboardId: updatedDashboard.uuid,
+                    projectId: updatedDashboard.projectUuid,
+                },
+            });
+        }
+        if (isDashboardVersionedFields(dashboard)) {
+            const updatedDashboard = await this.dashboardModel.addVersion(
+                dashboardUuid,
+                {
+                    tiles: dashboard.tiles,
+                    filters: dashboard.filters,
+                },
+                user,
+            );
+            analytics.track({
+                event: 'dashboard_version.created',
+                userId: user.userUuid,
+                properties:
+                    DashboardService.getCreateEventProperties(updatedDashboard),
+            });
+        }
+        return this.getById(user, dashboardUuid);
+    }
+
     async updateMultiple(
         user: SessionUser,
         projectUuid: string,

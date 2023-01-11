@@ -110,9 +110,8 @@ export type DashboardBasicDetails = Pick<
     | 'isPinned'
 >;
 
-export type DashboardUnversionedFields = Pick<
-    CreateDashboard,
-    'name' | 'description' | 'spaceUuid' | 'isPinned'
+export type DashboardUnversionedFields = Partial<
+    Pick<CreateDashboard, 'name' | 'description' | 'spaceUuid' | 'isPinned'>
 >;
 export type DashboardVersionedFields = Pick<
     CreateDashboard,

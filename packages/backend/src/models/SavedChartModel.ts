@@ -286,7 +286,19 @@ export class SavedChartModel {
                 name: data.name,
                 description: data.description,
                 space_id: await getSpaceId(this.database, data.spaceUuid),
+            })
+            .where('saved_query_uuid', savedChartUuid);
+        return this.get(savedChartUuid);
+    }
+
+    async updatePinning(
+        savedChartUuid: string,
+        data: UpdateSavedChart,
+    ): Promise<SavedChart> {
+        await this.database('saved_queries')
+            .update({
                 is_pinned: data.is_pinned,
+                space_id: await getSpaceId(this.database, data.spaceUuid),
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);

@@ -77,6 +77,23 @@ savedChartRouter.patch(
     },
 );
 
+savedChartRouter.patch(
+    '/:savedQueryUuid/pinning',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        savedChartsService
+            .updatePinning(req.user!, req.params.savedQueryUuid, req.body)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 savedChartRouter.post(
     '/:savedQueryUuid/version',
     isAuthenticated,

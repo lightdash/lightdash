@@ -57,7 +57,7 @@ type DbDashboardTileChart = {
 export type DashboardTable = Knex.CompositeTableType<
     DbDashboard,
     Pick<DbDashboard, 'name' | 'description' | 'space_id'>,
-    Pick<DbDashboard, 'name' | 'description' | 'is_pinned'>
+    Partial<Pick<DbDashboard, 'name' | 'description' | 'is_pinned'>>
 >;
 
 export type DashboardVersionTable = Knex.CompositeTableType<

@@ -146,6 +146,37 @@ export class SavedChartService {
         return savedChart;
     }
 
+    async updatePinning(
+        user: SessionUser,
+        savedChartUuid: string,
+        data: UpdateSavedChart,
+    ): Promise<SavedChart> {
+        const { organizationUuid, projectUuid } =
+            await this.savedChartModel.get(savedChartUuid);
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const savedChart = await this.savedChartModel.updatePinning(
+            savedChartUuid,
+            data,
+        );
+        analytics.track({
+            event: 'saved_chart.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: savedChart.projectUuid,
+                savedQueryId: savedChartUuid,
+            },
+        });
+        return savedChart;
+    }
+
     async updateMultiple(
         user: SessionUser,
         projectUuid: string,
