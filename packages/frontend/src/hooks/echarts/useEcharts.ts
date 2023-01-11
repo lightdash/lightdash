@@ -330,7 +330,7 @@ const getMinAndMaxReferenceLines = (
                 ? minReferenceLineLeftY
                 : undefined,
         referenceLineMaxLeftY:
-            maxReferenceLineLeftY > minValueLeftY
+            maxReferenceLineLeftY > maxValueLeftY
                 ? maxReferenceLineLeftY
                 : undefined,
         referenceLineMinRightY:
@@ -338,7 +338,7 @@ const getMinAndMaxReferenceLines = (
                 ? minReferenceLineRightY
                 : undefined,
         referenceLineMaxRightY:
-            maxReferenceLineRightY > minValueRightY
+            maxReferenceLineRightY > maxValueRightY
                 ? maxReferenceLineRightY
                 : undefined,
     };
@@ -746,16 +746,14 @@ const getEchartAxis = ({
                       })
                     : xAxisConfiguration?.[0]?.name ||
                       (xAxisItem ? getItemLabel(xAxisItem) : undefined),
-                min: !validCartesianConfig.layout.flipAxes
+                min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.min ||
-                      referenceLineMinX ||
                       maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
-                    : undefined,
-                max: !validCartesianConfig.layout.flipAxes
+                    : referenceLineMinX,
+                max: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.max ||
-                      referenceLineMaxX ||
                       maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
-                    : undefined,
+                    : referenceLineMaxX,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
