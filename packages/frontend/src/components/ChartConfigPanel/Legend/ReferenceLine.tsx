@@ -37,12 +37,14 @@ type Props = {
         lineId: string,
     ) => void;
     removeReferenceLine: (lineId: string) => void;
+    isDefaultOpen: boolean;
 };
 
 export const ReferenceLine: FC<Props> = ({
     index,
     items,
     referenceLine,
+    isDefaultOpen,
     updateReferenceLine,
     removeReferenceLine,
 }) => {
@@ -94,7 +96,9 @@ export const ReferenceLine: FC<Props> = ({
     const [label, setLabel] = useState<string | undefined>(
         selectedMarklineLabel,
     );
-    const [isOpen, setIsOpen] = useState<boolean>(true);
+    const [isOpen, setIsOpen] = useState<boolean>(
+        isDefaultOpen || selectedMarklineValue === undefined,
+    );
     const [lineColor, setLineColor] = useState<string>(selectedColor || '#000');
 
     const selectedFieldDefault = useMemo(() => {

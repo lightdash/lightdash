@@ -6,7 +6,8 @@ export const DeleteButtonTooltip = styled(Tooltip2)`
     margin-left: auto;
 `;
 
-export const CollapseWrapper = styled(Collapse)`
+export const CollapseWrapper = styled(Collapse)<{ isOpen: boolean }>`
     background-color: ${Colors.LIGHT_GRAY5};
-    padding: 10px 10px 5px 10px;
+
+    ${({ isOpen }) => (isOpen ? 'padding:10px 10px 5px 10px;' : '')}
 `;

@@ -166,6 +166,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         <ReferenceLine
                             key={line.name}
                             index={index + 1}
+                            isDefaultOpen={referenceLines.length <= 1}
                             items={items}
                             referenceLine={line}
                             updateReferenceLine={updateReferenceLine}
