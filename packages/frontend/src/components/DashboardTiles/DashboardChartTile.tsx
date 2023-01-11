@@ -33,7 +33,7 @@ import {
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
@@ -154,6 +154,7 @@ type Props = Pick<
 > & { tile: IDashboardChartTile };
 
 const DashboardChartTile: FC<Props> = (props) => {
+    const history = useHistory();
     const { showToastSuccess } = useToaster();
     const { track } = useTracking();
     const {
@@ -359,6 +360,12 @@ const DashboardChartTile: FC<Props> = (props) => {
         }
     }, [savedQueryWithDashboardFilters]);
 
+    const handleExploreFromHereClick = useCallback(() => {
+        if (exploreFromHereUrl) {
+            history.push(exploreFromHereUrl);
+        }
+    }, [history, exploreFromHereUrl]);
+
     return (
         <>
             <GlobalTileStyles />
@@ -411,7 +418,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                             <MenuItem2
                                 icon="series-search"
                                 text="Explore from here"
-                                href={exploreFromHereUrl}
+                                onClick={handleExploreFromHereClick}
                             />
                             {savedQueryWithDashboardFilters &&
                                 savedQueryWithDashboardFilters.chartConfig
