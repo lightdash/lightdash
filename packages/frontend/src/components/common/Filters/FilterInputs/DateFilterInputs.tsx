@@ -241,43 +241,47 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
             );
         case FilterOperator.IN_BETWEEN:
             return (
-                <StyledDateRangeInput
-                    className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
-                    formatDate={(value: Date) =>
-                        formatDate(value, undefined, false)
-                    }
-                    parseDate={parseDate}
-                    value={[
-                        filterRule.values?.[0]
-                            ? new Date(filterRule.values?.[0])
-                            : null,
-                        filterRule.values?.[1]
-                            ? new Date(filterRule.values?.[1])
-                            : null,
-                    ]}
-                    onChange={(range: [Date | null, Date | null] | null) => {
-                        if (range && range[0] && range[1]) {
-                            onChange({
-                                ...filterRule,
-                                values: range.map((value) =>
-                                    formatDate(value, undefined, false),
-                                ),
-                            });
+                <MultipleInputsWrapper>
+                    <StyledDateRangeInput
+                        className={disabled ? 'disabled-filter' : ''}
+                        disabled={disabled}
+                        formatDate={(value: Date) =>
+                            formatDate(value, undefined, false)
                         }
-                    }}
-                    popoverProps={{
-                        placement: 'bottom',
-                        ...popoverProps,
-                    }}
-                    dayPickerProps={{
-                        firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                            : undefined,
-                    }}
-                    closeOnSelection={true}
-                    shortcuts={false}
-                />
+                        parseDate={parseDate}
+                        value={[
+                            filterRule.values?.[0]
+                                ? new Date(filterRule.values?.[0])
+                                : null,
+                            filterRule.values?.[1]
+                                ? new Date(filterRule.values?.[1])
+                                : null,
+                        ]}
+                        onChange={(
+                            range: [Date | null, Date | null] | null,
+                        ) => {
+                            if (range && range[0] && range[1]) {
+                                onChange({
+                                    ...filterRule,
+                                    values: range.map((value) =>
+                                        formatDate(value, undefined, false),
+                                    ),
+                                });
+                            }
+                        }}
+                        popoverProps={{
+                            placement: 'bottom',
+                            ...popoverProps,
+                        }}
+                        dayPickerProps={{
+                            firstDayOfWeek: isWeekDay(startOfWeek)
+                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                                : undefined,
+                        }}
+                        closeOnSelection={true}
+                        shortcuts={false}
+                    />
+                </MultipleInputsWrapper>
             );
         default: {
             return <DefaultFilterInputs {...props} />;

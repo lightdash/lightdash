@@ -9,6 +9,7 @@ export const MultipleInputsWrapper = styled.div`
 `;
 
 export const StyledDateRangeInput = styled(DateRangeInput2)`
+    width: 100%;
     gap: 4px;
 
     .bp4-input-group {
