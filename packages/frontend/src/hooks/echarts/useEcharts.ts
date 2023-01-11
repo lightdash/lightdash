@@ -268,7 +268,8 @@ const getMinAndMaxReferenceLines = (
             const data = serie.markLine?.data;
             return data !== undefined && data.length > 0;
         }) !== undefined;
-    if (hasReferenceLines) return {};
+
+    if (!hasReferenceLines) return {};
 
     const getMinAndMaxValues = (axis: string | undefined): number[] => {
         if (!axis) return [];
@@ -329,7 +330,7 @@ const getMinAndMaxReferenceLines = (
                 ? minReferenceLineLeftY
                 : undefined,
         referenceLineMaxLeftY:
-            maxReferenceLineLeftY > maxValueRightY
+            maxReferenceLineLeftY > minValueLeftY
                 ? maxReferenceLineLeftY
                 : undefined,
         referenceLineMinRightY:
@@ -337,7 +338,7 @@ const getMinAndMaxReferenceLines = (
                 ? minReferenceLineRightY
                 : undefined,
         referenceLineMaxRightY:
-            maxReferenceLineRightY > maxValueLeftY
+            maxReferenceLineRightY > minValueRightY
                 ? maxReferenceLineRightY
                 : undefined,
     };
