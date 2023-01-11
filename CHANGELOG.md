@@ -1,3 +1,10 @@
+## [0.366.1](https://github.com/lightdash/lightdash/compare/0.366.0...0.366.1) (2023-01-11)
+
+
+### Bug Fixes
+
+* "in the current" filter summary ([#4146](https://github.com/lightdash/lightdash/issues/4146)) ([38046fa](https://github.com/lightdash/lightdash/commit/38046fa51a8545f2e3174bf9b098d73b51338448))
+
 # [0.366.0](https://github.com/lightdash/lightdash/compare/0.365.1...0.366.0) (2023-01-11)
 
 
