@@ -142,8 +142,7 @@ export const getFilterRuleLabel = (
         case FilterType.DATE: {
             if (
                 filterRule.operator === FilterOperator.IN_THE_PAST ||
-                filterRule.operator === FilterOperator.IN_THE_NEXT ||
-                filterRule.operator === FilterOperator.IN_THE_CURRENT
+                filterRule.operator === FilterOperator.IN_THE_NEXT
             ) {
                 valuesText = `${filterRule.values?.[0]} ${
                     filterRule.settings.completed ? 'completed ' : ''
