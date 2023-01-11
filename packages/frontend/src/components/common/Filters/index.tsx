@@ -19,6 +19,7 @@ import { FC, useCallback, useMemo } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import FieldAutoComplete from './FieldAutoComplete';
+import { FieldAutoCompleteWrapper } from './FieldAutoComplete.styles';
 import FilterGroupForm from './FilterGroupForm';
 import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
@@ -198,7 +199,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 }}
             >
                 {isOpen && (
-                    <>
+                    <FieldAutoCompleteWrapper>
                         <FieldAutoComplete
                             autoFocus
                             fields={fields}
@@ -211,7 +212,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             icon="cross"
                             onClick={toggleFieldInput}
                         />
-                    </>
+                    </FieldAutoCompleteWrapper>
                 )}
                 {isEditMode && !isOpen && (
                     <Button
