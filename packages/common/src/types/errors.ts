@@ -199,6 +199,20 @@ export class CompileError extends LightdashError {
     }
 }
 
+export class FieldReferenceError extends LightdashError {
+    constructor(
+        message = 'Failed to reference field in dbt project',
+        data: Record<string, any> = {},
+    ) {
+        super({
+            message,
+            name: 'FieldReferenceError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class NetworkError extends LightdashError {
     constructor(
         message = 'Error connecting to external service',

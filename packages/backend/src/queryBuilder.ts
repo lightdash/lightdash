@@ -3,6 +3,7 @@ import {
     Explore,
     fieldId,
     FieldId,
+    FieldReferenceError,
     FilterGroup,
     FilterRule,
     getDimensions,
@@ -20,7 +21,7 @@ const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
     const dimensions = getDimensions(explore);
     const dimension = dimensions.find((d) => fieldId(d) === dimId);
     if (dimension === undefined)
-        throw new Error(
+        throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
         );
     return dimension;
@@ -37,8 +38,8 @@ const getMetricFromId = (
     ];
     const metric = metrics.find((m) => fieldId(m) === metricId);
     if (metric === undefined)
-        throw new Error(
-            `Tried to reference metric with unknown field id ${metricId}`,
+        throw new FieldReferenceError(
+            `Tried to reference metric with unknown field id: ${metricId}`,
         );
     return metric;
 };
