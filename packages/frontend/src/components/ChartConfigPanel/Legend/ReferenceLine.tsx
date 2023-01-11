@@ -136,6 +136,7 @@ export const ReferenceLine: FC<Props> = ({
                 <DeleteButtonTooltip content="Remove reference line">
                     <Button
                         small
+                        minimal
                         icon="cross"
                         onClick={() => removeReferenceLine(referenceLine.name)}
                     />
