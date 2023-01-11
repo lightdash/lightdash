@@ -276,6 +276,7 @@ const DateFilterInputs: FC<FilterInputsProps<DateFilterRule>> = (props) => {
                             : undefined,
                     }}
                     closeOnSelection={true}
+                    shortcuts={false}
                 />
             );
         default: {
