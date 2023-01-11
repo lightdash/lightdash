@@ -23,29 +23,31 @@ export const renderStringFilterSql = (
     filter: FilterRule,
 ): string => {
     const filterType = filter.operator;
+    const escapedFilterValues = filter.values?.map((v) =>
+        typeof v === 'string' ? v.replace(/'/g, "''") : v,
+    );
+
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return !filter.values || filter.values.length === 0
+            return !escapedFilterValues || escapedFilterValues.length === 0
                 ? 'false'
-                : `(${dimensionSql}) IN (${filter.values
+                : `(${dimensionSql}) IN (${escapedFilterValues
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.NOT_EQUALS:
-            return !filter.values || filter.values.length === 0
+            return !escapedFilterValues || escapedFilterValues.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${filter.values
+                : `(${dimensionSql}) NOT IN (${escapedFilterValues
                       .map((v) => `'${v}'`)
                       .join(',')})`;
         case FilterOperator.INCLUDE:
-            const includesQuery = filter.values?.map(
-                (filterVal) =>
-                    `LOWER(${dimensionSql}) LIKE LOWER('%${filterVal}%')`,
+            const includesQuery = escapedFilterValues?.map(
+                (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
             );
             return includesQuery?.join('\n  OR\n  ') || 'true';
         case FilterOperator.NOT_INCLUDE:
-            const notIncludeQuery = filter.values?.map(
-                (filterVal) =>
-                    `LOWER(${dimensionSql}) NOT LIKE LOWER('%${filterVal}%')`,
+            const notIncludeQuery = escapedFilterValues?.map(
+                (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
             );
             return notIncludeQuery?.join('\n  AND\n  ') || 'true';
         case FilterOperator.NULL:
@@ -53,8 +55,8 @@ export const renderStringFilterSql = (
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
-            const startWithQuery = filter.values?.map(
-                (filterVal) => `(${dimensionSql}) LIKE '${filterVal}%'`,
+            const startWithQuery = escapedFilterValues?.map(
+                (v) => `(${dimensionSql}) LIKE '${v}%'`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
         default:
