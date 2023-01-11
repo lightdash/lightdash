@@ -49,6 +49,7 @@ export const createDashboard: CreateDashboard = {
         dimensions: [],
         metrics: [],
     },
+    isPinned: false,
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -105,6 +106,7 @@ export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
 export const updateDashboard: DashboardUnversionedFields = {
     name: 'my updated dashboard',
     description: 'updated description',
+    isPinned: false,
 };
 
 // Select mocks
@@ -132,6 +134,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     name: 'chart name',
     description: 'My description',
     created_at: new Date(),
+    is_pinned: false,
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
@@ -141,6 +144,7 @@ export const dashboardEntry: DashboardTable['base'] = {
     description: 'description',
     space_id: 0,
     created_at: new Date(),
+    is_pinned: false,
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
@@ -173,6 +177,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     user_uuid: 'userUuid',
     first_name: 'firstName',
     last_name: 'lastName',
+    is_pinned: dashboardEntry.is_pinned,
 };
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {
@@ -218,6 +223,7 @@ export const expectedDashboard: Dashboard = {
     name: dashboardEntry.name,
     description: dashboardEntry.description,
     updatedAt: dashboardVersionEntry.created_at,
+    isPinned: dashboardEntry.is_pinned,
     tiles: [
         {
             uuid: dashboardTileEntry.dashboard_tile_uuid,
@@ -280,6 +286,7 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
         name: dashboardEntry.name,
         description: dashboardEntry.description,
         updatedAt: dashboardVersionEntry.created_at,
+        isPinned: dashboardEntry.is_pinned,
         updatedByUser: {
             firstName: 'firstName',
             lastName: 'lastName',

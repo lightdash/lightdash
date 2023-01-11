@@ -39,6 +39,7 @@ type DbSavedChartDetails = {
     user_uuid: string;
     first_name: string;
     last_name: string;
+    is_pinned: boolean;
 };
 
 const createSavedChartVersionField = async (
@@ -155,7 +156,7 @@ const createSavedChartVersion = async (
                     }),
                 );
             });
-            tableCalculations.forEach((tableCalculation, index) => {
+            tableCalculations.forEach((tableCalculation) => {
                 promises.push(
                     createSavedChartVersionTableCalculation(trx, {
                         name: tableCalculation.name,
@@ -169,7 +170,7 @@ const createSavedChartVersion = async (
                     }),
                 );
             });
-            additionalMetrics?.forEach((additionalMetric, index) => {
+            additionalMetrics?.forEach((additionalMetric) => {
                 promises.push(
                     createSavedChartVersionAdditionalMetrics(trx, {
                         table: additionalMetric.table,
@@ -198,6 +199,7 @@ const createSavedChartVersion = async (
 type Dependencies = {
     database: Knex;
 };
+
 export class SavedChartModel {
     private database: Knex;
 
@@ -217,6 +219,7 @@ export class SavedChartModel {
             pivotConfig,
             updatedByUser,
             spaceUuid,
+            is_pinned,
         }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
         const newSavedChartUuid = await this.database.transaction(
@@ -224,9 +227,7 @@ export class SavedChartModel {
                 try {
                     const spaceId = spaceUuid
                         ? await getSpaceId(trx, spaceUuid)
-                        : await (
-                              await getSpace(trx, projectUuid)
-                          ).space_id;
+                        : (await getSpace(trx, projectUuid)).space_id;
                     const [newSavedChart] = await trx('saved_queries')
                         .insert({ name, space_id: spaceId, description })
                         .returning('*');
@@ -240,6 +241,7 @@ export class SavedChartModel {
                             tableConfig,
                             pivotConfig,
                             updatedByUser,
+                            is_pinned,
                         },
                     );
                     return newSavedChart.saved_query_uuid;
@@ -284,6 +286,7 @@ export class SavedChartModel {
                 name: data.name,
                 description: data.description,
                 space_id: await getSpaceId(this.database, data.spaceUuid),
+                is_pinned: data.is_pinned,
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);
@@ -491,6 +494,7 @@ export class SavedChartModel {
                 : {}),
             spaceUuid: savedQuery.space_uuid,
             spaceName: savedQuery.spaceName,
+            is_pinned: savedQuery.is_pinned,
         };
     }
 }

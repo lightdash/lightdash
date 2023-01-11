@@ -17,6 +17,7 @@ type DbDashboard = {
     description?: string;
     space_id: number;
     created_at: Date;
+    is_pinned: boolean;
 };
 
 type DbDashboardVersion = {
@@ -56,7 +57,7 @@ type DbDashboardTileChart = {
 export type DashboardTable = Knex.CompositeTableType<
     DbDashboard,
     Pick<DbDashboard, 'name' | 'description' | 'space_id'>,
-    Pick<DbDashboard, 'name' | 'description'>
+    Pick<DbDashboard, 'name' | 'description' | 'is_pinned'>
 >;
 
 export type DashboardVersionTable = Knex.CompositeTableType<
