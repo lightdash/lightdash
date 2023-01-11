@@ -1,3 +1,10 @@
+## [0.365.1](https://github.com/lightdash/lightdash/compare/0.365.0...0.365.1) (2023-01-11)
+
+
+### Bug Fixes
+
+* explore from here navigation ([#4138](https://github.com/lightdash/lightdash/issues/4138)) ([d9872a7](https://github.com/lightdash/lightdash/commit/d9872a7f2c37cb3d1560eaaf53abcd1fac4838a1))
+
 # [0.365.0](https://github.com/lightdash/lightdash/compare/0.364.1...0.365.0) (2023-01-11)
 
 
