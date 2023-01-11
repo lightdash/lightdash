@@ -85,6 +85,10 @@ import {
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
 import { ShareTable, ShareTableName } from '../database/entities/share';
 import {
+    DbSlackAuthTokens,
+    SlackAuthTokensTable,
+} from '../database/entities/slackAuthentication';
+import {
     SpaceShareTable,
     SpaceShareTableName,
     SpaceTable,
@@ -133,5 +137,6 @@ declare module 'knex/types/tables' {
         [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
         [SpaceShareTableName]: SpaceShareTable;
+        [SlackAuthTokensTable]: DbSlackAuthTokens;
     }
 }

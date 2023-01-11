@@ -31,9 +31,15 @@ slackRouter.get(
                 await slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     organizationUuid,
                 );
+            if (slackAuth === undefined) {
+                res.status(404).send(
+                    `Could not find an installation for organizationUuid ${organizationUuid}`,
+                );
+                return;
+            }
             const response: SlackSettings = {
                 organizationUuid,
-                slackTeamName: slackAuth.installation?.team?.name || 'Slack',
+                slackTeamName: slackAuth.slackTeamName,
                 createdAt: slackAuth.createdAt,
             };
             res.json({
