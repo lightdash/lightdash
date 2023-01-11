@@ -1,3 +1,10 @@
+# [0.365.0](https://github.com/lightdash/lightdash/compare/0.364.1...0.365.0) (2023-01-11)
+
+
+### Features
+
+* throw error for wrong reference in show_underlying_values ([#4124](https://github.com/lightdash/lightdash/issues/4124)) ([6d5ab06](https://github.com/lightdash/lightdash/commit/6d5ab06f9a8d53055727efbbff6de17aee286469))
+
 ## [0.364.1](https://github.com/lightdash/lightdash/compare/0.364.0...0.364.1) (2023-01-10)
 
 
