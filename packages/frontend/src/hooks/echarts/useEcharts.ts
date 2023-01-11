@@ -262,6 +262,13 @@ const getMinAndMaxReferenceLines = (
     series: Series[] | undefined,
 ) => {
     if (resultsData === undefined || series === undefined) return {};
+    // Skip method if there are no reference lines
+    const hasReferenceLines =
+        series.find((serie) => {
+            const data = serie.markLine?.data;
+            return data !== undefined && data.length > 0;
+        }) !== undefined;
+    if (hasReferenceLines) return {};
 
     const getMinAndMaxValues = (axis: string | undefined): number[] => {
         if (!axis) return [];
