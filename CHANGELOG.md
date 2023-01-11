@@ -1,3 +1,10 @@
+## [0.366.2](https://github.com/lightdash/lightdash/compare/0.366.1...0.366.2) (2023-01-11)
+
+
+### Bug Fixes
+
+* date range input wrapper styles ([#4148](https://github.com/lightdash/lightdash/issues/4148)) ([95eca23](https://github.com/lightdash/lightdash/commit/95eca236edebb86cc2ae0da640371507b578a0a4))
+
 ## [0.366.1](https://github.com/lightdash/lightdash/compare/0.366.0...0.366.1) (2023-01-11)
 
 
