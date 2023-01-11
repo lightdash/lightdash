@@ -80,7 +80,7 @@ Sentry.init({
             app,
         }),
     ],
-    ignoreErrors: ['WarehouseQueryError'],
+    ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
     tracesSampler,
     beforeBreadcrumb(breadcrumb) {
         if (
