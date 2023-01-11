@@ -90,11 +90,12 @@ describe('CLI', () => {
                     PGDATABASE: 'postgres',
                 },
             },
-        )
-            .its('code')
-            .should('eq', 1)
-            .its('stderr')
-            .should('contain', 'Failed to compile project. Found 1 error');
+        ).then((result) => {
+            expect(result.code).to.eq(1);
+            expect(result.stderr).to.contain(
+                'Failed to compile project. Found 1 error',
+            );
+        });
     });
 
     it('Should lightdash login with token', () => {
