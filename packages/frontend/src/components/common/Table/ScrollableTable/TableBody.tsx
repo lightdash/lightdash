@@ -1,5 +1,5 @@
 import {
-    getItemId,
+    getConditionalFormattingConfig,
     hasMatchingConditionalRules,
     isNumericItem,
     ResultRow,
@@ -27,43 +27,36 @@ const TableBody: FC = () => {
                 <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => {
                         const meta = cell.column.columnDef.meta;
-                        const cellValue = cell.getValue() as ResultRow[0];
+                        const field = meta?.item;
+                        const cellValue = cell.getValue() as
+                            | ResultRow[0]
+                            | undefined;
 
-                        const fieldConditionalFormattings =
-                            conditionalFormattings?.find((config) => {
-                                if (!cellValue) return false;
-                                return config.target?.fieldId
-                                    ? config.target?.fieldId ===
-                                          (meta?.item
-                                              ? getItemId(meta.item)
-                                              : undefined)
-                                    : true;
-                            });
+                        const fieldConditionalConfig =
+                            cellValue &&
+                            getConditionalFormattingConfig(
+                                conditionalFormattings,
+                                field,
+                            );
 
-                        console.log(fieldConditionalFormattings?.color);
-
-                        const cellHasFormatting =
-                            fieldConditionalFormattings?.rules &&
-                            fieldConditionalFormattings.rules.length > 0
-                                ? hasMatchingConditionalRules(
-                                      cellValue.value.raw as number,
-                                      fieldConditionalFormattings.rules,
-                                  )
-                                : false;
+                        const cellHasFormatting = hasMatchingConditionalRules(
+                            cellValue?.value.raw as number,
+                            fieldConditionalConfig,
+                        );
 
                         return (
                             <BodyCell
                                 style={meta?.style}
                                 backgroundColor={
                                     cellHasFormatting
-                                        ? fieldConditionalFormattings?.color
+                                        ? fieldConditionalConfig?.color
                                         : undefined
                                 }
                                 fontColor={
                                     cellHasFormatting &&
-                                    fieldConditionalFormattings?.color &&
+                                    fieldConditionalConfig?.color &&
                                     readableColor(
-                                        fieldConditionalFormattings.color,
+                                        fieldConditionalConfig.color,
                                     ) === 'white'
                                         ? 'white'
                                         : undefined

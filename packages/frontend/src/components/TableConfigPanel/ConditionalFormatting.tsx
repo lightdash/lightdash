@@ -4,9 +4,9 @@ import {
     CompiledField,
     ConditionalFormattingConfig,
     ConditionalFormattingRule,
+    ConditionalOperator,
     createConditionalFormatingRule,
     fieldId,
-    FilterOperator,
     FilterType,
     getItemId,
     getVisibleFields,
@@ -19,7 +19,6 @@ import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { Icon } from '../Mobile/Mobile.styles';
 import {
     ConditionalFormattingWrapper,
     StyledCloseButton,
@@ -56,7 +55,7 @@ const ConditionalFormatting: FC = () => {
     const handleAddEmptyConditionalFormatting = () => {
         setConfig({
             target: null,
-            color: '#BBAAFF',
+            color: '',
             rules: [createConditionalFormatingRule()],
         });
     };
@@ -74,7 +73,9 @@ const ConditionalFormatting: FC = () => {
         });
     };
 
-    const handleChangeFilterOperator = (newOperator: FilterOperator) => {
+    const handleChangeConditionalOperator = (
+        newOperator: ConditionalOperator,
+    ) => {
         if (!config) return;
 
         setConfig(
@@ -179,8 +180,9 @@ const ConditionalFormatting: FC = () => {
                                 <HTMLSelect
                                     fill
                                     onChange={(e) =>
-                                        handleChangeFilterOperator(
-                                            e.target.value as FilterOperator,
+                                        handleChangeConditionalOperator(
+                                            e.target
+                                                .value as ConditionalOperator,
                                         )
                                     }
                                     options={filterConfig.operatorOptions}
