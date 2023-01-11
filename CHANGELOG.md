@@ -1,3 +1,10 @@
+# [0.366.0](https://github.com/lightdash/lightdash/compare/0.365.1...0.366.0) (2023-01-11)
+
+
+### Features
+
+* `is between` date filter ([#4134](https://github.com/lightdash/lightdash/issues/4134)) ([6185c5f](https://github.com/lightdash/lightdash/commit/6185c5f1a7506049b4a435ee1ab5f98e0f867501))
+
 ## [0.365.1](https://github.com/lightdash/lightdash/compare/0.365.0...0.365.1) (2023-01-11)
 
 
