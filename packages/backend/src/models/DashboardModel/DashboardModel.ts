@@ -45,7 +45,7 @@ import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
-    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
+    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description' | 'is_pinned'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
@@ -54,7 +54,7 @@ export type GetDashboardQuery = Pick<
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
-    'dashboard_uuid' | 'name' | 'description'
+    'dashboard_uuid' | 'name' | 'description' | 'is_pinned'
 > &
     Pick<DashboardVersionTable['base'], 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
@@ -297,6 +297,7 @@ export class DashboardModel {
                 last_name,
                 organization_uuid,
                 space_uuid,
+                is_pinned,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -310,6 +311,7 @@ export class DashboardModel {
                     lastName: last_name,
                 },
                 spaceUuid: space_uuid,
+                isPinned: is_pinned,
             }),
         );
     }
@@ -466,6 +468,7 @@ export class DashboardModel {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
+            isPinned: dashboard.is_pinned,
             tiles: tiles.map(
                 ({
                     type,
@@ -591,6 +594,7 @@ export class DashboardModel {
             .update({
                 name: dashboard.name,
                 description: dashboard.description,
+                is_pinned: dashboard.isPinned,
                 ...withSpaceId,
             })
             .where('dashboard_uuid', dashboardUuid);
@@ -617,6 +621,7 @@ export class DashboardModel {
                             .update({
                                 name: dashboard.name,
                                 description: dashboard.description,
+                                is_pinned: dashboard.isPinned,
                                 ...withSpaceId,
                             })
                             .where('dashboard_uuid', dashboard.uuid);

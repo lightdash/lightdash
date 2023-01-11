@@ -8,6 +8,7 @@ export enum ChartType {
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
+
 export type BigNumber = {
     label?: string;
     style?: CompactOrAlias;
@@ -199,6 +200,7 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
+    is_pinned: boolean;
 };
 
 export type CreateSavedChart = Omit<
@@ -224,7 +226,7 @@ export type CreateSavedChartVersion = Omit<
 
 export type UpdateSavedChart = Pick<
     SavedChart,
-    'name' | 'description' | 'spaceUuid'
+    'name' | 'description' | 'spaceUuid' | 'is_pinned'
 >;
 
 export type UpdateMultipleSavedChart = Pick<
