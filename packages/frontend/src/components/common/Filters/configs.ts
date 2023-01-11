@@ -149,6 +149,11 @@ export const getFilterRuleLabel = (
                 }${filterRule.settings.unitOfTime}`;
             } else if (filterRule.operator === FilterOperator.IN_BETWEEN) {
                 valuesText = `${filterRule.values?.[0]} and ${filterRule.values?.[1]}`;
+            } else if (filterRule.operator === FilterOperator.IN_THE_CURRENT) {
+                valuesText = `${filterRule.settings.unitOfTime.substring(
+                    0,
+                    filterRule.settings.unitOfTime.length - 1,
+                )}`;
             } else {
                 valuesText = filterRule.values
                     ?.map((value) => {
