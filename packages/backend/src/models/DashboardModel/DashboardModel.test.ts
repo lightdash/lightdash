@@ -244,7 +244,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [
                     updateDashboard.name,
                     updateDashboard.description,
-                    updateDashboard.isPinned,
+                    updateDashboard.is_pinned,
                     dashboardUuid,
                 ]),
             )

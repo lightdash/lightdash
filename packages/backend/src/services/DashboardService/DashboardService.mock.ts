@@ -87,6 +87,7 @@ export const dashboard: Dashboard = {
     },
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',
+    isPinned: false,
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
@@ -98,6 +99,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         description: dashboard.description,
         updatedAt: dashboard.updatedAt,
         spaceUuid: 'spaceUuid',
+        isPinned: dashboard.isPinned,
     },
 ];
 
@@ -126,6 +128,7 @@ export const createDashboard: CreateDashboard = {
         dimensions: [],
         metrics: [],
     },
+    is_pinned: false,
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
