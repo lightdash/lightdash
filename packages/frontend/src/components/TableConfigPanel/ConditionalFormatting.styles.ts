@@ -24,12 +24,38 @@ export const ConditionalFormattingConfigWrapper = styled.div`
     }
 `;
 
-export const StyledCloseButton = styled(Button)`
-    margin-left: auto;
+export const ConditionalFormattingRuleListWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .bp4-form-group:last-child {
+        margin: 0;
+    }
 `;
 
-export const ConditionalRuleHeader = styled.div`
+export const ConditionalFormattingRuleHeader = styled.div`
     display: flex;
     gap: 6px;
     align-items: center;
+`;
+
+export const ConditionalFormattingRuleWrapper = styled.div`
+    padding: 12px 10px;
+    background-color: ${Colors.LIGHT_GRAY4};
+    border-radius: 3px;
+
+    .bp4-form-group:last-child {
+        margin: 0;
+    }
+`;
+
+export const ConditionalFormattingRuleAndLabel = styled.div`
+    font-size: 11px;
+    color: ${Colors.DARK_GRAY5};
+    font-weight: 600;
+`;
+
+export const ConditionalFormattingCloseButton = styled(Button)`
+    margin-left: auto;
 `;
