@@ -62,11 +62,8 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                         label: updateLabel ? { formatter: updateLabel } : {},
                         xAxis: undefined,
                         yAxis: undefined,
-                        [getMarkLineAxis(
-                            dirtyLayout?.xField,
-                            dirtyLayout?.flipAxes || false,
-                            fieldId,
-                        )]: updateValue,
+                        [dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis']:
+                            updateValue,
                     };
 
                     const updatedReferenceLines: ReferenceLineField[] =

@@ -526,7 +526,7 @@ const useCartesianChartConfig = ({
                 if (data !== undefined) {
                     const referenceLine = data.map((markData) => {
                         const axis =
-                            'xAxis' in markData
+                            markData.xAxis !== undefined
                                 ? serie.encode.xRef
                                 : serie.encode.yRef;
 
