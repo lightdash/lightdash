@@ -65,6 +65,7 @@ const ConditionalFormattingList = ({}) => {
             {conditionalFormattings.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
+                    index={index}
                     fields={visibleActiveNumericFields}
                     value={conditionalFormatting}
                     onChange={(newConfig) => handleOnChange(index, newConfig)}

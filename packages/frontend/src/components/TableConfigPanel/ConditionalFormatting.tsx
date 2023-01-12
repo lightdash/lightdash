@@ -1,4 +1,4 @@
-import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { Button, Collapse, FormGroup, HTMLSelect } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledField,
@@ -10,16 +10,21 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import React, { FC, useEffect, useMemo, useState } from 'react';
+import { SectionTitle } from '../ChartConfigPanel/ChartConfigPanel.styles';
 import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import {
+    ConditionalFormattingConfigWrapper,
     ConditionalFormattingWrapper,
+    ConditionalRuleHeader,
     StyledCloseButton,
 } from './ConditionalFormatting.styles';
 
 interface ConditionalFormattingProps {
+    isDefaultOpen?: boolean;
+    index: number;
     fields: CompiledField[];
     value: ConditionalFormattingConfig;
     onChange: (newConfig: ConditionalFormattingConfig) => void;
@@ -27,11 +32,14 @@ interface ConditionalFormattingProps {
 }
 
 const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
+    isDefaultOpen = true,
+    index,
     fields,
     value,
     onChange,
     onRemove,
 }) => {
+    const [isOpen, setIsOpen] = useState(isDefaultOpen);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
 
     const field = useMemo(
@@ -94,75 +102,95 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     return (
         <FiltersProvider>
             <ConditionalFormattingWrapper>
-                <Tooltip2
-                    content="Remove rule"
-                    position="left"
-                    renderTarget={({ ref, ...tooltipProps }) => (
-                        <StyledCloseButton
-                            {...tooltipProps}
-                            elementRef={ref}
-                            minimal
-                            small
-                            icon="cross"
-                            onClick={handleRemoveConditionalFormatting}
-                        />
-                    )}
-                />
-
-                <FormGroup label="Select field">
-                    <FieldAutoComplete
-                        id="numeric-field-autocomplete"
-                        fields={fields}
-                        activeField={field}
-                        onChange={handleChangeField}
-                        popoverProps={{
-                            lazy: true,
-                            matchTargetWidth: true,
-                        }}
-                        inputProps={{
-                            rightElement: field ? (
-                                <Button
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => handleChangeField(undefined)}
-                                />
-                            ) : undefined,
-                        }}
+                <ConditionalRuleHeader>
+                    <Button
+                        minimal
+                        small
+                        onClick={() => setIsOpen(!isOpen)}
+                        icon={isOpen ? 'chevron-down' : 'chevron-right'}
                     />
-                </FormGroup>
 
-                {config.rules.map((rule, index) => (
-                    <React.Fragment key={index}>
-                        <FormGroup label="Set color">
-                            <SeriesColorPicker
-                                color={config.color}
-                                onChange={(color) => handleChangeColor(color)}
+                    <SectionTitle>Rule {index + 1}</SectionTitle>
+
+                    <Tooltip2
+                        content="Remove rule"
+                        position="left"
+                        renderTarget={({ ref, ...tooltipProps }) => (
+                            <StyledCloseButton
+                                {...tooltipProps}
+                                elementRef={ref}
+                                minimal
+                                small
+                                icon="cross"
+                                onClick={handleRemoveConditionalFormatting}
+                            />
+                        )}
+                    />
+                </ConditionalRuleHeader>
+
+                <Collapse isOpen={isOpen}>
+                    <ConditionalFormattingConfigWrapper>
+                        <FormGroup label="Select field">
+                            <FieldAutoComplete
+                                id="numeric-field-autocomplete"
+                                fields={fields}
+                                activeField={field}
+                                onChange={handleChangeField}
+                                popoverProps={{
+                                    lazy: true,
+                                    matchTargetWidth: true,
+                                }}
+                                inputProps={{
+                                    rightElement: field ? (
+                                        <Button
+                                            minimal
+                                            icon="cross"
+                                            onClick={() =>
+                                                handleChangeField(undefined)
+                                            }
+                                        />
+                                    ) : undefined,
+                                }}
                             />
                         </FormGroup>
 
-                        <FormGroup label="Value">
-                            <HTMLSelect
-                                fill
-                                onChange={(e) =>
-                                    handleChangeConditionalOperator(
-                                        e.target.value as ConditionalOperator,
-                                    )
-                                }
-                                options={filterConfig.operatorOptions}
-                                value={rule.operator}
-                            />
-                        </FormGroup>
+                        {config.rules.map((rule, ruleIndex) => (
+                            <React.Fragment key={ruleIndex}>
+                                <FormGroup label="Set color">
+                                    <SeriesColorPicker
+                                        color={config.color}
+                                        onChange={(color) =>
+                                            handleChangeColor(color)
+                                        }
+                                    />
+                                </FormGroup>
 
-                        <FormGroup>
-                            <filterConfig.inputs
-                                filterType={FilterType.NUMBER}
-                                field={field ?? fields[0]}
-                                rule={rule}
-                                onChange={handleChangeRule}
-                            />
-                        </FormGroup>
-                    </React.Fragment>
-                ))}
+                                <FormGroup label="Value">
+                                    <HTMLSelect
+                                        fill
+                                        onChange={(e) =>
+                                            handleChangeConditionalOperator(
+                                                e.target
+                                                    .value as ConditionalOperator,
+                                            )
+                                        }
+                                        options={filterConfig.operatorOptions}
+                                        value={rule.operator}
+                                    />
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <filterConfig.inputs
+                                        filterType={FilterType.NUMBER}
+                                        field={field ?? fields[0]}
+                                        rule={rule}
+                                        onChange={handleChangeRule}
+                                    />
+                                </FormGroup>
+                            </React.Fragment>
+                        ))}
+                    </ConditionalFormattingConfigWrapper>
+                </Collapse>
             </ConditionalFormattingWrapper>
         </FiltersProvider>
     );

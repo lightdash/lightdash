@@ -1,8 +1,20 @@
 import { Button, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const ConditionalFormattingWrapper = styled.div`
-    position: relative;
+export const ConditionalFormattingListWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .bp4-form-group:last-child {
+        margin: 0;
+    }
+`;
+
+export const ConditionalFormattingWrapper = styled.div``;
+
+export const ConditionalFormattingConfigWrapper = styled.div`
+    margin-top: 4px;
     padding: 12px 10px;
     background-color: ${Colors.LIGHT_GRAY5};
     border-radius: 5px;
@@ -13,22 +25,11 @@ export const ConditionalFormattingWrapper = styled.div`
 `;
 
 export const StyledCloseButton = styled(Button)`
-    position: absolute;
-    top: 5px;
-    right: 5px;
-
-    min-height: 20px !important;
-    min-width: 20px !important;
-    padding: 0 4px;
-
-    svg {
-        width: 14px;
-        height: 14px;
-    }
+    margin-left: auto;
 `;
 
-export const ConditionalFormattingListWrapper = styled.div`
+export const ConditionalRuleHeader = styled.div`
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    gap: 6px;
+    align-items: center;
 `;
