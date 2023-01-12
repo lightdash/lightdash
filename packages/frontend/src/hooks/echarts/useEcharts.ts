@@ -26,6 +26,7 @@ import {
     isField,
     isPivotReferenceWithValues,
     isTimeInterval,
+    MarkLineData,
     Metric,
     MetricType,
     PivotReference,
@@ -38,7 +39,11 @@ import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
-import { ReferenceLineField } from '../../components/ChartConfigPanel/Legend/ReferenceLines';
+import {
+    getEchartMarkLine,
+    getMarkLineAxis,
+    ReferenceLineField,
+} from '../../components/common/ReferenceLine';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
 import usePlottedData from '../plottedData/usePlottedData';
@@ -869,52 +874,45 @@ const applyReferenceLines = (
 ): EChartSeries[] => {
     let appliedReferenceLines: string[] = []; // Don't apply the same reference line to multiple series
     return series.map((serie) => {
-        const referenceLineForSerie = referenceLines.filter((referenceLine) => {
-            if (referenceLine.fieldId === undefined) return false;
-            if (appliedReferenceLines.includes(referenceLine.fieldId))
-                return false;
-            return (
-                referenceLine.fieldId === serie.encode?.x ||
-                referenceLine.fieldId === serie.encode?.y ||
-                referenceLine.fieldId === serie.pivotReference?.field
-            );
-        });
+        const referenceLinesForSerie = referenceLines.filter(
+            (referenceLine) => {
+                if (referenceLine.fieldId === undefined) return false;
+                if (appliedReferenceLines.includes(referenceLine.fieldId))
+                    return false;
+                return (
+                    referenceLine.fieldId === serie.encode?.x ||
+                    referenceLine.fieldId === serie.encode?.y ||
+                    referenceLine.fieldId === serie.pivotReference?.field
+                );
+            },
+        );
 
-        if (referenceLineForSerie.length === 0) return serie;
-        const markLineData = referenceLineForSerie.map((line) => {
-            if (line.fieldId === undefined) return {};
-            const value = line.data.xAxis || line.data.yAxis;
-            appliedReferenceLines.push(line.fieldId);
-            const reverseFlippedAxis = (defaultAxis: string) => {
-                if (dirtyLayout?.flipAxes === true)
-                    return defaultAxis === 'xAxis' ? 'yAxis' : 'xAxis';
-                return defaultAxis;
-            };
-            const axis = {
-                xAxis: undefined,
-                yAxis: undefined,
-                [reverseFlippedAxis(
-                    dirtyLayout?.xField === line.fieldId ? 'xAxis' : 'yAxis',
-                )]: value,
-            };
+        if (referenceLinesForSerie.length === 0) return serie;
+        const markLineData: MarkLineData[] = referenceLinesForSerie.map(
+            (line) => {
+                if (line.fieldId === undefined) return line.data;
+                const value = line.data.xAxis || line.data.yAxis;
+                if (value === undefined) return line.data;
+                appliedReferenceLines.push(line.fieldId);
 
-            return {
-                ...line.data,
-                ...axis,
-            };
-        });
+                const axis = getMarkLineAxis(
+                    dirtyLayout?.xField,
+                    dirtyLayout?.flipAxes || false,
+                    line.fieldId,
+                );
+
+                return {
+                    ...line.data,
+                    xAxis: undefined,
+                    yAxis: undefined,
+                    [axis]: value,
+                };
+            },
+        );
 
         return {
             ...serie,
-            markLine: {
-                symbol: 'none',
-                lineStyle: {
-                    color: '#000',
-                    width: 3,
-                    type: 'solid',
-                },
-                data: markLineData,
-            },
+            markLine: getEchartMarkLine(markLineData),
         };
     });
 };
@@ -998,18 +996,12 @@ const useEcharts = () => {
             return [];
         }
 
-        const echartSeries = getEchartsSeries(
+        return getEchartsSeries(
             items,
             originalData,
             validCartesianConfig,
             pivotDimensions,
             formats,
-        );
-
-        return applyReferenceLines(
-            echartSeries,
-            context.cartesianConfig.dirtyLayout,
-            referenceLines,
         );
     }, [
         explore,

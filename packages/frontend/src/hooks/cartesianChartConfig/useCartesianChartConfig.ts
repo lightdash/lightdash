@@ -4,6 +4,7 @@ import {
     CartesianSeriesType,
     ChartType,
     CompiledDimension,
+    CompleteCartesianChartLayout,
     EchartsGrid,
     EchartsLegend,
     Explore,
@@ -20,6 +21,11 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ReferenceLineField } from '../../components/ChartConfigPanel/Legend/ReferenceLines';
 import {
+    getEchartMarkLine,
+    getMarkLineAxis,
+} from '../../components/common/ReferenceLine';
+import { EChartSeries } from '../echarts/useEcharts';
+import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
     sortDimensions,
@@ -35,6 +41,55 @@ type Args = {
     >;
     columnOrder: string[];
     explore: Explore | undefined;
+};
+
+const applyReferenceLines = (
+    series: Series[],
+    dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
+    referenceLines: ReferenceLineField[],
+): Series[] => {
+    let appliedReferenceLines: string[] = []; // Don't apply the same reference line to multiple series
+    return series.map((serie) => {
+        const referenceLinesForSerie = referenceLines.filter(
+            (referenceLine) => {
+                if (referenceLine.fieldId === undefined) return false;
+                if (appliedReferenceLines.includes(referenceLine.fieldId))
+                    return false;
+                return (
+                    referenceLine.fieldId === serie.encode?.xRef.field ||
+                    referenceLine.fieldId === serie.encode?.yRef.field
+                );
+            },
+        );
+
+        if (referenceLinesForSerie.length === 0) return serie;
+        const markLineData: MarkLineData[] = referenceLinesForSerie.map(
+            (line) => {
+                if (line.fieldId === undefined) return line.data;
+                const value = line.data.xAxis || line.data.yAxis;
+                if (value === undefined) return line.data;
+                appliedReferenceLines.push(line.fieldId);
+
+                const axis = getMarkLineAxis(
+                    dirtyLayout?.xField,
+                    dirtyLayout?.flipAxes || false,
+                    line.fieldId,
+                );
+
+                return {
+                    ...line.data,
+                    xAxis: undefined,
+                    yAxis: undefined,
+                    [axis]: value,
+                };
+            },
+        );
+
+        return {
+            ...serie,
+            markLine: getEchartMarkLine(markLineData),
+        };
+    });
 };
 
 const useCartesianChartConfig = ({
@@ -462,6 +517,39 @@ const useCartesianChartConfig = ({
         setType,
     ]);
 
+    const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
+        if (dirtyEchartsConfig?.series === undefined) return [];
+        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
+            (acc, serie) => {
+                const data = serie.markLine?.data;
+                if (data !== undefined) {
+                    const referenceLine = data.map((markData) => {
+                        const axis =
+                            'xAxis' in markData
+                                ? serie.encode.xRef
+                                : serie.encode.yRef;
+
+                        return {
+                            fieldId: axis.field,
+                            data: {
+                                label: serie.markLine?.label,
+                                lineStyle: serie.markLine?.lineStyle,
+                                ...markData,
+                            },
+                        };
+                    });
+
+                    return [...acc, ...referenceLine];
+                }
+                return acc;
+            },
+            [],
+        );
+    }, [dirtyEchartsConfig?.series]);
+
+    const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
+        selectedReferenceLines,
+    );
     // Generate expected series
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData) {
@@ -486,13 +574,27 @@ const useCartesianChartConfig = ({
                     expectedSeriesMap,
                     existingSeries: prev?.series || [],
                 });
+
+                const seriesWithReferenceLines = applyReferenceLines(
+                    newSeries,
+                    dirtyLayout,
+                    referenceLines,
+                );
+
                 return {
                     ...prev,
-                    series: newSeries,
+                    series: seriesWithReferenceLines,
                 };
             });
         }
-    }, [dirtyLayout, pivotKeys, resultsData, availableDimensions, isStacked]);
+    }, [
+        dirtyLayout,
+        pivotKeys,
+        resultsData,
+        availableDimensions,
+        isStacked,
+        referenceLines,
+    ]);
 
     const validCartesianConfig: CartesianChart | undefined = useMemo(
         () =>
@@ -518,35 +620,6 @@ const useCartesianChartConfig = ({
                     : firstSeriesType,
         };
     }, [dirtyEchartsConfig]);
-
-    const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
-        if (dirtyEchartsConfig?.series === undefined) return [];
-        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
-            (acc, serie) => {
-                const data = serie.markLine?.data;
-                if (data !== undefined) {
-                    const fullData = data.map((markData) => {
-                        return {
-                            fieldId: '',
-                            data: {
-                                label: serie.markLine?.label,
-                                lineStyle: serie.markLine?.lineStyle,
-                                ...markData,
-                            },
-                        };
-                    });
-
-                    return [...acc, ...fullData];
-                }
-                return acc;
-            },
-            [],
-        );
-    }, [dirtyEchartsConfig?.series]);
-
-    const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
-        selectedReferenceLines,
-    );
 
     return {
         validCartesianConfig,

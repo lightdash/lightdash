@@ -4,12 +4,15 @@ import {
     Field,
     fieldId as getFieldId,
     isField,
-    MarkLineData,
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    getMarkLineAxis,
+    ReferenceLineField,
+} from '../../common/ReferenceLine';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionTitle } from '../ChartConfigPanel.styles';
 import { ReferenceLine } from './ReferenceLine';
@@ -18,10 +21,6 @@ type Props = {
     items: (Field | TableCalculation | CompiledDimension)[];
 };
 
-export type ReferenceLineField = {
-    fieldId?: string;
-    data: MarkLineData;
-};
 export const ReferenceLines: FC<Props> = ({ items }) => {
     const {
         cartesianConfig: {
@@ -47,26 +46,38 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                     ? getFieldId(updateField)
                     : updateField.name;
 
-                const axes = {
-                    [dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis']:
-                        updateValue,
-                };
+                if (dirtyEchartsConfig?.series) {
+                    const selectedSeries = dirtyEchartsConfig?.series.find(
+                        (serie: Series) =>
+                            (dirtyLayout?.xField === fieldId
+                                ? serie.encode.xRef
+                                : serie.encode.yRef
+                            ).field === fieldId,
+                    );
+                    if (selectedSeries === undefined) return;
 
-                const newData: MarkLineData = {
-                    ...axes,
-                    name: lineId,
-                    lineStyle: { color: updateColor },
-                    label: updateLabel ? { formatter: updateLabel } : {},
-                };
+                    const dataWithAxis = {
+                        name: lineId,
+                        lineStyle: { color: updateColor },
+                        label: updateLabel ? { formatter: updateLabel } : {},
+                        xAxis: undefined,
+                        yAxis: undefined,
+                        [getMarkLineAxis(
+                            dirtyLayout?.xField,
+                            dirtyLayout?.flipAxes || false,
+                            fieldId,
+                        )]: updateValue,
+                    };
 
-                const updatedReferenceLines: ReferenceLineField[] =
-                    referenceLines.map((line) => {
-                        if (line.data.name === lineId)
-                            return { fieldId: fieldId, data: newData };
-                        else return line;
-                    });
+                    const updatedReferenceLines: ReferenceLineField[] =
+                        referenceLines.map((line) => {
+                            if (line.data.name === lineId)
+                                return { fieldId: fieldId, data: dataWithAxis };
+                            else return line;
+                        });
 
-                setReferenceLines(updatedReferenceLines);
+                    setReferenceLines(updatedReferenceLines);
+                }
             }
         },
         [
