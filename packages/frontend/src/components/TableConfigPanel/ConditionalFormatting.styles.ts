@@ -26,3 +26,9 @@ export const StyledCloseButton = styled(Button)`
         height: 14px;
     }
 `;
+
+export const ConditionalFormattingListWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+`;

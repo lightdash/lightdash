@@ -5,63 +5,42 @@ import {
     ConditionalFormattingConfig,
     ConditionalFormattingRule,
     ConditionalOperator,
-    createConditionalFormatingRule,
-    fieldId,
     FilterType,
     getItemId,
-    getVisibleFields,
 } from '@lightdash/common';
 import produce from 'immer';
 import React, { FC, useEffect, useMemo, useState } from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
 import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import {
     ConditionalFormattingWrapper,
     StyledCloseButton,
 } from './ConditionalFormatting.styles';
 
-const ConditionalFormatting: FC = () => {
-    const {
-        explore,
-        tableConfig: { conditionalFormattings, onSetConditionalFormattings },
-    } = useVisualizationContext();
+interface ConditionalFormattingProps {
+    fields: CompiledField[];
+    value: ConditionalFormattingConfig;
+    onChange: (newConfig: ConditionalFormattingConfig) => void;
+    onRemove: () => void;
+}
 
-    const activeFields = useExplorerContext((c) => c.state.activeFields);
-    const visibleActiveNumericFields = useMemo(() => {
-        return explore
-            ? getVisibleFields(explore)
-                  .filter((field) => activeFields.has(fieldId(field)))
-                  .filter((field) => field.type === 'number')
-            : [];
-    }, [explore, activeFields]);
+const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
+    fields,
+    value,
+    onChange,
+    onRemove,
+}) => {
+    const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
 
-    const conditionalFormatting = conditionalFormattings[0];
     const field = useMemo(
-        () =>
-            visibleActiveNumericFields.find(
-                (f) => getItemId(f) === conditionalFormatting?.target?.fieldId,
-            ),
-        [conditionalFormatting, visibleActiveNumericFields],
+        () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
+        [fields, config],
     );
-
-    const [config, setConfig] = useState<ConditionalFormattingConfig | null>(
-        conditionalFormatting,
-    );
-
-    const handleAddEmptyConditionalFormatting = () => {
-        setConfig({
-            target: null,
-            color: '',
-            rules: [createConditionalFormatingRule()],
-        });
-    };
 
     const handleRemoveConditionalFormatting = () => {
-        setConfig(null);
+        onRemove();
     };
 
     const handleChangeField = (newField: CompiledField | undefined) => {
@@ -107,103 +86,85 @@ const ConditionalFormatting: FC = () => {
     };
 
     useEffect(() => {
-        onSetConditionalFormattings(config ? [config] : []);
-    }, [config, onSetConditionalFormattings]);
+        onChange(config);
+    }, [config, onChange]);
 
     // conditional formatting only supports number fields for now
     const filterConfig = FilterTypeConfig[FilterType.NUMBER];
 
     return (
         <FiltersProvider>
-            {!config ? (
-                <FormGroup>
-                    <Button
-                        icon="plus"
-                        onClick={handleAddEmptyConditionalFormatting}
-                    >
-                        Add new rule
-                    </Button>
-                </FormGroup>
-            ) : (
-                <ConditionalFormattingWrapper>
-                    <Tooltip2
-                        content="Remove rule"
-                        position="left"
-                        renderTarget={({ ref, ...tooltipProps }) => (
-                            <StyledCloseButton
-                                {...tooltipProps}
-                                elementRef={ref}
-                                minimal
-                                small
-                                icon="cross"
-                                onClick={handleRemoveConditionalFormatting}
-                            />
-                        )}
-                    />
-
-                    <FormGroup label="Select field">
-                        <FieldAutoComplete
-                            id="numeric-field-autocomplete"
-                            fields={visibleActiveNumericFields}
-                            activeField={field}
-                            onChange={handleChangeField}
-                            popoverProps={{
-                                lazy: true,
-                                matchTargetWidth: true,
-                            }}
-                            inputProps={{
-                                rightElement: field ? (
-                                    <Button
-                                        minimal
-                                        icon="cross"
-                                        onClick={() =>
-                                            handleChangeField(undefined)
-                                        }
-                                    />
-                                ) : undefined,
-                            }}
+            <ConditionalFormattingWrapper>
+                <Tooltip2
+                    content="Remove rule"
+                    position="left"
+                    renderTarget={({ ref, ...tooltipProps }) => (
+                        <StyledCloseButton
+                            {...tooltipProps}
+                            elementRef={ref}
+                            minimal
+                            small
+                            icon="cross"
+                            onClick={handleRemoveConditionalFormatting}
                         />
-                    </FormGroup>
+                    )}
+                />
 
-                    {config.rules.map((rule, index) => (
-                        <React.Fragment key={index}>
-                            <FormGroup label="Set color">
-                                <SeriesColorPicker
-                                    color={config.color}
-                                    onChange={(color) =>
-                                        handleChangeColor(color)
-                                    }
+                <FormGroup label="Select field">
+                    <FieldAutoComplete
+                        id="numeric-field-autocomplete"
+                        fields={fields}
+                        activeField={field}
+                        onChange={handleChangeField}
+                        popoverProps={{
+                            lazy: true,
+                            matchTargetWidth: true,
+                        }}
+                        inputProps={{
+                            rightElement: field ? (
+                                <Button
+                                    minimal
+                                    icon="cross"
+                                    onClick={() => handleChangeField(undefined)}
                                 />
-                            </FormGroup>
+                            ) : undefined,
+                        }}
+                    />
+                </FormGroup>
 
-                            <FormGroup label="Value">
-                                <HTMLSelect
-                                    fill
-                                    onChange={(e) =>
-                                        handleChangeConditionalOperator(
-                                            e.target
-                                                .value as ConditionalOperator,
-                                        )
-                                    }
-                                    options={filterConfig.operatorOptions}
-                                    value={rule.operator}
-                                />
-                            </FormGroup>
+                {config.rules.map((rule, index) => (
+                    <React.Fragment key={index}>
+                        <FormGroup label="Set color">
+                            <SeriesColorPicker
+                                color={config.color}
+                                onChange={(color) => handleChangeColor(color)}
+                            />
+                        </FormGroup>
 
-                            <FormGroup>
-                                <filterConfig.inputs
-                                    filterType={FilterType.NUMBER}
-                                    field={
-                                        field ?? visibleActiveNumericFields[0]
-                                    }
-                                    rule={rule}
-                                    onChange={handleChangeRule}
-                                />
-                            </FormGroup>
-                        </React.Fragment>
-                    ))}
-                </ConditionalFormattingWrapper>
-            )}
+                        <FormGroup label="Value">
+                            <HTMLSelect
+                                fill
+                                onChange={(e) =>
+                                    handleChangeConditionalOperator(
+                                        e.target.value as ConditionalOperator,
+                                    )
+                                }
+                                options={filterConfig.operatorOptions}
+                                value={rule.operator}
+                            />
+                        </FormGroup>
+
+                        <FormGroup>
+                            <filterConfig.inputs
+                                filterType={FilterType.NUMBER}
+                                field={field ?? fields[0]}
+                                rule={rule}
+                                onChange={handleChangeRule}
+                            />
+                        </FormGroup>
+                    </React.Fragment>
+                ))}
+            </ConditionalFormattingWrapper>
         </FiltersProvider>
     );
 };
