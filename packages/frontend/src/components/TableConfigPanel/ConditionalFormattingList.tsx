@@ -64,7 +64,7 @@ const ConditionalFormattingList = ({}) => {
         [onSetConditionalFormattings, activeConfigs],
     );
 
-    const handleOnChange = useCallback(
+    const handleChange = useCallback(
         (index, newConfig) =>
             onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
@@ -89,7 +89,7 @@ const ConditionalFormattingList = ({}) => {
                     fields={visibleActiveNumericFields}
                     usedFieldIds={usedFieldIds}
                     value={conditionalFormatting}
-                    onChange={(newConfig) => handleOnChange(index, newConfig)}
+                    onChange={(newConfig) => handleChange(index, newConfig)}
                     onRemove={() => handleRemove(index)}
                 />
             ))}
