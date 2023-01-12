@@ -940,13 +940,16 @@ const useEcharts = () => {
             return [];
         }
 
-        return getEchartsSeries(
+        const echarSeries = getEchartsSeries(
             items,
             originalData,
             validCartesianConfig,
             pivotDimensions,
             formats,
         );
+
+        //TODO add reference lines
+        return echarSeries;
     }, [
         explore,
         validCartesianConfig,
@@ -975,6 +978,7 @@ const useEcharts = () => {
             ...serie,
             stack: getValidStack(serie),
         }));
+
         return [
             ...seriesWithValidStack,
             ...getStackTotalSeries(

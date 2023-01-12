@@ -29,37 +29,10 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             dirtyEchartsConfig,
             updateSeries,
             updateSingleSeries,
+            referenceLines,
+            setReferenceLines,
         },
     } = useVisualizationContext();
-
-    const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
-        if (dirtyEchartsConfig?.series === undefined) return [];
-        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
-            (acc, serie) => {
-                const data = serie.markLine?.data;
-                if (data !== undefined) {
-                    const fullData = data.map((markData) => {
-                        return {
-                            fieldId: '',
-                            data: {
-                                label: serie.markLine?.label,
-                                lineStyle: serie.markLine?.lineStyle,
-                                ...markData,
-                            },
-                        };
-                    });
-
-                    return [...acc, ...fullData];
-                }
-                return acc;
-            },
-            [],
-        );
-    }, [dirtyEchartsConfig?.series]);
-
-    const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
-        selectedReferenceLines,
-    );
 
     const updateReferenceLine = useCallback(
         (

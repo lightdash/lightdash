@@ -57,7 +57,7 @@ export const ReferenceLine: FC<Props> = ({
     }, [items, dirtyLayout]);
 
     const markLineKey = useMemo(() => {
-        return 'xAxis' in referenceLine ? 'xAxis' : 'yAxis';
+        return 'xAxis' in referenceLine.data ? 'xAxis' : 'yAxis';
     }, [referenceLine]);
 
     const [value, setValue] = useState<string | undefined>(

@@ -3,15 +3,22 @@ import {
     CartesianChart,
     CartesianSeriesType,
     ChartType,
+    CompiledDimension,
     EchartsGrid,
     EchartsLegend,
     Explore,
+    Field,
+    fieldId as getFieldId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
+    isField,
+    MarkLineData,
     Series,
+    TableCalculation,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ReferenceLineField } from '../../components/ChartConfigPanel/Legend/ReferenceLines';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -512,6 +519,35 @@ const useCartesianChartConfig = ({
         };
     }, [dirtyEchartsConfig]);
 
+    const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
+        if (dirtyEchartsConfig?.series === undefined) return [];
+        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
+            (acc, serie) => {
+                const data = serie.markLine?.data;
+                if (data !== undefined) {
+                    const fullData = data.map((markData) => {
+                        return {
+                            fieldId: '',
+                            data: {
+                                label: serie.markLine?.label,
+                                lineStyle: serie.markLine?.lineStyle,
+                                ...markData,
+                            },
+                        };
+                    });
+
+                    return [...acc, ...fullData];
+                }
+                return acc;
+            },
+            [],
+        );
+    }, [dirtyEchartsConfig?.series]);
+
+    const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
+        selectedReferenceLines,
+    );
+
     return {
         validCartesianConfig,
         dirtyChartType,
@@ -537,6 +573,8 @@ const useCartesianChartConfig = ({
         setShowGridY,
         setInverseX,
         updateSeries,
+        referenceLines,
+        setReferenceLines,
     };
 };
 
