@@ -1,3 +1,10 @@
+# [0.368.0](https://github.com/lightdash/lightdash/compare/0.367.0...0.368.0) (2023-01-12)
+
+
+### Features
+
+* conditional formatting ([#4087](https://github.com/lightdash/lightdash/issues/4087)) ([b2bceae](https://github.com/lightdash/lightdash/commit/b2bceaea67fe6992fbac2f8e8b3a009e09e13b22))
+
 # [0.367.0](https://github.com/lightdash/lightdash/compare/0.366.2...0.367.0) (2023-01-11)
 
 
