@@ -18,10 +18,6 @@ type Props = {
     items: (Field | TableCalculation | CompiledDimension)[];
 };
 
-export type ReferenceLineField = {
-    fieldId?: string;
-    data: MarkLineData;
-};
 export const ReferenceLines: FC<Props> = ({ items }) => {
     const {
         cartesianConfig: {
@@ -32,20 +28,17 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
     } = useVisualizationContext();
 
-    const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
+    const selectedReferenceLines: MarkLineData[] = useMemo(() => {
         if (dirtyEchartsConfig?.series === undefined) return [];
-        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
+        return dirtyEchartsConfig.series.reduce<MarkLineData[]>(
             (acc, serie) => {
                 const data = serie.markLine?.data;
                 if (data !== undefined) {
                     const fullData = data.map((markData) => {
                         return {
-                            fieldId: '',
-                            data: {
-                                label: serie.markLine?.label,
-                                lineStyle: serie.markLine?.lineStyle,
-                                ...markData,
-                            },
+                            label: serie.markLine?.label,
+                            lineStyle: serie.markLine?.lineStyle,
+                            ...markData,
                         };
                     });
 
@@ -57,7 +50,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         );
     }, [dirtyEchartsConfig?.series]);
 
-    const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
+    const [referenceLines, setReferenceLines] = useState<MarkLineData[]>(
         selectedReferenceLines,
     );
 
@@ -124,10 +117,9 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                             data: updatedData,
                         },
                     };
-                    const updatedReferenceLines: ReferenceLineField[] =
+                    const updatedReferenceLines: MarkLineData[] =
                         referenceLines.map((line) => {
-                            if (line.data.name === lineId)
-                                return { fieldId: fieldId, data: newData };
+                            if (line.name === lineId) return newData;
                             else return line;
                         });
 
@@ -143,12 +135,9 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             referenceLines,
         ],
     );
-
     const addReferenceLine = useCallback(() => {
-        const newReferenceLine: ReferenceLineField = {
-            data: {
-                name: uuidv4(),
-            },
+        const newReferenceLine: MarkLineData = {
+            name: uuidv4(),
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
     }, [referenceLines]);
@@ -172,7 +161,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             updateSeries(series);
 
             setReferenceLines(
-                referenceLines.filter((line) => line.data.name !== markLineId),
+                referenceLines.filter((line) => line.name !== markLineId),
             );
         },
         [updateSeries, dirtyEchartsConfig?.series, referenceLines],
@@ -185,7 +174,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 referenceLines.map((line, index) => {
                     return (
                         <ReferenceLine
-                            key={line.data.name}
+                            key={line.name}
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}
