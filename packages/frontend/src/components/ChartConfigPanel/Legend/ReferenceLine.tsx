@@ -24,11 +24,12 @@ import { useVisualizationContext } from '../../LightdashVisualization/Visualizat
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { GridSettings, SectionTitle } from './Legend.styles';
 import { CollapseWrapper, DeleteButtonTooltip } from './ReferenceLine.styles';
+import { ReferenceLineField } from './ReferenceLines';
 
 type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension)[];
-    referenceLine: MarkLineData;
+    referenceLine: ReferenceLineField;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension,
@@ -71,21 +72,23 @@ export const ReferenceLine: FC<Props> = ({
         selectedMarklineLabel,
         selectedColor,
     ] = useMemo(() => {
-        const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
+        /*const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
             (serie) =>
                 serie.markLine?.data.find(
-                    (data) => data.name === referenceLine.name,
+                    (data) => data.name === referenceLine.data.name,
                 ) !== undefined,
         );
 
-        const markLineKey = 'xAxis' in referenceLine ? 'xAxis' : 'yAxis';
-        const markLineValue = referenceLine[markLineKey];
         const fieldId =
             markLineKey === 'xAxis'
                 ? serieWithMarkLine?.encode.xRef.field
-                : serieWithMarkLine?.encode.yRef.field;
-        const label = referenceLine.label?.formatter;
-        const color = referenceLine.lineStyle?.color;
+                : serieWithMarkLine?.encode.yRef.field;*/
+        const markLineKey = 'xAxis' in referenceLine ? 'xAxis' : 'yAxis';
+        const markLineValue = referenceLine.data[markLineKey];
+
+        const fieldId = referenceLine.fieldId;
+        const label = referenceLine.data.label?.formatter;
+        const color = referenceLine.data.lineStyle?.color;
         return [markLineKey, markLineValue, fieldId, label, color];
     }, [dirtyEchartsConfig?.series, referenceLine]);
 
@@ -121,7 +124,7 @@ export const ReferenceLine: FC<Props> = ({
                     selectedField,
                     updatedLabel,
                     lineColor,
-                    referenceLine.name,
+                    referenceLine.data.name,
                 );
         }, 500),
         [value, selectedField, updateReferenceLine],
@@ -142,7 +145,9 @@ export const ReferenceLine: FC<Props> = ({
                         small
                         minimal
                         icon="cross"
-                        onClick={() => removeReferenceLine(referenceLine.name)}
+                        onClick={() =>
+                            removeReferenceLine(referenceLine.data.name)
+                        }
                     />
                 </DeleteButtonTooltip>
             </Flex>
@@ -160,7 +165,7 @@ export const ReferenceLine: FC<Props> = ({
                                     item,
                                     label,
                                     lineColor,
-                                    referenceLine.name,
+                                    referenceLine.data.name,
                                 );
                         }}
                     />
@@ -183,7 +188,7 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     lineColor,
-                                    referenceLine.name,
+                                    referenceLine.data.name,
                                 );
                         }}
                         placeholder="Add value for the reference line"
@@ -217,7 +222,7 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     color,
-                                    referenceLine.name,
+                                    referenceLine.data.name,
                                 );
                         }}
                     />
