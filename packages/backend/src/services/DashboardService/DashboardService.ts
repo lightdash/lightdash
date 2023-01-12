@@ -322,7 +322,7 @@ export class DashboardService {
         );
 
         analytics.track({
-            event: 'dashboard.updated',
+            event: 'homepage_pinning.updated',
             userId: user.userUuid,
             properties: {
                 dashboardId: updatedDashboard.uuid,

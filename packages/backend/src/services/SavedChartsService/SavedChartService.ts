@@ -167,7 +167,7 @@ export class SavedChartService {
             isPinned,
         );
         analytics.track({
-            event: 'saved_chart.updated',
+            event: 'homepage_pinning.updated',
             userId: user.userUuid,
             properties: {
                 projectId: savedChart.projectUuid,

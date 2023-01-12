@@ -249,6 +249,17 @@ type DashboardEvent = BaseTrack & {
     };
 };
 
+type HomepagePinningEvent = BaseTrack & {
+    event: 'homepage_pinning.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        dashboardId?: string;
+        savedQueryId?: string;
+        isPinned: boolean;
+    };
+};
+
 export type CreateDashboardOrVersionEvent = BaseTrack & {
     event: 'dashboard.created' | 'dashboard_version.created';
     properties: {
@@ -436,7 +447,8 @@ type Track =
     | FieldValueSearch
     | PermissionsUpdated
     | ShareUrl
-    | ShareSlack;
+    | ShareSlack
+    | HomepagePinningEvent;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
