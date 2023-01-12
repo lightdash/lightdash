@@ -49,7 +49,7 @@ export const createDashboard: CreateDashboard = {
         dimensions: [],
         metrics: [],
     },
-    isPinned: false,
+    is_pinned: false,
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -106,7 +106,7 @@ export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
 export const updateDashboard: DashboardUnversionedFields = {
     name: 'my updated dashboard',
     description: 'updated description',
-    isPinned: false,
+    is_pinned: false,
 };
 
 // Select mocks
