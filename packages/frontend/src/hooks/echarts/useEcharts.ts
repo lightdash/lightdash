@@ -863,7 +863,7 @@ const getStackTotalSeries = (
 const useEcharts = () => {
     const context = useVisualizationContext();
     const {
-        cartesianConfig: { validCartesianConfig },
+        cartesianConfig: { validCartesianConfig, referenceLines },
         explore,
         originalData,
         pivotDimensions,
@@ -940,7 +940,7 @@ const useEcharts = () => {
             return [];
         }
 
-        const echarSeries = getEchartsSeries(
+        const echartSeries = getEchartsSeries(
             items,
             originalData,
             validCartesianConfig,
@@ -948,8 +948,58 @@ const useEcharts = () => {
             formats,
         );
 
-        //TODO add reference lines
-        return echarSeries;
+        const clearMarkLineData: EChartSeries[] = echartSeries.map((serie) => {
+            const dirtyLayout = context.cartesianConfig.dirtyLayout;
+            const referenceLineForSerie = referenceLines.filter(
+                (referenceLine) => {
+                    if (referenceLine.fieldId === undefined) return false;
+                    return (
+                        referenceLine.fieldId === dirtyLayout?.xField ||
+                        dirtyLayout?.yField?.includes(referenceLine.fieldId)
+                    );
+                },
+            );
+
+            if (referenceLineForSerie.length === 0) return series;
+            const markLineData = referenceLineForSerie.map((line) => {
+                const value = line.data.xAxis || line.data.yAxis;
+
+                const reverseFlippedAxis = (defaultAxis: string) => {
+                    if (dirtyLayout?.flipAxes === true)
+                        return defaultAxis === 'xAxis' ? 'yAxis' : 'xAxis';
+                    return defaultAxis;
+                };
+                const axis = {
+                    xAxis: undefined,
+                    yAxis: undefined,
+                    [reverseFlippedAxis(
+                        dirtyLayout?.xField === line.fieldId
+                            ? 'xAxis'
+                            : 'yAxis',
+                    )]: value,
+                };
+
+                return {
+                    ...line.data,
+                    ...axis,
+                };
+            });
+
+            return {
+                ...serie,
+                markLine: {
+                    symbol: 'none',
+                    lineStyle: {
+                        color: '#000',
+                        width: 3,
+                        type: 'solid',
+                    },
+                    data: markLineData,
+                },
+            };
+        });
+
+        return clearMarkLineData;
     }, [
         explore,
         validCartesianConfig,
@@ -958,6 +1008,7 @@ const useEcharts = () => {
         originalData,
         formats,
         items,
+        referenceLines,
     ]);
 
     const axis = useMemo(() => {

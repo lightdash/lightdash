@@ -47,66 +47,26 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                     ? getFieldId(updateField)
                     : updateField.name;
 
-                if (dirtyEchartsConfig?.series) {
-                    const selectedSeries = dirtyEchartsConfig?.series.find(
-                        (serie: Series) =>
-                            (dirtyLayout?.xField === fieldId
-                                ? serie.encode.xRef
-                                : serie.encode.yRef
-                            ).field === fieldId,
-                    );
-                    if (selectedSeries === undefined) return;
+                const axes = {
+                    [dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis']:
+                        updateValue,
+                };
 
-                    const axes =
-                        dirtyLayout?.xField === fieldId
-                            ? {
-                                  [dirtyLayout?.flipAxes === true
-                                      ? 'yAxis'
-                                      : 'xAxis']: updateValue,
-                              }
-                            : {
-                                  [dirtyLayout?.flipAxes === true
-                                      ? 'xAxis'
-                                      : 'yAxis']: updateValue,
-                              };
+                const newData: MarkLineData = {
+                    ...axes,
+                    name: lineId,
+                    lineStyle: { color: updateColor },
+                    label: updateLabel ? { formatter: updateLabel } : {},
+                };
 
-                    const newData: MarkLineData = {
-                        ...axes,
-                        name: lineId,
-                        lineStyle: { color: updateColor },
-                        label: updateLabel ? { formatter: updateLabel } : {},
-                    };
+                const updatedReferenceLines: ReferenceLineField[] =
+                    referenceLines.map((line) => {
+                        if (line.data.name === lineId)
+                            return { fieldId: fieldId, data: newData };
+                        else return line;
+                    });
 
-                    const updatedData = [
-                        ...(selectedSeries.markLine?.data || []).filter(
-                            (data) => data.name !== lineId,
-                        ),
-                        newData,
-                    ];
-
-                    const updatedSeries: Series = {
-                        ...selectedSeries,
-                        markLine: {
-                            symbol: 'none',
-                            lineStyle: {
-                                color: '#000',
-                                width: 3,
-                                type: 'solid',
-                            },
-
-                            data: updatedData,
-                        },
-                    };
-                    const updatedReferenceLines: ReferenceLineField[] =
-                        referenceLines.map((line) => {
-                            if (line.data.name === lineId)
-                                return { fieldId: fieldId, data: newData };
-                            else return line;
-                        });
-
-                    setReferenceLines(updatedReferenceLines);
-                    updateSingleSeries(updatedSeries);
-                }
+                setReferenceLines(updatedReferenceLines);
             }
         },
         [
