@@ -26,6 +26,7 @@ interface ConditionalFormattingProps {
     isDefaultOpen?: boolean;
     index: number;
     fields: CompiledField[];
+    usedFieldIds: string[];
     value: ConditionalFormattingConfig;
     onChange: (newConfig: ConditionalFormattingConfig) => void;
     onRemove: () => void;
@@ -35,6 +36,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     isDefaultOpen = true,
     index,
     fields,
+    usedFieldIds,
     value,
     onChange,
     onRemove,
@@ -135,6 +137,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 id="numeric-field-autocomplete"
                                 fields={fields}
                                 activeField={field}
+                                inactiveFieldIds={usedFieldIds}
                                 onChange={handleChangeField}
                                 popoverProps={{
                                     lazy: true,

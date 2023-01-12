@@ -36,7 +36,13 @@ const ConditionalFormattingList = ({}) => {
                 });
             }),
         );
-    }, [produce, onSetConditionalFormattings, conditionalFormattings]);
+    }, [onSetConditionalFormattings, conditionalFormattings]);
+
+    const usedFieldIds = useMemo(() => {
+        return conditionalFormattings
+            .map((c) => c.target?.fieldId)
+            .filter((f): f is string => !!f);
+    }, [conditionalFormattings]);
 
     const handleRemove = useCallback(
         (index) => {
@@ -67,6 +73,7 @@ const ConditionalFormattingList = ({}) => {
                     key={index}
                     index={index}
                     fields={visibleActiveNumericFields}
+                    usedFieldIds={usedFieldIds}
                     value={conditionalFormatting}
                     onChange={(newConfig) => handleOnChange(index, newConfig)}
                     onRemove={() => handleRemove(index)}
