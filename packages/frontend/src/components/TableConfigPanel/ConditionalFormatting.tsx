@@ -53,13 +53,21 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         onRemove();
     };
 
+    const handleChange = (newConfig: ConditionalFormattingConfig) => {
+        setConfig(newConfig);
+        onChange(newConfig);
+    };
+
     const handleChangeField = (newField: CompiledField | undefined) => {
         if (!config) return;
 
-        setConfig({
-            ...config,
-            target: newField ? { fieldId: getItemId(newField) } : null,
-        });
+        handleChange(
+            produce(config, (draft) => {
+                draft.target = newField
+                    ? { fieldId: getItemId(newField) }
+                    : null;
+            }),
+        );
     };
 
     const handleChangeConditionalOperator = (
@@ -67,7 +75,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     ) => {
         if (!config) return;
 
-        setConfig(
+        handleChange(
             produce(config, (draft) => {
                 draft.rules[0].operator = newOperator;
             }),
@@ -77,7 +85,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     const handleChangeRule = (newRule: ConditionalFormattingRule) => {
         if (!config) return;
 
-        setConfig(
+        handleChange(
             produce(config, (draft) => {
                 draft.rules[0] = newRule;
                 // FIXME: check if we can fix this problem in number input
@@ -91,12 +99,12 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     const handleChangeColor = (newColor: string) => {
         if (!config) return;
 
-        setConfig({ ...config, color: newColor });
+        handleChange(
+            produce(config, (draft) => {
+                draft.color = newColor;
+            }),
+        );
     };
-
-    useEffect(() => {
-        onChange(config);
-    }, [config, onChange]);
 
     // conditional formatting only supports number fields for now
     const filterConfig = FilterTypeConfig[FilterType.NUMBER];

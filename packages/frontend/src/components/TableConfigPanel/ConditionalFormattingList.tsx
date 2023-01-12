@@ -1,6 +1,7 @@
 import { Button, FormGroup } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
-    createConditionalFormatingRule,
+    createConditionalFormattingConfig,
     fieldId,
     getVisibleFields,
 } from '@lightdash/common';
@@ -18,6 +19,7 @@ const ConditionalFormattingList = ({}) => {
     } = useVisualizationContext();
 
     const activeFields = useExplorerContext((c) => c.state.activeFields);
+
     const visibleActiveNumericFields = useMemo(() => {
         if (!explore) return [];
 
@@ -26,49 +28,53 @@ const ConditionalFormattingList = ({}) => {
             .filter((field) => field.type === 'number');
     }, [explore, activeFields]);
 
-    const handleAdd = useCallback(() => {
-        onSetConditionalFormattings(
-            produce(conditionalFormattings, (draft) => {
-                draft.push({
-                    target: null,
-                    color: '',
-                    rules: [createConditionalFormatingRule()],
-                });
-            }),
+    const activeConfigs = useMemo(() => {
+        return conditionalFormattings.filter((config) =>
+            config.target
+                ? visibleActiveNumericFields.find(
+                      (field) => fieldId(field) === config.target?.fieldId,
+                  )
+                : true,
         );
-    }, [onSetConditionalFormattings, conditionalFormattings]);
+    }, [conditionalFormattings, visibleActiveNumericFields]);
 
     const usedFieldIds = useMemo(() => {
-        return conditionalFormattings
+        return activeConfigs
             .map((c) => c.target?.fieldId)
             .filter((f): f is string => !!f);
-    }, [conditionalFormattings]);
+    }, [activeConfigs]);
+
+    const handleAdd = useCallback(() => {
+        onSetConditionalFormattings(
+            produce(activeConfigs, (draft) => {
+                draft.push(createConditionalFormattingConfig());
+            }),
+        );
+    }, [onSetConditionalFormattings, activeConfigs]);
 
     const handleRemove = useCallback(
-        (index) => {
+        (index) =>
             onSetConditionalFormattings(
-                produce(conditionalFormattings, (draft) => {
+                produce(activeConfigs, (draft) => {
                     draft.splice(index, 1);
                 }),
-            );
-        },
-        [onSetConditionalFormattings, conditionalFormattings],
+            ),
+        [onSetConditionalFormattings, activeConfigs],
     );
 
     const handleOnChange = useCallback(
-        (index, newConfig) => {
+        (index, newConfig) =>
             onSetConditionalFormattings(
-                produce(conditionalFormattings, (draft) => {
+                produce(activeConfigs, (draft) => {
                     draft[index] = newConfig;
                 }),
-            );
-        },
-        [onSetConditionalFormattings, conditionalFormattings],
+            ),
+        [onSetConditionalFormattings, activeConfigs],
     );
 
     return (
         <ConditionalFormattingListWrapper>
-            {conditionalFormattings.map((conditionalFormatting, index) => (
+            {activeConfigs.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
                     index={index}
@@ -81,9 +87,25 @@ const ConditionalFormattingList = ({}) => {
             ))}
 
             <FormGroup>
-                <Button icon="plus" onClick={handleAdd}>
-                    Add new rule
-                </Button>
+                <Tooltip2
+                    position="bottom-left"
+                    disabled={
+                        visibleActiveNumericFields.length !==
+                        usedFieldIds.length
+                    }
+                    content="All fields are already being used in rules."
+                >
+                    <Button
+                        icon="plus"
+                        onClick={handleAdd}
+                        disabled={
+                            visibleActiveNumericFields.length ===
+                            usedFieldIds.length
+                        }
+                    >
+                        Add new rule
+                    </Button>
+                </Tooltip2>
             </FormGroup>
         </ConditionalFormattingListWrapper>
     );

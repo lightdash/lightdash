@@ -14,6 +14,13 @@ export const createConditionalFormatingRule =
         values: [],
     });
 
+export const createConditionalFormattingConfig =
+    (): ConditionalFormattingConfig => ({
+        target: null,
+        color: '',
+        rules: [createConditionalFormatingRule()],
+    });
+
 export const getConditionalFormattingConfig = (
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
     field: Field | TableCalculation | undefined,
