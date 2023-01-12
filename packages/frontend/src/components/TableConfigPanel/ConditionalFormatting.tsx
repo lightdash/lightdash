@@ -74,7 +74,6 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                 draft.rules[0].values = draft.rules[0].values.map((v) =>
                     Number(v),
                 );
-                return draft;
             }),
         );
     };
