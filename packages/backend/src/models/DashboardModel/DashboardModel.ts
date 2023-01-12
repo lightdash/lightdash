@@ -602,15 +602,11 @@ export class DashboardModel {
 
     async updatePinning(
         dashboardUuid: string,
-        dashboard: DashboardUnversionedFields,
+        isPinned: DashboardUnversionedFields['is_pinned'],
     ): Promise<Dashboard> {
-        const withSpaceId = dashboard.spaceUuid
-            ? { space_id: await getSpaceId(this.database, dashboard.spaceUuid) }
-            : {};
         await this.database(DashboardsTableName)
             .update({
-                is_pinned: dashboard.isPinned,
-                ...withSpaceId,
+                is_pinned: isPinned,
             })
             .where('dashboard_uuid', dashboardUuid);
         return this.getById(dashboardUuid);

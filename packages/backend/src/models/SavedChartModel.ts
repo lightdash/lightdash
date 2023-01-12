@@ -293,12 +293,11 @@ export class SavedChartModel {
 
     async updatePinning(
         savedChartUuid: string,
-        data: UpdateSavedChart,
+        isPinned: UpdateSavedChart['is_pinned'],
     ): Promise<SavedChart> {
         await this.database('saved_queries')
             .update({
-                is_pinned: data.is_pinned,
-                space_id: await getSpaceId(this.database, data.spaceUuid),
+                is_pinned: isPinned,
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);

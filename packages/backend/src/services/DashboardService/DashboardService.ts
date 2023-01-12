@@ -4,6 +4,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    DashboardUnversionedFields,
     ForbiddenError,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
@@ -194,6 +195,7 @@ export class DashboardService {
         const duplicatedDashboard = {
             ...dashboard,
             name: `Copy of ${dashboard.name}`,
+            is_pinned: dashboard.isPinned,
         };
         const newDashboard = await this.dashboardModel.create(
             dashboard.spaceUuid,
@@ -290,7 +292,7 @@ export class DashboardService {
     async updatePinning(
         user: SessionUser,
         dashboardUuid: string,
-        dashboard: UpdateDashboard,
+        isPinned: DashboardUnversionedFields['is_pinned'],
     ): Promise<Dashboard> {
         const existingDashboard = await this.dashboardModel.getById(
             dashboardUuid,
@@ -314,41 +316,21 @@ export class DashboardService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        const updatedDashboard = await this.dashboardModel.updatePinning(
+            dashboardUuid,
+            isPinned,
+        );
 
-        if (isDashboardUnversionedFields(dashboard)) {
-            const updatedDashboard = await this.dashboardModel.updatePinning(
-                dashboardUuid,
-                {
-                    isPinned: dashboard.isPinned,
-                    spaceUuid: dashboard.spaceUuid,
-                },
-            );
+        analytics.track({
+            event: 'dashboard.updated',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: updatedDashboard.uuid,
+                projectId: updatedDashboard.projectUuid,
+                isPinned: updatedDashboard.isPinned,
+            },
+        });
 
-            analytics.track({
-                event: 'dashboard.updated',
-                userId: user.userUuid,
-                properties: {
-                    dashboardId: updatedDashboard.uuid,
-                    projectId: updatedDashboard.projectUuid,
-                },
-            });
-        }
-        if (isDashboardVersionedFields(dashboard)) {
-            const updatedDashboard = await this.dashboardModel.addVersion(
-                dashboardUuid,
-                {
-                    tiles: dashboard.tiles,
-                    filters: dashboard.filters,
-                },
-                user,
-            );
-            analytics.track({
-                event: 'dashboard_version.created',
-                userId: user.userUuid,
-                properties:
-                    DashboardService.getCreateEventProperties(updatedDashboard),
-            });
-        }
         return this.getById(user, dashboardUuid);
     }
 

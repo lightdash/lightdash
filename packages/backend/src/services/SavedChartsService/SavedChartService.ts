@@ -149,7 +149,7 @@ export class SavedChartService {
     async updatePinning(
         user: SessionUser,
         savedChartUuid: string,
-        data: UpdateSavedChart,
+        isPinned: UpdateSavedChart['is_pinned'],
     ): Promise<SavedChart> {
         const { organizationUuid, projectUuid } =
             await this.savedChartModel.get(savedChartUuid);
@@ -164,7 +164,7 @@ export class SavedChartService {
         }
         const savedChart = await this.savedChartModel.updatePinning(
             savedChartUuid,
-            data,
+            isPinned,
         );
         analytics.track({
             event: 'saved_chart.updated',
@@ -172,6 +172,7 @@ export class SavedChartService {
             properties: {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
+                isPinned: savedChart.is_pinned,
             },
         });
         return savedChart;
