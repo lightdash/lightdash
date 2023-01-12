@@ -3,6 +3,7 @@ import {
     CartesianChart,
     CartesianSeriesType,
     CompiledField,
+    CompleteCartesianChartLayout,
     convertAdditionalMetric,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
@@ -37,6 +38,7 @@ import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
+import { ReferenceLineField } from '../../components/ChartConfigPanel/Legend/ReferenceLines';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
 import usePlottedData from '../plottedData/usePlottedData';
@@ -860,6 +862,62 @@ const getStackTotalSeries = (
     );
 };
 
+const applyReferenceLines = (
+    series: EChartSeries[],
+    dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
+    referenceLines: ReferenceLineField[],
+): EChartSeries[] => {
+    let appliedReferenceLines: string[] = []; // Don't apply the same reference line to multiple series
+    return series.map((serie) => {
+        const referenceLineForSerie = referenceLines.filter((referenceLine) => {
+            if (referenceLine.fieldId === undefined) return false;
+            if (appliedReferenceLines.includes(referenceLine.fieldId))
+                return false;
+            return (
+                referenceLine.fieldId === serie.encode?.x ||
+                referenceLine.fieldId === serie.encode?.y ||
+                referenceLine.fieldId === serie.pivotReference?.field
+            );
+        });
+
+        if (referenceLineForSerie.length === 0) return serie;
+        const markLineData = referenceLineForSerie.map((line) => {
+            if (line.fieldId === undefined) return {};
+            const value = line.data.xAxis || line.data.yAxis;
+            appliedReferenceLines.push(line.fieldId);
+            const reverseFlippedAxis = (defaultAxis: string) => {
+                if (dirtyLayout?.flipAxes === true)
+                    return defaultAxis === 'xAxis' ? 'yAxis' : 'xAxis';
+                return defaultAxis;
+            };
+            const axis = {
+                xAxis: undefined,
+                yAxis: undefined,
+                [reverseFlippedAxis(
+                    dirtyLayout?.xField === line.fieldId ? 'xAxis' : 'yAxis',
+                )]: value,
+            };
+
+            return {
+                ...line.data,
+                ...axis,
+            };
+        });
+
+        return {
+            ...serie,
+            markLine: {
+                symbol: 'none',
+                lineStyle: {
+                    color: '#000',
+                    width: 3,
+                    type: 'solid',
+                },
+                data: markLineData,
+            },
+        };
+    });
+};
 const useEcharts = () => {
     const context = useVisualizationContext();
     const {
@@ -948,58 +1006,11 @@ const useEcharts = () => {
             formats,
         );
 
-        const clearMarkLineData: EChartSeries[] = echartSeries.map((serie) => {
-            const dirtyLayout = context.cartesianConfig.dirtyLayout;
-            const referenceLineForSerie = referenceLines.filter(
-                (referenceLine) => {
-                    if (referenceLine.fieldId === undefined) return false;
-                    return (
-                        referenceLine.fieldId === dirtyLayout?.xField ||
-                        dirtyLayout?.yField?.includes(referenceLine.fieldId)
-                    );
-                },
-            );
-
-            if (referenceLineForSerie.length === 0) return series;
-            const markLineData = referenceLineForSerie.map((line) => {
-                const value = line.data.xAxis || line.data.yAxis;
-
-                const reverseFlippedAxis = (defaultAxis: string) => {
-                    if (dirtyLayout?.flipAxes === true)
-                        return defaultAxis === 'xAxis' ? 'yAxis' : 'xAxis';
-                    return defaultAxis;
-                };
-                const axis = {
-                    xAxis: undefined,
-                    yAxis: undefined,
-                    [reverseFlippedAxis(
-                        dirtyLayout?.xField === line.fieldId
-                            ? 'xAxis'
-                            : 'yAxis',
-                    )]: value,
-                };
-
-                return {
-                    ...line.data,
-                    ...axis,
-                };
-            });
-
-            return {
-                ...serie,
-                markLine: {
-                    symbol: 'none',
-                    lineStyle: {
-                        color: '#000',
-                        width: 3,
-                        type: 'solid',
-                    },
-                    data: markLineData,
-                },
-            };
-        });
-
-        return clearMarkLineData;
+        return applyReferenceLines(
+            echartSeries,
+            context.cartesianConfig.dirtyLayout,
+            referenceLines,
+        );
     }, [
         explore,
         validCartesianConfig,
