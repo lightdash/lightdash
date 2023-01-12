@@ -859,7 +859,18 @@ export const isNumericItem = (
     }
     return true;
 };
-
+export const isDateItem = (
+    item: Field | AdditionalMetric | TableCalculation | undefined,
+): boolean => {
+    if (!item) {
+        return false;
+    }
+    if (isField(item) || isAdditionalMetric(item)) {
+        const dateTypes: string[] = [DimensionType.DATE, MetricType.DATE];
+        return dateTypes.includes(item.type);
+    }
+    return true;
+};
 export const getResultValues = (
     rows: ResultRow[],
     onlyRaw: boolean = false,

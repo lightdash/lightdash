@@ -1,13 +1,20 @@
 import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
+import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     CompiledDimension,
     Field,
     fieldId as getFieldId,
+    formatDate,
+    getDateFormat,
+    isAdditionalMetric,
+    isDateItem,
     isField,
     isNumericItem,
     TableCalculation,
+    TimeFrames,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
+import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styles';
@@ -51,8 +58,11 @@ export const ReferenceLine: FC<Props> = ({
         ];
         return items.filter((item) => {
             const fieldId = isField(item) ? getFieldId(item) : item.name;
-            // Filter numeric fields (remove if we start supporting other types)
-            return fieldNames.includes(fieldId) && isNumericItem(item);
+            // Filter numeric and date fields (remove if we start supporting other types)
+            return (
+                fieldNames.includes(fieldId) &&
+                (isNumericItem(item) || isDateItem(item))
+            );
         });
     }, [items, dirtyLayout]);
 
@@ -141,34 +151,69 @@ export const ReferenceLine: FC<Props> = ({
                     />
                 </FormGroup>
                 <FormGroup label="Value">
-                    <InputGroup
-                        fill
-                        disabled={!isNumericItem(selectedField)}
-                        title={
-                            isNumericItem(selectedField)
-                                ? ''
-                                : 'Selected field must be of type Number'
-                        }
-                        value={value}
-                        onChange={(e) => {
-                            setValue(e.target.value);
-                            if (selectedField !== undefined)
-                                updateReferenceLine(
-                                    e.target.value,
-                                    selectedField,
-                                    label,
-                                    lineColor,
-                                    referenceLine.data.name,
-                                );
-                        }}
-                        placeholder="Add value for the reference line"
-                    />
+                    {isDateItem(selectedField) ? (
+                        <DateInput2
+                            fill
+                            value={value}
+                            formatDate={(dateValue: Date) =>
+                                formatDate(dateValue, undefined, false)
+                            }
+                            parseDate={(
+                                str: string,
+                                timeInterval:
+                                    | TimeFrames
+                                    | undefined = TimeFrames.DAY,
+                            ) => {
+                                return moment(
+                                    str,
+                                    getDateFormat(timeInterval),
+                                ).toDate();
+                            }}
+                            defaultValue={new Date().toString()}
+                            onChange={(dateValue: string | null) => {
+                                if (dateValue) {
+                                    setValue(dateValue);
+                                    if (selectedField !== undefined)
+                                        updateReferenceLine(
+                                            dateValue,
+                                            selectedField,
+                                            label,
+                                            lineColor,
+                                            referenceLine.data.name,
+                                        );
+                                }
+                            }}
+                        />
+                    ) : (
+                        <InputGroup
+                            fill
+                            disabled={!isNumericItem(selectedField)}
+                            title={
+                                isNumericItem(selectedField)
+                                    ? ''
+                                    : 'Selected field must be of type Number'
+                            }
+                            value={value}
+                            onChange={(e) => {
+                                setValue(e.target.value);
+                                if (selectedField !== undefined)
+                                    updateReferenceLine(
+                                        e.target.value,
+                                        selectedField,
+                                        label,
+                                        lineColor,
+                                        referenceLine.data.name,
+                                    );
+                            }}
+                            placeholder="Add value for the reference line"
+                        />
+                    )}
                 </FormGroup>
 
                 <FormGroup label="Label">
                     <InputGroup
                         fill
-                        disabled={!isNumericItem(selectedField)}
+                        disabled={!value}
                         value={label}
                         placeholder={value}
                         onChange={(e) => {
