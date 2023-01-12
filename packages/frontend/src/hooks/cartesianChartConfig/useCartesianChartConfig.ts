@@ -3,28 +3,21 @@ import {
     CartesianChart,
     CartesianSeriesType,
     ChartType,
-    CompiledDimension,
     CompleteCartesianChartLayout,
     EchartsGrid,
     EchartsLegend,
     Explore,
-    Field,
-    fieldId as getFieldId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
-    isField,
     MarkLineData,
     Series,
-    TableCalculation,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ReferenceLineField } from '../../components/ChartConfigPanel/Legend/ReferenceLines';
 import {
-    getEchartMarkLine,
     getMarkLineAxis,
+    ReferenceLineField,
 } from '../../components/common/ReferenceLine';
-import { EChartSeries } from '../echarts/useEcharts';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -87,7 +80,15 @@ const applyReferenceLines = (
 
         return {
             ...serie,
-            markLine: getEchartMarkLine(markLineData),
+            markLine: {
+                symbol: 'none',
+                lineStyle: {
+                    color: '#000',
+                    width: 3,
+                    type: 'solid',
+                },
+                data: markLineData,
+            },
         };
     });
 };

@@ -1,4 +1,4 @@
-import { MarkLine, MarkLineData } from '@lightdash/common';
+import { MarkLineData } from '@lightdash/common';
 
 export type ReferenceLineField = {
     fieldId?: string;
@@ -17,13 +17,3 @@ export const getMarkLineAxis = (
 
     return reverseFlippedAxis(xField === fieldId ? 'xAxis' : 'yAxis');
 };
-
-export const getEchartMarkLine = (data: MarkLineData[]): MarkLine => ({
-    symbol: 'none',
-    lineStyle: {
-        color: '#000',
-        width: 3,
-        type: 'solid',
-    },
-    data: data,
-});
