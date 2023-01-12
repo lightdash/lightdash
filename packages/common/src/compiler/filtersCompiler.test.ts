@@ -292,4 +292,22 @@ describe('Filter SQL', () => {
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
+
+    test('should return escaped query for unescaped single filter value', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
+            ),
+        ).toBe(stringFilterRuleMocks.equalsFilterWithSingleUnescapedValueSQL);
+    });
+
+    test('should return escaped query for unescaped multi filter values', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithMultiUnescapedValue,
+            ),
+        ).toBe(stringFilterRuleMocks.equalsFilterWithMultiUnescapedValueSQL);
+    });
 });
