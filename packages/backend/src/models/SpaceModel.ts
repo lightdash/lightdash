@@ -32,6 +32,7 @@ import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 type Dependencies = {
     database: Knex;
 };
+
 export class SpaceModel {
     private database: Knex;
 
@@ -135,6 +136,7 @@ export class SpaceModel {
                 first_name,
                 last_name,
                 organization_uuid,
+                is_pinned,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -148,6 +150,7 @@ export class SpaceModel {
                     lastName: last_name,
                 },
                 spaceUuid,
+                isPinned: is_pinned,
             }),
         );
     }

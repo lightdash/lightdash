@@ -106,7 +106,6 @@ export const addDashboardVersionWithoutChart: DashboardVersionedFields = {
 export const updateDashboard: DashboardUnversionedFields = {
     name: 'my updated dashboard',
     description: 'updated description',
-    is_pinned: false,
 };
 
 // Select mocks

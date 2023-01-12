@@ -241,6 +241,7 @@ export type SpaceQuery = Pick<
     | 'updatedByUser'
     | 'description'
     | 'spaceUuid'
+    | 'is_pinned'
 >;
 
 export const isCompleteLayout = (
