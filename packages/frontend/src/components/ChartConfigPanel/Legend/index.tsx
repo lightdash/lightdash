@@ -2,12 +2,13 @@ import { Collapse, Switch } from '@blueprintjs/core';
 import {
     CompiledDimension,
     EchartsLegend,
+    Field,
     friendlyName,
     TableCalculation,
 } from '@lightdash/common';
 import startCase from 'lodash-es/startCase';
 import React, { FC } from 'react';
-import { Field, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
