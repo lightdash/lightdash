@@ -1,27 +1,15 @@
+import {
+    ConditionalOperator as FilterOperator,
+    ConditionalRule,
+} from './conditionalRule';
+
+export { FilterOperator };
+
 export enum FilterType {
     STRING = 'string',
     NUMBER = 'number',
     DATE = 'date',
     BOOLEAN = 'boolean',
-}
-
-export enum FilterOperator {
-    NULL = 'isNull',
-    NOT_NULL = 'notNull',
-    EQUALS = 'equals',
-    NOT_EQUALS = 'notEquals',
-    STARTS_WITH = 'startsWith',
-    INCLUDE = 'include',
-    NOT_INCLUDE = 'doesNotInclude',
-    LESS_THAN = 'lessThan',
-    LESS_THAN_OR_EQUAL = 'lessThanOrEqual',
-    GREATER_THAN = 'greaterThan',
-    GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
-    IN_THE_PAST = 'inThePast',
-
-    IN_THE_NEXT = 'inTheNext',
-    IN_THE_CURRENT = 'inTheCurrent',
-    IN_BETWEEN = 'inBetween',
 }
 
 export enum UnitOfTime {
@@ -52,18 +40,16 @@ export type FieldTarget = {
     fieldId: string;
 };
 
-export type FilterRule<
+export interface FilterRule<
     O = FilterOperator,
     T = FieldTarget,
     V = any,
     S = any,
-> = {
+> extends ConditionalRule<O, V> {
     id: string;
     target: T;
-    operator: O;
     settings?: S;
-    values?: V[];
-};
+}
 
 export type DashboardFieldTarget = {
     fieldId: string;
@@ -132,8 +118,8 @@ export const isAndFilterGroup = (
 export const isFilterGroup = (value: FilterGroupItem): value is FilterGroup =>
     isOrFilterGroup(value) || isAndFilterGroup(value);
 
-export const isFilterRule = (value: FilterGroupItem): value is FilterRule =>
-    'target' in value && 'operator' in value;
+export const isFilterRule = (value: ConditionalRule): value is FilterRule =>
+    'id' in value && 'target' in value && 'operator' in value;
 
 export enum FilterGroupOperator {
     and = 'and',
