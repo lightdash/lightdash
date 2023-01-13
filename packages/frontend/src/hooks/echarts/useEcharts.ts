@@ -299,7 +299,9 @@ const getMinAndMaxReferenceLines = (
             if (!serie.markLine) return [];
             return serie.markLine?.data.reduce<number[]>((acc, data) => {
                 try {
-                    const value = parseInt(data[axis]);
+                    const axisValue = data.xAxis || data.yAxis;
+                    if (axisValue === undefined) return acc;
+                    const value = parseInt(axisValue);
                     if (isNaN(value)) return acc;
                     return [...acc, value];
                 } catch (e) {
