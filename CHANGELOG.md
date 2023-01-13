@@ -1,3 +1,10 @@
+## [0.370.2](https://github.com/lightdash/lightdash/compare/0.370.1...0.370.2) (2023-01-13)
+
+
+### Bug Fixes
+
+* filterRule is not defined ([#4163](https://github.com/lightdash/lightdash/issues/4163)) ([0b8d06d](https://github.com/lightdash/lightdash/commit/0b8d06dc14b5a58a2d5148d773dde6bf8c812d9a))
+
 ## [0.370.1](https://github.com/lightdash/lightdash/compare/0.370.0...0.370.1) (2023-01-13)
 
 
