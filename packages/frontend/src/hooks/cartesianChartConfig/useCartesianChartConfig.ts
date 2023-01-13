@@ -527,9 +527,12 @@ const useCartesianChartConfig = ({
                     const referenceLine = data.map((markData) => {
                         const axis =
                             markData.xAxis !== undefined
+                                ? dirtyLayout?.flipAxes
+                                    ? serie.encode.yRef
+                                    : serie.encode.xRef
+                                : dirtyLayout?.flipAxes
                                 ? serie.encode.xRef
                                 : serie.encode.yRef;
-
                         return {
                             fieldId: axis.field,
                             data: {
@@ -546,7 +549,7 @@ const useCartesianChartConfig = ({
             },
             [],
         );
-    }, [dirtyEchartsConfig?.series]);
+    }, [dirtyEchartsConfig?.series, dirtyLayout?.flipAxes]);
 
     const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
         selectedReferenceLines,

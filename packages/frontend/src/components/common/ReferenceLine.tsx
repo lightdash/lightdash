@@ -10,10 +10,9 @@ export const getMarkLineAxis = (
     flipAxes: boolean,
     fieldId: string,
 ): string => {
-    const reverseFlippedAxis = (defaultAxis: string) => {
-        if (flipAxes) return defaultAxis === 'xAxis' ? 'yAxis' : 'xAxis';
-        return defaultAxis;
-    };
-
-    return reverseFlippedAxis(xField === fieldId ? 'xAxis' : 'yAxis');
+    const isDefaultXAxis = xField === fieldId;
+    if (flipAxes) {
+        return isDefaultXAxis ? 'yAxis' : 'xAxis';
+    }
+    return isDefaultXAxis ? 'xAxis' : 'yAxis';
 };
