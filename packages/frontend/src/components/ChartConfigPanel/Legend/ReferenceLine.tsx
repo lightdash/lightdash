@@ -14,13 +14,17 @@ import {
     isNumericItem,
     TableCalculation,
     TimeFrames,
+    WeekDay,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
 import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import MonthAndYearInput from '../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../common/ReferenceLine';
 import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styles';
+import WeekPicker from '../../common/WeekPicker';
+import YearInput from '../../common/YearInput';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { SectionTitle } from './Legend.styles';
@@ -30,6 +34,7 @@ type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension)[];
     referenceLine: ReferenceLineField;
+    startOfWeek: WeekDay | null | undefined;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension,
@@ -44,23 +49,69 @@ type Props = {
 type ReferenceLineValueProps = {
     field: Field | TableCalculation | CompiledDimension | undefined;
     value: string | undefined;
+    startOfWeek: WeekDay | null | undefined;
     onChange: (value: string) => void;
 };
 
 const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     field,
     value,
+    startOfWeek,
     onChange,
 }) => {
     if (isDateItem(field)) {
         if (isDimension(field) && field.timeInterval) {
             switch (field.timeInterval.toUpperCase()) {
                 case TimeFrames.WEEK:
-                    break;
+                    return (
+                        <WeekPicker
+                            value={moment(value).toDate()}
+                            startOfWeek={startOfWeek}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.WEEK,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
+                    );
                 case TimeFrames.MONTH:
-                    break;
+                    return (
+                        <Flex>
+                            {' '}
+                            <MonthAndYearInput
+                                value={moment(value).toDate()}
+                                onChange={(dateValue: Date) => {
+                                    onChange(
+                                        formatDate(
+                                            dateValue,
+                                            TimeFrames.MONTH,
+                                            false,
+                                        ),
+                                    );
+                                }}
+                            />
+                        </Flex>
+                    );
 
                 case TimeFrames.YEAR:
+                    return (
+                        <YearInput
+                            value={moment(value).toDate()}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.YEAR,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
+                    );
             }
 
             return (
@@ -111,6 +162,7 @@ export const ReferenceLine: FC<Props> = ({
     items,
     referenceLine,
     isDefaultOpen,
+    startOfWeek,
     updateReferenceLine,
     removeReferenceLine,
 }) => {
@@ -220,6 +272,7 @@ export const ReferenceLine: FC<Props> = ({
                 <FormGroup label="Value">
                     <ReferenceLineValue
                         field={selectedField}
+                        startOfWeek={startOfWeek}
                         value={value}
                         onChange={(newValue: string) => {
                             setValue(newValue);
