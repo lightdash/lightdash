@@ -1,3 +1,10 @@
+## [0.370.4](https://github.com/lightdash/lightdash/compare/0.370.3...0.370.4) (2023-01-13)
+
+
+### Bug Fixes
+
+* refresh reference lines on chart update ([#4155](https://github.com/lightdash/lightdash/issues/4155)) ([3ad90f3](https://github.com/lightdash/lightdash/commit/3ad90f3ef996459d3c9d2a3f9c47dbd9113309df))
+
 ## [0.370.3](https://github.com/lightdash/lightdash/compare/0.370.2...0.370.3) (2023-01-13)
 
 
