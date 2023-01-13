@@ -1,3 +1,10 @@
+## [0.370.3](https://github.com/lightdash/lightdash/compare/0.370.2...0.370.3) (2023-01-13)
+
+
+### Bug Fixes
+
+* remove livez,robots,favicon from sentry traces ([#4159](https://github.com/lightdash/lightdash/issues/4159)) ([e94d1dc](https://github.com/lightdash/lightdash/commit/e94d1dc2335ebb8964a0fe5e38c4615679c6e345))
+
 ## [0.370.2](https://github.com/lightdash/lightdash/compare/0.370.1...0.370.2) (2023-01-13)
 
 
