@@ -6,13 +6,14 @@ import {
     getVisibleFields,
 } from '@lightdash/common';
 import produce from 'immer';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 import { ConditionalFormattingListWrapper } from './ConditionalFormatting.styles';
 
 const ConditionalFormattingList = ({}) => {
+    const [isAddingNew, setIsAddingNew] = useState(false);
     const {
         explore,
         tableConfig: { conditionalFormattings, onSetConditionalFormattings },
@@ -45,6 +46,7 @@ const ConditionalFormattingList = ({}) => {
     }, [activeConfigs]);
 
     const handleAdd = useCallback(() => {
+        setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
                 draft.push(createConditionalFormattingConfig());
@@ -77,7 +79,7 @@ const ConditionalFormattingList = ({}) => {
             {activeConfigs.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
-                    isDefaultOpen={activeConfigs.length === 1}
+                    isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
                     index={index}
                     fields={visibleActiveNumericFields}
                     usedFieldIds={usedFieldIds}
