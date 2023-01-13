@@ -8,7 +8,7 @@ import {
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isAndFilterGroup,
-    isFilterRule,
+    isFilterGroup,
 } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
 import {
@@ -128,7 +128,7 @@ const FilterGroupForm: FC<Props> = ({
             <FilterGroupItemsWrapper>
                 {items.map((item, index) => (
                     <React.Fragment key={item.id}>
-                        {isFilterRule(item) ? (
+                        {!isFilterGroup(item) ? (
                             <FilterRuleForm
                                 filterRule={item}
                                 fields={fields}

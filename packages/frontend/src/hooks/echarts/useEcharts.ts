@@ -37,6 +37,7 @@ import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
+import { SeriesExtraInputWrapper } from '../../components/ChartConfigPanel/Series/Series.styles';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { useOrganisation } from '../organisation/useOrganisation';
 import usePlottedData from '../plottedData/usePlottedData';
@@ -251,6 +252,96 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
                 : sum,
         {},
     );
+};
+
+const getMinAndMaxReferenceLines = (
+    leftAxisYId: string | undefined,
+    rightAxisYId: string | undefined,
+    bottomAxisXId: string | undefined,
+    resultsData: ApiQueryResults | undefined,
+    series: Series[] | undefined,
+) => {
+    if (resultsData === undefined || series === undefined) return {};
+    // Skip method if there are no reference lines
+    const hasReferenceLines =
+        series.find((serie) => {
+            const data = serie.markLine?.data;
+            return data !== undefined && data.length > 0;
+        }) !== undefined;
+
+    if (!hasReferenceLines) return {};
+
+    const getMinAndMaxValues = (axis: string | undefined): number[] => {
+        if (!axis) return [];
+        return resultsData.rows
+            .map((row) => row[axis]?.value?.raw)
+            .reduce<number[]>(
+                (acc, p) => {
+                    if (isNaN(p)) return acc;
+                    const value = parseInt(p);
+                    const min = acc[0] < value ? acc[0] : value;
+                    const max = acc[1] > value ? acc[1] : value;
+                    return [min, max];
+                },
+                [0, 0],
+            );
+    };
+
+    const getMinAndMaxReferenceLineValues = (
+        axis: string,
+        fieldId: string | undefined,
+    ): number[] => {
+        const values = series.flatMap((serie) => {
+            const serieFieldId =
+                axis === 'yAxis' ? serie.encode.yRef : serie.encode.xRef;
+            if (serieFieldId.field !== fieldId) return [];
+
+            if (!serie.markLine) return [];
+            return serie.markLine?.data.reduce<number[]>((acc, data) => {
+                try {
+                    const value = parseInt(data[axis]);
+                    if (isNaN(value)) return acc;
+                    return [...acc, value];
+                } catch (e) {
+                    return acc;
+                }
+            }, []);
+        });
+        return [Math.min(...values), Math.max(...values)];
+    };
+    const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(leftAxisYId);
+    const [minValueRightY, maxValueRightY] = getMinAndMaxValues(rightAxisYId);
+    const [minValueX, maxValueX] = getMinAndMaxValues(bottomAxisXId);
+
+    const [minReferenceLineX, maxReferenceLineX] =
+        getMinAndMaxReferenceLineValues('xAxis', bottomAxisXId);
+    const [minReferenceLineLeftY, maxReferenceLineLeftY] =
+        getMinAndMaxReferenceLineValues('yAxis', leftAxisYId);
+    const [minReferenceLineRightY, maxReferenceLineRightY] =
+        getMinAndMaxReferenceLineValues('yAxis', rightAxisYId);
+
+    return {
+        referenceLineMinX:
+            minReferenceLineX < minValueX ? minReferenceLineX : undefined,
+        referenceLineMaxX:
+            maxReferenceLineX > maxValueX ? maxReferenceLineX : undefined,
+        referenceLineMinLeftY:
+            minReferenceLineLeftY < minValueLeftY
+                ? minReferenceLineLeftY
+                : undefined,
+        referenceLineMaxLeftY:
+            maxReferenceLineLeftY > maxValueLeftY
+                ? maxReferenceLineLeftY
+                : undefined,
+        referenceLineMinRightY:
+            minReferenceLineRightY < minValueRightY
+                ? minReferenceLineRightY
+                : undefined,
+        referenceLineMaxRightY:
+            maxReferenceLineRightY > maxValueRightY
+                ? maxReferenceLineRightY
+                : undefined,
+    };
 };
 type GetPivotSeriesArg = {
     series: Series;
@@ -624,6 +715,21 @@ const getEchartAxis = ({
             rightAxisYId,
         });
 
+    const {
+        referenceLineMinX,
+        referenceLineMaxX,
+        referenceLineMinLeftY,
+        referenceLineMaxLeftY,
+        referenceLineMinRightY,
+        referenceLineMaxRightY,
+    } = getMinAndMaxReferenceLines(
+        leftAxisYId,
+        rightAxisYId,
+        bottomAxisXId,
+        resultsData,
+        validCartesianConfig.eChartsConfig.series,
+    );
+
     return {
         xAxis: [
             {
@@ -643,11 +749,11 @@ const getEchartAxis = ({
                 min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.min ||
                       maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
-                    : undefined,
+                    : referenceLineMinX,
                 max: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.max ||
                       maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
-                    : undefined,
+                    : referenceLineMaxX,
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -711,10 +817,12 @@ const getEchartAxis = ({
                       }),
                 min: !validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[0]?.min ||
+                      referenceLineMinLeftY ||
                       maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
                     : undefined,
                 max: !validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[0]?.max ||
+                      referenceLineMaxLeftY ||
                       maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
                     : undefined,
                 nameTextStyle: {
@@ -746,10 +854,12 @@ const getEchartAxis = ({
                       }),
                 min: !validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[1]?.min ||
+                      referenceLineMinRightY ||
                       maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange)
                     : undefined,
                 max: !validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[1]?.max ||
+                      referenceLineMaxRightY ||
                       maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange)
                     : undefined,
                 nameTextStyle: {

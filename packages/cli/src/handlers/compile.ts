@@ -145,12 +145,18 @@ ${errors.join('')}`),
 export const compileHandler = async (options: GenerateHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
-    const errors = explores.filter((e) => isExploreError(e)).length;
+    const errorsCount = explores.filter((e) => isExploreError(e)).length;
     console.error('');
-    if (errors > 0) {
-        console.error(styles.warning(`Compiled project with ${errors} errors`));
+    if (errorsCount > 0) {
+        console.error(
+            styles.error(
+                `Failed to compile project. Found ${errorsCount} error${
+                    errorsCount > 1 ? 's' : ''
+                }`,
+            ),
+        );
+        process.exit(1);
     } else {
         console.error(styles.success('Successfully compiled project'));
     }
-    console.error('');
 };

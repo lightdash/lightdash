@@ -36,6 +36,10 @@ const MultiAutoComplete: FC<Props> = ({
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
+    if (!projectUuid) {
+        throw new Error('projectUuid is required in FiltersProvider');
+    }
+
     const {
         options,
         setSearch,

@@ -1,3 +1,24 @@
+# [0.370.0](https://github.com/lightdash/lightdash/compare/0.369.0...0.370.0) (2023-01-13)
+
+
+### Features
+
+* exit process when project fails to compile ([#4135](https://github.com/lightdash/lightdash/issues/4135)) ([4775c79](https://github.com/lightdash/lightdash/commit/4775c797dbf563483903df60525c4092b72b8242))
+
+# [0.369.0](https://github.com/lightdash/lightdash/compare/0.368.0...0.369.0) (2023-01-13)
+
+
+### Features
+
+* adjust axis limits when using reference lines outside of the chart ([#4144](https://github.com/lightdash/lightdash/issues/4144)) ([37ea03f](https://github.com/lightdash/lightdash/commit/37ea03f19e80de624d38263a1d69ce0a2fc402d0))
+
+# [0.368.0](https://github.com/lightdash/lightdash/compare/0.367.0...0.368.0) (2023-01-12)
+
+
+### Features
+
+* conditional formatting ([#4087](https://github.com/lightdash/lightdash/issues/4087)) ([b2bceae](https://github.com/lightdash/lightdash/commit/b2bceaea67fe6992fbac2f8e8b3a009e09e13b22))
+
 # [0.367.0](https://github.com/lightdash/lightdash/compare/0.366.2...0.367.0) (2023-01-11)
 
 

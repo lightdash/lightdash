@@ -108,7 +108,7 @@ const FilterRuleForm: FC<Props> = ({
                     <filterConfig.inputs
                         filterType={filterType}
                         field={activeField}
-                        filterRule={filterRule}
+                        rule={filterRule}
                         onChange={onChange}
                         disabled={!isEditMode}
                     />

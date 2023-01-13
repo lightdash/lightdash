@@ -28,6 +28,10 @@ const AutoComplete: FC<Props2> = ({
     onChange,
 }) => {
     const { projectUuid } = useFiltersContext();
+    if (!projectUuid) {
+        throw new Error('projectUuid is required in FiltersProvider');
+    }
+
     const { options, setSearch, isSearching, isFetchingInitialData } =
         useAutoComplete(value, suggestions, getItemId(field), projectUuid);
 
