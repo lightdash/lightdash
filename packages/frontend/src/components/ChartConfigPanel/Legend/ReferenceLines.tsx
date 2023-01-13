@@ -1,4 +1,4 @@
-import { Button, Checkbox, Collapse, Label } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -6,7 +6,6 @@ import {
     isField,
     Series,
     TableCalculation,
-    WeekDay,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';

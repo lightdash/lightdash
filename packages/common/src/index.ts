@@ -14,10 +14,7 @@ import {
     FieldId,
     fieldId,
     FilterableField,
-    isDimension,
-    isField,
     Metric,
-    MetricType,
 } from './types/field';
 import {
     AdditionalMetric,
@@ -47,6 +44,7 @@ import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
+import { getItemId, getItemLabel } from './utils/item';
 import { WeekDay } from './utils/timeFrames';
 
 export * from './authorization/index';
@@ -60,6 +58,8 @@ export * from './types/api';
 export * from './types/api/errors';
 export * from './types/api/integrations';
 export * from './types/api/share';
+export * from './types/conditionalFormatting';
+export * from './types/conditionalRule';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
@@ -84,9 +84,11 @@ export * from './types/timeFrames';
 export * from './types/user';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
+export * from './utils/conditionalFormatting';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
+export * from './utils/item';
 export * from './utils/timeFrames';
 
 export const validateEmail = (email: string): boolean => {
@@ -810,67 +812,7 @@ export type UpdateProject = Omit<
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
-export const findItem = (
-    items: Array<Field | TableCalculation>,
-    id: string | undefined,
-) =>
-    items.find((item) =>
-        isField(item) ? fieldId(item) === id : item.name === id,
-    );
-export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
-    isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
-export const getItemLabel = (item: Field | TableCalculation) =>
-    isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
-export const getItemIcon = (
-    item: Field | TableCalculation | AdditionalMetric,
-) => {
-    if (isField(item)) {
-        return isDimension(item) ? 'tag' : 'numerical';
-    }
-    return 'function';
-};
-export const getItemColor = (
-    item: Field | TableCalculation | AdditionalMetric,
-) => {
-    if (isField(item)) {
-        return isDimension(item) ? '#0E5A8A' : '#A66321';
-    }
-    return '#0A6640';
-};
 
-export const isNumericItem = (
-    item: Field | AdditionalMetric | TableCalculation | undefined,
-): boolean => {
-    if (!item) {
-        return false;
-    }
-    if (isField(item) || isAdditionalMetric(item)) {
-        const numericTypes: string[] = [
-            DimensionType.NUMBER,
-            MetricType.NUMBER,
-            MetricType.AVERAGE,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM,
-            MetricType.MIN,
-            MetricType.MAX,
-        ];
-        return numericTypes.includes(item.type);
-    }
-    return true;
-};
-export const isDateItem = (
-    item: Field | AdditionalMetric | TableCalculation | undefined,
-): boolean => {
-    if (!item) {
-        return false;
-    }
-    if (isField(item) || isAdditionalMetric(item)) {
-        const dateTypes: string[] = [DimensionType.DATE, MetricType.DATE];
-        return dateTypes.includes(item.type);
-    }
-    return true;
-};
 export const getResultValues = (
     rows: ResultRow[],
     onlyRaw: boolean = false,

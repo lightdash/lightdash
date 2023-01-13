@@ -1,6 +1,12 @@
-import { isNumericItem } from '@lightdash/common';
+import {
+    getConditionalFormattingConfig,
+    hasMatchingConditionalRules,
+    isNumericItem,
+    ResultRow,
+} from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import { FC } from 'react';
+import { readableColor } from '../../../../utils/colorUtils';
 import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 
@@ -12,6 +18,7 @@ const TableBody: FC = () => {
         onSelectCell,
         copyingCellId,
         onCopyCell,
+        conditionalFormattings,
     } = useTableContext();
 
     return (
@@ -20,10 +27,40 @@ const TableBody: FC = () => {
                 <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => {
                         const meta = cell.column.columnDef.meta;
+                        const field = meta?.item;
+                        const cellValue = cell.getValue() as
+                            | ResultRow[0]
+                            | undefined;
+
+                        const fieldConditionalConfig =
+                            cellValue &&
+                            getConditionalFormattingConfig(
+                                conditionalFormattings,
+                                field,
+                            );
+
+                        const cellHasFormatting = hasMatchingConditionalRules(
+                            cellValue?.value.raw as number,
+                            fieldConditionalConfig,
+                        );
 
                         return (
                             <BodyCell
                                 style={meta?.style}
+                                backgroundColor={
+                                    cellHasFormatting
+                                        ? fieldConditionalConfig?.color
+                                        : undefined
+                                }
+                                fontColor={
+                                    cellHasFormatting &&
+                                    fieldConditionalConfig?.color &&
+                                    readableColor(
+                                        fieldConditionalConfig.color,
+                                    ) === 'white'
+                                        ? 'white'
+                                        : undefined
+                                }
                                 className={meta?.className}
                                 key={cell.id}
                                 rowIndex={rowIndex}

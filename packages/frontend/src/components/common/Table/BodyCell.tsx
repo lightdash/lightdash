@@ -16,6 +16,8 @@ interface CommonBodyCellProps {
     cellContextMenu?: FC<CellContextMenuProps>;
     className?: string;
     style?: CSSProperties;
+    backgroundColor?: string;
+    fontColor?: string;
     copying?: boolean;
     selected?: boolean;
     onSelect: () => void;
@@ -28,6 +30,8 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     cellContextMenu,
     children,
     className,
+    backgroundColor,
+    fontColor,
     copying = false,
     hasData,
     isNumericItem,
@@ -70,22 +74,19 @@ const BodyCell: FC<CommonBodyCellProps> = ({
             }
             renderTarget={({ ref }) => (
                 <Td
-                    className={className}
-                    style={{
-                        ...style,
-                        ...(selected
-                            ? { position: 'relative', zIndex: 21 }
-                            : {}),
-                    }}
                     ref={ref}
-                    onKeyDown={onKeyDown}
+                    className={className}
+                    style={style}
                     $rowIndex={rowIndex}
                     $isSelected={selected}
                     $isInteractive={hasContextMenu}
                     $isCopying={copying}
+                    $backgroundColor={backgroundColor}
+                    $fontColor={fontColor}
                     $hasData={hasContextMenu}
                     $isNaN={!hasData || !isNumericItem}
                     onClick={selected ? handleDeselect : handleSelect}
+                    onKeyDown={onKeyDown}
                 >
                     <RichBodyCell cell={cell as Cell<ResultRow, ResultRow[0]>}>
                         {children}
