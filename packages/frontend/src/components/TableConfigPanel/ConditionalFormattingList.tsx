@@ -1,4 +1,4 @@
-import { Button, FormGroup } from '@blueprintjs/core';
+import { Button, Classes, FormGroup } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     createConditionalFormattingConfig,
@@ -74,6 +74,11 @@ const ConditionalFormattingList = ({}) => {
         [onSetConditionalFormattings, activeConfigs],
     );
 
+    const isAddButtonDisabled = useMemo(
+        () => visibleActiveNumericFields.length === usedFieldIds.length,
+        [visibleActiveNumericFields, usedFieldIds],
+    );
+
     return (
         <ConditionalFormattingListWrapper>
             {activeConfigs.map((conditionalFormatting, index) => (
@@ -92,18 +97,14 @@ const ConditionalFormattingList = ({}) => {
             <FormGroup>
                 <Tooltip2
                     position="bottom-left"
-                    disabled={
-                        visibleActiveNumericFields.length !==
-                        usedFieldIds.length
-                    }
+                    disabled={!isAddButtonDisabled}
                     content="All fields are already being used in rules."
                 >
                     <Button
                         icon="plus"
-                        onClick={handleAdd}
-                        disabled={
-                            visibleActiveNumericFields.length ===
-                            usedFieldIds.length
+                        onClick={isAddButtonDisabled ? undefined : handleAdd}
+                        className={
+                            isAddButtonDisabled ? Classes.DISABLED : undefined
                         }
                     >
                         Add new rule
