@@ -207,7 +207,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             onClosed={toggleFieldInput}
                         />
                         <Button
-                            style={{ marginLeft: 10 }}
                             minimal
                             icon="cross"
                             onClick={toggleFieldInput}
