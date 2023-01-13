@@ -1,3 +1,10 @@
+# [0.369.0](https://github.com/lightdash/lightdash/compare/0.368.0...0.369.0) (2023-01-13)
+
+
+### Features
+
+* adjust axis limits when using reference lines outside of the chart ([#4144](https://github.com/lightdash/lightdash/issues/4144)) ([37ea03f](https://github.com/lightdash/lightdash/commit/37ea03f19e80de624d38263a1d69ce0a2fc402d0))
+
 # [0.368.0](https://github.com/lightdash/lightdash/compare/0.367.0...0.368.0) (2023-01-12)
 
 
