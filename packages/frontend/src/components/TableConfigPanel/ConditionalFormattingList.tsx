@@ -77,6 +77,7 @@ const ConditionalFormattingList = ({}) => {
             {activeConfigs.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
+                    isDefaultOpen={activeConfigs.length === 1}
                     index={index}
                     fields={visibleActiveNumericFields}
                     usedFieldIds={usedFieldIds}
