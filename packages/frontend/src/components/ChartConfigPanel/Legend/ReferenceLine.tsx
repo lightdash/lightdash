@@ -1,19 +1,10 @@
-import {
-    Button,
-    Collapse,
-    FormGroup,
-    InputGroup,
-    Intent,
-    Label,
-} from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
     fieldId as getFieldId,
     isField,
     isNumericItem,
-    MarkLineData,
     TableCalculation,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
@@ -22,13 +13,14 @@ import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styles';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
-import { GridSettings, SectionTitle } from './Legend.styles';
+import { SectionTitle } from './Legend.styles';
 import { CollapseWrapper, DeleteButtonTooltip } from './ReferenceLine.styles';
+import { ReferenceLineField } from './ReferenceLines';
 
 type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension)[];
-    referenceLine: MarkLineData;
+    referenceLine: ReferenceLineField;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension,
@@ -64,50 +56,31 @@ export const ReferenceLine: FC<Props> = ({
         });
     }, [items, dirtyLayout]);
 
-    const [
-        selectedMarklineAxis,
-        selectedMarklineValue,
-        selectedFieldId,
-        selectedMarklineLabel,
-        selectedColor,
-    ] = useMemo(() => {
-        const serieWithMarkLine = dirtyEchartsConfig?.series?.find(
-            (serie) =>
-                serie.markLine?.data.find(
-                    (data) => data.name === referenceLine.name,
-                ) !== undefined,
-        );
-
-        const markLineKey = 'xAxis' in referenceLine ? 'xAxis' : 'yAxis';
-        const markLineValue = referenceLine[markLineKey];
-        const fieldId =
-            markLineKey === 'xAxis'
-                ? serieWithMarkLine?.encode.xRef.field
-                : serieWithMarkLine?.encode.yRef.field;
-        const label = referenceLine.label?.formatter;
-        const color = referenceLine.lineStyle?.color;
-        return [markLineKey, markLineValue, fieldId, label, color];
-    }, [dirtyEchartsConfig?.series, referenceLine]);
+    const markLineKey = useMemo(() => {
+        return 'xAxis' in referenceLine.data ? 'xAxis' : 'yAxis';
+    }, [referenceLine]);
 
     const [value, setValue] = useState<string | undefined>(
-        selectedMarklineValue,
+        referenceLine.data[markLineKey],
     );
 
     const [label, setLabel] = useState<string | undefined>(
-        selectedMarklineLabel,
+        referenceLine.data.label?.formatter,
     );
     const [isOpen, setIsOpen] = useState<boolean>(
-        isDefaultOpen || selectedMarklineValue === undefined,
+        isDefaultOpen || referenceLine.fieldId === undefined,
     );
-    const [lineColor, setLineColor] = useState<string>(selectedColor || '#000');
+    const [lineColor, setLineColor] = useState<string>(
+        referenceLine.data.lineStyle?.color || '#000',
+    );
 
     const selectedFieldDefault = useMemo(() => {
-        if (selectedMarklineAxis === undefined) return;
+        if (markLineKey === undefined) return;
         return fieldsInAxes.find((field) => {
             const fieldId = isField(field) ? getFieldId(field) : field.name;
-            return fieldId === selectedFieldId;
+            return fieldId === referenceLine.fieldId;
         });
-    }, [fieldsInAxes, selectedMarklineAxis, selectedFieldId]);
+    }, [fieldsInAxes, markLineKey, referenceLine.fieldId]);
 
     const [selectedField, setSelectedField] = useState<
         Field | TableCalculation | CompiledDimension | undefined
@@ -121,7 +94,7 @@ export const ReferenceLine: FC<Props> = ({
                     selectedField,
                     updatedLabel,
                     lineColor,
-                    referenceLine.name,
+                    referenceLine.data.name,
                 );
         }, 500),
         [value, selectedField, updateReferenceLine],
@@ -142,7 +115,9 @@ export const ReferenceLine: FC<Props> = ({
                         small
                         minimal
                         icon="cross"
-                        onClick={() => removeReferenceLine(referenceLine.name)}
+                        onClick={() =>
+                            removeReferenceLine(referenceLine.data.name)
+                        }
                     />
                 </DeleteButtonTooltip>
             </Flex>
@@ -160,7 +135,7 @@ export const ReferenceLine: FC<Props> = ({
                                     item,
                                     label,
                                     lineColor,
-                                    referenceLine.name,
+                                    referenceLine.data.name,
                                 );
                         }}
                     />
@@ -183,7 +158,7 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     lineColor,
-                                    referenceLine.name,
+                                    referenceLine.data.name,
                                 );
                         }}
                         placeholder="Add value for the reference line"
@@ -217,7 +192,7 @@ export const ReferenceLine: FC<Props> = ({
                                     selectedField,
                                     label,
                                     color,
-                                    referenceLine.name,
+                                    referenceLine.data.name,
                                 );
                         }}
                     />

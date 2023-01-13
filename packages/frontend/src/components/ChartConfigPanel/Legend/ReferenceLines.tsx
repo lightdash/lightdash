@@ -4,12 +4,15 @@ import {
     Field,
     fieldId as getFieldId,
     isField,
-    MarkLineData,
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    getMarkLineAxis,
+    ReferenceLineField,
+} from '../../common/ReferenceLine';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionTitle } from '../ChartConfigPanel.styles';
 import { ReferenceLine } from './ReferenceLine';
@@ -25,34 +28,10 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             dirtyEchartsConfig,
             updateSeries,
             updateSingleSeries,
+            referenceLines,
+            setReferenceLines,
         },
     } = useVisualizationContext();
-
-    const selectedReferenceLines: MarkLineData[] = useMemo(() => {
-        if (dirtyEchartsConfig?.series === undefined) return [];
-        return dirtyEchartsConfig.series.reduce<MarkLineData[]>(
-            (acc, serie) => {
-                const data = serie.markLine?.data;
-                if (data !== undefined) {
-                    const fullData = data.map((markData) => {
-                        return {
-                            label: serie.markLine?.label,
-                            lineStyle: serie.markLine?.lineStyle,
-                            ...markData,
-                        };
-                    });
-
-                    return [...acc, ...fullData];
-                }
-                return acc;
-            },
-            [],
-        );
-    }, [dirtyEchartsConfig?.series]);
-
-    const [referenceLines, setReferenceLines] = useState<MarkLineData[]>(
-        selectedReferenceLines,
-    );
 
     const updateReferenceLine = useCallback(
         (
@@ -77,43 +56,24 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                     );
                     if (selectedSeries === undefined) return;
 
-                    const newData: MarkLineData = {
-                        ...(dirtyLayout?.xField === fieldId
-                            ? { xAxis: updateValue }
-                            : { yAxis: updateValue }),
+                    const dataWithAxis = {
                         name: lineId,
                         lineStyle: { color: updateColor },
                         label: updateLabel ? { formatter: updateLabel } : {},
+                        xAxis: undefined,
+                        yAxis: undefined,
+                        [dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis']:
+                            updateValue,
                     };
 
-                    const updatedData = [
-                        ...(selectedSeries.markLine?.data || []).filter(
-                            (data) => data.name !== lineId,
-                        ),
-                        newData,
-                    ];
-
-                    const updatedSeries: Series = {
-                        ...selectedSeries,
-                        markLine: {
-                            symbol: 'none',
-                            lineStyle: {
-                                color: '#000',
-                                width: 3,
-                                type: 'solid',
-                            },
-
-                            data: updatedData,
-                        },
-                    };
-                    const updatedReferenceLines: MarkLineData[] =
+                    const updatedReferenceLines: ReferenceLineField[] =
                         referenceLines.map((line) => {
-                            if (line.name === lineId) return newData;
+                            if (line.data.name === lineId)
+                                return { fieldId: fieldId, data: dataWithAxis };
                             else return line;
                         });
 
                     setReferenceLines(updatedReferenceLines);
-                    updateSingleSeries(updatedSeries);
                 }
             }
         },
@@ -126,8 +86,10 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
     );
 
     const addReferenceLine = useCallback(() => {
-        const newReferenceLine: MarkLineData = {
-            name: uuidv4(),
+        const newReferenceLine: ReferenceLineField = {
+            data: {
+                name: uuidv4(),
+            },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
     }, [referenceLines]);
@@ -151,7 +113,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             updateSeries(series);
 
             setReferenceLines(
-                referenceLines.filter((line) => line.name !== markLineId),
+                referenceLines.filter((line) => line.data.name !== markLineId),
             );
         },
         [updateSeries, dirtyEchartsConfig?.series, referenceLines],
@@ -164,7 +126,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 referenceLines.map((line, index) => {
                     return (
                         <ReferenceLine
-                            key={line.name}
+                            key={line.data.name}
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}
