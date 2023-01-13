@@ -1,6 +1,7 @@
 import {
     ApiQueryResults,
     ColumnProperties,
+    ConditionalFormattingConfig,
     Explore,
     getItemLabel,
     getItemMap,
@@ -24,6 +25,10 @@ const useTableConfig = (
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
     );
+
+    const [conditionalFormattings, setConditionalFormattings] = useState<
+        ConditionalFormattingConfig[]
+    >(tableChartConfig?.conditionalFormattings ?? []);
 
     const [showTableNames, setShowTableName] = useState<boolean>(
         tableChartConfig?.showTableNames === undefined
@@ -175,18 +180,27 @@ const useTableConfig = (
         });
     };
 
+    const handleSetConditionalFormattings = useCallback(
+        (configs: ConditionalFormattingConfig[]) => {
+            setConditionalFormattings(configs);
+        },
+        [],
+    );
+
     const validTableConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
             showTableNames,
             columns: columnProperties,
             hideRowNumbers,
+            conditionalFormattings,
         }),
         [
             showColumnCalculation,
             hideRowNumbers,
             showTableNames,
             columnProperties,
+            conditionalFormattings,
         ],
     );
 
@@ -210,6 +224,8 @@ const useTableConfig = (
         getDefaultColumnLabel,
         isColumnVisible,
         isColumnFrozen,
+        conditionalFormattings,
+        onSetConditionalFormattings: handleSetConditionalFormattings,
     };
 };
 

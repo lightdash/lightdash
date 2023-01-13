@@ -11,7 +11,7 @@ import { FC, useCallback, useMemo } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { MAX_PIVOTS } from '../TableConfigPanel';
+import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 import { AddPivotButton } from '../TableConfigPanel/TableConfig.styles';
 import {
     AxisFieldDropdown,

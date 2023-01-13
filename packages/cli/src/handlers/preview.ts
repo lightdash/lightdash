@@ -230,7 +230,7 @@ export const startPreviewHandler = async (
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
         if (process.env.CI === 'true') {
-            console.log(`::set-output name=url::${url}`);
+            console.info(`::set-output name=url::${url}`);
         }
     } else {
         // Create
@@ -271,7 +271,7 @@ export const startPreviewHandler = async (
         const url = await projectUrl(project);
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
-            console.log(`::set-output name=url::${url}`);
+            console.info(`::set-output name=url::${url}`);
         }
     }
 };

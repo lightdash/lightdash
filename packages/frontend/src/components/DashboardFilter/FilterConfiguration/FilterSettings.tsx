@@ -57,7 +57,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     popoverProps={popoverProps}
                     filterType={filterType}
                     field={field}
-                    filterRule={filterRule}
+                    rule={filterRule}
                     onChange={(newFilterRule) =>
                         onChangeFilterRule(newFilterRule as DashboardFilterRule)
                     }

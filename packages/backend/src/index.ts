@@ -61,7 +61,10 @@ const app = express();
 const tracesSampler = (context: SamplingContext): boolean | number => {
     if (
         context.request?.url?.endsWith('/status') ||
-        context.request?.url?.endsWith('/health')
+        context.request?.url?.endsWith('/health') ||
+        context.request?.url?.endsWith('/favicon.ico') ||
+        context.request?.url?.endsWith('/robots.txt') ||
+        context.request?.url?.endsWith('livez')
     ) {
         return 0.0;
     }

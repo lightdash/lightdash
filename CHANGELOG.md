@@ -1,3 +1,52 @@
+## [0.370.4](https://github.com/lightdash/lightdash/compare/0.370.3...0.370.4) (2023-01-13)
+
+
+### Bug Fixes
+
+* refresh reference lines on chart update ([#4155](https://github.com/lightdash/lightdash/issues/4155)) ([3ad90f3](https://github.com/lightdash/lightdash/commit/3ad90f3ef996459d3c9d2a3f9c47dbd9113309df))
+
+## [0.370.3](https://github.com/lightdash/lightdash/compare/0.370.2...0.370.3) (2023-01-13)
+
+
+### Bug Fixes
+
+* remove livez,robots,favicon from sentry traces ([#4159](https://github.com/lightdash/lightdash/issues/4159)) ([e94d1dc](https://github.com/lightdash/lightdash/commit/e94d1dc2335ebb8964a0fe5e38c4615679c6e345))
+
+## [0.370.2](https://github.com/lightdash/lightdash/compare/0.370.1...0.370.2) (2023-01-13)
+
+
+### Bug Fixes
+
+* filterRule is not defined ([#4163](https://github.com/lightdash/lightdash/issues/4163)) ([0b8d06d](https://github.com/lightdash/lightdash/commit/0b8d06dc14b5a58a2d5148d773dde6bf8c812d9a))
+
+## [0.370.1](https://github.com/lightdash/lightdash/compare/0.370.0...0.370.1) (2023-01-13)
+
+
+### Bug Fixes
+
+* fix echarts axis test failing ([#4160](https://github.com/lightdash/lightdash/issues/4160)) ([113f17a](https://github.com/lightdash/lightdash/commit/113f17af327f22511c3a3700c6b9fb35c937963e))
+
+# [0.370.0](https://github.com/lightdash/lightdash/compare/0.369.0...0.370.0) (2023-01-13)
+
+
+### Features
+
+* exit process when project fails to compile ([#4135](https://github.com/lightdash/lightdash/issues/4135)) ([4775c79](https://github.com/lightdash/lightdash/commit/4775c797dbf563483903df60525c4092b72b8242))
+
+# [0.369.0](https://github.com/lightdash/lightdash/compare/0.368.0...0.369.0) (2023-01-13)
+
+
+### Features
+
+* adjust axis limits when using reference lines outside of the chart ([#4144](https://github.com/lightdash/lightdash/issues/4144)) ([37ea03f](https://github.com/lightdash/lightdash/commit/37ea03f19e80de624d38263a1d69ce0a2fc402d0))
+
+# [0.368.0](https://github.com/lightdash/lightdash/compare/0.367.0...0.368.0) (2023-01-12)
+
+
+### Features
+
+* conditional formatting ([#4087](https://github.com/lightdash/lightdash/issues/4087)) ([b2bceae](https://github.com/lightdash/lightdash/commit/b2bceaea67fe6992fbac2f8e8b3a009e09e13b22))
+
 # [0.367.0](https://github.com/lightdash/lightdash/compare/0.366.2...0.367.0) (2023-01-11)
 
 

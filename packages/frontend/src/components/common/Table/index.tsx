@@ -1,4 +1,4 @@
-import React, { ComponentProps, FC } from 'react';
+import { ComponentProps, FC } from 'react';
 import ScrollableTable from './ScrollableTable';
 import * as States from './States';
 import { TableContainer } from './Table.styles';
@@ -10,7 +10,6 @@ type Props = ComponentProps<typeof TableProvider> & {
     loadingState?: FC;
     idleState?: FC;
     emptyState?: FC;
-    hideRowNumbers?: boolean;
     className?: string;
     $shouldExpand?: boolean;
     $padding?: number;
@@ -24,9 +23,7 @@ const Table: FC<Props> = ({
     loadingState,
     idleState,
     emptyState,
-    hideRowNumbers,
     className,
-    showColumnCalculation,
     'data-testid': dataTestId,
     ...rest
 }) => {
@@ -35,11 +32,7 @@ const Table: FC<Props> = ({
     const EmptyState = emptyState || States.EmptyState;
 
     return (
-        <TableProvider
-            hideRowNumbers={hideRowNumbers}
-            showColumnCalculation={showColumnCalculation}
-            {...rest}
-        >
+        <TableProvider {...rest}>
             <TableContainer
                 className={`cohere-block${className ? ` ${className}` : ''}`}
                 $shouldExpand={$shouldExpand}

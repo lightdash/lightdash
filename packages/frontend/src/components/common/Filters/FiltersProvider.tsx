@@ -8,7 +8,7 @@ export type FieldWithSuggestions = FilterableField & {
 export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 
 type FiltersContext = {
-    projectUuid: string;
+    projectUuid?: string;
     fieldsMap: FieldsWithSuggestions;
     startOfWeek?: WeekDay | null;
     getField: (filterRule: FilterRule) => FieldWithSuggestions | undefined;
@@ -17,14 +17,14 @@ type FiltersContext = {
 const Context = createContext<FiltersContext | undefined>(undefined);
 
 type Props = {
-    projectUuid: string;
-    fieldsMap: Record<string, FieldWithSuggestions>;
+    projectUuid?: string;
+    fieldsMap?: Record<string, FieldWithSuggestions>;
     startOfWeek?: WeekDay | null;
 };
 
 export const FiltersProvider: FC<Props> = ({
     projectUuid,
-    fieldsMap,
+    fieldsMap = {},
     startOfWeek,
     children,
 }) => {

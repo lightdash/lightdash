@@ -91,7 +91,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
 
     GlobalState.debug(`> Compiled models: ${compiledModels.length}`);
 
-    console.log(styles.info(`Generated .yml files:`));
+    console.info(styles.info(`Generated .yml files:`));
     for await (const compiledModel of compiledModels) {
         const spinner = GlobalState.startSpinner(
             `  Generating .yml for model ${styles.bold(compiledModel.name)}`,
