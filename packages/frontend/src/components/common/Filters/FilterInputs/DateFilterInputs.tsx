@@ -5,7 +5,6 @@ import {
     DateFilterRule,
     DimensionType,
     FilterOperator,
-    FilterRule,
     formatDate,
     isDimension,
     isFilterRule,
@@ -255,11 +254,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }
                         parseDate={parseDate}
                         value={[
-                            filterRule.values?.[0]
-                                ? new Date(filterRule.values?.[0])
+                            rule.values?.[0]
+                                ? new Date(rule.values?.[0])
                                 : null,
-                            filterRule.values?.[1]
-                                ? new Date(filterRule.values?.[1])
+                            rule.values?.[1]
+                                ? new Date(rule.values?.[1])
                                 : null,
                         ]}
                         onChange={(
@@ -267,7 +266,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         ) => {
                             if (range && range[0] && range[1]) {
                                 onChange({
-                                    ...filterRule,
+                                    ...rule,
                                     values: range.map((value) =>
                                         formatDate(value, undefined, false),
                                     ),
