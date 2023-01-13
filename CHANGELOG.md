@@ -1,3 +1,10 @@
+## [0.370.1](https://github.com/lightdash/lightdash/compare/0.370.0...0.370.1) (2023-01-13)
+
+
+### Bug Fixes
+
+* fix echarts axis test failing ([#4160](https://github.com/lightdash/lightdash/issues/4160)) ([113f17a](https://github.com/lightdash/lightdash/commit/113f17af327f22511c3a3700c6b9fb35c937963e))
+
 # [0.370.0](https://github.com/lightdash/lightdash/compare/0.369.0...0.370.0) (2023-01-13)
 
 
