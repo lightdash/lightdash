@@ -1,3 +1,10 @@
+# [0.370.0](https://github.com/lightdash/lightdash/compare/0.369.0...0.370.0) (2023-01-13)
+
+
+### Features
+
+* exit process when project fails to compile ([#4135](https://github.com/lightdash/lightdash/issues/4135)) ([4775c79](https://github.com/lightdash/lightdash/commit/4775c797dbf563483903df60525c4092b72b8242))
+
 # [0.369.0](https://github.com/lightdash/lightdash/compare/0.368.0...0.369.0) (2023-01-13)
 
 
