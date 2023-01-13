@@ -74,6 +74,30 @@ describe('CLI', () => {
             .its('stderr')
             .should('contain', 'Successfully compiled project');
     });
+
+    it('Should throw error on lightdash compile', () => {
+        cy.exec(
+            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir} -m orders`,
+            {
+                failOnNonZeroExit: false,
+                env: {
+                    CI: true,
+                    NODE_ENV: 'development',
+                    PGHOST: Cypress.env('PGHOST') || 'localhost',
+                    PGPORT: 5432,
+                    PGUSER: 'postgres',
+                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+                    PGDATABASE: 'postgres',
+                },
+            },
+        ).then((result) => {
+            expect(result.code).to.eq(1);
+            expect(result.stderr).to.contain(
+                'Failed to compile project. Found 1 error',
+            );
+        });
+    });
+
     it('Should lightdash login with token', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
