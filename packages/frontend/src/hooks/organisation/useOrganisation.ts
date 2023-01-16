@@ -35,7 +35,7 @@ export const useDeleteOrganisationMutation = () => {
         },
         onError: (error) => {
             showToastError({
-                title: `Failed to delete dashboard`,
+                title: `Failed to delete organisation`,
                 subtitle: error.error.message,
             });
         },

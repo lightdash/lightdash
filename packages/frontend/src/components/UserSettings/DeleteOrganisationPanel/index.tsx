@@ -22,7 +22,6 @@ export const DeleteOrganisationPanel: FC = () => {
     const { mutate, isLoading: isDeleting } = useDeleteOrganisationMutation();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
-    const [errorMessage, setErrorMessage] = useState<string>();
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
     const { user } = useApp();
 
@@ -54,7 +53,10 @@ export const DeleteOrganisationPanel: FC = () => {
                 isOpen={showConfirmation}
                 title="Delete 'Organisation'"
                 icon="delete"
-                onClose={() => setShowConfirmation(false)}
+                onClose={() => {
+                    setShowConfirmation(false);
+                    setConfirmOrgName('');
+                }}
                 renderBody={() => (
                     <>
                         <p>
@@ -73,8 +75,6 @@ export const DeleteOrganisationPanel: FC = () => {
                 )}
                 renderFooter={() => (
                     <>
-                        <ErrorMessage>{errorMessage}</ErrorMessage>
-
                         <Button
                             onClick={() => {
                                 setShowConfirmation(false);
@@ -96,6 +96,7 @@ export const DeleteOrganisationPanel: FC = () => {
                             loading={isDeleting}
                             onClick={() => {
                                 mutate(organisation.organizationUuid);
+                                setShowConfirmation(false);
                             }}
                         />
                     </>
