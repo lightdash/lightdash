@@ -65,7 +65,6 @@ const TokenListItem: FC<{
                 }
                 title={`Delete token ${description}`}
                 lazy
-                canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>

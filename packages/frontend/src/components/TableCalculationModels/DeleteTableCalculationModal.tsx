@@ -35,7 +35,6 @@ const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> = ({
             onClose={onClose}
             title="Settings"
             lazy
-            canOutsideClickClose={false}
         >
             <div className={Classes.DIALOG_BODY}>
                 <p>Are you sure you want to delete this table calculation ?</p>

@@ -101,7 +101,6 @@ const TableCalculationModal: FC<Props> = ({
                     : 'Add table calculation'
             }
             lazy
-            canOutsideClickClose
             style={
                 isFullscreen
                     ? {

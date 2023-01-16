@@ -89,7 +89,6 @@ const SpaceModal: FC<ActionModalProps> = ({
     return (
         <BaseModal
             isOpen
-            canOutsideClickClose
             title={title}
             icon={icon}
             onClose={onClose}
