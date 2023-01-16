@@ -22,7 +22,7 @@ import {
 } from './DeleteOrganisationPanel.styles';
 
 export const DeleteOrganisationPanel: FC = () => {
-    const { isLoading: isOrgLoading, data: organization } = useOrganisation();
+    const { isLoading: isOrgLoading, data: organisation } = useOrganisation();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string>();
@@ -30,8 +30,8 @@ export const DeleteOrganisationPanel: FC = () => {
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
     const { user } = useApp();
 
-    if (isOrgLoading || organization === undefined) return null;
-    if (!user.data?.ability?.can('manage', 'Organization')) return null;
+    if (isOrgLoading || organisation === undefined) return null;
+    if (!user.data?.ability?.can('manage', 'Organisation')) return null;
 
     return (
         <>
@@ -48,7 +48,7 @@ export const DeleteOrganisationPanel: FC = () => {
                         outlined
                         intent={Intent.DANGER}
                         icon="delete"
-                        text="Delete 'Organization'"
+                        text="Delete 'Organisation'"
                         onClick={() => setShowConfirmation(true)}
                     />
                 </PanelContent>
@@ -56,19 +56,19 @@ export const DeleteOrganisationPanel: FC = () => {
 
             <BaseModal
                 isOpen={showConfirmation}
-                title="Delete 'Organization'"
+                title="Delete 'Organisation'"
                 icon="delete"
                 onClose={() => setShowConfirmation(false)}
                 renderBody={() => (
                     <>
                         <p>
                             Type the name of this organization{' '}
-                            <b>{organization.name}</b> to confirm you want to
+                            <b>{organisation.name}</b> to confirm you want to
                             delete it. This action is not reversible.{' '}
                         </p>
 
                         <InputGroup
-                            placeholder={organization.name}
+                            placeholder={organisation.name}
                             value={confirmOrgName}
                             onChange={(e) => setConfirmOrgName(e.target.value)}
                         />
@@ -92,7 +92,7 @@ export const DeleteOrganisationPanel: FC = () => {
                             disabled={
                                 isDisabled ||
                                 confirmOrgName?.toLowerCase() !=
-                                    organization.name.toLowerCase()
+                                    organisation.name.toLowerCase()
                             }
                             intent={Intent.DANGER}
                             type="submit"
