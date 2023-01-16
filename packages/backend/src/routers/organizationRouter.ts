@@ -45,6 +45,22 @@ organizationRouter.patch(
             .catch(next),
 );
 
+organizationRouter.delete(
+    '/:organizationUuid',
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) =>
+        organizationService
+            .delete(req.params.organizationUuid, req.user!)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next),
+);
+
 organizationRouter.get(
     '/projects',
     allowApiKeyAuthentication,

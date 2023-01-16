@@ -108,7 +108,10 @@ type QueryExecutionEvent = BaseTrack & {
 };
 
 type TrackOrganizationEvent = BaseTrack & {
-    event: 'organization.created' | 'organization.updated';
+    event:
+        | 'organization.created'
+        | 'organization.updated'
+        | 'organization.deleted';
     properties: {
         type: string;
         organizationId: string;

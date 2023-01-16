@@ -34,7 +34,7 @@ export const DeleteOrganisationPanel: FC = () => {
     const { user } = useApp();
 
     if (isOrgLoading || organisation === undefined) return null;
-    if (!user.data?.ability?.can('manage', 'Organization')) return null;
+    if (!user.data?.ability?.can('delete', 'Organization')) return null;
 
     return (
         <>

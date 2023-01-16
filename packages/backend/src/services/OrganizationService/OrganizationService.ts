@@ -96,6 +96,35 @@ export class OrganizationService {
         });
     }
 
+    async delete(organizationUuid: string, user: SessionUser): Promise<void> {
+        const organization = await this.organizationModel.get(organizationUuid);
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.organizationModel.delete(organizationUuid);
+
+        analytics.track({
+            event: 'organization.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                organizationName: organization.name,
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
+            },
+        });
+
+        // TODO remove users
+    }
+
     async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {

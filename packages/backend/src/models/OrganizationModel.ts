@@ -60,4 +60,10 @@ export class OrganizationModel {
             .returning('*');
         return OrganizationModel.mapDBObjectToOrganisation(org);
     }
+
+    async delete(organizationUuid: string): Promise<void> {
+        await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .delete();
+    }
 }
