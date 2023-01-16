@@ -328,7 +328,7 @@ describe('Create projects', () => {
 
         testTimeIntervalsResults(bigqueryRowValues);
     });
-    it.only('Should create a Trino project', () => {
+    it('Should create a Trino project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'Trino').click();
