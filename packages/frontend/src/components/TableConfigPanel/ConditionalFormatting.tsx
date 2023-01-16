@@ -42,6 +42,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     onChange,
     onRemove,
 }) => {
+    const [isAddingRule, setIsAddingRule] = useState(false);
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
 
@@ -70,6 +71,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     };
 
     const handleAddRule = () => {
+        setIsAddingRule(true);
         handleChange(
             produce(config, (draft) => {
                 draft.rules.push(createConditionalFormatingRule());
@@ -188,6 +190,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         {config.rules.map((rule, ruleIndex) => (
                             <React.Fragment key={ruleIndex}>
                                 <ConditionalFormattingRule
+                                    isDefaultOpen={
+                                        config.rules.length === 1 ||
+                                        isAddingRule
+                                    }
                                     hasRemove={config.rules.length > 1}
                                     ruleIndex={ruleIndex}
                                     rule={rule}
