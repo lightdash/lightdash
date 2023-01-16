@@ -3,7 +3,10 @@ import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Organisation } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import {
+    useDeleteOrganisationMutation,
+    useOrganisation,
+} from '../../../hooks/organisation/useOrganisation';
 import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import { useApp } from '../../../providers/AppProvider';
 import { isValidEmailDomain } from '../../../utils/fieldValidators';
@@ -23,15 +26,15 @@ import {
 
 export const DeleteOrganisationPanel: FC = () => {
     const { isLoading: isOrgLoading, data: organisation } = useOrganisation();
+    const { mutate, isLoading: isDeleting } = useDeleteOrganisationMutation();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string>();
-    const [isDisabled, setIsDisabled] = useState<boolean>(false);
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
     const { user } = useApp();
 
     if (isOrgLoading || organisation === undefined) return null;
-    if (!user.data?.ability?.can('manage', 'Organisation')) return null;
+    if (!user.data?.ability?.can('manage', 'Organization')) return null;
 
     return (
         <>
@@ -40,7 +43,7 @@ export const DeleteOrganisationPanel: FC = () => {
                     <Title>Danger zone </Title>
                     <Description>
                         This action deletes the whole workspace and all its
-                        content. This action is not reversible.
+                        content, including users. This action is not reversible.
                     </Description>
                 </div>
                 <PanelContent>
@@ -64,7 +67,8 @@ export const DeleteOrganisationPanel: FC = () => {
                         <p>
                             Type the name of this organization{' '}
                             <b>{organisation.name}</b> to confirm you want to
-                            delete it. This action is not reversible.{' '}
+                            delete this organisation and its users. This action
+                            is not reversible.
                         </p>
 
                         <InputGroup
@@ -90,14 +94,16 @@ export const DeleteOrganisationPanel: FC = () => {
                         <Button
                             data-cy="submit-base-modal"
                             disabled={
-                                isDisabled ||
                                 confirmOrgName?.toLowerCase() !=
-                                    organisation.name.toLowerCase()
+                                organisation.name.toLowerCase()
                             }
                             intent={Intent.DANGER}
                             type="submit"
                             text={'Delete'}
-                            loading={isDisabled}
+                            loading={isDeleting}
+                            onClick={() => {
+                                mutate(organisation.organizationUuid);
+                            }}
                         />
                     </>
                 )}

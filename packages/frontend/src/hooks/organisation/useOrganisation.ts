@@ -1,7 +1,8 @@
 import { ApiError, Organisation } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import { lightdashApi } from '../../api';
+import useToaster from '../toaster/useToaster';
 
 const getOrganisation = async () =>
     lightdashApi<Organisation>({
@@ -18,3 +19,25 @@ export const useOrganisation = (
         queryFn: getOrganisation,
         ...useQueryOptions,
     });
+
+const deleteDashboard = async (id: string) =>
+    lightdashApi<undefined>({
+        url: `/organisation/${id}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteOrganisationMutation = () => {
+    const { showToastError } = useToaster();
+    return useMutation<undefined, ApiError, string>(deleteDashboard, {
+        onSuccess: async () => {
+            window.location.href = '/login';
+        },
+        onError: (error) => {
+            showToastError({
+                title: `Failed to delete dashboard`,
+                subtitle: error.error.message,
+            });
+        },
+    });
+};
