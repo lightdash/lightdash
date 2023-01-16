@@ -49,8 +49,6 @@ export const hasMatchingConditionalRules = (
 
     const parsedValue = typeof value === 'string' ? Number(value) : value;
 
-    console.log({ parsedValue });
-
     return config.rules.every((rule) => {
         switch (rule.operator) {
             case ConditionalOperator.NULL:
