@@ -7,19 +7,12 @@ import {
     useDeleteOrganisationMutation,
     useOrganisation,
 } from '../../../hooks/organisation/useOrganisation';
-import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
 import { useApp } from '../../../providers/AppProvider';
-import { isValidEmailDomain } from '../../../utils/fieldValidators';
 import { ErrorMessage } from '../../common/modal/ActionModal';
 import BaseModal from '../../common/modal/BaseModal';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import TagInput from '../../ReactHookForm/TagInput';
 import {
     CardContainer,
-    DeleteButton,
     Description,
-    FormWrapper,
     PanelContent,
     Title,
 } from './DeleteOrganisationPanel.styles';
