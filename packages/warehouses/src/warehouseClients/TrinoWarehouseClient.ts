@@ -186,6 +186,13 @@ export class TrinoWarehouseClient implements WarehouseClient {
 
             const queryResult = await query.next();
 
+            if (!queryResult.done) {
+                throw new WarehouseQueryError(
+                    queryResult.value.error?.message ??
+                        'Unexpected error in query execution',
+                );
+            }
+
             const result: QueryData = queryResult.value.data ?? [];
 
             const schema: {
