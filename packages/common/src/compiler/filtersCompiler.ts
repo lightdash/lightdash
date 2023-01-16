@@ -21,10 +21,13 @@ const formatTimestamp = (date: Date): string =>
 export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule,
+    quoteChar: string,
 ): string => {
     const filterType = filter.operator;
     const escapedFilterValues = filter.values?.map((v) =>
-        typeof v === 'string' ? v.replace(/'/g, "''") : v,
+        typeof v === 'string'
+            ? v.replaceAll(quoteChar, `${quoteChar}${quoteChar}`)
+            : v,
     );
 
     switch (filter.operator) {
@@ -239,7 +242,7 @@ export const renderFilterRuleSql = (
     switch (field.type) {
         case DimensionType.STRING:
         case MetricType.STRING: {
-            return renderStringFilterSql(fieldSql, filterRule);
+            return renderStringFilterSql(fieldSql, filterRule, quoteChar);
         }
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
