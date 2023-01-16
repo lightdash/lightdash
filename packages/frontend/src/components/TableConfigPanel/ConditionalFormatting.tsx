@@ -15,7 +15,6 @@ import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import {
-    ConditionalFormattingCloseButton,
     ConditionalFormattingConfigWrapper,
     ConditionalFormattingGroupHeader,
     ConditionalFormattingGroupTitle,
@@ -139,7 +138,8 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         content="Remove rule"
                         position="left"
                         renderTarget={({ ref, ...tooltipProps }) => (
-                            <ConditionalFormattingCloseButton
+                            <Button
+                                style={{ marginLeft: 'auto' }}
                                 {...tooltipProps}
                                 elementRef={ref}
                                 minimal
@@ -214,7 +214,12 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             </React.Fragment>
                         ))}
 
-                        <Button minimal icon="plus" onClick={handleAddRule}>
+                        <Button
+                            style={{ alignSelf: 'flex-start' }}
+                            minimal
+                            icon="plus"
+                            onClick={handleAddRule}
+                        >
                             Add new condition
                         </Button>
                     </ConditionalFormattingConfigWrapper>

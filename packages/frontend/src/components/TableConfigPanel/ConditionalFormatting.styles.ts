@@ -6,10 +6,6 @@ export const ConditionalFormattingListWrapper = styled.div`
     flex-direction: column;
     gap 10px;
 
-    // .bp4-form-group:last-child {
-    //     margin: 0;
-    // }
-
     .bp4-form-group {
         margin: 0;
     }
@@ -18,6 +14,9 @@ export const ConditionalFormattingListWrapper = styled.div`
 export const ConditionalFormattingWrapper = styled.div``;
 
 export const ConditionalFormattingConfigWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     padding: 8px 10px;
     background-color: ${Colors.LIGHT_GRAY5};
     border-radius: 5px;
@@ -45,6 +44,8 @@ export const ConditionalFormattingRuleAndLabel = styled.div`
     font-weight: 600;
 `;
 
-export const ConditionalFormattingCloseButton = styled(Button)`
-    margin-left: auto;
+export const ConditionalFormattingRuleWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 `;

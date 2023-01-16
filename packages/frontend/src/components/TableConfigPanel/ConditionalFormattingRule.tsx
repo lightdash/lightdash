@@ -9,9 +9,9 @@ import {
 import { FC, useState } from 'react';
 import { FilterTypeConfig } from '../common/Filters/configs';
 import {
-    ConditionalFormattingCloseButton,
     ConditionalFormattingGroupTitle,
     ConditionalFormattingRuleGroupHeader,
+    ConditionalFormattingRuleWrapper,
 } from './ConditionalFormatting.styles';
 
 // conditional formatting only supports number fields for now
@@ -41,7 +41,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
     return (
-        <>
+        <ConditionalFormattingRuleWrapper>
             <ConditionalFormattingRuleGroupHeader>
                 <Button
                     minimal
@@ -59,7 +59,8 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         content="Remove condition"
                         position="left"
                         renderTarget={({ ref, ...tooltipProps }) => (
-                            <ConditionalFormattingCloseButton
+                            <Button
+                                style={{ marginLeft: 'auto' }}
                                 {...tooltipProps}
                                 elementRef={ref}
                                 minimal
@@ -97,7 +98,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                     </FormGroup>
                 </>
             ) : null}
-        </>
+        </ConditionalFormattingRuleWrapper>
     );
 };
 
