@@ -24,6 +24,7 @@ type FieldAutoCompleteProps<T> = {
     disabled?: boolean;
     autoFocus?: boolean;
     activeField?: T;
+    inactiveFieldIds?: string[];
     placeholder?: string;
     fields: Array<T>;
     onChange: (value: T) => void;
@@ -36,6 +37,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     disabled,
     autoFocus,
     activeField,
+    inactiveFieldIds = [],
     fields,
     id,
     name,
@@ -83,7 +85,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                     captureDismiss: true,
                     ...popoverProps,
                 }}
-                itemRenderer={renderFilterItem}
+                itemRenderer={renderFilterItem(inactiveFieldIds)}
                 activeItem={activeField}
                 selectedItem={activeField}
                 noResults={<MenuItem2 disabled text="No results." />}

@@ -14,6 +14,13 @@ export const createConditionalFormatingRule =
         values: [],
     });
 
+export const createConditionalFormattingConfig =
+    (): ConditionalFormattingConfig => ({
+        target: null,
+        color: '',
+        rules: [createConditionalFormatingRule()],
+    });
+
 export const getConditionalFormattingConfig = (
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
     field: Field | TableCalculation | undefined,
@@ -51,9 +58,13 @@ export const hasMatchingConditionalRules = (
             case ConditionalOperator.NOT_EQUALS:
                 return rule.values.some((v) => value !== v);
             case ConditionalOperator.LESS_THAN:
-                return value ? rule.values.some((v) => value < v) : false;
+                return value !== undefined
+                    ? rule.values.some((v) => value < v)
+                    : false;
             case ConditionalOperator.GREATER_THAN:
-                return value ? rule.values.some((v) => value > v) : false;
+                return value !== undefined
+                    ? rule.values.some((v) => value > v)
+                    : false;
             case ConditionalOperator.STARTS_WITH:
             case ConditionalOperator.INCLUDE:
             case ConditionalOperator.NOT_INCLUDE:

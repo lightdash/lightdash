@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
+import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
 import { ConfigWrapper } from './TableConfig.styles';
 
@@ -27,7 +28,7 @@ export const TableConfigPanel: React.FC = () => {
                         <Tab
                             id="conditional-formatting"
                             title="Conditional formatting"
-                            panel={<ConditionalFormatting />}
+                            panel={<ConditionalFormattingList />}
                         />
                     </Tabs>
                 </ConfigWrapper>
