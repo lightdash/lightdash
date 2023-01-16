@@ -53,9 +53,15 @@ organizationRouter.delete(
         organizationService
             .delete(req.params.organizationUuid, req.user!)
             .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
+                req.session.destroy((err2) => {
+                    if (err2) {
+                        next(err2);
+                    } else {
+                        res.json({
+                            status: 'ok',
+                            results,
+                        });
+                    }
                 });
             })
             .catch(next),

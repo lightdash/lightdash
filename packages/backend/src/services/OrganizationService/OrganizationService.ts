@@ -17,6 +17,7 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { UserModel } from '../../models/UserModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
@@ -24,6 +25,7 @@ type OrganizationServiceDependencies = {
     onboardingModel: OnboardingModel;
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
+    userModel: UserModel;
 };
 
 export class OrganizationService {
@@ -37,18 +39,22 @@ export class OrganizationService {
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
 
+    private readonly userModel: UserModel;
+
     constructor({
         organizationModel,
         projectModel,
         onboardingModel,
         inviteLinkModel,
         organizationMemberProfileModel,
+        userModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.userModel = userModel;
     }
 
     async get(user: SessionUser): Promise<Organisation> {
@@ -107,6 +113,16 @@ export class OrganizationService {
             throw new ForbiddenError();
         }
 
+        const orgUsers =
+            await this.organizationMemberProfileModel.getOrganizationMembers(
+                organizationUuid,
+            );
+
+        const deleteUserPromises = orgUsers.map((orgUser) =>
+            this.userModel.delete(orgUser.userUuid),
+        );
+        await Promise.all(deleteUserPromises);
+
         await this.organizationModel.delete(organizationUuid);
 
         analytics.track({
@@ -121,8 +137,6 @@ export class OrganizationService {
                         : 'self-hosted',
             },
         });
-
-        // TODO remove users
     }
 
     async getUsers(user: SessionUser): Promise<OrganizationMemberProfile[]> {

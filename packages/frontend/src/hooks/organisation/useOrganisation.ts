@@ -22,7 +22,7 @@ export const useOrganisation = (
 
 const deleteDashboard = async (id: string) =>
     lightdashApi<undefined>({
-        url: `/organisation/${id}`,
+        url: `/org/${id}`,
         method: 'DELETE',
         body: undefined,
     });
@@ -31,7 +31,7 @@ export const useDeleteOrganisationMutation = () => {
     const { showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
-            window.location.href = '/login';
+            window.location.href = '/register';
         },
         onError: (error) => {
             showToastError({
