@@ -11,7 +11,11 @@ export const ConditionalFormattingListWrapper = styled.div`
     }
 `;
 
-export const ConditionalFormattingWrapper = styled.div``;
+export const ConditionalFormattingWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
 
 export const ConditionalFormattingConfigWrapper = styled.div`
     display: flex;
