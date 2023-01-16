@@ -10,6 +10,7 @@ import RouterMenuItem from '../components/common/RouterMenuItem';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
+import { DeleteOrganisationPanel } from '../components/UserSettings/DeleteOrganisationPanel';
 import OrganisationPanel from '../components/UserSettings/OrganisationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -197,6 +198,7 @@ const Settings: FC = () => {
                                 <Title>Organization settings</Title>
                                 <OrganisationPanel />
                             </CardContainer>
+                            <DeleteOrganisationPanel />
                         </Content>
                     </Route>
                 )}
