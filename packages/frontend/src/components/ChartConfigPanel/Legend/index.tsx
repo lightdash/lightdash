@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import startCase from 'lodash-es/startCase';
 import React, { FC } from 'react';
-import { Field, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Checkbox from '../../ReactHookForm/Checkbox';

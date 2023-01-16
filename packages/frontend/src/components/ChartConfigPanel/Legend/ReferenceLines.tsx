@@ -83,6 +83,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
         },
         [
             updateSingleSeries,
+            setReferenceLines,
             dirtyEchartsConfig?.series,
             dirtyLayout?.xField,
             referenceLines,
