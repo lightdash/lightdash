@@ -3,10 +3,8 @@ import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Organisation } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import {
-    useDeleteOrganisationMutation,
-    useOrganisation,
-} from '../../../hooks/organisation/useOrganisation';
+import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useDeleteOrganisationMutation } from '../../../hooks/organisation/useOrganisationDeleteMultation';
 import { useApp } from '../../../providers/AppProvider';
 import { ErrorMessage } from '../../common/modal/ActionModal';
 import BaseModal from '../../common/modal/BaseModal';
