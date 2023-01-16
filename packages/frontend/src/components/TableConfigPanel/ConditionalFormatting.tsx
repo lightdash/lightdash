@@ -1,9 +1,9 @@
-import { Button, Collapse, FormGroup, HTMLSelect } from '@blueprintjs/core';
+import { Button, FormGroup } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     CompiledField,
     ConditionalFormattingConfig,
-    ConditionalFormattingRule,
+    ConditionalFormattingRule as ConditionalFormattingRuleT,
     ConditionalOperator,
     createConditionalFormatingRule,
     FilterType,
@@ -11,20 +11,18 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
-import { SectionTitle } from '../ChartConfigPanel/ChartConfigPanel.styles';
 import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
-import { FilterTypeConfig } from '../common/Filters/configs';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import {
     ConditionalFormattingCloseButton,
     ConditionalFormattingConfigWrapper,
+    ConditionalFormattingGroupHeader,
+    ConditionalFormattingGroupTitle,
     ConditionalFormattingRuleAndLabel,
-    ConditionalFormattingRuleHeader,
-    ConditionalFormattingRuleListWrapper,
-    ConditionalFormattingRuleWrapper,
     ConditionalFormattingWrapper,
 } from './ConditionalFormatting.styles';
+import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 interface ConditionalFormattingProps {
     isDefaultOpen?: boolean;
@@ -53,7 +51,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         [fields, config],
     );
 
-    const handleRemoveConditionalFormatting = () => {
+    const handleRemove = () => {
         onRemove();
     };
 
@@ -80,7 +78,15 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         );
     };
 
-    const handleChangeConditionalOperator = (
+    const handleRemoveRule = (index: number) => {
+        handleChange(
+            produce(config, (draft) => {
+                draft.rules.splice(index, 1);
+            }),
+        );
+    };
+
+    const handleChangeRuleOperator = (
         index: number,
         newOperator: ConditionalOperator,
     ) => {
@@ -93,7 +99,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
     const handleChangeRule = (
         index: number,
-        newRule: ConditionalFormattingRule,
+        newRule: ConditionalFormattingRuleT,
     ) => {
         handleChange(
             produce(config, (draft) => {
@@ -114,13 +120,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         );
     };
 
-    // conditional formatting only supports number fields for now
-    const filterConfig = FilterTypeConfig[FilterType.NUMBER];
-
     return (
         <FiltersProvider>
             <ConditionalFormattingWrapper>
-                <ConditionalFormattingRuleHeader>
+                <ConditionalFormattingGroupHeader>
                     <Button
                         minimal
                         small
@@ -128,7 +131,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         icon={isOpen ? 'chevron-down' : 'chevron-right'}
                     />
 
-                    <SectionTitle>Rule {configIndex + 1}</SectionTitle>
+                    <ConditionalFormattingGroupTitle>
+                        Rule {configIndex + 1}
+                    </ConditionalFormattingGroupTitle>
 
                     <Tooltip2
                         content="Remove rule"
@@ -140,13 +145,13 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 minimal
                                 small
                                 icon="cross"
-                                onClick={handleRemoveConditionalFormatting}
+                                onClick={handleRemove}
                             />
                         )}
                     />
-                </ConditionalFormattingRuleHeader>
+                </ConditionalFormattingGroupHeader>
 
-                <Collapse isOpen={isOpen}>
+                {isOpen ? (
                     <ConditionalFormattingConfigWrapper>
                         <FormGroup label="Select field">
                             <FieldAutoComplete
@@ -180,61 +185,40 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             />
                         </FormGroup>
 
-                        <FormGroup label="Conditions">
-                            <ConditionalFormattingRuleListWrapper>
-                                {config.rules.map((rule, ruleIndex) => (
-                                    <React.Fragment key={ruleIndex}>
-                                        <ConditionalFormattingRuleWrapper>
-                                            <FormGroup>
-                                                <HTMLSelect
-                                                    fill
-                                                    onChange={(e) =>
-                                                        handleChangeConditionalOperator(
-                                                            ruleIndex,
-                                                            e.target
-                                                                .value as ConditionalOperator,
-                                                        )
-                                                    }
-                                                    options={
-                                                        filterConfig.operatorOptions
-                                                    }
-                                                    value={rule.operator}
-                                                />
-                                            </FormGroup>
+                        {config.rules.map((rule, ruleIndex) => (
+                            <React.Fragment key={ruleIndex}>
+                                <ConditionalFormattingRule
+                                    hasRemove={config.rules.length > 1}
+                                    ruleIndex={ruleIndex}
+                                    rule={rule}
+                                    field={field || fields[0]}
+                                    onChangeRule={(newRule) =>
+                                        handleChangeRule(ruleIndex, newRule)
+                                    }
+                                    onChangeRuleOperator={(newOperator) =>
+                                        handleChangeRuleOperator(
+                                            ruleIndex,
+                                            newOperator,
+                                        )
+                                    }
+                                    onRemoveRule={() =>
+                                        handleRemoveRule(ruleIndex)
+                                    }
+                                />
 
-                                            <FormGroup>
-                                                <filterConfig.inputs
-                                                    filterType={
-                                                        FilterType.NUMBER
-                                                    }
-                                                    field={field ?? fields[0]}
-                                                    rule={rule}
-                                                    onChange={(newRule) =>
-                                                        handleChangeRule(
-                                                            ruleIndex,
-                                                            newRule,
-                                                        )
-                                                    }
-                                                />
-                                            </FormGroup>
-                                        </ConditionalFormattingRuleWrapper>
-
-                                        {ruleIndex !==
-                                            config.rules.length - 1 && (
-                                            <ConditionalFormattingRuleAndLabel>
-                                                AND
-                                            </ConditionalFormattingRuleAndLabel>
-                                        )}
-                                    </React.Fragment>
-                                ))}
-                            </ConditionalFormattingRuleListWrapper>
-                        </FormGroup>
+                                {ruleIndex !== config.rules.length - 1 && (
+                                    <ConditionalFormattingRuleAndLabel>
+                                        AND
+                                    </ConditionalFormattingRuleAndLabel>
+                                )}
+                            </React.Fragment>
+                        ))}
 
                         <Button minimal icon="plus" onClick={handleAddRule}>
                             Add new condition
                         </Button>
                     </ConditionalFormattingConfigWrapper>
-                </Collapse>
+                ) : null}
             </ConditionalFormattingWrapper>
         </FiltersProvider>
     );

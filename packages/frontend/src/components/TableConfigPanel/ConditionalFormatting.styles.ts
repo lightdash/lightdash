@@ -4,9 +4,13 @@ import styled from 'styled-components';
 export const ConditionalFormattingListWrapper = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap 10px;
 
-    .bp4-form-group:last-child {
+    // .bp4-form-group:last-child {
+    //     margin: 0;
+    // }
+
+    .bp4-form-group {
         margin: 0;
     }
 `;
@@ -14,43 +18,28 @@ export const ConditionalFormattingListWrapper = styled.div`
 export const ConditionalFormattingWrapper = styled.div``;
 
 export const ConditionalFormattingConfigWrapper = styled.div`
-    margin-top: 4px;
-    padding: 12px 10px;
+    padding: 8px 10px;
     background-color: ${Colors.LIGHT_GRAY5};
     border-radius: 5px;
-
-    .bp4-form-group:last-child {
-        margin: 0;
-    }
 `;
 
-export const ConditionalFormattingRuleListWrapper = styled.div`
+export const ConditionalFormattingGroupHeader = styled.div`
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-
-    .bp4-form-group:last-child {
-        margin: 0;
-    }
-`;
-
-export const ConditionalFormattingRuleHeader = styled.div`
-    display: flex;
-    gap: 6px;
     align-items: center;
 `;
 
-export const ConditionalFormattingRuleWrapper = styled.div`
-    padding: 12px 10px;
-    background-color: ${Colors.LIGHT_GRAY4};
-    border-radius: 3px;
+export const ConditionalFormattingRuleGroupHeader = styled(
+    ConditionalFormattingGroupHeader,
+)``;
 
-    .bp4-form-group:last-child {
-        margin: 0;
-    }
+export const ConditionalFormattingGroupTitle = styled.div`
+    font-size: 13px;
+    color: ${Colors.DARK_GRAY3};
+    font-weight: 600;
 `;
 
 export const ConditionalFormattingRuleAndLabel = styled.div`
+    padding: 0 10px;
     font-size: 11px;
     color: ${Colors.DARK_GRAY5};
     font-weight: 600;
