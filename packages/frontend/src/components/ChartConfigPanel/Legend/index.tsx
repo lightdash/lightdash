@@ -2,6 +2,7 @@ import { Collapse, Switch } from '@blueprintjs/core';
 import {
     CompiledDimension,
     EchartsLegend,
+    Field,
     friendlyName,
     TableCalculation,
 } from '@lightdash/common';
