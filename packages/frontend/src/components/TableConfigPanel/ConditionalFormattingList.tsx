@@ -4,6 +4,7 @@ import {
     createConditionalFormattingConfig,
     fieldId,
     getVisibleFields,
+    isNumericItem,
 } from '@lightdash/common';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
@@ -26,7 +27,7 @@ const ConditionalFormattingList = ({}) => {
 
         return getVisibleFields(explore)
             .filter((field) => activeFields.has(fieldId(field)))
-            .filter((field) => field.type === 'number');
+            .filter((field) => isNumericItem(field));
     }, [explore, activeFields]);
 
     const activeConfigs = useMemo(() => {

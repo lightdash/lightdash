@@ -40,7 +40,7 @@ const TableBody: FC = () => {
                             );
 
                         const cellHasFormatting = hasMatchingConditionalRules(
-                            cellValue?.value.raw as number,
+                            cellValue?.value.raw as number | string,
                             fieldConditionalConfig,
                         );
 
