@@ -5,7 +5,6 @@ import {
     WarehouseQueryError,
     WeekDay,
 } from '@lightdash/common';
-import * as _ from 'lodash';
 import {
     BasicAuth,
     ConnectionOptions,
@@ -64,7 +63,8 @@ const queryTableSchema = ({ database, schema, table }: TableInfo) => `SELECT
 const convertDataTypeToDimensionType = (
     type: TrinoTypes | string,
 ): DimensionType => {
-    switch (type) {
+    const typeWithoutTimePrecision = type.replace(/\(\d\)/, '');
+    switch (typeWithoutTimePrecision) {
         case TrinoTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
         case TrinoTypes.TINYINT:
@@ -92,49 +92,31 @@ const convertDataTypeToDimensionType = (
     }
 };
 
-interface CatalogItemGroup {
-    [key: string]: string[][];
-}
-
-const customGroup = (arr: any): CatalogItemGroup =>
-    _.groupBy(arr, (e) => e.shift());
-
-const keyName = (k: [string, string[][]]): string => _.first(k)?.toString()!;
-
-const handlerVals = (val: string | string[][]): string => val[0][0]!;
-
-const catalogToSchema = (catalog: string[][][]): WarehouseCatalog => {
-    const schema: WarehouseCatalog = {};
-    const groupSchema = customGroup(_.first(catalog));
-    Object.entries(groupSchema).map((db) => {
-        const dbKey: string = keyName(db);
-        const dbValue: CatalogItemGroup = customGroup(_.last(db));
-        schema[dbKey] = {};
-        Object.entries(dbValue).map((value) => {
-            const schemaKey: string = keyName(value);
-            const schemaValue: CatalogItemGroup = customGroup(_.last(value));
-            schema[dbKey][schemaKey] = {};
-            Object.entries(schemaValue).map((schemaItem) => {
-                const columnsKey: string = keyName(schemaItem);
-                const columnValue: CatalogItemGroup = customGroup(
-                    _.last(schemaItem),
-                );
-                schema[dbKey][schemaKey][columnsKey] = {};
-
-                Object.entries(columnValue).map((column) => {
-                    const itemName: string = keyName(column);
-                    const item: string = handlerVals(_.last(column)!);
-                    schema[dbKey][schemaKey][columnsKey][itemName] =
-                        convertDataTypeToDimensionType(item);
-                    return null;
-                });
-                return null;
-            });
-            return null;
-        });
-        return null;
+const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
+    const warehouseCatalog: WarehouseCatalog = {};
+    Object.values(results).forEach((catalog) => {
+        Object.values(catalog).forEach(
+            ([
+                table_catalog,
+                table_schema,
+                table_name,
+                column_name,
+                data_type,
+            ]) => {
+                warehouseCatalog[table_catalog] =
+                    warehouseCatalog[table_catalog] || {};
+                warehouseCatalog[table_catalog][table_schema] =
+                    warehouseCatalog[table_catalog][table_schema] || {};
+                warehouseCatalog[table_catalog][table_schema][table_name] =
+                    warehouseCatalog[table_catalog][table_schema][table_name] ||
+                    {};
+                warehouseCatalog[table_catalog][table_schema][table_name][
+                    column_name
+                ] = convertDataTypeToDimensionType(data_type);
+            },
+        );
     });
-    return schema;
+    return warehouseCatalog;
 };
 
 const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
@@ -171,8 +153,8 @@ export class TrinoWarehouseClient implements WarehouseClient {
             catalog: dbname,
             schema,
             server: `${http_scheme}://${host}:${port}`,
+        };
     }
-}
 
     getStartOfWeek() {
         return this.startOfWeek;
