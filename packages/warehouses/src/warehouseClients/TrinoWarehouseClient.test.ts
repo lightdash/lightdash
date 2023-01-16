@@ -25,7 +25,9 @@ describe('TrinoWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new TrinoWarehouseClient(credentials);
         queryResultMock.mockReturnValue({
-            next: jest.fn().mockResolvedValue({ value: queryResponse }),
+            next: jest
+                .fn()
+                .mockResolvedValue({ done: true, value: queryResponse }),
         });
         const results = await warehouse.runQuery('fake sql');
         expect(results.rows[0]).toEqual(wharehouseClient.expectedRow);
@@ -35,7 +37,9 @@ describe('TrinoWarehouseClient', () => {
     it('expect schema with trino types mapped to dimension types', async () => {
         const warehouse = new TrinoWarehouseClient(credentials);
         queryResultMock.mockReturnValue({
-            next: jest.fn().mockResolvedValue({ value: querySchemaResponse }),
+            next: jest
+                .fn()
+                .mockResolvedValue({ done: true, value: querySchemaResponse }),
         });
 
         expect(warehouse.getCatalog(wharehouseClient.config)).resolves.toEqual(
