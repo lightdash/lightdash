@@ -8,7 +8,8 @@ import {
     convertAdditionalMetric,
     Explore,
     FieldId,
-    getQuoteChar,
+    getFieldQuoteChar,
+    getStringQuoteChar,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
@@ -73,10 +74,16 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    const quoteChar = getQuoteChar(explore.targetDatabase); // quote char
+    const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
+    const stringQuoteChar = getStringQuoteChar(explore.targetDatabase);
 
     const metric = convertAdditionalMetric({ additionalMetric, table });
-    const compiledMetric = compileMetricSql(metric, explore.tables, quoteChar);
+    const compiledMetric = compileMetricSql(
+        metric,
+        explore.tables,
+        fieldQuoteChar,
+        stringQuoteChar,
+    );
     return {
         ...metric,
         compiledSql: compiledMetric.sql,
@@ -92,13 +99,13 @@ export const compileMetricQuery = ({
     explore,
     metricQuery,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
-    const quoteChar = getQuoteChar(explore.targetDatabase);
+    const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
     const compiledTableCalculations = metricQuery.tableCalculations.map(
         (tableCalculation) =>
             compileTableCalculation(
                 tableCalculation,
                 [...metricQuery.dimensions, ...metricQuery.metrics],
-                quoteChar,
+                fieldQuoteChar,
             ),
     );
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(

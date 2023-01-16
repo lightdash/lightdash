@@ -21,12 +21,15 @@ const formatTimestamp = (date: Date): string =>
 export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule,
-    quoteChar: string,
+    stringQuoteChar: string,
 ): string => {
     const filterType = filter.operator;
     const escapedFilterValues = filter.values?.map((v) =>
         typeof v === 'string'
-            ? v.replaceAll(quoteChar, `${quoteChar}${quoteChar}`)
+            ? v.replaceAll(
+                  stringQuoteChar,
+                  `${stringQuoteChar}${stringQuoteChar}`,
+              )
             : v,
     );
 
@@ -35,13 +38,13 @@ export const renderStringFilterSql = (
             return !escapedFilterValues || escapedFilterValues.length === 0
                 ? 'false'
                 : `(${dimensionSql}) IN (${escapedFilterValues
-                      .map((v) => `'${v}'`)
+                      .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
                       .join(',')})`;
         case FilterOperator.NOT_EQUALS:
             return !escapedFilterValues || escapedFilterValues.length === 0
                 ? 'true'
                 : `(${dimensionSql}) NOT IN (${escapedFilterValues
-                      .map((v) => `'${v}'`)
+                      .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
                       .join(',')})`;
         case FilterOperator.INCLUDE:
             const includesQuery = escapedFilterValues?.map(
@@ -59,7 +62,8 @@ export const renderStringFilterSql = (
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.STARTS_WITH:
             const startWithQuery = escapedFilterValues?.map(
-                (v) => `(${dimensionSql}) LIKE '${v}%'`,
+                (v) =>
+                    `(${dimensionSql}) LIKE ${stringQuoteChar}${v}%${stringQuoteChar}`,
             );
             return startWithQuery?.join('\n  OR\n  ') || 'true';
         default:
@@ -232,17 +236,18 @@ const renderBooleanFilterSql = (
 export const renderFilterRuleSql = (
     filterRule: FilterRule,
     field: CompiledField,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
 ): string => {
     const fieldType = field.type;
     const fieldSql = isMetric(field)
-        ? `${quoteChar}${filterRule.target.fieldId}${quoteChar}`
+        ? `${fieldQuoteChar}${filterRule.target.fieldId}${fieldQuoteChar}`
         : field.compiledSql;
 
     switch (field.type) {
         case DimensionType.STRING:
         case MetricType.STRING: {
-            return renderStringFilterSql(fieldSql, filterRule, quoteChar);
+            return renderStringFilterSql(fieldSql, filterRule, stringQuoteChar);
         }
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
