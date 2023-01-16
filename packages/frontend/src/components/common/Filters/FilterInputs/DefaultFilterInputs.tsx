@@ -1,6 +1,7 @@
 import { NumericInput, TagInput } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
+    assertUnreachable,
     ConditionalRule,
     FilterableField,
     FilterOperator,
@@ -34,7 +35,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         ? getField(rule)?.suggestions
         : undefined;
 
-    const filterOperator = rule.operator;
     switch (rule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
@@ -97,22 +97,26 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
-                    value={isNaN(parsedValue) ? undefined : parsedValue}
-                    min={0}
-                    onValueChange={(value) =>
+                    value={isNaN(parsedValue) ? '' : parsedValue}
+                    onValueChange={(value) => {
+                        const normalizedValue = isNaN(value)
+                            ? undefined
+                            : value;
+
                         onChange({
                             ...rule,
-                            values: [value],
-                        })
-                    }
+                            values: [normalizedValue],
+                        });
+                    }}
                 />
             );
-        default: {
-            const never: never = rule.operator;
-            throw Error(
-                `No form implemented for String filter operator ${filterOperator}`,
+        case FilterOperator.IN_BETWEEN:
+            throw new Error('Not implemented');
+        default:
+            return assertUnreachable(
+                rule.operator,
+                `No form implemented for String filter operator ${rule.operator}`,
             );
-        }
     }
 };
 
