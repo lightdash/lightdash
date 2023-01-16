@@ -12,6 +12,7 @@ import {
     AdvancedButtonWrapper,
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
+import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
@@ -102,7 +103,7 @@ const TrinoForm: FC<{
                         required: 'Required field',
                     }}
                     disabled={disabled}
-                    defaultValue={8080}
+                    defaultValue={443}
                 />
                 <Select
                     name="warehouse.http_scheme"
@@ -128,6 +129,7 @@ const TrinoForm: FC<{
                     defaultValue="https"
                     disabled={disabled}
                 />
+                <StartOfWeekSelect disabled={disabled} />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton

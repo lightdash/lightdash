@@ -227,8 +227,13 @@ const databricksConfig: WarehouseConfig = {
 };
 
 const trinoConfig: WarehouseConfig = {
-    getSqlForTruncatedDate: (timeFrame: TimeFrames, originalSql: string) =>
-        `DATE_TRUNC('${timeFrame}', ${originalSql})`,
+    getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
+        if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
+            const intervalDiff = `'${startOfWeek}' day`;
+            return `(DATE_TRUNC('${timeFrame}', (${originalSql} - interval ${intervalDiff})) + interval ${intervalDiff})`;
+        }
+        return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
+    },
     getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
         if (!datePart) {
