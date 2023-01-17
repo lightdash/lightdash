@@ -20,7 +20,9 @@ const UpdateDashboardModal: FC<Props> = ({
     isOpen,
     onClose,
 }) => {
-    const { data: dashboard, isLoading } = useDashboardQuery(dashboardUuid);
+    const { data: dashboard, isLoading } = useDashboardQuery(dashboardUuid, {
+        refetchOnMount: false,
+    });
     const { mutate, isLoading: isSaving } =
         useUpdateDashboardName(dashboardUuid);
     const methods = useForm<UpdateDashboardDetails>({

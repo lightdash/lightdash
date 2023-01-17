@@ -170,6 +170,7 @@ const DashboardChartTile: FC<Props> = (props) => {
     }>();
     const { data: savedQuery, isLoading } = useSavedQuery({
         id: savedChartUuid || undefined,
+        useQueryOptions: { refetchOnMount: false },
     });
     const { data: explore } = useExplore(savedQuery?.tableName);
     const { addDimensionDashboardFilter } = useDashboardContext();

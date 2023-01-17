@@ -4,7 +4,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { dashboardService } from '../services/services';
+import { analyticsService, dashboardService } from '../services/services';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
 
@@ -27,6 +27,22 @@ dashboardRouter.get(
     },
 );
 
+dashboardRouter.get(
+    '/views',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        analyticsService
+            .getDashboardViews(req.params.dashboardUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 dashboardRouter.patch(
     '/',
     isAuthenticated,
