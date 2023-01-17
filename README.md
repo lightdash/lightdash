@@ -306,6 +306,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://rodolfo42.com"><img src="https://avatars.githubusercontent.com/u/1674699?v=4?s=100" width="100px;" alt="Rodolfo Ferreira"/><br /><sub><b>Rodolfo Ferreira</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rodolfo42" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.patrickbrusven.com/"><img src="https://avatars.githubusercontent.com/u/84103244?v=4?s=100" width="100px;" alt="Patrick Brusven"/><br /><sub><b>Patrick Brusven</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=patrickbrusven" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
