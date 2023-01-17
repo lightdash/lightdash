@@ -57,7 +57,7 @@ export const TileModal = <T extends Dashboard['tiles'][number]>({
 
     return (
         <ActionModal
-            title="Edit tile"
+            title="Replace chart"
             confirmButtonLabel="Save"
             useActionModalState={[actionState, setActionState]}
             isDisabled={false}
