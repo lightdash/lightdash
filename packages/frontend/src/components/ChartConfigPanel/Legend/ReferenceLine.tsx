@@ -22,13 +22,16 @@ import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import MonthAndYearInput from '../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../common/ReferenceLine';
-import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styles';
 import WeekPicker from '../../common/WeekPicker';
 import YearInput from '../../common/YearInput';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { SectionTitle } from './Legend.styles';
-import { CollapseWrapper, DeleteButtonTooltip } from './ReferenceLine.styles';
+import {
+    CollapseWrapper,
+    DeleteButtonTooltip,
+    Flex,
+} from './ReferenceLine.styles';
 
 type Props = {
     index: number;
@@ -215,6 +218,7 @@ export const ReferenceLine: FC<Props> = ({
         Field | TableCalculation | CompiledDimension | undefined
     >(selectedFieldDefault);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const debouncedUpdateLabel = useCallback(
         debounce((updatedLabel: string) => {
             if (value !== undefined && selectedField !== undefined)

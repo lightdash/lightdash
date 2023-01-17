@@ -82,7 +82,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             }
         },
         [
-            updateSingleSeries,
             setReferenceLines,
             dirtyEchartsConfig?.series,
             dirtyLayout?.xField,
@@ -97,7 +96,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
-    }, [referenceLines]);
+    }, [referenceLines, setReferenceLines]);
 
     const removeReferenceLine = useCallback(
         (markLineId) => {
@@ -121,7 +120,12 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 referenceLines.filter((line) => line.data.name !== markLineId),
             );
         },
-        [updateSeries, dirtyEchartsConfig?.series, referenceLines],
+        [
+            updateSeries,
+            dirtyEchartsConfig?.series,
+            referenceLines,
+            setReferenceLines,
+        ],
     );
 
     return (
