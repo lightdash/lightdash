@@ -57,4 +57,11 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.dropTableIfExists(CHART_VIEWS_TABLE_NAME);
     await knex.schema.dropTableIfExists(DASHBOARD_VIEWS_TABLE_NAME);
+
+    await knex.schema.alterTable('saved_queries', (t) => {
+        t.dropUnique(['saved_query_uuid']);
+    });
+    await knex.schema.alterTable('dashboards', (t) => {
+        t.dropUnique(['dashboard_uuid']);
+    });
 }
