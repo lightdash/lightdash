@@ -1,3 +1,16 @@
+# [0.372.0](https://github.com/lightdash/lightdash/compare/0.371.1...0.372.0) (2023-01-17)
+
+
+### Bug Fixes
+
+* add filter input width ([#4151](https://github.com/lightdash/lightdash/issues/4151)) ([eea61b3](https://github.com/lightdash/lightdash/commit/eea61b33dcb6ca4d2e8c4514af697024e33a27c4))
+* rename 'edit tile' menu option ([#4188](https://github.com/lightdash/lightdash/issues/4188)) ([c588d65](https://github.com/lightdash/lightdash/commit/c588d65af6771fd7416a3506ea52526e19f0f89a))
+
+
+### Features
+
+* support for Trino as datasource ([#4101](https://github.com/lightdash/lightdash/issues/4101)) ([a453a5a](https://github.com/lightdash/lightdash/commit/a453a5a5f988bc7bfcd67313507f8fb5b49e9b0d))
+
 ## [0.371.1](https://github.com/lightdash/lightdash/compare/0.371.0...0.371.1) (2023-01-17)
 
 
