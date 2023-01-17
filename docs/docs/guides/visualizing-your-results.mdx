@@ -183,11 +183,11 @@ You can easily revert all of the series on your chart to a single type using the
 
 You can see more details about mixed chart configurations [here](#configure-your-bar-line-and-scatter-charts).
 
-### Configure your bar, line and scatter charts
+## Configure your bar, line and scatter charts
 
 These chart types have very similar configuration options, so we thought it would be easiest to talk about them all together:
 
-#### Layout
+### Layout
 
 This is where you can pick the columns from your results table that you want to plot on your x and y axes or that you want to group by.
 
@@ -197,7 +197,7 @@ For bar charts, this is also where you have the option to stack your bars, or le
 
 <img src={ConfigureLayout} width="273" height="301" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### Series
+### Series
 
 The series tab is where you can adjust how your chart shows each data series. A **data series** is a set of related data points plotted on a chart. For example, the number of new users created each day over a set of dates is a series. In a bar chart, a series is represented by bars of the same color; in a line chart, a series is represented by a single line. You can see a list of the series for your chart in the `series` menu, and on the chart legend.
 
@@ -214,7 +214,7 @@ If you have multiple series in your chart, you can adjust these settings for **_
 
 <img src={ConfigureMultipleSeries} width="285" height="319" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### Axes
+### Axes
 
 Here’s where you can customize the axes on your plot. 
 
@@ -225,27 +225,33 @@ You have the options to:
 
 <img src={ConfigureAxesRange} width="286" height="315" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### Display 
+### Display 
 
 This tab is where you're able to control the legend and reference lines in your chart. 
 
-**You can add reference lines to your charts to easily visualize goals or thresholds.** 
+#### Reference lines
 
-<img src={AddReferenceLine} width="658" height="246" style={{display: "block", margin: "0 auto 20px auto"}}/>
+You can add reference lines to your charts to easily visualize goals or thresholds. 
 
-To add a reference line, you just need to tick the `add reference line` box, then configure your reference line in the drop-down. 
+<img src={AddReferenceLine} width="742" height="426" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+To add a reference line, you just need to click `+ Add` under the reference lines option, then configure your reference line in the drop-down. 
 
 You can:
 - select a field you want to apply your reference line to
 - select the value you want to set your line at
+- customize the label on your reference line
+- change the colour of your reference line
 
-<img src={ReferenceLineConfig} width="286" height="278" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ReferenceLineConfig} width="293" height="470" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 If you select a field plotted on your x-axis, then your line will be vertical. If you select a field plotted on your y-axis, then your line will be horizontal.
 
-Reference lines can only be applied to numeric fields in your chart. 
+**Note:** if your reference line label is cropped off your chart, try adjusting your [right margin](#margins).
 
-**You can add and adjust the legend in your chart to help people understand what data's been plotted.**
+#### Legend
+
+You can add and adjust the legend in your chart to help people understand what data's been plotted.
 
 - Show/hide the legend
 - Adjust the position of the legend on your chart
@@ -256,7 +262,7 @@ Reference lines can only be applied to numeric fields in your chart.
 
 <img src={Legend} width="261" height="278" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-#### Margins
+### Margins
 
 The Margin tab is where you're able to add or remove margin around the grid (aka your chart with its plotted values). Removing margin means that your chart will fill more of the space in the chart tab. Adding margin will shrink your chart into a smaller space. 
 
