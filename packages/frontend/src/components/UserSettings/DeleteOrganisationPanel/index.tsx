@@ -41,7 +41,7 @@ export const DeleteOrganisationPanel: FC = () => {
                         outlined
                         intent={Intent.DANGER}
                         icon="delete"
-                        text="Delete 'Organisation'"
+                        text={`Delete '${organisation.name}`}
                         onClick={() => setShowConfirmation(true)}
                     />
                 </PanelContent>
@@ -49,7 +49,7 @@ export const DeleteOrganisationPanel: FC = () => {
 
             <BaseModal
                 isOpen={showConfirmation}
-                title="Delete 'Organisation'"
+                title={`Delete '${organisation.name}`}
                 icon="delete"
                 onClose={() => {
                     setShowConfirmation(false);
@@ -58,7 +58,7 @@ export const DeleteOrganisationPanel: FC = () => {
                 renderBody={() => (
                     <>
                         <p>
-                            Type the name of this organization{' '}
+                            Type the name of this organisation{' '}
                             <b>{organisation.name}</b> to confirm you want to
                             delete this organisation and its users. This action
                             is not reversible.
