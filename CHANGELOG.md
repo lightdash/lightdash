@@ -1,3 +1,10 @@
+## [0.373.1](https://github.com/lightdash/lightdash/compare/0.373.0...0.373.1) (2023-01-17)
+
+
+### Bug Fixes
+
+* override default props for blueprint dialog - do not close on escape or outside click ([#4175](https://github.com/lightdash/lightdash/issues/4175)) ([1682b71](https://github.com/lightdash/lightdash/commit/1682b7108f3b4fade015303aa0456ba5f98c2d63))
+
 # [0.373.0](https://github.com/lightdash/lightdash/compare/0.372.0...0.373.0) (2023-01-17)
 
 
