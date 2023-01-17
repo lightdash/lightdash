@@ -40,8 +40,8 @@ export const DeleteOrganisationPanel: FC = () => {
                     <Button
                         outlined
                         intent={Intent.DANGER}
-                        icon="delete"
-                        text={`Delete '${organisation.name}`}
+                        icon="trash"
+                        text={`Delete '${organisation.name}'`}
                         onClick={() => setShowConfirmation(true)}
                     />
                 </PanelContent>
@@ -49,7 +49,7 @@ export const DeleteOrganisationPanel: FC = () => {
 
             <BaseModal
                 isOpen={showConfirmation}
-                title={`Delete '${organisation.name}`}
+                title={`Delete '${organisation.name}'`}
                 icon="trash"
                 onClose={() => {
                     setShowConfirmation(false);
