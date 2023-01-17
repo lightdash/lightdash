@@ -3,14 +3,14 @@ import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
 
 export const LandingPanelWrapper = styled.div`
-    width: 54.857em;
-    padding-top: 4.286em;
+    width: 100%;
+    padding-top: 60px;
 `;
 
 export const LandingHeaderWrapper = styled.div`
     display: flex;
     align-items: center;
-    margin-bottom: 2.5em;
+    margin-bottom: 40px;
 `;
 
 export const WelcomeText = styled.div`
