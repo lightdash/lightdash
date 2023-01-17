@@ -885,6 +885,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "patrickbrusven",
+      "name": "Patrick Brusven",
+      "avatar_url": "https://avatars.githubusercontent.com/u/84103244?v=4",
+      "profile": "https://www.patrickbrusven.com/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
