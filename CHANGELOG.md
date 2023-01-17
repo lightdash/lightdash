@@ -1,3 +1,10 @@
+## [0.371.1](https://github.com/lightdash/lightdash/compare/0.371.0...0.371.1) (2023-01-17)
+
+
+### Bug Fixes
+
+* numeric input should allow negative values ([#4176](https://github.com/lightdash/lightdash/issues/4176)) ([dca110f](https://github.com/lightdash/lightdash/commit/dca110fcf299c06bbce6266e8089bb0e13820e2f))
+
 # [0.371.0](https://github.com/lightdash/lightdash/compare/0.370.4...0.371.0) (2023-01-16)
 
 
