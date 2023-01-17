@@ -92,6 +92,10 @@ const ResetBlueprintDump = createGlobalStyle`
     /* Fix bugs by reset */
     /*********************/
 
+    a.bp4-breadcrumb:hover {
+        cursor: pointer;
+    }
+
     a.bp4-button {
         text-decoration: none;
 

@@ -1,5 +1,4 @@
 import { Colors } from '@blueprintjs/core';
-import { MantineProvider } from '@mantine/core';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
@@ -41,6 +40,7 @@ import SqlRunner from './pages/SqlRunner';
 import { AppProvider } from './providers/AppProvider';
 import { BlueprintProvider } from './providers/BlueprintProvider';
 import { DashboardProvider } from './providers/DashboardProvider';
+import { MantineProvider } from './providers/MantineProvider';
 import { TrackingProvider, TrackPage } from './providers/TrackingProvider';
 import { PageName } from './types/Events';
 
@@ -72,7 +72,7 @@ const App = () => (
         <AppStyle />
         <QueryClientProvider client={queryClient}>
             <BlueprintProvider>
-                <MantineProvider withGlobalStyles withNormalizeCSS>
+                <MantineProvider>
                     <AppProvider>
                         <TrackingProvider>
                             {isMobile ? (
