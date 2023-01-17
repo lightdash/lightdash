@@ -1,4 +1,4 @@
-import { NumericInput, TagInput } from '@blueprintjs/core';
+import { TagInput } from '@blueprintjs/core';
 import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
@@ -12,6 +12,7 @@ import { isString } from 'lodash-es';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
+import { StyledNumericInput } from './NumericInput.styles';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
@@ -92,21 +93,26 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.IN_BETWEEN:
-            const parsedValue = parseInt(rule.values?.[0] as string, 10);
+            const value = rule.values?.[0];
+            let parsedValue: number | undefined;
+
+            if (typeof value === 'string') parsedValue = parseInt(value, 10);
+            else if (typeof value === 'number') parsedValue = value;
+            else parsedValue = undefined;
+
+            if (parsedValue && isNaN(parsedValue)) parsedValue = undefined;
+
             return (
-                <NumericInput
+                <StyledNumericInput
                     className={disabled ? 'disabled-filter' : ''}
                     disabled={disabled}
                     fill
-                    value={isNaN(parsedValue) ? '' : parsedValue}
-                    onValueChange={(value) => {
-                        const normalizedValue = isNaN(value)
-                            ? undefined
-                            : value;
-
+                    type="number"
+                    defaultValue={parsedValue}
+                    onValueChange={(numericValue, stringValue) => {
                         onChange({
                             ...rule,
-                            values: [normalizedValue],
+                            values: stringValue === '' ? [] : [numericValue],
                         });
                     }}
                 />
