@@ -64,7 +64,8 @@ const tracesSampler = (context: SamplingContext): boolean | number => {
         context.request?.url?.endsWith('/health') ||
         context.request?.url?.endsWith('/favicon.ico') ||
         context.request?.url?.endsWith('/robots.txt') ||
-        context.request?.url?.endsWith('livez')
+        context.request?.url?.endsWith('livez') ||
+        context.request?.headers?.['user-agent']?.includes('GoogleHC')
     ) {
         return 0.0;
     }
@@ -98,7 +99,7 @@ Sentry.init({
 });
 app.use(
     Sentry.Handlers.requestHandler({
-        user: ['userUuid', 'organizationUuid', 'organizationName'],
+        user: ['userUuid', 'organizationUuid', 'organizationName', 'email'],
     }) as express.RequestHandler,
 );
 app.use(Sentry.Handlers.tracingHandler());
