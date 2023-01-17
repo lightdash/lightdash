@@ -867,6 +867,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "vapolonio",
+      "name": "Victor Apolonio",
+      "avatar_url": "https://avatars.githubusercontent.com/u/11734877?v=4",
+      "profile": "https://apolonio.dev",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
