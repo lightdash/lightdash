@@ -91,7 +91,6 @@ const ProjectListItem: FC<{
                 }
                 title={'Delete project ' + name}
                 lazy
-                canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>

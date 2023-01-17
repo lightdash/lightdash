@@ -158,7 +158,6 @@ const UserListItem: FC<{
                 }
                 title="Delete user"
                 lazy
-                canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>Are you sure you want to delete this user ?</p>
