@@ -28,6 +28,14 @@ const warehouseConfig = {
         warehouse: 'TESTING',
         schema: 'jaffle',
     },
+    trino: {
+        host: Cypress.env('TRINO_HOST'),
+        port: Cypress.env('TRINO_PORT'),
+        user: Cypress.env('TRINO_USER'),
+        password: Cypress.env('TRINO_PASSWORD'),
+        database: 'e2e_jaffle_shop',
+        schema: 'e2e_jaffle_shop',
+    },
 };
 
 const configurePostgresWarehouse = (
@@ -60,6 +68,22 @@ const configureBigqueryWarehouse = (
     cy.get('[name="dbt.type"]').select('dbt local server');
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.dataset"]').type(config.dataset);
+};
+const configureTrinoWarehouse = (config: typeof warehouseConfig['trino']) => {
+    cy.get('[name="warehouse.host"]').type(config.host, { log: false });
+    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
+    cy.get('[name="warehouse.dbname"]').type(config.database);
+
+    cy.contains('Advanced configuration options').click();
+
+    cy.get('[name="warehouse.port"]').clear().type(config.port);
+    cy.get('[name="warehouse.http_scheme"]').select('https');
+
+    // DBT
+    cy.get('[name="dbt.type"]').select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 
 const configureDatabricksWarehouse = (
@@ -136,11 +160,11 @@ const testQuery = () => {
 };
 
 const defaultRowValues = [
-    '2020-08-11, 00:17:00:000 (+00:00)',
-    '2020-08-11, 00:17:00:000 (+00:00)',
-    '2020-08-11, 00:17:00 (+00:00)',
-    '2020-08-11, 00:17 (+00:00)',
-    '2020-08-11, 00 (+00:00)',
+    '2020-08-11, 23:44:00:000 (+00:00)',
+    '2020-08-11, 23:44:00:000 (+00:00)',
+    '2020-08-11, 23:44:00 (+00:00)',
+    '2020-08-11, 23:44 (+00:00)',
+    '2020-08-11, 23 (+00:00)',
     '2020-08-11',
     '2',
     'Tuesday',
@@ -185,8 +209,15 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
     cy.findByText('Year').click();
     cy.findByText('Year (number)').click();
 
-    // run query
-    cy.get('button').contains('Run query').click();
+    // open column menu
+    cy.get('th')
+        .contains('Timestamp tz raw')
+        .closest('th')
+        .find('button')
+        .click();
+
+    // sort `Customers First-Name` by ascending
+    cy.findByRole('option', { name: 'Sort New-Old' }).click();
 
     // wait for query to finish
     cy.findByText('Loading chart', { timeout: 30000 }).should('not.exist');
@@ -297,6 +328,44 @@ describe('Create projects', () => {
 
         testTimeIntervalsResults(bigqueryRowValues);
     });
+    it('Should create a Trino project', () => {
+        cy.visit(`/createProject`);
+
+        cy.contains('button', 'Trino').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+
+        cy.get('[name="name"]').clear().type('Jaffle Trino test');
+        configureTrinoWarehouse(warehouseConfig.trino);
+
+        testCompile();
+        testQuery();
+        testRunQuery();
+
+        const trinoRowValues = [
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00 (+00:00)',
+            '2020-08-12, 07:58 (+00:00)',
+            '2020-08-12, 07 (+00:00)',
+            '2020-08-12',
+            '3',
+            'Wednesday',
+            '12',
+            '225',
+            '2020-08-10',
+            '2020-08',
+            '8',
+            'August',
+            '2020-Q3',
+            '3',
+            'Q3',
+            '2020',
+            '2,020',
+        ];
+
+        testTimeIntervalsResults(trinoRowValues);
+    });
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
@@ -350,11 +419,11 @@ describe('Create projects', () => {
         testRunQuery();
 
         const snowflakeRowValues = [
-            '2020-08-12, 00:03:00:000 (+00:00)',
-            '2020-08-12, 00:03:00:000 (+00:00)',
-            '2020-08-12, 00:03:00 (+00:00)',
-            '2020-08-12, 00:03 (+00:00)',
-            '2020-08-12, 00 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00 (+00:00)',
+            '2020-08-12, 07:58 (+00:00)',
+            '2020-08-12, 07 (+00:00)',
             '2020-08-12',
             '3', // The behavior of week-related functions in Snowflake is controlled by the WEEK_START session parameters.
             'Wednesday',

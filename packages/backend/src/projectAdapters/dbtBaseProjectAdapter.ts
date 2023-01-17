@@ -156,6 +156,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 Logger.debug(
                     `Fetching table metadata for ${modelCatalog.length} tables`,
                 );
+
                 const warehouseCatalog = await this.warehouseClient.getCatalog(
                     modelCatalog,
                 );

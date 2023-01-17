@@ -27,6 +27,7 @@ export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
             return '`';
+        case SupportedDbtAdapter.TRINO:
         default:
             return '"';
     }

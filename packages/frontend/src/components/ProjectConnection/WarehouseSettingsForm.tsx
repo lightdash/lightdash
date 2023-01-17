@@ -7,6 +7,7 @@ import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
 import SnowflakeForm from './WarehouseForms/SnowflakeForm';
+import TrinoForm from './WarehouseForms/TrinoForm';
 
 const WarehouseTypeLabels = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
@@ -14,6 +15,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.REDSHIFT]: 'Redshift',
     [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
     [WarehouseTypes.DATABRICKS]: 'Databricks',
+    [WarehouseTypes.TRINO]: 'Trino',
 };
 
 const WarehouseTypeForms = {
@@ -22,6 +24,7 @@ const WarehouseTypeForms = {
     [WarehouseTypes.REDSHIFT]: RedshiftForm,
     [WarehouseTypes.SNOWFLAKE]: SnowflakeForm,
     [WarehouseTypes.DATABRICKS]: DatabricksForm,
+    [WarehouseTypes.TRINO]: TrinoForm,
 };
 
 interface WarehouseSettingsFormProps {

@@ -90,6 +90,7 @@ const getDataAndColumns = ({
                     ),
                     cell: (info: any) =>
                         info.getValue()?.value.formatted || '-',
+
                     footer: () =>
                         totals[itemId]
                             ? formatItemValue(item, totals[itemId])
