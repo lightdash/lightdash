@@ -91,6 +91,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.IN_BETWEEN:
             const parsedValue = parseInt(rule.values?.[0] as string, 10);
             return (
                 <NumericInput
@@ -110,8 +111,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     }}
                 />
             );
-        case FilterOperator.IN_BETWEEN:
-            throw new Error('Not implemented');
         default:
             return assertUnreachable(
                 rule.operator,
