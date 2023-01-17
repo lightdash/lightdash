@@ -304,6 +304,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://annebelleo.github.io"><img src="https://avatars.githubusercontent.com/u/20630578?v=4?s=100" width="100px;" alt="Annebelle Olminkhof"/><br /><sub><b>Annebelle Olminkhof</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=annebelleo" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://apolonio.dev"><img src="https://avatars.githubusercontent.com/u/11734877?v=4?s=100" width="100px;" alt="Victor Apolonio"/><br /><sub><b>Victor Apolonio</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=vapolonio" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://rodolfo42.com"><img src="https://avatars.githubusercontent.com/u/1674699?v=4?s=100" width="100px;" alt="Rodolfo Ferreira"/><br /><sub><b>Rodolfo Ferreira</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rodolfo42" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
