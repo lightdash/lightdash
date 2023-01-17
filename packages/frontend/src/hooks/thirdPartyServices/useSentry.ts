@@ -1,9 +1,12 @@
-import { HealthState } from '@lightdash/common';
+import { HealthState, LightdashUser } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
 import { Integrations } from '@sentry/tracing';
 import { useEffect, useState } from 'react';
 
-const useSentry = (sentryConfig: HealthState['sentry'] | undefined) => {
+const useSentry = (
+    sentryConfig: HealthState['sentry'] | undefined,
+    user: LightdashUser | undefined,
+) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
 
     useEffect(() => {
@@ -17,7 +20,15 @@ const useSentry = (sentryConfig: HealthState['sentry'] | undefined) => {
             });
             setIsSentryLoaded(true);
         }
-    }, [isSentryLoaded, setIsSentryLoaded, sentryConfig]);
+        if (user) {
+            Sentry.setUser({
+                id: user.userUuid,
+                email: user.email,
+                username: user.email,
+                segment: user.organizationUuid,
+            });
+        }
+    }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
 };
 
 export default useSentry;
