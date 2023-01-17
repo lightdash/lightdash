@@ -565,6 +565,7 @@ export enum WarehouseTypes {
     REDSHIFT = 'redshift',
     SNOWFLAKE = 'snowflake',
     DATABRICKS = 'databricks',
+    TRINO = 'trino',
 }
 
 export type CreateBigqueryCredentials = {
@@ -638,6 +639,23 @@ export type PostgresCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
+export type CreateTrinoCredentials = {
+    type: WarehouseTypes.TRINO;
+    host: string;
+    user: string;
+    password: string;
+    port: number;
+    dbname: string;
+    schema: string;
+    http_scheme: string;
+    startOfWeek?: WeekDay | null;
+};
+
+export type TrinoCredentials = Omit<
+    CreateTrinoCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
 export type CreateRedshiftCredentials = {
     type: WarehouseTypes.REDSHIFT;
     host: string;
@@ -686,14 +704,16 @@ export type CreateWarehouseCredentials =
     | CreateBigqueryCredentials
     | CreatePostgresCredentials
     | CreateSnowflakeCredentials
-    | CreateDatabricksCredentials;
+    | CreateDatabricksCredentials
+    | CreateTrinoCredentials;
 
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
     | PostgresCredentials
     | BigqueryCredentials
-    | DatabricksCredentials;
+    | DatabricksCredentials
+    | TrinoCredentials;
 
 export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.DBT]: 'dbt local server',

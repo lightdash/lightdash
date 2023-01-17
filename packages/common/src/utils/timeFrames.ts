@@ -226,12 +226,50 @@ const databricksConfig: WarehouseConfig = {
     },
 };
 
+const trinoConfig: WarehouseConfig = {
+    getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
+        if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
+            const intervalDiff = `'${startOfWeek}' day`;
+            return `(DATE_TRUNC('${timeFrame}', (${originalSql} - interval ${intervalDiff})) + interval ${intervalDiff})`;
+        }
+        return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
+    },
+    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+        const datePart = timeFrameToDatePartMap[timeFrame];
+        if (!datePart) {
+            throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
+        }
+        return `EXTRACT(${datePart} FROM ${originalSql})`;
+    },
+    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+        const timeFrameExpressionsFn: Record<
+            TimeFrames,
+            (() => string) | null
+        > = {
+            ...nullTimeFrameMap,
+            [TimeFrames.DAY_OF_WEEK_NAME]: () =>
+                `date_format(${originalSql}, '%W')`,
+            [TimeFrames.MONTH_NAME]: () => `date_format(${originalSql}, '%M')`,
+            [TimeFrames.QUARTER_NAME]: () =>
+                `CONCAT('Q', cast(extract(QUARTER from ${originalSql}) as varchar))`,
+        };
+        const formatExpressionFn = timeFrameExpressionsFn[timeFrame];
+        if (!formatExpressionFn) {
+            throw new ParseError(
+                `Cannot recognise format expression for ${timeFrame}`,
+            );
+        }
+        return formatExpressionFn();
+    },
+};
+
 const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.BIGQUERY]: bigqueryConfig,
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
     [SupportedDbtAdapter.REDSHIFT]: postgresConfig,
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
+    [SupportedDbtAdapter.TRINO]: trinoConfig,
 };
 
 const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (
