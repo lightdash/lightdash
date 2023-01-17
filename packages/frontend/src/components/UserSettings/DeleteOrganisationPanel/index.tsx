@@ -50,7 +50,7 @@ export const DeleteOrganisationPanel: FC = () => {
             <BaseModal
                 isOpen={showConfirmation}
                 title={`Delete '${organisation.name}`}
-                icon="delete"
+                icon="trash"
                 onClose={() => {
                     setShowConfirmation(false);
                     setConfirmOrgName('');
