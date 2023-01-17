@@ -1,3 +1,10 @@
+## [0.373.2](https://github.com/lightdash/lightdash/compare/0.373.1...0.373.2) (2023-01-17)
+
+
+### Bug Fixes
+
+* update sentry config ([#4189](https://github.com/lightdash/lightdash/issues/4189)) ([dfb8b53](https://github.com/lightdash/lightdash/commit/dfb8b534ad1e0f70bf6820e3fbfb88bf441f0968))
+
 ## [0.373.1](https://github.com/lightdash/lightdash/compare/0.373.0...0.373.1) (2023-01-17)
 
 
