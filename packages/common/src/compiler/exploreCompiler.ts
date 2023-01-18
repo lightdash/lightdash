@@ -25,11 +25,11 @@ export const getFieldQuoteChar = (
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.TRINO:
             return '"';
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
             return '`';
-        case SupportedDbtAdapter.TRINO:
         default:
             return assertUnreachable(
                 targetDatabase,
@@ -47,6 +47,7 @@ export const getStringQuoteChar = (
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.TRINO:
             return "'";
         default:
             return assertUnreachable(
