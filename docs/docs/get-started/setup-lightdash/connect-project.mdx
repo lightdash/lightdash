@@ -45,7 +45,16 @@ To setup your Lightdash connection you'll need to:
 
 ## 1. Connect to a warehouse
 
-<img src={ChooseDatabase} width="316" height="251" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ChooseDatabase} width="300" height="277" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+We currently support:
+
+1. [Bigquery](#bigquery)
+2. [Postgres](#postgres)
+3. [Redshift](#redshift)
+4. [Snowflake](#snowflake)
+5. [Databricks](#databricks)
+6. [Trino](#Trino)
 
 We always recommend giving read-only permissions to Lightdash, that way you ensure than no data can be manipulated. See each section below for warehouse specific details.
 
@@ -159,6 +168,10 @@ For example, setting this to `1000000000` means if a query would bill more than 
   Query exceeded limit for bytes billed: 1000000000. 2000000000 or higher required.
 ```
 
+#### Start of week
+
+This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
+
 ----
 
 ### Postgres
@@ -227,6 +240,10 @@ You can see more details in [dbt documentation](https://docs.getdbt.com/referenc
 This controls how dbt connects to Postgres databases using SSL.
 You can see more details in [dbt documentation](https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode).
 
+#### Start of week
+
+This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
+
 ----
 
 ### Redshift
@@ -294,6 +311,10 @@ This controls how dbt connects to Postgres databases using SSL.
 #### RA3 Node
 
 Allow dbt to use cross-database-resources
+
+#### Start of week
+
+This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
 ----
 
@@ -406,6 +427,10 @@ You can see more details in [dbt documentation](https://docs.getdbt.com/referenc
 
 A value with which to tag all queries, for later searching in [QUERY_HISTORY view](https://docs.snowflake.com/en/sql-reference/account-usage/query_history.html))
 
+#### Start of week
+
+This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
+
 ---
 
 ### Databricks
@@ -445,29 +470,43 @@ Your personal access token can be found in your user settings in databricks:
 
 The default database name used by dbt for this connection.
 
+#### Start of week
 
+This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
-Once you've [installed Lightdash](./install-lightdash), you can connect to your existing dbt project:
+---
 
-* [connect to a project in dbt Cloud](#2-import-a-dbt-project)
-* [connect to a project on GitHub](#github)
-* [connect to a project on Gitlab](#gitlab)
-* [connect to a project in Azure DevOps](#azure-devops)
-* [connect to a project in Bitbucket](#bitbucket)
-* [connect to a project on your local machine](#local-dbt-project) _(only available for local Lightdash installations)_
+### Trino
 
+You can see more details in [dbt's documentation](https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration).
 
-Once you've set up the connection to your dbt project, you'll need to continue on to [set up the connection to your warehouse](#warehouse-connection) (it's a short step, we promise 🤞).
+#### Host
 
-We currently support:
+This is the hostname to connect to.
 
-1. [Bigquery](#bigquery)
-2. [Postgres](#postgres)
-3. [Redshift](#redshift)
-4. [Snowflake](#snowflake)
-5. [Databricks](#databricks)
+#### User
 
-If we don't support the warehouse you're using, don't be afraid to reach out to us in [GitHub](https://github.com/lightdash/lightdash)! :)
+This is the username for authentication.
+
+#### Password
+
+This is the password for authentication.
+
+#### DB name
+
+Specify the name of the database that your dbt models are built into.
+
+#### Port
+
+The port to connect to the host on.
+
+#### SSL mode
+
+This controls how dbt connects to Trino database using SSL.
+
+#### Start of week
+
+This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
 ## 2. Import a dbt project
 
@@ -496,7 +535,6 @@ We don't support connecting Lightdash to [dbt Cloud managed repositories](https:
 ### GitHub
 
 #### Personal access token
-
 
 You can create a personal access token (classic), or a fine-grained access token (beta).
 
