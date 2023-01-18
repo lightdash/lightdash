@@ -72,6 +72,11 @@ const TableBody: FC = () => {
                                 cellContextMenu={cellContextMenu}
                                 copying={cell.id === copyingCellId}
                                 selected={cell.id === selectedCell?.id}
+                                tooltipContent={
+                                    cellHasFormatting
+                                        ? 'has formatting'
+                                        : undefined
+                                }
                                 onSelect={() => onSelectCell(cell)}
                                 onDeselect={() => onSelectCell(undefined)}
                                 onKeyDown={onCopyCell}
