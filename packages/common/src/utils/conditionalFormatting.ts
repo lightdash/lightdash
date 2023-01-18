@@ -43,7 +43,7 @@ export const hasMatchingConditionalRules = (
     value: number | string | undefined,
     config: ConditionalFormattingConfig | undefined,
 ) => {
-    if (!config) return undefined;
+    if (!config) return false;
 
     const parsedValue = typeof value === 'string' ? Number(value) : value;
 

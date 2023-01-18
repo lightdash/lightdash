@@ -5,6 +5,7 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
+import findLast from 'lodash-es/findLast';
 import { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
 import BodyCell from '../BodyCell';
@@ -40,7 +41,8 @@ const TableBody: FC = () => {
                             );
 
                         const conditionalFormattingConfig =
-                            fieldConditionalConfigs?.find((c) => {
+                            fieldConditionalConfigs &&
+                            findLast(fieldConditionalConfigs, (c) => {
                                 return hasMatchingConditionalRules(
                                     cellValue?.value.raw as number | string,
                                     c,
