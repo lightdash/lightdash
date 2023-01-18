@@ -1,3 +1,10 @@
+## [0.375.1](https://github.com/lightdash/lightdash/compare/0.375.0...0.375.1) (2023-01-18)
+
+
+### Bug Fixes
+
+* use word boundaries for re dbt metrics ([#4201](https://github.com/lightdash/lightdash/issues/4201)) ([99e50e9](https://github.com/lightdash/lightdash/commit/99e50e9156c020eade3cd5896642dde159cf3fd9))
+
 # [0.375.0](https://github.com/lightdash/lightdash/compare/0.374.0...0.375.0) (2023-01-18)
 
 
