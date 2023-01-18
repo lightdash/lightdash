@@ -13,6 +13,8 @@ import {
     getItemId,
     isDashboardFilterRule,
     isDimension,
+    isFilterRule,
+    isMomentInput,
 } from '@lightdash/common';
 import isEmpty from 'lodash-es/isEmpty';
 import uniq from 'lodash-es/uniq';
@@ -122,8 +124,8 @@ type FilterRuleLabels = {
     value?: string;
 };
 
-export const getFilterRuleLabel = (
-    filterRule: FilterRule,
+export const getConditionalRuleLabel = (
+    filterRule: ConditionalRule,
     field: FilterableField,
 ): FilterRuleLabels => {
     const filterType = field
@@ -148,26 +150,36 @@ export const getFilterRuleLabel = (
                 filterRule.operator === FilterOperator.IN_THE_PAST ||
                 filterRule.operator === FilterOperator.IN_THE_NEXT
             ) {
-                valuesText = `${filterRule.values?.[0]} ${
-                    filterRule.settings.completed ? 'completed ' : ''
-                }${filterRule.settings.unitOfTime}`;
+                if (isFilterRule(filterRule)) {
+                    valuesText = `${filterRule.values?.[0]} ${
+                        filterRule.settings.completed ? 'completed ' : ''
+                    }${filterRule.settings.unitOfTime}`;
+                } else {
+                    valuesText = `${filterRule.values?.[0]}`;
+                }
             } else if (filterRule.operator === FilterOperator.IN_BETWEEN) {
                 valuesText = `${filterRule.values?.[0]} and ${filterRule.values?.[1]}`;
             } else if (filterRule.operator === FilterOperator.IN_THE_CURRENT) {
-                valuesText = `${filterRule.settings.unitOfTime.substring(
-                    0,
-                    filterRule.settings.unitOfTime.length - 1,
-                )}`;
+                if (isFilterRule(filterRule)) {
+                    valuesText = `${filterRule.settings.unitOfTime.substring(
+                        0,
+                        filterRule.settings.unitOfTime.length - 1,
+                    )}`;
+                } else {
+                    valuesText = `${filterRule.values?.[0]}`;
+                }
             } else {
                 valuesText = filterRule.values
                     ?.map((value) => {
                         if (
                             isDimension(field) &&
+                            isMomentInput(value) &&
                             field.type === DimensionType.TIMESTAMP
                         ) {
                             return formatTimestamp(value, field.timeInterval);
                         } else if (
                             isDimension(field) &&
+                            isMomentInput(value) &&
                             field.type === DimensionType.DATE
                         ) {
                             return formatDate(value, field.timeInterval);

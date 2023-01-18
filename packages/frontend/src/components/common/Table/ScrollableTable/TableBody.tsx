@@ -1,6 +1,8 @@
 import {
     getConditionalFormattingConfigs,
     hasMatchingConditionalRules,
+    isField,
+    isFilterableField,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
@@ -8,6 +10,7 @@ import { flexRender } from '@tanstack/react-table';
 import findLast from 'lodash-es/findLast';
 import { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
+import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 
@@ -49,6 +52,32 @@ const TableBody: FC = () => {
                                 );
                             });
 
+                        const ruleLabels =
+                            cellHasFormatting &&
+                            field &&
+                            isField(field) &&
+                            isFilterableField(field) &&
+                            fieldConditionalConfig &&
+                            fieldConditionalConfig.rules.length > 0
+                                ? fieldConditionalConfig?.rules.map((rule) =>
+                                      getConditionalRuleLabel(rule, field),
+                                  )
+                                : undefined;
+
+                        const tooltipContent = ruleLabels?.map((label) => {
+                            return (
+                                <div
+                                    key={
+                                        label.field +
+                                        label.operator +
+                                        label.value
+                                    }
+                                >
+                                    {label.operator} {label.value}
+                                </div>
+                            );
+                        });
+
                         return (
                             <BodyCell
                                 style={meta?.style}
@@ -73,9 +102,9 @@ const TableBody: FC = () => {
                                 copying={cell.id === copyingCellId}
                                 selected={cell.id === selectedCell?.id}
                                 tooltipContent={
-                                    cellHasFormatting
-                                        ? 'has formatting'
-                                        : undefined
+                                    tooltipContent ? (
+                                        <div>{tooltipContent}</div>
+                                    ) : undefined
                                 }
                                 onSelect={() => onSelectCell(cell)}
                                 onDeselect={() => onSelectCell(undefined)}

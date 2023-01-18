@@ -23,6 +23,7 @@ export const createConditionalFormattingConfig =
 
 export const getConditionalFormattingConfigs = (
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
+    // remove table calculation from here
     field: Field | TableCalculation | undefined,
 ) => {
     if (

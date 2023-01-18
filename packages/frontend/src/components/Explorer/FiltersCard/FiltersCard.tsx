@@ -30,7 +30,7 @@ import {
 } from '../../../providers/ExplorerProvider';
 import CollapsableCard from '../../common/CollapsableCard';
 import FiltersForm from '../../common/Filters';
-import { getFilterRuleLabel } from '../../common/Filters/configs';
+import { getConditionalRuleLabel } from '../../common/Filters/configs';
 import {
     FieldsWithSuggestions,
     FiltersProvider,
@@ -146,7 +146,10 @@ const FiltersCard: FC = memo(() => {
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
-                const filterRuleLabels = getFilterRuleLabel(filterRule, field);
+                const filterRuleLabels = getConditionalRuleLabel(
+                    filterRule,
+                    field,
+                );
                 return (
                     <div key={field.name}>
                         {filterRuleLabels.field}: {filterRuleLabels.operator}{' '}

@@ -46,7 +46,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { getFilterRuleLabel } from '../common/Filters/configs';
+import { getConditionalRuleLabel } from '../common/Filters/configs';
 import { TableColumn } from '../common/Table/types';
 import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
@@ -331,7 +331,10 @@ const DashboardChartTile: FC<Props> = (props) => {
                 (f) => fieldId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
-                const filterRuleLabels = getFilterRuleLabel(filterRule, field);
+                const filterRuleLabels = getConditionalRuleLabel(
+                    filterRule,
+                    field,
+                );
                 return (
                     <div key={field.name}>
                         <Tag minimal style={{ color: 'white' }}>
