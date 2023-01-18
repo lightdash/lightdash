@@ -20,7 +20,7 @@ interface CommonBodyCellProps {
     fontColor?: string;
     copying?: boolean;
     selected?: boolean;
-    tooltipContent?: JSX.Element | JSX.Element[];
+    tooltipContent?: string;
     onSelect: () => void;
     onDeselect: () => void;
     onKeyDown: React.KeyboardEventHandler<HTMLElement>;

@@ -53,33 +53,23 @@ const TableBody: FC = () => {
                             });
 
                         const ruleLabels =
-                            cellHasFormatting &&
                             field &&
                             isField(field) &&
                             isFilterableField(field) &&
-                            fieldConditionalConfig &&
-                            fieldConditionalConfig.rules.length > 0
-                                ? fieldConditionalConfig?.rules.map((rule) =>
-                                      getConditionalRuleLabel(rule, field),
+                            conditionalFormattingConfig &&
+                            conditionalFormattingConfig.rules.length > 0
+                                ? conditionalFormattingConfig.rules.map((r) =>
+                                      getConditionalRuleLabel(r, field),
                                   )
                                 : undefined;
 
-                        const tooltipContent = ruleLabels?.map((label) => {
-                            return (
-                                <div
-                                    key={
-                                        label.field +
-                                        label.operator +
-                                        label.value
-                                    }
-                                >
-                                    {label.operator} {label.value}
-                                </div>
-                            );
-                        });
+                        const tooltipContent = ruleLabels
+                            ?.map((l) => `${l.operator} ${l.value}`)
+                            .join(' and ');
 
                         return (
                             <BodyCell
+                                key={cell.id}
                                 style={meta?.style}
                                 backgroundColor={
                                     conditionalFormattingConfig?.color
@@ -93,7 +83,6 @@ const TableBody: FC = () => {
                                         : undefined
                                 }
                                 className={meta?.className}
-                                key={cell.id}
                                 rowIndex={rowIndex}
                                 cell={cell}
                                 isNumericItem={isNumericItem(meta?.item)}
@@ -101,11 +90,7 @@ const TableBody: FC = () => {
                                 cellContextMenu={cellContextMenu}
                                 copying={cell.id === copyingCellId}
                                 selected={cell.id === selectedCell?.id}
-                                tooltipContent={
-                                    tooltipContent ? (
-                                        <div>{tooltipContent}</div>
-                                    ) : undefined
-                                }
+                                tooltipContent={tooltipContent}
                                 onSelect={() => onSelectCell(cell)}
                                 onDeselect={() => onSelectCell(undefined)}
                                 onKeyDown={onCopyCell}
