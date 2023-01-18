@@ -89,6 +89,16 @@ type CreateUserEvent = BaseTrack & {
     };
 };
 
+type DeleteUserEvent = BaseTrack & {
+    event: 'user.deleted';
+    properties: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        organizationId: string;
+    };
+};
+
 type UpdateUserEvent = BaseTrack & {
     event: 'user.updated';
     properties: LightdashUser & { jobTitle?: string };
@@ -410,6 +420,7 @@ type Track =
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
+    | DeleteUserEvent
     | QueryExecutionEvent
     | TrackSavedChart
     | CreateSavedChartOrVersionEvent

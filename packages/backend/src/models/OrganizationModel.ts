@@ -75,10 +75,6 @@ export class OrganizationModel {
         await this.database.transaction(async (trx) => {
             await trx('users').delete().whereIn('user_uuid', userUuids);
 
-            await trx('organization_memberships')
-                .delete()
-                .where('organization_id', org.organization_id);
-
             await trx(OrganizationTableName)
                 .where('organization_uuid', organizationUuid)
                 .delete();

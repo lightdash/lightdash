@@ -125,6 +125,19 @@ export class OrganizationService {
             userUuids,
         );
 
+        orgUsers.forEach((orgUser) => {
+            analytics.track({
+                event: 'user.deleted',
+                userId: orgUser.userUuid,
+                properties: {
+                    firstName: orgUser.firstName,
+                    lastName: orgUser.lastName,
+                    email: orgUser.email,
+                    organizationId: organizationUuid,
+                },
+            });
+        });
+
         analytics.track({
             event: 'organization.deleted',
             userId: user.userUuid,
