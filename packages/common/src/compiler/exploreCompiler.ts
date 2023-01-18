@@ -247,7 +247,7 @@ const renderSqlType = (
     sql: string,
     type: MetricType,
     targetDatabase: SupportedDbtAdapter,
-    percentile: number | undefined = 0.5,
+    percentile: number | undefined = 50,
 ): string => {
     switch (type) {
         case MetricType.PERCENTILE:
@@ -255,15 +255,19 @@ const renderSqlType = (
                 case SupportedDbtAdapter.BIGQUERY:
                     return `APPROX_QUANTILES(${sql}, 100)[OFFSET(${percentile})]`;
                 case SupportedDbtAdapter.DATABRICKS:
-                    return `PERCENTILE(${sql}, ${percentile})`;
+                    return `PERCENTILE(${sql}, ${percentile / 100})`;
                 case SupportedDbtAdapter.TRINO:
-                    return `APPROX_QUANTILE(${sql}, ${percentile})`;
+                    return `APPROX_PERCENTILE(${sql}, ${percentile / 100})`;
                 case SupportedDbtAdapter.POSTGRES:
                 case SupportedDbtAdapter.REDSHIFT:
                 case SupportedDbtAdapter.SNOWFLAKE:
-                    return `PERCENTILE_CONT(${percentile}) WITHIN GROUP (ORDER BY ${sql})`;
+                    return `PERCENTILE_CONT(${
+                        percentile / 100
+                    }) WITHIN GROUP (ORDER BY ${sql})`;
                 default:
-                    return `PERCENTILE_CONT(${percentile}) WITHIN GROUP (ORDER BY ${sql})`;
+                    return `PERCENTILE_CONT(${
+                        percentile / 100
+                    }) WITHIN GROUP (ORDER BY ${sql})`;
             }
         case MetricType.AVERAGE:
             return `AVG(${sql})`;

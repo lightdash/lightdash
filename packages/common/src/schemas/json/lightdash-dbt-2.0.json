@@ -65,6 +65,7 @@
                                             "type": {
                                                 "type": "string",
                                                 "enum": [
+                                                    "percentile",
                                                     "average",
                                                     "boolean",
                                                     "count",
@@ -104,6 +105,9 @@
                                                     "percent",
                                                     "id"
                                                 ]
+                                            },
+                                            "percentile": {
+                                                "type": "number"
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -157,6 +161,7 @@
                                                         "type": {
                                                             "type": "string",
                                                             "enum": [
+                                                                "percentile",
                                                                 "average",
                                                                 "boolean",
                                                                 "count",
@@ -196,6 +201,9 @@
                                                                 "percent",
                                                                 "id"
                                                             ]
+                                                        },
+                                                        "percentile": {
+                                                            "type": "number"
                                                         }
                                                     },
                                                     "required": ["type"]

@@ -232,6 +232,7 @@ const convertDbtMetricToLightdashMetric = (
         compact: metric.meta?.compact,
         format: metric.meta?.format,
         groupLabel: metric.meta?.group_label,
+        percentile: metric.meta?.percentile,
         showUnderlyingValues: metric.meta?.show_underlying_values,
         filters: parseFilters(metric.meta?.filters),
         ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),

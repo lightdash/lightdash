@@ -92,6 +92,7 @@ export type DbtColumnLightdashMetric = {
     urls?: FieldUrl[];
     show_underlying_values?: string[];
     filters?: { [key: string]: any }[];
+    percentile?: number;
 };
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -356,6 +357,7 @@ export const convertModelMetric = ({
     groupLabel: metric.group_label,
     showUnderlyingValues: metric.show_underlying_values,
     filters: parseFilters(metric.filters),
+    percentile: metric.percentile,
     ...(metric.urls ? { urls: metric.urls } : {}),
 });
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
