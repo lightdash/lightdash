@@ -1,3 +1,10 @@
+# [0.375.0](https://github.com/lightdash/lightdash/compare/0.374.0...0.375.0) (2023-01-18)
+
+
+### Features
+
+* conditional formatting multiple rules on one field ([#4205](https://github.com/lightdash/lightdash/issues/4205)) ([89e06ab](https://github.com/lightdash/lightdash/commit/89e06aba7518b8e31de421b917447fbed426dc46))
+
 # [0.374.0](https://github.com/lightdash/lightdash/compare/0.373.2...0.374.0) (2023-01-18)
 
 
