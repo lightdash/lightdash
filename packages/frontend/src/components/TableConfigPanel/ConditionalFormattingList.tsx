@@ -40,12 +40,6 @@ const ConditionalFormattingList = ({}) => {
         );
     }, [conditionalFormattings, visibleActiveNumericFields]);
 
-    const usedFieldIds = useMemo(() => {
-        return activeConfigs
-            .map((c) => c.target?.fieldId)
-            .filter((f): f is string => !!f);
-    }, [activeConfigs]);
-
     const handleAdd = useCallback(() => {
         setIsAddingNew(true);
         onSetConditionalFormattings(
@@ -75,11 +69,6 @@ const ConditionalFormattingList = ({}) => {
         [onSetConditionalFormattings, activeConfigs],
     );
 
-    const isAddButtonDisabled = useMemo(
-        () => visibleActiveNumericFields.length === usedFieldIds.length,
-        [visibleActiveNumericFields, usedFieldIds],
-    );
-
     return (
         <ConditionalFormattingListWrapper>
             {activeConfigs.map((conditionalFormatting, index) => (
@@ -88,7 +77,6 @@ const ConditionalFormattingList = ({}) => {
                     isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
                     index={index}
                     fields={visibleActiveNumericFields}
-                    usedFieldIds={usedFieldIds}
                     value={conditionalFormatting}
                     onChange={(newConfig) => handleChange(index, newConfig)}
                     onRemove={() => handleRemove(index)}
@@ -96,21 +84,9 @@ const ConditionalFormattingList = ({}) => {
             ))}
 
             <FormGroup>
-                <Tooltip2
-                    position="bottom-left"
-                    disabled={!isAddButtonDisabled}
-                    content="All fields are already being used in rules."
-                >
-                    <Button
-                        icon="plus"
-                        onClick={isAddButtonDisabled ? undefined : handleAdd}
-                        className={
-                            isAddButtonDisabled ? Classes.DISABLED : undefined
-                        }
-                    >
-                        Add new rule
-                    </Button>
-                </Tooltip2>
+                <Button icon="plus" onClick={handleAdd}>
+                    Add new rule
+                </Button>
             </FormGroup>
         </ConditionalFormattingListWrapper>
     );

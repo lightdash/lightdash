@@ -21,7 +21,7 @@ export const createConditionalFormattingConfig =
         rules: [createConditionalFormatingRule()],
     });
 
-export const getConditionalFormattingConfig = (
+export const getConditionalFormattingConfigs = (
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
     field: Field | TableCalculation | undefined,
 ) => {
@@ -34,10 +34,8 @@ export const getConditionalFormattingConfig = (
         return undefined;
     }
 
-    return (
-        conditionalFormattings.find(
-            (c) => c.target?.fieldId === getItemId(field),
-        ) || conditionalFormattings.find((config) => !config.target)
+    return conditionalFormattings.filter(
+        (c) => c.target?.fieldId === getItemId(field) || !c.target,
     );
 };
 
@@ -45,7 +43,7 @@ export const hasMatchingConditionalRules = (
     value: number | string | undefined,
     config: ConditionalFormattingConfig | undefined,
 ) => {
-    if (!config) return undefined;
+    if (!config) return false;
 
     const parsedValue = typeof value === 'string' ? Number(value) : value;
 
