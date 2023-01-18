@@ -221,7 +221,7 @@ export class SavedChartService {
         }
         const views = await this.analyticsModel.countChartViews(savedChartUuid);
 
-        await this.analyticsModel.trackChartView(savedChartUuid, user.userUuid);
+        await this.analyticsModel.addChartView(savedChartUuid, user.userUuid);
 
         return {
             ...savedChart,

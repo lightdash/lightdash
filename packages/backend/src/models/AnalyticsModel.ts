@@ -22,7 +22,7 @@ export class AnalyticsModel {
         return Number(count);
     }
 
-    async trackChartView(chartUuid: string, userUuid: string): Promise<void> {
+    async addChartView(chartUuid: string, userUuid: string): Promise<void> {
         await this.database(AnalyticsChartViewsTableName).insert({
             chart_uuid: chartUuid,
             user_uuid: userUuid,
@@ -40,7 +40,7 @@ export class AnalyticsModel {
         return Number(count);
     }
 
-    async trackDashboardView(
+    async addDashboardView(
         dashboardUuid: string,
         userUuid: string,
     ): Promise<void> {

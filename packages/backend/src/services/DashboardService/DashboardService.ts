@@ -127,7 +127,7 @@ export class DashboardService {
             );
         }
 
-        await this.analyticsModel.trackDashboardView(
+        await this.analyticsModel.addDashboardView(
             dashboard.uuid,
             user.userUuid,
         );
