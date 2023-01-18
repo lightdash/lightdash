@@ -22,6 +22,7 @@ export const isNumericItem = (
         const numericTypes: string[] = [
             DimensionType.NUMBER,
             MetricType.NUMBER,
+            MetricType.PERCENTILE,
             MetricType.AVERAGE,
             MetricType.COUNT,
             MetricType.COUNT_DISTINCT,

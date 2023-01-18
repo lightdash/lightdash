@@ -206,6 +206,7 @@ const compileMetricReference = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    targetDatabase: SupportedDbtAdapter,
 ): { sql: string; tablesReferences: Set<string> } => {
     // Reference to current table
     if (ref === 'TABLE') {
@@ -231,6 +232,7 @@ const compileMetricReference = (
         fieldQuoteChar,
         stringQuoteChar,
         escapeStringQuoteChar,
+        targetDatabase,
     );
     return {
         sql: `(${compiledMetric.sql})`,
@@ -241,8 +243,28 @@ const compileMetricReference = (
     };
 };
 
-export const renderSqlType = (sql: string, type: MetricType): string => {
+const renderSqlType = (
+    sql: string,
+    type: MetricType,
+    targetDatabase: SupportedDbtAdapter,
+    percentile: number | undefined = 0.5,
+): string => {
     switch (type) {
+        case MetricType.PERCENTILE:
+            switch (targetDatabase) {
+                case SupportedDbtAdapter.BIGQUERY:
+                    return `APPROX_QUANTILES(${sql}, 100)[OFFSET(${percentile})]`;
+                case SupportedDbtAdapter.DATABRICKS:
+                    return `PERCENTILE(${sql}, ${percentile})`;
+                case SupportedDbtAdapter.TRINO:
+                    return `APPROX_QUANTILE(${sql}, ${percentile})`;
+                case SupportedDbtAdapter.POSTGRES:
+                case SupportedDbtAdapter.REDSHIFT:
+                case SupportedDbtAdapter.SNOWFLAKE:
+                    return `PERCENTILE_CONT(${percentile}) WITHIN GROUP (ORDER BY ${sql})`;
+                default:
+                    return `PERCENTILE_CONT(${percentile}) WITHIN GROUP (ORDER BY ${sql})`;
+            }
         case MetricType.AVERAGE:
             return `AVG(${sql})`;
         case MetricType.COUNT:
@@ -276,6 +298,7 @@ export const compileMetricSql = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    targetDatabase: SupportedDbtAdapter,
 ): { sql: string; tablesReferences: Set<string> } => {
     const compileReference = isNonAggregateMetric(metric)
         ? compileMetricReference
@@ -304,6 +327,7 @@ export const compileMetricSql = (
             fieldQuoteChar,
             stringQuoteChar,
             escapeStringQuoteChar,
+            targetDatabase,
         );
         tablesReferences = new Set([
             ...tablesReferences,
@@ -347,7 +371,12 @@ export const compileMetricSql = (
             ' AND ',
         )}) THEN (${renderedSql}) ELSE NULL END`;
     }
-    const compiledSql = renderSqlType(renderedSql, metric.type);
+    const compiledSql = renderSqlType(
+        renderedSql,
+        metric.type,
+        targetDatabase,
+        metric.percentile,
+    );
 
     return { sql: compiledSql, tablesReferences };
 };
@@ -377,6 +406,7 @@ export const compileMetric = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    targetDatabase: SupportedDbtAdapter,
 ): CompiledMetric => {
     const compiledMetric = compileMetricSql(
         metric,
@@ -384,6 +414,7 @@ export const compileMetric = (
         fieldQuoteChar,
         stringQuoteChar,
         escapeStringQuoteChar,
+        targetDatabase,
     );
     metric.showUnderlyingValues?.forEach((dimReference) => {
         const { refTable, refName } = getParsedReference(
@@ -425,6 +456,7 @@ const compileTable = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    targetDatabase: SupportedDbtAdapter,
 ): CompiledTable => {
     const dimensions: Record<string, CompiledDimension> = Object.keys(
         table.dimensions,
@@ -451,6 +483,7 @@ const compileTable = (
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeStringQuoteChar,
+                targetDatabase,
             ),
         }),
         {},
@@ -516,6 +549,7 @@ export const compileExplore = ({
                     fieldQuoteChar,
                     stringQuoteChar,
                     escapeStringQuoteChar,
+                    targetDatabase,
                 ),
             };
         }

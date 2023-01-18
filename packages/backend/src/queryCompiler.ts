@@ -88,6 +88,7 @@ const compileAdditionalMetric = ({
         fieldQuoteChar,
         stringQuoteChar,
         escapeStringQuoteChar,
+        explore.targetDatabase,
     );
     return {
         ...metric,

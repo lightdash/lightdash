@@ -84,6 +84,7 @@ export const getSortLabel = (
         }
     } else if (isMetric(item)) {
         switch (item.type) {
+            case MetricType.PERCENTILE:
             case MetricType.AVERAGE:
             case MetricType.COUNT:
             case MetricType.COUNT_DISTINCT:
