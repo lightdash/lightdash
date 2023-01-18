@@ -45,6 +45,7 @@ export default defineConfig({
                     '@mapbox/': 'mapbox-vendor',
                     rudder: 'rudder-vendor',
                     sentry: 'sentry-vendor',
+                    mantine: 'mantine-vendor',
                 }),
             },
         },
