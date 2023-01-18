@@ -204,7 +204,7 @@ export const getConditionalRuleLabel = (
 };
 
 export const getFilterRuleTables = (
-    filterRule: FilterRule | DashboardFilterRule,
+    filterRule: ConditionalRule,
     field: FilterableField,
     filterableFields: FilterableField[],
 ): string[] => {

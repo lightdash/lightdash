@@ -67,7 +67,7 @@ export type DashboardFilterRule<
 };
 
 export const isDashboardFilterRule = (
-    value: FilterRule,
+    value: ConditionalRule,
 ): value is DashboardFilterRule => 'tileTargets' in value;
 
 export type DateFilterRule = FilterRule<
