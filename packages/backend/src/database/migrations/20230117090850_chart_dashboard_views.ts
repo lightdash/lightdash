@@ -17,10 +17,9 @@ export async function up(knex: Knex): Promise<void> {
             .nullable()
             .references('user_uuid')
             .inTable('users')
-            .onDelete('CASCADE');
+            .onDelete('SET NULL');
         tableBuilder
             .uuid('chart_uuid')
-            .nullable()
             .references('saved_query_uuid')
             .inTable('saved_queries')
             .onDelete('CASCADE');
@@ -38,10 +37,9 @@ export async function up(knex: Knex): Promise<void> {
                 .nullable()
                 .references('user_uuid')
                 .inTable('users')
-                .onDelete('CASCADE');
+                .onDelete('SET NULL');
             tableBuilder
                 .uuid('dashboard_uuid')
-                .nullable()
                 .references('dashboard_uuid')
                 .inTable('dashboards')
                 .onDelete('CASCADE');

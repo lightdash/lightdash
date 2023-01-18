@@ -346,16 +346,10 @@ export class SavedChartModel {
                 'saved_queries_versions.updated_by_user_uuid',
                 'users.user_uuid',
             )
-            .leftJoin(
-                'analytics_chart_views',
-                'analytics_chart_views.chart_uuid',
-                'saved_queries.saved_query_uuid',
-            )
             .select<
                 (DbSavedChartDetails & {
                     space_uuid: string;
                     spaceName: string;
-                    views: number;
                 })[]
             >([
                 'projects.project_uuid',
@@ -497,7 +491,6 @@ export class SavedChartModel {
                 : {}),
             spaceUuid: savedQuery.space_uuid,
             spaceName: savedQuery.spaceName,
-            views: savedQuery.views,
         };
     }
 }

@@ -22,11 +22,13 @@ export class AnalyticsModel {
         return Number(count);
     }
 
-    async addChartView(chartUuid: string, userUuid: string): Promise<void> {
+    async addChartViewEvent(
+        chartUuid: string,
+        userUuid: string,
+    ): Promise<void> {
         await this.database(AnalyticsChartViewsTableName).insert({
             chart_uuid: chartUuid,
             user_uuid: userUuid,
-            context: {},
         });
     }
 
@@ -40,14 +42,13 @@ export class AnalyticsModel {
         return Number(count);
     }
 
-    async addDashboardView(
+    async addDashboardViewEvent(
         dashboardUuid: string,
         userUuid: string,
     ): Promise<void> {
         await this.database(AnalyticsDashboardViewsTableName).insert({
             dashboard_uuid: dashboardUuid,
             user_uuid: userUuid,
-            context: {},
         });
     }
 }

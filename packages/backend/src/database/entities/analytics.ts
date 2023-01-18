@@ -7,13 +7,13 @@ export type DbAnalyticsChartViews = {
     chart_uuid: string;
     user_uuid: string;
     timestamp: Date;
-    context: any;
+    context: Record<string, any>;
 };
 export type DbAnalyticsDashboardViews = {
     dashboard_uuid: string;
     user_uuid: string;
     timestamp: Date;
-    context: any;
+    context: Record<string, any>;
 };
 
 export type AnalyticsDashboardViews = Knex.CompositeTableType<
