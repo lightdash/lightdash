@@ -52,6 +52,9 @@ jest.mock('../../models/models', () => ({
     spaceModel: {
         getFullSpace: jest.fn(async () => publicSpace),
     },
+    analyticsModel: {
+        addDashboardView: jest.fn(async () => null),
+    },
 }));
 
 describe('DashboardService', () => {
