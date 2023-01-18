@@ -1,3 +1,10 @@
+## [0.375.3](https://github.com/lightdash/lightdash/compare/0.375.2...0.375.3) (2023-01-18)
+
+
+### Bug Fixes
+
+* change copy on action to edit tile contents ([#4208](https://github.com/lightdash/lightdash/issues/4208)) ([6089c47](https://github.com/lightdash/lightdash/commit/6089c47b8973e1eeb27411d8d4f82eab812ff974))
+
 ## [0.375.2](https://github.com/lightdash/lightdash/compare/0.375.1...0.375.2) (2023-01-18)
 
 
