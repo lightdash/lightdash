@@ -118,12 +118,12 @@ export class OrganizationService {
                 organizationUuid,
             );
 
-        const deleteUserPromises = orgUsers.map((orgUser) =>
-            this.userModel.delete(orgUser.userUuid),
-        );
-        await Promise.all(deleteUserPromises);
+        const userUuids = orgUsers.map((orgUser) => orgUser.userUuid);
 
-        await this.organizationModel.delete(organizationUuid);
+        await this.organizationModel.deleteOrgAndUsers(
+            organizationUuid,
+            userUuids,
+        );
 
         analytics.track({
             event: 'organization.deleted',

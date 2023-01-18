@@ -61,9 +61,27 @@ export class OrganizationModel {
         return OrganizationModel.mapDBObjectToOrganisation(org);
     }
 
-    async delete(organizationUuid: string): Promise<void> {
-        await this.database(OrganizationTableName)
+    async deleteOrgAndUsers(
+        organizationUuid: string,
+        userUuids: string[],
+    ): Promise<void> {
+        const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
-            .delete();
+            .select('*');
+        if (org === undefined) {
+            throw new NotFoundError(`No organisation found`);
+        }
+
+        await this.database.transaction(async (trx) => {
+            await trx('users').delete().whereIn('user_uuid', userUuids);
+
+            await trx('organization_memberships')
+                .delete()
+                .where('organization_id', org.organization_id);
+
+            await trx(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .delete();
+        });
     }
 }
