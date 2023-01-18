@@ -17,6 +17,7 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { UserModel } from '../../models/UserModel';
 
 type OrganizationServiceDependencies = {
     organizationModel: OrganizationModel;
@@ -24,6 +25,7 @@ type OrganizationServiceDependencies = {
     onboardingModel: OnboardingModel;
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
+    userModel: UserModel;
 };
 
 export class OrganizationService {
@@ -37,18 +39,22 @@ export class OrganizationService {
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
 
+    private readonly userModel: UserModel;
+
     constructor({
         organizationModel,
         projectModel,
         onboardingModel,
         inviteLinkModel,
         organizationMemberProfileModel,
+        userModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.userModel = userModel;
     }
 
     async get(user: SessionUser): Promise<Organisation> {
@@ -92,6 +98,56 @@ export class OrganizationService {
                 organizationId: organizationUuid,
                 organizationName: org.name,
                 defaultColourPaletteUpdated: data.chartColors !== undefined,
+            },
+        });
+    }
+
+    async delete(organizationUuid: string, user: SessionUser): Promise<void> {
+        const organization = await this.organizationModel.get(organizationUuid);
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const orgUsers =
+            await this.organizationMemberProfileModel.getOrganizationMembers(
+                organizationUuid,
+            );
+
+        const userUuids = orgUsers.map((orgUser) => orgUser.userUuid);
+
+        await this.organizationModel.deleteOrgAndUsers(
+            organizationUuid,
+            userUuids,
+        );
+
+        orgUsers.forEach((orgUser) => {
+            analytics.track({
+                event: 'user.deleted',
+                userId: orgUser.userUuid,
+                properties: {
+                    firstName: orgUser.firstName,
+                    lastName: orgUser.lastName,
+                    email: orgUser.email,
+                    organizationId: organizationUuid,
+                },
+            });
+        });
+
+        analytics.track({
+            event: 'organization.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                organizationName: organization.name,
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
             },
         });
     }

@@ -54,6 +54,7 @@ export const organizationService = new OrganizationService({
     onboardingModel,
     inviteLinkModel,
     organizationMemberProfileModel,
+    userModel,
 });
 
 export const projectService = new ProjectService({
