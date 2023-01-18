@@ -159,6 +159,29 @@ const testQuery = () => {
     cy.findByText('Unique order count').click();
 };
 
+const testFilterStringEscaping = () => {
+    cy.contains('New').click();
+    cy.findByText('Query from tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
+    cy.contains('Customers').click();
+
+    // Load query via url params
+    cy.url().then((urlValue) =>
+        cy.visit(
+            `${urlValue}?create_saved_chart_version=%7B"tableName"%3A"customers"%2C"metricQuery"%3A%7B"dimensions"%3A%5B"customers_first_name"%5D%2C"metrics"%3A%5B%5D%2C"filters"%3A%7B"dimensions"%3A%7B"id"%3A"e0772fb1-9c35-4d58-81c7-8cdb015c2699"%2C"and"%3A%5B%7B"id"%3A"cdae9905-c299-4926-8ccd-d1f6dabeb733"%2C"target"%3A%7B"fieldId"%3A"customers_first_name"%7D%2C"operator"%3A"equals"%2C"values"%3A%5B"Quo%27te"%5D%7D%5D%7D%7D%2C"sorts"%3A%5B%7B"fieldId"%3A"customers_first_name"%2C"descending"%3Afalse%7D%5D%2C"limit"%3A500%2C"tableCalculations"%3A%5B%5D%2C"additionalMetrics"%3A%5B%5D%7D%2C"tableConfig"%3A%7B"columnOrder"%3A%5B"customers_first_name"%5D%7D%2C"chartConfig"%3A%7B"type"%3A"cartesian"%2C"config"%3A%7B"layout"%3A%7B%7D%2C"eChartsConfig"%3A%7B%7D%7D%7D%7D`,
+        ),
+    );
+
+    // wait for query to finish
+    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
+
+    // check that first row
+    cy.get('table')
+        .find('td', { timeout: 10000 })
+        .eq(1)
+        .should('contain.text', "Quo'te");
+};
+
 const defaultRowValues = [
     '2020-08-11, 23:44:00:000 (+00:00)',
     '2020-08-11, 23:44:00:000 (+00:00)',
@@ -268,6 +291,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
         testTimeIntervalsResults();
     });
@@ -287,6 +311,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
         testTimeIntervalsResults();
     });
@@ -302,6 +327,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
 
         const bigqueryRowValues = [
@@ -340,6 +366,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
 
         const trinoRowValues = [
@@ -378,6 +405,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
         const databricksRowValues = [
             '2020-07-02, 09:33:00:000 (+00:00)',
@@ -416,6 +444,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
 
         const snowflakeRowValues = [
