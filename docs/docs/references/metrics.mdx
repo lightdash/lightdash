@@ -187,18 +187,38 @@ Here are all of the properties you can customize:
 
 ## Metric types
 
-|       Type                        | Category  | Description                                                 |
-|:---------------------------------:| --------- | ----------------------------------------------------------- |
-| [average](#average)               | Aggregate | Generates an average (mean) of values within a column       |
-| [boolean](#boolean)               | Non-aggregate | For fields that will show if something is true or false |
-| [count](#count)                   | Aggregate | Counts the total number of values in the dimension          |
-| [count_distinct](#count_distinct) | Aggregate | Counts the total unique number of values in the dimension   |
-| [date](#date)                     | Non-aggregate | For measures that contain dates                         |
-| [max](#max)                       | Aggregate | Generates the maximum value within a column                 |
-| [min](#min)                       | Aggregate | Generates the minimum value within a column                 |
-| [number](#number)                 | Non-aggregate | For measures that contain numbers                       |
-| [string](#string)                 | Non-aggregate | For measures that contain letters or special characters |
-| [sum](#sum)                       | Aggregate | Generates a sum of values within a column                   |
+| Type                              | Category      | Description                                               |
+|-----------------------------------|---------------|-----------------------------------------------------------|
+| [percentile](#percentile)         | Aggregate     | Generates a percentile of values within a column          |
+| [average](#average)               | Aggregate     | Generates an average (mean) of values within a column     |
+| [boolean](#boolean)               | Non-aggregate | For fields that will show if something is true or false   |
+| [count](#count)                   | Aggregate     | Counts the total number of values in the dimension        |
+| [count_distinct](#count_distinct) | Aggregate     | Counts the total unique number of values in the dimension |
+| [date](#date)                     | Non-aggregate | For measures that contain dates                           |
+| [max](#max)                       | Aggregate     | Generates the maximum value within a column               |
+| [min](#min)                       | Aggregate     | Generates the minimum value within a column               |
+| [number](#number)                 | Non-aggregate | For measures that contain numbers                         |
+| [string](#string)                 | Non-aggregate | For measures that contain letters or special characters   |
+| [sum](#sum)                       | Aggregate     | Generates a sum of values within a column                 |
+
+
+### percentile
+
+Takes the percentile of the values in the given field. Like SQL's `PERCENTILE_CONT` function.
+
+The `percentile` metric can be used on any numeric dimension or, [for custom SQL](#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column.
+
+For example, this creates a metric `median_price` by taking the 50% percentile of the `item_price` dimension:
+
+```yaml
+columns:
+  - name: item_price
+    meta:
+      metrics:
+        median_price:
+          type: percentile
+          percentile: 50
+```
 
 ### average
 
