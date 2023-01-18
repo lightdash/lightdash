@@ -37,7 +37,6 @@ export class SpaceService {
         user: SessionUser,
     ): Promise<Space[]> {
         const spaces = await this.spaceModel.getAllSpaces(projectUuid);
-
         return spaces.filter(
             (space) =>
                 user.ability.can(

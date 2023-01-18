@@ -100,7 +100,7 @@ export class SpaceModel {
                 `${ProjectTableName}.organization_id`,
                 `${OrganizationTableName}.organization_id`,
             )
-            .select<GetDashboardDetailsQuery[]>([
+            .select<(GetDashboardDetailsQuery & { views: string })[]>([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
@@ -111,6 +111,9 @@ export class SpaceModel {
                 `${DashboardVersionsTableName}.created_at`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
+                this.database.raw(
+                    `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = analytics_dashboard_views.dashboard_uuid) as views `,
+                ),
             ])
             .orderBy([
                 {
@@ -135,6 +138,7 @@ export class SpaceModel {
                 first_name,
                 last_name,
                 organization_uuid,
+                views,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -148,6 +152,7 @@ export class SpaceModel {
                     lastName: last_name,
                 },
                 spaceUuid,
+                views: parseInt(views, 10),
             }),
         );
     }
@@ -245,6 +250,7 @@ export class SpaceModel {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
+                    views: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -254,6 +260,9 @@ export class SpaceModel {
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
+                this.database.raw(
+                    `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views where saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views `,
+                ),
             ])
             .orderBy([
                 {
@@ -278,6 +287,7 @@ export class SpaceModel {
                 lastName: savedQuery.last_name,
             },
             spaceUuid,
+            views: parseInt(savedQuery.views, 10),
         }));
     }
 

@@ -219,10 +219,14 @@ export class SavedChartService {
                 "You don't have access to the space this chart belongs to",
             );
         }
+        const views = await this.analyticsModel.countChartViews(savedChartUuid);
 
         await this.analyticsModel.trackChartView(savedChartUuid, user.userUuid);
 
-        return savedChart;
+        return {
+            ...savedChart,
+            views,
+        };
     }
 
     async create(
