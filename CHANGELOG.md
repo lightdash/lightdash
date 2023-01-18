@@ -1,3 +1,10 @@
+# [0.376.0](https://github.com/lightdash/lightdash/compare/0.375.3...0.376.0) (2023-01-18)
+
+
+### Features
+
+* delete organisation ([#4165](https://github.com/lightdash/lightdash/issues/4165)) ([49e5503](https://github.com/lightdash/lightdash/commit/49e55033fee52fe2d2d4ee50e1ee5ac8cabb26d2))
+
 ## [0.375.3](https://github.com/lightdash/lightdash/compare/0.375.2...0.375.3) (2023-01-18)
 
 
