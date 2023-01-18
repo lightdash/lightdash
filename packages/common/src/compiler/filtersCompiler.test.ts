@@ -218,6 +218,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithSingleVal,
                 "'",
+                "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithSingleValSQL);
     });
@@ -227,6 +228,7 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithMultiVal,
+                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithMultiValSQL);
@@ -238,6 +240,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.includeFilterWithNoVal,
                 "'",
+                "'",
             ),
         ).toBe(stringFilterRuleMocks.includeFilterWithNoValSQL);
     });
@@ -247,6 +250,7 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithSingleVal,
+                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithSingleValSQL);
@@ -258,6 +262,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithMultiVal,
                 "'",
+                "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithMultiValSQL);
     });
@@ -267,6 +272,7 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.notIncludeFilterWithNoVal,
+                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.notIncludeFilterWithNoValSQL);
@@ -278,6 +284,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithSingleVal,
                 "'",
+                "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithSingleValSQL);
     });
@@ -287,6 +294,7 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithMultiVal,
+                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithMultiValSQL);
@@ -298,6 +306,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.startsWithFilterWithNoVal,
                 "'",
+                "'",
             ),
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
@@ -308,6 +317,7 @@ describe('Filter SQL', () => {
                 stringFilterDimension,
                 stringFilterRuleMocks.equalsFilterWithSingleUnescapedValue,
                 "'",
+                "'",
             ),
         ).toBe(stringFilterRuleMocks.equalsFilterWithSingleUnescapedValueSQL);
     });
@@ -317,6 +327,7 @@ describe('Filter SQL', () => {
             renderStringFilterSql(
                 stringFilterDimension,
                 stringFilterRuleMocks.equalsFilterWithMultiUnescapedValue,
+                "'",
                 "'",
             ),
         ).toBe(stringFilterRuleMocks.equalsFilterWithMultiUnescapedValueSQL);

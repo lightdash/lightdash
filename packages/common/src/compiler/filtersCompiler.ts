@@ -22,13 +22,14 @@ export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule,
     stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): string => {
     const filterType = filter.operator;
     const escapedFilterValues = filter.values?.map((v) =>
         typeof v === 'string'
             ? v.replaceAll(
                   stringQuoteChar,
-                  `${stringQuoteChar}${stringQuoteChar}`,
+                  `${escapeStringQuoteChar}${stringQuoteChar}`,
               )
             : v,
     );
@@ -238,6 +239,7 @@ export const renderFilterRuleSql = (
     field: CompiledField,
     fieldQuoteChar: string,
     stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): string => {
     const fieldType = field.type;
     const fieldSql = isMetric(field)
@@ -247,7 +249,12 @@ export const renderFilterRuleSql = (
     switch (field.type) {
         case DimensionType.STRING:
         case MetricType.STRING: {
-            return renderStringFilterSql(fieldSql, filterRule, stringQuoteChar);
+            return renderStringFilterSql(
+                fieldSql,
+                filterRule,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
         }
         case DimensionType.NUMBER:
         case MetricType.NUMBER:

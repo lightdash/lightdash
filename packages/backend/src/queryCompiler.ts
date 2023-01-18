@@ -8,6 +8,7 @@ import {
     convertAdditionalMetric,
     Explore,
     FieldId,
+    getEscapeStringQuoteChar,
     getFieldQuoteChar,
     getStringQuoteChar,
     lightdashVariablePattern,
@@ -76,6 +77,9 @@ const compileAdditionalMetric = ({
     }
     const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
     const stringQuoteChar = getStringQuoteChar(explore.targetDatabase);
+    const escapeStringQuoteChar = getEscapeStringQuoteChar(
+        explore.targetDatabase,
+    );
 
     const metric = convertAdditionalMetric({ additionalMetric, table });
     const compiledMetric = compileMetricSql(
@@ -83,6 +87,7 @@ const compileAdditionalMetric = ({
         explore.tables,
         fieldQuoteChar,
         stringQuoteChar,
+        escapeStringQuoteChar,
     );
     return {
         ...metric,

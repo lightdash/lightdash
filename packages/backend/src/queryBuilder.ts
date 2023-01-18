@@ -7,6 +7,7 @@ import {
     FilterGroup,
     FilterRule,
     getDimensions,
+    getEscapeStringQuoteChar,
     getFieldQuoteChar,
     getFields,
     getFilterRulesFromGroup,
@@ -67,6 +68,9 @@ export const buildQuery = ({
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
     const stringQuoteChar = getStringQuoteChar(explore.targetDatabase);
+    const escapeStringQuoteChar = getEscapeStringQuoteChar(
+        explore.targetDatabase,
+    );
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const dimensionSelects = dimensions.map((field) => {
@@ -187,6 +191,7 @@ export const buildQuery = ({
             field,
             fieldQuoteChar,
             stringQuoteChar,
+            escapeStringQuoteChar,
         );
     };
 
@@ -233,6 +238,7 @@ export const buildQuery = ({
                 field,
                 fieldQuoteChar,
                 stringQuoteChar,
+                escapeStringQuoteChar,
             );
         },
     );

@@ -57,6 +57,26 @@ export const getStringQuoteChar = (
     }
 };
 
+export const getEscapeStringQuoteChar = (
+    targetDatabase: SupportedDbtAdapter,
+): string => {
+    switch (targetDatabase) {
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.BIGQUERY:
+            return '\\';
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.TRINO:
+            return "'";
+        default:
+            return assertUnreachable(
+                targetDatabase,
+                `string quote char not found for ${targetDatabase}`,
+            );
+    }
+};
+
 export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 
 type Reference = {
@@ -185,6 +205,7 @@ const compileMetricReference = (
     currentTable: string,
     fieldQuoteChar: string,
     stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): { sql: string; tablesReferences: Set<string> } => {
     // Reference to current table
     if (ref === 'TABLE') {
@@ -209,6 +230,7 @@ const compileMetricReference = (
         tables,
         fieldQuoteChar,
         stringQuoteChar,
+        escapeStringQuoteChar,
     );
     return {
         sql: `(${compiledMetric.sql})`,
@@ -253,6 +275,7 @@ export const compileMetricSql = (
     tables: Record<string, Table>,
     fieldQuoteChar: string,
     stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): { sql: string; tablesReferences: Set<string> } => {
     const compileReference = isNonAggregateMetric(metric)
         ? compileMetricReference
@@ -280,6 +303,7 @@ export const compileMetricSql = (
             metric.table,
             fieldQuoteChar,
             stringQuoteChar,
+            escapeStringQuoteChar,
         );
         tablesReferences = new Set([
             ...tablesReferences,
@@ -316,6 +340,7 @@ export const compileMetricSql = (
                 compiledDimension,
                 fieldQuoteChar,
                 stringQuoteChar,
+                escapeStringQuoteChar,
             );
         });
         renderedSql = `CASE WHEN (${conditions.join(
@@ -351,12 +376,14 @@ export const compileMetric = (
     tables: Record<string, Table>,
     fieldQuoteChar: string,
     stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): CompiledMetric => {
     const compiledMetric = compileMetricSql(
         metric,
         tables,
         fieldQuoteChar,
         stringQuoteChar,
+        escapeStringQuoteChar,
     );
     metric.showUnderlyingValues?.forEach((dimReference) => {
         const { refTable, refName } = getParsedReference(
@@ -397,6 +424,7 @@ const compileTable = (
     tables: Record<string, Table>,
     fieldQuoteChar: string,
     stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): CompiledTable => {
     const dimensions: Record<string, CompiledDimension> = Object.keys(
         table.dimensions,
@@ -422,6 +450,7 @@ const compileTable = (
                 tables,
                 fieldQuoteChar,
                 stringQuoteChar,
+                escapeStringQuoteChar,
             ),
         }),
         {},
@@ -473,6 +502,7 @@ export const compileExplore = ({
     );
     const fieldQuoteChar = getFieldQuoteChar(targetDatabase);
     const stringQuoteChar = getStringQuoteChar(targetDatabase);
+    const escapeStringQuoteChar = getEscapeStringQuoteChar(targetDatabase);
 
     const compiledTables: Record<string, CompiledTable> = Object.keys(
         tables,
@@ -485,6 +515,7 @@ export const compileExplore = ({
                     joined,
                     fieldQuoteChar,
                     stringQuoteChar,
+                    escapeStringQuoteChar,
                 ),
             };
         }

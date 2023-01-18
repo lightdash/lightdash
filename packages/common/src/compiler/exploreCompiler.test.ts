@@ -120,6 +120,7 @@ describe('Compile metrics with filters', () => {
                 tablesWithMetricsWithFilters,
                 '"',
                 "'",
+                "'",
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END)`,
@@ -131,6 +132,7 @@ describe('Compile metrics with filters', () => {
                 tablesWithMetricsWithFilters.table2.metrics.metric2,
                 tablesWithMetricsWithFilters,
                 '"',
+                "'",
                 "'",
             ).compiledSql,
         ).toStrictEqual(
@@ -144,6 +146,7 @@ describe('Compile metrics with filters', () => {
                 tablesWithMetricsWithFilters.table1.metrics.metric_with_sql,
                 tablesWithMetricsWithFilters,
                 '"',
+                "'",
                 "'",
             ).compiledSql,
         ).toStrictEqual(
