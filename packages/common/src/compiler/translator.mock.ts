@@ -54,26 +54,6 @@ export const DBT_METRIC: DbtMetric = {
     refs: [['myTable']],
 };
 
-export const DBT_METRIC_WITH_SIMILAR_NAME = {
-    fqn: [],
-    expression: '',
-    unique_id: 'dbt_metric_11',
-    package_name: '',
-    path: '',
-    root_path: '',
-    original_file_path: '',
-    model: "ref('myTable')",
-    name: 'dbt_metric_11',
-    description: 'Description',
-    label: 'Label',
-    calculation_method: MetricType.SUM,
-    timestamp: '',
-    filters: [],
-    time_grains: [],
-    dimensions: [],
-    refs: [['myTable']],
-};
-
 export const DBT_METRIC_WITH_FILTER: DbtMetric = {
     ...DBT_METRIC,
     name: 'dbt_metric_4',
