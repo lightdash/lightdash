@@ -1,3 +1,10 @@
+## [0.375.2](https://github.com/lightdash/lightdash/compare/0.375.1...0.375.2) (2023-01-18)
+
+
+### Bug Fixes
+
+* escape filter value in the sql query generator ([#4150](https://github.com/lightdash/lightdash/issues/4150)) ([2993414](https://github.com/lightdash/lightdash/commit/29934147093716137db8c4bac6c0ea9a5e8254cd))
+
 ## [0.375.1](https://github.com/lightdash/lightdash/compare/0.375.0...0.375.1) (2023-01-18)
 
 
