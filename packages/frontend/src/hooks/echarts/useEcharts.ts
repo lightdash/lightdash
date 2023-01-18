@@ -326,6 +326,11 @@ const getMinAndMaxReferenceLines = (
                                 if (isNaN(value)) return acc;
                                 return [...acc, value];
                             } catch (e) {
+                                console.error(
+                                    `Unexpected value when getting numbers min/max for ${
+                                        field.type
+                                    }: ${JSON.stringify(data)}`,
+                                );
                                 return acc;
                             }
                         },
@@ -343,6 +348,9 @@ const getMinAndMaxReferenceLines = (
                                 if (axisValue === undefined) return acc;
                                 return [...acc, axisValue];
                             } catch (e) {
+                                console.error(
+                                    `Unexpected value when getting date min/max for ${field.type}: ${data}`,
+                                );
                                 return acc;
                             }
                         },
