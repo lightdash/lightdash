@@ -1,3 +1,10 @@
+# [0.374.0](https://github.com/lightdash/lightdash/compare/0.373.2...0.374.0) (2023-01-18)
+
+
+### Features
+
+* conditional formatting support all numeric fields ([#4168](https://github.com/lightdash/lightdash/issues/4168)) ([77b5467](https://github.com/lightdash/lightdash/commit/77b54679fc00d207c9445ec50a2b4930696587b9))
+
 ## [0.373.2](https://github.com/lightdash/lightdash/compare/0.373.1...0.373.2) (2023-01-17)
 
 
