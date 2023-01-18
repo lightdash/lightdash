@@ -3,7 +3,7 @@
     "compilerOptions": {
         "composite": true,
         "target": "ESNext",
-        "lib": ["dom", "dom.iterable", "esnext"],
+        "lib": ["DOM", "DOM.Iterable", "ESNext"],
         "allowJs": true,
         "skipLibCheck": true,
         "esModuleInterop": true,
