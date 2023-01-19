@@ -110,9 +110,6 @@ apiV1Router.get(
     storeOIDCRedirect,
     passport.authenticate('oneLogin', {
         scope: ['openid', 'profile', 'email'],
-        failureRedirect: '/api/v1/oauth/failure',
-        successRedirect: '/api/v1/oauth/success',
-        failureFlash: true,
     }),
 );
 
