@@ -1,3 +1,10 @@
+# [0.377.0](https://github.com/lightdash/lightdash/compare/0.376.0...0.377.0) (2023-01-19)
+
+
+### Features
+
+* add analytics for chart and metric views ([#4187](https://github.com/lightdash/lightdash/issues/4187)) ([8fc3911](https://github.com/lightdash/lightdash/commit/8fc391142c97484bee7ced3e2de304430e920863))
+
 # [0.376.0](https://github.com/lightdash/lightdash/compare/0.375.3...0.376.0) (2023-01-18)
 
 
