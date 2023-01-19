@@ -3,6 +3,16 @@ import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
 
+export enum ChartKind {
+    LINE = 'line',
+    BAR = 'bar',
+    SCATTER = 'scatter',
+    AREA = 'area',
+    MIXED = 'mixed',
+    TABLE = 'table',
+    BIG_NUMBER = 'big_number',
+}
+
 export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
@@ -242,7 +252,7 @@ export type SpaceQuery = Pick<
     | 'description'
     | 'spaceUuid'
     | 'views'
->;
+> & { chartType?: ChartKind | undefined };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
@@ -305,3 +315,37 @@ export const isSeriesWithMixedChartTypes = (
                 }`,
         ),
     ).size >= 2;
+
+export const getChartType = (
+    chartType: ChartType,
+    value: ChartConfig['config'],
+): ChartKind | undefined => {
+    if (value === undefined) return undefined;
+    switch (chartType) {
+        case ChartType.BIG_NUMBER:
+            return ChartKind.BIG_NUMBER;
+        case ChartType.TABLE:
+            return ChartKind.TABLE;
+        case ChartType.CARTESIAN:
+            if (isCartesianChartConfig(value)) {
+                if (isSeriesWithMixedChartTypes(value.eChartsConfig.series))
+                    return ChartKind.MIXED;
+
+                switch (value.eChartsConfig.series?.[0]?.type) {
+                    case CartesianSeriesType.AREA:
+                        return ChartKind.AREA;
+                    case CartesianSeriesType.BAR:
+                        return ChartKind.BAR;
+                    case CartesianSeriesType.LINE:
+                        return ChartKind.LINE;
+                    case CartesianSeriesType.SCATTER:
+                        return ChartKind.SCATTER;
+                    default:
+                        return undefined;
+                }
+            }
+            return undefined;
+        default:
+            return undefined;
+    }
+};
