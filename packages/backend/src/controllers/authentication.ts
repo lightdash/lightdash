@@ -219,14 +219,16 @@ const genericOidcHandler =
                     message: 'Could not parse authentication token',
                 });
             }
-            const [firstName, lastName] = (profile.displayName || '').split();
+            const [fallbackFirstName, fallbackLastName] = (
+                profile.displayName || ''
+            ).split(' ');
             const openIdUser: OpenIdUser = {
                 openId: {
                     issuer,
                     email,
                     subject,
-                    firstName,
-                    lastName,
+                    firstName: profile.name?.givenName || fallbackFirstName,
+                    lastName: profile.name?.familyName || fallbackLastName,
                     issuerType,
                 },
             };
