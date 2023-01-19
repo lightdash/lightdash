@@ -1,13 +1,11 @@
 import {
-    getConditionalFormattingConfigs,
-    hasMatchingConditionalRules,
+    getConditionalFormattingConfig,
     isField,
     isFilterableField,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
-import findLast from 'lodash-es/findLast';
 import { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/configs';
@@ -36,20 +34,12 @@ const TableBody: FC = () => {
                             | ResultRow[0]
                             | undefined;
 
-                        const fieldConditionalConfigs =
-                            getConditionalFormattingConfigs(
-                                conditionalFormattings,
+                        const conditionalFormattingConfig =
+                            getConditionalFormattingConfig(
                                 field,
+                                cellValue?.value.raw,
+                                conditionalFormattings,
                             );
-
-                        const conditionalFormattingConfig = findLast(
-                            fieldConditionalConfigs,
-                            (c) =>
-                                hasMatchingConditionalRules(
-                                    cellValue?.value.raw as number | string,
-                                    c,
-                                ),
-                        );
 
                         const tooltipContent =
                             isField(field) &&
