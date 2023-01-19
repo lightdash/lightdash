@@ -1,3 +1,10 @@
+# [0.380.0](https://github.com/lightdash/lightdash/compare/0.379.0...0.380.0) (2023-01-19)
+
+
+### Features
+
+* conditional formatting show applied rules on hover ([#4207](https://github.com/lightdash/lightdash/issues/4207)) ([24a77ae](https://github.com/lightdash/lightdash/commit/24a77ae61679ba88a2351923227a3951c6ea9d94))
+
 # [0.379.0](https://github.com/lightdash/lightdash/compare/0.378.0...0.379.0) (2023-01-19)
 
 
