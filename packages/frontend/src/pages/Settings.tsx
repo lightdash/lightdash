@@ -95,9 +95,7 @@ const Settings: FC = () => {
                             />
                         )}
 
-                        {(health.auth.google.oauth2ClientId ||
-                            health.auth.okta.enabled ||
-                            health.auth.oneLogin.enabled) && (
+                        {hasSocialLogin && (
                             <RouterMenuItem
                                 text="Social logins"
                                 exact
