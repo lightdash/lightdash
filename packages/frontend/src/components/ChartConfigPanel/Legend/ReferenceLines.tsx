@@ -1,4 +1,4 @@
-import { Button, Checkbox, Collapse, Label } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import {
     CompiledDimension,
     Field,
@@ -7,21 +7,20 @@ import {
     Series,
     TableCalculation,
 } from '@lightdash/common';
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import {
-    getMarkLineAxis,
-    ReferenceLineField,
-} from '../../common/ReferenceLine';
+import { useProject } from '../../../hooks/useProject';
+import { ReferenceLineField } from '../../common/ReferenceLine';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { SectionTitle } from '../ChartConfigPanel.styles';
 import { ReferenceLine } from './ReferenceLine';
 
 type Props = {
     items: (Field | TableCalculation | CompiledDimension)[];
+    projectUuid: string;
 };
 
-export const ReferenceLines: FC<Props> = ({ items }) => {
+export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const {
         cartesianConfig: {
             dirtyLayout,
@@ -33,6 +32,11 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
         },
     } = useVisualizationContext();
 
+    const project = useProject(projectUuid);
+    const startOfWeek = useMemo(
+        () => project.data?.warehouseConnection?.startOfWeek,
+        [project],
+    );
     const updateReferenceLine = useCallback(
         (
             updateValue: string,
@@ -78,7 +82,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             }
         },
         [
-            updateSingleSeries,
+            setReferenceLines,
             dirtyEchartsConfig?.series,
             dirtyLayout?.xField,
             referenceLines,
@@ -92,7 +96,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
             },
         };
         setReferenceLines([...referenceLines, newReferenceLine]);
-    }, [referenceLines]);
+    }, [referenceLines, setReferenceLines]);
 
     const removeReferenceLine = useCallback(
         (markLineId) => {
@@ -116,7 +120,12 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                 referenceLines.filter((line) => line.data.name !== markLineId),
             );
         },
-        [updateSeries, dirtyEchartsConfig?.series, referenceLines],
+        [
+            updateSeries,
+            dirtyEchartsConfig?.series,
+            referenceLines,
+            setReferenceLines,
+        ],
     );
 
     return (
@@ -130,6 +139,7 @@ export const ReferenceLines: FC<Props> = ({ items }) => {
                             index={index + 1}
                             isDefaultOpen={referenceLines.length <= 1}
                             items={items}
+                            startOfWeek={startOfWeek}
                             referenceLine={line}
                             updateReferenceLine={updateReferenceLine}
                             removeReferenceLine={removeReferenceLine}

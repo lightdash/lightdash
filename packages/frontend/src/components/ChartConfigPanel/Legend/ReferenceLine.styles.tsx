@@ -11,3 +11,8 @@ export const CollapseWrapper = styled(Collapse)<{ isOpen: boolean }>`
 
     ${({ isOpen }) => (isOpen ? 'padding:10px 10px 5px 10px;' : '')}
 `;
+
+export const Flex = styled.div`
+    display: flex;
+    align-items: center;
+`;

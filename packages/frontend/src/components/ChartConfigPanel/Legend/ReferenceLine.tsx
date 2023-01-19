@@ -1,26 +1,43 @@
 import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
+import { DateInput2 } from '@blueprintjs/datetime2';
 import {
+    AdditionalMetric,
     CompiledDimension,
     Field,
     fieldId as getFieldId,
+    formatDate,
+    getDateFormat,
+    isAdditionalMetric,
+    isDateItem,
+    isDimension,
     isField,
     isNumericItem,
     TableCalculation,
+    TimeFrames,
+    WeekDay,
 } from '@lightdash/common';
 import debounce from 'lodash/debounce';
+import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
-import { Flex } from '../../common/ResourceList/ResourceTable/ResourceTable.styles';
+import MonthAndYearInput from '../../common/MonthAndYearInput';
+import { ReferenceLineField } from '../../common/ReferenceLine';
+import WeekPicker from '../../common/WeekPicker';
+import YearInput from '../../common/YearInput';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { SectionTitle } from './Legend.styles';
-import { CollapseWrapper, DeleteButtonTooltip } from './ReferenceLine.styles';
-import { ReferenceLineField } from './ReferenceLines';
+import {
+    CollapseWrapper,
+    DeleteButtonTooltip,
+    Flex,
+} from './ReferenceLine.styles';
 
 type Props = {
     index: number;
     items: (Field | TableCalculation | CompiledDimension)[];
     referenceLine: ReferenceLineField;
+    startOfWeek: WeekDay | null | undefined;
     updateReferenceLine: (
         value: string,
         field: Field | TableCalculation | CompiledDimension,
@@ -32,11 +49,123 @@ type Props = {
     isDefaultOpen: boolean;
 };
 
+type ReferenceLineValueProps = {
+    field: Field | TableCalculation | CompiledDimension | undefined;
+    value: string | undefined;
+    startOfWeek: WeekDay | null | undefined;
+    onChange: (value: string) => void;
+};
+
+const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
+    field,
+    value,
+    startOfWeek,
+    onChange,
+}) => {
+    if (isDateItem(field)) {
+        if (isDimension(field) && field.timeInterval) {
+            switch (field.timeInterval.toUpperCase()) {
+                case TimeFrames.WEEK:
+                    return (
+                        <WeekPicker
+                            value={moment(value).toDate()}
+                            startOfWeek={startOfWeek}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.WEEK,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
+                    );
+                case TimeFrames.MONTH:
+                    return (
+                        <Flex>
+                            {' '}
+                            <MonthAndYearInput
+                                value={moment(value).toDate()}
+                                onChange={(dateValue: Date) => {
+                                    onChange(
+                                        formatDate(
+                                            dateValue,
+                                            TimeFrames.MONTH,
+                                            false,
+                                        ),
+                                    );
+                                }}
+                            />
+                        </Flex>
+                    );
+
+                case TimeFrames.YEAR:
+                    return (
+                        <YearInput
+                            value={moment(value).toDate()}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.YEAR,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
+                    );
+            }
+
+            return (
+                <DateInput2
+                    fill
+                    value={value}
+                    formatDate={(dateValue: Date) =>
+                        formatDate(dateValue, undefined, false)
+                    }
+                    parseDate={(
+                        str: string,
+                        timeInterval: TimeFrames | undefined = TimeFrames.DAY,
+                    ) => {
+                        return moment(
+                            str,
+                            getDateFormat(timeInterval),
+                        ).toDate();
+                    }}
+                    defaultValue={new Date().toString()}
+                    onChange={(dateValue: string | null) => {
+                        if (dateValue) onChange(dateValue);
+                    }}
+                />
+            );
+        }
+    }
+
+    return (
+        <InputGroup
+            fill
+            disabled={!isNumericItem(field)}
+            title={
+                isNumericItem(field)
+                    ? ''
+                    : 'Selected field must be of type Number'
+            }
+            value={value}
+            onChange={(e) => {
+                onChange(e.target.value);
+            }}
+            placeholder="Add value for the reference line"
+        />
+    );
+};
+
 export const ReferenceLine: FC<Props> = ({
     index,
     items,
     referenceLine,
     isDefaultOpen,
+    startOfWeek,
     updateReferenceLine,
     removeReferenceLine,
 }) => {
@@ -51,8 +180,11 @@ export const ReferenceLine: FC<Props> = ({
         ];
         return items.filter((item) => {
             const fieldId = isField(item) ? getFieldId(item) : item.name;
-            // Filter numeric fields (remove if we start supporting other types)
-            return fieldNames.includes(fieldId) && isNumericItem(item);
+            // Filter numeric and date fields (remove if we start supporting other types)
+            return (
+                fieldNames.includes(fieldId) &&
+                (isNumericItem(item) || isDateItem(item))
+            );
         });
     }, [items, dirtyLayout]);
 
@@ -86,6 +218,7 @@ export const ReferenceLine: FC<Props> = ({
         Field | TableCalculation | CompiledDimension | undefined
     >(selectedFieldDefault);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const debouncedUpdateLabel = useCallback(
         debounce((updatedLabel: string) => {
             if (value !== undefined && selectedField !== undefined)
@@ -141,34 +274,28 @@ export const ReferenceLine: FC<Props> = ({
                     />
                 </FormGroup>
                 <FormGroup label="Value">
-                    <InputGroup
-                        fill
-                        disabled={!isNumericItem(selectedField)}
-                        title={
-                            isNumericItem(selectedField)
-                                ? ''
-                                : 'Selected field must be of type Number'
-                        }
+                    <ReferenceLineValue
+                        field={selectedField}
+                        startOfWeek={startOfWeek}
                         value={value}
-                        onChange={(e) => {
-                            setValue(e.target.value);
+                        onChange={(newValue: string) => {
+                            setValue(newValue);
                             if (selectedField !== undefined)
                                 updateReferenceLine(
-                                    e.target.value,
+                                    newValue,
                                     selectedField,
                                     label,
                                     lineColor,
                                     referenceLine.data.name,
                                 );
                         }}
-                        placeholder="Add value for the reference line"
                     />
                 </FormGroup>
 
                 <FormGroup label="Label">
                     <InputGroup
                         fill
-                        disabled={!isNumericItem(selectedField)}
+                        disabled={!value}
                         value={label}
                         placeholder={value}
                         onChange={(e) => {

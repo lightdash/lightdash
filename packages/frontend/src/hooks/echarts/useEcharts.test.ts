@@ -1,4 +1,9 @@
-import { getAxisDefaultMaxValue, getAxisDefaultMinValue } from './useEcharts';
+import { ResultRow } from '@lightdash/common';
+import {
+    getAxisDefaultMaxValue,
+    getAxisDefaultMinValue,
+    getMinAndMaxValues,
+} from './useEcharts';
 
 jest.mock('./../../providers/TrackingProvider');
 
@@ -112,5 +117,64 @@ describe('getAxisDefaultMaxValue', () => {
         expect(getAxisDefaultMaxValue({ min: -60, max: -50 })).toBe(-50);
         expect(getAxisDefaultMaxValue({ min: -600, max: -500 })).toBe(-500);
         expect(getAxisDefaultMaxValue({ min: -6000, max: -5000 })).toBe(-5000);
+    });
+});
+
+describe('getMinAndMaxValues', () => {
+    test('should return min/max values for numbers', () => {
+        const axis = 'axis';
+        const values = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: v, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-100, 50]);
+    });
+
+    test('should return min/max values for dates', () => {
+        const axis = 'axis';
+        const time = ':00:00.000Z';
+        const values = [
+            '2018-02-28',
+            '2018-02-29',
+            '2018-02-30',
+            '2018-01-29',
+            '2017-03-29',
+            '2019-01-15',
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: `${v}${time}`, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([
+            `2017-03-29${time}`,
+            `2019-01-15${time}`,
+        ]);
+    });
+
+    test('should return min/max values for floats', () => {
+        const axis = 'axis';
+        const values = [
+            '1.000',
+            '2.000',
+            '5.000',
+            '8.000',
+            '50.000',
+            '-5.000',
+            '0.000',
+        ];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: v, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-5.0, 50.0]);
+    });
+
+    test('string values should return invalid min/max', () => {
+        const axis = 'axis';
+        const values = ['a', 'b', 'c', 'z'];
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: v, formatted: v } },
+        }));
+        expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([0, 0]);
     });
 });

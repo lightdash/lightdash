@@ -35,6 +35,7 @@ import {
 } from '@lightdash/common';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
+import moment from 'moment';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { SeriesExtraInputWrapper } from '../../components/ChartConfigPanel/Series/Series.styles';
@@ -255,12 +256,47 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
     );
 };
 
+export const getMinAndMaxValues = (
+    axis: string | undefined,
+    rows: ResultRow[],
+): (string | number)[] => {
+    if (!axis) return [];
+    return rows
+        .map((row) => row[axis]?.value?.raw)
+        .reduce<(string | number)[]>(
+            (acc, value) => {
+                if (typeof value === 'number') {
+                    const min = acc[0] < value ? acc[0] : value;
+                    const max = acc[1] > value ? acc[1] : value;
+                    return [min, max];
+                } else if (typeof value === 'string') {
+                    if (moment(value, 'YYYY-MM-DD', false).isValid()) {
+                        // is date
+                        const min = acc[0] < value ? acc[0] : value;
+                        const max = acc[1] > value ? acc[1] : value;
+                        return [min, max];
+                    }
+                    const number = parseFloat(value);
+                    if (!isNaN(number)) {
+                        // is float
+                        const min = acc[0] < number ? acc[0] : number;
+                        const max = acc[1] > number ? acc[1] : number;
+                        return [min, max];
+                    }
+                }
+                return acc;
+            },
+            [0, 0],
+        );
+};
+
 const getMinAndMaxReferenceLines = (
     leftAxisYId: string | undefined,
     rightAxisYId: string | undefined,
     bottomAxisXId: string | undefined,
     resultsData: ApiQueryResults | undefined,
     series: Series[] | undefined,
+    items: Array<Field | TableCalculation>,
 ) => {
     if (resultsData === undefined || series === undefined) return {};
     // Skip method if there are no reference lines
@@ -272,50 +308,91 @@ const getMinAndMaxReferenceLines = (
 
     if (!hasReferenceLines) return {};
 
-    const getMinAndMaxValues = (axis: string | undefined): number[] => {
-        if (!axis) return [];
-        return resultsData.rows
-            .map((row) => row[axis]?.value?.raw)
-            .reduce<number[]>(
-                (acc, p) => {
-                    if (isNaN(p)) return acc;
-                    const value = parseInt(p);
-                    const min = acc[0] < value ? acc[0] : value;
-                    const max = acc[1] > value ? acc[1] : value;
-                    return [min, max];
-                },
-                [0, 0],
-            );
-    };
-
     const getMinAndMaxReferenceLineValues = (
         axis: string,
         fieldId: string | undefined,
-    ): number[] => {
-        const values = series.flatMap((serie) => {
+    ): (string | number)[] => {
+        const values = series.flatMap<string | number>((serie) => {
             const serieFieldId =
                 axis === 'yAxis' ? serie.encode.yRef : serie.encode.xRef;
             if (serieFieldId.field !== fieldId) return [];
 
             if (!serie.markLine) return [];
-            return serie.markLine?.data.reduce<number[]>((acc, data) => {
-                try {
-                    const axisValue =
-                        axis === 'yAxis' ? data.yAxis : data.xAxis;
-                    if (axisValue === undefined) return acc;
-                    const value = parseInt(axisValue);
-                    if (isNaN(value)) return acc;
-                    return [...acc, value];
-                } catch (e) {
-                    return acc;
+            const field = findItem(items, serieFieldId.field);
+            if (!isField(field)) return [];
+
+            switch (field.type) {
+                case DimensionType.NUMBER:
+                case MetricType.NUMBER:
+                case MetricType.AVERAGE:
+                case MetricType.COUNT:
+                case MetricType.COUNT_DISTINCT:
+                case MetricType.SUM:
+                case MetricType.MIN:
+                case MetricType.MAX:
+                    return serie.markLine?.data.reduce<number[]>(
+                        (acc, data) => {
+                            try {
+                                const axisValue =
+                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
+                                if (axisValue === undefined) return acc;
+                                const value = parseInt(axisValue);
+                                if (isNaN(value)) return acc;
+                                return [...acc, value];
+                            } catch (e) {
+                                console.error(
+                                    `Unexpected value when getting numbers min/max for ${
+                                        field.type
+                                    }: ${JSON.stringify(data)}`,
+                                );
+                                return acc;
+                            }
+                        },
+                        [],
+                    );
+
+                case DimensionType.TIMESTAMP:
+                case DimensionType.DATE:
+                case MetricType.DATE:
+                    return serie.markLine?.data.reduce<string[]>(
+                        (acc, data) => {
+                            try {
+                                const axisValue =
+                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
+                                if (axisValue === undefined) return acc;
+                                return [...acc, axisValue];
+                            } catch (e) {
+                                console.error(
+                                    `Unexpected value when getting date min/max for ${field.type}: ${data}`,
+                                );
+                                return acc;
+                            }
+                        },
+                        [],
+                    );
+                default: {
+                    return [];
                 }
-            }, []);
+            }
         });
-        return [Math.min(...values), Math.max(...values)];
+        if (values.length === 0) return [];
+        const min: string | number = values.sort()[0];
+        const max = values.reverse()[0];
+        return [min, max];
     };
-    const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(leftAxisYId);
-    const [minValueRightY, maxValueRightY] = getMinAndMaxValues(rightAxisYId);
-    const [minValueX, maxValueX] = getMinAndMaxValues(bottomAxisXId);
+
+    const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(
+        leftAxisYId,
+        resultsData.rows,
+    );
+    const [minValueRightY, maxValueRightY] = getMinAndMaxValues(
+        rightAxisYId,
+        resultsData.rows,
+    );
+    const [minValueX, maxValueX] = getMinAndMaxValues(
+        bottomAxisXId,
+        resultsData.rows,
+    );
 
     const [minReferenceLineX, maxReferenceLineX] =
         getMinAndMaxReferenceLineValues('xAxis', bottomAxisXId);
@@ -732,6 +809,7 @@ const getEchartAxis = ({
         bottomAxisXId,
         resultsData,
         validCartesianConfig.eChartsConfig.series,
+        items,
     );
 
     return {

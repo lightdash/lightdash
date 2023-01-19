@@ -9,6 +9,7 @@ import {
 import startCase from 'lodash-es/startCase';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
+import { useParams } from 'react-router-dom';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import Checkbox from '../../ReactHookForm/Checkbox';
 import Form from '../../ReactHookForm/Form';
@@ -39,6 +40,8 @@ const LegendPanel: FC<Props> = ({ items }) => {
     const {
         cartesianConfig: { dirtyEchartsConfig, setLegend },
     } = useVisualizationContext();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const methods = useForm<EchartsLegend>({
         mode: 'onBlur',
         defaultValues: dirtyEchartsConfig?.legend,
@@ -119,7 +122,7 @@ const LegendPanel: FC<Props> = ({ items }) => {
                     />
                 </SectionRow>
             </Collapse>
-            <ReferenceLines items={items} />
+            <ReferenceLines items={items} projectUuid={projectUuid} />
         </Form>
     );
 };
