@@ -18,6 +18,10 @@ export const BaseResponse = {
             enabled: false,
             loginPath: '',
         },
+        oneLogin: {
+            enabled: false,
+            loginPath: '',
+        },
     },
     defaultProject: undefined,
     latest: { version: '0.2.7' },
@@ -41,6 +45,9 @@ export const Config = {
             callbackPath: '',
         },
         okta: {
+            loginPath: '',
+        },
+        oneLogin: {
             loginPath: '',
         },
     },
