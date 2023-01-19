@@ -42,29 +42,27 @@ const TableBody: FC = () => {
                                 field,
                             );
 
-                        const conditionalFormattingConfig =
-                            fieldConditionalConfigs &&
-                            findLast(fieldConditionalConfigs, (c) => {
-                                return hasMatchingConditionalRules(
+                        const conditionalFormattingConfig = findLast(
+                            fieldConditionalConfigs,
+                            (c) =>
+                                hasMatchingConditionalRules(
                                     cellValue?.value.raw as number | string,
                                     c,
-                                );
-                            });
+                                ),
+                        );
 
-                        const ruleLabels =
-                            field &&
+                        const tooltipContent =
                             isField(field) &&
                             isFilterableField(field) &&
                             conditionalFormattingConfig &&
-                            conditionalFormattingConfig.rules.length > 0
-                                ? conditionalFormattingConfig.rules.map((r) =>
-                                      getConditionalRuleLabel(r, field),
-                                  )
+                            conditionalFormattingConfig?.rules.length > 0
+                                ? conditionalFormattingConfig.rules
+                                      .map((r) =>
+                                          getConditionalRuleLabel(r, field),
+                                      )
+                                      .map((l) => `${l.operator} ${l.value}`)
+                                      .join(' and ')
                                 : undefined;
-
-                        const tooltipContent = ruleLabels
-                            ?.map((l) => `${l.operator} ${l.value}`)
-                            .join(' and ');
 
                         return (
                             <BodyCell
