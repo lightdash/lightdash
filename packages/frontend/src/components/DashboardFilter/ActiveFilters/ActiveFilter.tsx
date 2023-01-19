@@ -9,7 +9,7 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import {
-    getFilterRuleLabel,
+    getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
 import { useTableContext } from '../../common/Table/TableProvider';
@@ -66,7 +66,7 @@ const ActiveFilter: FC<Props> = ({
             </InvalidFilterTag>
         );
     }
-    const filterRuleLabels = getFilterRuleLabel(filterRule, field);
+    const filterRuleLabels = getConditionalRuleLabel(filterRule, field);
     const filterRuleTables = getFilterRuleTables(
         filterRule,
         field,

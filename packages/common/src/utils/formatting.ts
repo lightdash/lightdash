@@ -39,7 +39,7 @@ export const getDateFormat = (
     return dateForm;
 };
 
-const isMomentInput = (value: unknown): value is MomentInput =>
+export const isMomentInput = (value: unknown): value is MomentInput =>
     typeof value === 'string' ||
     typeof value === 'number' ||
     value instanceof Date ||

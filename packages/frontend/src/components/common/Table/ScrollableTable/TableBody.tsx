@@ -1,13 +1,14 @@
 import {
-    getConditionalFormattingConfigs,
-    hasMatchingConditionalRules,
+    getConditionalFormattingConfig,
+    isField,
+    isFilterableField,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
-import findLast from 'lodash-es/findLast';
 import { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
+import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
 import { useTableContext } from '../TableProvider';
 
@@ -33,24 +34,29 @@ const TableBody: FC = () => {
                             | ResultRow[0]
                             | undefined;
 
-                        const fieldConditionalConfigs =
-                            cellValue &&
-                            getConditionalFormattingConfigs(
-                                conditionalFormattings,
+                        const conditionalFormattingConfig =
+                            getConditionalFormattingConfig(
                                 field,
+                                cellValue?.value.raw,
+                                conditionalFormattings,
                             );
 
-                        const conditionalFormattingConfig =
-                            fieldConditionalConfigs &&
-                            findLast(fieldConditionalConfigs, (c) => {
-                                return hasMatchingConditionalRules(
-                                    cellValue?.value.raw as number | string,
-                                    c,
-                                );
-                            });
+                        const tooltipContent =
+                            isField(field) &&
+                            isFilterableField(field) &&
+                            conditionalFormattingConfig &&
+                            conditionalFormattingConfig?.rules.length > 0
+                                ? conditionalFormattingConfig.rules
+                                      .map((r) =>
+                                          getConditionalRuleLabel(r, field),
+                                      )
+                                      .map((l) => `${l.operator} ${l.value}`)
+                                      .join(' and ')
+                                : undefined;
 
                         return (
                             <BodyCell
+                                key={cell.id}
                                 style={meta?.style}
                                 backgroundColor={
                                     conditionalFormattingConfig?.color
@@ -64,7 +70,6 @@ const TableBody: FC = () => {
                                         : undefined
                                 }
                                 className={meta?.className}
-                                key={cell.id}
                                 rowIndex={rowIndex}
                                 cell={cell}
                                 isNumericItem={isNumericItem(meta?.item)}
@@ -72,6 +77,7 @@ const TableBody: FC = () => {
                                 cellContextMenu={cellContextMenu}
                                 copying={cell.id === copyingCellId}
                                 selected={cell.id === selectedCell?.id}
+                                tooltipContent={tooltipContent}
                                 onSelect={() => onSelectCell(cell)}
                                 onDeselect={() => onSelectCell(undefined)}
                                 onKeyDown={onCopyCell}

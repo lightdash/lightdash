@@ -21,24 +21,6 @@ export const createConditionalFormattingConfig =
         rules: [createConditionalFormatingRule()],
     });
 
-export const getConditionalFormattingConfigs = (
-    conditionalFormattings: ConditionalFormattingConfig[] | undefined,
-    field: Field | TableCalculation | undefined,
-) => {
-    if (
-        !conditionalFormattings ||
-        !field ||
-        !isField(field) ||
-        !isNumericItem(field)
-    ) {
-        return undefined;
-    }
-
-    return conditionalFormattings.filter(
-        (c) => c.target?.fieldId === getItemId(field) || !c.target,
-    );
-};
-
 export const hasMatchingConditionalRules = (
     value: number | string | undefined,
     config: ConditionalFormattingConfig | undefined,
@@ -82,4 +64,26 @@ export const hasMatchingConditionalRules = (
                 );
         }
     });
+};
+
+export const getConditionalFormattingConfig = (
+    field: Field | TableCalculation | undefined,
+    value: number | string | undefined,
+    conditionalFormattings: ConditionalFormattingConfig[] | undefined,
+) => {
+    if (
+        !conditionalFormattings ||
+        !field ||
+        !isField(field) ||
+        !isNumericItem(field)
+    )
+        return undefined;
+
+    const fieldConfigs = conditionalFormattings.filter(
+        (c) => c.target?.fieldId === getItemId(field) || !c.target,
+    );
+
+    return fieldConfigs
+        .reverse()
+        .find((c) => hasMatchingConditionalRules(value, c));
 };

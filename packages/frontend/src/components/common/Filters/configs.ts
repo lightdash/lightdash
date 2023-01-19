@@ -1,10 +1,9 @@
 import {
+    assertUnreachable,
     ConditionalRule,
-    DashboardFilterRule,
     DimensionType,
     FilterableField,
     FilterOperator,
-    FilterRule,
     FilterType,
     formatBoolean,
     formatDate,
@@ -13,6 +12,8 @@ import {
     getItemId,
     isDashboardFilterRule,
     isDimension,
+    isFilterRule,
+    isMomentInput,
 } from '@lightdash/common';
 import isEmpty from 'lodash-es/isEmpty';
 import uniq from 'lodash-es/uniq';
@@ -122,8 +123,85 @@ type FilterRuleLabels = {
     value?: string;
 };
 
-export const getFilterRuleLabel = (
-    filterRule: FilterRule,
+export const getValueAsString = (
+    filterType: FilterType,
+    rule: ConditionalRule,
+    field: FilterableField,
+) => {
+    const { operator, values } = rule;
+    const firstValue = values?.[0];
+    const secondValue = values?.[1];
+
+    switch (filterType) {
+        case FilterType.STRING:
+        case FilterType.NUMBER:
+            return values?.join(', ');
+        case FilterType.BOOLEAN:
+            return values?.map(formatBoolean).join(', ');
+        case FilterType.DATE:
+            switch (operator) {
+                case FilterOperator.IN_THE_PAST:
+                case FilterOperator.IN_THE_NEXT:
+                    if (!isFilterRule(rule)) throw new Error('Invalid rule');
+
+                    return `${firstValue} ${
+                        rule.settings.completed ? 'completed ' : ''
+                    }${rule.settings.unitOfTime}`;
+                case FilterOperator.IN_BETWEEN:
+                    return `${firstValue} and ${secondValue}`;
+                case FilterOperator.IN_THE_CURRENT:
+                    if (!isFilterRule(rule)) throw new Error('Invalid rule');
+
+                    return rule.settings.unitOfTime.slice(0, -1);
+                case FilterOperator.NULL:
+                case FilterOperator.NOT_NULL:
+                case FilterOperator.EQUALS:
+                case FilterOperator.NOT_EQUALS:
+                case FilterOperator.STARTS_WITH:
+                case FilterOperator.INCLUDE:
+                case FilterOperator.NOT_INCLUDE:
+                case FilterOperator.LESS_THAN:
+                case FilterOperator.LESS_THAN_OR_EQUAL:
+                case FilterOperator.GREATER_THAN:
+                case FilterOperator.GREATER_THAN_OR_EQUAL:
+                    return values
+                        ?.map((value) => {
+                            if (
+                                isDimension(field) &&
+                                isMomentInput(value) &&
+                                field.type === DimensionType.TIMESTAMP
+                            ) {
+                                return formatTimestamp(
+                                    value,
+                                    field.timeInterval,
+                                );
+                            } else if (
+                                isDimension(field) &&
+                                isMomentInput(value) &&
+                                field.type === DimensionType.DATE
+                            ) {
+                                return formatDate(value, field.timeInterval);
+                            } else {
+                                return value;
+                            }
+                        })
+                        .join(', ');
+                default:
+                    return assertUnreachable(
+                        operator,
+                        `Unexpected operator: ${operator}`,
+                    );
+            }
+        default:
+            return assertUnreachable(
+                filterType,
+                `Unexpected filter type: ${filterType}`,
+            );
+    }
+};
+
+export const getConditionalRuleLabel = (
+    rule: ConditionalRule,
     field: FilterableField,
 ): FilterRuleLabels => {
     const filterType = field
@@ -131,68 +209,18 @@ export const getFilterRuleLabel = (
         : FilterType.STRING;
     const filterConfig = FilterTypeConfig[filterType];
     const operationLabel =
-        filterConfig.operatorOptions.find(
-            (option) => option.value === filterRule.operator,
-        )?.label || filterOperatorLabel[filterRule.operator];
-    let valuesText: string | undefined;
-    switch (filterType) {
-        case FilterType.STRING:
-        case FilterType.NUMBER:
-            valuesText = filterRule.values?.join(', ');
-            break;
-        case FilterType.BOOLEAN:
-            valuesText = filterRule.values?.map(formatBoolean).join(', ');
-            break;
-        case FilterType.DATE: {
-            if (
-                filterRule.operator === FilterOperator.IN_THE_PAST ||
-                filterRule.operator === FilterOperator.IN_THE_NEXT
-            ) {
-                valuesText = `${filterRule.values?.[0]} ${
-                    filterRule.settings.completed ? 'completed ' : ''
-                }${filterRule.settings.unitOfTime}`;
-            } else if (filterRule.operator === FilterOperator.IN_BETWEEN) {
-                valuesText = `${filterRule.values?.[0]} and ${filterRule.values?.[1]}`;
-            } else if (filterRule.operator === FilterOperator.IN_THE_CURRENT) {
-                valuesText = `${filterRule.settings.unitOfTime.substring(
-                    0,
-                    filterRule.settings.unitOfTime.length - 1,
-                )}`;
-            } else {
-                valuesText = filterRule.values
-                    ?.map((value) => {
-                        if (
-                            isDimension(field) &&
-                            field.type === DimensionType.TIMESTAMP
-                        ) {
-                            return formatTimestamp(value, field.timeInterval);
-                        } else if (
-                            isDimension(field) &&
-                            field.type === DimensionType.DATE
-                        ) {
-                            return formatDate(value, field.timeInterval);
-                        } else {
-                            return value;
-                        }
-                    })
-                    .join(', ');
-            }
-            break;
-        }
-        default: {
-            const never: never = filterType;
-            throw new Error(`Unexpected filter type: ${filterType}`);
-        }
-    }
+        filterConfig.operatorOptions.find((o) => o.value === rule.operator)
+            ?.label || filterOperatorLabel[rule.operator];
+
     return {
         field: field.label,
         operator: operationLabel,
-        value: valuesText,
+        value: getValueAsString(filterType, rule, field),
     };
 };
 
 export const getFilterRuleTables = (
-    filterRule: FilterRule | DashboardFilterRule,
+    filterRule: ConditionalRule,
     field: FilterableField,
     filterableFields: FilterableField[],
 ): string[] => {
