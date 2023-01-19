@@ -1,3 +1,10 @@
+## [0.377.1](https://github.com/lightdash/lightdash/compare/0.377.0...0.377.1) (2023-01-19)
+
+
+### Bug Fixes
+
+* reference line missing value ([#4212](https://github.com/lightdash/lightdash/issues/4212)) ([ac5486b](https://github.com/lightdash/lightdash/commit/ac5486bb5f967bad24ab36e650c708dbb78a9a52))
+
 # [0.377.0](https://github.com/lightdash/lightdash/compare/0.376.0...0.377.0) (2023-01-19)
 
 
