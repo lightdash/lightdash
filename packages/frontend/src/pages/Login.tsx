@@ -16,6 +16,7 @@ import AnchorLink from '../components/common/AnchorLink/index';
 import {
     GoogleLoginButton,
     OktaLoginButton,
+    OneLoginLoginButton,
 } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -113,11 +114,13 @@ const Login: FC = () => {
 
     const ssoAvailable =
         !!health.data?.auth.google.oauth2ClientId ||
-        health.data?.auth.okta.enabled;
+        health.data?.auth.okta.enabled ||
+        health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <>
             {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
             {health.data?.auth.okta.enabled && <OktaLoginButton />}
+            {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
         </>
     );
     const passwordLogin = allowPasswordAuthentication && (

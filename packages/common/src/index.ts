@@ -354,7 +354,7 @@ export type UpdateUserArgs = {
 export type CreateOpenIdIdentity = {
     subject: string;
     issuer: string;
-    issuerType: 'google' | 'okta';
+    issuerType: 'google' | 'okta' | 'oneLogin';
     userId: number;
     email: string;
 };
@@ -539,6 +539,10 @@ export type HealthState = {
             loginPath: string;
         };
         okta: {
+            enabled: boolean;
+            loginPath: string;
+        };
+        oneLogin: {
             enabled: boolean;
             loginPath: string;
         };

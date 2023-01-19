@@ -13,6 +13,7 @@ import { lightdashApi } from '../api';
 import {
     GoogleLoginButton,
     OktaLoginButton,
+    OneLoginLoginButton,
 } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import CreateUserForm from '../components/CreateUserForm';
@@ -140,7 +141,8 @@ const Signup: FC = () => {
 
     const ssoAvailable =
         !!health.data?.auth.google.oauth2ClientId ||
-        health.data?.auth.okta.enabled;
+        health.data?.auth.okta.enabled ||
+        health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <>
             {health.data?.auth.google.oauth2ClientId && (
@@ -148,6 +150,9 @@ const Signup: FC = () => {
             )}
             {health.data?.auth.okta.enabled && (
                 <OktaLoginButton inviteCode={inviteCode} />
+            )}
+            {health.data?.auth.oneLogin.enabled && (
+                <OneLoginLoginButton inviteCode={inviteCode} />
             )}
         </>
     );

@@ -7,6 +7,7 @@ import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpen
 import {
     GoogleLoginButton,
     OktaLoginButton,
+    OneLoginLoginButton,
 } from '../../common/GoogleLoginButton';
 import {
     Bold,
@@ -76,6 +77,9 @@ const SocialLoginsPanel: FC = () => {
             </GoogleButtonWrapper>
             <GoogleButtonWrapper>
                 <OktaLoginButton />
+            </GoogleButtonWrapper>
+            <GoogleButtonWrapper>
+                <OneLoginLoginButton />
             </GoogleButtonWrapper>
         </div>
     );
