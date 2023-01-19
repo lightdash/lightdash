@@ -283,11 +283,6 @@ export class UserService {
         sessionUser: SessionUser | undefined,
         inviteCode: string | undefined,
     ): Promise<SessionUser> {
-        console.info('loginWithOpenId', {
-            openIdUser,
-            sessionUser,
-            inviteCode,
-        });
         const loginUser = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,

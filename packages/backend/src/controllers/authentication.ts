@@ -15,7 +15,10 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
-import { Strategy as OpenIDConnectStrategy } from 'passport-openidconnect';
+import {
+    Strategy as OpenIDConnectStrategy,
+    VerifyFunctionWithRequest,
+} from 'passport-openidconnect';
 import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -200,6 +203,49 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
               }
           },
       );
+
+const genericOidcHandler =
+    (
+        issuerType: OpenIdUser['openId']['issuerType'],
+    ): VerifyFunctionWithRequest =>
+    async (req, issuer, profile, done) => {
+        try {
+            const { inviteCode } = req.session.oauth || {};
+            req.session.oauth = {};
+            const [{ value: email }] = profile.emails;
+            const { id: subject } = profile;
+            if (!(email && subject)) {
+                return done(null, false, {
+                    message: 'Could not parse authentication token',
+                });
+            }
+            const [firstName, lastName] = (profile.displayName || '').split();
+            const openIdUser: OpenIdUser = {
+                openId: {
+                    issuer,
+                    email,
+                    subject,
+                    firstName,
+                    lastName,
+                    issuerType,
+                },
+            };
+            const user = await userService.loginWithOpenId(
+                openIdUser,
+                req.user,
+                inviteCode,
+            );
+            return done(null, user);
+        } catch (e) {
+            if (e instanceof LightdashError) {
+                return done(null, false, { message: e.message });
+            }
+            Logger.warn(`Unexpected error while authorizing user: ${e}`);
+            return done(null, false, {
+                message: 'Unexpected error authorizing user',
+            });
+        }
+    };
 export const oktaPassportStrategy = !(
     lightdashConfig.auth.okta.oauth2ClientId &&
     lightdashConfig.auth.okta.oauth2ClientSecret &&
@@ -221,121 +267,9 @@ export const oktaPassportStrategy = !(
               userInfoURL: generateOktaUrl('/userinfo'),
               passReqToCallback: true,
           },
-          async (req, issuer, profile, done) => {
-              try {
-                  const { inviteCode } = req.session.oauth || {};
-                  req.session.oauth = {};
-                  const [{ value: email }] = profile.emails;
-                  const { id: subject } = profile;
-                  if (!(email && subject)) {
-                      return done(null, false, {
-                          message: 'Could not parse authentication token',
-                      });
-                  }
-                  const [firstName, lastName] = (
-                      profile.displayName || ''
-                  ).split();
-                  const openIdUser: OpenIdUser = {
-                      openId: {
-                          issuer,
-                          email,
-                          subject,
-                          firstName,
-                          lastName,
-                          issuerType: 'okta',
-                      },
-                  };
-                  const user = await userService.loginWithOpenId(
-                      openIdUser,
-                      req.user,
-                      inviteCode,
-                  );
-                  return done(null, user);
-              } catch (e) {
-                  if (e instanceof LightdashError) {
-                      return done(null, false, { message: e.message });
-                  }
-                  Logger.warn(`Unexpected error while authorizing user: ${e}`);
-                  return done(null, false, {
-                      message: 'Unexpected error authorizing user',
-                  });
-              }
-          },
+          genericOidcHandler('okta'),
       );
 
-const confg = {
-    acr_values_supported: ['onelogin:nist:level:1:re-auth'],
-    authorization_endpoint: 'https://lightdash-dev.onelogin.com/oidc/2/auth',
-    claims_parameter_supported: true,
-    claims_supported: [
-        'sub',
-        'email',
-        'preferred_username',
-        'name',
-        'updated_at',
-        'given_name',
-        'family_name',
-        'locale',
-        'groups',
-        'email_verified',
-        'params',
-        'phone_number',
-        'acr',
-        'sid',
-        'auth_time',
-        'iss',
-    ],
-    grant_types_supported: [
-        'authorization_code',
-        'implicit',
-        'refresh_token',
-        'client_credentials',
-        'password',
-    ],
-    id_token_signing_alg_values_supported: ['HS256', 'RS256', 'PS256'],
-    issuer: 'https://lightdash-dev.onelogin.com/oidc/2',
-    jwks_uri: 'https://lightdash-dev.onelogin.com/oidc/2/certs',
-    registration_endpoint: 'https://lightdash-dev.onelogin.com/oidc/2/register',
-    request_parameter_supported: false,
-    request_uri_parameter_supported: false,
-    response_modes_supported: ['form_post', 'fragment', 'query'],
-    response_types_supported: ['code', 'id_token token', 'id_token'],
-    scopes_supported: [
-        'openid',
-        'name',
-        'profile',
-        'groups',
-        'email',
-        'params',
-        'phone',
-    ],
-    subject_types_supported: ['public'],
-    token_endpoint: 'https://lightdash-dev.onelogin.com/oidc/2/token',
-    token_endpoint_auth_methods_supported: [
-        'client_secret_basic',
-        'client_secret_post',
-        'none',
-    ],
-    userinfo_endpoint: 'https://lightdash-dev.onelogin.com/oidc/2/me',
-    userinfo_signing_alg_values_supported: ['HS256', 'RS256', 'PS256'],
-    code_challenge_methods_supported: ['S256'],
-    introspection_endpoint:
-        'https://lightdash-dev.onelogin.com/oidc/2/token/introspection',
-    introspection_endpoint_auth_methods_supported: [
-        'client_secret_basic',
-        'client_secret_post',
-        'none',
-    ],
-    revocation_endpoint:
-        'https://lightdash-dev.onelogin.com/oidc/2/token/revocation',
-    revocation_endpoint_auth_methods_supported: [
-        'client_secret_basic',
-        'client_secret_post',
-        'none',
-    ],
-    end_session_endpoint: 'https://lightdash-dev.onelogin.com/oidc/2/logout',
-    claim_types_supported: ['normal'],
-};
 export const oneLoginPassportStrategy = !(
     lightdashConfig.auth.oneLogin.oauth2ClientId &&
     lightdashConfig.auth.oneLogin.oauth2ClientSecret &&
@@ -368,49 +302,7 @@ export const oneLoginPassportStrategy = !(
               ).href,
               passReqToCallback: true,
           },
-          async (req, issuer, profile, done) => {
-              try {
-                  console.info('OneLogin req', req);
-                  console.info('OneLogin issuer', issuer);
-                  console.info('OneLogin profile', profile);
-                  const { inviteCode } = req.session.oauth || {};
-                  req.session.oauth = {};
-                  const [{ value: email }] = profile.emails;
-                  const { id: subject } = profile;
-                  if (!(email && subject)) {
-                      return done(null, false, {
-                          message: 'Could not parse authentication token',
-                      });
-                  }
-                  const [firstName, lastName] = (
-                      profile.displayName || ''
-                  ).split();
-                  const openIdUser: OpenIdUser = {
-                      openId: {
-                          issuer,
-                          email,
-                          subject,
-                          firstName,
-                          lastName,
-                          issuerType: 'oneLogin',
-                      },
-                  };
-                  const user = await userService.loginWithOpenId(
-                      openIdUser,
-                      req.user,
-                      inviteCode,
-                  );
-                  return done(null, user);
-              } catch (e) {
-                  if (e instanceof LightdashError) {
-                      return done(null, false, { message: e.message });
-                  }
-                  Logger.warn(`Unexpected error while authorizing user: ${e}`);
-                  return done(null, false, {
-                      message: 'Unexpected error authorizing user',
-                  });
-              }
-          },
+          genericOidcHandler('oneLogin'),
       );
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
