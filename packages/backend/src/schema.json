@@ -46,6 +46,7 @@
                 "type": {
                     "type": "string",
                     "enum": [
+                        "percentile",
                         "average",
                         "count",
                         "count_distinct",
@@ -66,6 +67,9 @@
                 },
                 "hidden": {
                     "type": "boolean"
+                },
+                "percentile": {
+                    "type": "number"
                 }
             }
         },

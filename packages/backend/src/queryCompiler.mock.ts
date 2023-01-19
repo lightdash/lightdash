@@ -143,6 +143,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 tablesReferences: ['table1'],
                 fieldType: FieldType.METRIC,
                 round: undefined,
+                percentile: undefined,
                 compact: undefined,
                 source: undefined,
                 showUnderlyingValues: undefined,
