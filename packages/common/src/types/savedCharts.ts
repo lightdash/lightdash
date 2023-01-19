@@ -211,7 +211,7 @@ export type SavedChart = {
     spaceUuid: string;
     spaceName: string;
     views?: number;
-    is_pinned: boolean;
+    pinnedListUuid: string | undefined;
 };
 
 export type CreateSavedChart = Omit<
@@ -222,6 +222,7 @@ export type CreateSavedChart = Omit<
     | 'organizationUuid'
     | 'spaceUuid'
     | 'spaceName'
+    | 'pinnedListUuid'
 > & { spaceUuid?: string };
 
 export type CreateSavedChartVersion = Omit<
@@ -233,11 +234,11 @@ export type CreateSavedChartVersion = Omit<
     | 'organizationUuid'
     | 'spaceUuid'
     | 'spaceName'
+    | 'pinnedListUuid'
 >;
 
-export type UpdateSavedChart = Pick<
-    SavedChart,
-    'name' | 'description' | 'spaceUuid' | 'is_pinned'
+export type UpdateSavedChart = Partial<
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<
@@ -254,6 +255,7 @@ export type SpaceQuery = Pick<
     | 'description'
     | 'spaceUuid'
     | 'views'
+    | 'pinnedListUuid'
 > & { chartType?: ChartKind | undefined };
 
 export const isCompleteLayout = (

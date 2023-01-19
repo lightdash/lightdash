@@ -70,7 +70,6 @@ export type CreateDashboard = {
     filters?: DashboardFilters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
-    isPinned: boolean;
 };
 
 export type DashboardTile =
@@ -95,7 +94,7 @@ export type Dashboard = {
     spaceUuid: string;
     spaceName: string;
     views?: number;
-    isPinned: boolean;
+    pinnedListUuid: string | undefined;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -109,13 +108,14 @@ export type DashboardBasicDetails = Pick<
     | 'organizationUuid'
     | 'spaceUuid'
     | 'views'
-    | 'isPinned'
+    | 'pinnedListUuid'
 >;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
-    'name' | 'description' | 'spaceUuid' | 'isPinned'
+    'name' | 'description' | 'spaceUuid'
 >;
+
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
     'tiles' | 'filters' | 'updatedByUser'
@@ -130,7 +130,7 @@ export type UpdateDashboard =
 
 export type UpdateMultipleDashboards = Pick<
     Dashboard,
-    'uuid' | 'name' | 'description' | 'spaceUuid' | 'isPinned'
+    'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 
 export const isDashboardUnversionedFields = (

@@ -32,6 +32,11 @@ import {
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import {
+    PinnedItemsTableName,
+    PinnedListTable,
+    PinnedListTableName,
+} from '../../database/entities/pinnedList';
+import {
     ProjectTable,
     ProjectTableName,
 } from '../../database/entities/projects';
@@ -45,21 +50,24 @@ import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
-    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description' | 'is_pinned'
+    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
-    Pick<OrganizationTable['base'], 'organization_uuid'>;
+    Pick<OrganizationTable['base'], 'organization_uuid'> &
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
-    'dashboard_uuid' | 'name' | 'description' | 'is_pinned'
+    'dashboard_uuid' | 'name' | 'description'
 > &
     Pick<DashboardVersionTable['base'], 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
-    Pick<OrganizationTable['base'], 'organization_uuid'>;
+    Pick<OrganizationTable['base'], 'organization_uuid'> &
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'>;
+
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
     'dashboard_tile_uuid'
@@ -233,6 +241,16 @@ export class DashboardModel {
                         `${ProjectTableName}.organization_id`,
                         `${OrganizationTableName}.organization_id`,
                     )
+                    .leftJoin(
+                        PinnedItemsTableName,
+                        `${PinnedItemsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.dashboard_uuid`,
+                    )
+                    .leftJoin(
+                        PinnedListTableName,
+                        `${PinnedListTableName}.pinned_list_uuid`,
+                        `${PinnedItemsTableName}.pinned_list_uuid`,
+                    )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${DashboardsTableName}.name`,
@@ -245,6 +263,7 @@ export class DashboardModel {
                         `${UserTableName}.last_name`,
                         `${OrganizationTableName}.organization_uuid`,
                         `${SpaceTableName}.space_uuid`,
+                        `${PinnedListTableName}.pinned_list_uuid`,
                     ])
                     .orderBy([
                         {
@@ -256,7 +275,7 @@ export class DashboardModel {
                         },
                     ])
                     .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-                    .where('project_uuid', projectUuid);
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid);
             })
             .select(`${cteTableName}.*`);
 
@@ -297,7 +316,7 @@ export class DashboardModel {
                 last_name,
                 organization_uuid,
                 space_uuid,
-                is_pinned,
+                pinned_list_uuid,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -311,7 +330,7 @@ export class DashboardModel {
                     lastName: last_name,
                 },
                 spaceUuid: space_uuid,
-                isPinned: is_pinned,
+                pinnedListUuid: pinned_list_uuid,
             }),
         );
     }
@@ -343,6 +362,16 @@ export class DashboardModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
+            .leftJoin(
+                PinnedItemsTableName,
+                `${PinnedItemsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedItemsTableName}.pinned_list_uuid`,
+            )
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
@@ -362,8 +391,9 @@ export class DashboardModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
+                `${PinnedListTableName}.pinned_list_uuid`,
             ])
-            .where('dashboard_uuid', dashboardUuid)
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
 
@@ -468,7 +498,7 @@ export class DashboardModel {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
-            isPinned: dashboard.is_pinned,
+            pinnedListUuid: dashboard.pinned_list_uuid,
             tiles: tiles.map(
                 ({
                     type,
@@ -594,7 +624,6 @@ export class DashboardModel {
             .update({
                 name: dashboard.name,
                 description: dashboard.description,
-                is_pinned: dashboard.isPinned,
                 ...withSpaceId,
             })
             .where('dashboard_uuid', dashboardUuid);
@@ -621,7 +650,6 @@ export class DashboardModel {
                             .update({
                                 name: dashboard.name,
                                 description: dashboard.description,
-                                is_pinned: dashboard.isPinned,
                                 ...withSpaceId,
                             })
                             .where('dashboard_uuid', dashboard.uuid);

@@ -13,6 +13,7 @@ import {
     organizationModel,
     passwordResetLinkModel,
     personalAccessTokenModel,
+    pinnedListModel,
     projectModel,
     savedChartModel,
     searchModel,
@@ -82,6 +83,7 @@ export const dashboardService = new DashboardService({
     dashboardModel,
     spaceModel,
     analyticsModel,
+    pinnedListModel,
 });
 
 export const savedChartsService = new SavedChartService({
@@ -89,6 +91,7 @@ export const savedChartsService = new SavedChartService({
     savedChartModel,
     spaceModel,
     analyticsModel,
+    pinnedListModel,
 });
 
 export const personalAccessTokenService = new PersonalAccessTokenService({

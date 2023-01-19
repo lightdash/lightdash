@@ -59,6 +59,12 @@ import {
     PersonalAccessTokenTableName,
 } from '../database/entities/personalAccessTokens';
 import {
+    PinnedItemsTable,
+    PinnedItemsTableName,
+    PinnedListTable,
+    PinnedListTableName,
+} from '../database/entities/pinnedList';
+import {
     ProjectMembershipsTable,
     ProjectMembershipsTableName,
 } from '../database/entities/projectMemberships';
@@ -147,5 +153,7 @@ declare module 'knex/types/tables' {
         [SlackAuthTokensTable]: DbSlackAuthTokens;
         [AnalyticsChartViewsTableName]: DbAnalyticsChartViews;
         [AnalyticsDashboardViewsTableName]: DbAnalyticsDashboardViews;
+        [PinnedListTableName]: PinnedListTable;
+        [PinnedItemsTableName]: PinnedItemsTable;
     }
 }
