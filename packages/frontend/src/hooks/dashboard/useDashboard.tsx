@@ -149,7 +149,10 @@ export const useAvailableDashboardFilterTargets = (tiles: DashboardTile[]) => {
     );
 };
 
-export const useDashboardQuery = (id?: string) => {
+export const useDashboardQuery = (
+    id?: string,
+    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
+) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
@@ -157,6 +160,7 @@ export const useDashboardQuery = (id?: string) => {
         enabled: id !== undefined,
         retry: false,
         onError: (result) => setErrorResponse(result),
+        ...useQueryOptions,
     });
 };
 

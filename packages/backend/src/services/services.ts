@@ -2,6 +2,7 @@ import { S3Service } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
+    analyticsModel,
     dashboardModel,
     emailModel,
     inviteLinkModel,
@@ -20,6 +21,7 @@ import {
     spaceModel,
     userModel,
 } from '../models/models';
+import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
 import { HealthService } from './HealthService/HealthService';
@@ -79,12 +81,14 @@ export const healthService = new HealthService({
 export const dashboardService = new DashboardService({
     dashboardModel,
     spaceModel,
+    analyticsModel,
 });
 
 export const savedChartsService = new SavedChartService({
     projectModel,
     savedChartModel,
     spaceModel,
+    analyticsModel,
 });
 
 export const personalAccessTokenService = new PersonalAccessTokenService({
@@ -114,4 +118,8 @@ export const unfurlService = new UnfurlService({
     shareModel,
     encryptionService,
     s3Service,
+});
+
+export const analyticsService = new AnalyticsService({
+    analyticsModel,
 });

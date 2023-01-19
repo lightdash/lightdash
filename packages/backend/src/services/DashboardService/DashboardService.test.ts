@@ -1,6 +1,10 @@
 import { defineUserAbility, ForbiddenError } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
-import { dashboardModel, spaceModel } from '../../models/models';
+import {
+    analyticsModel,
+    dashboardModel,
+    spaceModel,
+} from '../../models/models';
 
 import { DashboardService } from './DashboardService';
 import {
@@ -48,6 +52,9 @@ jest.mock('../../models/models', () => ({
     spaceModel: {
         getFullSpace: jest.fn(async () => publicSpace),
     },
+    analyticsModel: {
+        addDashboardViewEvent: jest.fn(async () => null),
+    },
 }));
 
 describe('DashboardService', () => {
@@ -56,6 +63,7 @@ describe('DashboardService', () => {
     const service = new DashboardService({
         dashboardModel,
         spaceModel,
+        analyticsModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

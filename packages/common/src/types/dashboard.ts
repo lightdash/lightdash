@@ -93,6 +93,7 @@ export type Dashboard = {
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
     spaceName: string;
+    views?: number;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -105,6 +106,7 @@ export type DashboardBasicDetails = Pick<
     | 'updatedByUser'
     | 'organizationUuid'
     | 'spaceUuid'
+    | 'views'
 >;
 
 export type DashboardUnversionedFields = Pick<

@@ -1,6 +1,7 @@
 import { lightdashConfig } from '../config/lightdashConfig';
 import database from '../database/database';
 import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { AnalyticsModel } from './AnalyticsModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DbtCloudMetricsModel } from './DbtCloudMetricsModel';
@@ -60,5 +61,9 @@ export const shareModel = new ShareModel({
 });
 
 export const slackAuthenticationModel = new SlackAuthenticationModel({
+    database,
+});
+
+export const analyticsModel = new AnalyticsModel({
     database,
 });

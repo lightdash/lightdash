@@ -199,6 +199,7 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
+    views?: number;
 };
 
 export type CreateSavedChart = Omit<
@@ -240,6 +241,7 @@ export type SpaceQuery = Pick<
     | 'updatedByUser'
     | 'description'
     | 'spaceUuid'
+    | 'views'
 >;
 
 export const isCompleteLayout = (

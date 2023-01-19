@@ -15,6 +15,7 @@ import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
@@ -22,6 +23,7 @@ import { hasSpaceAccess } from '../SpaceService/SpaceService';
 type Dependencies = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    analyticsModel: AnalyticsModel;
 };
 
 export class DashboardService {
@@ -29,9 +31,12 @@ export class DashboardService {
 
     spaceModel: SpaceModel;
 
-    constructor({ dashboardModel, spaceModel }: Dependencies) {
+    analyticsModel: AnalyticsModel;
+
+    constructor({ dashboardModel, spaceModel, analyticsModel }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.analyticsModel = analyticsModel;
     }
 
     async hasDashboardSpaceAccess(
@@ -121,6 +126,11 @@ export class DashboardService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+
+        await this.analyticsModel.addDashboardViewEvent(
+            dashboard.uuid,
+            user.userUuid,
+        );
         return dashboard;
     }
 

@@ -100,6 +100,13 @@ import {
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
 
+import {
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViewsTableName,
+    DbAnalyticsChartViews,
+    DbAnalyticsDashboardViews,
+} from '../database/entities/analytics';
+
 declare module 'knex/types/tables' {
     interface Tables {
         [InviteLinkTableName]: InviteLinkTable;
@@ -138,5 +145,7 @@ declare module 'knex/types/tables' {
         [ShareTableName]: ShareTable;
         [SpaceShareTableName]: SpaceShareTable;
         [SlackAuthTokensTable]: DbSlackAuthTokens;
+        [AnalyticsChartViewsTableName]: DbAnalyticsChartViews;
+        [AnalyticsDashboardViewsTableName]: DbAnalyticsDashboardViews;
     }
 }

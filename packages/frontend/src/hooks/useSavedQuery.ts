@@ -6,7 +6,12 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -76,14 +81,16 @@ const addVersionSavedQuery = async ({
 
 interface Args {
     id?: string;
+    useQueryOptions?: UseQueryOptions<SavedChart, ApiError>;
 }
 
-export const useSavedQuery = ({ id }: Args = {}) =>
+export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
     useQuery<SavedChart, ApiError>({
         queryKey: ['saved_query', id],
         queryFn: () => getSavedQuery(id || ''),
         enabled: id !== undefined,
         retry: false,
+        ...useQueryOptions,
     });
 
 export const useDeleteMutation = () => {

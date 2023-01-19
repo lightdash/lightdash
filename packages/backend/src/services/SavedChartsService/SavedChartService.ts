@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -21,6 +22,7 @@ type Dependencies = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
+    analyticsModel: AnalyticsModel;
 };
 
 export class SavedChartService {
@@ -30,10 +32,13 @@ export class SavedChartService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly analyticsModel: AnalyticsModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.spaceModel = dependencies.spaceModel;
+        this.analyticsModel = dependencies.analyticsModel;
     }
 
     async hasChartSpaceAccess(
@@ -215,7 +220,17 @@ export class SavedChartService {
             );
         }
 
-        return savedChart;
+        await this.analyticsModel.addChartViewEvent(
+            savedChartUuid,
+            user.userUuid,
+        );
+
+        const views = await this.analyticsModel.countChartViews(savedChartUuid);
+
+        return {
+            ...savedChart,
+            views,
+        };
     }
 
     async create(
