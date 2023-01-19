@@ -28,6 +28,14 @@ const warehouseConfig = {
         warehouse: 'TESTING',
         schema: 'jaffle',
     },
+    trino: {
+        host: Cypress.env('TRINO_HOST'),
+        port: Cypress.env('TRINO_PORT'),
+        user: Cypress.env('TRINO_USER'),
+        password: Cypress.env('TRINO_PASSWORD'),
+        database: 'e2e_jaffle_shop',
+        schema: 'e2e_jaffle_shop',
+    },
 };
 
 const configurePostgresWarehouse = (
@@ -60,6 +68,22 @@ const configureBigqueryWarehouse = (
     cy.get('[name="dbt.type"]').select('dbt local server');
     cy.get('[name="dbt.target"]').type('test');
     cy.get('[name="warehouse.dataset"]').type(config.dataset);
+};
+const configureTrinoWarehouse = (config: typeof warehouseConfig['trino']) => {
+    cy.get('[name="warehouse.host"]').type(config.host, { log: false });
+    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
+    cy.get('[name="warehouse.dbname"]').type(config.database);
+
+    cy.contains('Advanced configuration options').click();
+
+    cy.get('[name="warehouse.port"]').clear().type(config.port);
+    cy.get('[name="warehouse.http_scheme"]').select('https');
+
+    // DBT
+    cy.get('[name="dbt.type"]').select('dbt local server');
+    cy.get('[name="dbt.target"]').type('test');
+    cy.get('[name="warehouse.schema"]').type(config.schema);
 };
 
 const configureDatabricksWarehouse = (
@@ -135,12 +159,35 @@ const testQuery = () => {
     cy.findByText('Unique order count').click();
 };
 
+const testFilterStringEscaping = () => {
+    cy.contains('New').click();
+    cy.findByText('Query from tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
+    cy.contains('Customers').click();
+
+    // Load query via url params
+    cy.url().then((urlValue) =>
+        cy.visit(
+            `${urlValue}?create_saved_chart_version=%7B"tableName"%3A"customers"%2C"metricQuery"%3A%7B"dimensions"%3A%5B"customers_first_name"%5D%2C"metrics"%3A%5B%5D%2C"filters"%3A%7B"dimensions"%3A%7B"id"%3A"e0772fb1-9c35-4d58-81c7-8cdb015c2699"%2C"and"%3A%5B%7B"id"%3A"cdae9905-c299-4926-8ccd-d1f6dabeb733"%2C"target"%3A%7B"fieldId"%3A"customers_first_name"%7D%2C"operator"%3A"equals"%2C"values"%3A%5B"Quo%27te"%5D%7D%5D%7D%7D%2C"sorts"%3A%5B%7B"fieldId"%3A"customers_first_name"%2C"descending"%3Afalse%7D%5D%2C"limit"%3A500%2C"tableCalculations"%3A%5B%5D%2C"additionalMetrics"%3A%5B%5D%7D%2C"tableConfig"%3A%7B"columnOrder"%3A%5B"customers_first_name"%5D%7D%2C"chartConfig"%3A%7B"type"%3A"cartesian"%2C"config"%3A%7B"layout"%3A%7B%7D%2C"eChartsConfig"%3A%7B%7D%7D%7D%7D`,
+        ),
+    );
+
+    // wait for query to finish
+    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
+
+    // check that first row
+    cy.get('table')
+        .find('td', { timeout: 10000 })
+        .eq(1)
+        .should('contain.text', "Quo'te");
+};
+
 const defaultRowValues = [
-    '2020-08-11, 00:17:00:000 (+00:00)',
-    '2020-08-11, 00:17:00:000 (+00:00)',
-    '2020-08-11, 00:17:00 (+00:00)',
-    '2020-08-11, 00:17 (+00:00)',
-    '2020-08-11, 00 (+00:00)',
+    '2020-08-11, 23:44:00:000 (+00:00)',
+    '2020-08-11, 23:44:00:000 (+00:00)',
+    '2020-08-11, 23:44:00 (+00:00)',
+    '2020-08-11, 23:44 (+00:00)',
+    '2020-08-11, 23 (+00:00)',
     '2020-08-11',
     '2',
     'Tuesday',
@@ -185,8 +232,15 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
     cy.findByText('Year').click();
     cy.findByText('Year (number)').click();
 
-    // run query
-    cy.get('button').contains('Run query').click();
+    // open column menu
+    cy.get('th')
+        .contains('Timestamp tz raw')
+        .closest('th')
+        .find('button')
+        .click();
+
+    // sort `Customers First-Name` by ascending
+    cy.findByRole('option', { name: 'Sort New-Old' }).click();
 
     // wait for query to finish
     cy.findByText('Loading chart', { timeout: 30000 }).should('not.exist');
@@ -237,6 +291,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
         testTimeIntervalsResults();
     });
@@ -256,6 +311,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
         testTimeIntervalsResults();
     });
@@ -271,6 +327,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
 
         const bigqueryRowValues = [
@@ -297,6 +354,45 @@ describe('Create projects', () => {
 
         testTimeIntervalsResults(bigqueryRowValues);
     });
+    it('Should create a Trino project', () => {
+        cy.visit(`/createProject`);
+
+        cy.contains('button', 'Trino').click();
+        cy.contains('a', 'Create project manually').click();
+        cy.contains('button', 'I’ve defined them!').click();
+
+        cy.get('[name="name"]').clear().type('Jaffle Trino test');
+        configureTrinoWarehouse(warehouseConfig.trino);
+
+        testCompile();
+        testQuery();
+        testFilterStringEscaping();
+        testRunQuery();
+
+        const trinoRowValues = [
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00 (+00:00)',
+            '2020-08-12, 07:58 (+00:00)',
+            '2020-08-12, 07 (+00:00)',
+            '2020-08-12',
+            '3',
+            'Wednesday',
+            '12',
+            '225',
+            '2020-08-10',
+            '2020-08',
+            '8',
+            'August',
+            '2020-Q3',
+            '3',
+            'Q3',
+            '2020',
+            '2,020',
+        ];
+
+        testTimeIntervalsResults(trinoRowValues);
+    });
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
@@ -309,6 +405,7 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
         const databricksRowValues = [
             '2020-07-02, 09:33:00:000 (+00:00)',
@@ -347,14 +444,15 @@ describe('Create projects', () => {
 
         testCompile();
         testQuery();
+        testFilterStringEscaping();
         testRunQuery();
 
         const snowflakeRowValues = [
-            '2020-08-12, 00:03:00:000 (+00:00)',
-            '2020-08-12, 00:03:00:000 (+00:00)',
-            '2020-08-12, 00:03:00 (+00:00)',
-            '2020-08-12, 00:03 (+00:00)',
-            '2020-08-12, 00 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00:000 (+00:00)',
+            '2020-08-12, 07:58:00 (+00:00)',
+            '2020-08-12, 07:58 (+00:00)',
+            '2020-08-12, 07 (+00:00)',
             '2020-08-12',
             '3', // The behavior of week-related functions in Snowflake is controlled by the WEEK_START session parameters.
             'Wednesday',

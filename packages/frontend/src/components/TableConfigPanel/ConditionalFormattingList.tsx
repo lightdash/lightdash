@@ -4,6 +4,7 @@ import {
     createConditionalFormattingConfig,
     fieldId,
     getVisibleFields,
+    isNumericItem,
 } from '@lightdash/common';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
@@ -26,7 +27,7 @@ const ConditionalFormattingList = ({}) => {
 
         return getVisibleFields(explore)
             .filter((field) => activeFields.has(fieldId(field)))
-            .filter((field) => field.type === 'number');
+            .filter((field) => isNumericItem(field));
     }, [explore, activeFields]);
 
     const activeConfigs = useMemo(() => {
@@ -38,12 +39,6 @@ const ConditionalFormattingList = ({}) => {
                 : true,
         );
     }, [conditionalFormattings, visibleActiveNumericFields]);
-
-    const usedFieldIds = useMemo(() => {
-        return activeConfigs
-            .map((c) => c.target?.fieldId)
-            .filter((f): f is string => !!f);
-    }, [activeConfigs]);
 
     const handleAdd = useCallback(() => {
         setIsAddingNew(true);
@@ -64,7 +59,7 @@ const ConditionalFormattingList = ({}) => {
         [onSetConditionalFormattings, activeConfigs],
     );
 
-    const handleOnChange = useCallback(
+    const handleChange = useCallback(
         (index, newConfig) =>
             onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
@@ -72,11 +67,6 @@ const ConditionalFormattingList = ({}) => {
                 }),
             ),
         [onSetConditionalFormattings, activeConfigs],
-    );
-
-    const isAddButtonDisabled = useMemo(
-        () => visibleActiveNumericFields.length === usedFieldIds.length,
-        [visibleActiveNumericFields, usedFieldIds],
     );
 
     return (
@@ -87,29 +77,16 @@ const ConditionalFormattingList = ({}) => {
                     isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
                     index={index}
                     fields={visibleActiveNumericFields}
-                    usedFieldIds={usedFieldIds}
                     value={conditionalFormatting}
-                    onChange={(newConfig) => handleOnChange(index, newConfig)}
+                    onChange={(newConfig) => handleChange(index, newConfig)}
                     onRemove={() => handleRemove(index)}
                 />
             ))}
 
             <FormGroup>
-                <Tooltip2
-                    position="bottom-left"
-                    disabled={!isAddButtonDisabled}
-                    content="All fields are already being used in rules."
-                >
-                    <Button
-                        icon="plus"
-                        onClick={isAddButtonDisabled ? undefined : handleAdd}
-                        className={
-                            isAddButtonDisabled ? Classes.DISABLED : undefined
-                        }
-                    >
-                        Add new rule
-                    </Button>
-                </Tooltip2>
+                <Button icon="plus" onClick={handleAdd}>
+                    Add new rule
+                </Button>
             </FormGroup>
         </ConditionalFormattingListWrapper>
     );

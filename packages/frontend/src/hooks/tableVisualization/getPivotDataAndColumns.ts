@@ -199,7 +199,6 @@ const getPivotDataAndColumns = ({
                                         getDefaultColumnLabel(itemId),
                                     cell: (info) =>
                                         info.getValue()?.value.formatted || '-',
-
                                     footer: () =>
                                         totals[key]
                                             ? formatItemValue(item, totals[key])

@@ -1,3 +1,86 @@
+# [0.376.0](https://github.com/lightdash/lightdash/compare/0.375.3...0.376.0) (2023-01-18)
+
+
+### Features
+
+* delete organisation ([#4165](https://github.com/lightdash/lightdash/issues/4165)) ([49e5503](https://github.com/lightdash/lightdash/commit/49e55033fee52fe2d2d4ee50e1ee5ac8cabb26d2))
+
+## [0.375.3](https://github.com/lightdash/lightdash/compare/0.375.2...0.375.3) (2023-01-18)
+
+
+### Bug Fixes
+
+* change copy on action to edit tile contents ([#4208](https://github.com/lightdash/lightdash/issues/4208)) ([6089c47](https://github.com/lightdash/lightdash/commit/6089c47b8973e1eeb27411d8d4f82eab812ff974))
+
+## [0.375.2](https://github.com/lightdash/lightdash/compare/0.375.1...0.375.2) (2023-01-18)
+
+
+### Bug Fixes
+
+* escape filter value in the sql query generator ([#4150](https://github.com/lightdash/lightdash/issues/4150)) ([2993414](https://github.com/lightdash/lightdash/commit/29934147093716137db8c4bac6c0ea9a5e8254cd))
+
+## [0.375.1](https://github.com/lightdash/lightdash/compare/0.375.0...0.375.1) (2023-01-18)
+
+
+### Bug Fixes
+
+* use word boundaries for re dbt metrics ([#4201](https://github.com/lightdash/lightdash/issues/4201)) ([99e50e9](https://github.com/lightdash/lightdash/commit/99e50e9156c020eade3cd5896642dde159cf3fd9))
+
+# [0.375.0](https://github.com/lightdash/lightdash/compare/0.374.0...0.375.0) (2023-01-18)
+
+
+### Features
+
+* conditional formatting multiple rules on one field ([#4205](https://github.com/lightdash/lightdash/issues/4205)) ([89e06ab](https://github.com/lightdash/lightdash/commit/89e06aba7518b8e31de421b917447fbed426dc46))
+
+# [0.374.0](https://github.com/lightdash/lightdash/compare/0.373.2...0.374.0) (2023-01-18)
+
+
+### Features
+
+* conditional formatting support all numeric fields ([#4168](https://github.com/lightdash/lightdash/issues/4168)) ([77b5467](https://github.com/lightdash/lightdash/commit/77b54679fc00d207c9445ec50a2b4930696587b9))
+
+## [0.373.2](https://github.com/lightdash/lightdash/compare/0.373.1...0.373.2) (2023-01-17)
+
+
+### Bug Fixes
+
+* update sentry config ([#4189](https://github.com/lightdash/lightdash/issues/4189)) ([dfb8b53](https://github.com/lightdash/lightdash/commit/dfb8b534ad1e0f70bf6820e3fbfb88bf441f0968))
+
+## [0.373.1](https://github.com/lightdash/lightdash/compare/0.373.0...0.373.1) (2023-01-17)
+
+
+### Bug Fixes
+
+* override default props for blueprint dialog - do not close on escape or outside click ([#4175](https://github.com/lightdash/lightdash/issues/4175)) ([1682b71](https://github.com/lightdash/lightdash/commit/1682b7108f3b4fade015303aa0456ba5f98c2d63))
+
+# [0.373.0](https://github.com/lightdash/lightdash/compare/0.372.0...0.373.0) (2023-01-17)
+
+
+### Features
+
+* conditional formatting multiple conditions ([#4164](https://github.com/lightdash/lightdash/issues/4164)) ([b030323](https://github.com/lightdash/lightdash/commit/b03032330e66a71d6430090ec22a8ee4eadf1821))
+
+# [0.372.0](https://github.com/lightdash/lightdash/compare/0.371.1...0.372.0) (2023-01-17)
+
+
+### Bug Fixes
+
+* add filter input width ([#4151](https://github.com/lightdash/lightdash/issues/4151)) ([eea61b3](https://github.com/lightdash/lightdash/commit/eea61b33dcb6ca4d2e8c4514af697024e33a27c4))
+* rename 'edit tile' menu option ([#4188](https://github.com/lightdash/lightdash/issues/4188)) ([c588d65](https://github.com/lightdash/lightdash/commit/c588d65af6771fd7416a3506ea52526e19f0f89a))
+
+
+### Features
+
+* support for Trino as datasource ([#4101](https://github.com/lightdash/lightdash/issues/4101)) ([a453a5a](https://github.com/lightdash/lightdash/commit/a453a5a5f988bc7bfcd67313507f8fb5b49e9b0d))
+
+## [0.371.1](https://github.com/lightdash/lightdash/compare/0.371.0...0.371.1) (2023-01-17)
+
+
+### Bug Fixes
+
+* numeric input should allow negative values ([#4176](https://github.com/lightdash/lightdash/issues/4176)) ([dca110f](https://github.com/lightdash/lightdash/commit/dca110fcf299c06bbce6266e8089bb0e13820e2f))
+
 # [0.371.0](https://github.com/lightdash/lightdash/compare/0.370.4...0.371.0) (2023-01-16)
 
 

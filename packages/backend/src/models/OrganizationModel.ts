@@ -60,4 +60,24 @@ export class OrganizationModel {
             .returning('*');
         return OrganizationModel.mapDBObjectToOrganisation(org);
     }
+
+    async deleteOrgAndUsers(
+        organizationUuid: string,
+        userUuids: string[],
+    ): Promise<void> {
+        const [org] = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('*');
+        if (org === undefined) {
+            throw new NotFoundError(`No organisation found`);
+        }
+
+        await this.database.transaction(async (trx) => {
+            await trx('users').delete().whereIn('user_uuid', userUuids);
+
+            await trx(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .delete();
+        });
+    }
 }

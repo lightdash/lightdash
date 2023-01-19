@@ -65,6 +65,8 @@ const convertTimezone = (
             return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
+        case SupportedDbtAdapter.TRINO:
+            return timestampSql;
         default:
             return assertUnreachable(
                 adapterType,
@@ -179,7 +181,7 @@ const convertDbtMetricToLightdashMetric = (
         sql = metric.expression;
 
         referencedMetrics.forEach((ref) => {
-            const re = new RegExp(ref, 'g');
+            const re = new RegExp(`\\b${ref}\\b`, 'g');
             // eslint-disable-next-line no-useless-escape
             sql = sql.replace(re, `\$\{${ref}\}`);
         });

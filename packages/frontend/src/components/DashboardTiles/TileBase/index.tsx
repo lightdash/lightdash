@@ -98,7 +98,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         <>
                                             <MenuItem2
                                                 icon="edit"
-                                                text="Edit tile"
+                                                text="Edit tile content"
                                                 onClick={() =>
                                                     setIsEditing(true)
                                                 }

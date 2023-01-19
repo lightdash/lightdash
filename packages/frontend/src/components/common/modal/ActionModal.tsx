@@ -103,7 +103,6 @@ const ActionModal = <T extends State>(props: ActionModalProps<T>) => {
 
     return (
         <BaseModal
-            canOutsideClickClose={!(actionType === ActionTypeModal.DELETE)}
             title={title}
             isOpen={actionType !== ActionTypeModal.CLOSE}
             icon={icon}

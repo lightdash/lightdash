@@ -249,6 +249,18 @@ const noValueFilter = {
     values: [],
 };
 
+const stringSingleUnescapedValueFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: ["Bob's"],
+};
+
+const stringMultiUnescapedValueFilter = {
+    id: '701b6520-1b19-4051-a553-7615aee0b03d',
+    target: { fieldId: 'customers_first_name' },
+    values: ["Bob's", "Tom's"],
+};
+
 export const stringFilterDimension = '"customers".first_name';
 
 export const stringFilterRuleMocks = {
@@ -297,4 +309,16 @@ export const stringFilterRuleMocks = {
         operator: FilterOperator.STARTS_WITH,
     },
     startsWithFilterWithNoValSQL: 'true',
+
+    equalsFilterWithSingleUnescapedValueSQL: `(${stringFilterDimension}) IN ('Bob''s')`,
+    equalsFilterWithSingleUnescapedValue: {
+        ...stringSingleUnescapedValueFilter,
+        operator: FilterOperator.EQUALS,
+    },
+
+    equalsFilterWithMultiUnescapedValueSQL: `(${stringFilterDimension}) IN ('Bob''s','Tom''s')`,
+    equalsFilterWithMultiUnescapedValue: {
+        ...stringMultiUnescapedValueFilter,
+        operator: FilterOperator.EQUALS,
+    },
 };

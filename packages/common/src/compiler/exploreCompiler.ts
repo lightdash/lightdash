@@ -18,19 +18,65 @@ import {
 import assertUnreachable from '../utils/assertUnreachable';
 import { renderFilterRuleSql } from './filtersCompiler';
 
-export const getQuoteChar = (targetDatabase: SupportedDbtAdapter): string => {
+export const getFieldQuoteChar = (
+    targetDatabase: SupportedDbtAdapter,
+): string => {
     switch (targetDatabase) {
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.TRINO:
             return '"';
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
             return '`';
         default:
-            return '"';
+            return assertUnreachable(
+                targetDatabase,
+                `field quote char not found for ${targetDatabase}`,
+            );
     }
 };
+
+export const getStringQuoteChar = (
+    targetDatabase: SupportedDbtAdapter,
+): string => {
+    switch (targetDatabase) {
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.BIGQUERY:
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.TRINO:
+            return "'";
+        default:
+            return assertUnreachable(
+                targetDatabase,
+                `string quote char not found for ${targetDatabase}`,
+            );
+    }
+};
+
+export const getEscapeStringQuoteChar = (
+    targetDatabase: SupportedDbtAdapter,
+): string => {
+    switch (targetDatabase) {
+        case SupportedDbtAdapter.SNOWFLAKE:
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.BIGQUERY:
+            return '\\';
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.TRINO:
+            return "'";
+        default:
+            return assertUnreachable(
+                targetDatabase,
+                `string quote char not found for ${targetDatabase}`,
+            );
+    }
+};
+
 export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 
 type Reference = {
@@ -63,7 +109,8 @@ export const parseAllReferences = (
 export const compileDimensionSql = (
     dimension: Dimension,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
 ): { sql: string; tablesReferences: Set<string> } => {
     // Dimension might have references to other dimensions
     // Check we don't reference ourself
@@ -82,7 +129,8 @@ export const compileDimensionSql = (
             p1,
             tables,
             dimension.table,
-            quoteChar,
+            fieldQuoteChar,
+            stringQuoteChar,
         );
         tablesReferences = new Set([
             ...tablesReferences,
@@ -97,12 +145,13 @@ const compileDimensionReference = (
     ref: string,
     tables: Record<string, Table>,
     currentTable: string,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
 ): { sql: string; tablesReferences: Set<string> } => {
     // Reference to current table
     if (ref === 'TABLE') {
         return {
-            sql: `${quoteChar}${currentTable}${quoteChar}`,
+            sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
             tablesReferences: new Set([currentTable]),
         };
     }
@@ -118,7 +167,8 @@ const compileDimensionReference = (
     const compiledDimension = compileDimensionSql(
         referencedDimension,
         tables,
-        quoteChar,
+        fieldQuoteChar,
+        stringQuoteChar,
     );
 
     return {
@@ -133,9 +183,15 @@ const compileDimensionReference = (
 function compileDimension(
     dimension: Dimension,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
 ): CompiledDimension {
-    const compiledDimension = compileDimensionSql(dimension, tables, quoteChar);
+    const compiledDimension = compileDimensionSql(
+        dimension,
+        tables,
+        fieldQuoteChar,
+        stringQuoteChar,
+    );
     return {
         ...dimension,
         compiledSql: compiledDimension.sql,
@@ -147,12 +203,14 @@ const compileMetricReference = (
     ref: string,
     tables: Record<string, Table>,
     currentTable: string,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): { sql: string; tablesReferences: Set<string> } => {
     // Reference to current table
     if (ref === 'TABLE') {
         return {
-            sql: `${quoteChar}${currentTable}${quoteChar}`,
+            sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
             tablesReferences: new Set([currentTable]),
         };
     }
@@ -170,7 +228,9 @@ const compileMetricReference = (
     const compiledMetric = compileMetricSql(
         referencedMetric,
         tables,
-        quoteChar,
+        fieldQuoteChar,
+        stringQuoteChar,
+        escapeStringQuoteChar,
     );
     return {
         sql: `(${compiledMetric.sql})`,
@@ -213,7 +273,9 @@ export const renderSqlType = (sql: string, type: MetricType): string => {
 export const compileMetricSql = (
     metric: Metric,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): { sql: string; tablesReferences: Set<string> } => {
     const compileReference = isNonAggregateMetric(metric)
         ? compileMetricReference
@@ -239,7 +301,9 @@ export const compileMetricSql = (
             p1,
             tables,
             metric.table,
-            quoteChar,
+            fieldQuoteChar,
+            stringQuoteChar,
+            escapeStringQuoteChar,
         );
         tablesReferences = new Set([
             ...tablesReferences,
@@ -262,7 +326,8 @@ export const compileMetricSql = (
             const compiledDimension = compileDimension(
                 dimensionField,
                 tables,
-                quoteChar,
+                fieldQuoteChar,
+                stringQuoteChar,
             );
             if (compiledDimension.tablesReferences) {
                 tablesReferences = new Set([
@@ -270,7 +335,13 @@ export const compileMetricSql = (
                     ...compiledDimension.tablesReferences,
                 ]);
             }
-            return renderFilterRuleSql(filter, compiledDimension, quoteChar);
+            return renderFilterRuleSql(
+                filter,
+                compiledDimension,
+                fieldQuoteChar,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
         });
         renderedSql = `CASE WHEN (${conditions.join(
             ' AND ',
@@ -284,21 +355,36 @@ export const compileMetricSql = (
 export const compileExploreJoinSql = (
     join: ExploreJoin,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
 ): string =>
     // Sql join contains references to dimensions
     join.sqlOn.replace(
         lightdashVariablePattern,
         (_, p1) =>
-            compileDimensionReference(p1, tables, join.table, quoteChar).sql,
+            compileDimensionReference(
+                p1,
+                tables,
+                join.table,
+                fieldQuoteChar,
+                stringQuoteChar,
+            ).sql,
     );
 
 export const compileMetric = (
     metric: Metric,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): CompiledMetric => {
-    const compiledMetric = compileMetricSql(metric, tables, quoteChar);
+    const compiledMetric = compileMetricSql(
+        metric,
+        tables,
+        fieldQuoteChar,
+        stringQuoteChar,
+        escapeStringQuoteChar,
+    );
     metric.showUnderlyingValues?.forEach((dimReference) => {
         const { refTable, refName } = getParsedReference(
             dimReference,
@@ -321,16 +407,24 @@ export const compileMetric = (
 const compileJoin = (
     join: ExploreJoin,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
 ): CompiledExploreJoin => ({
     ...join,
-    compiledSqlOn: compileExploreJoinSql(join, tables, quoteChar),
+    compiledSqlOn: compileExploreJoinSql(
+        join,
+        tables,
+        fieldQuoteChar,
+        stringQuoteChar,
+    ),
 });
 
 const compileTable = (
     table: Table,
     tables: Record<string, Table>,
-    quoteChar: string,
+    fieldQuoteChar: string,
+    stringQuoteChar: string,
+    escapeStringQuoteChar: string,
 ): CompiledTable => {
     const dimensions: Record<string, CompiledDimension> = Object.keys(
         table.dimensions,
@@ -340,7 +434,8 @@ const compileTable = (
             [dimensionKey]: compileDimension(
                 table.dimensions[dimensionKey],
                 tables,
-                quoteChar,
+                fieldQuoteChar,
+                stringQuoteChar,
             ),
         }),
         {},
@@ -353,7 +448,9 @@ const compileTable = (
             [metricKey]: compileMetric(
                 table.metrics[metricKey],
                 tables,
-                quoteChar,
+                fieldQuoteChar,
+                stringQuoteChar,
+                escapeStringQuoteChar,
             ),
         }),
         {},
@@ -403,20 +500,29 @@ export const compileExplore = ({
         (prev, tableName) => ({ ...prev, [tableName]: tables[tableName] }),
         {},
     );
-    const quoteChar = getQuoteChar(targetDatabase);
+    const fieldQuoteChar = getFieldQuoteChar(targetDatabase);
+    const stringQuoteChar = getStringQuoteChar(targetDatabase);
+    const escapeStringQuoteChar = getEscapeStringQuoteChar(targetDatabase);
+
     const compiledTables: Record<string, CompiledTable> = Object.keys(
         tables,
     ).reduce((prev, tableName) => {
         if (joinedTableNames.find((t) => t === tableName)) {
             return {
                 ...prev,
-                [tableName]: compileTable(tables[tableName], joined, quoteChar),
+                [tableName]: compileTable(
+                    tables[tableName],
+                    joined,
+                    fieldQuoteChar,
+                    stringQuoteChar,
+                    escapeStringQuoteChar,
+                ),
             };
         }
         return prev;
     }, {});
     const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
-        compileJoin(j, joined, quoteChar),
+        compileJoin(j, joined, fieldQuoteChar, stringQuoteChar),
     );
     return {
         name,

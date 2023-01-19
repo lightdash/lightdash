@@ -6,7 +6,7 @@ import { ConditionalOperator } from '../types/conditionalRule';
 import { Field, isField } from '../types/field';
 import { TableCalculation } from '../types/metricQuery';
 import assertUnreachable from './assertUnreachable';
-import { getItemId } from './item';
+import { getItemId, isNumericItem } from './item';
 
 export const createConditionalFormatingRule =
     (): ConditionalFormattingRule => ({
@@ -21,7 +21,7 @@ export const createConditionalFormattingConfig =
         rules: [createConditionalFormatingRule()],
     });
 
-export const getConditionalFormattingConfig = (
+export const getConditionalFormattingConfigs = (
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
     field: Field | TableCalculation | undefined,
 ) => {
@@ -29,41 +29,41 @@ export const getConditionalFormattingConfig = (
         !conditionalFormattings ||
         !field ||
         !isField(field) ||
-        field.type !== 'number'
+        !isNumericItem(field)
     ) {
         return undefined;
     }
 
-    return (
-        conditionalFormattings.find(
-            (c) => c.target?.fieldId === getItemId(field),
-        ) || conditionalFormattings.find((config) => !config.target)
+    return conditionalFormattings.filter(
+        (c) => c.target?.fieldId === getItemId(field) || !c.target,
     );
 };
 
 export const hasMatchingConditionalRules = (
-    value: number | undefined,
+    value: number | string | undefined,
     config: ConditionalFormattingConfig | undefined,
 ) => {
-    if (!config) return undefined;
+    if (!config) return false;
+
+    const parsedValue = typeof value === 'string' ? Number(value) : value;
 
     return config.rules.every((rule) => {
         switch (rule.operator) {
             case ConditionalOperator.NULL:
-                return value === null;
+                return parsedValue === null;
             case ConditionalOperator.NOT_NULL:
-                return value !== null;
+                return parsedValue !== null;
             case ConditionalOperator.EQUALS:
-                return rule.values.some((v) => value === v);
+                return rule.values.some((v) => parsedValue === v);
             case ConditionalOperator.NOT_EQUALS:
-                return rule.values.some((v) => value !== v);
+                return rule.values.some((v) => parsedValue !== v);
             case ConditionalOperator.LESS_THAN:
-                return value !== undefined
-                    ? rule.values.some((v) => value < v)
+                return parsedValue !== undefined
+                    ? rule.values.some((v) => parsedValue < v)
                     : false;
             case ConditionalOperator.GREATER_THAN:
-                return value !== undefined
-                    ? rule.values.some((v) => value > v)
+                return parsedValue !== undefined
+                    ? rule.values.some((v) => parsedValue > v)
                     : false;
             case ConditionalOperator.STARTS_WITH:
             case ConditionalOperator.INCLUDE:

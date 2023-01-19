@@ -25,7 +25,7 @@ export const AppProvider: FC = ({ children }) => {
     const health = useHealth();
     const user = useUser(!!health?.data?.isAuthenticated);
 
-    useSentry(health?.data?.sentry);
+    useSentry(health?.data?.sentry, user.data);
     useCohere(health?.data?.cohere, user.data);
     useHeadway();
 

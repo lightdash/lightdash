@@ -120,7 +120,6 @@ const UserListItem: FC<{
                 onClose={() => setIsDeleteDialogOpen(false)}
                 title="Revoke project access"
                 lazy
-                canOutsideClickClose={false}
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>

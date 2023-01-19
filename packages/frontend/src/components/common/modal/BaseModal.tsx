@@ -1,28 +1,24 @@
-import { Classes, Dialog, IconName, MaybeElement } from '@blueprintjs/core';
+import { Classes, Dialog, DialogProps } from '@blueprintjs/core';
 import React, { ReactNode } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import Form from '../../ReactHookForm/Form';
 import Wrap from '../Wrap';
 
-interface BaseModalProps<T> {
-    onClose: () => void;
-    isOpen: boolean;
+interface BaseModalProps extends DialogProps {
     title: string;
-    icon: IconName | MaybeElement;
     renderBody: (props?: any) => ReactNode;
     renderFooter: (props?: any) => ReactNode;
-    canOutsideClickClose?: boolean;
     methods?: UseFormReturn<any, object>;
     handleSubmit?: (data: any) => void;
 }
 
-const BaseModal = ({
+const BaseModal: React.FC<BaseModalProps> = ({
     renderBody,
     renderFooter,
     methods,
     handleSubmit,
     ...modalProps
-}: BaseModalProps<any>) => (
+}) => (
     <Dialog lazy {...modalProps} className="non-draggable">
         <Wrap
             wrap={(children) => {
@@ -49,11 +45,5 @@ const BaseModal = ({
         </Wrap>
     </Dialog>
 );
-
-BaseModal.defaultProps = {
-    canOutsideClickClose: true,
-    handleSubmit: () => {},
-    methods: undefined,
-};
 
 export default BaseModal;

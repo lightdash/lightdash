@@ -5,6 +5,7 @@ import {
     organizationMemberProfileModel,
     organizationModel,
     projectModel,
+    userModel,
 } from '../../models/models';
 import { OrganizationService } from './OrganizationService';
 import { organisation, user } from './OrganizationService.mock';
@@ -24,6 +25,7 @@ describe('organization service', () => {
         onboardingModel,
         inviteLinkModel,
         organizationMemberProfileModel,
+        userModel,
     });
 
     afterEach(() => {

@@ -1,10 +1,11 @@
 import {
-    getConditionalFormattingConfig,
+    getConditionalFormattingConfigs,
     hasMatchingConditionalRules,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
+import findLast from 'lodash-es/findLast';
 import { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
 import BodyCell from '../BodyCell';
@@ -32,31 +33,32 @@ const TableBody: FC = () => {
                             | ResultRow[0]
                             | undefined;
 
-                        const fieldConditionalConfig =
+                        const fieldConditionalConfigs =
                             cellValue &&
-                            getConditionalFormattingConfig(
+                            getConditionalFormattingConfigs(
                                 conditionalFormattings,
                                 field,
                             );
 
-                        const cellHasFormatting = hasMatchingConditionalRules(
-                            cellValue?.value.raw as number,
-                            fieldConditionalConfig,
-                        );
+                        const conditionalFormattingConfig =
+                            fieldConditionalConfigs &&
+                            findLast(fieldConditionalConfigs, (c) => {
+                                return hasMatchingConditionalRules(
+                                    cellValue?.value.raw as number | string,
+                                    c,
+                                );
+                            });
 
                         return (
                             <BodyCell
                                 style={meta?.style}
                                 backgroundColor={
-                                    cellHasFormatting
-                                        ? fieldConditionalConfig?.color
-                                        : undefined
+                                    conditionalFormattingConfig?.color
                                 }
                                 fontColor={
-                                    cellHasFormatting &&
-                                    fieldConditionalConfig?.color &&
+                                    conditionalFormattingConfig?.color &&
                                     readableColor(
-                                        fieldConditionalConfig.color,
+                                        conditionalFormattingConfig.color,
                                     ) === 'white'
                                         ? 'white'
                                         : undefined
