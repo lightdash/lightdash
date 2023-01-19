@@ -37,7 +37,6 @@ const TableBody: FC = () => {
                             | undefined;
 
                         const fieldConditionalConfigs =
-                            cellValue &&
                             getConditionalFormattingConfigs(
                                 conditionalFormattings,
                                 field,
