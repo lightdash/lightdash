@@ -35,6 +35,7 @@ import {
 } from '@lightdash/common';
 import groupBy from 'lodash-es/groupBy';
 import toNumber from 'lodash-es/toNumber';
+import moment from 'moment';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { SeriesExtraInputWrapper } from '../../components/ChartConfigPanel/Series/Series.styles';
@@ -254,6 +255,40 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
     );
 };
 
+export const getMinAndMaxValues = (
+    axis: string | undefined,
+    rows: ResultRow[],
+): (string | number)[] => {
+    if (!axis) return [];
+    return rows
+        .map((row) => row[axis]?.value?.raw)
+        .reduce<(string | number)[]>(
+            (acc, value) => {
+                if (typeof value === 'number') {
+                    const min = acc[0] < value ? acc[0] : value;
+                    const max = acc[1] > value ? acc[1] : value;
+                    return [min, max];
+                } else if (typeof value === 'string') {
+                    if (moment(value, 'YYYY-MM-DD', false).isValid()) {
+                        // is date
+                        const min = acc[0] < value ? acc[0] : value;
+                        const max = acc[1] > value ? acc[1] : value;
+                        return [min, max];
+                    }
+                    const number = parseFloat(value);
+                    if (!isNaN(number)) {
+                        // is float
+                        const min = acc[0] < number ? acc[0] : number;
+                        const max = acc[1] > number ? acc[1] : number;
+                        return [min, max];
+                    }
+                }
+                return acc;
+            },
+            [0, 0],
+        );
+};
+
 const getMinAndMaxReferenceLines = (
     leftAxisYId: string | undefined,
     rightAxisYId: string | undefined,
@@ -271,28 +306,6 @@ const getMinAndMaxReferenceLines = (
         }) !== undefined;
 
     if (!hasReferenceLines) return {};
-
-    const getMinAndMaxValues = (
-        axis: string | undefined,
-    ): (string | number)[] => {
-        if (!axis) return [];
-        return resultsData.rows
-            .map((row) => row[axis]?.value?.raw)
-            .reduce<(string | number)[]>(
-                (acc, value) => {
-                    if (typeof value === 'number') {
-                        const min = acc[0] < value ? acc[0] : value;
-                        const max = acc[1] > value ? acc[1] : value;
-                        return [min, max];
-                    } else {
-                        const min = acc[0] < value ? acc[0] : value;
-                        const max = acc[1] > value ? acc[1] : value;
-                        return [min, max];
-                    }
-                },
-                [0, 0],
-            );
-    };
 
     const getMinAndMaxReferenceLineValues = (
         axis: string,
@@ -366,9 +379,19 @@ const getMinAndMaxReferenceLines = (
         const max = values.reverse()[0];
         return [min, max];
     };
-    const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(leftAxisYId);
-    const [minValueRightY, maxValueRightY] = getMinAndMaxValues(rightAxisYId);
-    const [minValueX, maxValueX] = getMinAndMaxValues(bottomAxisXId);
+
+    const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(
+        leftAxisYId,
+        resultsData.rows,
+    );
+    const [minValueRightY, maxValueRightY] = getMinAndMaxValues(
+        rightAxisYId,
+        resultsData.rows,
+    );
+    const [minValueX, maxValueX] = getMinAndMaxValues(
+        bottomAxisXId,
+        resultsData.rows,
+    );
 
     const [minReferenceLineX, maxReferenceLineX] =
         getMinAndMaxReferenceLineValues('xAxis', bottomAxisXId);
