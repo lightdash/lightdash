@@ -105,7 +105,7 @@ savedChartRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         savedChartsService
-            .updatePinning(req.user!, req.params.savedQueryUuid)
+            .togglePinning(req.user!, req.params.savedQueryUuid)
             .then((results) => {
                 res.json({
                     status: 'ok',

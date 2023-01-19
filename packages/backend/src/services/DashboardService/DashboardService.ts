@@ -307,7 +307,7 @@ export class DashboardService {
         return this.getById(user, dashboardUuid);
     }
 
-    async updatePinning(
+    async togglePinning(
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {

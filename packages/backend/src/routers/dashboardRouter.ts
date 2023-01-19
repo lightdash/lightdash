@@ -72,7 +72,7 @@ dashboardRouter.patch(
         try {
             res.json({
                 status: 'ok',
-                results: await dashboardService.updatePinning(
+                results: await dashboardService.togglePinning(
                     req.user!,
                     req.params.dashboardUuid,
                 ),

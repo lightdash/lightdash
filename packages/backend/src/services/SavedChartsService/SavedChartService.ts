@@ -156,7 +156,7 @@ export class SavedChartService {
         return savedChart;
     }
 
-    async updatePinning(
+    async togglePinning(
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<SavedChart> {
