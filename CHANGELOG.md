@@ -1,3 +1,10 @@
+# [0.378.0](https://github.com/lightdash/lightdash/compare/0.377.1...0.378.0) (2023-01-19)
+
+
+### Features
+
+* percentile metric ([#4209](https://github.com/lightdash/lightdash/issues/4209)) ([6d02a8b](https://github.com/lightdash/lightdash/commit/6d02a8bfed2c165e6be31270fce458a5dceee6f0))
+
 ## [0.377.1](https://github.com/lightdash/lightdash/compare/0.377.0...0.377.1) (2023-01-19)
 
 
