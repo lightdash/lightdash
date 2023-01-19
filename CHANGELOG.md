@@ -1,3 +1,10 @@
+# [0.379.0](https://github.com/lightdash/lightdash/compare/0.378.0...0.379.0) (2023-01-19)
+
+
+### Features
+
+* add date value to reference lines ([#4156](https://github.com/lightdash/lightdash/issues/4156)) ([acbface](https://github.com/lightdash/lightdash/commit/acbface722a2d6c1682769e13dcd07352d8ce907))
+
 # [0.378.0](https://github.com/lightdash/lightdash/compare/0.377.1...0.378.0) (2023-01-19)
 
 
