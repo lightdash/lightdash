@@ -1,5 +1,9 @@
 import {
+    CartesianSeriesType,
+    ChartConfig,
+    ChartType,
     DashboardBasicDetails,
+    getChartType,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -251,6 +255,8 @@ export class SpaceModel {
                     first_name: string;
                     last_name: string;
                     views: string;
+                    chart_config: ChartConfig['config'];
+                    chart_type: ChartType;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -263,6 +269,8 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views where saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views `,
                 ),
+                `saved_queries_versions.chart_config`,
+                `saved_queries_versions.chart_type`,
             ])
             .orderBy([
                 {
@@ -288,6 +296,10 @@ export class SpaceModel {
             },
             spaceUuid,
             views: parseInt(savedQuery.views, 10),
+            chartType: getChartType(
+                savedQuery.chart_type,
+                savedQuery.chart_config,
+            ),
         }));
     }
 

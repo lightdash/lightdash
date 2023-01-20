@@ -65,6 +65,11 @@ const VisualizationCardOptions: FC = memo(() => {
                         setStacking(false);
 
                         return { text: 'Scatter chart', icon: 'scatter-plot' };
+                    case CartesianSeriesType.MIXED:
+                        return {
+                            text: 'Mixed',
+                            icon: 'chart',
+                        };
                     default:
                         const never: never = cartesianType;
                         throw new Error('Cartesian type not supported');
