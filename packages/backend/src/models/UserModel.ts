@@ -250,15 +250,11 @@ export class UserModel {
                 'organizations.created_at as organization_created_at',
             );
         if (user === undefined) {
-            throw new NotFoundError(
-                `No user found with uuid ${userUuid} and password`,
-            );
+            throw new NotFoundError(`No user found with uuid ${userUuid}`);
         }
         const match = await bcrypt.compare(password, user.password_hash || '');
         if (!match) {
-            throw new NotFoundError(
-                `No User found with uuid ${userUuid} and password`,
-            );
+            throw new NotFoundError('Password not recognized.');
         }
         return mapDbUserDetailsToLightdashUser(user);
     }

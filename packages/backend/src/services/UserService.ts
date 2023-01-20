@@ -485,31 +485,22 @@ export class UserService {
         }
     }
 
+    async hasPassword(user: SessionUser): Promise<boolean> {
+        return this.userModel.hasPassword(user.userUuid);
+    }
+
     async updatePassword(
-        userId: number,
-        userUuid: string,
+        user: SessionUser,
         data: { password: string; newPassword: string },
     ): Promise<void> {
-        // Todo: Move to authorization service layer
-        let user: LightdashUser;
-        try {
-            user = await this.userModel.getUserByUuidAndPassword(
-                userUuid,
+        const hasPassword = await this.hasPassword(user);
+        if (hasPassword) {
+            await this.userModel.getUserByUuidAndPassword(
+                user.userUuid,
                 data.password,
             );
-        } catch (e) {
-            if (e instanceof NotFoundError) {
-                const hasPassword = await this.userModel.hasPassword(userUuid);
-                if (hasPassword)
-                    throw new AuthorizationError('Password not recognized.');
-                else
-                    throw new AuthorizationError(
-                        `There is no password set on this social login account`,
-                    );
-            }
-            throw e;
         }
-        await updatePassword(userId, data.newPassword);
+        await updatePassword(user.userId, data.newPassword);
         analytics.track({
             userId: user.userUuid,
             event: 'password.updated',
