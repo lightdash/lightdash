@@ -1,3 +1,10 @@
+# [0.382.0](https://github.com/lightdash/lightdash/compare/0.381.0...0.382.0) (2023-01-20)
+
+
+### Features
+
+* one login authentication ([#4218](https://github.com/lightdash/lightdash/issues/4218)) ([a2a6018](https://github.com/lightdash/lightdash/commit/a2a6018946b1baf9ff5da47b43f7814bdf1172c7))
+
 # [0.381.0](https://github.com/lightdash/lightdash/compare/0.380.0...0.381.0) (2023-01-20)
 
 
