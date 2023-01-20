@@ -8,12 +8,6 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable('projects', (table) => {
         table.unique(['project_uuid']);
     });
-    await knex.schema.alterTable('saved_queries', (table) => {
-        table.unique(['saved_query_uuid']);
-    });
-    await knex.schema.alterTable('dashboards', (table) => {
-        table.unique(['dashboard_uuid']);
-    });
     if (!(await knex.schema.hasTable(PinnedListTableName))) {
         await knex.schema.createTable(PinnedListTableName, (table) => {
             table
@@ -90,11 +84,5 @@ export async function down(knex: Knex): Promise<void> {
     await knex.schema.dropTableIfExists(PinnedListTableName);
     await knex.schema.alterTable('projects', (table) => {
         table.dropUnique(['project_uuid']);
-    });
-    await knex.schema.alterTable('saved_queries', (table) => {
-        table.dropUnique(['saved_query_uuid']);
-    });
-    await knex.schema.alterTable('dashboards', (table) => {
-        table.dropUnique(['dashboard_uuid']);
     });
 }
