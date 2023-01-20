@@ -141,6 +141,16 @@ export class DashboardService {
             dashboard.uuid,
             user.userUuid,
         );
+        analytics.track({
+            event: 'dashboard.view',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: dashboard.uuid,
+                organizationId: dashboard.organizationUuid,
+                projectId: dashboard.projectUuid,
+            },
+        });
+
         return dashboard;
     }
 
@@ -186,7 +196,7 @@ export class DashboardService {
             userId: user.userUuid,
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
-        return this.getById(user, newDashboard.uuid);
+        return this.dashboardModel.getById(newDashboard.uuid);
     }
 
     async duplicate(
@@ -238,7 +248,8 @@ export class DashboardService {
                 duplicateOfDashboardId: dashboard.uuid,
             },
         });
-        return this.getById(user, newDashboard.uuid);
+
+        return this.dashboardModel.getById(newDashboard.uuid);
     }
 
     async update(
@@ -304,7 +315,7 @@ export class DashboardService {
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
         }
-        return this.getById(user, dashboardUuid);
+        return this.dashboardModel.getById(dashboardUuid);
     }
 
     async togglePinning(
