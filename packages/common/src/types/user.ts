@@ -42,7 +42,7 @@ export interface OpenIdUser {
     openId: {
         subject: string;
         issuer: string;
-        issuerType: 'google' | 'okta';
+        issuerType: 'google' | 'okta' | 'oneLogin';
         email: string;
         firstName: string | undefined;
         lastName: string | undefined;

@@ -106,6 +106,23 @@ apiV1Router.get(
 );
 
 apiV1Router.get(
+    lightdashConfig.auth.oneLogin.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('oneLogin', {
+        scope: ['openid', 'profile', 'email'],
+    }),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.oneLogin.callbackPath,
+    passport.authenticate('oneLogin', {
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: '/api/v1/oauth/success',
+        failureFlash: true,
+    }),
+);
+
+apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
     storeOIDCRedirect,
     passport.authenticate('google', {

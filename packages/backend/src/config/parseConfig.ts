@@ -112,10 +112,19 @@ type AuthOktaConfig = {
     loginPath: string;
 };
 
+type AuthOneLoginConfig = {
+    oauth2Issuer: string | undefined;
+    oauth2ClientId: string | undefined;
+    oauth2ClientSecret: string | undefined;
+    callbackPath: string;
+    loginPath: string;
+};
+
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     google: AuthGoogleConfig;
     okta: AuthOktaConfig;
+    oneLogin: AuthOneLoginConfig;
 };
 
 export type SmtpConfig = {
@@ -230,6 +239,14 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 oktaDomain: process.env.AUTH_OKTA_DOMAIN,
                 callbackPath: '/oauth/redirect/okta',
                 loginPath: '/login/okta',
+            },
+            oneLogin: {
+                oauth2Issuer: process.env.AUTH_ONE_LOGIN_OAUTH_ISSUER,
+                oauth2ClientId: process.env.AUTH_ONE_LOGIN_OAUTH_CLIENT_ID,
+                oauth2ClientSecret:
+                    process.env.AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET,
+                callbackPath: '/oauth/redirect/oneLogin',
+                loginPath: '/login/oneLogin',
             },
         },
         intercom: {

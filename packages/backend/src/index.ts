@@ -22,6 +22,7 @@ import {
     googlePassportStrategy,
     localPassportStrategy,
     oktaPassportStrategy,
+    oneLoginPassportStrategy,
 } from './controllers/authentication';
 import database from './database/database';
 import { errorHandler } from './errors';
@@ -254,6 +255,9 @@ if (googlePassportStrategy) {
 }
 if (oktaPassportStrategy) {
     passport.use('okta', oktaPassportStrategy);
+}
+if (oneLoginPassportStrategy) {
+    passport.use('oneLogin', oneLoginPassportStrategy);
 }
 passport.serializeUser((user, done) => {
     // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field

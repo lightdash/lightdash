@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 
 export type DbOpenIdIdentity = {
     issuer: string;
-    issuer_type: 'google' | 'okta';
+    issuer_type: 'google' | 'okta' | 'oneLogin';
     subject: string;
     user_id: number;
     created_at: Date;

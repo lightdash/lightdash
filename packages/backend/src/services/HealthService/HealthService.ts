@@ -81,6 +81,11 @@ export class HealthService {
                     loginPath: this.lightdashConfig.auth.okta.loginPath,
                     enabled: !!this.lightdashConfig.auth.okta.oauth2ClientId,
                 },
+                oneLogin: {
+                    loginPath: this.lightdashConfig.auth.oneLogin.loginPath,
+                    enabled:
+                        !!this.lightdashConfig.auth.oneLogin.oauth2ClientId,
+                },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
         };

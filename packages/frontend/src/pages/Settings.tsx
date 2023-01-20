@@ -71,7 +71,9 @@ const Settings: FC = () => {
         !health.auth.disablePasswordAuthentication;
 
     const hasSocialLogin =
-        health.auth.google.oauth2ClientId || health.auth.okta.enabled;
+        health.auth.google.oauth2ClientId ||
+        health.auth.okta.enabled ||
+        health.auth.oneLogin.enabled;
 
     return (
         <PageWithSidebar alignItems="flex-start">
@@ -93,8 +95,7 @@ const Settings: FC = () => {
                             />
                         )}
 
-                        {(health.auth.google.oauth2ClientId ||
-                            health.auth.okta.enabled) && (
+                        {hasSocialLogin && (
                             <RouterMenuItem
                                 text="Social logins"
                                 exact

@@ -48,12 +48,15 @@ This is a reference to all the SMTP environment variables that can be used to co
 These variables enable you to control Single Sign On (SSO) functionality.
 
 | Variable                               | Description                                              | Required? | Default |
-|----------------------------------------|----------------------------------------------------------|-----------|------|
-| `AUTH_DISABLE_PASSWORD_AUTHENTICATION` | If `"true"` disables signing in with plain passwords     | | false |
-| `AUTH_GOOGLE_OAUTH2_CLIENT_ID`         | Required for Google SSO                                  | |      |
-| `AUTH_GOOGLE_OAUTH2_CLIENT_SECRET`     | Required for Google SSO                                  | |      |
-| `AUTH_OKTA_OAUTH_CLIENT_ID`            | Required for Okta SSO                                    | |      |
-| `AUTH_OKTA_OAUTH_CLIENT_SECRET`        | Required for Okta SSO                                    | |      |
-| `AUTH_OKTA_OAUTH_ISSUER`               | Required for Okta SSO                                    | |      |
-| `AUTH_OKTA_DOMAIN`                     | Required for Okta SSO                                    | |      |
-| `AUTH_OKTA_AUTHORIZATION_SERVER_ID`    | Optional for Okta SSO with a custom authorization server | |      |
+|----------------------------------------|----------------------------------------------------------|-----------|---------|
+| `AUTH_DISABLE_PASSWORD_AUTHENTICATION` | If `"true"` disables signing in with plain passwords     |           | false   |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_ID`         | Required for Google SSO                                  |           |         |
+| `AUTH_GOOGLE_OAUTH2_CLIENT_SECRET`     | Required for Google SSO                                  |           |         |
+| `AUTH_OKTA_OAUTH_CLIENT_ID`            | Required for Okta SSO                                    |           |         |
+| `AUTH_OKTA_OAUTH_CLIENT_SECRET`        | Required for Okta SSO                                    |           |         |
+| `AUTH_OKTA_OAUTH_ISSUER`               | Required for Okta SSO                                    |           |         |
+| `AUTH_OKTA_DOMAIN`                     | Required for Okta SSO                                    |           |         |
+| `AUTH_OKTA_AUTHORIZATION_SERVER_ID`    | Optional for Okta SSO with a custom authorization server |           |         |
+| `AUTH_ONE_LOGIN_OAUTH_CLIENT_ID`       | Required for One Login SSO                               |           |         |
+| `AUTH_ONE_LOGIN_OAUTH_CLIENT_SECRET`   | Required for One Login SSO                               |           |         |
+| `AUTH_ONE_LOGIN_OAUTH_ISSUER`          | Required for One Login SSO                               |           |         |

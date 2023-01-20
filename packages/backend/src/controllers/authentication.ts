@@ -15,7 +15,10 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oidc';
 import { HeaderAPIKeyStrategy } from 'passport-headerapikey';
 import { Strategy as LocalStrategy } from 'passport-local';
-import { Strategy as OpenIDConnectStrategy } from 'passport-openidconnect';
+import {
+    Strategy as OpenIDConnectStrategy,
+    VerifyFunctionWithRequest,
+} from 'passport-openidconnect';
 import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -200,6 +203,51 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
               }
           },
       );
+
+const genericOidcHandler =
+    (
+        issuerType: OpenIdUser['openId']['issuerType'],
+    ): VerifyFunctionWithRequest =>
+    async (req, issuer, profile, done) => {
+        try {
+            const { inviteCode } = req.session.oauth || {};
+            req.session.oauth = {};
+            const [{ value: email }] = profile.emails;
+            const { id: subject } = profile;
+            if (!(email && subject)) {
+                return done(null, false, {
+                    message: 'Could not parse authentication token',
+                });
+            }
+            const [fallbackFirstName, fallbackLastName] = (
+                profile.displayName || ''
+            ).split(' ');
+            const openIdUser: OpenIdUser = {
+                openId: {
+                    issuer,
+                    email,
+                    subject,
+                    firstName: profile.name?.givenName || fallbackFirstName,
+                    lastName: profile.name?.familyName || fallbackLastName,
+                    issuerType,
+                },
+            };
+            const user = await userService.loginWithOpenId(
+                openIdUser,
+                req.user,
+                inviteCode,
+            );
+            return done(null, user);
+        } catch (e) {
+            if (e instanceof LightdashError) {
+                return done(null, false, { message: e.message });
+            }
+            Logger.warn(`Unexpected error while authorizing user: ${e}`);
+            return done(null, false, {
+                message: 'Unexpected error authorizing user',
+            });
+        }
+    };
 export const oktaPassportStrategy = !(
     lightdashConfig.auth.okta.oauth2ClientId &&
     lightdashConfig.auth.okta.oauth2ClientSecret &&
@@ -221,46 +269,42 @@ export const oktaPassportStrategy = !(
               userInfoURL: generateOktaUrl('/userinfo'),
               passReqToCallback: true,
           },
-          async (req, issuer, profile, done) => {
-              try {
-                  const { inviteCode } = req.session.oauth || {};
-                  req.session.oauth = {};
-                  const [{ value: email }] = profile.emails;
-                  const { id: subject } = profile;
-                  if (!(email && subject)) {
-                      return done(null, false, {
-                          message: 'Could not parse authentication token',
-                      });
-                  }
-                  const [firstName, lastName] = (
-                      profile.displayName || ''
-                  ).split();
-                  const openIdUser: OpenIdUser = {
-                      openId: {
-                          issuer,
-                          email,
-                          subject,
-                          firstName,
-                          lastName,
-                          issuerType: 'okta',
-                      },
-                  };
-                  const user = await userService.loginWithOpenId(
-                      openIdUser,
-                      req.user,
-                      inviteCode,
-                  );
-                  return done(null, user);
-              } catch (e) {
-                  if (e instanceof LightdashError) {
-                      return done(null, false, { message: e.message });
-                  }
-                  Logger.warn(`Unexpected error while authorizing user: ${e}`);
-                  return done(null, false, {
-                      message: 'Unexpected error authorizing user',
-                  });
-              }
+          genericOidcHandler('okta'),
+      );
+
+export const oneLoginPassportStrategy = !(
+    lightdashConfig.auth.oneLogin.oauth2ClientId &&
+    lightdashConfig.auth.oneLogin.oauth2ClientSecret &&
+    lightdashConfig.auth.oneLogin.oauth2Issuer
+)
+    ? undefined
+    : new OpenIDConnectStrategy(
+          {
+              clientID: lightdashConfig.auth.oneLogin.oauth2ClientId,
+              clientSecret: lightdashConfig.auth.oneLogin.oauth2ClientSecret,
+              issuer: new URL(
+                  `/oidc/2`,
+                  lightdashConfig.auth.oneLogin.oauth2Issuer,
+              ).href,
+              callbackURL: new URL(
+                  `/api/v1${lightdashConfig.auth.oneLogin.callbackPath}`,
+                  lightdashConfig.siteUrl,
+              ).href,
+              authorizationURL: new URL(
+                  `/oidc/2/auth`,
+                  lightdashConfig.auth.oneLogin.oauth2Issuer,
+              ).href,
+              tokenURL: new URL(
+                  `/oidc/2/token`,
+                  lightdashConfig.auth.oneLogin.oauth2Issuer,
+              ).href,
+              userInfoURL: new URL(
+                  `/oidc/2/me`,
+                  lightdashConfig.auth.oneLogin.oauth2Issuer,
+              ).href,
+              passReqToCallback: true,
           },
+          genericOidcHandler('oneLogin'),
       );
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
