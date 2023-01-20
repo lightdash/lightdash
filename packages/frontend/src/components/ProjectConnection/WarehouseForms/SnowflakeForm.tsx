@@ -6,6 +6,7 @@ import {
     isUppercase,
     startWithHTTPSProtocol,
 } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -128,13 +129,13 @@ const SnowflakeForm: FC<{
                             This is intended to keep Snowflake sessions alive
                             beyond the typical 4 hour timeout limit You can see
                             more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }
@@ -148,13 +149,13 @@ const SnowflakeForm: FC<{
                         <p>
                             This is Snowflake query tags parameter. You can see
                             more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }

@@ -6,6 +6,7 @@ import {
     isValidGithubToken,
     startWithSlash,
 } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -22,14 +23,14 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 labelHelp={
                     <p>
                         This is used to access your repo.
-                        <a
+                        <BlueprintLink
                             target="_blank"
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
                             rel="noreferrer"
                         >
                             {' '}
                             Click to open documentation
-                        </a>
+                        </BlueprintLink>
                         .
                     </p>
                 }

@@ -2,6 +2,7 @@ import { H6, Intent, NonIdealState } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
+import BlueprintLink from '../../common/BlueprintLink';
 import LinkButton from '../../common/LinkButton';
 import InviteExpertFooter from './InviteExpertFooter';
 import { ConnectWarehouseWrapper, Wrapper } from './ProjectConnectFlow.styles';
@@ -25,26 +26,26 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                     title={
                         <H6>
                             We only support warehouses that have{' '}
-                            <a
+                            <BlueprintLink
                                 href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 verified dbt adapters
-                            </a>{' '}
+                            </BlueprintLink>{' '}
                             for now
                         </H6>
                     }
                     description={
                         <>
                             You can vote on your warehouse in our{' '}
-                            <a
+                            <BlueprintLink
                                 href="https://github.com/lightdash/lightdash/issues"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 GitHub issues
-                            </a>{' '}
+                            </BlueprintLink>{' '}
                             or create a new issue if you can't see yours there.
                         </>
                     }

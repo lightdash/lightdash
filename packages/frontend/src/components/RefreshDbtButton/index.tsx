@@ -9,6 +9,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { BigButton } from '../common/BigButton';
+import BlueprintLink from '../common/BlueprintLink';
 import {
     DisabledRefreshDbt,
     LoadingSpinner,
@@ -43,13 +44,13 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                         <br />
                         To keep your Lightdash project in sync, you need to
                         update your dbt connection. <br />
-                        <a
+                        <BlueprintLink
                             target="_blank"
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#2-import-a-dbt-project"
                             rel="noreferrer"
                         >
                             Find out how to do that here.
-                        </a>
+                        </BlueprintLink>
                     </p>
                 }
             >

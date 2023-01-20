@@ -4,6 +4,7 @@ import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
+import BlueprintLink from '../BlueprintLink';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
 import {
@@ -98,13 +99,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     ) : (
                         <>
                             Learn more about permissions in our{' '}
-                            <a
+                            <BlueprintLink
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 docs
-                            </a>
+                            </BlueprintLink>
                             .
                         </>
                     )}

@@ -8,6 +8,7 @@ import {
 } from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
+import BlueprintLink from '../common/BlueprintLink';
 import ProjectAccess from './ProjectAccess';
 import { AddUserButton } from './ProjectAccess.styles';
 import ProjectAccessCreation from './ProjectAccessCreation';
@@ -35,7 +36,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                     <Header>
                         <TitleWrapper>
                             <Title>Project access</Title>
-                            <a
+                            <BlueprintLink
                                 role="button"
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
@@ -43,7 +44,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                 style={{ color: Colors.GRAY5 }}
                             >
                                 <Icon icon="info-sign" />
-                            </a>
+                            </BlueprintLink>
                         </TitleWrapper>
                         {!showProjectAccessCreate && (
                             <Can

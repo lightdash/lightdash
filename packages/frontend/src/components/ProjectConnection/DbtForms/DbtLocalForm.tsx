@@ -1,5 +1,6 @@
 import { Callout } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import BlueprintLink from '../../common/BlueprintLink';
 
 const DbtLocalForm: FC = () => (
     <>
@@ -19,13 +20,13 @@ const DbtLocalForm: FC = () => (
                 project.
             </p>
             Read docs{' '}
-            <a
+            <BlueprintLink
                 href="https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#2-install--launch-lightdash"
                 target="_blank"
                 rel="noreferrer"
             >
                 here
-            </a>{' '}
+            </BlueprintLink>{' '}
             to know more.
         </Callout>
     </>

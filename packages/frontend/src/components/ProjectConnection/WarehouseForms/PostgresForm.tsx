@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -114,13 +115,13 @@ const PostgresForm: FC<{
                             activity after which the operating system should
                             send a TCP keepalive message to the client. You can
                             see more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
                                 rel="noreferrer"
                             >
                                 postgresqlco documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }
@@ -137,13 +138,13 @@ const PostgresForm: FC<{
                         <p>
                             This controls the Postgres "search path". You can
                             see more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }
@@ -156,13 +157,13 @@ const PostgresForm: FC<{
                         <p>
                             This controls how dbt connects to Postgres databases
                             using SSL. You can see more details in
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }

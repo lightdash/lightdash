@@ -28,6 +28,7 @@ import {
     PageName,
     PageType,
 } from '../../../types/Events';
+import BlueprintLink from '../../common/BlueprintLink';
 import InvitesPanel from '../InvitesPanel';
 import InviteSuccess from './InviteSuccess';
 import {
@@ -216,7 +217,7 @@ const UserManagementPanel: FC = () => {
                 <HeaderWrapper>
                     <TitleWrapper>
                         <PanelTitle>User management settings</PanelTitle>
-                        <a
+                        <BlueprintLink
                             role="button"
                             href="https://docs.lightdash.com/references/roles"
                             target="_blank"
@@ -224,7 +225,7 @@ const UserManagementPanel: FC = () => {
                             style={{ color: Colors.GRAY5 }}
                         >
                             <Icon icon="info-sign" />
-                        </a>
+                        </BlueprintLink>
                     </TitleWrapper>
                     <AddUserButton
                         intent="primary"

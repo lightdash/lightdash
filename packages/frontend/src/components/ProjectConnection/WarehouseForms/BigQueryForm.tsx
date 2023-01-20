@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import FileInput from '../../ReactHookForm/FileInput';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -28,13 +29,13 @@ export const BigQuerySchemaInput: FC<{
                     If you're not sure what this is, check out the
                     <b> dataset </b>
                     value{' '}
-                    <a
+                    <BlueprintLink
                         target="_blank"
                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
                         rel="noreferrer"
                     >
                         you've set in your dbt <b>profiles.yml</b> file
-                    </a>
+                    </BlueprintLink>
                     .
                 </p>
             }
@@ -78,13 +79,13 @@ const BigQueryForm: FC<{
                     <p>
                         The location of BigQuery datasets. You can see more
                         details in{' '}
-                        <a
+                        <BlueprintLink
                             target="_blank"
                             href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
                             rel="noreferrer"
                         >
                             dbt documentation
-                        </a>
+                        </BlueprintLink>
                         .
                     </p>
                 }
@@ -102,13 +103,13 @@ const BigQueryForm: FC<{
                 labelHelp={
                     <p>
                         This is the JSON key file. You can see{' '}
-                        <a
+                        <BlueprintLink
                             target="_blank"
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
                             rel="noreferrer"
                         >
                             how to create a key here
-                        </a>
+                        </BlueprintLink>
                         .
                     </p>
                 }
@@ -130,13 +131,13 @@ const BigQueryForm: FC<{
                             If a dbt model takes longer than this timeout to
                             complete, then BigQuery may cancel the query. You
                             can see more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }
@@ -153,13 +154,13 @@ const BigQueryForm: FC<{
                         <p>
                             The priority for the BigQuery jobs that dbt
                             executes. You can see more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }
@@ -187,13 +188,13 @@ const BigQueryForm: FC<{
                             The number of times dbt should retry queries that
                             result in unhandled server errors You can see more
                             details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }
@@ -210,13 +211,13 @@ const BigQueryForm: FC<{
                             When a value is configured, queries executed by dbt
                             will fail if they exceed the configured maximum
                             bytes threshold. You can see more details in{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }

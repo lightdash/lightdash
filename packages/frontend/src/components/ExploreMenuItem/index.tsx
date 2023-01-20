@@ -3,6 +3,7 @@ import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import React from 'react';
 import styled from 'styled-components';
+import BlueprintLink from '../common/BlueprintLink';
 
 const StyledMenuItem2 = styled(MenuItem2)`
     .menu-item-label-element {
@@ -28,7 +29,7 @@ type ExploreMenuItemProps = {
 };
 
 const NoDimensionsIcon = () => (
-    <a
+    <BlueprintLink
         role="button"
         href="https://docs.lightdash.com/guides/how-to-create-dimensions"
         target="_blank"
@@ -36,7 +37,7 @@ const NoDimensionsIcon = () => (
         style={{ color: Colors.GRAY5 }}
     >
         <Icon icon="info-sign" />
-    </a>
+    </BlueprintLink>
 );
 
 export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({

@@ -4,6 +4,7 @@ import {
     hasNoWhiteSpaces,
     startWithSlash,
 } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -22,14 +23,14 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <p>
                             This is your secret token used to access Azure
                             Devops. See the
-                            <a
+                            <BlueprintLink
                                 href="https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 {' '}
                                 instructions to create a personal access token{' '}
-                            </a>
+                            </BlueprintLink>
                             you can add the custom domain for your project in
                             here.
                         </p>

@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -112,13 +113,13 @@ const TrinoForm: FC<{
                         <p>
                             This controls how dbt connects to Trino database
                             using SSL. You can see more details in
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                     }

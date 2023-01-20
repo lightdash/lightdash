@@ -23,6 +23,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
+import BlueprintLink from '../common/BlueprintLink';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -121,13 +122,13 @@ const ProjectForm: FC<Props> = ({
 
                     <LeftPanelMessage>
                         Your dbt project must be compatible with{' '}
-                        <a
+                        <BlueprintLink
                             href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
                             target="_blank"
                             rel="noreferrer"
                         >
                             dbt version <b>1.3.0</b>
-                        </a>
+                        </BlueprintLink>
                     </LeftPanelMessage>
                 </LeftPanel>
                 <RightPanel>
@@ -234,13 +235,13 @@ export const UpdateProjectConnection: FC<{
                     settings cannot be changed.
                 </p>
                 Read docs{' '}
-                <a
+                <BlueprintLink
                     href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                     target="_blank"
                     rel="noreferrer"
                 >
                     here
-                </a>{' '}
+                </BlueprintLink>{' '}
                 to know more.
             </Callout>
         );

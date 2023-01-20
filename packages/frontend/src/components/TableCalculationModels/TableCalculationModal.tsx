@@ -10,6 +10,7 @@ import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
+import BlueprintLink from '../common/BlueprintLink';
 import Input from '../ReactHookForm/Input';
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
@@ -190,13 +191,13 @@ const TableCalculationModal: FC<Props> = ({
                     <Callout intent="none" icon="clean">
                         <p>
                             Need inspiration?{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
                                 rel="noreferrer"
                             >
                                 Check out our templates!
-                            </a>
+                            </BlueprintLink>
                         </p>
                     </Callout>
                 </DialogBody>

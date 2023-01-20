@@ -2,6 +2,7 @@ import { AnchorButton, Button, Icon, Spinner } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
+import BlueprintLink from '../../common/BlueprintLink';
 import {
     Actions,
     AppearancePanelWrapper,
@@ -39,9 +40,9 @@ const SlackSettingsPanel: FC = () => {
                 <Description>
                     Sharing in Slack allows you to unfurl Lightdash URLs in your
                     workspace.{' '}
-                    <a href="https://docs.lightdash.com/guides/sharing-in-slack">
+                    <BlueprintLink href="https://docs.lightdash.com/guides/sharing-in-slack">
                         View docs
-                    </a>
+                    </BlueprintLink>
                 </Description>
             </AppearancePanelWrapper>
             {isValidSlack ? (

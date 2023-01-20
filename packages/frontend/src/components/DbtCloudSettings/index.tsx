@@ -15,6 +15,7 @@ import {
     Title,
     TitleWrapper,
 } from '../../pages/ProjectSettings.styles';
+import BlueprintLink from '../common/BlueprintLink';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import PasswordInput from '../ReactHookForm/PasswordInput';
@@ -58,9 +59,9 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                 Connect Lightdash to your dbt Cloud account to start consuming
                 metrics from the dbt semantic layer and using dbt jinja in your
                 queries. To get started we recommend following the{' '}
-                <a href="https://docs.lightdash.com/guides/dbt-semantic-layer">
+                <BlueprintLink href="https://docs.lightdash.com/guides/dbt-semantic-layer">
                     dbt cloud semantic layer guide
-                </a>{' '}
+                </BlueprintLink>{' '}
                 in the Lightdash docs.
             </Subtitle>
             <Card>

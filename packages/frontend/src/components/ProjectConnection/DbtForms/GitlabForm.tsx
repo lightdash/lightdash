@@ -5,6 +5,7 @@ import {
     isGitRepository,
     startWithSlash,
 } from '../../../utils/fieldValidators';
+import BlueprintLink from '../../common/BlueprintLink';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -22,14 +23,14 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <>
                         <p>
                             This is used to access your repo. See the{' '}
-                            <a
+                            <BlueprintLink
                                 target="_blank"
                                 href="https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html"
                                 rel="noreferrer"
                             >
                                 instructions for creating a personal access
                                 token here
-                            </a>
+                            </BlueprintLink>
                             .
                         </p>
                         <p>
@@ -142,14 +143,14 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         If you’ve customized the domain for your GitLab pages,
                         you can add the custom domain for your project in here.
                         By default, this is
-                        <a
+                        <BlueprintLink
                             href="http://gitlab.io/"
                             target="_blank"
                             rel="noreferrer"
                         >
                             {' '}
                             gitlab.io
-                        </a>
+                        </BlueprintLink>
                         .
                     </p>
                 }
