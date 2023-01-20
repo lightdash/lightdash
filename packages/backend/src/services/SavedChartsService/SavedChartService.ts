@@ -225,6 +225,16 @@ export class SavedChartService {
             user.userUuid,
         );
 
+        analytics.track({
+            event: 'saved_chart.view',
+            userId: user.userUuid,
+            properties: {
+                savedChartId: savedChart.uuid,
+                organizationId: savedChart.organizationUuid,
+                projectId: savedChart.projectUuid,
+            },
+        });
+
         const views = await this.analyticsModel.countChartViews(savedChartUuid);
 
         return {

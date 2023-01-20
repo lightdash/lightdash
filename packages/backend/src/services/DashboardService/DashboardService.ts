@@ -131,6 +131,16 @@ export class DashboardService {
             dashboard.uuid,
             user.userUuid,
         );
+        analytics.track({
+            event: 'dashboard.view',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: dashboard.uuid,
+                organizationId: dashboard.organizationUuid,
+                projectId: dashboard.projectUuid,
+            },
+        });
+
         return dashboard;
     }
 
