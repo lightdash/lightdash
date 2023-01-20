@@ -1,3 +1,10 @@
+# [0.381.0](https://github.com/lightdash/lightdash/compare/0.380.0...0.381.0) (2023-01-20)
+
+
+### Features
+
+* add chart type to spaces request ([#4213](https://github.com/lightdash/lightdash/issues/4213)) ([b54ea02](https://github.com/lightdash/lightdash/commit/b54ea02c9fdd514e9e36c37b4d77a6cc0e0e474e))
+
 # [0.380.0](https://github.com/lightdash/lightdash/compare/0.379.0...0.380.0) (2023-01-19)
 
 
