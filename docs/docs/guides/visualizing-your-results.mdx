@@ -22,6 +22,8 @@ import ConfigureMultipleSeries from './assets/multiple-series-configure.png';
 import PivotTable from './assets/pivot-table-config.jpg';
 import AddReferenceLine from './assets/add-reference-line.png';
 import ReferenceLineConfig from './assets/reference-line-config.png';
+import LockedColumn from './assets/locked-column.jpg';
+import ConditionalFormatting from './assets/conditional-formatting.png';
 
 # Visualizing your results
 
@@ -78,8 +80,28 @@ The options for Tables include:
 - Showing/hiding the table name from the column labels.
 - Showing/hiding the totals for your columns. 
 - Pivoting by a column. 
+- Locking a column in your table.
+- Adding conditional formatting to your cells.
 
 By default, we attach the table name to your field name (just in case you've got any duplicate fields from joined tables). But, you can easily turn this off in your table viz with a toggle.
+
+#### Locking columns from scroll
+
+If you have a very wide table, you may want some columns to always be locked to the left while you're scrolling. In Lightdash, you can just click on the lock icon beside the columns you want to keep pinned to the left of your table visualization. Now, if someone is looking at your table, they'll always see those columns, locked in view.
+
+<img src={LockedColumn} width="419" height="749" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### Conditional formatting
+
+Sometimes it’s helpful to highlight certain values in your tables when they meet a specific condition. You can set up conditional formatting rules by going to the Configure tab then clicking on Conditional Formatting.
+
+<img src={ConditionalFormatting} width="698" height="297" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+When you add a new rule, you’ll first need to pick which column should be affected, then you'll need to choose condition you want to match and the colour to change the cell if it matches that condition.
+
+<img src={ConditionalFormattingRule} width="349" height="563" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You can set as many rules on a table as you want. If two or more rules disagree with each other, the rule that’s on the bottom of your list of rules will win.
 
 #### Pivoting
 
