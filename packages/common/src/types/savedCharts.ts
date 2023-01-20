@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
@@ -331,7 +332,9 @@ export const getChartType = (
                 if (isSeriesWithMixedChartTypes(value.eChartsConfig.series))
                     return ChartKind.MIXED;
 
-                switch (value.eChartsConfig.series?.[0]?.type) {
+                const seriesType = value.eChartsConfig.series?.[0]?.type;
+                if (seriesType === undefined) return undefined;
+                switch (seriesType) {
                     case CartesianSeriesType.AREA:
                         return ChartKind.AREA;
                     case CartesianSeriesType.BAR:
@@ -341,11 +344,17 @@ export const getChartType = (
                     case CartesianSeriesType.SCATTER:
                         return ChartKind.SCATTER;
                     default:
-                        return undefined;
+                        return assertUnreachable(
+                            seriesType,
+                            `No chartKind implemented for series type: ${seriesType}`,
+                        );
                 }
             }
             return undefined;
         default:
-            return undefined;
+            return assertUnreachable(
+                chartType,
+                `No chartKind implemented for chartType: ${chartType}`,
+            );
     }
 };
