@@ -8,7 +8,7 @@ export const GoogleLoginWrapper = styled(BlueprintLink)`
     height: 40px;
     border-radius: 3px;
     border: 1px solid ${Colors.LIGHT_GRAY3};
-    color: ${Colors.DARK_GRAY1};
+    color: ${Colors.DARK_GRAY1} !important;
     text-align: center;
     display: flex;
     font-size: 14px;

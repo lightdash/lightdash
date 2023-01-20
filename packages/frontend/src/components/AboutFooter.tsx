@@ -15,6 +15,7 @@ import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
 import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';
 import { PageName, PageType, SectionName } from '../types/Events';
+import BlueprintLink from './common/BlueprintLink';
 
 const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     minimal,
@@ -107,13 +108,13 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     {healthState.data?.latest.version} is now
                                     available. Please follow the instructions in
                                     the{' '}
-                                    <a
+                                    <BlueprintLink
                                         href="https://docs.lightdash.com/references/update-lightdash/"
                                         target="_blank"
                                         rel="noreferrer"
                                     >
                                         How to update version
-                                    </a>{' '}
+                                    </BlueprintLink>{' '}
                                     documentation.
                                 </Callout>
                             )}

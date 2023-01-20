@@ -91,12 +91,12 @@ const ResetBlueprintDump = createGlobalStyle`
     /* Fix bugs by reset */
     /*********************/
 
-    a.bp4-link{
+    .bp4-link{
         color:#215db0;
         text-decoration: none;
     }
 
-    a.bp4-link:hover{
+    .bp4-link:hover{
         color:#215db0;
         text-decoration: underline;
         cursor: pointer;

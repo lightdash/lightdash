@@ -1,6 +1,7 @@
 import { Colors, Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { ComponentProps, FC } from 'react';
+import BlueprintLink from './common/BlueprintLink';
 import './DocumentationHelpButton.css';
 
 type Props = {
@@ -27,7 +28,7 @@ const DocumentationHelpButton: FC<Props> = ({
         position="top"
         {...tooltipProps}
     >
-        <a
+        <BlueprintLink
             role="button"
             href={url}
             target="_blank"
@@ -36,7 +37,7 @@ const DocumentationHelpButton: FC<Props> = ({
             {...anchorProps}
         >
             <Icon icon="help" intent="none" iconSize={15} {...iconProps} />
-        </a>
+        </BlueprintLink>
     </Tooltip2>
 );
 
