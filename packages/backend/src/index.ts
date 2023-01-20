@@ -178,8 +178,21 @@ if (
     );
 }
 
-// frontend
-app.use(express.static(path.join(__dirname, '../../frontend/build')));
+// frontend assets - immutable because vite appends hash to filenames
+app.use(
+    '/assets',
+    express.static(path.join(__dirname, '../../frontend/build/assets'), {
+        immutable: true,
+        maxAge: '1y',
+    }),
+);
+
+// frontend static files - no cache
+app.use(
+    express.static(path.join(__dirname, '../../frontend/build'), {
+        maxAge: 0,
+    }),
+);
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'));
