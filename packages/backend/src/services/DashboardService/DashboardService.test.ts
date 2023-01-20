@@ -56,9 +56,7 @@ jest.mock('../../models/models', () => ({
     analyticsModel: {
         addDashboardViewEvent: jest.fn(async () => null),
     },
-    pinnedListModel: {
-        getFullSpace: jest.fn(async () => publicSpace),
-    },
+    pinnedListModel: {},
 }));
 
 describe('DashboardService', () => {

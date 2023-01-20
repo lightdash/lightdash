@@ -19,6 +19,7 @@ export async function up(knex: Knex): Promise<void> {
                 .uuid('project_uuid')
                 .references('project_uuid')
                 .inTable('projects')
+                .unique()
                 .onDelete('CASCADE');
             table
                 .timestamp('created_at', { useTz: false })
@@ -35,13 +36,11 @@ export async function up(knex: Knex): Promise<void> {
                 .defaultTo(knex.raw('uuid_generate_v4()'));
             table
                 .uuid('pinned_list_uuid')
-                .nullable()
                 .references('pinned_list_uuid')
                 .inTable(PinnedListTableName)
                 .onDelete('CASCADE');
             table
                 .uuid('saved_chart_uuid')
-                .nullable()
                 .references('saved_query_uuid')
                 .inTable('saved_queries')
                 .onDelete('CASCADE');
@@ -49,6 +48,7 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
+            table.unique(['pinned_list_uuid', 'saved_chart_uuid']);
         });
     }
     if (!(await knex.schema.hasTable(PinnedDashboardTableName))) {
@@ -60,13 +60,11 @@ export async function up(knex: Knex): Promise<void> {
                 .defaultTo(knex.raw('uuid_generate_v4()'));
             table
                 .uuid('pinned_list_uuid')
-                .nullable()
                 .references('pinned_list_uuid')
                 .inTable(PinnedListTableName)
                 .onDelete('CASCADE');
             table
                 .uuid('dashboard_uuid')
-                .nullable()
                 .references('dashboard_uuid')
                 .inTable('dashboards')
                 .onDelete('CASCADE');
@@ -74,6 +72,7 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
+            table.unique(['pinned_list_uuid', 'dashboard_uuid']);
         });
     }
 }
