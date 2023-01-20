@@ -5,6 +5,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { AcceptedResources, ResourceListCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
+import BlueprintLink from '../../BlueprintLink';
 import ResourceActionMenu from '../ResourceActionMenu';
 import ResourceLastEdited from '../ResourceLastEdited';
 import {
@@ -108,6 +109,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         position={Position.TOP}
                     >
                         <ResourceLink
+                            component={BlueprintLink}
                             to={getURL(row)}
                             onClick={(e) => e.stopPropagation()}
                         >
@@ -135,6 +137,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
 
                     return space ? (
                         <ResourceSpaceLink
+                            component={BlueprintLink}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e) => e.stopPropagation()}
                         >

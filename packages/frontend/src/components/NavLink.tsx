@@ -1,5 +1,6 @@
 import React, { CSSProperties, FC } from 'react';
 import { Route } from 'react-router-dom';
+import BlueprintLink from './common/BlueprintLink';
 import { StyledNavLink } from './NavLink.styles';
 
 interface Props {
@@ -17,7 +18,7 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
             const isActive = match?.isExact;
 
             return (
-                <StyledNavLink to={to} style={style}>
+                <StyledNavLink component={BlueprintLink} to={to} style={style}>
                     {typeof children === 'function'
                         ? children(isActive)
                         : React.Children.map(children, (child) => {

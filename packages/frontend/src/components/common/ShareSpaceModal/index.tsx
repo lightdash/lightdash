@@ -90,6 +90,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         <>
                             Can’t find a user? Spaces can only be shared with{' '}
                             <Link
+                                component={BlueprintLink}
                                 to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                             >
                                 existing project members

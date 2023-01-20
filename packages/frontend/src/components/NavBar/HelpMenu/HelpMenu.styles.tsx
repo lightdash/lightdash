@@ -1,11 +1,12 @@
 import { Colors, Menu } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintLink from '../../common/BlueprintLink';
 
 export const MenuWrapper = styled(Menu)`
     padding: 1.214em 0.571em;
 `;
 
-export const LinkWrapper = styled.a`
+export const LinkWrapper = styled(BlueprintLink)`
     text-decoration: none !important;
 `;
 

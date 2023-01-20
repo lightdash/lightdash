@@ -1,5 +1,6 @@
 import { Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import BlueprintLink from '../components/common/BlueprintLink';
 import SimpleButton from '../components/common/SimpleButton';
 
 export const CreateProjectWrapper = styled.div`
@@ -40,6 +41,6 @@ export const FloatingBackButton = styled(BackButton)`
     top: -40px;
 `;
 
-export const ExternalLink = styled.a`
+export const ExternalLink = styled(BlueprintLink)`
     color: ${Colors.BLUE3};
 `;

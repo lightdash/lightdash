@@ -1,6 +1,7 @@
 import { Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import { BigButton } from '../components/common/BigButton';
+import BlueprintLink from '../components/common/BlueprintLink';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
 
@@ -86,7 +87,7 @@ export const FormFooterCopy = styled.p`
     text-align: center;
 `;
 
-export const FooterCta = styled.a`
+export const FooterCta = styled(BlueprintLink)`
     color: ${Colors.BLUE3};
 `;
 

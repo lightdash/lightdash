@@ -1,7 +1,8 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintLink from '../BlueprintLink';
 
-export const GoogleLoginWrapper = styled.a`
+export const GoogleLoginWrapper = styled(BlueprintLink)`
     background: ${Colors.WHITE};
     width: 100%;
     height: 40px;
