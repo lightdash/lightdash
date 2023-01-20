@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -110,7 +111,7 @@ const TrinoForm: FC<{
                     name="warehouse.http_scheme"
                     label="SSL mode"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             This controls how dbt connects to Trino database
                             using SSL. You can see more details in
                             <BlueprintLink
@@ -121,7 +122,7 @@ const TrinoForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     options={['http', 'https'].map((x) => ({
                         value: x,

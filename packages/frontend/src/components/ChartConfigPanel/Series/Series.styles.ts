@@ -7,6 +7,7 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 const InputStyle = css`
     background: ${Colors.WHITE};
@@ -77,7 +78,7 @@ export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
   `}
 `;
 
-export const SeriesTitle = styled.p`
+export const SeriesTitle = styled(BlueprintParagraph)`
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
     margin-bottom: 0.286em;

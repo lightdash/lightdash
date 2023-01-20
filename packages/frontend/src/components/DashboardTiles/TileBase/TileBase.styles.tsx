@@ -1,5 +1,6 @@
 import { Card, Colors, H5 } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 interface HeaderContainerProps {
     isEditMode: boolean;
@@ -85,7 +86,7 @@ export const ChartContainer = styled.div`
     display: flex;
 `;
 
-export const TooltipContent = styled.p`
+export const TooltipContent = styled(BlueprintParagraph)`
     max-width: 400px;
     margin: 0;
 `;
@@ -109,7 +110,7 @@ export const FilterWrapper = styled.div`
     gap: 4px;
 `;
 
-export const FilterLabel = styled.p`
+export const FilterLabel = styled(BlueprintParagraph)`
     margin-bottom: 5px;
     color: ${Colors.GRAY5};
     font-size: 12px;

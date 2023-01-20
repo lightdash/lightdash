@@ -1,5 +1,6 @@
 import { Button, Colors, FormGroup } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 export const ConfigWrapper = styled(FormGroup)`
     max-width: 28.571em;
@@ -14,7 +15,7 @@ export const ConfigWrapper = styled(FormGroup)`
     }
 `;
 
-export const SectionTitle = styled.p`
+export const SectionTitle = styled(BlueprintParagraph)`
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
     margin-bottom: 0.286em;

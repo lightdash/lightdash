@@ -11,6 +11,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import BlueprintLink from '../common/BlueprintLink';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import Input from '../ReactHookForm/Input';
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
@@ -189,7 +190,7 @@ const TableCalculationModal: FC<Props> = ({
                         />
                     </TableCalculationSqlInputWrapper>
                     <Callout intent="none" icon="clean">
-                        <p>
+                        <BlueprintParagraph>
                             Need inspiration?{' '}
                             <BlueprintLink
                                 target="_blank"
@@ -198,7 +199,7 @@ const TableCalculationModal: FC<Props> = ({
                             >
                                 Check out our templates!
                             </BlueprintLink>
-                        </p>
+                        </BlueprintParagraph>
                     </Callout>
                 </DialogBody>
                 <div className={Classes.DIALOG_FOOTER}>

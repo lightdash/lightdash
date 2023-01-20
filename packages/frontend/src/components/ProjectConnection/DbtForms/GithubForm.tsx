@@ -7,6 +7,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -21,7 +22,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.personal_access_token"
                 label="Personal access token"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         This is used to access your repo.
                         <BlueprintLink
                             target="_blank"
@@ -32,7 +33,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             Click to open documentation
                         </BlueprintLink>
                         .
-                    </p>
+                    </BlueprintParagraph>
                 }
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
@@ -54,10 +55,10 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.repository"
                 label="Repository"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         This should be in the format <b>my-org/my-repo</b>. e.g.{' '}
                         <b>lightdash/lightdash-analytics</b>
-                    </p>
+                    </BlueprintParagraph>
                 }
                 rules={{
                     required: 'Required field',
@@ -74,15 +75,15 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Branch"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the branch in your GitHub repo that
                             Lightdash should sync to. e.g. <b>main</b>,{' '}
                             <b>master</b> or <b>dev</b>
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             By default, we've set this to <b>main</b> but you
                             can change it to whatever you'd like.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -99,18 +100,18 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Project directory path"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             Put <b>/</b> if your <b>dbt_project.yml</b> file is
                             in the main folder of your repo (e.g.
                             lightdash/lightdash-analytics/dbt_project.yml).
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             Include the path to the sub-folder where your dbt
                             project is if your dbt project is in a sub-folder in
                             your repo. For example, if my project was in
                             lightdash/lightdash-analytics/dbt/dbt_project.yml,
                             I'd write <b>/dbt</b> in this field.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{

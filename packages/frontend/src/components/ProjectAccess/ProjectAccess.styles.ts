@@ -7,6 +7,7 @@ import {
     Tag,
 } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 export const ProjectAccessWrapper = styled.div`
     margin-top: 20px;
@@ -68,7 +69,7 @@ export const OrgAccessHeader = styled.div`
     justify-content: flex-start;
     align-items: center;
 `;
-export const OrgAccessTitle = styled.p`
+export const OrgAccessTitle = styled(BlueprintParagraph)`
     margin: 0;
     padding: 0;
     margin-right: 10px;

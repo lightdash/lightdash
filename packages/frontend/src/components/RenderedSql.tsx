@@ -1,6 +1,7 @@
 import { Callout, Code, NonIdealState, Pre, Spinner } from '@blueprintjs/core';
 import React from 'react';
 import { useCompliedSql } from '../hooks/useCompiledSql';
+import BlueprintParagraph from './common/BlueprintParagraph';
 
 export const RenderedSql = () => {
     const { data, error, isLoading } = useCompliedSql();
@@ -17,7 +18,9 @@ export const RenderedSql = () => {
         return (
             <div style={{ margin: 10 }}>
                 <Callout intent="danger" title="Compilation error">
-                    <p>{error.error.message}</p>
+                    <BlueprintParagraph>
+                        {error.error.message}
+                    </BlueprintParagraph>
                 </Callout>
             </div>
         );

@@ -16,6 +16,7 @@ import {
 } from '../../../hooks/dashboard/useDashboards';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
 import { useSavedCharts, useSpace, useSpaces } from '../../../hooks/useSpaces';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import { SpaceLabel } from './AddResourceToSpaceModal.style';
@@ -175,10 +176,10 @@ const AddResourceToSpaceModal: FC<Props> = ({
                 onSubmit={handleSubmit}
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>
+                    <BlueprintParagraph>
                         Select the {resourceType}s that you would like to move
                         into '{space?.name}'
-                    </p>
+                    </BlueprintParagraph>
                     <MultiSelect
                         name="items"
                         rules={{

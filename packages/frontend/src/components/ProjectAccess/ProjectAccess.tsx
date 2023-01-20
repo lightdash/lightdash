@@ -25,6 +25,7 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import {
     ItemContent,
     ProjectAccessWrapper,
@@ -122,10 +123,10 @@ const UserListItem: FC<{
                 lazy
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>
+                    <BlueprintParagraph>
                         Are you sure you want to revoke project access this user{' '}
                         {email} ?
-                    </p>
+                    </BlueprintParagraph>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>

@@ -29,6 +29,7 @@ import {
     PageType,
 } from '../../../types/Events';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import InvitesPanel from '../InvitesPanel';
 import InviteSuccess from './InviteSuccess';
 import {
@@ -161,7 +162,9 @@ const UserListItem: FC<{
                 lazy
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>Are you sure you want to delete this user ?</p>
+                    <BlueprintParagraph>
+                        Are you sure you want to delete this user ?
+                    </BlueprintParagraph>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>

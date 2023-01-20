@@ -5,6 +5,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -20,7 +21,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Personal access token"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is your secret token used to access Azure
                             Devops. See the
                             <BlueprintLink
@@ -33,12 +34,12 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             </BlueprintLink>
                             you can add the custom domain for your project in
                             here.
-                        </p>
+                        </BlueprintParagraph>
 
-                        <p>
+                        <BlueprintParagraph>
                             You must specify at least the <b>Repo:Read</b>{' '}
                             scope.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -90,15 +91,15 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Branch"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the branch in your Azure DevOps repo that
                             Lightdash should sync to. e.g. <b>main</b>,{' '}
                             <b>master</b> or <b>dev</b>
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             By default, we've set this to <b>main</b> but you
                             can change it to whatever you'd like.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -115,20 +116,20 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Project directory path"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the folder where your <b>dbt_project.yml</b>{' '}
                             file is found in the Azure DevOps repository you
                             entered above.
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             If your <b>dbt_project.yml</b> file is in the main
                             folder of your repo (e.g.{' '}
                             <b>lightdash/lightdash-analytics/dbt_project.yml</b>
                             ), then you don't need to change anything in here.
                             You can just leave the default value we've put in.
-                        </p>
+                        </BlueprintParagraph>
 
-                        <p>
+                        <BlueprintParagraph>
                             If your dbt project is in a sub-folder in your repo
                             (e.g.{' '}
                             <b>
@@ -137,7 +138,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             ), then you'll need to include the path to the
                             sub-folder where your dbt project is (e.g.
                             <b>/dbt</b>).
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{

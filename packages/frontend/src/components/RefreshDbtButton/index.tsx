@@ -10,6 +10,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { BigButton } from '../common/BigButton';
 import BlueprintLink from '../common/BlueprintLink';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import {
     DisabledRefreshDbt,
     LoadingSpinner,
@@ -39,7 +40,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                 hoverCloseDelay={500}
                 interactionKind="hover"
                 content={
-                    <p>
+                    <BlueprintParagraph>
                         You're still connected to a local dbt project.
                         <br />
                         To keep your Lightdash project in sync, you need to
@@ -51,7 +52,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                         >
                             Find out how to do that here.
                         </BlueprintLink>
-                    </p>
+                    </BlueprintParagraph>
                 }
             >
                 <DisabledRefreshDbt

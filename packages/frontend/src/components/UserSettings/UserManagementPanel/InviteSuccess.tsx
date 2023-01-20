@@ -5,6 +5,7 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useToggle } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useApp } from '../../../providers/AppProvider';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import { InviteSuccessCallout, MessageWrapper } from './InviteSuccess.styles';
 
 const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
@@ -45,7 +46,7 @@ const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
     return (
         <InviteSuccessCallout intent="success" $hasMarginTop={hasMarginTop}>
             <MessageWrapper>
-                <p>{message}</p>
+                <BlueprintParagraph>{message}</BlueprintParagraph>
                 <Button
                     aria-label="Close"
                     icon="cross"

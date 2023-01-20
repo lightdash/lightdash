@@ -10,7 +10,7 @@ type Props = {
     noContentPadding?: boolean;
 };
 
-const PageBase = styled('div')<Props>`
+const PageBase = styled.div<Props>`
     min-height: calc(
         100vh - ${(props) => (props.isFullHeight ? '0px' : '50px')}
     );

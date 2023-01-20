@@ -4,10 +4,11 @@ import styled from 'styled-components';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { ReactComponent as NoTableIcon } from '../../../svgs/emptystate-no-table.svg';
 import { SectionName } from '../../../types/Events';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
 
-const Questions = styled('p')`
+const Questions = styled(BlueprintParagraph)`
     color: ${Colors.GRAY1};
     position: relative;
     height: 18px;
@@ -90,13 +91,15 @@ export const EmptyStateNoColumns = () => (
         }
         description={
             <>
-                <p style={{ color: Colors.GRAY3, marginBottom: 18 }}>
+                <BlueprintParagraph
+                    style={{ color: Colors.GRAY3, marginBottom: 18 }}
+                >
                     What’s your data question? Select the{' '}
                     <span style={{ color: Colors.ORANGE1 }}>metric</span> you
                     want to calculate and the{' '}
                     <span style={{ color: Colors.BLUE1 }}>dimension(s)</span>{' '}
                     you want to split it by.
-                </p>
+                </BlueprintParagraph>
                 <Questions>
                     <span>
                         eg. How many{' '}
@@ -148,11 +151,13 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <ExploreNonIdealState
             description={
-                <p style={{ color: Colors.GRAY3, marginTop: 40 }}>
+                <BlueprintParagraph
+                    style={{ color: Colors.GRAY3, marginTop: 40 }}
+                >
                     {description}
                     {'  '}
                     <DocumentationHelpButton url={ExploreDocumentationUrl} />
-                </p>
+                </BlueprintParagraph>
             }
             action={<RefreshButton />}
         />
@@ -164,11 +169,11 @@ export const NoTableSelected = () => (
         icon={<NoTableIcon />}
         title="Select a table"
         description={
-            <p style={{ color: Colors.GRAY3 }}>
+            <BlueprintParagraph style={{ color: Colors.GRAY3 }}>
                 To run a query, first select the table that you would like to
                 explore.{' '}
                 <DocumentationHelpButton url={ExploreDocumentationUrl} />
-            </p>
+            </BlueprintParagraph>
         }
     />
 );

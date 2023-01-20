@@ -13,6 +13,7 @@ import {
     runningStepsInfo,
 } from '../../hooks/useRefreshServer';
 import { useActiveJob } from '../../providers/ActiveJobProvider';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import {
     ErrorMessageWrapper,
     RefreshStepsHeadingWrapper,
@@ -147,11 +148,13 @@ const JobDetailsDrawer: FC = () => {
                             </StepStatusWrapper>
                             {step.stepError && (
                                 <ErrorMessageWrapper>
-                                    <p>{step.stepError}</p>
+                                    <BlueprintParagraph>
+                                        {step.stepError}
+                                    </BlueprintParagraph>
                                     {step.stepDbtLogs
                                         ?.filter((log) => log.level === 'error')
                                         .map((log) => (
-                                            <p key={log.ts}>
+                                            <BlueprintParagraph key={log.ts}>
                                                 {log.msg
                                                     .split('\n')
                                                     .map((line) => (
@@ -160,7 +163,7 @@ const JobDetailsDrawer: FC = () => {
                                                             <br />
                                                         </>
                                                     ))}
-                                            </p>
+                                            </BlueprintParagraph>
                                         ))}
                                 </ErrorMessageWrapper>
                             )}

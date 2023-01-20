@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import FileInput from '../../ReactHookForm/FileInput';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -23,7 +24,7 @@ export const BigQuerySchemaInput: FC<{
             name="warehouse.dataset"
             label="Data set"
             labelHelp={
-                <p>
+                <BlueprintParagraph>
                     This is the name of your dbt dataset: the dataset in your
                     warehouse where the output of your dbt models is written to.
                     If you're not sure what this is, check out the
@@ -37,7 +38,7 @@ export const BigQuerySchemaInput: FC<{
                         you've set in your dbt <b>profiles.yml</b> file
                     </BlueprintLink>
                     .
-                </p>
+                </BlueprintParagraph>
             }
             documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
             rules={{
@@ -76,7 +77,7 @@ const BigQueryForm: FC<{
                 name="warehouse.location"
                 label="Location"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         The location of BigQuery datasets. You can see more
                         details in{' '}
                         <BlueprintLink
@@ -87,7 +88,7 @@ const BigQueryForm: FC<{
                             dbt documentation
                         </BlueprintLink>
                         .
-                    </p>
+                    </BlueprintParagraph>
                 }
                 rules={{
                     required: 'Required field',
@@ -101,7 +102,7 @@ const BigQueryForm: FC<{
                 name="warehouse.keyfileContents"
                 label="Key File"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         This is the JSON key file. You can see{' '}
                         <BlueprintLink
                             target="_blank"
@@ -111,7 +112,7 @@ const BigQueryForm: FC<{
                             how to create a key here
                         </BlueprintLink>
                         .
-                    </p>
+                    </BlueprintParagraph>
                 }
                 rules={{
                     required: requireSecrets ? 'Required field' : undefined,
@@ -127,7 +128,7 @@ const BigQueryForm: FC<{
                     name="warehouse.timeoutSeconds"
                     label="Timeout in seconds"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             If a dbt model takes longer than this timeout to
                             complete, then BigQuery may cancel the query. You
                             can see more details in{' '}
@@ -139,7 +140,7 @@ const BigQueryForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     rules={{
                         required: 'Required field',
@@ -151,7 +152,7 @@ const BigQueryForm: FC<{
                     name="warehouse.priority"
                     label="Priority"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             The priority for the BigQuery jobs that dbt
                             executes. You can see more details in{' '}
                             <BlueprintLink
@@ -162,7 +163,7 @@ const BigQueryForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     options={[
                         {
@@ -184,7 +185,7 @@ const BigQueryForm: FC<{
                     name="warehouse.retries"
                     label="Retries"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             The number of times dbt should retry queries that
                             result in unhandled server errors You can see more
                             details in{' '}
@@ -196,7 +197,7 @@ const BigQueryForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     rules={{
                         required: 'Required field',
@@ -207,7 +208,7 @@ const BigQueryForm: FC<{
                     name="warehouse.maximumBytesBilled"
                     label="Maximum bytes billed"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             When a value is configured, queries executed by dbt
                             will fail if they exceed the configured maximum
                             bytes threshold. You can see more details in{' '}
@@ -219,7 +220,7 @@ const BigQueryForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     rules={{
                         required: 'Required field',

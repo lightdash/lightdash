@@ -3,6 +3,7 @@ import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { Can } from './common/Authorization';
+import BlueprintParagraph from './common/BlueprintParagraph';
 
 const ForbiddenPanelWrapper = styled.div`
     margin-top: 30vh;
@@ -18,7 +19,9 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                 description={
                     <>
                         {' '}
-                        <p>Please contact the admin to request access.</p>
+                        <BlueprintParagraph>
+                            Please contact the admin to request access.
+                        </BlueprintParagraph>
                         <Can I="create" a={'Project'}>
                             {(isAllowed) => {
                                 return (

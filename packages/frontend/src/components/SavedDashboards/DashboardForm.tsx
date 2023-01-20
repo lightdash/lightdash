@@ -1,5 +1,6 @@
 import { DashboardBasicDetails } from '@lightdash/common';
 import { FC } from 'react';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';
 import Input from '../ReactHookForm/Input';
 
@@ -38,7 +39,9 @@ const DashboardForm: FC<DashboardFormProps> = ({
             )}
 
             {actionType === ActionTypeModal.DELETE && (
-                <p>Are you sure you want to delete this dashboard ?</p>
+                <BlueprintParagraph>
+                    Are you sure you want to delete this dashboard ?
+                </BlueprintParagraph>
             )}
         </>
     );

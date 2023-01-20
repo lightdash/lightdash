@@ -1,5 +1,6 @@
 import { AnchorButton, Card, Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 export const OnboardingPanelWrapper = styled.div`
     width: 54.857em;
@@ -10,7 +11,7 @@ export const Title = styled(H3)`
     text-align: left;
 `;
 
-export const Intro = styled.p`
+export const Intro = styled(BlueprintParagraph)`
     text-align: left;
     color: ${Colors.GRAY1};
 `;
@@ -34,14 +35,14 @@ export const StepContainer = styled.li`
     text-align: center;
 `;
 
-export const StepTitle = styled.p`
+export const StepTitle = styled(BlueprintParagraph)`
     font-weight: bold;
     font-size: 1.143em;
     line-height: 1.188em;
     margin-top: 1em;
     margin-bottom: 0;
 `;
-export const StepDescription = styled.p`
+export const StepDescription = styled(BlueprintParagraph)`
     font-size: 0.929em;
     line-height: 1.643em;
     color: ${Colors.GRAY2};

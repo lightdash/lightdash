@@ -14,6 +14,7 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaces,
 } from '../../hooks/useSpaces';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import { CreateNewText, FormGroupWrapper } from './SavedQueries.style';
 
 interface CreateSavedQueryModalProps {
@@ -107,9 +108,9 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                     </FormGroupWrapper>
                     {!showSpaceInput && (
                         <>
-                            <p>
+                            <BlueprintParagraph>
                                 <b>Select a space</b>
-                            </p>
+                            </BlueprintParagraph>
                             <HTMLSelect
                                 id="select-dashboard"
                                 fill={true}
@@ -136,9 +137,9 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                     )}
                     {showSpaceInput && (
                         <>
-                            <p>
+                            <BlueprintParagraph>
                                 <b>Space</b>
-                            </p>
+                            </BlueprintParagraph>
                             <InputGroup
                                 id="chart-space"
                                 type="text"

@@ -17,6 +17,7 @@ import {
 } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import LinkButton from '../../common/LinkButton';
 import { PanelTitle } from '../AccessTokensPanel/AccessTokens.styles';
 import {
@@ -93,10 +94,10 @@ const ProjectListItem: FC<{
                 lazy
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>
+                    <BlueprintParagraph>
                         Are you sure ? This will permanently delete the
                         <b> {name} </b> project.
-                    </p>
+                    </BlueprintParagraph>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>

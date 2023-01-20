@@ -6,6 +6,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -34,7 +35,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="HTTP access token"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             Bitbucket Cloud users should
                             <BlueprintLink
                                 href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-app-password/"
@@ -44,8 +45,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 {' '}
                                 follow instructions for creating an App Password
                             </BlueprintLink>
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             Bitbucket Server users should
                             <BlueprintLink
                                 href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
@@ -56,12 +57,12 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 follow instructions for creating a HTTP Access
                                 Token
                             </BlueprintLink>
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             Select <b>Project read</b> and{' '}
                             <b>Repository read</b> scope when you're creating
                             the token.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -76,10 +77,10 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.repository"
                 label="Repository"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         This should be in the format <b>my-org/my-repo</b>. e.g.{' '}
                         <b>lightdash/lightdash-analytics</b>
-                    </p>
+                    </BlueprintParagraph>
                 }
                 rules={{
                     required: 'Required field',
@@ -96,15 +97,15 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Branch"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the branch in your Bitbucket repo that
                             Lightdash should sync to. e.g. <b>main</b>,{' '}
                             <b>master</b> or <b>dev</b>
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             By default, we've set this to <b>main</b> but you
                             can change it to whatever you'd like.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -121,19 +122,19 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Project directory path"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the folder where your <b>dbt_project.yml</b>{' '}
                             file is found in the GitLab repository you entered
                             above.
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             If your <b>dbt_project.yml</b> file is in the main
                             folder of your repo (e.g.{' '}
                             <b>lightdash/lightdash-analytics/dbt_project.yml</b>
                             ), then you don't need to change anything in here.
                             You can just leave the default value we've put in.
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             If your dbt project is in a sub-folder in your repo
                             (e.g.{' '}
                             <b>
@@ -142,7 +143,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             ), then you'll need to include the path to the
                             sub-folder where your dbt project is (e.g.
                             <b>/dbt</b>).
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -163,7 +164,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.host_domain"
                 label="Host domain (for self-hosted instances)"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         If you've
                         <BlueprintLink
                             href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
@@ -174,7 +175,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             customized the domain for your Bitbucket server{' '}
                         </BlueprintLink>
                         you can add the custom domain for your project in here.
-                    </p>
+                    </BlueprintParagraph>
                 }
                 disabled={disabled}
                 defaultValue="bitbucket.org"

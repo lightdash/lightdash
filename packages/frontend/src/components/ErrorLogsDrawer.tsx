@@ -10,6 +10,7 @@ import {
 import MDEditor from '@uiw/react-md-editor';
 import React from 'react';
 import { ErrorLogEntry, useErrorLogs } from '../providers/ErrorLogsProvider';
+import BlueprintParagraph from './common/BlueprintParagraph';
 
 const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
     title,
@@ -39,7 +40,10 @@ const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
                 boxShadow: 'none',
             }}
         >
-            <p style={{ fontWeight: 'bold', marginBottom: 0 }}>{title}</p>
+            <BlueprintParagraph style={{ fontWeight: 'bold', marginBottom: 0 }}>
+                {title}
+            </BlueprintParagraph>
+
             {body && (
                 <MDEditor.Markdown
                     source={body.replace('\n', '\n\n')}

@@ -4,6 +4,7 @@ import React, { FC } from 'react';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 interface DeleteTableCalculationModalProps {
     isOpen: boolean;
@@ -37,7 +38,9 @@ const DeleteTableCalculationModal: FC<DeleteTableCalculationModalProps> = ({
             lazy
         >
             <div className={Classes.DIALOG_BODY}>
-                <p>Are you sure you want to delete this table calculation ?</p>
+                <BlueprintParagraph>
+                    Are you sure you want to delete this table calculation ?
+                </BlueprintParagraph>
             </div>
             <div className={Classes.DIALOG_FOOTER}>
                 <div className={Classes.DIALOG_FOOTER_ACTIONS}>

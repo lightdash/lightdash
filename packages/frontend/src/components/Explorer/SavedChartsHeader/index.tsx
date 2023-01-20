@@ -21,6 +21,7 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import DeleteActionModal from '../../common/modal/DeleteActionModal';
 import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import {
@@ -140,10 +141,10 @@ const SavedChartsHeader: FC = () => {
                         history.push(blockedNavigationLocation);
                 }}
             >
-                <p>
+                <BlueprintParagraph>
                     You have unsaved changes to your chart! Are you sure you
                     want to leave without saving?{' '}
-                </p>
+                </BlueprintParagraph>
             </Alert>
             <PageHeaderContainer>
                 <PageTitleAndDetailsContainer>

@@ -7,6 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import styled from 'styled-components';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 export const InputWrapper = styled(FormGroup)`
     margin: 1.357em 0 0;
@@ -60,7 +61,7 @@ export const AxisTitleWrapper = styled.div`
     align-items: center;
 `;
 
-export const AxisTitle = styled.p`
+export const AxisTitle = styled(BlueprintParagraph)`
     color: ${Colors.DARK_GRAY1};
     margin: 0;
     font-weight: 600;
@@ -136,7 +137,7 @@ export const GridSettings = styled.div`
     }
 `;
 
-export const SectionTitle = styled.p`
+export const SectionTitle = styled(BlueprintParagraph)`
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
     margin: 5px 0;

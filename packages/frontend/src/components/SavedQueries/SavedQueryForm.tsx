@@ -2,6 +2,7 @@ import { Classes } from '@blueprintjs/core';
 import { SpaceQuery } from '@lightdash/common';
 import { FC } from 'react';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import { ActionModalProps, ActionTypeModal } from '../common/modal/ActionModal';
 import Input from '../ReactHookForm/Input';
 
@@ -43,7 +44,9 @@ const SavedQueryForm: FC<SavedQueryFormProps> = ({
             )}
 
             {actionType === ActionTypeModal.DELETE && (
-                <p>Are you sure you want to delete this chart ?</p>
+                <BlueprintParagraph>
+                    Are you sure you want to delete this chart ?
+                </BlueprintParagraph>
             )}
         </>
     );

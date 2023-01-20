@@ -1,5 +1,6 @@
 import { SummaryExplore } from '@lightdash/common';
 import { FC } from 'react';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import Lineage from './Lineage';
 
 type TableInfoProps = Pick<
@@ -15,26 +16,26 @@ const TableInfo: FC<TableInfoProps> = ({
 }) => {
     return (
         <>
-            <p>
+            <BlueprintParagraph>
                 <b>Table</b>: {name}
-            </p>
+            </BlueprintParagraph>
 
             {schemaName && (
-                <p>
+                <BlueprintParagraph>
                     <b>Schema</b>: {schemaName}
-                </p>
+                </BlueprintParagraph>
             )}
 
             {databaseName && (
-                <p>
+                <BlueprintParagraph>
                     <b>Database</b>: {databaseName}
-                </p>
+                </BlueprintParagraph>
             )}
 
             {description && (
-                <p>
+                <BlueprintParagraph>
                     <b>Description</b>: {description}
-                </p>
+                </BlueprintParagraph>
             )}
 
             <Lineage tableName={name} />

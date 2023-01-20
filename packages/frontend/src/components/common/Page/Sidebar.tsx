@@ -20,14 +20,14 @@ const SidebarWrapper = styled(Card)`
     padding-bottom: 0;
 `;
 
-const SidebarColumn = styled('div')`
+const SidebarColumn = styled.div`
     height: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 `;
 
-const SidebarContent = styled('div')`
+const SidebarContent = styled.div`
     flex: 1;
     overflow: hidden;
     display: flex;

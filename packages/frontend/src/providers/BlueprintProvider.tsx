@@ -102,6 +102,11 @@ const ResetBlueprintDump = createGlobalStyle`
         cursor: pointer;
     }
 
+    .bp4-paragraph{
+        margin-bottom: 10px;
+        margin-top: 0;
+    }
+
     a.bp4-breadcrumb:hover {
         cursor: pointer;
     }

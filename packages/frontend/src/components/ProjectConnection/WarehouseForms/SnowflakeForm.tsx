@@ -7,6 +7,7 @@ import {
     startWithHTTPSProtocol,
 } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -125,7 +126,7 @@ const SnowflakeForm: FC<{
                     name="warehouse.clientSessionKeepAlive"
                     label="Keep client session alive"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             This is intended to keep Snowflake sessions alive
                             beyond the typical 4 hour timeout limit You can see
                             more details in{' '}
@@ -137,7 +138,7 @@ const SnowflakeForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     disabled={disabled}
                     defaultValue={false}
@@ -146,7 +147,7 @@ const SnowflakeForm: FC<{
                     name="warehouse.queryTag"
                     label="Query tag"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             This is Snowflake query tags parameter. You can see
                             more details in{' '}
                             <BlueprintLink
@@ -157,7 +158,7 @@ const SnowflakeForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     disabled={disabled}
                 />
@@ -165,12 +166,12 @@ const SnowflakeForm: FC<{
                     name="warehouse.accessUrl"
                     label="Snowflake URL override"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             Usually Lightdash would connect to a default url:
                             account.snowflakecomputing.com. If you'd like to
                             override this (e.g. for the dbt server) you can
                             specify a full custom URL here.
-                        </p>
+                        </BlueprintParagraph>
                     }
                     disabled={disabled}
                     rules={{

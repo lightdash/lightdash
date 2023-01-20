@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { ReactComponent as Logo } from '../../svgs/logo-dark.svg';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 export const MobileViewWrapper = styled.div`
     background: #ebf1f5;
@@ -22,7 +23,7 @@ export const Icon = styled.span`
     margin-top: 1.875rem;
 `;
 
-export const Text = styled.p`
+export const Text = styled(BlueprintParagraph)`
     max-width: 14.6875rem;
     font-size: 1rem;
     line-height: 1.125rem;

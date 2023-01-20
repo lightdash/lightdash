@@ -6,6 +6,7 @@ import {
     startWithSlash,
 } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import Input from '../../ReactHookForm/Input';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import { useProjectFormContext } from '../ProjectFormProvider';
@@ -21,7 +22,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Personal access token"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is used to access your repo. See the{' '}
                             <BlueprintLink
                                 target="_blank"
@@ -32,11 +33,11 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 token here
                             </BlueprintLink>
                             .
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             Select read_repository scope when you're creating
                             the token.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -51,10 +52,10 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.repository"
                 label="Repository"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         This should be in the format <b>my-org/my-repo</b>. e.g.{' '}
                         <b>lightdash/lightdash-analytics</b>
-                    </p>
+                    </BlueprintParagraph>
                 }
                 rules={{
                     required: 'Required field',
@@ -71,15 +72,15 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Branch"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the branch in your Gitlab repo that
                             Lightdash should sync to. e.g. <b>main</b>,{' '}
                             <b>master</b> or <b>dev</b>
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             By default, we've set this to <b>main</b> but you
                             can change it to whatever you'd like.
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -96,20 +97,20 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Project directory path"
                 labelHelp={
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             This is the folder where your <b>dbt_project.yml</b>{' '}
                             file is found in the GitLab repository you entered
                             above.
-                        </p>
-                        <p>
+                        </BlueprintParagraph>
+                        <BlueprintParagraph>
                             If your <b>dbt_project.yml</b> file is in the main
                             folder of your repo (e.g.{' '}
                             <b>lightdash/lightdash-analytics/dbt_project.yml</b>
                             ), then you don't need to change anything in here.
                             You can just leave the default value we've put in.
-                        </p>
+                        </BlueprintParagraph>
 
-                        <p>
+                        <BlueprintParagraph>
                             If your dbt project is in a sub-folder in your repo
                             (e.g.{' '}
                             <b>
@@ -118,7 +119,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             ), then you'll need to include the path to the
                             sub-folder where your dbt project is (e.g.
                             <b>/dbt</b>).
-                        </p>
+                        </BlueprintParagraph>
                     </>
                 }
                 rules={{
@@ -139,7 +140,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 name="dbt.host_domain"
                 label="Host domain (for self-hosted instances)"
                 labelHelp={
-                    <p>
+                    <BlueprintParagraph>
                         If you’ve customized the domain for your GitLab pages,
                         you can add the custom domain for your project in here.
                         By default, this is
@@ -152,7 +153,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             gitlab.io
                         </BlueprintLink>
                         .
-                    </p>
+                    </BlueprintParagraph>
                 }
                 disabled={disabled}
                 defaultValue="gitlab.com"

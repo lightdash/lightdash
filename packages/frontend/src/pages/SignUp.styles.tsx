@@ -2,6 +2,7 @@ import { Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import { BigButton } from '../components/common/BigButton';
 import BlueprintLink from '../components/common/BlueprintLink';
+import BlueprintParagraph from '../components/common/BlueprintParagraph';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
 
@@ -81,7 +82,7 @@ export const Divider = styled.span`
     background: ${Colors.LIGHT_GRAY3};
 `;
 
-export const FormFooterCopy = styled.p`
+export const FormFooterCopy = styled(BlueprintParagraph)`
     color: ${Colors.GRAY2};
     margin-top: 25px;
     text-align: center;
@@ -91,13 +92,13 @@ export const FooterCta = styled(BlueprintLink)`
     color: ${Colors.BLUE3};
 `;
 
-export const Subtitle = styled.p`
+export const Subtitle = styled(BlueprintParagraph)`
     color: ${Colors.GRAY2};
     margin: 5px 0 20px;
     text-align: center;
 `;
 
-export const BoldSubtitle = styled.p`
+export const BoldSubtitle = styled(BlueprintParagraph)`
     font-size: 16px;
     font-weight: 600;
     text-align: center;

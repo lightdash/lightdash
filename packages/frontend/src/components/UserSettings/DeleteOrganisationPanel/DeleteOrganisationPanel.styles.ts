@@ -1,12 +1,13 @@
 import { Button, Card, Colors, H5, Menu } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 export const Title = styled(H5)`
     tex-align: left;
     color: #ac2f33;
 `;
 
-export const Description = styled.p`
+export const Description = styled(BlueprintParagraph)`
     tex-align: left;
     color: ${Colors.GRAY1};
     font-size: small;

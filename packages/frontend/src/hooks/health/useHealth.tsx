@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 import { AppToaster } from '../../components/AppToaster';
+import BlueprintParagraph from '../../components/common/BlueprintParagraph';
 
 const getHealthState = async () =>
     lightdashApi<ApiHealthResults>({
@@ -26,7 +27,9 @@ const useHealth = () => {
                     message: (
                         <div>
                             <b>{first}</b>
-                            <p>{rest.join('\n')}</p>
+                            <BlueprintParagraph>
+                                {rest.join('\n')}
+                            </BlueprintParagraph>
                         </div>
                     ),
                     timeout: 0,

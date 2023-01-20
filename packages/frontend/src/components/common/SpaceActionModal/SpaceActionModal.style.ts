@@ -1,7 +1,8 @@
 import { Button, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+import BlueprintParagraph from '../BlueprintParagraph';
 
-export const RadioDescription = styled.p`
+export const RadioDescription = styled(BlueprintParagraph)`
     color: ${Colors.GRAY3};
     margin: -5px 0px 10px 25px;
 `;

@@ -24,6 +24,7 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
 import BlueprintLink from '../common/BlueprintLink';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -230,10 +231,10 @@ export const UpdateProjectConnection: FC<{
     if (data?.type === ProjectType.PREVIEW) {
         return (
             <Callout intent="warning">
-                <p>
+                <BlueprintParagraph>
                     Developer previews are temporary Lightdash projects where
                     settings cannot be changed.
-                </p>
+                </BlueprintParagraph>
                 Read docs{' '}
                 <BlueprintLink
                     href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"

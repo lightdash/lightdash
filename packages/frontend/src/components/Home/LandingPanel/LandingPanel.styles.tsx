@@ -1,5 +1,6 @@
 import { Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import LinkButton from '../../common/LinkButton';
 
 export const LandingPanelWrapper = styled.div`
@@ -22,7 +23,7 @@ export const Title = styled(H3)`
     color: ${Colors.BLACK};
 `;
 
-export const Intro = styled.p`
+export const Intro = styled(BlueprintParagraph)`
     color: ${Colors.GRAY1};
 `;
 

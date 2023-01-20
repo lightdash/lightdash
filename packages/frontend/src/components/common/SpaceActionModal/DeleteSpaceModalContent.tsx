@@ -1,14 +1,15 @@
 import { FC } from 'react';
 import { SpaceModalBody } from '.';
+import BlueprintParagraph from '../BlueprintParagraph';
 
 const DeleteSpaceModalContent: FC<SpaceModalBody> = ({ data }) => (
     <>
-        <p>
+        <BlueprintParagraph>
             Are you sure you want to delete space <b>{data?.name}</b>?
-        </p>
+        </BlueprintParagraph>
 
         {data && (data.queries.length > 0 || data.dashboards.length > 0) && (
-            <p>
+            <BlueprintParagraph>
                 This will delete
                 {data.queries.length > 0 && (
                     <>
@@ -27,7 +28,7 @@ const DeleteSpaceModalContent: FC<SpaceModalBody> = ({ data }) => (
                         {data.dashboards.length === 1 ? '' : 's'}
                     </>
                 )}
-            </p>
+            </BlueprintParagraph>
         )}
     </>
 );

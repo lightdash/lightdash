@@ -28,6 +28,7 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaces,
 } from '../../hooks/useSpaces';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import { CreateNewText } from './AddTilesToDashboardModal.styles';
 
 interface AddTilesToDashboardModalProps {
@@ -151,9 +152,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 <div className={Classes.DIALOG_BODY}>
                     {!showNewDashboardInput && (
                         <>
-                            <p>
+                            <BlueprintParagraph>
                                 <b>Select a dashboard</b>
-                            </p>
+                            </BlueprintParagraph>
                             <HTMLSelect
                                 id="select-dashboard"
                                 fill={true}
@@ -192,9 +193,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             </FormGroup>
                             {!showSpaceInput && (
                                 <>
-                                    <p>
+                                    <BlueprintParagraph>
                                         <b>Select a space</b>
-                                    </p>
+                                    </BlueprintParagraph>
                                     <HTMLSelect
                                         id="select-dashboard"
                                         fill={true}
@@ -223,9 +224,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             )}
                             {showSpaceInput && (
                                 <>
-                                    <p>
+                                    <BlueprintParagraph>
                                         <b>Space</b>
-                                    </p>
+                                    </BlueprintParagraph>
                                     <InputGroup
                                         id="chart-space"
                                         type="text"

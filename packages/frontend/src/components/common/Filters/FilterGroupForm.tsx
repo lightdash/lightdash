@@ -11,6 +11,7 @@ import {
     isFilterGroup,
 } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
+import BlueprintParagraph from '../BlueprintParagraph';
 import {
     FilterGroupHeader,
     FilterGroupItemsWrapper,
@@ -121,9 +122,9 @@ const FilterGroupForm: FC<Props> = ({
                         )
                     }
                 />
-                <p style={{ marginLeft: 10 }}>
+                <BlueprintParagraph style={{ marginLeft: 10 }}>
                     of the following {conditionLabel} conditions match:
-                </p>
+                </BlueprintParagraph>
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>
                 {items.map((item, index) => (

@@ -11,6 +11,7 @@ import React, {
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
+import BlueprintParagraph from '../components/common/BlueprintParagraph';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -352,10 +353,10 @@ const Dashboard = () => {
                         history.push(blockedNavigationLocation);
                 }}
             >
-                <p>
+                <BlueprintParagraph>
                     You have unsaved changes to your dashboard! Are you sure you
                     want to leave without saving?{' '}
-                </p>
+                </BlueprintParagraph>
             </Alert>
 
             <DashboardHeader

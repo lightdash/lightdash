@@ -1,6 +1,7 @@
 import { Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import BlueprintLink from '../components/common/BlueprintLink';
+import BlueprintParagraph from '../components/common/BlueprintParagraph';
 import SimpleButton from '../components/common/SimpleButton';
 
 export const CreateProjectWrapper = styled.div`
@@ -25,7 +26,7 @@ export const Title = styled(H3)<{ marginBottom?: boolean }>`
         `}
 `;
 
-export const Subtitle = styled.p`
+export const Subtitle = styled(BlueprintParagraph)`
     color: ${Colors.GRAY2};
     margin: 0 0 25px;
 `;

@@ -1,5 +1,6 @@
 import { AnchorButton, Button, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 export const SlackSettingsWrapper = styled.div`
     display: flex;
@@ -22,7 +23,7 @@ export const SlackIcon = styled.img`
     height: 32px;
 `;
 
-export const Description = styled.p`
+export const Description = styled(BlueprintParagraph)`
     color: ${Colors.GRAY3};
     margin: 0px;
 `;

@@ -1,6 +1,7 @@
 import { Colors, Menu } from '@blueprintjs/core';
 import styled from 'styled-components';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 export const MenuWrapper = styled(Menu)`
     padding: 1.214em 0.571em;
@@ -63,13 +64,13 @@ export const IconContainer = styled.div`
     }
 `;
 
-export const ItemCTA = styled.p`
+export const ItemCTA = styled(BlueprintParagraph)`
     line-height: 1.429em;
     font-weight: 600;
     margin: 0;
 `;
 
-export const ItemDescription = styled.p`
+export const ItemDescription = styled(BlueprintParagraph)`
     color: ${Colors.GRAY5} !important;
     margin: 0;
 `;

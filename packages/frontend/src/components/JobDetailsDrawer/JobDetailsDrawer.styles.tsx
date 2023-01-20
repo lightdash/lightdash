@@ -1,5 +1,6 @@
 import { Colors, H4, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 const statusInfo = (status: string) => {
     switch (status) {
@@ -40,7 +41,7 @@ export const RefreshStepsTitle = styled(H4)`
     font-weight: 600;
 `;
 
-export const StepsCompletionOverview = styled.p`
+export const StepsCompletionOverview = styled(BlueprintParagraph)`
     color: ${Colors.GRAY2};
     font-size: 14px;
     font-weight: 500;
@@ -65,13 +66,13 @@ export const Step = styled.div<{ status: string }>`
     column-gap: 11px;
 `;
 
-export const StepName = styled.p`
+export const StepName = styled(BlueprintParagraph)`
     color: ${Colors.DARK_GRAY1};
     font-weight: 600;
     margin: 0;
 `;
 
-export const StepStatusWrapper = styled.p`
+export const StepStatusWrapper = styled(BlueprintParagraph)`
     margin: 0;
     font-size: 12px;
     color: ${Colors.DARK_GRAY5};

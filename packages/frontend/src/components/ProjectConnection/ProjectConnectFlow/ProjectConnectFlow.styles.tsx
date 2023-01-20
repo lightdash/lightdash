@@ -8,6 +8,7 @@ import {
     Radio,
 } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 export const Wrapper = styled.div`
     width: 400px;
@@ -63,7 +64,7 @@ export const StyledNonIdealState = styled(NonIdealState)`
 
 export const Title = styled(H3)``;
 
-export const Subtitle = styled.p`
+export const Subtitle = styled(BlueprintParagraph)`
     color: ${Colors.GRAY2};
     margin: 5px 0 20px 0;
 `;
@@ -93,7 +94,7 @@ export const RadioButton = styled(Radio)`
     text-align: left;
 `;
 
-export const CodeLabel = styled.p`
+export const CodeLabel = styled(BlueprintParagraph)`
     text-align: left;
     color: ${Colors.GRAY1};
     margin-top: 10px;
@@ -125,7 +126,7 @@ export const ButtonsWrapper = styled.div`
     margin: 10px 0;
 `;
 
-export const FormFooterCopy = styled.p`
+export const FormFooterCopy = styled(BlueprintParagraph)`
     width: 400px;
     margin: 35px auto 0;
     color: ${Colors.GRAY2};

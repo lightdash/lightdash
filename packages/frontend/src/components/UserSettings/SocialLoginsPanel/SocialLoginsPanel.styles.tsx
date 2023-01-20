@@ -1,5 +1,6 @@
 import { Card, H4 } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 export const CardWrapper = styled.div`
     height: fit-content;
@@ -13,7 +14,7 @@ export const CardContainer = styled(Card)`
     margin-bottom: 20px;
 `;
 
-export const Text = styled.p`
+export const Text = styled(BlueprintParagraph)`
     margin: 0;
     margin-right: 10px;
     flex: 1;

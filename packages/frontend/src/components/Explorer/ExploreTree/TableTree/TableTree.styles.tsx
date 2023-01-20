@@ -1,8 +1,9 @@
 import { Colors, Icon, Tag } from '@blueprintjs/core';
 import { hexToRGB } from '@lightdash/common';
 import styled from 'styled-components';
+import BlueprintParagraph from '../../../common/BlueprintParagraph';
 
-export const TooltipContent = styled.p`
+export const TooltipContent = styled(BlueprintParagraph)`
     margin: 0;
     max-width: 360px;
 `;

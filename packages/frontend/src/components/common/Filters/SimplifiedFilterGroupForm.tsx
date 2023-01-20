@@ -1,6 +1,7 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { FilterableField, FilterRule } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
+import BlueprintParagraph from '../BlueprintParagraph';
 import {
     FilterGroupHeader,
     FilterGroupItemsWrapper,
@@ -49,7 +50,9 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
                     content="You can only use the 'and' operator when combining metrics & dimensions"
                     disabled={filterRules.length > 1}
                 >
-                    <p>All of the following conditions match:</p>
+                    <BlueprintParagraph>
+                        All of the following conditions match:
+                    </BlueprintParagraph>
                 </Tooltip2>
             </FilterGroupHeader>
             <FilterGroupItemsWrapper>

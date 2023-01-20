@@ -1,6 +1,7 @@
 import { Callout } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 
 const DbtLocalForm: FC = () => (
     <>
@@ -8,17 +9,17 @@ const DbtLocalForm: FC = () => (
             This connection type should only be used for local development.
         </Callout>
         <Callout intent="primary" style={{ marginBottom: 20 }}>
-            <p>
+            <BlueprintParagraph>
                 When using the install script, when you&apos;re asked{' '}
                 <b>How do you want to setup Lightdash ?</b>, select the option{' '}
                 <b>with local dbt</b> and then provide the absolute path to your
                 dbt project.
-            </p>
-            <p>
+            </BlueprintParagraph>
+            <BlueprintParagraph>
                 When using the install script, set the env var{' '}
                 <b>DBT_PROJECT_DIR</b> with the absolute path to your dbt
                 project.
-            </p>
+            </BlueprintParagraph>
             Read docs{' '}
             <BlueprintLink
                 href="https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#2-install--launch-lightdash"

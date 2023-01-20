@@ -3,6 +3,7 @@ import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
 import MDEditor from '@uiw/react-md-editor';
 import React, { useCallback } from 'react';
 import { AppToaster } from '../../components/AppToaster';
+import BlueprintParagraph from '../../components/common/BlueprintParagraph';
 
 interface Message extends Omit<IToastProps, 'message'> {
     title: string;
@@ -20,9 +21,11 @@ const useToaster = () => {
                     timeout: 5000,
                     message: (
                         <div>
-                            <p style={{ fontWeight: 'bold', marginBottom: 0 }}>
+                            <BlueprintParagraph
+                                style={{ fontWeight: 'bold', marginBottom: 0 }}
+                            >
                                 {title}
-                            </p>
+                            </BlueprintParagraph>
                             {subtitle && (
                                 <MDEditor.Markdown
                                     source={subtitle}

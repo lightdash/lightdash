@@ -1,6 +1,7 @@
 import { Card, Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { BigButton } from '../common/BigButton';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 
 export const CardWrapper = styled(Card)`
     padding: 30px 27px;
@@ -19,7 +20,7 @@ export const SaveButton = styled(BigButton)`
     float: right;
 `;
 
-export const TextP = styled.p`
+export const TextP = styled(BlueprintParagraph)`
     color: ${Colors.GRAY1};
 `;
 

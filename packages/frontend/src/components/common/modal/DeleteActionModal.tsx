@@ -4,6 +4,7 @@ import { Link, useHistory, useParams } from 'react-router-dom';
 import { useDeleteMutation as useDeleteDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import { useDeleteMutation } from '../../../hooks/useSavedQuery';
+import BlueprintParagraph from '../BlueprintParagraph';
 
 interface RelatedDashboardsMessageProps {
     uuid: string;
@@ -78,12 +79,12 @@ const DeleteActionModal: FC<DeleteActionModalProps> = ({
             title={`Delete ${isChart ? 'chart' : 'dashboard'}`}
         >
             <div className={Classes.DIALOG_BODY}>
-                <p>
+                <BlueprintParagraph>
                     {`Are you sure you want to delete the ${
                         isChart ? 'chart' : 'dashboard'
                     } `}
                     <b>"{name}"</b> ?
-                </p>
+                </BlueprintParagraph>
                 {isChart && <RelatedDashboardsMessage uuid={uuid} />}
             </div>
             <div className={Classes.DIALOG_FOOTER}>

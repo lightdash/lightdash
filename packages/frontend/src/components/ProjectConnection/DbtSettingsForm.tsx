@@ -6,6 +6,7 @@ import {
 import { FC, useMemo, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
 import { MultiKeyValuePairsInput } from '../ReactHookForm/MultiKeyValuePairsInput';
@@ -168,13 +169,13 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                     name="dbt.target"
                     label="Target name"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             <b>target</b> is the dataset/schema in your data
                             warehouse that Lightdash will look for your dbt
                             models. By default, we set this to be the same value
                             as you have as the default in your profiles.yml
                             file.
-                        </p>
+                        </BlueprintParagraph>
                     }
                     disabled={disabled}
                     placeholder="prod"

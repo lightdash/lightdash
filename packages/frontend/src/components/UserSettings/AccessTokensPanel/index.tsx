@@ -12,6 +12,7 @@ import {
     useAccessToken,
     useDeleteAccessToken,
 } from '../../../hooks/useAccessToken';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import CreateTokenPanel from '../CreateTokenPanel';
 import {
     AccessTokenInfo,
@@ -67,10 +68,10 @@ const TokenListItem: FC<{
                 lazy
             >
                 <div className={Classes.DIALOG_BODY}>
-                    <p>
+                    <BlueprintParagraph>
                         Are you sure ? This will permanently delete the
                         <b> {description} </b> token.
-                    </p>
+                    </BlueprintParagraph>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
 import { useDeleteOrganisationMutation } from '../../../hooks/organisation/useOrganisationDeleteMultation';
 import { useApp } from '../../../providers/AppProvider';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import { ErrorMessage } from '../../common/modal/ActionModal';
 import BaseModal from '../../common/modal/BaseModal';
 import {
@@ -57,12 +58,12 @@ export const DeleteOrganisationPanel: FC = () => {
                 }}
                 renderBody={() => (
                     <>
-                        <p>
+                        <BlueprintParagraph>
                             Type the name of this organisation{' '}
                             <b>{organisation.name}</b> to confirm you want to
                             delete this organisation and its users. This action
                             is not reversible.
-                        </p>
+                        </BlueprintParagraph>
 
                         <InputGroup
                             placeholder={organisation.name}

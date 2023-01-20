@@ -3,6 +3,7 @@ import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import BlueprintLink from '../../common/BlueprintLink';
+import BlueprintParagraph from '../../common/BlueprintParagraph';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -110,7 +111,7 @@ const PostgresForm: FC<{
                     name="warehouse.keepalivesIdle"
                     label="Keep alive idle (seconds)"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             This specifies the amount of seconds with no network
                             activity after which the operating system should
                             send a TCP keepalive message to the client. You can
@@ -123,7 +124,7 @@ const PostgresForm: FC<{
                                 postgresqlco documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     rules={{
                         required: 'Required field',
@@ -135,7 +136,7 @@ const PostgresForm: FC<{
                     name="warehouse.searchPath"
                     label="Search path"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             This controls the Postgres "search path". You can
                             see more details in{' '}
                             <BlueprintLink
@@ -146,7 +147,7 @@ const PostgresForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     disabled={disabled}
                 />
@@ -154,7 +155,7 @@ const PostgresForm: FC<{
                     name="warehouse.sslmode"
                     label="SSL mode"
                     labelHelp={
-                        <p>
+                        <BlueprintParagraph>
                             This controls how dbt connects to Postgres databases
                             using SSL. You can see more details in
                             <BlueprintLink
@@ -165,7 +166,7 @@ const PostgresForm: FC<{
                                 dbt documentation
                             </BlueprintLink>
                             .
-                        </p>
+                        </BlueprintParagraph>
                     }
                     options={[
                         'disable',

@@ -8,6 +8,7 @@ import {
 } from '../../../hooks/dashboard/useDashboard';
 import { useSavedQuery, useUpdateMutation } from '../../../hooks/useSavedQuery';
 import { useSpaces } from '../../../hooks/useSpaces';
+import BlueprintParagraph from '../BlueprintParagraph';
 
 interface Props {
     uuid: string;
@@ -74,11 +75,11 @@ const MoveToSpaceModal: FC<Props> = ({ uuid, isOpen, isChart, onClose }) => {
             title={`Move ${isChart ? 'chart' : 'dashboard'} to space`}
         >
             <div className={Classes.DIALOG_BODY}>
-                <p>
+                <BlueprintParagraph>
                     Select the space you want to move this{' '}
                     {isChart ? 'chart' : 'dashboard'}{' '}
                     <b>{selectedItem && selectedItem.name}</b> to.
-                </p>
+                </BlueprintParagraph>
                 <HTMLSelect
                     value={selectedSpaceUuid}
                     options={

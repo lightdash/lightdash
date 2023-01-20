@@ -1,5 +1,6 @@
 import { Button, Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import BlueprintParagraph from '../common/BlueprintParagraph';
 import { SIDEBAR_WIDTH, SIDEBAR_Z_INDEX } from '../common/Page/Sidebar';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
@@ -63,7 +64,7 @@ export const LeftPanelTitle = styled.div`
     }
 `;
 
-export const LeftPanelMessage = styled.p`
+export const LeftPanelMessage = styled(BlueprintParagraph)`
     color: ${Colors.GRAY1};
 `;
 
