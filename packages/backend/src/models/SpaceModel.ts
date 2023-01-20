@@ -1,5 +1,4 @@
 import {
-    CartesianSeriesType,
     ChartConfig,
     ChartType,
     DashboardBasicDetails,
@@ -23,8 +22,14 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import {
+    PinnedChartTableName,
+    PinnedDashboardTableName,
+    PinnedListTableName,
+} from '../database/entities/pinnedList';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
 import {
     DbSpace,
     SpaceShareTableName,
@@ -36,6 +41,7 @@ import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 type Dependencies = {
     database: Knex;
 };
+
 export class SpaceModel {
     private database: Knex;
 
@@ -104,6 +110,16 @@ export class SpaceModel {
                 `${ProjectTableName}.organization_id`,
                 `${OrganizationTableName}.organization_id`,
             )
+            .leftJoin(
+                PinnedDashboardTableName,
+                `${PinnedDashboardTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedDashboardTableName}.pinned_list_uuid`,
+            )
             .select<(GetDashboardDetailsQuery & { views: string })[]>([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
@@ -118,6 +134,7 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = analytics_dashboard_views.dashboard_uuid) as views `,
                 ),
+                `${PinnedListTableName}.pinned_list_uuid`,
             ])
             .orderBy([
                 {
@@ -143,6 +160,7 @@ export class SpaceModel {
                 last_name,
                 organization_uuid,
                 views,
+                pinned_list_uuid,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -157,6 +175,7 @@ export class SpaceModel {
                 },
                 spaceUuid,
                 views: parseInt(views, 10),
+                pinnedListUuid: pinned_list_uuid,
             }),
         );
     }
@@ -245,6 +264,16 @@ export class SpaceModel {
                 'saved_queries_versions.updated_by_user_uuid',
                 'users.user_uuid',
             )
+            .leftJoin(
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
+            )
             .select<
                 {
                     saved_query_uuid: string;
@@ -257,6 +286,7 @@ export class SpaceModel {
                     views: string;
                     chart_config: ChartConfig['config'];
                     chart_type: ChartType;
+                    pinned_list_uuid: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -271,6 +301,7 @@ export class SpaceModel {
                 ),
                 `saved_queries_versions.chart_config`,
                 `saved_queries_versions.chart_type`,
+                `${PinnedListTableName}.pinned_list_uuid`,
             ])
             .orderBy([
                 {
@@ -300,6 +331,7 @@ export class SpaceModel {
                 savedQuery.chart_type,
                 savedQuery.chart_config,
             ),
+            pinnedListUuid: savedQuery.pinned_list_uuid,
         }));
     }
 

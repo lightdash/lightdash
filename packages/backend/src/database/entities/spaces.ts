@@ -1,6 +1,8 @@
 import { NotFoundError, Space } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
+import { PinnedChartTableName, PinnedListTableName } from './pinnedList';
+import { SavedChartsTableName } from './savedCharts';
 
 export type DbSpace = {
     space_id: number;
@@ -80,6 +82,16 @@ export const getSpaceWithQueries = async (
             'saved_queries_versions.updated_by_user_uuid',
             'users.user_uuid',
         )
+        .leftJoin(
+            PinnedChartTableName,
+            `${PinnedChartTableName}.saved_chart_uuid`,
+            `${SavedChartsTableName}.saved_query_uuid`,
+        )
+        .leftJoin(
+            PinnedListTableName,
+            `${PinnedListTableName}.pinned_list_uuid`,
+            `${PinnedChartTableName}.pinned_list_uuid`,
+        )
         .select<
             {
                 saved_query_uuid: string;
@@ -89,6 +101,7 @@ export const getSpaceWithQueries = async (
                 user_uuid: string;
                 first_name: string;
                 last_name: string;
+                pinned_list_uuid: string | undefined;
             }[]
         >([
             `saved_queries.saved_query_uuid`,
@@ -98,6 +111,7 @@ export const getSpaceWithQueries = async (
             `users.user_uuid`,
             `users.first_name`,
             `users.last_name`,
+            `${PinnedListTableName}.pinned_list_uuid`,
         ])
         .orderBy([
             {
@@ -126,6 +140,7 @@ export const getSpaceWithQueries = async (
                 lastName: savedQuery.last_name,
             },
             spaceUuid: space.space_uuid,
+            pinnedListUuid: savedQuery.pinned_list_uuid,
         })),
         projectUuid,
         dashboards: [],

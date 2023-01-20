@@ -13,6 +13,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
+import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SearchModel } from './SearchModel';
@@ -67,3 +68,4 @@ export const slackAuthenticationModel = new SlackAuthenticationModel({
 export const analyticsModel = new AnalyticsModel({
     database,
 });
+export const pinnedListModel = new PinnedListModel({ database });

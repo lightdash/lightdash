@@ -1993,6 +1993,9 @@
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -2149,6 +2152,9 @@
                         "type": "string"
                     },
                     "spaceName": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
                         "type": "string"
                     }
                 },

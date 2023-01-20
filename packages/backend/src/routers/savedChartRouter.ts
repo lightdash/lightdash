@@ -98,6 +98,24 @@ savedChartRouter.patch(
     },
 );
 
+savedChartRouter.patch(
+    '/:savedQueryUuid/pinning',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        savedChartsService
+            .togglePinning(req.user!, req.params.savedQueryUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 savedChartRouter.post(
     '/:savedQueryUuid/version',
     isAuthenticated,
