@@ -72,9 +72,7 @@ userRouter.get('/password', isAuthenticated, async (req, res, next) =>
         .then((hasPassword: boolean) => {
             res.json({
                 status: 'ok',
-                results: {
-                    hasPassword,
-                },
+                results: hasPassword,
             });
         })
         .catch(next),

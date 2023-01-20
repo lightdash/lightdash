@@ -4,6 +4,7 @@ import React, { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useUserHasPassword from '../../../hooks/user/usePassword';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import PasswordInput from '../../PasswordInput';
 
@@ -17,7 +18,8 @@ const updateUserPasswordQuery = async (data: {
         body: JSON.stringify(data),
     });
 
-const PasswordPanel: FC<{ hasPassword: boolean }> = ({ hasPassword }) => {
+const PasswordPanel: FC = () => {
+    const { data: hasPassword } = useUserHasPassword();
     const { showToastError } = useToaster();
     const { showError } = useErrorLogs();
     const [password, setPassword] = useState<string>();

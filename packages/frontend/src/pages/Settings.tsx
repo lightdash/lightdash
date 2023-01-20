@@ -170,7 +170,7 @@ const Settings: FC = () => {
                         <Content>
                             <CardContainer>
                                 <Title>Password settings</Title>
-                                <PasswordPanel hasPassword={false} />
+                                <PasswordPanel />
                             </CardContainer>
                         </Content>
                     </Route>
