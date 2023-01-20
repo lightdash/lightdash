@@ -174,13 +174,11 @@ export class SavedChartService {
         if (pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
                 pinnedListUuid,
-                pinnedItemType: 'chart',
                 savedChartUuid,
             });
         } else {
             await this.pinnedListModel.addItem({
                 projectUuid,
-                pinnedItemType: 'chart',
                 savedChartUuid,
             });
         }

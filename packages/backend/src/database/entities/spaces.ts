@@ -1,7 +1,7 @@
 import { NotFoundError, Space } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
-import { PinnedItemsTableName, PinnedListTableName } from './pinnedList';
+import { PinnedChartTableName, PinnedListTableName } from './pinnedList';
 import { SavedChartsTableName } from './savedCharts';
 
 export type DbSpace = {
@@ -83,14 +83,14 @@ export const getSpaceWithQueries = async (
             'users.user_uuid',
         )
         .leftJoin(
-            PinnedItemsTableName,
-            `${PinnedItemsTableName}.saved_chart_uuid`,
+            PinnedChartTableName,
+            `${PinnedChartTableName}.saved_chart_uuid`,
             `${SavedChartsTableName}.saved_query_uuid`,
         )
         .leftJoin(
             PinnedListTableName,
             `${PinnedListTableName}.pinned_list_uuid`,
-            `${PinnedItemsTableName}.pinned_list_uuid`,
+            `${PinnedChartTableName}.pinned_list_uuid`,
         )
         .select<
             {

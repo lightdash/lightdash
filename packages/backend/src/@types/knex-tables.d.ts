@@ -59,8 +59,10 @@ import {
     PersonalAccessTokenTableName,
 } from '../database/entities/personalAccessTokens';
 import {
-    PinnedItemsTable,
-    PinnedItemsTableName,
+    PinnedChartTable,
+    PinnedChartTableName,
+    PinnedDashboardTable,
+    PinnedDashboardTableName,
     PinnedListTable,
     PinnedListTableName,
 } from '../database/entities/pinnedList';
@@ -154,6 +156,7 @@ declare module 'knex/types/tables' {
         [AnalyticsChartViewsTableName]: DbAnalyticsChartViews;
         [AnalyticsDashboardViewsTableName]: DbAnalyticsDashboardViews;
         [PinnedListTableName]: PinnedListTable;
-        [PinnedItemsTableName]: PinnedItemsTable;
+        [PinnedChartTableName]: PinnedChartTable;
+        [PinnedDashboardTableName]: PinnedDashboardTable;
     }
 }

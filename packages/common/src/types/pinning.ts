@@ -4,26 +4,29 @@ export type PinnedList = {
 };
 
 export type CreateChartPinnedItem = {
-    pinnedItemType: 'chart';
     projectUuid: string;
     savedChartUuid: string;
 };
 
 export type CreateDashboardPinnedItem = {
-    pinnedItemType: 'dashboard';
     projectUuid: string;
     dashboardUuid: string;
 };
 
 export type DeleteChartPinnedItem = {
     pinnedListUuid: string;
-
-    pinnedItemType: 'chart';
     savedChartUuid: string;
 };
 export type DeleteDashboardPinnedItem = {
     pinnedListUuid: string;
-
-    pinnedItemType: 'dashboard';
     dashboardUuid: string;
 };
+
+export const isCreateChartPinnedItem = (
+    item: CreateChartPinnedItem | CreateDashboardPinnedItem,
+): item is CreateChartPinnedItem =>
+    'savedChartUuid' in item && !!item.savedChartUuid;
+export const isDeleteChartPinnedItem = (
+    item: DeleteChartPinnedItem | DeleteDashboardPinnedItem,
+): item is DeleteChartPinnedItem =>
+    'savedChartUuid' in item && !!item.savedChartUuid;

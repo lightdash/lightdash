@@ -14,7 +14,7 @@ import {
 import { Knex } from 'knex';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
-    PinnedItemsTableName,
+    PinnedChartTableName,
     PinnedListTableName,
 } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
@@ -367,14 +367,14 @@ export class SavedChartModel {
                 `${UserTableName}.user_uuid`,
             )
             .leftJoin(
-                PinnedItemsTableName,
-                `${PinnedItemsTableName}.saved_chart_uuid`,
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedItemsTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
             )
             .select<
                 (DbSavedChartDetails & {

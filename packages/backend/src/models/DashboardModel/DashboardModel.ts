@@ -32,7 +32,7 @@ import {
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import {
-    PinnedItemsTableName,
+    PinnedDashboardTableName,
     PinnedListTable,
     PinnedListTableName,
 } from '../../database/entities/pinnedList';
@@ -242,14 +242,14 @@ export class DashboardModel {
                         `${OrganizationTableName}.organization_id`,
                     )
                     .leftJoin(
-                        PinnedItemsTableName,
-                        `${PinnedItemsTableName}.dashboard_uuid`,
+                        PinnedDashboardTableName,
+                        `${PinnedDashboardTableName}.dashboard_uuid`,
                         `${DashboardsTableName}.dashboard_uuid`,
                     )
                     .leftJoin(
                         PinnedListTableName,
                         `${PinnedListTableName}.pinned_list_uuid`,
-                        `${PinnedItemsTableName}.pinned_list_uuid`,
+                        `${PinnedDashboardTableName}.pinned_list_uuid`,
                     )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
@@ -363,14 +363,14 @@ export class DashboardModel {
                 `${ProjectTableName}.organization_id`,
             )
             .leftJoin(
-                PinnedItemsTableName,
-                `${PinnedItemsTableName}.dashboard_uuid`,
+                PinnedDashboardTableName,
+                `${PinnedDashboardTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedItemsTableName}.pinned_list_uuid`,
+                `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
             .select<
                 (GetDashboardQuery & {

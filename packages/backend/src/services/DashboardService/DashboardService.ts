@@ -336,13 +336,11 @@ export class DashboardService {
         if (existingDashboard.pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
                 pinnedListUuid: existingDashboard.pinnedListUuid,
-                pinnedItemType: 'dashboard',
                 dashboardUuid,
             });
         } else {
             await this.pinnedListModel.addItem({
                 projectUuid: existingDashboard.projectUuid,
-                pinnedItemType: 'dashboard',
                 dashboardUuid,
             });
         }

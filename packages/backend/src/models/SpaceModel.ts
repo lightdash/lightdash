@@ -1,5 +1,4 @@
 import {
-    CartesianSeriesType,
     ChartConfig,
     ChartType,
     DashboardBasicDetails,
@@ -24,7 +23,8 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
-    PinnedItemsTableName,
+    PinnedChartTableName,
+    PinnedDashboardTableName,
     PinnedListTableName,
 } from '../database/entities/pinnedList';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
@@ -111,14 +111,14 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_id`,
             )
             .leftJoin(
-                PinnedItemsTableName,
-                `${PinnedItemsTableName}.dashboard_uuid`,
+                PinnedDashboardTableName,
+                `${PinnedDashboardTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedItemsTableName}.pinned_list_uuid`,
+                `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
             .select<(GetDashboardDetailsQuery & { views: string })[]>([
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -265,14 +265,14 @@ export class SpaceModel {
                 'users.user_uuid',
             )
             .leftJoin(
-                PinnedItemsTableName,
-                `${PinnedItemsTableName}.saved_chart_uuid`,
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedItemsTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
             )
             .select<
                 {

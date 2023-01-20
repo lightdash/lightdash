@@ -1,7 +1,8 @@
 import { Knex } from 'knex';
 
 const PinnedListTableName = 'pinned_list';
-const PinnedItemsTableName = 'pinned_items';
+const PinnedChartTableName = 'pinned_chart';
+const PinnedDashboardTableName = 'pinned_dashboard';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable('projects', (table) => {
@@ -22,14 +23,17 @@ export async function up(knex: Knex): Promise<void> {
                 .defaultTo(knex.raw('uuid_generate_v4()'));
             table
                 .uuid('project_uuid')
-                .nullable()
                 .references('project_uuid')
                 .inTable('projects')
                 .onDelete('CASCADE');
+            table
+                .timestamp('created_at', { useTz: false })
+                .notNullable()
+                .defaultTo(knex.fn.now());
         });
     }
-    if (!(await knex.schema.hasTable(PinnedItemsTableName))) {
-        await knex.schema.createTable(PinnedItemsTableName, (table) => {
+    if (!(await knex.schema.hasTable(PinnedChartTableName))) {
+        await knex.schema.createTable(PinnedChartTableName, (table) => {
             table
                 .uuid('pinned_item_uuid')
                 .primary()
@@ -41,7 +45,6 @@ export async function up(knex: Knex): Promise<void> {
                 .references('pinned_list_uuid')
                 .inTable(PinnedListTableName)
                 .onDelete('CASCADE');
-            table.string('pinned_item_type').notNullable();
             table
                 .uuid('saved_chart_uuid')
                 .nullable()
@@ -49,17 +52,41 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable('saved_queries')
                 .onDelete('CASCADE');
             table
+                .timestamp('created_at', { useTz: false })
+                .notNullable()
+                .defaultTo(knex.fn.now());
+        });
+    }
+    if (!(await knex.schema.hasTable(PinnedDashboardTableName))) {
+        await knex.schema.createTable(PinnedDashboardTableName, (table) => {
+            table
+                .uuid('pinned_item_uuid')
+                .primary()
+                .notNullable()
+                .defaultTo(knex.raw('uuid_generate_v4()'));
+            table
+                .uuid('pinned_list_uuid')
+                .nullable()
+                .references('pinned_list_uuid')
+                .inTable(PinnedListTableName)
+                .onDelete('CASCADE');
+            table
                 .uuid('dashboard_uuid')
                 .nullable()
                 .references('dashboard_uuid')
                 .inTable('dashboards')
                 .onDelete('CASCADE');
+            table
+                .timestamp('created_at', { useTz: false })
+                .notNullable()
+                .defaultTo(knex.fn.now());
         });
     }
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.schema.dropTableIfExists(PinnedItemsTableName);
+    await knex.schema.dropTableIfExists(PinnedDashboardTableName);
+    await knex.schema.dropTableIfExists(PinnedChartTableName);
     await knex.schema.dropTableIfExists(PinnedListTableName);
     await knex.schema.alterTable('projects', (table) => {
         table.dropUnique(['project_uuid']);

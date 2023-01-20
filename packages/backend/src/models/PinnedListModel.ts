@@ -3,11 +3,14 @@ import {
     CreateDashboardPinnedItem,
     DeleteChartPinnedItem,
     DeleteDashboardPinnedItem,
+    isCreateChartPinnedItem,
+    isDeleteChartPinnedItem,
     PinnedList,
 } from '@lightdash/common/dist/types/pinning';
 import { Knex } from 'knex';
 import {
-    PinnedItemsTableName,
+    PinnedChartTableName,
+    PinnedDashboardTableName,
     PinnedListTableName,
 } from '../database/entities/pinnedList';
 
@@ -46,16 +49,14 @@ export class PinnedListModel {
     ): Promise<void> {
         const results = await this.upsertPinnedList(item.projectUuid);
 
-        if (item.pinnedItemType === 'chart') {
-            await this.database(PinnedItemsTableName).insert({
+        if (isCreateChartPinnedItem(item)) {
+            await this.database(PinnedChartTableName).insert({
                 pinned_list_uuid: results.pinnedListUuid,
-                pinned_item_type: item.pinnedItemType,
                 saved_chart_uuid: item.savedChartUuid,
             });
         } else {
-            await this.database(PinnedItemsTableName).insert({
+            await this.database(PinnedDashboardTableName).insert({
                 pinned_list_uuid: results.pinnedListUuid,
-                pinned_item_type: item.pinnedItemType,
                 dashboard_uuid: item.dashboardUuid,
             });
         }
@@ -64,16 +65,16 @@ export class PinnedListModel {
     async deleteItem(
         item: DeleteChartPinnedItem | DeleteDashboardPinnedItem,
     ): Promise<void> {
-        await this.database(PinnedItemsTableName)
-            .delete()
-            .where(
-                item.pinnedItemType === 'chart'
-                    ? 'saved_chart_uuid'
-                    : 'dashboard_uuid',
-                item.pinnedItemType === 'chart'
-                    ? item.savedChartUuid
-                    : item.dashboardUuid,
-            )
-            .andWhere('pinned_list_uuid', item.pinnedListUuid);
+        if (isDeleteChartPinnedItem(item)) {
+            await this.database(PinnedChartTableName)
+                .delete()
+                .where('saved_chart_uuid', item.savedChartUuid)
+                .andWhere('pinned_list_uuid', item.pinnedListUuid);
+        } else {
+            await this.database(PinnedDashboardTableName)
+                .delete()
+                .where('dashboard_uuid', item.dashboardUuid)
+                .andWhere('pinned_list_uuid', item.pinnedListUuid);
+        }
     }
 }
