@@ -20,77 +20,87 @@ const ResetBlueprintDump = createGlobalStyle`
     /***********************/
 
     html{
-        -webkit-box-sizing: unset;
-                box-sizing: unset;
+        -webkit-box-sizing: initial;
+                box-sizing: initial;
     }
 
     *,
     *::before,
     *::after{
-        -webkit-box-sizing: unset;
-                box-sizing: unset;
+        -webkit-box-sizing: initial;
+                box-sizing: initial;
     }
 
     body{
-        font-size: unset;
-        font-weight: unset;
-        letter-spacing: unset;
-        line-height: unset;
-        text-transform: unset;
-        color: unset;
-        font-family: unset;
+        font-size: initial;
+        font-weight: initial;
+        letter-spacing: initial;
+        line-height: initial;
+        text-transform: initial;
+        color: initial;
+        font-family: initial;
     }
 
     p{
-        margin-bottom: unset;
-        margin-top: unset;
+        margin-bottom: initial;
+        margin-top: initial;
     }
 
     small{
-        font-size: unset;
+        font-size: initial;
     }
 
     strong{
-        font-weight: unset;
+        font-weight: initial;
     }
 
+    // ::-moz-selection{
+    //     background: initial;
+    // }
 
-    ::-moz-selection{
-        background: unset;
-    }
-
-    ::selection{
-        background: unset;
-    }
+    // ::selection{
+    //     background: initial;
+    // }
 
     a{
-        color: unset;
-        text-decoration: unset;
+        color: initial;
+        text-decoration: initial;
     }
 
     a:hover{
-        color: unset;
-        cursor: unset;
-        text-decoration: unset;
+        color: initial;
+        cursor: initial;
+        text-decoration: initial;
     }
 
     a code{
-        color: unset;
+        color: initial;
     }
 
     :focus{
-        outline: unset;
-        outline-offset: unset;
-        -moz-outline-radius: unset;
+        outline: initial;
+        outline-offset: initial;
+        -moz-outline-radius: initial;
     }
 
     form {
-        display: unset;
+        display: initial;
     }
 
     /*********************/
     /* Fix bugs by reset */
     /*********************/
+
+    a.bp4-link{
+        color:#215db0;
+        text-decoration: none;
+    }
+
+    a.bp4-link:hover{
+        color:#215db0;
+        text-decoration: underline;
+        cursor: pointer;
+    }
 
     a.bp4-breadcrumb:hover {
         cursor: pointer;
