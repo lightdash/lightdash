@@ -2,6 +2,7 @@ import { Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import AnchorLink from '../components/common/AnchorLink';
 import { BigButton } from '../components/common/BigButton';
+import BlueprintParagraph from '../components/common/BlueprintParagraph';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
 
@@ -54,7 +55,7 @@ export const Title = styled(H3)`
     text-align: center;
 `;
 
-export const Subtitle = styled.p`
+export const Subtitle = styled(BlueprintParagraph)`
     text-align: center;
     color: ${Colors.GRAY2};
     margin: 0 0 25px;
