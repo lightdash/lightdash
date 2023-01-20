@@ -19,6 +19,7 @@ export async function up(knex: Knex): Promise<void> {
                 .uuid('project_uuid')
                 .references('project_uuid')
                 .inTable('projects')
+                .notNullable()
                 .unique()
                 .onDelete('CASCADE');
             table
@@ -38,11 +39,13 @@ export async function up(knex: Knex): Promise<void> {
                 .uuid('pinned_list_uuid')
                 .references('pinned_list_uuid')
                 .inTable(PinnedListTableName)
+                .notNullable()
                 .onDelete('CASCADE');
             table
                 .uuid('saved_chart_uuid')
                 .references('saved_query_uuid')
                 .inTable('saved_queries')
+                .notNullable()
                 .onDelete('CASCADE');
             table
                 .timestamp('created_at', { useTz: false })
@@ -62,11 +65,13 @@ export async function up(knex: Knex): Promise<void> {
                 .uuid('pinned_list_uuid')
                 .references('pinned_list_uuid')
                 .inTable(PinnedListTableName)
+                .notNullable()
                 .onDelete('CASCADE');
             table
                 .uuid('dashboard_uuid')
                 .references('dashboard_uuid')
                 .inTable('dashboards')
+                .notNullable()
                 .onDelete('CASCADE');
             table
                 .timestamp('created_at', { useTz: false })
