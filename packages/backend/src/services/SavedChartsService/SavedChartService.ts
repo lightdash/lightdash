@@ -13,6 +13,7 @@ import {
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -23,6 +24,7 @@ type Dependencies = {
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
+    pinnedListModel: PinnedListModel;
 };
 
 export class SavedChartService {
@@ -34,11 +36,14 @@ export class SavedChartService {
 
     private readonly analyticsModel: AnalyticsModel;
 
+    private readonly pinnedListModel: PinnedListModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.spaceModel = dependencies.spaceModel;
         this.analyticsModel = dependencies.analyticsModel;
+        this.pinnedListModel = dependencies.pinnedListModel;
     }
 
     async hasChartSpaceAccess(
@@ -151,6 +156,36 @@ export class SavedChartService {
         return savedChart;
     }
 
+    async togglePinning(
+        user: SessionUser,
+        savedChartUuid: string,
+    ): Promise<SavedChart> {
+        const { organizationUuid, projectUuid, pinnedListUuid } =
+            await this.savedChartModel.get(savedChartUuid);
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (pinnedListUuid) {
+            await this.pinnedListModel.deleteItem({
+                pinnedListUuid,
+                savedChartUuid,
+            });
+        } else {
+            await this.pinnedListModel.addItem({
+                projectUuid,
+                savedChartUuid,
+            });
+        }
+
+        return this.get(savedChartUuid, user);
+    }
+
     async updateMultiple(
         user: SessionUser,
         projectUuid: string,
@@ -224,6 +259,16 @@ export class SavedChartService {
             savedChartUuid,
             user.userUuid,
         );
+
+        analytics.track({
+            event: 'saved_chart.view',
+            userId: user.userUuid,
+            properties: {
+                savedChartId: savedChart.uuid,
+                organizationId: savedChart.organizationUuid,
+                projectId: savedChart.projectUuid,
+            },
+        });
 
         const views = await this.analyticsModel.countChartViews(savedChartUuid);
 

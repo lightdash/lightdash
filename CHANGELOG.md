@@ -1,3 +1,17 @@
+# [0.384.0](https://github.com/lightdash/lightdash/compare/0.383.0...0.384.0) (2023-01-20)
+
+
+### Features
+
+* track chart/dashboard views on  rudderstack ([#4222](https://github.com/lightdash/lightdash/issues/4222)) ([84ffdf5](https://github.com/lightdash/lightdash/commit/84ffdf56b8f11f7c4a94e5e1cc947105f67c049d))
+
+# [0.383.0](https://github.com/lightdash/lightdash/compare/0.382.0...0.383.0) (2023-01-20)
+
+
+### Features
+
+* API for pinning charts and dashboards ([#4174](https://github.com/lightdash/lightdash/issues/4174)) ([87fead6](https://github.com/lightdash/lightdash/commit/87fead63935543e0720a2d37985d6dc8a1cc7464))
+
 # [0.382.0](https://github.com/lightdash/lightdash/compare/0.381.0...0.382.0) (2023-01-20)
 
 

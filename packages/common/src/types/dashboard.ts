@@ -94,6 +94,7 @@ export type Dashboard = {
     spaceUuid: string;
     spaceName: string;
     views?: number;
+    pinnedListUuid: string | undefined;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -107,12 +108,14 @@ export type DashboardBasicDetails = Pick<
     | 'organizationUuid'
     | 'spaceUuid'
     | 'views'
+    | 'pinnedListUuid'
 >;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
     'name' | 'description' | 'spaceUuid'
 >;
+
 export type DashboardVersionedFields = Pick<
     CreateDashboard,
     'tiles' | 'filters' | 'updatedByUser'

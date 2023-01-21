@@ -17,6 +17,7 @@ import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { PinnedListModel } from '../../models/PinnedListModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
@@ -24,6 +25,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
+    pinnedListModel: PinnedListModel;
 };
 
 export class DashboardService {
@@ -33,10 +35,18 @@ export class DashboardService {
 
     analyticsModel: AnalyticsModel;
 
-    constructor({ dashboardModel, spaceModel, analyticsModel }: Dependencies) {
+    pinnedListModel: PinnedListModel;
+
+    constructor({
+        dashboardModel,
+        spaceModel,
+        analyticsModel,
+        pinnedListModel,
+    }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
+        this.pinnedListModel = pinnedListModel;
     }
 
     async hasDashboardSpaceAccess(
@@ -131,6 +141,16 @@ export class DashboardService {
             dashboard.uuid,
             user.userUuid,
         );
+        analytics.track({
+            event: 'dashboard.view',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: dashboard.uuid,
+                organizationId: dashboard.organizationUuid,
+                projectId: dashboard.projectUuid,
+            },
+        });
+
         return dashboard;
     }
 
@@ -176,7 +196,7 @@ export class DashboardService {
             userId: user.userUuid,
             properties: DashboardService.getCreateEventProperties(newDashboard),
         });
-        return this.getById(user, newDashboard.uuid);
+        return this.dashboardModel.getById(newDashboard.uuid);
     }
 
     async duplicate(
@@ -228,7 +248,8 @@ export class DashboardService {
                 duplicateOfDashboardId: dashboard.uuid,
             },
         });
-        return this.getById(user, newDashboard.uuid);
+
+        return this.dashboardModel.getById(newDashboard.uuid);
     }
 
     async update(
@@ -294,6 +315,47 @@ export class DashboardService {
                     DashboardService.getCreateEventProperties(updatedDashboard),
             });
         }
+        return this.dashboardModel.getById(dashboardUuid);
+    }
+
+    async togglePinning(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<Dashboard> {
+        const existingDashboard = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', existingDashboard),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                existingDashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+        if (existingDashboard.pinnedListUuid) {
+            await this.pinnedListModel.deleteItem({
+                pinnedListUuid: existingDashboard.pinnedListUuid,
+                dashboardUuid,
+            });
+        } else {
+            await this.pinnedListModel.addItem({
+                projectUuid: existingDashboard.projectUuid,
+                dashboardUuid,
+            });
+        }
+
         return this.getById(user, dashboardUuid);
     }
 

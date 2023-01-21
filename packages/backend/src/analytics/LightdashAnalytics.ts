@@ -416,6 +416,26 @@ type ShareSlack = BaseTrack & {
     };
 };
 
+type SavedChartView = BaseTrack & {
+    event: 'saved_chart.view';
+    userId: string;
+    properties: {
+        savedChartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type DashboardView = BaseTrack & {
+    event: 'dashboard.view';
+    userId: string;
+    properties: {
+        dashboardId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -450,7 +470,9 @@ type Track =
     | FieldValueSearch
     | PermissionsUpdated
     | ShareUrl
-    | ShareSlack;
+    | ShareSlack
+    | SavedChartView
+    | DashboardView;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
