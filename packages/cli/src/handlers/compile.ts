@@ -53,7 +53,12 @@ export const compile = async (options: GenerateHandlerOptions) => {
         targetName: options.target,
     });
     const credentials = await warehouseCredentialsFromDbtTarget(target);
-    const warehouseClient = warehouseClientFromCredentials(credentials);
+    const warehouseClient = warehouseClientFromCredentials({
+        ...credentials,
+        startOfWeek: isWeekDay(options.startOfWeek)
+            ? options.startOfWeek
+            : undefined,
+    });
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const models = getModelsFromManifest(manifest);
 
@@ -110,7 +115,7 @@ ${errors.join('')}`),
         false,
         manifest.metadata.adapter_type,
         Object.values(manifest.metrics),
-        isWeekDay(options.startOfWeek) ? options.startOfWeek : undefined,
+        warehouseClient,
     );
     console.error('');
 

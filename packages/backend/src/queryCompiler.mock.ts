@@ -7,6 +7,7 @@ import {
     MetricQuery,
     MetricType,
     SupportedDbtAdapter,
+    WarehouseClient,
 } from '@lightdash/common';
 import { emptyTable } from './queryBuilder.mock';
 

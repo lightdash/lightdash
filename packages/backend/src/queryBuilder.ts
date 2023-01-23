@@ -7,16 +7,14 @@ import {
     FilterGroup,
     FilterRule,
     getDimensions,
-    getEscapeStringQuoteChar,
-    getFieldQuoteChar,
     getFields,
     getFilterRulesFromGroup,
     getMetrics,
-    getStringQuoteChar,
     isAndFilterGroup,
     isFilterGroup,
     parseAllReferences,
     renderFilterRuleSql,
+    WarehouseClient,
 } from '@lightdash/common';
 
 const getDimensionFromId = (dimId: FieldId, explore: Explore) => {
@@ -57,20 +55,21 @@ export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
     allResults?: boolean;
+
+    warehouseClient: WarehouseClient;
 };
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     allResults,
+    warehouseClient,
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
     const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
-    const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
-    const stringQuoteChar = getStringQuoteChar(explore.targetDatabase);
-    const escapeStringQuoteChar = getEscapeStringQuoteChar(
-        explore.targetDatabase,
-    );
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const dimensionSelects = dimensions.map((field) => {

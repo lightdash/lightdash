@@ -244,4 +244,16 @@ export class BigqueryWarehouseClient implements WarehouseClient {
             return acc;
         }, {});
     }
+
+    getFieldQuoteChar() {
+        return '`';
+    }
+
+    getStringQuoteChar() {
+        return "'";
+    }
+
+    getEscapeStringQuoteChar() {
+        return '\\';
+    }
 }
