@@ -6,7 +6,7 @@ import {
     isCreateChartPinnedItem,
     isDeleteChartPinnedItem,
     PinnedList,
-} from '@lightdash/common/dist/types/pinning';
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     PinnedChartTableName,
