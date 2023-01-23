@@ -35,7 +35,7 @@ import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Signup from './pages/Signup';
-import Space from './pages/Space';
+import { default as Space, default as Spaces } from './pages/Space';
 import SqlRunner from './pages/SqlRunner';
 import { AppProvider } from './providers/AppProvider';
 import { BlueprintProvider } from './providers/BlueprintProvider';
@@ -250,6 +250,16 @@ const App = () => (
                                                                         }
                                                                     >
                                                                         <Explorer />
+                                                                    </TrackPage>
+                                                                </Route>
+                                                                <Route path="/projects/:projectUuid/spaces">
+                                                                    <NavBar />
+                                                                    <TrackPage
+                                                                        name={
+                                                                            PageName.SPACE
+                                                                        }
+                                                                    >
+                                                                        <Spaces />
                                                                     </TrackPage>
                                                                 </Route>
                                                                 <Route path="/projects/:projectUuid/spaces/:spaceUuid">
