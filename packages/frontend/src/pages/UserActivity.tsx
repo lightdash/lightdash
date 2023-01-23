@@ -55,42 +55,58 @@ const UserActivity: FC = () => {
 
     const weeklySeries = {
         xAxis: {
-            type: 'category',
-            data: data.queriesPerWeek.map((queries: any) => queries.date),
+            type: 'time',
         },
-        yAxis: {
-            type: 'value',
-        },
+        yAxis: [
+            {
+                type: 'value',
+                name: 'Queries',
+            },
+            {
+                type: 'value',
+                name: 'Percent of weekly \nactive users',
+            },
+        ],
         series: [
             {
-                data: data.queriesPerWeek.map((queries: any) => queries.count),
+                data: data.averageUserQueriesPerWeek.map((queries: any) => [
+                    queries.date,
+                    queries.count,
+                ]),
                 type: 'bar',
             },
             {
-                data: data.queriesPerWeek.map(
-                    (queries: any) => queries.percent_weekly_active_users,
-                ),
+                yAxisIndex: 1,
+                data: data.queriesPerWeek.map((queries: any) => [
+                    queries.date,
+                    queries.percent_weekly_active_user,
+                ]),
                 type: 'line',
+                symbol: 'none',
+                smooth: true,
             },
         ],
     };
+    const parseDate = (date: Date) =>
+        [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('/');
 
     const series = {
         xAxis: {
-            type: 'category',
-            data: data.averageUserQueriesPerWeek.map(
-                (queries: any) => queries.date,
-            ),
+            type: 'time',
         },
         yAxis: {
             type: 'value',
+            name: 'Average user queries',
         },
         series: [
             {
-                data: data.averageUserQueriesPerWeek.map(
-                    (queries: any) => queries.count,
-                ),
+                data: data.averageUserQueriesPerWeek.map((queries: any) => [
+                    queries.date,
+                    queries.count,
+                ]),
                 type: 'line',
+                symbol: 'none',
+                smooth: true,
             },
         ],
     };
