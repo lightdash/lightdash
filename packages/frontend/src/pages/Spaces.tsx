@@ -14,6 +14,7 @@ import {
     ResourceBreadcrumbTitle,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
+import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 // import ForbiddenPanel from '../components/ForbiddenPanel';
 // import SpacePanel from '../components/SpacePanel';
 import { useSpaces } from '../hooks/useSpaces';
@@ -75,6 +76,8 @@ const Spaces: FC = () => {
                         />
                     </PageBreadcrumbsWrapper>
                 </PageHeader>
+
+                <SpaceBrowser projectUuid={params.projectUuid} />
             </PageContentWrapper>
         </Page>
     );

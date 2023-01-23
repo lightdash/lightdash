@@ -253,16 +253,6 @@ const App = () => (
                                                                         <Explorer />
                                                                     </TrackPage>
                                                                 </Route>
-                                                                <Route path="/projects/:projectUuid/spaces">
-                                                                    <NavBar />
-                                                                    <TrackPage
-                                                                        name={
-                                                                            PageName.SPACE
-                                                                        }
-                                                                    >
-                                                                        <Spaces />
-                                                                    </TrackPage>
-                                                                </Route>
                                                                 <Route path="/projects/:projectUuid/spaces/:spaceUuid">
                                                                     <NavBar />
                                                                     <TrackPage
@@ -271,6 +261,16 @@ const App = () => (
                                                                         }
                                                                     >
                                                                         <Space />
+                                                                    </TrackPage>
+                                                                </Route>
+                                                                <Route path="/projects/:projectUuid/spaces">
+                                                                    <NavBar />
+                                                                    <TrackPage
+                                                                        name={
+                                                                            PageName.SPACE
+                                                                        }
+                                                                    >
+                                                                        <Spaces />
                                                                     </TrackPage>
                                                                 </Route>
                                                                 <Route
