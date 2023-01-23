@@ -488,6 +488,7 @@ export const convertExplores = async (
                 joinedTables: (meta?.joins || []).map((join) => ({
                     table: join.join,
                     sqlOn: join.sql_on,
+                    alias: join.alias,
                 })),
                 tables: tableLookup,
                 targetDatabase: adapterType,

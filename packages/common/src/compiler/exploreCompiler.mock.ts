@@ -471,7 +471,7 @@ export const exploreComplexReferenceCompiled: Explore = {
     },
 };
 
-export const exploreReferenceInJoin: UncompiledExplore = {
+export const simpleJoinedExplore: UncompiledExplore = {
     ...exploreBase,
     joinedTables: [
         {
@@ -482,7 +482,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
     tables: {
         a: {
             name: 'a',
-            label: 'a',
+            label: 'Custom A label',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -493,7 +493,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     name: 'dim1',
                     label: 'dim1',
                     table: 'a',
-                    tableLabel: 'a',
+                    tableLabel: 'Custom A label',
                     sql: '${TABLE}.dim1',
                     source: sourceMock,
                     hidden: false,
@@ -505,7 +505,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
         },
         b: {
             name: 'b',
-            label: 'b',
+            label: 'Custom B label',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.tableb',
@@ -516,19 +516,8 @@ export const exploreReferenceInJoin: UncompiledExplore = {
                     name: 'dim1',
                     label: 'dim1',
                     table: 'b',
-                    tableLabel: 'b',
+                    tableLabel: 'Custom B label',
                     sql: '${TABLE}.dim1',
-                    source: sourceMock,
-                    hidden: false,
-                },
-                dim2: {
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.STRING,
-                    name: 'dim2',
-                    label: 'dim2',
-                    table: 'b',
-                    tableLabel: 'b',
-                    sql: '${a.dim1}',
                     source: sourceMock,
                     hidden: false,
                 },
@@ -540,7 +529,7 @@ export const exploreReferenceInJoin: UncompiledExplore = {
     },
 };
 
-export const exploreReferenceInJoinCompiled: Explore = {
+export const compiledSimpleJoinedExplore: Explore = {
     ...exploreBase,
     joinedTables: [
         {
@@ -552,7 +541,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
     tables: {
         a: {
             name: 'a',
-            label: 'a',
+            label: 'Custom A label',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
@@ -563,7 +552,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     name: 'dim1',
                     label: 'dim1',
                     table: 'a',
-                    tableLabel: 'a',
+                    tableLabel: 'Custom A label',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"a".dim1',
                     tablesReferences: ['a'],
@@ -577,7 +566,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
         },
         b: {
             name: 'b',
-            label: 'b',
+            label: 'Custom B label',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.tableb',
@@ -588,20 +577,63 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     name: 'dim1',
                     label: 'dim1',
                     table: 'b',
-                    tableLabel: 'b',
+                    tableLabel: 'Custom B label',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"b".dim1',
                     tablesReferences: ['b'],
                     source: sourceMock,
                     hidden: false,
                 },
+            },
+            metrics: {},
+            lineageGraph: {},
+            source: sourceMock,
+        },
+    },
+};
+
+export const exploreReferenceInJoin: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    tables: {
+        ...simpleJoinedExplore.tables,
+        b: {
+            ...simpleJoinedExplore.tables.b,
+            dimensions: {
+                ...simpleJoinedExplore.tables.b.dimensions,
                 dim2: {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     name: 'dim2',
                     label: 'dim2',
                     table: 'b',
-                    tableLabel: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${a.dim1}',
+                    source: sourceMock,
+                    hidden: false,
+                },
+            },
+            metrics: {},
+            lineageGraph: {},
+            source: sourceMock,
+        },
+    },
+};
+
+export const exploreReferenceInJoinCompiled: Explore = {
+    ...compiledSimpleJoinedExplore,
+    tables: {
+        ...compiledSimpleJoinedExplore.tables,
+        b: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            dimensions: {
+                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                dim2: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'dim2',
+                    label: 'dim2',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
                     sql: '${a.dim1}',
                     compiledSql: '("a".dim1)',
                     tablesReferences: ['b', 'a'],
@@ -612,6 +644,114 @@ export const exploreReferenceInJoinCompiled: Explore = {
             metrics: {},
             lineageGraph: {},
             source: sourceMock,
+        },
+    },
+};
+
+export const joinedExploreOverridingJoinLabel: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            ...simpleJoinedExplore.joinedTables[0],
+            label: 'Custom join label',
+        },
+    ],
+};
+export const compiledJoinedExploreOverridingJoinLabel: Explore = {
+    ...compiledSimpleJoinedExplore,
+    tables: {
+        ...compiledSimpleJoinedExplore.tables,
+        b: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            label: 'Custom join label',
+            dimensions: {
+                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                dim1: {
+                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    tableLabel: 'Custom join label',
+                },
+            },
+        },
+    },
+};
+
+export const joinedExploreOverridingJoinAlias: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${custom_alias.dim1}',
+            alias: 'custom_alias',
+        },
+    ],
+};
+
+export const compiledJoinedExploreOverridingJoinAlias: Explore = {
+    ...compiledSimpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'custom_alias',
+            sqlOn: '${a.dim1} = ${custom_alias.dim1}',
+            compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
+        },
+    ],
+    tables: {
+        a: compiledSimpleJoinedExplore.tables.a,
+        custom_alias: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            name: 'custom_alias',
+            label: 'Custom alias',
+            dimensions: {
+                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                dim1: {
+                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    table: 'custom_alias',
+                    tableLabel: 'Custom alias',
+                    compiledSql: '"custom_alias".dim1',
+                    tablesReferences: ['custom_alias'],
+                },
+            },
+        },
+    },
+};
+
+export const joinedExploreOverridingAliasAndLabel: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${custom_alias.dim1}',
+            label: 'Custom join label',
+            alias: 'custom_alias',
+        },
+    ],
+};
+
+export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
+    ...compiledSimpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'custom_alias',
+            sqlOn: '${a.dim1} = ${custom_alias.dim1}',
+            compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
+        },
+    ],
+    tables: {
+        a: compiledSimpleJoinedExplore.tables.a,
+        custom_alias: {
+            ...compiledSimpleJoinedExplore.tables.b,
+            name: 'custom_alias',
+            label: 'Custom join label',
+            dimensions: {
+                ...compiledSimpleJoinedExplore.tables.b.dimensions,
+                dim1: {
+                    ...compiledSimpleJoinedExplore.tables.b.dimensions.dim1,
+                    table: 'custom_alias',
+                    tableLabel: 'Custom join label',
+                    compiledSql: '"custom_alias".dim1',
+                    tablesReferences: ['custom_alias'],
+                },
+            },
         },
     },
 };

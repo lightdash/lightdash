@@ -11,9 +11,11 @@ import { TableBase } from './table';
 export type ExploreJoin = {
     table: string; // Must match a tableName in containing Explore
     sqlOn: string; // Built sql
+    alias?: string; // Optional alias for the joined tableName
+    label?: string; // Optional UI label override for the underlying table
 };
 
-export type CompiledExploreJoin = ExploreJoin & {
+export type CompiledExploreJoin = Pick<ExploreJoin, 'table' | 'sqlOn'> & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };
 

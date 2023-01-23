@@ -3,6 +3,10 @@ import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
 import { compileExplore, compileMetric } from './exploreCompiler';
 import {
+    compiledJoinedExploreOverridingAliasAndLabel,
+    compiledJoinedExploreOverridingJoinAlias,
+    compiledJoinedExploreOverridingJoinLabel,
+    compiledSimpleJoinedExplore,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
     exploreCircularMetricReference,
@@ -21,6 +25,10 @@ import {
     exploreTableSelfReferenceCompiled,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    joinedExploreOverridingAliasAndLabel,
+    joinedExploreOverridingJoinAlias,
+    joinedExploreOverridingJoinLabel,
+    simpleJoinedExplore,
     tablesWithMetricsWithFilters,
 } from './exploreCompiler.mock';
 
@@ -75,16 +83,38 @@ test('Should compile table with nested references in dimensions and metrics', ()
     );
 });
 
-test('Should compile with a reference to a dimension in a joined table', () => {
-    expect(compileExplore(exploreReferenceInJoin)).toStrictEqual(
-        exploreReferenceInJoinCompiled,
-    );
-});
-
 test('Should compile with a reference to a metric in a non-aggregate metric', () => {
     expect(compileExplore(exploreWithMetricNumber)).toStrictEqual(
         exploreWithMetricNumberCompiled,
     );
+});
+
+describe('Explores with a base table and joined table', () => {
+    test('should compile', () => {
+        expect(compileExplore(simpleJoinedExplore)).toStrictEqual(
+            compiledSimpleJoinedExplore,
+        );
+    });
+    test('should compile with a reference to a dimension in a joined table', () => {
+        expect(compileExplore(exploreReferenceInJoin)).toStrictEqual(
+            exploreReferenceInJoinCompiled,
+        );
+    });
+    test('should compile with custom label on join', () => {
+        expect(compileExplore(joinedExploreOverridingJoinLabel)).toStrictEqual(
+            compiledJoinedExploreOverridingJoinLabel,
+        );
+    });
+    test('should compile with alias on join', () => {
+        expect(compileExplore(joinedExploreOverridingJoinAlias)).toStrictEqual(
+            compiledJoinedExploreOverridingJoinAlias,
+        );
+    });
+    test('should compile with an alias and custom label on join', () => {
+        expect(
+            compileExplore(joinedExploreOverridingAliasAndLabel),
+        ).toStrictEqual(compiledJoinedExploreOverridingAliasAndLabel);
+    });
 });
 
 describe('Default field labels render for', () => {
