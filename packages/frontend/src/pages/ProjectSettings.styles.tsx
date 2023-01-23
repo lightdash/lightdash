@@ -1,5 +1,5 @@
-import { H3 } from '@blueprintjs/core';
-import styled, { css } from 'styled-components';
+import { Colors } from '@blueprintjs/core';
+import styled from 'styled-components';
 import { BigButton } from '../components/common/BigButton';
 
 export const ContentContainer = styled.div`
@@ -7,29 +7,17 @@ export const ContentContainer = styled.div`
     margin: 0 auto;
 `;
 
-export const Header = styled.div`
+export const SubtitleWrapper = styled.div`
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
+    margin: 0 0 20px;
 `;
 
-export const TitleWrapper = styled.div`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    flex: 1;
-    justify-content: flex-start;
-`;
-
-export const Title = styled(H3)<{ marginBottom?: boolean }>`
-    margin: 0;
-    margin-right: 10px;
-
-    ${({ marginBottom }) =>
-        marginBottom &&
-        css`
-            margin: 0 0 20px;
-        `}
+export const Subtitle = styled.p`
+    color: ${Colors.GRAY2};
+    margin: 0px;
 `;
 
 export const ProjectConnectionContainer = styled.div`

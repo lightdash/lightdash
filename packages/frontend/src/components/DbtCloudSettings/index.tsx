@@ -8,13 +8,7 @@ import {
     useProjectDbtCloudUpdateMutation,
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
 import { Subtitle } from '../../pages/CreateProject.styles';
-import {
-    ButtonsWrapper,
-    Header,
-    SaveButton,
-    Title,
-    TitleWrapper,
-} from '../../pages/ProjectSettings.styles';
+import { ButtonsWrapper, SaveButton } from '../../pages/ProjectSettings.styles';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import PasswordInput from '../ReactHookForm/PasswordInput';
@@ -49,11 +43,6 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
 
     return (
         <>
-            <Header>
-                <TitleWrapper>
-                    <Title marginBottom>Connect to dbt Cloud</Title>
-                </TitleWrapper>
-            </Header>
             <Subtitle>
                 Connect Lightdash to your dbt Cloud account to start consuming
                 metrics from the dbt semantic layer and using dbt jinja in your

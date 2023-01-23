@@ -1,11 +1,6 @@
-import { Colors, Icon } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { FC, useState } from 'react';
-import {
-    Header,
-    Title,
-    TitleWrapper,
-} from '../../pages/ProjectSettings.styles';
+import { Subtitle, SubtitleWrapper } from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import ProjectAccess from './ProjectAccess';
@@ -32,19 +27,18 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                 />
             ) : (
                 <>
-                    <Header>
-                        <TitleWrapper>
-                            <Title>Project access</Title>
+                    <SubtitleWrapper>
+                        <Subtitle>
+                            Learn more about permissions in our{' '}
                             <a
                                 role="button"
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{ color: Colors.GRAY5 }}
                             >
-                                <Icon icon="info-sign" />
+                                docs
                             </a>
-                        </TitleWrapper>
+                        </Subtitle>
                         {!showProjectAccessCreate && (
                             <Can
                                 I={'manage'}
@@ -63,7 +57,8 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                                 />
                             </Can>
                         )}
-                    </Header>
+                    </SubtitleWrapper>
+
                     <ProjectAccess projectUuid={projectUuid} />
                 </>
             )}
