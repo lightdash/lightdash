@@ -257,7 +257,7 @@ const App = () => (
                                                                     <NavBar />
                                                                     <TrackPage
                                                                         name={
-                                                                            PageName.SPACES
+                                                                            PageName.SPACE
                                                                         }
                                                                     >
                                                                         <Space />
@@ -267,7 +267,7 @@ const App = () => (
                                                                     <NavBar />
                                                                     <TrackPage
                                                                         name={
-                                                                            PageName.SPACE
+                                                                            PageName.SPACES
                                                                         }
                                                                     >
                                                                         <Spaces />
