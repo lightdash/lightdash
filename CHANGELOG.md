@@ -1,3 +1,10 @@
+# [0.385.0](https://github.com/lightdash/lightdash/compare/0.384.2...0.385.0) (2023-01-23)
+
+
+### Features
+
+* space page ([#4232](https://github.com/lightdash/lightdash/issues/4232)) ([0aa5b4c](https://github.com/lightdash/lightdash/commit/0aa5b4c087beee05b341f94d2396ea48a89e5b70))
+
 ## [0.384.2](https://github.com/lightdash/lightdash/compare/0.384.1...0.384.2) (2023-01-23)
 
 
