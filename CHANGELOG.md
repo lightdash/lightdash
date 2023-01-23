@@ -1,3 +1,10 @@
+## [0.384.1](https://github.com/lightdash/lightdash/compare/0.384.0...0.384.1) (2023-01-23)
+
+
+### Bug Fixes
+
+* pinning common export ([#4231](https://github.com/lightdash/lightdash/issues/4231)) ([ba3c400](https://github.com/lightdash/lightdash/commit/ba3c40029596066c2cc1cda425b9d2bd0c82dacf))
+
 # [0.384.0](https://github.com/lightdash/lightdash/compare/0.383.0...0.384.0) (2023-01-20)
 
 
