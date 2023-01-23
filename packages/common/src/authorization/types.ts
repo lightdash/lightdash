@@ -22,6 +22,7 @@ type Subject =
     | 'InviteLink'
     | 'Job'
     | 'SqlRunner'
+    | 'Analytics'
     | 'all';
 
 type PossibleAbilities = [

@@ -36,4 +36,14 @@ export class AnalyticsService {
     async getDashboardViews(dashboardUuid: string): Promise<number> {
         return this.analyticsModel.countDashboardViews(dashboardUuid);
     }
+
+    async getUserActivity(
+        projectUuid: string,
+        user: SessionUser,
+    ): Promise<any> {
+        return this.analyticsModel.getUserActivity(
+            projectUuid,
+            user.organizationUuid,
+        );
+    }
 }

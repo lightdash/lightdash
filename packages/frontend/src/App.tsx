@@ -37,6 +37,7 @@ import ShareRedirect from './pages/ShareRedirect';
 import Signup from './pages/Signup';
 import Space from './pages/Space';
 import SqlRunner from './pages/SqlRunner';
+import UserActivity from './pages/UserActivity';
 import { AppProvider } from './providers/AppProvider';
 import { BlueprintProvider } from './providers/BlueprintProvider';
 import { DashboardProvider } from './providers/DashboardProvider';
@@ -273,6 +274,19 @@ const App = () => (
                                                                         }
                                                                     >
                                                                         <Home />
+                                                                    </TrackPage>
+                                                                </Route>
+                                                                <Route
+                                                                    path="/projects/:projectUuid/user-activity"
+                                                                    exact
+                                                                >
+                                                                    <NavBar />
+                                                                    <TrackPage
+                                                                        name={
+                                                                            PageName.HOME
+                                                                        }
+                                                                    >
+                                                                        <UserActivity />
                                                                     </TrackPage>
                                                                 </Route>
                                                                 <Redirect to="/projects" />
