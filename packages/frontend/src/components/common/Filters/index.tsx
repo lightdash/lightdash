@@ -22,6 +22,11 @@ import FieldAutoComplete from './FieldAutoComplete';
 import { FieldAutoCompleteWrapper } from './FieldAutoComplete.styles';
 import FilterGroupForm from './FilterGroupForm';
 import { FieldWithSuggestions, useFiltersContext } from './FiltersProvider';
+import {
+    FilterSearchAlignment,
+    FilterSearchSelectCopy,
+    FilterSearchWrapper,
+} from './index.styles';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
@@ -199,19 +204,23 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 }}
             >
                 {isOpen && (
-                    <FieldAutoCompleteWrapper>
-                        <FieldAutoComplete
-                            autoFocus
-                            fields={fields}
-                            onChange={addFieldRule}
-                            onClosed={toggleFieldInput}
-                        />
-                        <Button
-                            minimal
-                            icon="cross"
-                            onClick={toggleFieldInput}
-                        />
-                    </FieldAutoCompleteWrapper>
+                    <FilterSearchWrapper>
+                        <FilterSearchAlignment>
+                            <FieldAutoComplete
+                                autoFocus
+                                fields={fields}
+                                onChange={addFieldRule}
+                                onClosed={toggleFieldInput}
+                            />
+                            <Button
+                                minimal
+                                icon="cross"
+                                onClick={toggleFieldInput}
+                            />
+                        </FilterSearchAlignment>
+                        <FilterSearchAlignment />
+                        <FilterSearchSelectCopy />
+                    </FilterSearchWrapper>
                 )}
                 {isEditMode && !isOpen && (
                     <Button
