@@ -1,3 +1,10 @@
+## [0.384.2](https://github.com/lightdash/lightdash/compare/0.384.1...0.384.2) (2023-01-23)
+
+
+### Bug Fixes
+
+* set password for first time ([#4230](https://github.com/lightdash/lightdash/issues/4230)) ([55804f8](https://github.com/lightdash/lightdash/commit/55804f8841dd05e7ee530a136dd52f526e771ca9))
+
 ## [0.384.1](https://github.com/lightdash/lightdash/compare/0.384.0...0.384.1) (2023-01-23)
 
 
