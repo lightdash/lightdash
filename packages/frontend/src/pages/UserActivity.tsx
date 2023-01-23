@@ -1,4 +1,5 @@
 import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
+import { UserWithCount } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import React, { FC } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
@@ -21,6 +22,19 @@ import {
     BigNumberLabel,
     Container,
 } from './UserActivity.styles';
+
+const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
+    return userList.map((user) => {
+        return (
+            <tr key={`${key}-${user.userUuid}`}>
+                <td>{user.userUuid}</td>
+                <td>{user.firstName}</td>
+                <td>{user.lastName}</td>
+                <td>{user.count}</td>
+            </tr>
+        );
+    });
+};
 
 const UserActivity: FC = () => {
     const params = useParams<{ projectUuid: string }>();
@@ -112,18 +126,10 @@ const UserActivity: FC = () => {
                                 <th>Last Name</th>
                                 <th>Number of Queries</th>
                             </tr>
-                            {data.usersWithMostQueries.map((user) => {
-                                return (
-                                    <tr
-                                        key={`user-most-queries-${user.userUuid}`}
-                                    >
-                                        <th>{user.userUuid}</th>
-                                        <th>{user.firstName}</th>
-                                        <th>{user.lastName}</th>
-                                        <th>{user.count}</th>
-                                    </tr>
-                                );
-                            })}
+                            {showTableBodyWithUsers(
+                                'users-most-queries',
+                                data.usersWithMostQueries,
+                            )}
                         </Table>
                     </ActivityCard>
                     <ActivityCard grid="table-most-charts">
@@ -132,20 +138,12 @@ const UserActivity: FC = () => {
                                 <th>User ID</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
-                                <th>Number of Queries</th>
+                                <th>Number of updated charts</th>
                             </tr>
-                            {data.usersCreatedMostCharts.map((user) => {
-                                return (
-                                    <tr
-                                        key={`user-created-most-charts-${user.userUuid}`}
-                                    >
-                                        <th>{user.userUuid}</th>
-                                        <th>{user.firstName}</th>
-                                        <th>{user.lastName}</th>
-                                        <th>{user.count}</th>
-                                    </tr>
-                                );
-                            })}
+                            {showTableBodyWithUsers(
+                                'users-created-most-charts',
+                                data.usersCreatedMostCharts,
+                            )}
                         </Table>
                     </ActivityCard>
                     <ActivityCard grid="table-not-logged-in">
@@ -154,20 +152,12 @@ const UserActivity: FC = () => {
                                 <th>User ID</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
-                                <th>Number of Queries</th>
+                                <th>Days since last login</th>
                             </tr>
-                            {data.usersNotLoggedIn.map((user) => {
-                                return (
-                                    <tr
-                                        key={`users-not-logged-in-${user.userUuid}`}
-                                    >
-                                        <th>{user.userUuid}</th>
-                                        <th>{user.firstName}</th>
-                                        <th>{user.lastName}</th>
-                                        <th>{user.count}</th>
-                                    </tr>
-                                );
-                            })}
+                            {showTableBodyWithUsers(
+                                'users-not-logged-in',
+                                data.usersNotLoggedIn,
+                            )}
                         </Table>
                     </ActivityCard>
                 </Container>

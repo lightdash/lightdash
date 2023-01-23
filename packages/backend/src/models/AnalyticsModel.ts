@@ -1,4 +1,8 @@
-import { OrganizationMemberRole, UserActivity } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    UserActivity,
+    UserWithCount,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AnalyticsChartViewsTableName,
@@ -10,6 +14,13 @@ import { UserTableName } from '../database/entities/users';
 
 type Dependencies = {
     database: Knex;
+};
+
+type DbUserWithCount = {
+    user_uuid: string;
+    first_name: string;
+    last_name: string;
+    count: number;
 };
 export class AnalyticsModel {
     private database: Knex;
@@ -151,6 +162,15 @@ export class AnalyticsModel {
         limit 10
 
     `);
+
+        const parseUsersWithCount = (
+            userData: DbUserWithCount,
+        ): UserWithCount => ({
+            userUuid: userData.user_uuid,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            count: userData.count,
+        });
         return {
             numberOfUsers: usersInProject.length,
             numberOfViewers: usersInProject.filter(
@@ -163,11 +183,13 @@ export class AnalyticsModel {
                 (user) => user.role === OrganizationMemberRole.ADMIN,
             ).length,
             weeklyQueryingUsers: `${weeklyQueryingUsers.rows[0].percent_weekly_active_users.toFixed(
-                2,
+                0,
             )}`,
-            usersWithMostQueries: usersWithMostQueries.rows,
-            usersCreatedMostCharts: usersCreatedMostCharts.rows,
-            usersNotLoggedIn: usersNotLoggedIn.rows,
+            usersWithMostQueries:
+                usersWithMostQueries.rows.map(parseUsersWithCount),
+            usersCreatedMostCharts:
+                usersCreatedMostCharts.rows.map(parseUsersWithCount),
+            usersNotLoggedIn: usersNotLoggedIn.rows.map(parseUsersWithCount),
         };
     }
 }

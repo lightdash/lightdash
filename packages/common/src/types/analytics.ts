@@ -1,4 +1,4 @@
-type UserWithCount = {
+export type UserWithCount = {
     userUuid: string;
     firstName: string;
     lastName: string;
