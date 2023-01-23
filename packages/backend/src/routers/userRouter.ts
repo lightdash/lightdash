@@ -66,13 +66,25 @@ userRouter.patch(
     },
 );
 
+userRouter.get('/password', isAuthenticated, async (req, res, next) =>
+    userService
+        .hasPassword(req.user!)
+        .then((hasPassword: boolean) => {
+            res.json({
+                status: 'ok',
+                results: hasPassword,
+            });
+        })
+        .catch(next),
+);
+
 userRouter.post(
     '/password',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
         userService
-            .updatePassword(req.user!.userId, req.user!.userUuid, req.body)
+            .updatePassword(req.user!, req.body)
             .then(() => {
                 req.logout((err) => {
                     if (err) {
