@@ -1,23 +1,25 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { FC } from 'react';
+import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-// import ForbiddenPanel from '../components/ForbiddenPanel';
-// import SpacePanel from '../components/SpacePanel';
-import { useSpaces } from '../hooks/useSpaces';
+import ForbiddenPanel from '../components/ForbiddenPanel';
+import SpacePanel from '../components/SpacePanel';
+import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
-const Spaces: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const { data, isLoading, error } = useSpaces(params.projectUuid);
-    // const { user } = useApp();
+const Space: FC = () => {
+    const params = useParams<{ projectUuid: string; spaceUuid: string }>();
+    const { data, isLoading, error } = useSpace(
+        params.projectUuid,
+        params.spaceUuid,
+    );
+    const { user } = useApp();
 
-    // TODO: fix permissions
-    // if (user.data?.ability?.cannot('view', 'SavedChart')) {
-    //     return <ForbiddenPanel />;
-    // }
+    if (user.data?.ability?.cannot('view', 'SavedChart')) {
+        return <ForbiddenPanel />;
+    }
 
     if (isLoading) {
         return (
@@ -31,13 +33,25 @@ const Spaces: FC = () => {
         return <ErrorState error={error.error} />;
     }
 
+    if (data === undefined) {
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState
+                    title="Space does not exist"
+                    description={`We could not find space with uuid ${params.spaceUuid}`}
+                />
+            </div>
+        );
+    }
+
     return (
         <Page>
             <Helmet>
-                <title>Spaces - Lightdash</title>
+                <title>{data?.name} - Lightdash</title>
             </Helmet>
+            <SpacePanel space={data}></SpacePanel>
         </Page>
     );
 };
 
-export default Spaces;
+export default Space;

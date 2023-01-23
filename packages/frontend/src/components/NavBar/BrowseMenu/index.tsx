@@ -36,11 +36,20 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                     icon="control"
                                 />
                             </NavLink>
+
                             <NavLink to={`/projects/${projectUuid}/saved`}>
                                 <NavbarMenuItem
                                     roleStructure="menuitem"
                                     icon="chart"
                                     text="All saved charts"
+                                />
+                            </NavLink>
+
+                            <NavLink to={`/projects/${projectUuid}/spaces`}>
+                                <FirstItem
+                                    role="menuitem"
+                                    text="All spaces"
+                                    icon="folder-close"
                                 />
                             </NavLink>
 
