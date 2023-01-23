@@ -28,6 +28,14 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     </SpinnerWrapper>
                 ) : (
                     <Menu>
+                        <NavLink to={`/projects/${projectUuid}/spaces`}>
+                            <NavbarMenuItem
+                                role="menuitem"
+                                text="All spaces"
+                                icon="folder-close"
+                            />
+                        </NavLink>
+
                         <NavLink to={`/projects/${projectUuid}/dashboards`}>
                             <NavbarMenuItem
                                 role="menuitem"
@@ -41,14 +49,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 roleStructure="menuitem"
                                 icon="chart"
                                 text="All saved charts"
-                            />
-                        </NavLink>
-
-                        <NavLink to={`/projects/${projectUuid}/spaces`}>
-                            <NavbarMenuItem
-                                role="menuitem"
-                                text="All spaces"
-                                icon="folder-close"
                             />
                         </NavLink>
 
