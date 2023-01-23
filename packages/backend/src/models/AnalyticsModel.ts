@@ -152,8 +152,8 @@ export class AnalyticsModel {
 
         const usersNotLoggedIn = await this.database.raw(`
         select 
-        users.user_uuid, users.first_name, users.last_name    ,
-       1
+        users.user_uuid, users.first_name, users.last_name,
+        1 -- TODO timediff
    
         from sessions
         LEFT JOIN users ON users.user_uuid::text = sessions.sess->'passport'->>'user'
@@ -162,6 +162,26 @@ export class AnalyticsModel {
         limit 10
 
     `);
+
+        const queriesPerWeek = await this.database.raw(`
+    
+        select i::date  as date, COUNT(analytics_chart_views.chart_uuid), 
+        100 * ROUND(COUNT(DISTINCT(analytics_chart_views.user_uuid))) / ${usersInProject.length} AS percent_weekly_active_users
+        from generate_series(NOW() - interval '10 days', NOW() + interval '1 days', '1 day'::interval) i
+        LEFT JOIN analytics_chart_views ON analytics_chart_views.timestamp::date = i::date
+        GROUP BY i::date
+    `);
+
+        const averageUserQueriesPerWeek = await this.database.raw(`
+    
+    select i::date  as date,
+    analytics_chart_views.user_uuid,
+    COUNT(DISTINCT(analytics_chart_views.chart_uuid)) AS count
+    
+    from generate_series(NOW() - interval '10 days', NOW() + interval '1 days', '1 day'::interval) i
+    LEFT JOIN analytics_chart_views ON analytics_chart_views.timestamp::date = i::date
+    GROUP BY i::date, analytics_chart_views.user_uuid
+`);
 
         const parseUsersWithCount = (
             userData: DbUserWithCount,
@@ -190,6 +210,8 @@ export class AnalyticsModel {
             usersCreatedMostCharts:
                 usersCreatedMostCharts.rows.map(parseUsersWithCount),
             usersNotLoggedIn: usersNotLoggedIn.rows.map(parseUsersWithCount),
+            queriesPerWeek: queriesPerWeek.rows,
+            averageUserQueriesPerWeek: averageUserQueriesPerWeek.rows,
         };
     }
 }

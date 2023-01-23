@@ -14,4 +14,6 @@ export type UserActivity = {
     usersWithMostQueries: UserWithCount[];
     usersCreatedMostCharts: UserWithCount[];
     usersNotLoggedIn: UserWithCount[];
+    queriesPerWeek: any;
+    averageUserQueriesPerWeek: any;
 };

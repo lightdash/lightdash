@@ -53,17 +53,43 @@ const UserActivity: FC = () => {
         );
     }
 
-    const series = {
+    const weeklySeries = {
         xAxis: {
             type: 'category',
-            data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            data: data.queriesPerWeek.map((queries: any) => queries.date),
         },
         yAxis: {
             type: 'value',
         },
         series: [
             {
-                data: [150, 230, 224, 218, 135, 147, 260],
+                data: data.queriesPerWeek.map((queries: any) => queries.count),
+                type: 'bar',
+            },
+            {
+                data: data.queriesPerWeek.map(
+                    (queries: any) => queries.percent_weekly_active_users,
+                ),
+                type: 'line',
+            },
+        ],
+    };
+
+    const series = {
+        xAxis: {
+            type: 'category',
+            data: data.averageUserQueriesPerWeek.map(
+                (queries: any) => queries.date,
+            ),
+        },
+        yAxis: {
+            type: 'value',
+        },
+        series: [
+            {
+                data: data.averageUserQueriesPerWeek.map(
+                    (queries: any) => queries.count,
+                ),
                 type: 'line',
             },
         ],
@@ -111,7 +137,7 @@ const UserActivity: FC = () => {
                     </ActivityCard>
 
                     <ActivityCard grid="chart-active-users">
-                        <EChartsReact notMerge option={series} />
+                        <EChartsReact notMerge option={weeklySeries} />
                     </ActivityCard>
 
                     <ActivityCard grid="queries-per-user">
