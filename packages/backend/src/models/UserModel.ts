@@ -32,7 +32,7 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
-    createPasswordLogin,
+    DbPasswordLoginIn,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
 import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
@@ -114,6 +114,19 @@ export class UserModel {
         this.database = database;
     }
 
+    // DB Errors:
+    // user_id does not exist (foreign key)
+    // user_id already has password (not unique)
+
+    static async createPasswordLogin(
+        db: Knex,
+        passwordLoginIn: DbPasswordLoginIn,
+    ) {
+        await db(PasswordLoginTableName).insert<DbPasswordLoginIn>(
+            passwordLoginIn,
+        );
+    }
+
     static async createUserTransaction(
         trx: Transaction,
         organizationId: number,
@@ -161,7 +174,7 @@ export class UserModel {
                 is_primary: true,
             });
             if (createUser.password) {
-                await createPasswordLogin(trx, {
+                await UserModel.createPasswordLogin(trx, {
                     user_id: newUser.user_id,
                     password_hash: await bcrypt.hash(
                         createUser.password,
@@ -422,7 +435,7 @@ export class UserModel {
                     .returning('*');
 
                 if (!isOpenIdUser(activateUser)) {
-                    await createPasswordLogin(trx, {
+                    await UserModel.createPasswordLogin(trx, {
                         user_id: user.user_id,
                         password_hash: await bcrypt.hash(
                             activateUser.password,
@@ -588,5 +601,28 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
+    }
+
+    async createPassword(userId: number, newPassword: string): Promise<void> {
+        return UserModel.createPasswordLogin(this.database, {
+            user_id: userId,
+            password_hash: await bcrypt.hash(
+                newPassword,
+                await bcrypt.genSalt(),
+            ),
+        });
+    }
+
+    async updatePassword(userId: number, newPassword: string): Promise<void> {
+        return this.database(PasswordLoginTableName)
+            .where({
+                user_id: userId,
+            })
+            .update({
+                password_hash: await bcrypt.hash(
+                    newPassword,
+                    await bcrypt.genSalt(),
+                ),
+            });
     }
 }

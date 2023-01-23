@@ -26,7 +26,6 @@ import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { updatePassword } from '../database/entities/passwordLogins';
 import Logger from '../logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
@@ -493,14 +492,17 @@ export class UserService {
         user: SessionUser,
         data: { password: string; newPassword: string },
     ): Promise<void> {
-        const hasPassword = await this.hasPassword(user);
+        const hasPassword = await this.userModel.hasPassword(user.userUuid);
         if (hasPassword) {
+            // confirm old password
             await this.userModel.getUserByUuidAndPassword(
                 user.userUuid,
                 data.password,
             );
+            await this.userModel.updatePassword(user.userId, data.newPassword);
+        } else {
+            await this.userModel.createPassword(user.userId, data.newPassword);
         }
-        await updatePassword(user.userId, data.newPassword);
         analytics.track({
             userId: user.userUuid,
             event: 'password.updated',

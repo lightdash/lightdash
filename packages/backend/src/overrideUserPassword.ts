@@ -1,4 +1,3 @@
-import { updatePassword } from './database/entities/passwordLogins';
 import Logger from './logger';
 import { userModel } from './models/models';
 
@@ -18,7 +17,7 @@ import { userModel } from './models/models';
     Logger.info(`Get user by email: ${email}`);
     const user = await userModel.findSessionUserByPrimaryEmail(email);
     Logger.info(`Update user (${user.userId}) password`);
-    await updatePassword(user.userId, newPassword);
+    await userModel.updatePassword(user.userId, newPassword);
     Logger.info(`Successfully updated user (${user.userId}) password`);
     process.exit();
 })();
