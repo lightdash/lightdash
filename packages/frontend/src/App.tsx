@@ -36,6 +36,7 @@ import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Signup from './pages/Signup';
 import Space from './pages/Space';
+import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
 import { AppProvider } from './providers/AppProvider';
 import { BlueprintProvider } from './providers/BlueprintProvider';
@@ -256,10 +257,20 @@ const App = () => (
                                                                     <NavBar />
                                                                     <TrackPage
                                                                         name={
-                                                                            PageName.SPACES
+                                                                            PageName.SPACE
                                                                         }
                                                                     >
                                                                         <Space />
+                                                                    </TrackPage>
+                                                                </Route>
+                                                                <Route path="/projects/:projectUuid/spaces">
+                                                                    <NavBar />
+                                                                    <TrackPage
+                                                                        name={
+                                                                            PageName.SPACES
+                                                                        }
+                                                                    >
+                                                                        <Spaces />
                                                                     </TrackPage>
                                                                 </Route>
                                                                 <Route

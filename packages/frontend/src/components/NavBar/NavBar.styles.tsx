@@ -45,10 +45,6 @@ export const NavbarMenuItem = styled(MenuItem2)`
             : ''}
 `;
 
-export const FirstItem = styled(NavbarMenuItem)`
-    margin-bottom: 0.357em;
-`;
-
 export const Divider = styled(NavbarDivider)`
     margin: 0 10px 0 6px;
 `;
