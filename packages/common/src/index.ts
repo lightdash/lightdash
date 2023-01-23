@@ -1,3 +1,4 @@
+import { UserActivity } from './types/analytics';
 import { Dashboard, DashboardBasicDetails } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
 import {
@@ -54,6 +55,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/translator';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
+export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/errors';
 export * from './types/api/integrations';
@@ -473,7 +475,8 @@ type ApiResults =
     | DbtCloudMetadataResponseMetrics
     | DbtCloudIntegration
     | ShareUrl
-    | SlackSettings;
+    | SlackSettings
+    | UserActivity;
 
 export type ApiResponse = {
     status: 'ok';

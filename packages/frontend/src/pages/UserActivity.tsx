@@ -24,14 +24,14 @@ import {
 
 const UserActivity: FC = () => {
     const params = useParams<{ projectUuid: string }>();
-    const { user } = useApp();
+    const { user: sessionUser } = useApp();
 
     const { data, isLoading } = useUserActivity(params.projectUuid);
-    if (user.data?.ability?.cannot('view', 'Analytics')) {
+    if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
         return <ForbiddenPanel />;
     }
 
-    if (isLoading) {
+    if (isLoading || data === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <NonIdealState title="Loading..." icon={<Spinner />} />
@@ -64,32 +64,32 @@ const UserActivity: FC = () => {
                 <Container>
                     <ActivityCard grid="total-users">
                         <BigNumberContainer>
-                            <BigNumber>55</BigNumber>
+                            <BigNumber>{data.numberOfUsers}</BigNumber>
                             <BigNumberLabel>Number of users</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
                     <ActivityCard grid="viewers">
                         <BigNumberContainer>
-                            <BigNumber>40</BigNumber>
+                            <BigNumber>{data.numberOfViewers}</BigNumber>
                             <BigNumberLabel>Number of viewers</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
 
                     <ActivityCard grid="editors">
                         <BigNumberContainer>
-                            <BigNumber>10</BigNumber>
+                            <BigNumber>{data.numberOfEditors}</BigNumber>
                             <BigNumberLabel>Number of editors</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
                     <ActivityCard grid="admins">
                         <BigNumberContainer>
-                            <BigNumber>10</BigNumber>
+                            <BigNumber>{data.numberOfAdmins}</BigNumber>
                             <BigNumberLabel>Number of admins</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
                     <ActivityCard grid="weekly-active">
                         <BigNumberContainer>
-                            <BigNumber>% 75</BigNumber>
+                            <BigNumber>% {data.weeklyQueryingUsers}</BigNumber>
                             <BigNumberLabel>
                                 % of weekly querying users
                             </BigNumberLabel>
@@ -112,18 +112,18 @@ const UserActivity: FC = () => {
                                 <th>Last Name</th>
                                 <th>Number of Queries</th>
                             </tr>
-                            <tr>
-                                <td>535325</td>
-                                <td>Katie</td>
-                                <td>Hidson</td>
-                                <td>500</td>
-                            </tr>
-                            <tr>
-                                <td>123123</td>
-                                <td>Javier</td>
-                                <td>Rengel</td>
-                                <td>100</td>
-                            </tr>
+                            {data.usersWithMostQueries.map((user) => {
+                                return (
+                                    <tr
+                                        key={`user-most-queries-${user.userUuid}`}
+                                    >
+                                        <th>{user.userUuid}</th>
+                                        <th>{user.firstName}</th>
+                                        <th>{user.lastName}</th>
+                                        <th>{user.count}</th>
+                                    </tr>
+                                );
+                            })}
                         </Table>
                     </ActivityCard>
                     <ActivityCard grid="table-most-charts">
@@ -134,18 +134,18 @@ const UserActivity: FC = () => {
                                 <th>Last Name</th>
                                 <th>Number of Queries</th>
                             </tr>
-                            <tr>
-                                <td>535325</td>
-                                <td>Katie</td>
-                                <td>Hidson</td>
-                                <td>500</td>
-                            </tr>
-                            <tr>
-                                <td>123123</td>
-                                <td>Javier</td>
-                                <td>Rengel</td>
-                                <td>100</td>
-                            </tr>
+                            {data.usersCreatedMostCharts.map((user) => {
+                                return (
+                                    <tr
+                                        key={`user-created-most-charts-${user.userUuid}`}
+                                    >
+                                        <th>{user.userUuid}</th>
+                                        <th>{user.firstName}</th>
+                                        <th>{user.lastName}</th>
+                                        <th>{user.count}</th>
+                                    </tr>
+                                );
+                            })}
                         </Table>
                     </ActivityCard>
                     <ActivityCard grid="table-not-logged-in">
@@ -156,18 +156,18 @@ const UserActivity: FC = () => {
                                 <th>Last Name</th>
                                 <th>Number of Queries</th>
                             </tr>
-                            <tr>
-                                <td>535325</td>
-                                <td>Katie</td>
-                                <td>Hidson</td>
-                                <td>500</td>
-                            </tr>
-                            <tr>
-                                <td>123123</td>
-                                <td>Javier</td>
-                                <td>Rengel</td>
-                                <td>100</td>
-                            </tr>
+                            {data.usersNotLoggedIn.map((user) => {
+                                return (
+                                    <tr
+                                        key={`users-not-logged-in-${user.userUuid}`}
+                                    >
+                                        <th>{user.userUuid}</th>
+                                        <th>{user.firstName}</th>
+                                        <th>{user.lastName}</th>
+                                        <th>{user.count}</th>
+                                    </tr>
+                                );
+                            })}
                         </Table>
                     </ActivityCard>
                 </Container>

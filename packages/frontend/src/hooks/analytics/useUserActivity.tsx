@@ -7,6 +7,7 @@ import {
     isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
+    UserActivity,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
@@ -18,7 +19,7 @@ import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
 const getUserActivity = async (projectUuid: string) =>
-    lightdashApi<Dashboard>({
+    lightdashApi<UserActivity>({
         url: `/analytics/user-activity/${projectUuid}`,
         method: 'GET',
         body: undefined,
@@ -26,7 +27,7 @@ const getUserActivity = async (projectUuid: string) =>
 
 export const useUserActivity = (projectUuid?: string) => {
     const setErrorResponse = useQueryError();
-    return useQuery<Dashboard, ApiError>({
+    return useQuery<UserActivity, ApiError>({
         queryKey: ['user_activity', projectUuid],
         queryFn: () => getUserActivity(projectUuid || ''),
         enabled: projectUuid !== undefined,

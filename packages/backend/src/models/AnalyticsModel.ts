@@ -1,4 +1,4 @@
-import { OrganizationMemberRole } from '@lightdash/common';
+import { OrganizationMemberRole, UserActivity } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AnalyticsChartViewsTableName,
@@ -59,7 +59,7 @@ export class AnalyticsModel {
     async getUserActivity(
         projectUuid: string,
         organizationUuid: string,
-    ): Promise<{}> {
+    ): Promise<UserActivity> {
         const orgUsers = await this.database(OrganizationTableName)
             .leftJoin(
                 OrganizationMembershipsTableName,
@@ -141,7 +141,9 @@ export class AnalyticsModel {
 
         const usersNotLoggedIn = await this.database.raw(`
         select 
-        users.user_uuid, users.first_name, users.last_name, expired       
+        users.user_uuid, users.first_name, users.last_name    ,
+       1
+   
         from sessions
         LEFT JOIN users ON users.user_uuid::text = sessions.sess->'passport'->>'user'
         WHERE sessions.expired < NOW() - interval '90 days'
