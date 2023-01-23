@@ -15,21 +15,19 @@ import {
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
-// import ForbiddenPanel from '../components/ForbiddenPanel';
-// import SpacePanel from '../components/SpacePanel';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Spaces: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const { data: spaces, isLoading, error } = useSpaces(params.projectUuid);
-    // const { user } = useApp();
+    const { user } = useApp();
     const history = useHistory();
 
-    // TODO: fix permissions
-    // if (user.data?.ability?.cannot('view', 'SavedChart')) {
-    //     return <ForbiddenPanel />;
-    // }
+    if (user.data?.ability?.cannot('view', 'Space')) {
+        return <ForbiddenPanel />;
+    }
 
     if (isLoading) {
         return (
