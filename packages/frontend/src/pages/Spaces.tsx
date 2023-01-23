@@ -1,5 +1,6 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
@@ -20,12 +21,20 @@ import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Spaces: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const { data: spaces, isLoading, error } = useSpaces(params.projectUuid);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: spaces, isLoading, error } = useSpaces(projectUuid);
     const { user } = useApp();
     const history = useHistory();
 
-    if (user.data?.ability?.cannot('view', 'Space')) {
+    if (
+        user.data?.ability?.cannot(
+            'view',
+            subject('Space', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        )
+    ) {
         return <ForbiddenPanel />;
     }
 
@@ -75,7 +84,7 @@ const Spaces: FC = () => {
                     </PageBreadcrumbsWrapper>
                 </PageHeader>
 
-                <SpaceBrowser projectUuid={params.projectUuid} />
+                <SpaceBrowser projectUuid={projectUuid} />
             </PageContentWrapper>
         </Page>
     );
