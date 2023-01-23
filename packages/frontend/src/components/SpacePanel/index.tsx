@@ -64,13 +64,12 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     <Breadcrumbs2
                         items={[
                             {
-                                href: '/home',
-                                text: 'Home',
+                                text: 'All spaces',
                                 className: 'home-breadcrumb',
-                                onClick: (e) => {
-                                    e.preventDefault();
-                                    history.push('/home');
-                                },
+                                onClick: () =>
+                                    history.push(
+                                        `/projects/${projectUuid}/spaces`,
+                                    ),
                             },
                             { text: space.name },
                         ]}
