@@ -79,7 +79,7 @@ const UserActivity: FC = () => {
                 yAxisIndex: 1,
                 data: data.queriesPerWeek.map((queries: any) => [
                     queries.date,
-                    queries.percent_weekly_active_user,
+                    queries.percent_weekly_active_users,
                 ]),
                 type: 'line',
                 symbol: 'none',
