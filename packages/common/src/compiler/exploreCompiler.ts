@@ -554,6 +554,38 @@ export const compileExplore = ({
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label,
+                dimensions: Object.keys(tables[join.table].dimensions).reduce<
+                    Record<string, Dimension>
+                >(
+                    (prevDimensions, dimensionKey) => ({
+                        ...prevDimensions,
+                        [dimensionKey]: {
+                            ...tables[join.table].dimensions[dimensionKey],
+                            table: join.alias || tables[join.table].name,
+                            tableLabel:
+                                join.label ||
+                                (join.alias && friendlyName(join.alias)) ||
+                                tables[join.table].label,
+                        },
+                    }),
+                    {},
+                ),
+                metrics: Object.keys(tables[join.table].metrics).reduce<
+                    Record<string, Metric>
+                >(
+                    (prevMetrics, metricKey) => ({
+                        ...prevMetrics,
+                        [metricKey]: {
+                            ...tables[join.table].metrics[metricKey],
+                            table: join.alias || tables[join.table].name,
+                            tableLabel:
+                                join.label ||
+                                (join.alias && friendlyName(join.alias)) ||
+                                tables[join.table].label,
+                        },
+                    }),
+                    {},
+                ),
             },
         }),
         { [baseTable]: tables[baseTable] },
