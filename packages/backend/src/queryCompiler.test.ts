@@ -1,4 +1,5 @@
 import { CompiledMetricQuery, CompileError } from '@lightdash/common';
+import { warehouseClientMock } from './queryBuilder.mock';
 import { compileMetricQuery } from './queryCompiler';
 import {
     EXPLORE,
@@ -23,6 +24,7 @@ test('Should compile without table calculations', () => {
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_NO_CALCS,
+            warehouseClient: warehouseClientMock,
         }),
     ).toStrictEqual(expected);
 });
@@ -32,6 +34,7 @@ test('Should compile table calculations', () => {
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_VALID_REFERENCES,
+            warehouseClient: warehouseClientMock,
         }),
     ).toStrictEqual(METRIC_QUERY_VALID_REFERENCES_COMPILED);
 });
@@ -41,6 +44,7 @@ test('Should throw error when table calculation contains missing reference', () 
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_MISSING_REFERENCE,
+            warehouseClient: warehouseClientMock,
         }),
     ).toThrowError(CompileError);
 });
@@ -50,6 +54,7 @@ test('Should throw error when table calculation has invalid reference format', (
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_INVALID_REFERENCE_FORMAT,
+            warehouseClient: warehouseClientMock,
         }),
     ).toThrowError(CompileError);
 });
@@ -59,6 +64,7 @@ test('Should throw error when table calculation has duplicate name', () => {
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_DUPLICATE_NAME,
+            warehouseClient: warehouseClientMock,
         }),
     ).toThrowError(CompileError);
 });
@@ -68,6 +74,7 @@ test('Should compile query with additional metrics', () => {
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRICS,
+            warehouseClient: warehouseClientMock,
         }),
     ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED);
 });
@@ -77,6 +84,7 @@ test('Should throw compile error if metric in non existent table', () => {
         compileMetricQuery({
             explore: EXPLORE,
             metricQuery: METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
+            warehouseClient: warehouseClientMock,
         }),
     ).toThrowError(CompileError);
 });

@@ -7,7 +7,52 @@ import {
     FilterOperator,
     MetricType,
     SupportedDbtAdapter,
+    WarehouseClient,
 } from '@lightdash/common';
+
+export const warehouseClientMock: WarehouseClient = {
+    getCatalog: async () => ({
+        default: {
+            public: {
+                table: {
+                    id: DimensionType.NUMBER,
+                },
+            },
+        },
+    }),
+    runQuery: () =>
+        Promise.resolve({
+            fields: {},
+            rows: [],
+        }),
+    test: () => Promise.resolve(),
+    getStartOfWeek: () => undefined,
+    getFieldQuoteChar: () => '"',
+    getStringQuoteChar: () => "'",
+    getEscapeStringQuoteChar: () => "'",
+};
+
+export const bigqueryClientMock: WarehouseClient = {
+    getCatalog: async () => ({
+        default: {
+            public: {
+                table: {
+                    id: DimensionType.NUMBER,
+                },
+            },
+        },
+    }),
+    runQuery: () =>
+        Promise.resolve({
+            fields: {},
+            rows: [],
+        }),
+    test: () => Promise.resolve(),
+    getStartOfWeek: () => undefined,
+    getFieldQuoteChar: () => '`',
+    getStringQuoteChar: () => "'",
+    getEscapeStringQuoteChar: () => '\\',
+};
 
 export const emptyTable = (name: string): CompiledTable => ({
     name,

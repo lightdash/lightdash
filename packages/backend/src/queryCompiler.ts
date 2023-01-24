@@ -8,12 +8,10 @@ import {
     convertAdditionalMetric,
     Explore,
     FieldId,
-    getEscapeStringQuoteChar,
-    getFieldQuoteChar,
-    getStringQuoteChar,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
+    WarehouseClient,
 } from '@lightdash/common';
 
 const resolveQueryFieldReference = (ref: string): FieldId => {
@@ -63,10 +61,13 @@ const compileTableCalculation = (
 type CompileAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
     explore: Pick<Explore, 'tables' | 'targetDatabase'>;
+
+    warehouseClient: WarehouseClient;
 };
 const compileAdditionalMetric = ({
     additionalMetric,
     explore,
+    warehouseClient,
 }: CompileAdditionalMetricArgs): CompiledMetric => {
     const table = explore.tables[additionalMetric.table];
     if (table === undefined) {
@@ -75,11 +76,9 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
-    const stringQuoteChar = getStringQuoteChar(explore.targetDatabase);
-    const escapeStringQuoteChar = getEscapeStringQuoteChar(
-        explore.targetDatabase,
-    );
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
 
     const metric = convertAdditionalMetric({ additionalMetric, table });
     const compiledMetric = compileMetricSql(
@@ -100,12 +99,15 @@ const compileAdditionalMetric = ({
 type CompileMetricQueryArgs = {
     explore: Pick<Explore, 'targetDatabase' | 'tables'>;
     metricQuery: MetricQuery;
+
+    warehouseClient: WarehouseClient;
 };
 export const compileMetricQuery = ({
     explore,
     metricQuery,
+    warehouseClient,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
-    const fieldQuoteChar = getFieldQuoteChar(explore.targetDatabase);
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const compiledTableCalculations = metricQuery.tableCalculations.map(
         (tableCalculation) =>
             compileTableCalculation(
@@ -116,7 +118,11 @@ export const compileMetricQuery = ({
     );
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
         (additionalMetric) =>
-            compileAdditionalMetric({ additionalMetric, explore }),
+            compileAdditionalMetric({
+                additionalMetric,
+                explore,
+                warehouseClient,
+            }),
     );
     return {
         ...metricQuery,

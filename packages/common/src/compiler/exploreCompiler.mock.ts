@@ -2,7 +2,30 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { Explore, Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType, Source } from '../types/field';
 import { FilterOperator } from '../types/filter';
+import { WarehouseClient } from '../types/warehouse';
 import { UncompiledExplore } from './exploreCompiler';
+
+export const warehouseClientMock: WarehouseClient = {
+    getCatalog: async () => ({
+        default: {
+            public: {
+                table: {
+                    id: DimensionType.NUMBER,
+                },
+            },
+        },
+    }),
+    runQuery: () =>
+        Promise.resolve({
+            fields: {},
+            rows: [],
+        }),
+    test: () => Promise.resolve(),
+    getStartOfWeek: () => undefined,
+    getFieldQuoteChar: () => '"',
+    getStringQuoteChar: () => "'",
+    getEscapeStringQuoteChar: () => "'",
+};
 
 const sourceMock: Source = {
     path: '',

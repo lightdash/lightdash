@@ -143,7 +143,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 loadSources,
                 adapterType,
                 metrics,
-                this.warehouseClient.getStartOfWeek(),
+                this.warehouseClient,
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -180,7 +180,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     loadSources,
                     adapterType,
                     metrics,
-                    this.warehouseClient.getStartOfWeek(),
+                    this.warehouseClient,
                 );
                 return [...explores, ...failedExplores];
             }

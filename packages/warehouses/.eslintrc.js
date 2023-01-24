@@ -17,5 +17,6 @@ module.exports = {
         '@typescript-eslint/no-unused-vars': 'off',
         'no-case-declarations': 'off',
         'import/prefer-default-export': 'off',
+        'class-methods-use-this': 'off',
     },
 };

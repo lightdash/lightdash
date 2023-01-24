@@ -16,67 +16,9 @@ import {
     Metric,
     MetricType,
 } from '../types/field';
+import { WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import { renderFilterRuleSql } from './filtersCompiler';
-
-export const getFieldQuoteChar = (
-    targetDatabase: SupportedDbtAdapter,
-): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.TRINO:
-            return '"';
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.DATABRICKS:
-            return '`';
-        default:
-            return assertUnreachable(
-                targetDatabase,
-                `field quote char not found for ${targetDatabase}`,
-            );
-    }
-};
-
-export const getStringQuoteChar = (
-    targetDatabase: SupportedDbtAdapter,
-): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.DATABRICKS:
-        case SupportedDbtAdapter.TRINO:
-            return "'";
-        default:
-            return assertUnreachable(
-                targetDatabase,
-                `string quote char not found for ${targetDatabase}`,
-            );
-    }
-};
-
-export const getEscapeStringQuoteChar = (
-    targetDatabase: SupportedDbtAdapter,
-): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.DATABRICKS:
-        case SupportedDbtAdapter.BIGQUERY:
-            return '\\';
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.TRINO:
-            return "'";
-        default:
-            return assertUnreachable(
-                targetDatabase,
-                `string quote char not found for ${targetDatabase}`,
-            );
-    }
-};
 
 export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 
@@ -510,16 +452,19 @@ export type UncompiledExplore = {
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
 };
-export const compileExplore = ({
-    name,
-    label,
-    tags,
-    baseTable,
-    joinedTables,
-    tables,
-    targetDatabase,
-}: UncompiledExplore): Explore => {
-    // Check that base table and joined tables exist
+export const compileExplore = (
+    {
+        name,
+        label,
+        tags,
+        baseTable,
+        joinedTables,
+        tables,
+        targetDatabase,
+    }: UncompiledExplore,
+    warehouseClient: WarehouseClient,
+): Explore => {
+    // Check tables are correctly declared
     if (!tables[baseTable]) {
         throw new CompileError(
             `Failed to compile explore "${name}". Tried to find base table but cannot find table with name "${baseTable}"`,
@@ -589,9 +534,9 @@ export const compileExplore = ({
         { [baseTable]: tables[baseTable] },
     );
 
-    const fieldQuoteChar = getFieldQuoteChar(targetDatabase);
-    const stringQuoteChar = getStringQuoteChar(targetDatabase);
-    const escapeStringQuoteChar = getEscapeStringQuoteChar(targetDatabase);
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
 
     const compiledTables: Record<string, CompiledTable> = aliases.reduce(
         (prev, tableName) => ({

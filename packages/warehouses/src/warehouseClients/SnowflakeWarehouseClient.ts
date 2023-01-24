@@ -257,4 +257,16 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             return acc;
         }, {});
     }
+
+    getFieldQuoteChar() {
+        return '"';
+    }
+
+    getStringQuoteChar() {
+        return "'";
+    }
+
+    getEscapeStringQuoteChar() {
+        return '\\';
+    }
 }

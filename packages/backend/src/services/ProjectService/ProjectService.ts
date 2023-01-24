@@ -47,6 +47,7 @@ import {
     UpdateProject,
     UpdateProjectMember,
 } from '@lightdash/common';
+import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
@@ -488,12 +489,29 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+        if (!project.warehouseConnection) {
+            throw new MissingWarehouseCredentialsError(
+                'Warehouse credentials must be provided to connect to your dbt project',
+            );
+        }
+        const warehouseClient = warehouseClientFromCredentials(
+            project.warehouseConnection,
+        );
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const compiledMetricQuery = compileMetricQuery({
             explore,
             metricQuery,
+            warehouseClient,
         });
-        return buildQuery({ explore, compiledMetricQuery, allResults });
+        return buildQuery({
+            explore,
+            compiledMetricQuery,
+            allResults,
+            warehouseClient,
+        });
     }
 
     async runQuery(
