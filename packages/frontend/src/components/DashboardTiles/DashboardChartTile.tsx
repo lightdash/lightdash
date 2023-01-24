@@ -1,11 +1,4 @@
-import {
-    Colors,
-    Icon,
-    Menu,
-    NonIdealState,
-    Portal,
-    Tag,
-} from '@blueprintjs/core';
+import { Icon, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -404,11 +397,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                     )
                 }
                 title={savedQueryWithDashboardFilters?.name || ''}
-                titleOnClick={() =>
-                    history.push(
-                        `/projects/${projectUuid}/saved/${savedChartUuid}/`,
-                    )
-                }
+                titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading}
                 extraMenuItems={

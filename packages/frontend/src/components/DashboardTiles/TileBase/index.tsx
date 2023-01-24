@@ -8,7 +8,6 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { TileModal } from '../TileForms/TileModal';
 import {
     ButtonsWrapper,
@@ -25,7 +24,7 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
-    titleOnClick: () => void;
+    titleHref: string;
     description?: string;
     hasDescription: boolean;
     tile: T;
@@ -49,7 +48,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     hasDescription,
-    titleOnClick,
+    titleHref,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -78,7 +77,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="bottom-left"
                         >
                             <TitleWrapper hasDescription={true}>
-                                <TitleButton minimal onClick={titleOnClick}>
+                                <TitleButton minimal href={titleHref}>
                                     <Title className="non-draggable">
                                         {title}
                                     </Title>
