@@ -25,7 +25,7 @@ SELECT
 
 export const numberWeeklyQueryingUsersSql = (userUuids: string[]) => `
     select 
-    100 * ROUND(COUNT(DISTINCT(user_uuid)) / ${userUuids.length}) AS count
+    100 * COUNT(DISTINCT(user_uuid)) / ${userUuids.length} AS count
     from analytics_chart_views
     WHERE user_uuid in ('${userUuids.join(`','`)}') 
     AND timestamp between NOW() - interval '7 days' and NOW()
