@@ -77,7 +77,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="bottom-left"
                         >
                             <TitleWrapper hasDescription={true}>
-                                <TitleButton minimal href={titleHref}>
+                                <TitleButton
+                                    minimal
+                                    href={titleHref}
+                                    target="_blank"
+                                >
                                     <Title className="non-draggable">
                                         {title}
                                     </Title>
