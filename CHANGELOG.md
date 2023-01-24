@@ -1,3 +1,10 @@
+## [0.385.1](https://github.com/lightdash/lightdash/compare/0.385.0...0.385.1) (2023-01-24)
+
+
+### Bug Fixes
+
+* force no public cache on index.html ([#4249](https://github.com/lightdash/lightdash/issues/4249)) ([c5e3474](https://github.com/lightdash/lightdash/commit/c5e34747f074848fd21bd29d4356bb95283b123e))
+
 # [0.385.0](https://github.com/lightdash/lightdash/compare/0.384.2...0.385.0) (2023-01-23)
 
 
