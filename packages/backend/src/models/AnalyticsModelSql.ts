@@ -115,17 +115,13 @@ COUNT(DISTINCT(
     NULL
   end
   )) AS num_7d_active_users,
-100 * ROUND(COUNT(DISTINCT(
+100 * COUNT(DISTINCT(
   case WHEN num_queries_7d_rolling > 0 THEN
    user_uuid
   else
    NULL
   end
-  )) / COUNT(DISTINCT(case WHEN num_queries_7d_rolling > 0 THEN
-   user_uuid
-  else
-   NULL
-  end))) AS percent_7d_active_users
+  )) / COUNT(DISTINCT(user_uuid)) AS percent_7d_active_users
 FROM stg
 group by date
 order by date desc
