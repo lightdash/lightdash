@@ -1,6 +1,5 @@
 import { Card, Colors, H5 } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
-import LinkButton from '../../common/LinkButton';
 
 interface HeaderContainerProps {
     isEditMode: boolean;
@@ -117,10 +116,8 @@ export const FilterLabel = styled.p`
     font-weight: 500;
 `;
 
-export const TitleButton = styled(LinkButton)`
-    padding: 0 !important;
-
+export const TitleButton = styled.a`
     :hover {
-        background-color: transparent !important;
+        text-decoration: none;
     }
 `;
