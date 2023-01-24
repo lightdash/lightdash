@@ -71,7 +71,7 @@ const UserActivity: FC = () => {
             {
                 data: data.chartWeeklyQueryingUsers.map((queries: any) => [
                     queries.date,
-                    queries.count,
+                    queries.num_7d_active_users,
                 ]),
                 type: 'bar',
             },
@@ -79,7 +79,7 @@ const UserActivity: FC = () => {
                 yAxisIndex: 1,
                 data: data.chartWeeklyQueryingUsers.map((queries: any) => [
                     queries.date,
-                    queries.percent_weekly_active_users,
+                    queries.percent_7d_active_users,
                 ]),
                 type: 'line',
                 symbol: 'none',
@@ -87,8 +87,6 @@ const UserActivity: FC = () => {
             },
         ],
     };
-    const parseDate = (date: Date) =>
-        [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('/');
 
     const series = {
         xAxis: {
@@ -102,7 +100,7 @@ const UserActivity: FC = () => {
             {
                 data: data.chartWeeklyAverageQueries.map((queries: any) => [
                     queries.date,
-                    queries.count,
+                    queries.average_number_of_weekly_queries_per_user,
                 ]),
                 type: 'line',
                 symbol: 'none',

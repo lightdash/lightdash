@@ -68,40 +68,42 @@ select
         limit 10
     `;
 
-export const chartWeeklyQueryingUsersSql = (userUuids: string[]) => `
-WITH date_grid AS (
+const dateUserViewsGrid = (userUuids: string[]) => `
+    WITH date_grid AS (
+        SELECT
+        date
+        FROM 
+    generate_series(CURRENT_DATE - interval '42 days', CURRENT_DATE, '1 day'::interval) date
+    ),
+    users_date_grid AS (
+      SELECT
+      d.date as date,
+      users.user_uuid
+    FROM
+    (SELECT * FROM date_grid) AS d
+    cross join users 
+    where users.created_at  < d.date and users.user_uuid in ('${userUuids.join(
+        `','`,
+    )}')
+    ),
+    query_executed AS (
+      SELECT
+      timestamp::date AS date,
+      user_uuid,
+      COUNT(DISTINCT(chart_uuid)) AS num_queries_executed
+      FROM analytics_chart_views acv  -- this is a table with one row per query executed
+      GROUP BY 1, 2
+    ),
+    stg AS (
     SELECT
-    date
-    FROM 
-generate_series(CURRENT_DATE - interval '42 days', CURRENT_DATE, '1 day'::interval) date
-),
-users_date_grid AS (
-  SELECT
-  d.date as date,
-  users.user_uuid
-FROM
-(SELECT * FROM date_grid) AS d
-cross join users 
-where users.created_at  < d.date and users.user_uuid in ('${userUuids.join(
-    `','`,
-)}')
-),
-query_executed AS (
-  SELECT
-  timestamp::date AS date,
-  user_uuid,
-  COUNT(DISTINCT(chart_uuid)) AS num_queries_executed
-  FROM analytics_chart_views acv  -- this is a table with one row per query executed
-  GROUP BY 1, 2
-),
-stg AS (
-SELECT
-grid.date,
-grid.user_uuid,
-SUM(query_executed.num_queries_executed) OVER(PARTITION BY grid.user_uuid ORDER BY grid.date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS num_queries_7d_rolling
-FROM users_date_grid AS grid
-LEFT JOIN query_executed ON query_executed.user_uuid = grid.user_uuid AND query_executed.date = grid.date::date
-)
+    grid.date,
+    grid.user_uuid,
+    SUM(query_executed.num_queries_executed) OVER(PARTITION BY grid.user_uuid ORDER BY grid.date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS num_queries_7d_rolling
+    FROM users_date_grid AS grid
+    LEFT JOIN query_executed ON query_executed.user_uuid = grid.user_uuid AND query_executed.date = grid.date::date
+    )`;
+export const chartWeeklyQueryingUsersSql = (userUuids: string[]) => `
+${dateUserViewsGrid(userUuids)}
 SELECT
 date, 
 COUNT(DISTINCT(
@@ -124,46 +126,16 @@ COUNT(DISTINCT(
   end))) AS percent_7d_active_users
 FROM stg
 group by date
-
+order by date desc
 `;
 
 export const chartWeeklyAverageQueriesSql = (userUuids: string[]) => `
-
-WITH date_grid AS (
-    SELECT
-    date
-    FROM 
-    generate_series(CURRENT_DATE - interval '42 days', CURRENT_DATE, '1 day'::interval) date
-    ),
-users_date_grid AS (
-  SELECT
-  d.date as date,
-  users.user_uuid
-FROM
-(SELECT * FROM date_grid) AS d
-cross join users 
-where users.created_at  < d.date
-),
-query_executed AS (
-  SELECT
-  timestamp::date AS date,
-  user_uuid,
-  COUNT(DISTINCT(chart_uuid)) AS num_queries_executed
-  FROM analytics_chart_views acv  -- this is a table with one row per query executed
-  GROUP BY 1, 2
-),
-stg AS (
-SELECT
-grid.date,
-grid.user_uuid,
-SUM(query_executed.num_queries_executed) OVER(PARTITION BY grid.user_uuid ORDER BY grid.date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS num_queries_7d_rolling
-FROM users_date_grid AS grid
-LEFT JOIN query_executed ON query_executed.user_uuid = grid.user_uuid AND query_executed.date = grid.date::date
-)
+${dateUserViewsGrid(userUuids)}
 SELECT
 date, 
 ROUND(AVG(num_queries_7d_rolling), 2) AS average_number_of_weekly_queries_per_user
 FROM stg
 group by date
+order by date desc
 
 `;
