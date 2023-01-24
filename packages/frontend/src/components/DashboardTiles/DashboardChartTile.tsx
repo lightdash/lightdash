@@ -404,6 +404,11 @@ const DashboardChartTile: FC<Props> = (props) => {
                     )
                 }
                 title={savedQueryWithDashboardFilters?.name || ''}
+                titleOnClick={() =>
+                    history.push(
+                        `/projects/${projectUuid}/saved/${savedChartUuid}/`,
+                    )
+                }
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading}
                 extraMenuItems={

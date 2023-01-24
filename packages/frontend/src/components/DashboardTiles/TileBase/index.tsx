@@ -8,6 +8,7 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { TileModal } from '../TileForms/TileModal';
 import {
     ButtonsWrapper,
@@ -16,6 +17,7 @@ import {
     HeaderWrapper,
     TileBaseWrapper,
     Title,
+    TitleButton,
     TitleWrapper,
     TooltipContent,
 } from './TileBase.styles';
@@ -23,6 +25,7 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
+    titleOnClick: () => void;
     description?: string;
     hasDescription: boolean;
     tile: T;
@@ -46,6 +49,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     hasDescription,
+    titleOnClick,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -74,7 +78,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="bottom-left"
                         >
                             <TitleWrapper hasDescription={true}>
-                                <Title className="non-draggable">{title}</Title>
+                                <TitleButton minimal onClick={titleOnClick}>
+                                    <Title className="non-draggable">
+                                        {title}
+                                    </Title>
+                                </TitleButton>
                             </TitleWrapper>
                         </Tooltip2>
                     ) : !hideTitle ? (

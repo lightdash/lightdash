@@ -1,4 +1,4 @@
-import { Card, Colors, H5 } from '@blueprintjs/core';
+import { Button, Card, Colors, H5 } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
 
 interface HeaderContainerProps {
@@ -114,4 +114,10 @@ export const FilterLabel = styled.p`
     color: ${Colors.GRAY5};
     font-size: 12px;
     font-weight: 500;
+`;
+
+export const TitleButton = styled(Button)`
+    ::selection {
+        background-color: transparent;
+    }
 `;
