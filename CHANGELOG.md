@@ -1,3 +1,10 @@
+# [0.387.0](https://github.com/lightdash/lightdash/compare/0.386.0...0.387.0) (2023-01-24)
+
+
+### Features
+
+* add table alias ([#4236](https://github.com/lightdash/lightdash/issues/4236)) ([0a3d1e3](https://github.com/lightdash/lightdash/commit/0a3d1e339fbaf95e6eccb90dc9f5c46d39b3a000))
+
 # [0.386.0](https://github.com/lightdash/lightdash/compare/0.385.1...0.386.0) (2023-01-24)
 
 
