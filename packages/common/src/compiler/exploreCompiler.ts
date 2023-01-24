@@ -11,6 +11,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     Dimension,
+    friendlyName,
     isNonAggregateMetric,
     Metric,
     MetricType,
@@ -445,9 +446,10 @@ const compileJoin = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
 ): CompiledExploreJoin => ({
-    ...join,
+    table: join.alias || join.table,
+    sqlOn: join.sqlOn,
     compiledSqlOn: compileExploreJoinSql(
-        join,
+        { table: join.alias || join.table, sqlOn: join.sqlOn },
         tables,
         fieldQuoteChar,
         stringQuoteChar,
@@ -517,7 +519,7 @@ export const compileExplore = ({
     tables,
     targetDatabase,
 }: UncompiledExplore): Explore => {
-    // Check tables are correctly declared
+    // Check that base table and joined tables exist
     if (!tables[baseTable]) {
         throw new CompileError(
             `Failed to compile explore "${name}". Tried to find base table but cannot find table with name "${baseTable}"`,
@@ -532,35 +534,81 @@ export const compileExplore = ({
             );
         }
     });
-    const joinedTableNames = [baseTable, ...joinedTables.map((j) => j.table)];
-    const joined = joinedTableNames.reduce(
-        (prev, tableName) => ({ ...prev, [tableName]: tables[tableName] }),
-        {},
+    const aliases = [
+        baseTable,
+        ...joinedTables.map((join) => join.alias || join.table),
+    ];
+    if (aliases.length !== new Set(aliases).size) {
+        throw new CompileError(
+            `Failed to compile explore "${name}". Cannot join to the same table multiple times table in an explore. Use an 'alias'`,
+            {},
+        );
+    }
+    const includedTables = joinedTables.reduce<Record<string, Table>>(
+        (prev, join) => {
+            const joinTableName = join.alias || tables[join.table].name;
+            const joinTableLabel =
+                join.label ||
+                (join.alias && friendlyName(join.alias)) ||
+                tables[join.table].label;
+            return {
+                ...prev,
+                [join.alias || join.table]: {
+                    ...tables[join.table],
+                    name: joinTableName,
+                    label: joinTableLabel,
+                    dimensions: Object.keys(
+                        tables[join.table].dimensions,
+                    ).reduce<Record<string, Dimension>>(
+                        (prevDimensions, dimensionKey) => ({
+                            ...prevDimensions,
+                            [dimensionKey]: {
+                                ...tables[join.table].dimensions[dimensionKey],
+                                table: joinTableName,
+                                tableLabel: joinTableLabel,
+                            },
+                        }),
+                        {},
+                    ),
+                    metrics: Object.keys(tables[join.table].metrics).reduce<
+                        Record<string, Metric>
+                    >(
+                        (prevMetrics, metricKey) => ({
+                            ...prevMetrics,
+                            [metricKey]: {
+                                ...tables[join.table].metrics[metricKey],
+                                table: joinTableName,
+                                tableLabel: joinTableLabel,
+                            },
+                        }),
+                        {},
+                    ),
+                },
+            };
+        },
+        { [baseTable]: tables[baseTable] },
     );
+
     const fieldQuoteChar = getFieldQuoteChar(targetDatabase);
     const stringQuoteChar = getStringQuoteChar(targetDatabase);
     const escapeStringQuoteChar = getEscapeStringQuoteChar(targetDatabase);
 
-    const compiledTables: Record<string, CompiledTable> = Object.keys(
-        tables,
-    ).reduce((prev, tableName) => {
-        if (joinedTableNames.find((t) => t === tableName)) {
-            return {
-                ...prev,
-                [tableName]: compileTable(
-                    tables[tableName],
-                    joined,
-                    fieldQuoteChar,
-                    stringQuoteChar,
-                    escapeStringQuoteChar,
-                    targetDatabase,
-                ),
-            };
-        }
-        return prev;
-    }, {});
+    const compiledTables: Record<string, CompiledTable> = aliases.reduce(
+        (prev, tableName) => ({
+            ...prev,
+            [tableName]: compileTable(
+                includedTables[tableName],
+                includedTables,
+                fieldQuoteChar,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+                targetDatabase,
+            ),
+        }),
+        {},
+    );
     const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
-        compileJoin(j, joined, fieldQuoteChar, stringQuoteChar),
+        compileJoin(j, includedTables, fieldQuoteChar, stringQuoteChar),
     );
     return {
         name,
