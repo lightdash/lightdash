@@ -16,6 +16,7 @@ import {
     HeaderWrapper,
     TileBaseWrapper,
     Title,
+    TitleButton,
     TitleWrapper,
     TooltipContent,
 } from './TileBase.styles';
@@ -23,6 +24,7 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
+    titleHref: string;
     description?: string;
     hasDescription: boolean;
     tile: T;
@@ -46,6 +48,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     hasDescription,
+    titleHref,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -74,7 +77,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="bottom-left"
                         >
                             <TitleWrapper hasDescription={true}>
-                                <Title className="non-draggable">{title}</Title>
+                                <TitleButton
+                                    minimal
+                                    href={titleHref}
+                                    target="_blank"
+                                >
+                                    <Title className="non-draggable">
+                                        {title}
+                                    </Title>
+                                </TitleButton>
                             </TitleWrapper>
                         </Tooltip2>
                     ) : !hideTitle ? (

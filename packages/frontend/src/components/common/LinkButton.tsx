@@ -3,7 +3,8 @@ import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
-interface LinkButtonProps extends React.ComponentProps<typeof AnchorButton> {
+export interface LinkButtonProps
+    extends React.ComponentProps<typeof AnchorButton> {
     href: string;
     trackingEvent?: EventData;
     replace?: boolean;
