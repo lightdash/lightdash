@@ -15,10 +15,12 @@ SELECT
     LEFT JOIN projects on project_memberships.project_id = projects.project_id
     WHERE 
         emails.is_primary = true 
-        AND project_uuid = '${projectUuid}'
-        AND organization_uuid = '${organizationUuid}'
-        AND (organization_memberships.role != 'member'
-        OR projects.project_uuid = project_uuid )
+        AND ( 
+            (organization_memberships.role != 'member'
+             AND organization_uuid = '${organizationUuid}')
+        OR 
+            (projects.project_uuid = project_uuid
+             AND project_uuid = '${projectUuid}'))
 `;
 
 export const numberWeeklyQueryingUsersSql = (userUuids: string[]) => `
@@ -31,14 +33,14 @@ export const numberWeeklyQueryingUsersSql = (userUuids: string[]) => `
 
 export const tableMostQueriesSql = (userUuids: string[]) => `
 select 
-            users.user_uuid, users.first_name, users.last_name, COUNT(analytics_chart_views.user_uuid)
-            from analytics_chart_views
-            LEFT JOIN users ON users.user_uuid = analytics_chart_views.user_uuid
-            WHERE users.user_uuid in ('${userUuids.join(`','`)}') 
-            AND timestamp between NOW() - interval '7 days' and NOW()
-            GROUP BY users.user_uuid, users.first_name, users.last_name
-            ORDER BY COUNT(analytics_chart_views.user_uuid) DESC
-            limit 10
+    users.user_uuid, users.first_name, users.last_name, COUNT(analytics_chart_views.chart_uuid)
+    from analytics_chart_views
+    LEFT JOIN users ON users.user_uuid = analytics_chart_views.user_uuid
+    WHERE users.user_uuid in ('${userUuids.join(`','`)}') 
+    AND timestamp between NOW() - interval '7 days' and NOW()
+    GROUP BY users.user_uuid, users.first_name, users.last_name
+    ORDER BY COUNT(analytics_chart_views.user_uuid) DESC
+    limit 10
 `;
 
 export const tableMostCreatedChartsSql = (userUuids: string[]) => `

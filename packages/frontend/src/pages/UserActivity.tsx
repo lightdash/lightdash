@@ -27,7 +27,6 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     return userList.map((user) => {
         return (
             <tr key={`${key}-${user.userUuid}`}>
-                <td>{user.userUuid}</td>
                 <td>{user.firstName}</td>
                 <td>{user.lastName}</td>
                 <td>{user.count}</td>
@@ -163,7 +162,6 @@ const UserActivity: FC = () => {
                     <ActivityCard grid="table-most-queries">
                         <Table bordered condensed $showFooter={false}>
                             <tr>
-                                <th>User ID</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
                                 <th>Number of Queries</th>
@@ -177,7 +175,6 @@ const UserActivity: FC = () => {
                     <ActivityCard grid="table-most-charts">
                         <Table bordered condensed $showFooter={false}>
                             <tr>
-                                <th>User ID</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
                                 <th>Number of updated charts</th>
@@ -191,7 +188,6 @@ const UserActivity: FC = () => {
                     <ActivityCard grid="table-not-logged-in">
                         <Table bordered condensed $showFooter={false}>
                             <tr>
-                                <th>User ID</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
                                 <th>Days since last login</th>
