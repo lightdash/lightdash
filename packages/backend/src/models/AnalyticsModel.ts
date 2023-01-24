@@ -11,6 +11,15 @@ import {
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { UserTableName } from '../database/entities/users';
+import {
+    chartWeeklyAverageQueriesSql,
+    chartWeeklyQueryingUsersSql,
+    numberWeeklyQueryingUsersSql,
+    tableMostCreatedChartsSql,
+    tableMostQueriesSql,
+    tableNoQueriesSql,
+    usersInProjectSql,
+} from './AnalyticsModelSql';
 
 type Dependencies = {
     database: Knex;
@@ -71,117 +80,40 @@ export class AnalyticsModel {
         projectUuid: string,
         organizationUuid: string,
     ): Promise<UserActivity> {
-        const orgUsers = await this.database(OrganizationTableName)
-            .leftJoin(
-                OrganizationMembershipsTableName,
-                `${OrganizationMembershipsTableName}.organization_id`,
-                `${OrganizationTableName}.organization_id`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${UserTableName}.user_id`,
-                `${OrganizationMembershipsTableName}.user_id`,
-            )
-            .where(
-                `${OrganizationTableName}.organization_uuid`,
-                organizationUuid,
-            )
-            .andWhereNot('role', 'member')
-            .select(
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${OrganizationMembershipsTableName}.role`,
-            );
+        const usersInProjectQuery = await this.database.raw(
+            usersInProjectSql(projectUuid, organizationUuid),
+        );
+        const usersInProject: { user_uuid: string; role: string }[] =
+            usersInProjectQuery.rows;
+        const userUuids = usersInProject.map((user) => user.user_uuid);
 
-        const projectMemberships = await this.database('project_memberships')
-            .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
-            .leftJoin('emails', 'emails.user_id', 'users.user_id')
-            .leftJoin(
-                'projects',
-                'project_memberships.project_id',
-                'projects.project_id',
-            )
-            .select(
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `project_memberships.role`,
-            )
-            .where('project_uuid', projectUuid)
-            .andWhere('is_primary', true);
-
-        const orgMembersInProject = projectMemberships.filter(
-            (user) =>
-                orgUsers.find(
-                    (orgUser) => orgUser.user_uuid === user.user_uuid,
-                ) === undefined,
+        const numberWeeklyQueryingUsersQuery = await this.database.raw(
+            numberWeeklyQueryingUsersSql(userUuids),
+        );
+        const numberWeeklyQueryingUsers: number = parseInt(
+            numberWeeklyQueryingUsersQuery.rows[0].count,
+            10,
         );
 
-        const usersInProject = [...orgUsers, ...orgMembersInProject];
+        const tableMostQueries = await this.database.raw(
+            tableMostQueriesSql(userUuids),
+        );
 
-        const weeklyQueryingUsers = await this.database.raw(`
-               select 
-               100 * ROUND(COUNT(DISTINCT(user_uuid))) / ${usersInProject.length} AS percent_weekly_active_users
-               from analytics_chart_views
-               WHERE timestamp between NOW() - interval '7 days' and NOW()
+        const tableMostCreatedCharts = await this.database.raw(
+            tableMostCreatedChartsSql(userUuids),
+        );
 
-        `);
+        const tableNoQueries = await this.database.raw(
+            tableNoQueriesSql(userUuids),
+        );
 
-        const usersWithMostQueries = await this.database.raw(`
-            select 
-            users.user_uuid, users.first_name, users.last_name, COUNT(analytics_chart_views.user_uuid)
-            from analytics_chart_views
-            LEFT JOIN users ON users.user_uuid = analytics_chart_views.user_uuid
-            WHERE timestamp between NOW() - interval '7 days' and NOW()
-            GROUP BY users.user_uuid, users.first_name, users.last_name
-            ORDER BY COUNT(analytics_chart_views.user_uuid) DESC
-            limit 10
+        const chartWeeklyQueryingUsers = await this.database.raw(
+            chartWeeklyQueryingUsersSql(userUuids),
+        );
 
-    `);
-
-        const usersCreatedMostCharts = await this.database.raw(`
-        select 
-        users.user_uuid, users.first_name, users.last_name, COUNT(saved_queries_versions.updated_by_user_uuid)
-        from saved_queries_versions
-        LEFT JOIN users ON users.user_uuid = saved_queries_versions.updated_by_user_uuid
-        WHERE saved_queries_versions.created_at between NOW() - interval '7 days' and NOW()
-        GROUP BY users.user_uuid, users.first_name, users.last_name
-        ORDER BY COUNT(saved_queries_versions.updated_by_user_uuid) DESC
-        limit 10
-
-    `);
-
-        const usersNotLoggedIn = await this.database.raw(`
-        select 
-        users.user_uuid, users.first_name, users.last_name,
-        1 -- TODO timediff
-   
-        from sessions
-        LEFT JOIN users ON users.user_uuid::text = sessions.sess->'passport'->>'user'
-        WHERE sessions.expired < NOW() - interval '90 days'
-        ORDER BY expired ASC
-        limit 10
-
-    `);
-
-        const queriesPerWeek = await this.database.raw(`
-    
-        select i::date  as date, COUNT(analytics_chart_views.chart_uuid), 
-        100 * ROUND(COUNT(DISTINCT(analytics_chart_views.user_uuid))) / ${usersInProject.length} AS percent_weekly_active_users
-        from generate_series(NOW() - interval '10 days', NOW() + interval '1 days', '1 day'::interval) i
-        LEFT JOIN analytics_chart_views ON analytics_chart_views.timestamp::date = i::date
-        GROUP BY i::date
-    `);
-
-        const averageUserQueriesPerWeek = await this.database.raw(`
-    
-    select i::date  as date,
-    analytics_chart_views.user_uuid,
-    COUNT(DISTINCT(analytics_chart_views.chart_uuid)) AS count
-    
-    from generate_series(NOW() - interval '10 days', NOW() + interval '1 days', '1 day'::interval) i
-    LEFT JOIN analytics_chart_views ON analytics_chart_views.timestamp::date = i::date
-    GROUP BY i::date, analytics_chart_views.user_uuid
-`);
+        const chartWeeklyAverageQueries = await this.database.raw(
+            chartWeeklyAverageQueriesSql(userUuids),
+        );
 
         const parseUsersWithCount = (
             userData: DbUserWithCount,
@@ -192,26 +124,23 @@ export class AnalyticsModel {
             count: userData.count,
         });
         return {
-            numberOfUsers: usersInProject.length,
-            numberOfViewers: usersInProject.filter(
+            numberUsers: usersInProject.length,
+            numberViewers: usersInProject.filter(
                 (user) => user.role === OrganizationMemberRole.VIEWER,
             ).length,
-            numberOfEditors: usersInProject.filter(
+            numberEditors: usersInProject.filter(
                 (user) => user.role === OrganizationMemberRole.EDITOR,
             ).length,
-            numberOfAdmins: usersInProject.filter(
+            numberAdmins: usersInProject.filter(
                 (user) => user.role === OrganizationMemberRole.ADMIN,
             ).length,
-            weeklyQueryingUsers: `${weeklyQueryingUsers.rows[0].percent_weekly_active_users.toFixed(
-                0,
-            )}`,
-            usersWithMostQueries:
-                usersWithMostQueries.rows.map(parseUsersWithCount),
-            usersCreatedMostCharts:
-                usersCreatedMostCharts.rows.map(parseUsersWithCount),
-            usersNotLoggedIn: usersNotLoggedIn.rows.map(parseUsersWithCount),
-            queriesPerWeek: queriesPerWeek.rows,
-            averageUserQueriesPerWeek: averageUserQueriesPerWeek.rows,
+            numberWeeklyQueryingUsers,
+            tableMostQueries: tableMostQueries.rows.map(parseUsersWithCount),
+            tableMostCreatedCharts:
+                tableMostCreatedCharts.rows.map(parseUsersWithCount),
+            tableNoQueries: tableNoQueries.rows.map(parseUsersWithCount),
+            chartWeeklyQueryingUsers: chartWeeklyQueryingUsers.rows,
+            chartWeeklyAverageQueries: chartWeeklyAverageQueries.rows,
         };
     }
 }

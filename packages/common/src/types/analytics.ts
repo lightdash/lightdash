@@ -6,14 +6,14 @@ export type UserWithCount = {
 };
 
 export type UserActivity = {
-    numberOfUsers: number;
-    numberOfViewers: number;
-    numberOfEditors: number;
-    numberOfAdmins: number;
-    weeklyQueryingUsers: string;
-    usersWithMostQueries: UserWithCount[];
-    usersCreatedMostCharts: UserWithCount[];
-    usersNotLoggedIn: UserWithCount[];
-    queriesPerWeek: any;
-    averageUserQueriesPerWeek: any;
+    numberUsers: number;
+    numberViewers: number;
+    numberEditors: number;
+    numberAdmins: number;
+    numberWeeklyQueryingUsers: number;
+    tableMostQueries: UserWithCount[];
+    tableMostCreatedCharts: UserWithCount[];
+    tableNoQueries: UserWithCount[];
+    chartWeeklyQueryingUsers: any;
+    chartWeeklyAverageQueries: any;
 };

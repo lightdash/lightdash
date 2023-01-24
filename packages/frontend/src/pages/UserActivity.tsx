@@ -69,7 +69,7 @@ const UserActivity: FC = () => {
         ],
         series: [
             {
-                data: data.averageUserQueriesPerWeek.map((queries: any) => [
+                data: data.chartWeeklyQueryingUsers.map((queries: any) => [
                     queries.date,
                     queries.count,
                 ]),
@@ -77,7 +77,7 @@ const UserActivity: FC = () => {
             },
             {
                 yAxisIndex: 1,
-                data: data.queriesPerWeek.map((queries: any) => [
+                data: data.chartWeeklyQueryingUsers.map((queries: any) => [
                     queries.date,
                     queries.percent_weekly_active_users,
                 ]),
@@ -100,7 +100,7 @@ const UserActivity: FC = () => {
         },
         series: [
             {
-                data: data.averageUserQueriesPerWeek.map((queries: any) => [
+                data: data.chartWeeklyAverageQueries.map((queries: any) => [
                     queries.date,
                     queries.count,
                 ]),
@@ -120,32 +120,34 @@ const UserActivity: FC = () => {
                 <Container>
                     <ActivityCard grid="total-users">
                         <BigNumberContainer>
-                            <BigNumber>{data.numberOfUsers}</BigNumber>
+                            <BigNumber>{data.numberUsers}</BigNumber>
                             <BigNumberLabel>Number of users</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
                     <ActivityCard grid="viewers">
                         <BigNumberContainer>
-                            <BigNumber>{data.numberOfViewers}</BigNumber>
+                            <BigNumber>{data.numberViewers}</BigNumber>
                             <BigNumberLabel>Number of viewers</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
 
                     <ActivityCard grid="editors">
                         <BigNumberContainer>
-                            <BigNumber>{data.numberOfEditors}</BigNumber>
+                            <BigNumber>{data.numberEditors}</BigNumber>
                             <BigNumberLabel>Number of editors</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
                     <ActivityCard grid="admins">
                         <BigNumberContainer>
-                            <BigNumber>{data.numberOfAdmins}</BigNumber>
+                            <BigNumber>{data.numberAdmins}</BigNumber>
                             <BigNumberLabel>Number of admins</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
                     <ActivityCard grid="weekly-active">
                         <BigNumberContainer>
-                            <BigNumber>% {data.weeklyQueryingUsers}</BigNumber>
+                            <BigNumber>
+                                % {data.numberWeeklyQueryingUsers}
+                            </BigNumber>
                             <BigNumberLabel>
                                 % of weekly querying users
                             </BigNumberLabel>
@@ -170,7 +172,7 @@ const UserActivity: FC = () => {
                             </tr>
                             {showTableBodyWithUsers(
                                 'users-most-queries',
-                                data.usersWithMostQueries,
+                                data.tableMostQueries,
                             )}
                         </Table>
                     </ActivityCard>
@@ -184,7 +186,7 @@ const UserActivity: FC = () => {
                             </tr>
                             {showTableBodyWithUsers(
                                 'users-created-most-charts',
-                                data.usersCreatedMostCharts,
+                                data.tableMostCreatedCharts,
                             )}
                         </Table>
                     </ActivityCard>
@@ -198,7 +200,7 @@ const UserActivity: FC = () => {
                             </tr>
                             {showTableBodyWithUsers(
                                 'users-not-logged-in',
-                                data.usersNotLoggedIn,
+                                data.tableNoQueries,
                             )}
                         </Table>
                     </ActivityCard>
