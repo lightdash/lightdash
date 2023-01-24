@@ -21,6 +21,7 @@ import {
     BigNumberContainer,
     BigNumberLabel,
     Container,
+    Description,
 } from './UserActivity.styles';
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
@@ -93,7 +94,7 @@ const UserActivity: FC = () => {
         },
         yAxis: {
             type: 'value',
-            name: 'Average user queries',
+            name: 'Average\nuser queries',
         },
         series: [
             {
@@ -160,6 +161,11 @@ const UserActivity: FC = () => {
                     </ActivityCard>
 
                     <ActivityCard grid="table-most-queries">
+                        <Description>
+                            Which users have run the most queries in the last 7
+                            days? (top 10)
+                        </Description>
+
                         <Table bordered condensed $showFooter={false}>
                             <tr>
                                 <th>First Name</th>
@@ -173,6 +179,11 @@ const UserActivity: FC = () => {
                         </Table>
                     </ActivityCard>
                     <ActivityCard grid="table-most-charts">
+                        <Description>
+                            Which users have updated the most charts in the last
+                            7 days? (top 10)
+                        </Description>
+
                         <Table bordered condensed $showFooter={false}>
                             <tr>
                                 <th>First Name</th>
@@ -186,6 +197,10 @@ const UserActivity: FC = () => {
                         </Table>
                     </ActivityCard>
                     <ActivityCard grid="table-not-logged-in">
+                        <Description>
+                            Which users have not run queries in the last 90
+                            days?
+                        </Description>
                         <Table bordered condensed $showFooter={false}>
                             <tr>
                                 <th>First Name</th>

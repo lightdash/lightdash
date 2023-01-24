@@ -5,7 +5,7 @@ import styled, { css } from 'styled-components';
 export const Container = styled.div`
     display: grid;
     grid-template-columns: 300px 300px 300px 300px;
-    grid-template-rows: 200px 200px 350px 380px 380px;
+    grid-template-rows: 200px 200px 350px 400px 400px;
     gap: 10px 10px;
     grid-template-areas:
         'total-users total-users total-users weekly-active'
@@ -46,4 +46,9 @@ export const BigNumberLabel = styled.h2`
     line-height: 1.389em;
     font-size: 1.286em;
     margin: 0;
+`;
+
+export const Description = styled.p`
+    float: left;
+    font-weight: 600;
 `;
