@@ -1,6 +1,8 @@
 import {
     CreateTrinoCredentials,
     DimensionType,
+    Metric,
+    MetricType,
     WarehouseConnectionError,
     WarehouseQueryError,
     WeekDay,
@@ -14,6 +16,7 @@ import {
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog, WarehouseClient } from '../types';
+import { getDefaultMetricSql } from '../utils/sql';
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -48,16 +51,19 @@ interface TableInfo {
     table: string;
 }
 
-const queryTableSchema = ({ database, schema, table }: TableInfo) => `SELECT
-                                                                    table_catalog 
-                                                                    , table_schema 
-                                                                    , table_name
-                                                                    , column_name 
-                                                                    , data_type 
-                                                                    FROM ${database}.information_schema.columns 
+const queryTableSchema = ({
+    database,
+    schema,
+    table,
+}: TableInfo) => `SELECT table_catalog
+                                                                         , table_schema
+                                                                         , table_name
+                                                                         , column_name
+                                                                         , data_type
+                                                                    FROM ${database}.information_schema.columns
                                                                     WHERE table_catalog = '${database}'
-                                                                    AND table_schema = '${schema}'
-                                                                    AND table_name = '${table}'
+                                                                      AND table_schema = '${schema}'
+                                                                      AND table_name = '${table}'
                                                                     ORDER BY 1, 2, 3, ordinal_position`;
 
 const convertDataTypeToDimensionType = (
@@ -261,5 +267,16 @@ export class TrinoWarehouseClient implements WarehouseClient {
 
     getEscapeStringQuoteChar() {
         return "'";
+    }
+
+    getMetricSql(sql: string, metric: Metric) {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `APPROX_PERCENTILE(${sql}, ${
+                    (metric.percentile ?? 50) / 100
+                })`;
+            default:
+                return getDefaultMetricSql(sql, metric.type);
+        }
     }
 }

@@ -35,7 +35,7 @@ import {
     validateTimeFrames,
     WeekDay,
 } from '../utils/timeFrames';
-import { compileExplore } from './exploreCompiler';
+import { ExploreCompiler } from './exploreCompiler';
 
 const convertTimezone = (
     timestampSql: string,
@@ -478,25 +478,14 @@ export const convertExplores = async (
     const validModels = models.filter(
         (model) => tableLookup[model.name] !== undefined,
     );
+    const exploreCompiler = new ExploreCompiler(warehouseClient);
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
         try {
-            return compileExplore(
-                {
-                    name: model.name,
-                    label: meta.label || friendlyName(model.name),
-                    tags: model.tags || [],
-                    baseTable: model.name,
-                    joinedTables: (meta?.joins || []).map((join) => ({
-                        table: join.join,
-                        sqlOn: join.sql_on,
-                        alias: join.alias,
-                        label: join.label,
-                    })),
-                    tables: tableLookup,
-                    targetDatabase: adapterType,
-                },
-                warehouseClient,
+            return exploreCompiler.compileExplore(
+                model,
+                tableLookup,
+                adapterType,
             );
         } catch (e) {
             return {

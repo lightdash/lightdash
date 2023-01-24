@@ -1,9 +1,8 @@
-import { SupportedDbtAdapter } from '../types/dbt';
-import { Explore, Table } from '../types/explore';
+import { DbtModelNode, SupportedDbtAdapter } from '../types/dbt';
+import { Explore, ExploreJoin, Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType, Source } from '../types/field';
 import { FilterOperator } from '../types/filter';
 import { WarehouseClient } from '../types/warehouse';
-import { UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
     getCatalog: async () => ({
@@ -25,6 +24,7 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
+    getMetricSql: () => '',
 };
 
 const sourceMock: Source = {
@@ -52,7 +52,30 @@ export const exploreBase: Explore = {
     tables: {},
 };
 
-export const exploreOneEmptyTable: UncompiledExplore = {
+export const dbtModelNodeMock: DbtModelNode = {
+    alias: '',
+    checksum: {
+        name: '',
+        checksum: '',
+    },
+    columns: {},
+    compiled: false,
+    database: '',
+    fqn: [],
+    language: '',
+    meta: {},
+    name: '',
+    original_file_path: '',
+    package_name: '',
+    path: '',
+    raw_code: '',
+    resource_type: 'model',
+    root_path: '',
+    schema: '',
+    unique_id: '',
+};
+
+export const exploreOneEmptyTable = {
     ...exploreBase,
     tables: {
         a: {
@@ -86,11 +109,11 @@ export const exploreOneEmptyTableCompiled: Explore = {
     },
 };
 
-export const exploreMissingBaseTable: UncompiledExplore = {
+export const exploreMissingBaseTable = {
     ...exploreBase,
 };
 
-export const exploreMissingJoinTable: UncompiledExplore = {
+export const exploreMissingJoinTable = {
     ...exploreBase,
     joinedTables: [
         {
@@ -113,7 +136,7 @@ export const exploreMissingJoinTable: UncompiledExplore = {
     },
 };
 
-export const exploreCircularDimensionReference: UncompiledExplore = {
+export const exploreCircularDimensionReference = {
     ...exploreBase,
     tables: {
         a: {
@@ -142,7 +165,7 @@ export const exploreCircularDimensionReference: UncompiledExplore = {
     },
 };
 
-export const exploreCircularDimensionShortReference: UncompiledExplore = {
+export const exploreCircularDimensionShortReference = {
     ...exploreCircularDimensionReference,
     tables: {
         a: {
@@ -158,7 +181,7 @@ export const exploreCircularDimensionShortReference: UncompiledExplore = {
     },
 };
 
-export const exploreCircularMetricReference: UncompiledExplore = {
+export const exploreCircularMetricReference = {
     ...exploreBase,
     tables: {
         a: {
@@ -200,7 +223,7 @@ export const exploreCircularMetricReference: UncompiledExplore = {
     },
 };
 
-export const exploreCircularMetricShortReference: UncompiledExplore = {
+export const exploreCircularMetricShortReference = {
     ...exploreCircularDimensionReference,
     tables: {
         a: {
@@ -215,7 +238,7 @@ export const exploreCircularMetricShortReference: UncompiledExplore = {
     },
 };
 
-export const exploreTableSelfReference: UncompiledExplore = {
+export const exploreTableSelfReference = {
     ...exploreBase,
     tables: {
         a: {
@@ -275,7 +298,7 @@ export const exploreTableSelfReferenceCompiled: Explore = {
     },
 };
 
-export const exploreReferenceDimension: UncompiledExplore = {
+export const exploreReferenceDimension = {
     ...exploreBase,
     tables: {
         a: {
@@ -358,7 +381,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
         },
     },
 };
-export const exploreComplexReference: UncompiledExplore = {
+export const exploreComplexReference = {
     ...exploreBase,
     tables: {
         a: {
@@ -494,7 +517,7 @@ export const exploreComplexReferenceCompiled: Explore = {
     },
 };
 
-export const simpleJoinedExplore: UncompiledExplore = {
+export const simpleJoinedExplore = {
     ...exploreBase,
     joinedTables: [
         {
@@ -615,7 +638,7 @@ export const compiledSimpleJoinedExplore: Explore = {
     },
 };
 
-export const exploreReferenceInJoin: UncompiledExplore = {
+export const exploreReferenceInJoin = {
     ...simpleJoinedExplore,
     tables: {
         ...simpleJoinedExplore.tables,
@@ -671,7 +694,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
     },
 };
 
-export const joinedExploreOverridingJoinLabel: UncompiledExplore = {
+export const joinedExploreOverridingJoinLabel = {
     ...simpleJoinedExplore,
     joinedTables: [
         {
@@ -698,7 +721,7 @@ export const compiledJoinedExploreOverridingJoinLabel: Explore = {
     },
 };
 
-export const joinedExploreOverridingJoinAlias: UncompiledExplore = {
+export const joinedExploreOverridingJoinAlias = {
     ...simpleJoinedExplore,
     joinedTables: [
         {
@@ -738,7 +761,7 @@ export const compiledJoinedExploreOverridingJoinAlias: Explore = {
     },
 };
 
-export const joinedExploreOverridingAliasAndLabel: UncompiledExplore = {
+export const joinedExploreOverridingAliasAndLabel = {
     ...simpleJoinedExplore,
     joinedTables: [
         {
@@ -779,7 +802,7 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
     },
 };
 
-export const exploreWithMetricNumber: UncompiledExplore = {
+export const exploreWithMetricNumber = {
     ...exploreBase,
     tables: {
         a: {
