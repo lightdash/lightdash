@@ -1,19 +1,22 @@
-import { Card, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Classes, Icon, NonIdealState, Spinner } from '@blueprintjs/core';
+import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { UserWithCount } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
-import React, { FC } from 'react';
-import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
+import { FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams } from 'react-router-dom';
-import ErrorState from '../components/common/ErrorState';
+import { useHistory, useParams } from 'react-router-dom';
 import Content from '../components/common/Page/Content';
 import Page from '../components/common/Page/Page';
-import { Table } from '../components/common/Table/Table.styles';
+import { PageBreadcrumbsWrapper } from '../components/common/Page/Page.styles';
+import {
+    PageHeaderContainer,
+    PageTitleAndDetailsContainer,
+    PageTitleContainer,
+} from '../components/common/PageHeader';
+import { ResourceBreadcrumbTitle } from '../components/common/ResourceList/ResourceList.styles';
+import { Table, Td } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import SpacePanel from '../components/SpacePanel';
-import ColumnConfiguration from '../components/TableConfigPanel/ColumnConfiguration';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
-import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 import {
     ActivityCard,
@@ -25,18 +28,23 @@ import {
 } from './UserActivity.styles';
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
-    return userList.map((user) => {
-        return (
-            <tr key={`${key}-${user.userUuid}`}>
-                <td>{user.firstName}</td>
-                <td>{user.lastName}</td>
-                <td>{user.count}</td>
-            </tr>
-        );
-    });
+    return (
+        <tbody>
+            {userList.map((user, index) => {
+                return (
+                    <tr key={`${key}-${user.userUuid}`}>
+                        <td>{user.firstName} </td>
+                        <td>{user.lastName}</td>
+                        <td>{user.count}</td>
+                    </tr>
+                );
+            })}
+        </tbody>
+    );
 };
 
 const UserActivity: FC = () => {
+    const history = useHistory();
     const params = useParams<{ projectUuid: string }>();
     const { user: sessionUser } = useApp();
 
@@ -110,112 +118,159 @@ const UserActivity: FC = () => {
     };
 
     return (
-        <Page>
+        <>
             <Helmet>
                 <title>User activity - Lightdash</title>
             </Helmet>
-            <Content>
-                <Container>
-                    <ActivityCard grid="total-users">
-                        <BigNumberContainer>
-                            <BigNumber>{data.numberUsers}</BigNumber>
-                            <BigNumberLabel>Number of users</BigNumberLabel>
-                        </BigNumberContainer>
-                    </ActivityCard>
-                    <ActivityCard grid="viewers">
-                        <BigNumberContainer>
-                            <BigNumber>{data.numberViewers}</BigNumber>
-                            <BigNumberLabel>Number of viewers</BigNumberLabel>
-                        </BigNumberContainer>
-                    </ActivityCard>
+            <PageHeaderContainer>
+                <PageTitleAndDetailsContainer>
+                    <PageTitleContainer
+                        className={Classes.TEXT_OVERFLOW_ELLIPSIS}
+                    >
+                        <PageBreadcrumbsWrapper>
+                            <Breadcrumbs2
+                                items={[
+                                    {
+                                        text: 'Usage analytics',
+                                        className: 'home-breadcrumb',
+                                        onClick: (e) => {
+                                            history.push(
+                                                `/generalSettings/projectManagement/${params.projectUuid}/usageAnalytics`,
+                                            );
+                                        },
+                                    },
+                                    {
+                                        text: (
+                                            <ResourceBreadcrumbTitle>
+                                                <Icon icon="people" size={20} />{' '}
+                                                User activity
+                                            </ResourceBreadcrumbTitle>
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </PageBreadcrumbsWrapper>
+                    </PageTitleContainer>
+                </PageTitleAndDetailsContainer>
+            </PageHeaderContainer>
+            <Page>
+                <Content>
+                    <Container>
+                        <ActivityCard grid="total-users">
+                            <BigNumberContainer>
+                                <BigNumber>{data.numberUsers}</BigNumber>
+                                <BigNumberLabel>Number of users</BigNumberLabel>
+                            </BigNumberContainer>
+                        </ActivityCard>
+                        <ActivityCard grid="viewers">
+                            <BigNumberContainer>
+                                <BigNumber>{data.numberViewers}</BigNumber>
+                                <BigNumberLabel>
+                                    Number of viewers
+                                </BigNumberLabel>
+                            </BigNumberContainer>
+                        </ActivityCard>
 
-                    <ActivityCard grid="editors">
-                        <BigNumberContainer>
-                            <BigNumber>{data.numberEditors}</BigNumber>
-                            <BigNumberLabel>Number of editors</BigNumberLabel>
-                        </BigNumberContainer>
-                    </ActivityCard>
-                    <ActivityCard grid="admins">
-                        <BigNumberContainer>
-                            <BigNumber>{data.numberAdmins}</BigNumber>
-                            <BigNumberLabel>Number of admins</BigNumberLabel>
-                        </BigNumberContainer>
-                    </ActivityCard>
-                    <ActivityCard grid="weekly-active">
-                        <BigNumberContainer>
-                            <BigNumber>
-                                % {data.numberWeeklyQueryingUsers}
-                            </BigNumber>
-                            <BigNumberLabel>
-                                % of weekly querying users
-                            </BigNumberLabel>
-                        </BigNumberContainer>
-                    </ActivityCard>
+                        <ActivityCard grid="editors">
+                            <BigNumberContainer>
+                                <BigNumber>{data.numberEditors}</BigNumber>
+                                <BigNumberLabel>
+                                    Number of editors
+                                </BigNumberLabel>
+                            </BigNumberContainer>
+                        </ActivityCard>
+                        <ActivityCard grid="admins">
+                            <BigNumberContainer>
+                                <BigNumber>{data.numberAdmins}</BigNumber>
+                                <BigNumberLabel>
+                                    Number of admins
+                                </BigNumberLabel>
+                            </BigNumberContainer>
+                        </ActivityCard>
+                        <ActivityCard grid="weekly-active">
+                            <BigNumberContainer>
+                                <BigNumber>
+                                    % {data.numberWeeklyQueryingUsers}
+                                </BigNumber>
+                                <BigNumberLabel>
+                                    % of weekly querying users
+                                </BigNumberLabel>
+                            </BigNumberContainer>
+                        </ActivityCard>
 
-                    <ActivityCard grid="chart-active-users">
-                        <EChartsReact notMerge option={weeklySeries} />
-                    </ActivityCard>
+                        <ActivityCard grid="chart-active-users">
+                            <EChartsReact notMerge option={weeklySeries} />
+                        </ActivityCard>
 
-                    <ActivityCard grid="queries-per-user">
-                        <EChartsReact notMerge option={series} />
-                    </ActivityCard>
+                        <ActivityCard grid="queries-per-user">
+                            <EChartsReact notMerge option={series} />
+                        </ActivityCard>
 
-                    <ActivityCard grid="table-most-queries">
-                        <Description>
-                            Which users have run the most queries in the last 7
-                            days? (top 10)
-                        </Description>
+                        <ActivityCard grid="table-most-queries">
+                            <Description>
+                                Which users have run the most queries in the
+                                last 7 days? (top 10)
+                            </Description>
 
-                        <Table bordered condensed $showFooter={false}>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Number of Queries</th>
-                            </tr>
-                            {showTableBodyWithUsers(
-                                'users-most-queries',
-                                data.tableMostQueries,
-                            )}
-                        </Table>
-                    </ActivityCard>
-                    <ActivityCard grid="table-most-charts">
-                        <Description>
-                            Which users have updated the most charts in the last
-                            7 days? (top 10)
-                        </Description>
+                            <Table bordered condensed $showFooter={false}>
+                                <thead>
+                                    {' '}
+                                    <tr>
+                                        <th>First Name</th>
+                                        <th>Last Name</th>
+                                        <th>Number of Queries</th>
+                                    </tr>
+                                </thead>
+                                {showTableBodyWithUsers(
+                                    'users-most-queries',
+                                    data.tableMostQueries,
+                                )}
+                            </Table>
+                        </ActivityCard>
+                        <ActivityCard grid="table-most-charts">
+                            <Description>
+                                Which users have updated the most charts in the
+                                last 7 days? (top 10)
+                            </Description>
 
-                        <Table bordered condensed $showFooter={false}>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Number of updated charts</th>
-                            </tr>
-                            {showTableBodyWithUsers(
-                                'users-created-most-charts',
-                                data.tableMostCreatedCharts,
-                            )}
-                        </Table>
-                    </ActivityCard>
-                    <ActivityCard grid="table-not-logged-in">
-                        <Description>
-                            Which users have not run queries in the last 90
-                            days?
-                        </Description>
-                        <Table bordered condensed $showFooter={false}>
-                            <tr>
-                                <th>First Name</th>
-                                <th>Last Name</th>
-                                <th>Days since last login</th>
-                            </tr>
-                            {showTableBodyWithUsers(
-                                'users-not-logged-in',
-                                data.tableNoQueries,
-                            )}
-                        </Table>
-                    </ActivityCard>
-                </Container>
-            </Content>
-        </Page>
+                            <Table bordered condensed $showFooter={false}>
+                                <thead>
+                                    {' '}
+                                    <tr>
+                                        <th>First Name</th>
+                                        <th>Last Name</th>
+                                        <th>Number of updated charts</th>
+                                    </tr>
+                                </thead>
+                                {showTableBodyWithUsers(
+                                    'users-created-most-charts',
+                                    data.tableMostCreatedCharts,
+                                )}
+                            </Table>
+                        </ActivityCard>
+                        <ActivityCard grid="table-not-logged-in">
+                            <Description>
+                                Which users have not run queries in the last 90
+                                days?
+                            </Description>
+                            <Table bordered condensed $showFooter={false}>
+                                <thead>
+                                    <tr>
+                                        <th>First Name</th>
+                                        <th>Last Name</th>
+                                        <th>Days since last login</th>
+                                    </tr>
+                                </thead>
+                                {showTableBodyWithUsers(
+                                    'users-not-logged-in',
+                                    data.tableNoQueries,
+                                )}
+                            </Table>
+                        </ActivityCard>
+                    </Container>
+                </Content>
+            </Page>
+        </>
     );
 };
 
