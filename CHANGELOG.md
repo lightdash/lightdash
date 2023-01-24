@@ -1,3 +1,10 @@
+## [0.387.1](https://github.com/lightdash/lightdash/compare/0.387.0...0.387.1) (2023-01-24)
+
+
+### Bug Fixes
+
+* join label ([#4254](https://github.com/lightdash/lightdash/issues/4254)) ([f707aa4](https://github.com/lightdash/lightdash/commit/f707aa464253abcb09e41a93870f5e5672b3f1a0))
+
 # [0.387.0](https://github.com/lightdash/lightdash/compare/0.386.0...0.387.0) (2023-01-24)
 
 
