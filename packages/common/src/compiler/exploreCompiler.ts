@@ -545,49 +545,47 @@ export const compileExplore = ({
         );
     }
     const includedTables = joinedTables.reduce<Record<string, Table>>(
-        (prev, join) => ({
-            ...prev,
-            [join.alias || join.table]: {
-                ...tables[join.table],
-                name: join.alias || tables[join.table].name,
-                label:
-                    join.label ||
-                    (join.alias && friendlyName(join.alias)) ||
-                    tables[join.table].label,
-                dimensions: Object.keys(tables[join.table].dimensions).reduce<
-                    Record<string, Dimension>
-                >(
-                    (prevDimensions, dimensionKey) => ({
-                        ...prevDimensions,
-                        [dimensionKey]: {
-                            ...tables[join.table].dimensions[dimensionKey],
-                            table: join.alias || tables[join.table].name,
-                            tableLabel:
-                                join.label ||
-                                (join.alias && friendlyName(join.alias)) ||
-                                tables[join.table].label,
-                        },
-                    }),
-                    {},
-                ),
-                metrics: Object.keys(tables[join.table].metrics).reduce<
-                    Record<string, Metric>
-                >(
-                    (prevMetrics, metricKey) => ({
-                        ...prevMetrics,
-                        [metricKey]: {
-                            ...tables[join.table].metrics[metricKey],
-                            table: join.alias || tables[join.table].name,
-                            tableLabel:
-                                join.label ||
-                                (join.alias && friendlyName(join.alias)) ||
-                                tables[join.table].label,
-                        },
-                    }),
-                    {},
-                ),
-            },
-        }),
+        (prev, join) => {
+            const joinTableName = join.alias || tables[join.table].name;
+            const joinTableLabel =
+                join.label ||
+                (join.alias && friendlyName(join.alias)) ||
+                tables[join.table].label;
+            return {
+                ...prev,
+                [join.alias || join.table]: {
+                    ...tables[join.table],
+                    name: joinTableName,
+                    label: joinTableLabel,
+                    dimensions: Object.keys(
+                        tables[join.table].dimensions,
+                    ).reduce<Record<string, Dimension>>(
+                        (prevDimensions, dimensionKey) => ({
+                            ...prevDimensions,
+                            [dimensionKey]: {
+                                ...tables[join.table].dimensions[dimensionKey],
+                                table: joinTableName,
+                                tableLabel: joinTableLabel,
+                            },
+                        }),
+                        {},
+                    ),
+                    metrics: Object.keys(tables[join.table].metrics).reduce<
+                        Record<string, Metric>
+                    >(
+                        (prevMetrics, metricKey) => ({
+                            ...prevMetrics,
+                            [metricKey]: {
+                                ...tables[join.table].metrics[metricKey],
+                                table: joinTableName,
+                                tableLabel: joinTableLabel,
+                            },
+                        }),
+                        {},
+                    ),
+                },
+            };
+        },
         { [baseTable]: tables[baseTable] },
     );
 
