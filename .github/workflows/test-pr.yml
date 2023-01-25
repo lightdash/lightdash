@@ -1,9 +1,7 @@
-name: End-to-end tests
+name: test pr user
 on: [ deployment_status ]
 jobs:
   cypress-run:
-    # Only trigger for correct environment and status
-    if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
     runs-on: ubuntu-latest
     container: cypress/browsers:node14.19.0-chrome100-ff99-edge
     steps:
