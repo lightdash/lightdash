@@ -305,4 +305,16 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             { [catalog]: {} } as WarehouseCatalog,
         );
     }
+
+    getFieldQuoteChar() {
+        return '`';
+    }
+
+    getStringQuoteChar() {
+        return "'";
+    }
+
+    getEscapeStringQuoteChar() {
+        return '\\';
+    }
 }

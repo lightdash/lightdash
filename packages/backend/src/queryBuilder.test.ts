@@ -1,5 +1,6 @@
 import { buildQuery } from './queryBuilder';
 import {
+    bigqueryClientMock,
     EXPLORE,
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
@@ -27,6 +28,7 @@ import {
     METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    warehouseClientMock,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
@@ -35,6 +37,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -44,6 +47,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE_BIGQUERY,
                 compiledMetricQuery: METRIC_QUERY,
+                warehouseClient: bigqueryClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
@@ -53,6 +57,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
@@ -62,6 +67,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
@@ -71,6 +77,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
     });
@@ -80,6 +87,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE_JOIN_CHAIN,
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
@@ -89,6 +97,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
@@ -97,6 +106,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
@@ -105,6 +115,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
     });
@@ -114,6 +125,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
@@ -123,6 +135,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_FILTER_SQL);
     });
@@ -132,6 +145,7 @@ describe('Query builder', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
@@ -141,6 +155,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY,
                 allResults: true,
+                warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_WITH_NO_LIMIT);
     });

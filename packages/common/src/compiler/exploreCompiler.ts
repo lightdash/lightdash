@@ -11,71 +11,14 @@ import {
     CompiledDimension,
     CompiledMetric,
     Dimension,
+    friendlyName,
     isNonAggregateMetric,
     Metric,
     MetricType,
 } from '../types/field';
+import { WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import { renderFilterRuleSql } from './filtersCompiler';
-
-export const getFieldQuoteChar = (
-    targetDatabase: SupportedDbtAdapter,
-): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.TRINO:
-            return '"';
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.DATABRICKS:
-            return '`';
-        default:
-            return assertUnreachable(
-                targetDatabase,
-                `field quote char not found for ${targetDatabase}`,
-            );
-    }
-};
-
-export const getStringQuoteChar = (
-    targetDatabase: SupportedDbtAdapter,
-): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.BIGQUERY:
-        case SupportedDbtAdapter.DATABRICKS:
-        case SupportedDbtAdapter.TRINO:
-            return "'";
-        default:
-            return assertUnreachable(
-                targetDatabase,
-                `string quote char not found for ${targetDatabase}`,
-            );
-    }
-};
-
-export const getEscapeStringQuoteChar = (
-    targetDatabase: SupportedDbtAdapter,
-): string => {
-    switch (targetDatabase) {
-        case SupportedDbtAdapter.SNOWFLAKE:
-        case SupportedDbtAdapter.DATABRICKS:
-        case SupportedDbtAdapter.BIGQUERY:
-            return '\\';
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.REDSHIFT:
-        case SupportedDbtAdapter.TRINO:
-            return "'";
-        default:
-            return assertUnreachable(
-                targetDatabase,
-                `string quote char not found for ${targetDatabase}`,
-            );
-    }
-};
 
 export const lightdashVariablePattern = /\$\{([a-zA-Z0-9_.]+)\}/g;
 
@@ -445,9 +388,10 @@ const compileJoin = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
 ): CompiledExploreJoin => ({
-    ...join,
+    table: join.alias || join.table,
+    sqlOn: join.sqlOn,
     compiledSqlOn: compileExploreJoinSql(
-        join,
+        { table: join.alias || join.table, sqlOn: join.sqlOn },
         tables,
         fieldQuoteChar,
         stringQuoteChar,
@@ -508,15 +452,18 @@ export type UncompiledExplore = {
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
 };
-export const compileExplore = ({
-    name,
-    label,
-    tags,
-    baseTable,
-    joinedTables,
-    tables,
-    targetDatabase,
-}: UncompiledExplore): Explore => {
+export const compileExplore = (
+    {
+        name,
+        label,
+        tags,
+        baseTable,
+        joinedTables,
+        tables,
+        targetDatabase,
+    }: UncompiledExplore,
+    warehouseClient: WarehouseClient,
+): Explore => {
     // Check tables are correctly declared
     if (!tables[baseTable]) {
         throw new CompileError(
@@ -532,35 +479,81 @@ export const compileExplore = ({
             );
         }
     });
-    const joinedTableNames = [baseTable, ...joinedTables.map((j) => j.table)];
-    const joined = joinedTableNames.reduce(
-        (prev, tableName) => ({ ...prev, [tableName]: tables[tableName] }),
-        {},
-    );
-    const fieldQuoteChar = getFieldQuoteChar(targetDatabase);
-    const stringQuoteChar = getStringQuoteChar(targetDatabase);
-    const escapeStringQuoteChar = getEscapeStringQuoteChar(targetDatabase);
-
-    const compiledTables: Record<string, CompiledTable> = Object.keys(
-        tables,
-    ).reduce((prev, tableName) => {
-        if (joinedTableNames.find((t) => t === tableName)) {
+    const aliases = [
+        baseTable,
+        ...joinedTables.map((join) => join.alias || join.table),
+    ];
+    if (aliases.length !== new Set(aliases).size) {
+        throw new CompileError(
+            `Failed to compile explore "${name}". Cannot join to the same table multiple times table in an explore. Use an 'alias'`,
+            {},
+        );
+    }
+    const includedTables = joinedTables.reduce<Record<string, Table>>(
+        (prev, join) => {
+            const joinTableName = join.alias || tables[join.table].name;
+            const joinTableLabel =
+                join.label ||
+                (join.alias && friendlyName(join.alias)) ||
+                tables[join.table].label;
             return {
                 ...prev,
-                [tableName]: compileTable(
-                    tables[tableName],
-                    joined,
-                    fieldQuoteChar,
-                    stringQuoteChar,
-                    escapeStringQuoteChar,
-                    targetDatabase,
-                ),
+                [join.alias || join.table]: {
+                    ...tables[join.table],
+                    name: joinTableName,
+                    label: joinTableLabel,
+                    dimensions: Object.keys(
+                        tables[join.table].dimensions,
+                    ).reduce<Record<string, Dimension>>(
+                        (prevDimensions, dimensionKey) => ({
+                            ...prevDimensions,
+                            [dimensionKey]: {
+                                ...tables[join.table].dimensions[dimensionKey],
+                                table: joinTableName,
+                                tableLabel: joinTableLabel,
+                            },
+                        }),
+                        {},
+                    ),
+                    metrics: Object.keys(tables[join.table].metrics).reduce<
+                        Record<string, Metric>
+                    >(
+                        (prevMetrics, metricKey) => ({
+                            ...prevMetrics,
+                            [metricKey]: {
+                                ...tables[join.table].metrics[metricKey],
+                                table: joinTableName,
+                                tableLabel: joinTableLabel,
+                            },
+                        }),
+                        {},
+                    ),
+                },
             };
-        }
-        return prev;
-    }, {});
+        },
+        { [baseTable]: tables[baseTable] },
+    );
+
+    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const stringQuoteChar = warehouseClient.getStringQuoteChar();
+    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
+
+    const compiledTables: Record<string, CompiledTable> = aliases.reduce(
+        (prev, tableName) => ({
+            ...prev,
+            [tableName]: compileTable(
+                includedTables[tableName],
+                includedTables,
+                fieldQuoteChar,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+                targetDatabase,
+            ),
+        }),
+        {},
+    );
     const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
-        compileJoin(j, joined, fieldQuoteChar, stringQuoteChar),
+        compileJoin(j, includedTables, fieldQuoteChar, stringQuoteChar),
     );
     return {
         name,

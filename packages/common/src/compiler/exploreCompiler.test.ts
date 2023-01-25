@@ -3,6 +3,10 @@ import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
 import { compileExplore, compileMetric } from './exploreCompiler';
 import {
+    compiledJoinedExploreOverridingAliasAndLabel,
+    compiledJoinedExploreOverridingJoinAlias,
+    compiledJoinedExploreOverridingJoinLabel,
+    compiledSimpleJoinedExplore,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
     exploreCircularMetricReference,
@@ -21,70 +25,118 @@ import {
     exploreTableSelfReferenceCompiled,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    joinedExploreOverridingAliasAndLabel,
+    joinedExploreOverridingJoinAlias,
+    joinedExploreOverridingJoinLabel,
+    simpleJoinedExplore,
     tablesWithMetricsWithFilters,
+    warehouseClientMock,
 } from './exploreCompiler.mock';
 
 test('Should compile empty table', () => {
-    expect(compileExplore(exploreOneEmptyTable)).toStrictEqual(
-        exploreOneEmptyTableCompiled,
-    );
+    expect(
+        compileExplore(exploreOneEmptyTable, warehouseClientMock),
+    ).toStrictEqual(exploreOneEmptyTableCompiled);
 });
 
 test('Should throw error when missing base table', () => {
-    expect(() => compileExplore(exploreMissingBaseTable)).toThrowError(
-        CompileError,
-    );
+    expect(() =>
+        compileExplore(exploreMissingBaseTable, warehouseClientMock),
+    ).toThrowError(CompileError);
 });
 
 test('Should throw error when missing joined table', () => {
-    expect(() => compileExplore(exploreMissingJoinTable)).toThrowError(
-        CompileError,
-    );
+    expect(() =>
+        compileExplore(exploreMissingJoinTable, warehouseClientMock),
+    ).toThrowError(CompileError);
 });
 
 test('Should throw error when dimension/metric has circular reference', () => {
     expect(() =>
-        compileExplore(exploreCircularDimensionReference),
+        compileExplore(exploreCircularDimensionReference, warehouseClientMock),
     ).toThrowError(CompileError);
     expect(() =>
-        compileExplore(exploreCircularDimensionShortReference),
+        compileExplore(
+            exploreCircularDimensionShortReference,
+            warehouseClientMock,
+        ),
     ).toThrowError(CompileError);
-    expect(() => compileExplore(exploreCircularMetricReference)).toThrowError(
-        CompileError,
-    );
     expect(() =>
-        compileExplore(exploreCircularMetricShortReference),
+        compileExplore(exploreCircularMetricReference, warehouseClientMock),
+    ).toThrowError(CompileError);
+    expect(() =>
+        compileExplore(
+            exploreCircularMetricShortReference,
+            warehouseClientMock,
+        ),
     ).toThrowError(CompileError);
 });
 
 test('Should compile table with TABLE reference', () => {
-    expect(compileExplore(exploreTableSelfReference)).toStrictEqual(
-        exploreTableSelfReferenceCompiled,
-    );
+    expect(
+        compileExplore(exploreTableSelfReference, warehouseClientMock),
+    ).toStrictEqual(exploreTableSelfReferenceCompiled);
 });
 
 test('Should compile table with reference to another dimension', () => {
-    expect(compileExplore(exploreReferenceDimension)).toStrictEqual(
-        exploreReferenceDimensionCompiled,
-    );
+    expect(
+        compileExplore(exploreReferenceDimension, warehouseClientMock),
+    ).toStrictEqual(exploreReferenceDimensionCompiled);
 });
 
 test('Should compile table with nested references in dimensions and metrics', () => {
-    expect(compileExplore(exploreComplexReference)).toStrictEqual(
-        exploreComplexReferenceCompiled,
-    );
+    expect(
+        compileExplore(exploreComplexReference, warehouseClientMock),
+    ).toStrictEqual(exploreComplexReferenceCompiled);
 });
 
 test('Should compile with a reference to a dimension in a joined table', () => {
-    expect(compileExplore(exploreReferenceInJoin)).toStrictEqual(
-        exploreReferenceInJoinCompiled,
-    );
+    expect(
+        compileExplore(exploreReferenceInJoin, warehouseClientMock),
+    ).toStrictEqual(exploreReferenceInJoinCompiled);
 });
 
 test('Should compile with a reference to a metric in a non-aggregate metric', () => {
-    expect(compileExplore(exploreWithMetricNumber)).toStrictEqual(
-        exploreWithMetricNumberCompiled,
-    );
+    expect(
+        compileExplore(exploreWithMetricNumber, warehouseClientMock),
+    ).toStrictEqual(exploreWithMetricNumberCompiled);
+});
+
+describe('Explores with a base table and joined table', () => {
+    test('should compile', () => {
+        expect(
+            compileExplore(simpleJoinedExplore, warehouseClientMock),
+        ).toStrictEqual(compiledSimpleJoinedExplore);
+    });
+    test('should compile with a reference to a dimension in a joined table', () => {
+        expect(
+            compileExplore(exploreReferenceInJoin, warehouseClientMock),
+        ).toStrictEqual(exploreReferenceInJoinCompiled);
+    });
+    test('should compile with custom label on join', () => {
+        expect(
+            compileExplore(
+                joinedExploreOverridingJoinLabel,
+                warehouseClientMock,
+            ),
+        ).toStrictEqual(compiledJoinedExploreOverridingJoinLabel);
+    });
+    test('should compile with alias on join', () => {
+        expect(
+            compileExplore(
+                joinedExploreOverridingJoinAlias,
+                warehouseClientMock,
+            ),
+        ).toStrictEqual(compiledJoinedExploreOverridingJoinAlias);
+    });
+    test('should compile with an alias and custom label on join', () => {
+        expect(
+            compileExplore(
+                joinedExploreOverridingAliasAndLabel,
+                warehouseClientMock,
+            ),
+        ).toStrictEqual(compiledJoinedExploreOverridingAliasAndLabel);
+    });
 });
 
 describe('Default field labels render for', () => {

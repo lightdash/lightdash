@@ -191,12 +191,18 @@ app.use(
 // frontend static files - no cache
 app.use(
     express.static(path.join(__dirname, '../../frontend/build'), {
-        maxAge: 0,
+        setHeaders: () => ({
+            // private - browsers can cache but not CDNs
+            // no-cache - caches must revalidate with the origin server before using a cached copy
+            'Cache-Control': 'no-cache, private',
+        }),
     }),
 );
 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'));
+    res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'), {
+        headers: { 'Cache-Control': 'no-cache, private' },
+    });
 });
 
 // errors

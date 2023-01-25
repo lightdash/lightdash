@@ -1,3 +1,31 @@
+## [0.387.1](https://github.com/lightdash/lightdash/compare/0.387.0...0.387.1) (2023-01-24)
+
+
+### Bug Fixes
+
+* join label ([#4254](https://github.com/lightdash/lightdash/issues/4254)) ([f707aa4](https://github.com/lightdash/lightdash/commit/f707aa464253abcb09e41a93870f5e5672b3f1a0))
+
+# [0.387.0](https://github.com/lightdash/lightdash/compare/0.386.0...0.387.0) (2023-01-24)
+
+
+### Features
+
+* add table alias ([#4236](https://github.com/lightdash/lightdash/issues/4236)) ([0a3d1e3](https://github.com/lightdash/lightdash/commit/0a3d1e339fbaf95e6eccb90dc9f5c46d39b3a000))
+
+# [0.386.0](https://github.com/lightdash/lightdash/compare/0.385.1...0.386.0) (2023-01-24)
+
+
+### Features
+
+* clicking dashboard chart title redirects to explorer ([#4244](https://github.com/lightdash/lightdash/issues/4244)) ([7259b13](https://github.com/lightdash/lightdash/commit/7259b13b8179d47026c714fbe20f11603d0838aa))
+
+## [0.385.1](https://github.com/lightdash/lightdash/compare/0.385.0...0.385.1) (2023-01-24)
+
+
+### Bug Fixes
+
+* force no public cache on index.html ([#4249](https://github.com/lightdash/lightdash/issues/4249)) ([c5e3474](https://github.com/lightdash/lightdash/commit/c5e34747f074848fd21bd29d4356bb95283b123e))
+
 # [0.385.0](https://github.com/lightdash/lightdash/compare/0.384.2...0.385.0) (2023-01-23)
 
 

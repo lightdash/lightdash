@@ -232,6 +232,18 @@ export class PostgresClient implements WarehouseClient {
         );
         return catalog;
     }
+
+    getFieldQuoteChar() {
+        return '"';
+    }
+
+    getStringQuoteChar() {
+        return "'";
+    }
+
+    getEscapeStringQuoteChar() {
+        return "'";
+    }
 }
 
 export class PostgresWarehouseClient

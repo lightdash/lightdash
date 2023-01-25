@@ -250,4 +250,16 @@ export class TrinoWarehouseClient implements WarehouseClient {
         }
         return catalogToSchema(results);
     }
+
+    getFieldQuoteChar() {
+        return '"';
+    }
+
+    getStringQuoteChar() {
+        return "'";
+    }
+
+    getEscapeStringQuoteChar() {
+        return "'";
+    }
 }

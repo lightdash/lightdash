@@ -27,6 +27,7 @@ import {
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
 import { TimeFrames } from '../types/timeFrames';
+import { WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
@@ -420,7 +421,7 @@ export const convertExplores = async (
     loadSources: boolean,
     adapterType: SupportedDbtAdapter,
     metrics: DbtMetric[],
-    startOfWeek?: WeekDay | null,
+    warehouseClient: WarehouseClient,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -436,7 +437,7 @@ export const convertExplores = async (
                     adapterType,
                     model,
                     tableMetrics,
-                    startOfWeek,
+                    warehouseClient.getStartOfWeek(),
                 );
 
                 // add sources
@@ -480,18 +481,23 @@ export const convertExplores = async (
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
         try {
-            return compileExplore({
-                name: model.name,
-                label: meta.label || friendlyName(model.name),
-                tags: model.tags || [],
-                baseTable: model.name,
-                joinedTables: (meta?.joins || []).map((join) => ({
-                    table: join.join,
-                    sqlOn: join.sql_on,
-                })),
-                tables: tableLookup,
-                targetDatabase: adapterType,
-            });
+            return compileExplore(
+                {
+                    name: model.name,
+                    label: meta.label || friendlyName(model.name),
+                    tags: model.tags || [],
+                    baseTable: model.name,
+                    joinedTables: (meta?.joins || []).map((join) => ({
+                        table: join.join,
+                        sqlOn: join.sql_on,
+                        alias: join.alias,
+                        label: join.label,
+                    })),
+                    tables: tableLookup,
+                    targetDatabase: adapterType,
+                },
+                warehouseClient,
+            );
         } catch (e) {
             return {
                 name: model.name,
