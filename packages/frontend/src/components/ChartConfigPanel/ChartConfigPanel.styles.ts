@@ -10,6 +10,7 @@ import styled from 'styled-components';
 
 export const InputWrapper = styled(FormGroup)`
     margin: 1.357em 0 0;
+
     & label.bp4-label {
         display: inline-flex;
         gap: 0.214em;
@@ -20,6 +21,8 @@ export const InputWrapper = styled(FormGroup)`
 
 export const Wrapper = styled.div`
     max-width: 28.571em;
+    max-height: 35em;
+    overflow: scroll;
     width: 25em;
     padding: 1.429em 1.429em 2.143em;
 `;
@@ -40,6 +43,7 @@ export const GridLabel = styled.span`
 export const GridFieldLabel = styled.span`
     display: inline-flex;
     gap: 0.357em;
+
     & .bp4-icon {
         margin: 2px;
     }
