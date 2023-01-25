@@ -77,11 +77,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="bottom-left"
                         >
                             <TitleWrapper hasDescription={true}>
-                                <TitleButton
-                                    minimal
-                                    href={titleHref}
-                                    target="_blank"
-                                >
+                                <TitleButton href={titleHref} target="_blank">
                                     <Title className="non-draggable">
                                         {title}
                                     </Title>
@@ -89,9 +85,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             </TitleWrapper>
                         </Tooltip2>
                     ) : !hideTitle ? (
-                        <TitleWrapper hasDescription={hasDescription}>
-                            <Title className="non-draggable">{title}</Title>
-                        </TitleWrapper>
+                        <TitleButton href={titleHref} target="_blank">
+                            <TitleWrapper hasDescription={hasDescription}>
+                                <Title className="non-draggable">{title}</Title>
+                            </TitleWrapper>
+                        </TitleButton>
                     ) : null}
                 </HeaderWrapper>
                 <ButtonsWrapper>
