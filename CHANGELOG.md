@@ -1,3 +1,10 @@
+## [0.387.2](https://github.com/lightdash/lightdash/compare/0.387.1...0.387.2) (2023-01-25)
+
+
+### Bug Fixes
+
+* adding max-height and inner-scroll to chart config panel ([#4252](https://github.com/lightdash/lightdash/issues/4252)) ([88deee0](https://github.com/lightdash/lightdash/commit/88deee063bfbb488ea8a67502ee0875634ab5809))
+
 ## [0.387.1](https://github.com/lightdash/lightdash/compare/0.387.0...0.387.1) (2023-01-24)
 
 
