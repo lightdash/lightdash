@@ -13,7 +13,8 @@ import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardM
 import DashboardForm from '../../SavedDashboards/DashboardForm';
 import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import { ActionTypeModal } from '../modal/ActionModal';
-import DeleteActionModal from '../modal/DeleteActionModal';
+import ChartDeleteModal from '../modal/ChartDeleteModal';
+import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import ResourceEmptyState from './ResourceEmptyState';
@@ -150,21 +151,42 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     />
                 ))}
             {actionState.actionType === ActionTypeModal.DELETE &&
-                actionState.data && (
-                    <DeleteActionModal
+                actionState.data &&
+                (resourceType === 'chart' ? (
+                    <ChartDeleteModal
                         isOpen={
                             actionState.actionType === ActionTypeModal.DELETE
                         }
+                        uuid={actionState.data.uuid}
                         onClose={() => {
                             setActionState({
                                 actionType: ActionTypeModal.CLOSE,
                             });
                         }}
-                        uuid={actionState.data.uuid}
-                        name={actionState.data.name}
-                        isChart={resourceType === 'chart'}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
                     />
-                )}
+                ) : resourceType === 'dashboard' ? (
+                    <DashboardDeleteModal
+                        isOpen={
+                            actionState.actionType === ActionTypeModal.DELETE
+                        }
+                        uuid={actionState.data.uuid}
+                        onClose={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
+                    />
+                ) : null)}
 
             {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
                 <AddTilesToDashboardModal

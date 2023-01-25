@@ -24,7 +24,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     const { data: chart, isLoading } = useSavedQuery({ id: uuid });
     const { data: relatedDashboards, isLoading: isLoadingRelatedDashboards } =
         useDashboardsContainingChart(projectUuid, uuid);
-    const { mutateAsync: deleteChart, isLoading: isDeletingChart } =
+    const { mutateAsync: deleteChart, isLoading: isDeleting } =
         useDeleteMutation();
 
     if (
@@ -72,7 +72,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
             <DialogFooter
                 actions={
                     <Button
-                        loading={isDeletingChart}
+                        loading={isDeleting}
                         intent="danger"
                         onClick={handleConfirm}
                     >
