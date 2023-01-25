@@ -47,8 +47,7 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
 
 const chartWeeklyQueryingUsers = (data: any) => ({
     grid: {
-        height: '200px',
-        top: '40px',
+        height: '280px',
     },
     xAxis: {
         type: 'time',
@@ -59,14 +58,12 @@ const chartWeeklyQueryingUsers = (data: any) => ({
             name: 'Number of weekly querying users',
             nameLocation: 'center',
             nameGap: '40',
-            nameTextStyle: { fontWeight: 'bold' },
         },
         {
             type: 'value',
             name: '% of weekly querying users',
             nameLocation: 'center',
             nameGap: '40',
-            nameTextStyle: { fontWeight: 'bold' },
             nameRotate: -90,
         },
     ],
@@ -95,8 +92,7 @@ const chartWeeklyQueryingUsers = (data: any) => ({
 
 const chartWeeklyAverageQueries = (data: any) => ({
     grid: {
-        height: '200px',
-        top: '40px',
+        height: '280px',
     },
     xAxis: {
         type: 'time',
@@ -106,7 +102,6 @@ const chartWeeklyAverageQueries = (data: any) => ({
         name: 'Weekly average number of\nqueries per user',
         nameLocation: 'center',
         nameGap: '25',
-        nameTextStyle: { fontWeight: 'bold' },
     },
     series: [
         {
@@ -229,6 +224,7 @@ const UserActivity: FC = () => {
                                 weekly?
                             </Description>
                             <EChartsReact
+                                style={{ height: '100%' }}
                                 notMerge
                                 option={chartWeeklyQueryingUsers(
                                     data.chartWeeklyQueryingUsers,
@@ -242,6 +238,7 @@ const UserActivity: FC = () => {
                                 average?
                             </Description>
                             <EChartsReact
+                                style={{ height: '100%' }}
                                 notMerge
                                 option={chartWeeklyAverageQueries(
                                     data.chartWeeklyAverageQueries,
