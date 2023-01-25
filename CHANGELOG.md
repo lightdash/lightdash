@@ -1,3 +1,10 @@
+# [0.388.0](https://github.com/lightdash/lightdash/compare/0.387.2...0.388.0) (2023-01-25)
+
+
+### Features
+
+* cliking on chart title redirects to explorer ([#4266](https://github.com/lightdash/lightdash/issues/4266)) ([f08221a](https://github.com/lightdash/lightdash/commit/f08221acd68d97abba672cd0a593505ed32b1958))
+
 ## [0.387.2](https://github.com/lightdash/lightdash/compare/0.387.1...0.387.2) (2023-01-25)
 
 
