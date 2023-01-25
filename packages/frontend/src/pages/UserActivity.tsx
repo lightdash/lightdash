@@ -45,6 +45,83 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     );
 };
 
+const chartWeeklyQueryingUsers = (data: any) => ({
+    grid: {
+        height: '200px',
+        top: '40px',
+    },
+    xAxis: {
+        type: 'time',
+    },
+    yAxis: [
+        {
+            type: 'value',
+            name: 'Number of weekly querying users',
+            nameLocation: 'center',
+            nameGap: '40',
+            nameTextStyle: { fontWeight: 'bold' },
+        },
+        {
+            type: 'value',
+            name: '% of weekly querying users',
+            nameLocation: 'center',
+            nameGap: '40',
+            nameTextStyle: { fontWeight: 'bold' },
+            nameRotate: -90,
+        },
+    ],
+    series: [
+        {
+            data: data.map((queries: any) => [
+                queries.date,
+                queries.num_7d_active_users,
+            ]),
+            type: 'bar',
+            color: '#7262ff',
+        },
+        {
+            yAxisIndex: 1,
+            data: data.map((queries: any) => [
+                queries.date,
+                queries.percent_7d_active_users,
+            ]),
+            type: 'line',
+            symbol: 'none',
+            smooth: true,
+            color: '#d7c1fa',
+        },
+    ],
+});
+
+const chartWeeklyAverageQueries = (data: any) => ({
+    grid: {
+        height: '200px',
+        top: '40px',
+    },
+    xAxis: {
+        type: 'time',
+    },
+    yAxis: {
+        type: 'value',
+        name: 'Weekly average number of\nqueries per user',
+        nameLocation: 'center',
+        nameGap: '25',
+        nameTextStyle: { fontWeight: 'bold' },
+    },
+    series: [
+        {
+            data: data.map((queries: any) => [
+                queries.date,
+                queries.average_number_of_weekly_queries_per_user,
+            ]),
+            type: 'line',
+            symbol: 'none',
+            smooth: true,
+            color: '#16df95',
+        },
+    ],
+});
+
 const UserActivity: FC = () => {
     const history = useHistory();
     const params = useParams<{ projectUuid: string }>();
@@ -63,83 +140,6 @@ const UserActivity: FC = () => {
             </div>
         );
     }
-
-    const weeklySeries = {
-        grid: {
-            height: '200px',
-            top: '40px',
-        },
-        xAxis: {
-            type: 'time',
-        },
-        yAxis: [
-            {
-                type: 'value',
-                name: 'Number of weekly querying users',
-                nameLocation: 'center',
-                nameGap: '40',
-                nameTextStyle: { fontWeight: 'bold' },
-            },
-            {
-                type: 'value',
-                name: '% of weekly querying users',
-                nameLocation: 'center',
-                nameGap: '40',
-                nameTextStyle: { fontWeight: 'bold' },
-                nameRotate: -90,
-            },
-        ],
-        series: [
-            {
-                data: data.chartWeeklyQueryingUsers.map((queries: any) => [
-                    queries.date,
-                    queries.num_7d_active_users,
-                ]),
-                type: 'bar',
-                color: '#7262ff',
-            },
-            {
-                yAxisIndex: 1,
-                data: data.chartWeeklyQueryingUsers.map((queries: any) => [
-                    queries.date,
-                    queries.percent_7d_active_users,
-                ]),
-                type: 'line',
-                symbol: 'none',
-                smooth: true,
-                color: '#d7c1fa',
-            },
-        ],
-    };
-
-    const series = {
-        grid: {
-            height: '200px',
-            top: '40px',
-        },
-        xAxis: {
-            type: 'time',
-        },
-        yAxis: {
-            type: 'value',
-            name: 'Weekly average number of\nqueries per user',
-            nameLocation: 'center',
-            nameGap: '25',
-            nameTextStyle: { fontWeight: 'bold' },
-        },
-        series: [
-            {
-                data: data.chartWeeklyAverageQueries.map((queries: any) => [
-                    queries.date,
-                    queries.average_number_of_weekly_queries_per_user,
-                ]),
-                type: 'line',
-                symbol: 'none',
-                smooth: true,
-                color: '#16df95',
-            },
-        ],
-    };
 
     return (
         <>
@@ -228,7 +228,12 @@ const UserActivity: FC = () => {
                                 How many users are querying this project,
                                 weekly?
                             </Description>
-                            <EChartsReact notMerge option={weeklySeries} />
+                            <EChartsReact
+                                notMerge
+                                option={chartWeeklyQueryingUsers(
+                                    data.chartWeeklyQueryingUsers,
+                                )}
+                            />
                         </ChartCard>
 
                         <ChartCard grid="queries-per-user">
@@ -236,7 +241,12 @@ const UserActivity: FC = () => {
                                 How many queries are users running each week, on
                                 average?
                             </Description>
-                            <EChartsReact notMerge option={series} />
+                            <EChartsReact
+                                notMerge
+                                option={chartWeeklyAverageQueries(
+                                    data.chartWeeklyAverageQueries,
+                                )}
+                            />
                         </ChartCard>
 
                         <ActivityCard grid="table-most-queries">
@@ -247,7 +257,6 @@ const UserActivity: FC = () => {
 
                             <Table bordered condensed $showFooter={false}>
                                 <thead>
-                                    {' '}
                                     <tr>
                                         <th>First Name</th>
                                         <th>Last Name</th>
@@ -268,7 +277,6 @@ const UserActivity: FC = () => {
 
                             <Table bordered condensed $showFooter={false}>
                                 <thead>
-                                    {' '}
                                     <tr>
                                         <th>First Name</th>
                                         <th>Last Name</th>
