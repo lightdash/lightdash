@@ -48,6 +48,7 @@ import {
     UpdateProjectMember,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { analytics } from '../../analytics/client';
@@ -1150,25 +1151,41 @@ export class ProjectService {
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<FilterableField[]> {
-        const savedChart = await this.savedChartModel.get(savedChartUuid);
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'projectService.getAvailableFiltersForSavedQuery',
+            description: 'Gets all filters available for a single query',
+        });
+        try {
+            const savedChart = await this.savedChartModel.get(savedChartUuid);
 
-        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
-            throw new ForbiddenError();
+            if (
+                user.ability.cannot('view', subject('SavedChart', savedChart))
+            ) {
+                throw new ForbiddenError();
+            }
+
+            const space = await this.spaceModel.getFullSpace(
+                savedChart.spaceUuid,
+            );
+            if (!hasSpaceAccess(space, user.userUuid)) {
+                throw new ForbiddenError();
+            }
+
+            const explore = await this.getExplore(
+                user,
+                savedChart.projectUuid,
+                savedChart.tableName,
+            );
+
+            return getDimensions(explore).filter(
+                (field) => isFilterableDimension(field) && !field.hidden,
+            );
+        } finally {
+            span?.finish();
         }
-
-        const space = await this.spaceModel.getFullSpace(savedChart.spaceUuid);
-        if (!hasSpaceAccess(space, user.userUuid)) {
-            throw new ForbiddenError();
-        }
-
-        const explore = await this.getExplore(
-            user,
-            savedChart.projectUuid,
-            savedChart.tableName,
-        );
-        return getDimensions(explore).filter(
-            (field) => isFilterableDimension(field) && !field.hidden,
-        );
     }
 
     async hasSavedCharts(
