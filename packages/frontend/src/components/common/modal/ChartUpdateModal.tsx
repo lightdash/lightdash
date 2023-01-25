@@ -78,6 +78,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                 <DialogFooter
                     actions={
                         <Button
+                            disabled={!form.formState.isValid}
                             loading={isUpdating}
                             intent="primary"
                             type="submit"
