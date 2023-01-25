@@ -8,6 +8,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
+import { EMPTY_X_AXIS } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import SimpleButton from '../common/SimpleButton';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -128,15 +129,32 @@ const FieldLayoutOptions: FC<Props> = ({ items }) => {
                         onClick={() => setFlipAxis(!dirtyLayout?.flipAxes)}
                     />
                 </AxisTitleWrapper>
-                <AxisFieldDropdown>
-                    <FieldAutoComplete
-                        fields={items}
-                        activeField={xAxisField}
-                        onChange={(item) => {
-                            setXField(getItemId(item));
-                        }}
-                    />
-                </AxisFieldDropdown>
+                {dirtyLayout?.xField === EMPTY_X_AXIS ? (
+                    <Button
+                        minimal
+                        intent="primary"
+                        onClick={() => setXField(getItemId(items[0]))}
+                    >
+                        + Add
+                    </Button>
+                ) : (
+                    <AxisFieldDropdown>
+                        <FieldAutoComplete
+                            fields={items}
+                            activeField={xAxisField}
+                            onChange={(item) => {
+                                setXField(getItemId(item));
+                            }}
+                        />
+                        <DeleteFieldButton
+                            minimal
+                            icon="cross"
+                            onClick={() => {
+                                setXField(EMPTY_X_AXIS);
+                            }}
+                        />
+                    </AxisFieldDropdown>
+                )}
             </AxisGroup>
             <AxisGroup>
                 <AxisTitle>
