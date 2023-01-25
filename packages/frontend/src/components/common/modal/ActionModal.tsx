@@ -1,9 +1,16 @@
-import { Button, IconName, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    Dialog,
+    DialogBody,
+    DialogFooter,
+    IconName,
+    Intent,
+} from '@blueprintjs/core';
 import { Dispatch, FC, SetStateAction, useCallback, useEffect } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import styled from 'styled-components';
 import useToaster from '../../../hooks/toaster/useToaster';
-import BaseModal from './BaseModal';
+import Form from '../../ReactHookForm/Form';
 
 export const ErrorMessage = styled.div`
     color: red;
@@ -96,31 +103,35 @@ const ActionModal = <T extends State>(props: ActionModalProps<T>) => {
     };
 
     return (
-        <BaseModal
+        <Dialog
             title={title}
             isOpen={actionType !== ActionTypeModal.CLOSE}
             icon={icon}
             onClose={onClose}
-            methods={form}
-            handleSubmit={handleSubmit}
-            renderBody={() => <ModalContent {...props} />}
-            renderFooter={() => (
-                <>
-                    <ErrorMessage>{errorMessage}</ErrorMessage>
+        >
+            <Form name={title} methods={form} onSubmit={handleSubmit}>
+                <DialogBody>
+                    <ModalContent {...props} />
+                </DialogBody>
 
-                    <Button onClick={onClose}>Cancel</Button>
+                <DialogFooter
+                    actions={
+                        <>
+                            <ErrorMessage>{errorMessage}</ErrorMessage>
 
-                    <Button
-                        data-cy="submit-base-modal"
-                        disabled={isDisabled || !form.formState.isValid}
-                        intent={confirmButtonIntent || Intent.PRIMARY}
-                        type="submit"
-                        text={confirmButtonLabel}
-                        loading={isDisabled}
-                    />
-                </>
-            )}
-        />
+                            <Button
+                                data-cy="submit-base-modal"
+                                disabled={isDisabled || !form.formState.isValid}
+                                intent={confirmButtonIntent || Intent.PRIMARY}
+                                type="submit"
+                                text={confirmButtonLabel}
+                                loading={isDisabled}
+                            />
+                        </>
+                    }
+                />
+            </Form>
+        </Dialog>
     );
 };
 

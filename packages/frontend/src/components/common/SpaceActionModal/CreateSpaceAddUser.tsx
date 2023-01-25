@@ -1,10 +1,9 @@
-import { Classes, Label } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { OrganizationMemberRole, Space } from '@lightdash/common';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { useParams } from 'react-router-dom';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
