@@ -1,4 +1,4 @@
-import { Collapse, Colors, Text } from '@blueprintjs/core';
+import { Collapse, Colors, Intent, Tag, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -26,6 +26,7 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
         allChildrenKeys,
         Array.from(selectedItems),
     );
+
     const hasVisibleChildren =
         !isSearching ||
         hasIntersection(allChildrenKeys, Array.from(searchResults));
@@ -53,6 +54,17 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                         highlightElement={Highlighted}
                     />
                 </Text>
+                {!isOpen && hasSelectedChildren && (
+                    <Tag
+                        round
+                        minimal
+                        intent={Intent.PRIMARY}
+                        style={{ marginLeft: '10px' }}
+                    >
+                        {Array.from(selectedItems).length -
+                            allChildrenKeys.length}
+                    </Tag>
+                )}
             </Row>
 
             <Collapse isOpen={isOpen || forceOpen}>
