@@ -319,9 +319,10 @@ const getMinAndMaxReferenceLines = (
 
             if (!serie.markLine) return [];
             const field = findItem(items, serieFieldId.field);
-            if (!isField(field)) return [];
 
-            switch (field.type) {
+            const fieldType = isField(field) ? field.type : undefined;
+
+            switch (fieldType) {
                 case DimensionType.NUMBER:
                 case MetricType.NUMBER:
                 case MetricType.AVERAGE:
@@ -341,9 +342,9 @@ const getMinAndMaxReferenceLines = (
                                 return [...acc, value];
                             } catch (e) {
                                 console.error(
-                                    `Unexpected value when getting numbers min/max for ${
-                                        field.type
-                                    }: ${JSON.stringify(data)}`,
+                                    `Unexpected value when getting numbers min/max for ${fieldType}: ${JSON.stringify(
+                                        data,
+                                    )}`,
                                 );
                                 return acc;
                             }
@@ -363,7 +364,7 @@ const getMinAndMaxReferenceLines = (
                                 return [...acc, axisValue];
                             } catch (e) {
                                 console.error(
-                                    `Unexpected value when getting date min/max for ${field.type}: ${data}`,
+                                    `Unexpected value when getting date min/max for ${fieldType}: ${data}`,
                                 );
                                 return acc;
                             }
@@ -371,10 +372,31 @@ const getMinAndMaxReferenceLines = (
                         [],
                     );
                 default: {
-                    return [];
+                    // We will try getting values for TableCalculations
+                    return serie.markLine?.data.reduce<number[]>(
+                        (acc, data) => {
+                            try {
+                                const axisValue =
+                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
+                                if (axisValue === undefined) return acc;
+                                const value = parseInt(axisValue);
+                                if (isNaN(value)) return acc;
+                                return [...acc, value];
+                            } catch (e) {
+                                console.error(
+                                    `Unexpected value when getting numbers min/max for ${fieldType}: ${JSON.stringify(
+                                        data,
+                                    )}`,
+                                );
+                                return acc;
+                            }
+                        },
+                        [],
+                    );
                 }
             }
         });
+
         if (values.length === 0) return [];
         const min: string | number = values.sort()[0];
         const max = values.reverse()[0];
