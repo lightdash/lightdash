@@ -10,12 +10,11 @@ import { useUpdateDashboardName } from '../../../hooks/dashboard/useDashboard';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import DashboardForm from '../../SavedDashboards/DashboardForm';
 import { ActionTypeModal } from '../modal/ActionModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
-import UpdateActionModal from '../modal/UpdateActionModal';
+import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
@@ -150,15 +149,25 @@ const ResourceList: React.FC<ResourceListProps> = ({
                             });
                         }}
                     />
-                ) : (
-                    <UpdateActionModal
-                        icon={resourceIcon}
-                        resourceType={resourceType}
-                        useActionModalState={[actionState, setActionState]}
-                        useUpdate={actions.update}
-                        ModalContent={DashboardForm}
+                ) : resourceType === 'dashboard' ? (
+                    <DashboardUpdateModal
+                        isOpen={
+                            actionState.actionType === ActionTypeModal.UPDATE
+                        }
+                        uuid={actionState.data.uuid}
+                        onClose={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
                     />
-                ))}
+                ) : null)}
+
             {actionState.actionType === ActionTypeModal.DELETE &&
                 actionState.data &&
                 (resourceType === 'chart' ? (

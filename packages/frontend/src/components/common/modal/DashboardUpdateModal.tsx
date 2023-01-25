@@ -9,6 +9,10 @@ import { SavedChart } from '@lightdash/common';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useParams } from 'react-router-dom';
+import {
+    useDashboardQuery,
+    useUpdateDashboard,
+} from '../../../hooks/dashboard/useDashboard';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import {
     useDeleteMutation,
@@ -18,30 +22,30 @@ import {
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 
-interface ChartUpdateModalProps extends DialogProps {
+interface DashboardUpdateModalProps extends DialogProps {
     uuid: string;
     onConfirm?: () => void;
 }
 
 type FormState = Pick<SavedChart, 'name' | 'description'>;
 
-const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
+const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     uuid,
     onConfirm,
     ...modalProps
 }) => {
-    const { data: chart, isLoading } = useSavedQuery({ id: uuid });
-    const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(uuid);
+    const { data: dashboard, isLoading } = useDashboardQuery(uuid);
+    const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
 
     const form = useForm<FormState>({
         mode: 'onChange',
         defaultValues: {
-            name: chart?.name,
-            description: chart?.description,
+            name: dashboard?.name,
+            description: dashboard?.description,
         },
     });
 
-    if (isLoading || !chart) {
+    if (isLoading || !dashboard) {
         return null;
     }
 
@@ -54,24 +58,28 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     };
 
     return (
-        <Dialog {...modalProps} title="Update Chart" icon="chart">
-            <Form title="Update Chart" methods={form} onSubmit={handleConfirm}>
+        <Dialog {...modalProps} title="Update Dashboard" icon="control">
+            <Form
+                title="Update Dashboard"
+                methods={form}
+                onSubmit={handleConfirm}
+            >
                 <DialogBody>
                     <Input
-                        label="Enter a memorable name for your chart"
+                        label="Enter a memorable name for your dashboard"
                         name="name"
-                        placeholder="eg. How many weekly active users do we have?"
+                        placeholder="eg. KPI Dashboards"
                         disabled={isUpdating}
                         rules={{ required: 'Name field is required' }}
-                        defaultValue={chart.name || ''}
+                        defaultValue={dashboard?.name || ''}
                     />
 
                     <Input
-                        label="Chart descriptionsss"
+                        label="Description"
                         name="description"
                         placeholder="A few words to give your team some context"
                         disabled={isUpdating}
-                        defaultValue={chart.description || ''}
+                        defaultValue={dashboard?.description || ''}
                     />
                 </DialogBody>
 
@@ -91,4 +99,4 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     );
 };
 
-export default ChartUpdateModal;
+export default DashboardUpdateModal;
