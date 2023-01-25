@@ -6,12 +6,7 @@ jobs:
   cypress-run:
     runs-on: ubuntu-latest
     steps:
-      - name: Get PR number
-        id: regex
-        uses: AsasInnab/regex-action@v1
-        with:
-          regex_pattern: '[0-9]+$'
-          regex_flags: 'gm'
-          search_string: ${{github.event.deployment.environment}}
       - name: View PR author
-        run: echo "This PR is opened by ${{github.actor}} ."
+        run: echo "github.actor ${{github.actor}} ."
+      - name: View PR author
+        run: echo "github.event.pull_request.user.login ${{github.event.pull_request.user.login}} ."
