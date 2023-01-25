@@ -1,9 +1,8 @@
-import { Button, InputGroup, Intent } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { FC, useState } from 'react';
 import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
-import { useDeleteOrganisationMutation } from '../../../hooks/organisation/useOrganisationDeleteMultation';
 import { useApp } from '../../../providers/AppProvider';
-import BaseModal from '../../common/modal/BaseModal';
+import OrganisationDeleteModal from '../../common/modal/OrganisationDeleteModal';
 import {
     CardContainer,
     Description,
@@ -12,14 +11,12 @@ import {
 } from './DeleteOrganisationPanel.styles';
 
 export const DeleteOrganisationPanel: FC = () => {
-    const { isLoading: isOrgLoading, data: organisation } = useOrganisation();
-    const { mutate, isLoading: isDeleting } = useDeleteOrganisationMutation();
+    const { isLoading: isLoading, data: organisation } = useOrganisation();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
-    const [confirmOrgName, setConfirmOrgName] = useState<string>();
     const { user } = useApp();
 
-    if (isOrgLoading || organisation === undefined) return null;
+    if (isLoading || organisation === undefined) return null;
     if (!user.data?.ability?.can('delete', 'Organization')) return null;
 
     return (
@@ -35,7 +32,7 @@ export const DeleteOrganisationPanel: FC = () => {
                 <PanelContent>
                     <Button
                         outlined
-                        intent={Intent.DANGER}
+                        intent="danger"
                         icon="trash"
                         text={`Delete '${organisation.name}'`}
                         onClick={() => setShowConfirmation(true)}
@@ -43,58 +40,10 @@ export const DeleteOrganisationPanel: FC = () => {
                 </PanelContent>
             </CardContainer>
 
-            <BaseModal
+            <OrganisationDeleteModal
                 isOpen={showConfirmation}
-                title={`Delete '${organisation.name}'`}
-                icon="trash"
-                onClose={() => {
-                    setShowConfirmation(false);
-                    setConfirmOrgName('');
-                }}
-                renderBody={() => (
-                    <>
-                        <p>
-                            Type the name of this organisation{' '}
-                            <b>{organisation.name}</b> to confirm you want to
-                            delete this organisation and its users. This action
-                            is not reversible.
-                        </p>
-
-                        <InputGroup
-                            placeholder={organisation.name}
-                            value={confirmOrgName}
-                            onChange={(e) => setConfirmOrgName(e.target.value)}
-                        />
-                    </>
-                )}
-                renderFooter={() => (
-                    <>
-                        <Button
-                            onClick={() => {
-                                setShowConfirmation(false);
-                                setConfirmOrgName('');
-                            }}
-                        >
-                            Cancel
-                        </Button>
-
-                        <Button
-                            data-cy="submit-base-modal"
-                            disabled={
-                                confirmOrgName?.toLowerCase() !=
-                                organisation.name.toLowerCase()
-                            }
-                            intent={Intent.DANGER}
-                            type="submit"
-                            text={'Delete'}
-                            loading={isDeleting}
-                            onClick={() => {
-                                mutate(organisation.organizationUuid);
-                                setShowConfirmation(false);
-                            }}
-                        />
-                    </>
-                )}
+                onClose={() => setShowConfirmation(false)}
+                onConfirm={() => setShowConfirmation(false)}
             />
         </>
     );
