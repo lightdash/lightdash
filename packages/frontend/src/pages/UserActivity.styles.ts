@@ -5,7 +5,7 @@ import styled, { css } from 'styled-components';
 export const Container = styled.div`
     display: grid;
     grid-template-columns: 300px 300px 300px 300px;
-    grid-template-rows: 200px 200px 350px 400px 400px;
+    grid-template-rows: 200px 200px 300px 400px 400px;
     gap: 10px 10px;
     grid-template-areas:
         'total-users total-users total-users weekly-active'
@@ -21,6 +21,10 @@ export const ActivityCard = styled(Card)<{ grid: string }>`
         grid-area: ${grid};
     `}
     overflow: auto;
+`;
+
+export const ChartCard = styled(ActivityCard)`
+    overflow: hidden;
 `;
 
 export const BigNumberContainer = styled.div`

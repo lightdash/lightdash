@@ -17,12 +17,14 @@ import { ResourceBreadcrumbTitle } from '../components/common/ResourceList/Resou
 import { Table, Td } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
+import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import {
     ActivityCard,
     BigNumber,
     BigNumberContainer,
     BigNumberLabel,
+    ChartCard,
     Container,
     Description,
 } from './UserActivity.styles';
@@ -46,6 +48,7 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
 const UserActivity: FC = () => {
     const history = useHistory();
     const params = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(params.projectUuid);
     const { user: sessionUser } = useApp();
 
     const { data, isLoading } = useUserActivity(params.projectUuid);
@@ -62,17 +65,28 @@ const UserActivity: FC = () => {
     }
 
     const weeklySeries = {
+        grid: {
+            height: '200px',
+            top: '40px',
+        },
         xAxis: {
             type: 'time',
         },
         yAxis: [
             {
                 type: 'value',
-                name: 'Queries',
+                name: 'Number of weekly querying users',
+                nameLocation: 'center',
+                nameGap: '40',
+                nameTextStyle: { fontWeight: 'bold' },
             },
             {
                 type: 'value',
-                name: 'Percent of weekly \nactive users',
+                name: '% of weekly querying users',
+                nameLocation: 'center',
+                nameGap: '40',
+                nameTextStyle: { fontWeight: 'bold' },
+                nameRotate: -90,
             },
         ],
         series: [
@@ -82,6 +96,7 @@ const UserActivity: FC = () => {
                     queries.num_7d_active_users,
                 ]),
                 type: 'bar',
+                color: '#7262ff',
             },
             {
                 yAxisIndex: 1,
@@ -92,17 +107,25 @@ const UserActivity: FC = () => {
                 type: 'line',
                 symbol: 'none',
                 smooth: true,
+                color: '#d7c1fa',
             },
         ],
     };
 
     const series = {
+        grid: {
+            height: '200px',
+            top: '40px',
+        },
         xAxis: {
             type: 'time',
         },
         yAxis: {
             type: 'value',
-            name: 'Average\nuser queries',
+            name: 'Weekly average number of\nqueries per user',
+            nameLocation: 'center',
+            nameGap: '25',
+            nameTextStyle: { fontWeight: 'bold' },
         },
         series: [
             {
@@ -113,6 +136,7 @@ const UserActivity: FC = () => {
                 type: 'line',
                 symbol: 'none',
                 smooth: true,
+                color: '#16df95',
             },
         ],
     };
@@ -120,7 +144,7 @@ const UserActivity: FC = () => {
     return (
         <>
             <Helmet>
-                <title>User activity - Lightdash</title>
+                <title>User activity for {project?.name} - Lightdash</title>
             </Helmet>
             <PageHeaderContainer>
                 <PageTitleAndDetailsContainer>
@@ -143,7 +167,8 @@ const UserActivity: FC = () => {
                                         text: (
                                             <ResourceBreadcrumbTitle>
                                                 <Icon icon="people" size={20} />{' '}
-                                                User activity
+                                                User activity for{' '}
+                                                {project?.name}
                                             </ResourceBreadcrumbTitle>
                                         ),
                                     },
@@ -190,7 +215,7 @@ const UserActivity: FC = () => {
                         <ActivityCard grid="weekly-active">
                             <BigNumberContainer>
                                 <BigNumber>
-                                    % {data.numberWeeklyQueryingUsers}
+                                    {data.numberWeeklyQueryingUsers} %
                                 </BigNumber>
                                 <BigNumberLabel>
                                     % of weekly querying users
@@ -198,13 +223,21 @@ const UserActivity: FC = () => {
                             </BigNumberContainer>
                         </ActivityCard>
 
-                        <ActivityCard grid="chart-active-users">
+                        <ChartCard grid="chart-active-users">
+                            <Description>
+                                How many users are querying this project,
+                                weekly?
+                            </Description>
                             <EChartsReact notMerge option={weeklySeries} />
-                        </ActivityCard>
+                        </ChartCard>
 
-                        <ActivityCard grid="queries-per-user">
+                        <ChartCard grid="queries-per-user">
+                            <Description>
+                                How many queries are users running each week, on
+                                average?
+                            </Description>
                             <EChartsReact notMerge option={series} />
-                        </ActivityCard>
+                        </ChartCard>
 
                         <ActivityCard grid="table-most-queries">
                             <Description>
