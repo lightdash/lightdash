@@ -1,5 +1,7 @@
 name: test pr user
-on: [ deployment_status ]
+on:
+  push:
+    branches-ignore: [ "main", "master" ]
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
