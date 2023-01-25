@@ -1,0 +1,18 @@
+name: End-to-end tests
+on: [ deployment_status ]
+jobs:
+  cypress-run:
+    # Only trigger for correct environment and status
+    if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
+    runs-on: ubuntu-latest
+    container: cypress/browsers:node14.19.0-chrome100-ff99-edge
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+      - name: View PR author
+        run: echo "This PR is opened by ${{github.event.pull_request.user.login }} ."
