@@ -21,7 +21,6 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
-import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import {
     IconWithRightMargin,
     PageActionsContainer,
@@ -64,8 +63,6 @@ const SavedChartsHeader: FC = () => {
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
-        useState<boolean>(false);
-    const [isMoveToSpaceModalOpen, setIsMoveToSpaceModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
@@ -381,14 +378,6 @@ const SavedChartsHeader: FC = () => {
 
                         setIsDeleteDialogOpen(false);
                     }}
-                />
-            )}
-            {isMoveToSpaceModalOpen && savedChart?.uuid && (
-                <MoveToSpaceModal
-                    isOpen={isDeleteDialogOpen}
-                    onClose={() => setIsMoveToSpaceModalOpen(false)}
-                    uuid={savedChart.uuid}
-                    isChart
                 />
             )}
         </TrackSection>
