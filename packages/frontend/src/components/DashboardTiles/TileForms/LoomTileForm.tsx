@@ -1,5 +1,4 @@
-import { DashboardChartTile } from '@lightdash/common';
-import { ActionModalProps } from '../../common/modal/ActionModal';
+import { FC } from 'react';
 import Input from '../../ReactHookForm/Input';
 
 export const getLoomId = (value: string): string | undefined => {
@@ -7,26 +6,20 @@ export const getLoomId = (value: string): string | undefined => {
     return arr?.[1];
 };
 
-const LoomTileForm = ({
-    isDisabled,
-}: Pick<
-    ActionModalProps<DashboardChartTile['properties']>,
-    'useActionModalState' | 'isDisabled'
->) => (
+const LoomTileForm: FC = () => (
     <>
         <Input
             name="title"
             label="Title"
-            disabled={isDisabled}
             rules={{
                 required: 'Required field',
             }}
             placeholder="Tile title"
         />
+
         <Input
             name="url"
             label="Loom url"
-            disabled={isDisabled}
             rules={{
                 required: 'Required field',
                 validate: (value: string) =>

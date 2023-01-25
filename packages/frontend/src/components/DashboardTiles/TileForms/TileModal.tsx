@@ -31,44 +31,6 @@ type EditProps<T = Dashboard['tiles'][number]> = {
     onClose: () => void;
 };
 
-export const TileModal = <T extends Dashboard['tiles'][number]>({
-    onClose,
-    onSubmit,
-    tile,
-}: EditProps<T>) => {
-    const [actionState, setActionState] = useState<{
-        actionType: number;
-        data?: any;
-    }>({
-        actionType: ActionTypeModal.UPDATE,
-        data: tile.properties,
-    });
-    const [completedMutation, setCompletedMutation] = useState(false);
-
-    const onSubmitForm = (
-        properties: Dashboard['tiles'][number]['properties'],
-    ) => {
-        setCompletedMutation(true);
-        onSubmit({
-            ...tile,
-            properties: properties as any,
-        });
-    };
-
-    return (
-        <ActionModal
-            title="Edit tile content"
-            confirmButtonLabel="Save"
-            useActionModalState={[actionState, setActionState]}
-            isDisabled={false}
-            onSubmitForm={onSubmitForm}
-            completedMutation={completedMutation}
-            ModalContent={getFormComponent(tile.type)}
-            onClose={onClose}
-        />
-    );
-};
-
 type AddProps = {
     onAddTile: (tile: Dashboard['tiles'][number]) => void;
     type: DashboardTileTypes;

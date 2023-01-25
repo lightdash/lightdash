@@ -8,7 +8,8 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
-import { TileModal } from '../TileForms/TileModal';
+import { UpdateTileModal } from '../TileForms/TileModal';
+import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
     ButtonsWrapper,
     ChartContainer,
@@ -161,13 +162,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             <ChartContainer className="non-draggable cohere-block">
                 {children}
             </ChartContainer>
-            {isEditing && (
-                <TileModal
-                    onClose={() => setIsEditing(false)}
-                    tile={tile}
-                    onSubmit={onEdit}
-                />
-            )}
+
+            <TileUpdateModal
+                isOpen={isEditing}
+                tile={tile}
+                onClose={() => setIsEditing(false)}
+                onConfirm={(data) => {
+                    onEdit(data);
+                    setIsEditing(false);
+                }}
+            />
         </TileBaseWrapper>
     );
 };
