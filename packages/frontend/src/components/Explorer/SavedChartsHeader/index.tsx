@@ -20,7 +20,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import DeleteActionModal from '../../common/modal/DeleteActionModal';
+import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
 import {
     IconWithRightMargin,
@@ -360,13 +360,27 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
             {isDeleteDialogOpen && savedChart?.uuid && (
-                <DeleteActionModal
+                <ChartDeleteModal
+                    uuid={savedChart.uuid}
                     isOpen={isDeleteDialogOpen}
                     onClose={() => setIsDeleteDialogOpen(false)}
-                    uuid={savedChart.uuid}
-                    name={savedChart.name}
-                    isChart
-                    isExplorer
+                    onConfirm={() => {
+                        // FIXME: THIS IS A COPY OF THE CODE
+                        // NOT SURE WHAT IT DOES...
+                        history.listen((location, action) => {
+                            if (action === 'POP') {
+                                if (location.pathname.includes('/tables/')) {
+                                    history.push(
+                                        `/projects/${projectUuid}/tables`,
+                                    );
+                                }
+                            }
+                        });
+
+                        history.push('/');
+
+                        setIsDeleteDialogOpen(false);
+                    }}
                 />
             )}
             {isMoveToSpaceModalOpen && savedChart?.uuid && (
