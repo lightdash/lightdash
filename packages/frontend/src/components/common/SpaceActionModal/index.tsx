@@ -1,4 +1,11 @@
-import { AnchorButton, Button, IconName, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    Dialog,
+    DialogBody,
+    DialogFooter,
+    IconName,
+    Intent,
+} from '@blueprintjs/core';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
@@ -10,7 +17,7 @@ import {
     useSpace,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
-import BaseModal from '../modal/BaseModal';
+import Form from '../../ReactHookForm/Form';
 import SimpleButton from '../SimpleButton';
 
 import CreateSpaceModalContent, {
@@ -71,6 +78,7 @@ const SpaceModal: FC<ActionModalProps> = ({
     });
 
     const handleSubmit = (state: any) => {
+        console.log(state);
         try {
             onSubmitForm?.(state);
         } catch (e: any) {
@@ -87,48 +95,79 @@ const SpaceModal: FC<ActionModalProps> = ({
     const [isShared, setIsShared] = useState<boolean>(false);
 
     return (
-        <BaseModal
-            isOpen
-            title={title}
-            icon={icon}
-            onClose={onClose}
-            methods={form}
-            handleSubmit={handleSubmit}
-            renderBody={() => {
-                switch (actionType) {
-                    case ActionType.CREATE:
-                        return (
-                            <CreateSpaceModalContent
-                                projectUuid={projectUuid}
-                                data={data}
-                                modalStep={modalStep}
-                                form={form}
-                                setIsShared={setIsShared}
-                            />
-                        );
-                    case ActionType.UPDATE:
-                        return <UpdateSpaceModalContent data={data} />;
-                    case ActionType.DELETE:
-                        return <DeleteSpaceModalContent data={data} />;
-                    default:
-                        return assertUnreachable(
+        <Dialog isOpen title={title} icon={icon} onClose={onClose}>
+            <Form name={title} methods={form} onSubmit={handleSubmit}>
+                <DialogBody>
+                    {actionType === ActionType.CREATE ? (
+                        <CreateSpaceModalContent
+                            projectUuid={projectUuid}
+                            data={data}
+                            modalStep={modalStep}
+                            form={form}
+                            setIsShared={setIsShared}
+                        />
+                    ) : actionType === ActionType.UPDATE ? (
+                        <UpdateSpaceModalContent data={data} />
+                    ) : actionType === ActionType.DELETE ? (
+                        <DeleteSpaceModalContent data={data} />
+                    ) : (
+                        assertUnreachable(
                             actionType,
                             'Unexpected action in space',
-                        );
-                }
-            }}
-            renderFooter={() => (
-                <>
-                    {actionType === ActionType.CREATE &&
-                        modalStep === CreateModalStep.SET_ACCESS && (
-                            <>
-                                <SimpleButton
-                                    text="Back"
-                                    onClick={(ev) => {
-                                        setModalStep(CreateModalStep.SET_NAME);
-                                        ev.preventDefault();
-                                    }}
-                                />
+                        )
+                    )}
+                </DialogBody>
+
+                <DialogFooter
+                    actions={
+                        <>
+                            {actionType === ActionType.CREATE &&
+                                modalStep === CreateModalStep.SET_ACCESS && (
+                                    <>
+                                        <SimpleButton
+                                            text="Back"
+                                            onClick={(ev) => {
+                                                setModalStep(
+                                                    CreateModalStep.SET_NAME,
+                                                );
+                                                ev.preventDefault();
+                                            }}
+                                        />
+                                        <Button
+                                            data-cy="submit-base-modal"
+                                            type="submit"
+                                            disabled={
+                                                isDisabled ||
+                                                !form.formState.isValid
+                                            }
+                                            intent={confirmButtonIntent}
+                                            text={confirmButtonLabel}
+                                            loading={isDisabled}
+                                        />
+                                    </>
+                                )}
+                            {actionType === ActionType.CREATE &&
+                                modalStep === CreateModalStep.SET_NAME &&
+                                isShared && (
+                                    <Button
+                                        text="Continue"
+                                        disabled={
+                                            isDisabled ||
+                                            !form.formState.isValid
+                                        }
+                                        onClick={(ev) => {
+                                            setModalStep(
+                                                CreateModalStep.SET_ACCESS,
+                                            );
+                                            ev.preventDefault();
+                                        }}
+                                    />
+                                )}
+
+                            {(actionType !== ActionType.CREATE ||
+                                (actionType === ActionType.CREATE &&
+                                    modalStep === CreateModalStep.SET_NAME &&
+                                    !isShared)) && (
                                 <Button
                                     data-cy="submit-base-modal"
                                     type="submit"
@@ -139,37 +178,12 @@ const SpaceModal: FC<ActionModalProps> = ({
                                     text={confirmButtonLabel}
                                     loading={isDisabled}
                                 />
-                            </>
-                        )}
-                    {actionType === ActionType.CREATE &&
-                        modalStep === CreateModalStep.SET_NAME &&
-                        isShared && (
-                            <Button
-                                text="Continue"
-                                disabled={isDisabled || !form.formState.isValid}
-                                onClick={(ev) => {
-                                    setModalStep(CreateModalStep.SET_ACCESS);
-                                    ev.preventDefault();
-                                }}
-                            />
-                        )}
-
-                    {(actionType !== ActionType.CREATE ||
-                        (actionType === ActionType.CREATE &&
-                            modalStep === CreateModalStep.SET_NAME &&
-                            !isShared)) && (
-                        <Button
-                            data-cy="submit-base-modal"
-                            type="submit"
-                            disabled={isDisabled || !form.formState.isValid}
-                            intent={confirmButtonIntent}
-                            text={confirmButtonLabel}
-                            loading={isDisabled}
-                        />
-                    )}
-                </>
-            )}
-        />
+                            )}
+                        </>
+                    }
+                />
+            </Form>
+        </Dialog>
     );
 };
 
