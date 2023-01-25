@@ -1,6 +1,6 @@
 import { Collapse, Colors, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import { FC, useEffect } from 'react';
+import { FC } from 'react';
 import { useToggle } from 'react-use';
 import HighlightedText from '../../../../common/HighlightedText';
 import { Highlighted, Row, RowIcon } from '../TableTree.styles';
@@ -30,13 +30,7 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
         !isSearching ||
         hasIntersection(allChildrenKeys, Array.from(searchResults));
     const forceOpen = isSearching && hasVisibleChildren;
-    const isDisabled = hasSelectedChildren || forceOpen;
-
-    useEffect(() => {
-        if (hasSelectedChildren) {
-            toggle(true);
-        }
-    }, [hasSelectedChildren, toggle]);
+    const isDisabled = forceOpen;
 
     if (!hasVisibleChildren) {
         return null;
