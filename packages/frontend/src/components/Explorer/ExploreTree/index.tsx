@@ -1,13 +1,4 @@
-import {
-    Button,
-    Classes,
-    Dialog,
-    FormGroup,
-    InputGroup,
-    NonIdealState,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, InputGroup, NonIdealState } from '@blueprintjs/core';
 import {
     AdditionalMetric,
     CompiledTable,
@@ -15,12 +6,8 @@ import {
     Explore,
     getItemId,
     Metric,
-    Source,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { CopyToClipboard } from 'react-copy-to-clipboard';
-import SyntaxHighlighter from 'react-syntax-highlighter';
-import { a11yDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { FormField } from '../ExploreSideBar/ExploreSideBar.styles';
 import NewTableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/TreeProvider';
@@ -32,76 +19,6 @@ type ExploreTreeProps = {
     selectedNodes: Set<string>;
 };
 
-const SourceDialog: FC<{ source: Source; onClose: () => void }> = ({
-    source,
-    onClose,
-}) => {
-    const [copied, setCopied] = useState(false);
-    return (
-        <Dialog
-            isOpen
-            icon="console"
-            onClose={onClose}
-            lazy
-            title="Source"
-            style={{ width: '800px' }}
-        >
-            <div className={Classes.DIALOG_BODY}>
-                <Tooltip2
-                    isOpen={copied}
-                    content="Copied path!"
-                    intent="success"
-                    position={PopoverPosition.RIGHT}
-                >
-                    <FormGroup
-                        label="Path to schema file:"
-                        labelFor="source-path"
-                        inline
-                    >
-                        <InputGroup
-                            readOnly
-                            id="source-path"
-                            type="text"
-                            defaultValue={source.path}
-                            rightElement={
-                                <CopyToClipboard
-                                    text={source.path}
-                                    options={{ message: 'Copied!' }}
-                                    onCopy={() => setCopied(true)}
-                                >
-                                    <Button minimal icon="clipboard" />
-                                </CopyToClipboard>
-                            }
-                        />
-                    </FormGroup>
-                </Tooltip2>
-                <SyntaxHighlighter
-                    language="yml"
-                    showLineNumbers
-                    startingLineNumber={source.range.start.line}
-                    style={a11yDark}
-                    wrapLines
-                    lineProps={(lineNumber) =>
-                        source.highlight &&
-                        lineNumber >= source.highlight?.start.line &&
-                        lineNumber <= source.highlight?.end.line
-                            ? {
-                                  style: {
-                                      background: 'rgba(252, 254, 120, 0.3)',
-                                      display: 'block',
-                                      width: '100%',
-                                  },
-                              }
-                            : {}
-                    }
-                >
-                    {source.content}
-                </SyntaxHighlighter>
-            </div>
-        </Dialog>
-    );
-};
-
 const ExploreTree: FC<ExploreTreeProps> = ({
     explore,
     additionalMetrics,
@@ -109,7 +26,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     onSelectedFieldChange,
 }) => {
     const [search, setSearch] = useState<string>('');
-    const [source, setSource] = useState<Source>();
 
     const isSearching = !!search && search !== '';
     const searchHasResults = (table: CompiledTable) => {
@@ -173,12 +89,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     <NonIdealState>No fields found</NonIdealState>
                 )}
             </div>
-            {source && (
-                <SourceDialog
-                    source={source}
-                    onClose={() => setSource(undefined)}
-                />
-            )}
         </div>
     );
 };
