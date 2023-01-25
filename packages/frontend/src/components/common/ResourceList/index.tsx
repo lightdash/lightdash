@@ -11,9 +11,9 @@ import useMoveToSpace from '../../../hooks/useMoveToSpace';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import DashboardForm from '../../SavedDashboards/DashboardForm';
-import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
 import { ActionTypeModal } from '../modal/ActionModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
+import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import UpdateActionModal from '../modal/UpdateActionModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
@@ -134,12 +134,21 @@ const ResourceList: React.FC<ResourceListProps> = ({
 
             {actionState.actionType === ActionTypeModal.UPDATE &&
                 (resourceType === 'chart' ? (
-                    <UpdateActionModal
-                        icon={resourceIcon}
-                        resourceType={resourceType}
-                        useActionModalState={[actionState, setActionState]}
-                        useUpdate={actions.update}
-                        ModalContent={SavedQueryForm}
+                    <ChartUpdateModal
+                        isOpen={
+                            actionState.actionType === ActionTypeModal.UPDATE
+                        }
+                        uuid={actionState.data.uuid}
+                        onClose={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ActionTypeModal.CLOSE,
+                            });
+                        }}
                     />
                 ) : (
                     <UpdateActionModal

@@ -71,6 +71,7 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
                             loading={isDeleting}
                             intent="danger"
                             onClick={() => handleConfirm()}
+                            type="submit"
                         >
                             Delete
                         </Button>
