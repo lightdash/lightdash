@@ -1,13 +1,14 @@
 import {
     Button,
-    Classes,
     Dialog,
+    DialogBody,
+    DialogFooter,
+    DialogProps,
     HTMLSelect,
     InputGroup,
-    Intent,
 } from '@blueprintjs/core';
 import { CreateSavedChartVersion } from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../hooks/useSavedQuery';
 import {
@@ -16,38 +17,30 @@ import {
 } from '../../hooks/useSpaces';
 import { CreateNewText, FormGroupWrapper } from './SavedQueries.style';
 
-interface CreateSavedQueryModalProps {
-    isOpen: boolean;
+interface CreateSavedQueryModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
-
-    onClose?: () => void;
+    onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
-    isOpen,
     savedData,
-    onClose,
+    onConfirm,
+    ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { data: spaces } = useSpaces(projectUuid);
-    const useCreate = useCreateMutation();
-    const { mutate, isLoading: isCreating } = useCreate;
-    const [name, setName] = useState<string>('');
-    const [description, setDescription] = useState<string>();
+    const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
-    const {
-        data: newSpace,
-        mutate: spaceCreateMutation,
-        isSuccess: hasCreateSpace,
-        isLoading: isCreatingSpace,
-        reset,
-    } = useSpaceCreateMutation(projectUuid);
-    const [newSpaceName, setNewSpaceName] = useState<string>('');
+    const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
+        useSpaceCreateMutation(projectUuid);
 
-    const [showNewSpaceInput, setShowNewSpaceInput] = useState<boolean>(false);
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState<string>();
+    const [newSpaceName, setNewSpaceName] = useState('');
+    const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
 
-    const showSpaceInput = showNewSpaceInput || spaces?.length === 0;
+    const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
 
     useEffect(() => {
         if (spaceUuid === undefined && spaces && spaces.length > 0) {
@@ -55,63 +48,73 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
         }
     }, [spaces, spaceUuid]);
 
-    const createSavedChart = useCallback(
-        (selectedSpaceUuid: string | undefined) => {
-            mutate({
-                ...savedData,
-                name,
-                description,
-                spaceUuid: selectedSpaceUuid,
-            });
+    const handleConfirm = useCallback(async () => {
+        let newSpace = showSpaceInput
+            ? await createSpaceAsync({
+                  name: newSpaceName,
+                  access: [],
+                  isPrivate: true,
+              })
+            : undefined;
 
-            setNewSpaceName('');
-            setShowNewSpaceInput(false);
-            if (onClose) onClose();
-        },
-        [mutate, description, name, onClose, savedData],
-    );
-    useEffect(() => {
-        if (hasCreateSpace && newSpace) {
-            createSavedChart(newSpace.uuid);
-            reset();
-        }
-    }, [hasCreateSpace, newSpace, createSavedChart, reset]);
+        const savedQuery = mutateAsync({
+            ...savedData,
+            name,
+            description,
+            spaceUuid: newSpace?.uuid || spaceUuid,
+        });
+
+        setNewSpaceName('');
+        setShouldCreateNewSpace(false);
+
+        return savedQuery;
+    }, [
+        name,
+        description,
+        savedData,
+        spaceUuid,
+        newSpaceName,
+        createSpaceAsync,
+        mutateAsync,
+        showSpaceInput,
+    ]);
 
     return (
-        <Dialog isOpen={isOpen} onClose={onClose} lazy title="Save chart">
-            <form>
-                <div className={Classes.DIALOG_BODY}>
-                    <FormGroupWrapper
-                        label="Enter a memorable name for your chart"
-                        labelFor="chart-name"
-                    >
-                        <InputGroup
-                            id="chart-name"
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="eg. How many weekly active users do we have?"
-                        />
-                    </FormGroupWrapper>
-                    <FormGroupWrapper
-                        label="Chart description"
-                        labelFor="chart-description"
-                    >
-                        <InputGroup
-                            id="chart-description"
-                            type="text"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="A few words to give your team some context"
-                        />
-                    </FormGroupWrapper>
-                    {!showSpaceInput && (
-                        <>
-                            <p>
-                                <b>Select a space</b>
-                            </p>
+        <Dialog lazy title="Save chart" icon="chart" {...modalProps}>
+            <DialogBody>
+                <FormGroupWrapper
+                    label="Enter a memorable name for your chart"
+                    labelFor="chart-name"
+                >
+                    <InputGroup
+                        id="chart-name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="eg. How many weekly active users do we have?"
+                    />
+                </FormGroupWrapper>
+                <FormGroupWrapper
+                    label="Chart description"
+                    labelFor="chart-description"
+                >
+                    <InputGroup
+                        id="chart-description"
+                        type="text"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="A few words to give your team some context"
+                    />
+                </FormGroupWrapper>
+
+                {!showSpaceInput && (
+                    <>
+                        <FormGroupWrapper
+                            label="Select space"
+                            labelFor="select-space"
+                        >
                             <HTMLSelect
-                                id="select-dashboard"
+                                id="select-space"
                                 fill={true}
                                 value={spaceUuid}
                                 onChange={(e) =>
@@ -126,61 +129,38 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                                         : []
                                 }
                             />
+                        </FormGroupWrapper>
 
-                            <CreateNewText
-                                onClick={() => setShowNewSpaceInput(true)}
-                            >
-                                + Create new space
-                            </CreateNewText>
-                        </>
-                    )}
-                    {showSpaceInput && (
-                        <>
-                            <p>
-                                <b>Space</b>
-                            </p>
-                            <InputGroup
-                                id="chart-space"
-                                type="text"
-                                value={newSpaceName}
-                                onChange={(e) =>
-                                    setNewSpaceName(e.target.value)
-                                }
-                                placeholder="eg. KPIs"
-                            />
-                        </>
-                    )}
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button
-                            onClick={() => {
-                                setNewSpaceName('');
-                                setShowNewSpaceInput(false);
-                                if (onClose) onClose();
-                            }}
+                        <CreateNewText
+                            onClick={() => setShouldCreateNewSpace(true)}
                         >
-                            Cancel
-                        </Button>
+                            + Create new space
+                        </CreateNewText>
+                    </>
+                )}
+                {showSpaceInput && (
+                    <FormGroupWrapper label="Space" labelFor="new-space">
+                        <InputGroup
+                            id="new-space"
+                            type="text"
+                            value={newSpaceName}
+                            onChange={(e) => setNewSpaceName(e.target.value)}
+                            placeholder="eg. KPIs"
+                        />
+                    </FormGroupWrapper>
+                )}
+            </DialogBody>
+
+            <DialogFooter
+                actions={
+                    <>
+                        <Button onClick={modalProps.onClose}>Cancel</Button>
+
                         <Button
                             data-cy="submit-base-modal"
-                            intent={Intent.SUCCESS}
+                            intent="primary"
                             text="Save"
-                            type="submit"
-                            onClick={(e) => {
-                                e.preventDefault();
-
-                                if (showSpaceInput) {
-                                    // We create first a space
-                                    // Then we will create the saved chart
-                                    // on isSuccess hook
-                                    spaceCreateMutation({
-                                        name: newSpaceName,
-                                    });
-                                } else {
-                                    createSavedChart(spaceUuid);
-                                }
-                            }}
+                            onClick={handleConfirm}
                             disabled={
                                 isCreating ||
                                 isCreatingSpace ||
@@ -188,9 +168,9 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
                                 (showSpaceInput && !newSpaceName)
                             }
                         />
-                    </div>
-                </div>
-            </form>
+                    </>
+                }
+            />
         </Dialog>
     );
 };
