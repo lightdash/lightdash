@@ -24,7 +24,8 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
-    titleHref: string;
+    clickableTitle: boolean;
+    titleHref?: string;
     description?: string;
     hasDescription: boolean;
     tile: T;
@@ -48,6 +49,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     hasDescription,
+    clickableTitle,
     titleHref,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -69,7 +71,28 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 onMouseLeave={() => setIsHovering(false)}
             >
                 <HeaderWrapper>
-                    {!hideTitle && description ? (
+                    {!hideTitle && description && clickableTitle ? (
+                        <Tooltip2
+                            content={
+                                <TooltipContent>{description}</TooltipContent>
+                            }
+                            position="bottom-left"
+                        >
+                            <TitleButton href={titleHref} target="_blank">
+                                <TitleWrapper hasDescription={hasDescription}>
+                                    <Title className="non-draggable">
+                                        {title}
+                                    </Title>
+                                </TitleWrapper>
+                            </TitleButton>
+                        </Tooltip2>
+                    ) : !hideTitle && clickableTitle ? (
+                        <TitleButton href={titleHref} target="_blank">
+                            <TitleWrapper hasDescription={hasDescription}>
+                                <Title className="non-draggable">{title}</Title>
+                            </TitleWrapper>
+                        </TitleButton>
+                    ) : !hideTitle && description ? (
                         <Tooltip2
                             content={
                                 <TooltipContent>{description}</TooltipContent>
@@ -77,19 +100,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="bottom-left"
                         >
                             <TitleWrapper hasDescription={true}>
-                                <TitleButton href={titleHref} target="_blank">
-                                    <Title className="non-draggable">
-                                        {title}
-                                    </Title>
-                                </TitleButton>
+                                <Title className="non-draggable">{title}</Title>
                             </TitleWrapper>
                         </Tooltip2>
                     ) : !hideTitle ? (
-                        <TitleButton href={titleHref} target="_blank">
-                            <TitleWrapper hasDescription={hasDescription}>
-                                <Title className="non-draggable">{title}</Title>
-                            </TitleWrapper>
-                        </TitleButton>
+                        <TitleWrapper hasDescription={hasDescription}>
+                            <Title className="non-draggable">{title}</Title>
+                        </TitleWrapper>
                     ) : null}
                 </HeaderWrapper>
                 <ButtonsWrapper>
