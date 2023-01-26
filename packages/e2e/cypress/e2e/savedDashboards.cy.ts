@@ -40,7 +40,7 @@ describe('Dashboard List', () => {
         // open actions menu
         cy.contains('tr', 'Untitled dashboard').find('button').click();
         // click on rename
-        cy.findByRole('button', { name: 'Rename' }).click();
+        cy.findByRole('menuitem', { name: 'Rename' }).click();
         cy.findByLabelText('Enter a memorable name for your dashboard *')
             .clear()
             .type('e2e dashboard');
@@ -58,7 +58,7 @@ describe('Dashboard List', () => {
         // open actions menu
         cy.contains('tr', 'e2e dashboard').find('button').click();
         // click on delete
-        cy.findByRole('button', { name: 'Delete' }).click();
+        cy.findByRole('menuitem', { name: 'Delete' }).click();
         // click on delete in the popup
         cy.findByRole('button', { name: 'Delete' }).click();
         cy.findByText('Jaffle dashboard'); // still exists

@@ -64,7 +64,7 @@ const ResourceActionMenu: FC<Props> = ({
             content={
                 <Menu>
                     <MenuItem2
-                        role="button"
+                        role="menuitem"
                         icon="edit"
                         text="Rename"
                         onClick={(e) => {
@@ -78,7 +78,7 @@ const ResourceActionMenu: FC<Props> = ({
                         }}
                     />
                     <MenuItem2
-                        role="button"
+                        role="menuitem"
                         icon="duplicate"
                         text="Duplicate"
                         onClick={(e) => {
@@ -98,6 +98,7 @@ const ResourceActionMenu: FC<Props> = ({
                         <MenuItem2
                             icon="insert"
                             text="Add to Dashboard"
+                            role="menuitem"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -165,7 +166,7 @@ const ResourceActionMenu: FC<Props> = ({
                     <Divider />
 
                     <MenuItem2
-                        role="button"
+                        role="menuitem"
                         icon="cross"
                         text="Delete"
                         intent="danger"
