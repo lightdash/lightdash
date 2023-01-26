@@ -118,6 +118,7 @@ export const FilterLabel = styled.p`
 
 export const TitleButton = styled.a`
     :hover {
-        text-decoration: none;
+        text-decoration: underline;
+        text-decoration-color: ${Colors.GRAY5};
     }
 `;

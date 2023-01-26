@@ -397,6 +397,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                     )
                 }
                 title={savedQueryWithDashboardFilters?.name || ''}
+                clickableTitle={true}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading}
