@@ -22,11 +22,13 @@ import {
 
 interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
+    onClose?: () => void;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
+    onClose,
     onConfirm,
     ...modalProps
 }) => {
@@ -34,10 +36,10 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
 
     const { data: spaces } = useSpaces(projectUuid);
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
-    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
 
+    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState<string>();
     const [newSpaceName, setNewSpaceName] = useState('');
@@ -50,6 +52,16 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             setSpaceUuid(spaces[0].uuid);
         }
     }, [spaces, spaceUuid]);
+
+    const handleClose = useCallback(() => {
+        setName('');
+        setDescription('');
+        setNewSpaceName('');
+        setSpaceUuid(undefined);
+        setShouldCreateNewSpace(false);
+
+        onClose?.();
+    }, [onClose]);
 
     const handleConfirm = useCallback(async () => {
         let newSpace = showSpaceInput
@@ -67,7 +79,10 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             spaceUuid: newSpace?.uuid || spaceUuid,
         });
 
+        setName('');
+        setDescription('');
         setNewSpaceName('');
+        setSpaceUuid(undefined);
         setShouldCreateNewSpace(false);
 
         return savedQuery;
@@ -83,7 +98,13 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ]);
 
     return (
-        <Dialog lazy title="Save chart" icon="chart" {...modalProps}>
+        <Dialog
+            lazy
+            title="Save chart"
+            icon="chart"
+            {...modalProps}
+            onClose={handleClose}
+        >
             <DialogBody>
                 <FormGroupWrapper
                     label="Enter a memorable name for your chart"
@@ -157,7 +178,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             <DialogFooter
                 actions={
                     <>
-                        <Button onClick={modalProps.onClose}>Cancel</Button>
+                        <Button onClick={handleClose}>Cancel</Button>
 
                         <Button
                             data-cy="submit-base-modal"
