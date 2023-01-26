@@ -176,11 +176,13 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
-            // todo: does this need to be promisified? uncaught error in callback?
-            connection.destroy((err) => {
-                if (err) {
-                    throw new WarehouseConnectionError(err.message);
-                }
+            await new Promise((resolve, reject) => {
+                connection.destroy((err, conn) => {
+                    if (err) {
+                        reject(new WarehouseConnectionError(err.message));
+                    }
+                    resolve(conn);
+                });
             });
         }
     }
@@ -249,11 +251,13 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             // Ignore error and let UI show invalid table
             return undefined;
         } finally {
-            // todo: does this need to be promisified? uncaught error in callback?
-            connection.destroy((err) => {
-                if (err) {
-                    throw new WarehouseConnectionError(err.message);
-                }
+            await new Promise((resolve, reject) => {
+                connection.destroy((err, conn) => {
+                    if (err) {
+                        reject(new WarehouseConnectionError(err.message));
+                    }
+                    resolve(conn);
+                });
             });
         }
     }
