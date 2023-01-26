@@ -92,7 +92,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case DbtProjectType.AZURE_DEVOPS:
                 return <AzureDevOpsForm disabled={disabled} />;
             case DbtProjectType.NONE:
-                return <DbtNoneForm />;
+                return <DbtNoneForm disabled={disabled} />;
             default: {
                 const never: never = type;
                 return null;

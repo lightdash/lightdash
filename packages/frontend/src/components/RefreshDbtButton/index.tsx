@@ -32,24 +32,53 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
     )
         return <div></div>;
 
-    if (data?.dbtConnection?.type === DbtProjectType.NONE)
+    if (data?.dbtConnection?.type === DbtProjectType.NONE) {
+        if (data?.dbtConnection.hideRefreshButton) {
+            return <div />;
+        }
         return (
             <Tooltip2
                 hoverCloseDelay={500}
                 interactionKind="hover"
                 content={
                     <p>
-                        You're still connected to a local dbt project.
+                        You're still connected to a dbt project created from the
+                        CLI.
                         <br />
-                        To keep your Lightdash project in sync, you need to
-                        update your dbt connection. <br />
+                        To keep your Lightdash project in sync with your dbt
+                        project,
+                        <br /> you need to either{' '}
                         <a
+                            href={
+                                'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
+                            }
                             target="_blank"
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#2-import-a-dbt-project"
                             rel="noreferrer"
                         >
-                            Find out how to do that here.
+                            change your connection type
                         </a>
+                        , setup a{' '}
+                        <a
+                            href={
+                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            GitHub action
+                        </a>
+                        <br />
+                        or, run{' '}
+                        <a
+                            href={
+                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            lightdash deploy
+                        </a>
+                        ) from your command line.
                     </p>
                 }
             >
@@ -61,6 +90,7 @@ const RefreshDbtButton: FC<ComponentProps<typeof BigButton>> = (props) => {
                 />
             </Tooltip2>
         );
+    }
 
     const onClick = () => {
         mutate();

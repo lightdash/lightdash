@@ -747,6 +747,8 @@ export interface DbtProjectCompilerBase extends DbtProjectConfigBase {
 
 export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.NONE;
+
+    hideRefreshButton?: boolean;
 }
 
 export interface DbtLocalProjectConfig extends DbtProjectCompilerBase {
