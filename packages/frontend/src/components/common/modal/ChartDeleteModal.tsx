@@ -42,7 +42,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     };
 
     return (
-        <Dialog {...modalProps} title="Delete Chart" icon="trash">
+        <Dialog lazy title="Delete Chart" icon="trash" {...modalProps}>
             <DialogBody>
                 <p>
                     Are you sure you want to delete the chart{' '}

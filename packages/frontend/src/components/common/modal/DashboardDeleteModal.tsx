@@ -35,7 +35,7 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     };
 
     return (
-        <Dialog {...modalProps} title="Delete Dashboard" icon="trash">
+        <Dialog lazy title="Delete Dashboard" icon="trash" {...modalProps}>
             <DialogBody>
                 <p>
                     Are you sure you want to delete the dashboard{' '}

@@ -58,7 +58,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     };
 
     return (
-        <Dialog {...modalProps} title="Update Dashboard" icon="control">
+        <Dialog lazy title="Update Dashboard" icon="control" {...modalProps}>
             <Form
                 title="Update Dashboard"
                 methods={form}

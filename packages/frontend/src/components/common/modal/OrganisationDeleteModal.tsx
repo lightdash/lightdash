@@ -39,6 +39,7 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
 
     return (
         <Dialog
+            lazy
             title="Delete Organisation"
             icon="trash"
             {...modalProps}

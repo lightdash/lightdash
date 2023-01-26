@@ -54,7 +54,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     };
 
     return (
-        <Dialog {...modalProps} title="Update Chart" icon="chart">
+        <Dialog lazy title="Update Chart" icon="chart" {...modalProps}>
             <Form title="Update Chart" methods={form} onSubmit={handleConfirm}>
                 <DialogBody>
                     <Input
