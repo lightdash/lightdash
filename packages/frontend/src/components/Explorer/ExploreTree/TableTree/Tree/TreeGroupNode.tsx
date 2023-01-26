@@ -1,5 +1,6 @@
 import { Collapse, Colors, Intent, Tag, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
+import { intersectionBy } from 'lodash-es';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
 import HighlightedText from '../../../../common/HighlightedText';
@@ -26,7 +27,10 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
         allChildrenKeys,
         Array.from(selectedItems),
     );
-
+    const selectedChildrenCount = intersectionBy(
+        allChildrenKeys,
+        Array.from(selectedItems),
+    ).length;
     const hasVisibleChildren =
         !isSearching ||
         hasIntersection(allChildrenKeys, Array.from(searchResults));
@@ -61,8 +65,7 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                         intent={Intent.PRIMARY}
                         style={{ marginLeft: '10px' }}
                     >
-                        {Array.from(selectedItems).length -
-                            allChildrenKeys.length}
+                        {selectedChildrenCount}
                     </Tag>
                 )}
             </Row>
