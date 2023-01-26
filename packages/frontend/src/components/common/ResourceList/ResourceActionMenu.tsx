@@ -5,7 +5,15 @@ import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
 import { useApp } from '../../../providers/AppProvider';
-import { ActionTypeModal } from '../modal/ActionModal';
+
+export enum ResourceAction {
+    CLOSE,
+    UPDATE,
+    ADD_TO_DASHBOARD,
+    DELETE,
+    MOVE_TO_SPACE,
+    CREATE_SPACE,
+}
 
 type Props = {
     data: any;
@@ -64,7 +72,7 @@ const ResourceActionMenu: FC<Props> = ({
                             e.stopPropagation();
                             setIsOpen(false);
                             setActionState({
-                                actionType: ActionTypeModal.UPDATE,
+                                actionType: ResourceAction.UPDATE,
                                 data,
                             });
                         }}
@@ -95,8 +103,7 @@ const ResourceActionMenu: FC<Props> = ({
                                 e.stopPropagation();
                                 setIsOpen(false);
                                 setActionState({
-                                    actionType:
-                                        ActionTypeModal.ADD_TO_DASHBOARD,
+                                    actionType: ResourceAction.ADD_TO_DASHBOARD,
                                     data,
                                 });
                             }}
@@ -128,7 +135,7 @@ const ResourceActionMenu: FC<Props> = ({
                                         if (!isSelected)
                                             setActionState({
                                                 actionType:
-                                                    ActionTypeModal.MOVE_TO_SPACE,
+                                                    ResourceAction.MOVE_TO_SPACE,
                                                 data: {
                                                     ...data,
                                                     spaceUuid: space.uuid,
@@ -148,7 +155,7 @@ const ResourceActionMenu: FC<Props> = ({
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setActionState({
-                                    actionType: ActionTypeModal.CREATE_SPACE,
+                                    actionType: ResourceAction.CREATE_SPACE,
                                     data,
                                 });
                             }}
@@ -167,7 +174,7 @@ const ResourceActionMenu: FC<Props> = ({
                             e.stopPropagation();
                             setIsOpen(false);
                             setActionState({
-                                actionType: ActionTypeModal.DELETE,
+                                actionType: ResourceAction.DELETE,
                                 data,
                             });
                         }}
