@@ -21,6 +21,7 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
+import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import {
     IconWithRightMargin,
     PageActionsContainer,
@@ -34,8 +35,6 @@ import {
 import { UpdatedInfo } from '../../common/UpdatedInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
-import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
-import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -168,15 +167,12 @@ const SavedChartsHeader: FC = () => {
                                         minimal
                                     />
                                 )}
-                                {isRenamingChart && (
-                                    <RenameSavedChartModal
-                                        savedChartUuid={savedChart.uuid}
-                                        isOpen={isRenamingChart}
-                                        onClose={() =>
-                                            setIsRenamingChart(false)
-                                        }
-                                    />
-                                )}
+                                <ChartUpdateModal
+                                    isOpen={isRenamingChart}
+                                    uuid={savedChart.uuid}
+                                    onClose={() => setIsRenamingChart(false)}
+                                    onConfirm={() => setIsRenamingChart(false)}
+                                />
                             </PageTitleContainer>
 
                             <PageDetailsContainer>
