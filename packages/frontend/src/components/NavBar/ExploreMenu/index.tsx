@@ -10,11 +10,10 @@ import { subject } from '@casl/ability';
 import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
-import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
+import CreateSavedDashboardModal from '../../common/modal/DashboardCreateModal';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import CreateSavedDashboardModal from '../../SavedDashboards/CreateSavedDashboardModal';
 import {
     ButtonWrapper,
     HelpItem,
