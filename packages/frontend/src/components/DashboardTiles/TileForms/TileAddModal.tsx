@@ -9,10 +9,12 @@ import {
     assertUnreachable,
     Dashboard,
     DashboardTileTypes,
+    defaultTileSize,
 } from '@lightdash/common';
-import produce from 'immer';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { v4 as uuid4 } from 'uuid';
+import { ActionTypeModal } from '../../common/modal/ActionModal';
 import Form from '../../ReactHookForm/Form';
 import ChartTileForm from './ChartTileForm';
 import LoomTileForm from './LoomTileForm';
@@ -21,45 +23,57 @@ import MarkdownTileForm from './MarkdownTileForm';
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
 
-interface TileUpdateModalProps<T> extends DialogProps {
-    tile: T;
-    onConfirm?: (tile: T) => void;
+interface AddProps extends DialogProps {
+    type?: DashboardTileTypes;
+    onConfirm: (tile: Tile) => void;
 }
 
-const TileUpdateModal = <T extends Tile>({
-    tile,
+export const TileAddModal: FC<AddProps> = ({
+    type,
     onConfirm,
     ...modalProps
-}: TileUpdateModalProps<T>) => {
+}) => {
+    const [errorMessage, setErrorMessage] = useState<string>();
+
     const form = useForm<TileProperties>({
         mode: 'onChange',
-        defaultValues: tile.properties,
     });
 
-    const handleConfirm = async (properties: TileProperties) => {
-        onConfirm?.(
-            produce(tile, (draft) => {
-                draft.properties = properties;
-            }),
-        );
+    if (!type) return null;
+
+    const handleConfirm = (properties: TileProperties) => {
+        if (type === DashboardTileTypes.MARKDOWN) {
+            const markdownForm = properties as any;
+            if (!markdownForm.title && !markdownForm.content) {
+                setErrorMessage('Title or content is required');
+                return;
+            }
+        }
+
+        onConfirm({
+            uuid: uuid4(),
+            properties: properties as any,
+            type,
+            ...defaultTileSize,
+        });
     };
 
     return (
-        <Dialog title="Edit tile content" {...modalProps}>
+        <Dialog title="Add tile to dashboard" {...modalProps}>
             <Form
-                name="Edit tile content"
+                title="Add tile to dashboard"
                 methods={form}
                 onSubmit={handleConfirm}
             >
                 <DialogBody>
-                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                    {type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartTileForm />
-                    ) : tile.type === DashboardTileTypes.MARKDOWN ? (
+                    ) : type === DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm />
-                    ) : tile.type === DashboardTileTypes.LOOM ? (
+                    ) : type === DashboardTileTypes.LOOM ? (
                         <LoomTileForm />
                     ) : (
-                        assertUnreachable(tile, 'Tile type not supported')
+                        assertUnreachable(type, 'Tile type not supported')
                     )}
                 </DialogBody>
 
@@ -70,7 +84,7 @@ const TileUpdateModal = <T extends Tile>({
                             type="submit"
                             disabled={!form.formState.isValid}
                         >
-                            Save
+                            Add
                         </Button>
                     }
                 />
@@ -78,5 +92,3 @@ const TileUpdateModal = <T extends Tile>({
         </Dialog>
     );
 };
-
-export default TileUpdateModal;

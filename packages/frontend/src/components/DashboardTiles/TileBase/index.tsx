@@ -8,7 +8,6 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import React, { ReactNode, useState } from 'react';
-import { UpdateTileModal } from '../TileForms/TileModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
     ButtonsWrapper,
