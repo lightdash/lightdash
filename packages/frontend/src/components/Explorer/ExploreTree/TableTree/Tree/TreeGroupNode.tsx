@@ -35,7 +35,6 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
         !isSearching ||
         hasIntersection(allChildrenKeys, Array.from(searchResults));
     const forceOpen = isSearching && hasVisibleChildren;
-    const isDisabled = forceOpen;
 
     if (!hasVisibleChildren) {
         return null;
@@ -43,13 +42,12 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
 
     return (
         <>
-            <Row depth={depth} onClick={isDisabled ? undefined : toggle}>
+            <Row depth={depth} onClick={toggle}>
                 <RowIcon
                     icon={
                         isOpen || forceOpen ? 'chevron-down' : 'chevron-right'
                     }
                     size={16}
-                    color={isDisabled ? Colors.LIGHT_GRAY1 : undefined}
                 />
                 <Text ellipsize>
                     <HighlightedText
