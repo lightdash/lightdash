@@ -34,7 +34,7 @@ import {
 } from '../../common/PageHeader';
 import { UpdatedInfo } from '../../common/UpdatedInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
+import ChartCreateModal from '../../SavedQueries/ChartCreateModal';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -339,7 +339,7 @@ const SavedChartsHeader: FC = () => {
             </PageHeaderContainer>
 
             {unsavedChartVersion && (
-                <CreateSavedQueryModal
+                <ChartCreateModal
                     isOpen={isQueryModalOpen}
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}

@@ -17,12 +17,12 @@ import {
 } from '../../hooks/useSpaces';
 import { CreateNewText, FormGroupWrapper } from './SavedQueries.style';
 
-interface CreateSavedQueryModalProps extends DialogProps {
+interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
-const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
+const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onConfirm,
     ...modalProps
@@ -175,4 +175,4 @@ const CreateSavedQueryModal: FC<CreateSavedQueryModalProps> = ({
     );
 };
 
-export default CreateSavedQueryModal;
+export default ChartCreateModal;
