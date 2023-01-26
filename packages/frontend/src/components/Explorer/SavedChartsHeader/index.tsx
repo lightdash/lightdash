@@ -343,6 +343,7 @@ const SavedChartsHeader: FC = () => {
                     isOpen={isQueryModalOpen}
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
+                    onConfirm={() => setIsQueryModalOpen(false)}
                 />
             )}
             {savedChart && isAddToDashboardModalOpen && (
