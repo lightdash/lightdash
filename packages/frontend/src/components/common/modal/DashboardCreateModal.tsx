@@ -21,6 +21,7 @@ interface DashboardCreateModalProps extends DialogProps {
 
 const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     onConfirm,
+    onClose,
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -31,7 +32,14 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     const [name, setName] = useState<string>('');
     const [description, setDescription] = useState<string>('');
 
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
+
+    const handleClose: DashboardCreateModalProps['onClose'] = (event) => {
+        setName('');
+        setDescription('');
+
+        onClose?.(event);
+    };
 
     const handleConfirm = async () => {
         const dashboard = await mutateAsync({
@@ -44,7 +52,13 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     };
 
     return (
-        <Dialog lazy title="Create dashboard" icon="control" {...modalProps}>
+        <Dialog
+            lazy
+            title="Create dashboard"
+            icon="control"
+            {...modalProps}
+            onClose={handleClose}
+        >
             <DialogBody>
                 <FormGroup label="Name your dashboard" labelFor="chart-name">
                     <InputGroup
@@ -72,7 +86,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             <DialogFooter
                 actions={
                     <>
-                        <Button onClick={modalProps.onClose}>Cancel</Button>
+                        <Button onClick={handleClose}>Cancel</Button>
 
                         <Button
                             data-cy="submit-base-modal"
