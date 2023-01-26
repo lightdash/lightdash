@@ -1,3 +1,10 @@
+# [0.389.0](https://github.com/lightdash/lightdash/compare/0.388.3...0.389.0) (2023-01-26)
+
+
+### Features
+
+* chart with empty x axis ([#4265](https://github.com/lightdash/lightdash/issues/4265)) ([3a0ea56](https://github.com/lightdash/lightdash/commit/3a0ea561114e8901261182bdd5b0b5b056dd39da))
+
 ## [0.388.3](https://github.com/lightdash/lightdash/compare/0.388.2...0.388.3) (2023-01-26)
 
 
