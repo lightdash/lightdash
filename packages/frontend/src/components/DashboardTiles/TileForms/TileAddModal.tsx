@@ -14,7 +14,6 @@ import {
 import { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { v4 as uuid4 } from 'uuid';
-import { ActionTypeModal } from '../../common/modal/ActionModal';
 import Form from '../../ReactHookForm/Form';
 import ChartTileForm from './ChartTileForm';
 import LoomTileForm from './LoomTileForm';
