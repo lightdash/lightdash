@@ -10,11 +10,10 @@ import { subject } from '@casl/ability';
 import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
-import { DEFAULT_DASHBOARD_NAME } from '../../../pages/SavedDashboards';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
+import DashboardCreateModal from '../../common/modal/DashboardCreateModal';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import CreateSavedDashboardModal from '../../SavedDashboards/CreateSavedDashboardModal';
 import {
     ButtonWrapper,
     HelpItem,
@@ -174,13 +173,18 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     }}
                 />
             )}
-            {isCreateDashboardOpen && (
-                <CreateSavedDashboardModal
-                    isOpen={true}
-                    redirectToEditDashboard={true}
-                    onClose={() => setIsCreateDashboardOpen(false)}
-                />
-            )}
+
+            <DashboardCreateModal
+                isOpen={isCreateDashboardOpen}
+                onClose={() => setIsCreateDashboardOpen(false)}
+                onConfirm={(dashboard) => {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                    );
+
+                    setIsCreateDashboardOpen(false);
+                }}
+            />
         </>
     );
 });

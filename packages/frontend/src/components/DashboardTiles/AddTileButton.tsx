@@ -9,7 +9,7 @@ import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { FC, useCallback, useState } from 'react';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
-import { AddTileModal } from './TileForms/TileModal';
+import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
@@ -73,19 +73,23 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                     intent={intent ? intent : 'none'}
                 />
             </Popover2>
+
             {isAddChartTilesModalOpen && (
                 <AddChartTilesModal
                     onClose={() => setIsAddChartTilesModalOpen(false)}
                     onAddTiles={onAddTiles}
                 />
             )}
-            {addTileType && (
-                <AddTileModal
-                    onClose={() => setAddTileType(undefined)}
-                    type={addTileType}
-                    onAddTile={onAddTile}
-                />
-            )}
+
+            <TileAddModal
+                isOpen={!!addTileType}
+                type={addTileType}
+                onClose={() => setAddTileType(undefined)}
+                onConfirm={(tile) => {
+                    onAddTile(tile);
+                    setAddTileType(undefined);
+                }}
+            />
         </>
     );
 };

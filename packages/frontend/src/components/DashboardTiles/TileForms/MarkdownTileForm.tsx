@@ -1,26 +1,14 @@
-import { DashboardChartTile } from '@lightdash/common';
-import React from 'react';
-import { ActionModalProps } from '../../common/modal/ActionModal';
+import { FC } from 'react';
 import Input from '../../ReactHookForm/Input';
 import MarkdownInput from '../../ReactHookForm/MarkdownInput';
 
-const MarkdownTileForm = ({
-    isDisabled,
-}: Pick<
-    ActionModalProps<DashboardChartTile['properties']>,
-    'useActionModalState' | 'isDisabled'
->) => (
+const MarkdownTileForm: FC = () => (
     <>
-        <Input
-            name="title"
-            label="Title"
-            disabled={isDisabled}
-            placeholder="Tile title"
-        />
+        <Input name="title" label="Title" placeholder="Tile title" />
+
         <MarkdownInput
             name="content"
             label="Content"
-            disabled={isDisabled}
             attributes={{
                 preview: 'edit',
                 height: 400,

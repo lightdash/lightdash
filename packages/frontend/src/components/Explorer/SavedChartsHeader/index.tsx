@@ -20,8 +20,9 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import DeleteActionModal from '../../common/modal/DeleteActionModal';
-import MoveToSpaceModal from '../../common/modal/MoveToSpaceModal';
+import ChartCreateModal from '../../common/modal/ChartCreateModal';
+import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
+import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import {
     IconWithRightMargin,
     PageActionsContainer,
@@ -34,9 +35,6 @@ import {
 } from '../../common/PageHeader';
 import { UpdatedInfo } from '../../common/UpdatedInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
-import RenameSavedChartModal from '../../SavedQueries/RenameSavedChartModal';
-import ShareLinkButton from '../../ShareLinkButton';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -64,8 +62,6 @@ const SavedChartsHeader: FC = () => {
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
-        useState<boolean>(false);
-    const [isMoveToSpaceModalOpen, setIsMoveToSpaceModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
@@ -171,15 +167,12 @@ const SavedChartsHeader: FC = () => {
                                         minimal
                                     />
                                 )}
-                                {isRenamingChart && (
-                                    <RenameSavedChartModal
-                                        savedChartUuid={savedChart.uuid}
-                                        isOpen={isRenamingChart}
-                                        onClose={() =>
-                                            setIsRenamingChart(false)
-                                        }
-                                    />
-                                )}
+                                <ChartUpdateModal
+                                    isOpen={isRenamingChart}
+                                    uuid={savedChart.uuid}
+                                    onClose={() => setIsRenamingChart(false)}
+                                    onConfirm={() => setIsRenamingChart(false)}
+                                />
                             </PageTitleContainer>
 
                             <PageDetailsContainer>
@@ -346,10 +339,11 @@ const SavedChartsHeader: FC = () => {
             </PageHeaderContainer>
 
             {unsavedChartVersion && (
-                <CreateSavedQueryModal
+                <ChartCreateModal
                     isOpen={isQueryModalOpen}
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
+                    onConfirm={() => setIsQueryModalOpen(false)}
                 />
             )}
             {savedChart && isAddToDashboardModalOpen && (
@@ -360,21 +354,25 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
             {isDeleteDialogOpen && savedChart?.uuid && (
-                <DeleteActionModal
+                <ChartDeleteModal
+                    uuid={savedChart.uuid}
                     isOpen={isDeleteDialogOpen}
                     onClose={() => setIsDeleteDialogOpen(false)}
-                    uuid={savedChart.uuid}
-                    name={savedChart.name}
-                    isChart
-                    isExplorer
-                />
-            )}
-            {isMoveToSpaceModalOpen && savedChart?.uuid && (
-                <MoveToSpaceModal
-                    isOpen={isDeleteDialogOpen}
-                    onClose={() => setIsMoveToSpaceModalOpen(false)}
-                    uuid={savedChart.uuid}
-                    isChart
+                    onConfirm={() => {
+                        history.listen((location, action) => {
+                            if (action === 'POP') {
+                                if (location.pathname.includes('/tables/')) {
+                                    history.push(
+                                        `/projects/${projectUuid}/tables`,
+                                    );
+                                }
+                            }
+                        });
+
+                        history.push('/');
+
+                        setIsDeleteDialogOpen(false);
+                    }}
                 />
             )}
         </TrackSection>

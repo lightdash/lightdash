@@ -123,7 +123,6 @@ const Dashboard = () => {
     const { data: dashboard, error: dashboardError } =
         useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
-    const [dashboardName, setDashboardName] = useState<string>('');
     const {
         mutate,
         isSuccess,
@@ -273,11 +272,6 @@ const Dashboard = () => {
         });
     };
 
-    const updateTitle = (name: string) => {
-        setHasTilesChanged(true);
-        setDashboardName(name);
-    };
-
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
         useState<boolean>(false);
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
@@ -337,7 +331,7 @@ const Dashboard = () => {
     return (
         <>
             <Helmet>
-                <title>{dashboardName || dashboard.name} - Lightdash</title>
+                <title>{dashboard.name} - Lightdash</title>
             </Helmet>
             <Alert
                 isOpen={isSaveWarningModalOpen}
@@ -385,10 +379,9 @@ const Dashboard = () => {
                                 ...dashboardTemporaryFilters.metrics,
                             ],
                         },
-                        name: dashboardName || dashboard.name,
+                        name: dashboard.name,
                     })
                 }
-                onUpdate={(values) => values && updateTitle(values.name)}
                 onCancel={onCancel}
                 onMoveToSpace={handleMoveDashboardToSpace}
                 onDuplicate={handleDuplicateDashboard}

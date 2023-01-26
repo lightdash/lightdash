@@ -4,18 +4,16 @@ import {
     DashboardBasicDetails,
     SpaceQuery,
 } from '@lightdash/common';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useUpdateDashboardName } from '../../../hooks/dashboard/useDashboard';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
-import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import DashboardForm from '../../SavedDashboards/DashboardForm';
-import SavedQueryForm from '../../SavedQueries/SavedQueryForm';
-import { ActionTypeModal } from '../modal/ActionModal';
-import DeleteActionModal from '../modal/DeleteActionModal';
-import UpdateActionModal from '../modal/UpdateActionModal';
+import ChartDeleteModal from '../modal/ChartDeleteModal';
+import ChartUpdateModal from '../modal/ChartUpdateModal';
+import DashboardDeleteModal from '../modal/DashboardDeleteModal';
+import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
+import { ResourceAction } from './ResourceActionMenu';
 import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
@@ -26,7 +24,7 @@ export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
 export type AcceptedResourceTypes = 'chart' | 'dashboard';
 
 interface ActionStateWithData {
-    actionType: ActionTypeModal;
+    actionType: ResourceAction;
     data?: any;
 }
 
@@ -64,7 +62,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const [actionState, setActionState] = useState<ActionStateWithData>({
-        actionType: ActionTypeModal.CLOSE,
+        actionType: ResourceAction.CLOSE,
     });
 
     const { moveChart, moveDashboard } = useMoveToSpace(
@@ -72,34 +70,31 @@ const ResourceList: React.FC<ResourceListProps> = ({
         actionState.data,
     );
 
-    const actions = useMemo(() => {
-        switch (resourceType) {
-            case 'dashboard':
-                return {
-                    update: useUpdateDashboardName,
-                    moveToSpace: moveDashboard,
-                };
-            case 'chart':
-                return {
-                    update: useUpdateMutation,
-                    moveToSpace: moveChart,
-                };
-            default:
-                return assertUnreachable(
-                    resourceType,
-                    'Unexpected resource type',
-                );
-        }
-    }, [moveChart, moveDashboard, resourceType]);
+    const handleMoveToSpace = useCallback(
+        (data: { uuid: string; name: string; spaceUuid?: string }) => {
+            switch (resourceType) {
+                case 'chart':
+                    return moveChart(data);
+                case 'dashboard':
+                    return moveDashboard(data);
+                default:
+                    return assertUnreachable(
+                        resourceType,
+                        'Resource type not supported',
+                    );
+            }
+        },
+        [moveChart, moveDashboard, resourceType],
+    );
 
     useEffect(() => {
         if (
-            actionState.actionType === ActionTypeModal.MOVE_TO_SPACE &&
+            actionState.actionType === ResourceAction.MOVE_TO_SPACE &&
             actionState.data
         ) {
-            actions.moveToSpace(actionState.data);
+            handleMoveToSpace(actionState.data);
         }
-    }, [actionState, actions]);
+    }, [actionState, handleMoveToSpace]);
 
     return (
         <>
@@ -131,55 +126,95 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 )}
             </ResourceListWrapper>
 
-            {actionState.actionType === ActionTypeModal.UPDATE &&
+            {actionState.actionType === ResourceAction.UPDATE &&
                 (resourceType === 'chart' ? (
-                    <UpdateActionModal
-                        icon={resourceIcon}
-                        resourceType={resourceType}
-                        useActionModalState={[actionState, setActionState]}
-                        useUpdate={actions.update}
-                        ModalContent={SavedQueryForm}
-                    />
-                ) : (
-                    <UpdateActionModal
-                        icon={resourceIcon}
-                        resourceType={resourceType}
-                        useActionModalState={[actionState, setActionState]}
-                        useUpdate={actions.update}
-                        ModalContent={DashboardForm}
-                    />
-                ))}
-            {actionState.actionType === ActionTypeModal.DELETE &&
-                actionState.data && (
-                    <DeleteActionModal
+                    <ChartUpdateModal
                         isOpen={
-                            actionState.actionType === ActionTypeModal.DELETE
+                            actionState.actionType === ResourceAction.UPDATE
                         }
+                        uuid={actionState.data.uuid}
                         onClose={() => {
                             setActionState({
-                                actionType: ActionTypeModal.CLOSE,
+                                actionType: ResourceAction.CLOSE,
                             });
                         }}
-                        uuid={actionState.data.uuid}
-                        name={actionState.data.name}
-                        isChart={resourceType === 'chart'}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
                     />
-                )}
+                ) : resourceType === 'dashboard' ? (
+                    <DashboardUpdateModal
+                        isOpen={
+                            actionState.actionType === ResourceAction.UPDATE
+                        }
+                        uuid={actionState.data.uuid}
+                        onClose={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
+                    />
+                ) : null)}
 
-            {actionState.actionType === ActionTypeModal.ADD_TO_DASHBOARD && (
+            {actionState.actionType === ResourceAction.DELETE &&
+                actionState.data &&
+                (resourceType === 'chart' ? (
+                    <ChartDeleteModal
+                        isOpen={
+                            actionState.actionType === ResourceAction.DELETE
+                        }
+                        uuid={actionState.data.uuid}
+                        onClose={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
+                    />
+                ) : resourceType === 'dashboard' ? (
+                    <DashboardDeleteModal
+                        isOpen={
+                            actionState.actionType === ResourceAction.DELETE
+                        }
+                        uuid={actionState.data.uuid}
+                        onClose={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
+                        onConfirm={() => {
+                            setActionState({
+                                actionType: ResourceAction.CLOSE,
+                            });
+                        }}
+                    />
+                ) : null)}
+
+            {actionState.actionType === ResourceAction.ADD_TO_DASHBOARD && (
                 <AddTilesToDashboardModal
                     savedChart={actionState.data}
                     isOpen={
                         actionState.actionType ===
-                        ActionTypeModal.ADD_TO_DASHBOARD
+                        ResourceAction.ADD_TO_DASHBOARD
                     }
                     onClose={() =>
-                        setActionState({ actionType: ActionTypeModal.CLOSE })
+                        setActionState({ actionType: ResourceAction.CLOSE })
                     }
                 />
             )}
 
-            {actionState.actionType === ActionTypeModal.CREATE_SPACE &&
+            {actionState.actionType === ResourceAction.CREATE_SPACE &&
                 actionState.data && (
                     <SpaceActionModal
                         projectUuid={projectUuid}
@@ -189,12 +224,12 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         icon="folder-close"
                         onClose={() =>
                             setActionState({
-                                actionType: ActionTypeModal.CLOSE,
+                                actionType: ResourceAction.CLOSE,
                             })
                         }
                         onSubmitForm={(space) => {
                             if (space && actionState.data) {
-                                actions.moveToSpace({
+                                handleMoveToSpace({
                                     uuid: actionState.data.uuid,
                                     name: actionState.data.name,
                                     spaceUuid: space.uuid,

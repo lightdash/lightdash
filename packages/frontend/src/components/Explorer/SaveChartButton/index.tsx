@@ -1,7 +1,7 @@
 import React, { FC, useState } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import CreateSavedQueryModal from '../../SavedQueries/CreateSavedQueryModal';
+import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import { SaveButton } from './SaveChartButton.styles';
 
 const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
@@ -41,10 +41,11 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                 }
             />
             {unsavedChartVersion && (
-                <CreateSavedQueryModal
+                <ChartCreateModal
                     isOpen={isQueryModalOpen}
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
+                    onConfirm={() => setIsQueryModalOpen(false)}
                 />
             )}
         </>

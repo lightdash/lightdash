@@ -1,11 +1,11 @@
 import {
     Button,
-    Classes,
     Dialog,
+    DialogBody,
+    DialogFooter,
     FormGroup,
     HTMLSelect,
     InputGroup,
-    Intent,
 } from '@blueprintjs/core';
 import {
     DashboardChartTile,
@@ -148,7 +148,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             title="Add chart to dashboard"
         >
             <form>
-                <div className={Classes.DIALOG_BODY}>
+                <DialogBody>
                     {!showNewDashboardInput && (
                         <>
                             <p>
@@ -239,70 +239,77 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             )}
                         </>
                     )}
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button
-                            onClick={() => {
-                                if (onClose) onClose();
-                                setShowNewDashboardInput(false);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            data-cy="submit-base-modal"
-                            intent={Intent.SUCCESS}
-                            text={'Add'}
-                            type="submit"
-                            onClick={(e) => {
-                                if (showNewDashboardInput) {
-                                    if (showSpaceInput) {
-                                        // We create first a space
-                                        // Then we will create the saved chart
-                                        // on isSuccess hook
-                                        spaceCreateMutation({
-                                            name: newSpaceName,
-                                        });
-                                    } else {
-                                        addChartToDashboard(spaceUuid);
-                                    }
-                                } else if (dashboardData && updateMutation) {
-                                    const newTile: DashboardChartTile = {
-                                        uuid: uuid4(),
-                                        type: DashboardTileTypes.SAVED_CHART,
-                                        properties: {
-                                            savedChartUuid: savedChart.uuid,
-                                            title: savedChart.name,
-                                        },
-                                        ...getDefaultChartTileSize(
-                                            savedChart.chartConfig?.type ||
-                                                completeSavedChart?.chartConfig
-                                                    .type,
-                                        ),
-                                    };
+                </DialogBody>
 
-                                    updateMutation({
-                                        name: dashboardData.name,
-                                        filters: dashboardData.filters,
-                                        tiles: appendNewTilesToBottom(
-                                            dashboardData.tiles,
-                                            [newTile],
-                                        ),
-                                    });
-                                    setShowNewDashboardInput(false);
-
-                                    setShowNewSpaceInput(false);
-                                    setName('');
+                <DialogFooter
+                    actions={
+                        <>
+                            <Button
+                                onClick={() => {
                                     if (onClose) onClose();
-                                }
+                                    setShowNewDashboardInput(false);
+                                }}
+                            >
+                                Cancel
+                            </Button>
 
-                                e.preventDefault();
-                            }}
-                            disabled={showNewDashboardInput && name === ''}
-                        />
-                    </div>
-                </div>
+                            <Button
+                                data-cy="submit-base-modal"
+                                intent="primary"
+                                text={'Add'}
+                                type="submit"
+                                onClick={(e) => {
+                                    if (showNewDashboardInput) {
+                                        if (showSpaceInput) {
+                                            // We create first a space
+                                            // Then we will create the saved chart
+                                            // on isSuccess hook
+                                            spaceCreateMutation({
+                                                name: newSpaceName,
+                                            });
+                                        } else {
+                                            addChartToDashboard(spaceUuid);
+                                        }
+                                    } else if (
+                                        dashboardData &&
+                                        updateMutation
+                                    ) {
+                                        const newTile: DashboardChartTile = {
+                                            uuid: uuid4(),
+                                            type: DashboardTileTypes.SAVED_CHART,
+                                            properties: {
+                                                savedChartUuid: savedChart.uuid,
+                                                title: savedChart.name,
+                                            },
+                                            ...getDefaultChartTileSize(
+                                                savedChart.chartConfig?.type ||
+                                                    completeSavedChart
+                                                        ?.chartConfig.type,
+                                            ),
+                                        };
+
+                                        updateMutation({
+                                            name: dashboardData.name,
+                                            filters: dashboardData.filters,
+                                            tiles: appendNewTilesToBottom(
+                                                dashboardData.tiles,
+                                                [newTile],
+                                            ),
+                                        });
+                                        setShowNewDashboardInput(false);
+
+                                        setShowNewSpaceInput(false);
+                                        setName('');
+                                        if (onClose) onClose();
+                                    }
+
+                                    e.preventDefault();
+                                }}
+                                disabled={showNewDashboardInput && name === ''}
+                            />
+                        </>
+                    }
+                />
             </form>
         </Dialog>
     );
