@@ -38,8 +38,8 @@ import toNumber from 'lodash-es/toNumber';
 import moment from 'moment';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
-import { SeriesExtraInputWrapper } from '../../components/ChartConfigPanel/Series/Series.styles';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import { useOrganisation } from '../organisation/useOrganisation';
 import usePlottedData from '../plottedData/usePlottedData';
 
@@ -102,9 +102,12 @@ const getAxisType = ({
     const topAxisType = getAxisTypeFromField(
         topAxisXId ? itemMap[topAxisXId] : undefined,
     );
-    const bottomAxisType = getAxisTypeFromField(
-        bottomAxisXId ? itemMap[bottomAxisXId] : undefined,
-    );
+    const bottomAxisType =
+        bottomAxisXId === EMPTY_X_AXIS
+            ? 'category'
+            : getAxisTypeFromField(
+                  bottomAxisXId ? itemMap[bottomAxisXId] : undefined,
+              );
     // horizontal bar chart needs the type 'category' in the left/right axis
     const defaultRightAxisType = getAxisTypeFromField(
         rightAxisYId ? itemMap[rightAxisYId] : undefined,
@@ -1233,7 +1236,13 @@ const useEcharts = () => {
             },
             dataset: {
                 id: 'lightdashResults',
-                source: getResultValues(rows, true),
+                source:
+                    validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
+                        ? getResultValues(rows, true).map((s) => ({
+                              ...s,
+                              [EMPTY_X_AXIS]: ' ',
+                          }))
+                        : getResultValues(rows, true),
             },
             tooltip: {
                 show: true,
@@ -1263,7 +1272,6 @@ const useEcharts = () => {
     ) {
         return undefined;
     }
-
     return eChartsOptions;
 };
 

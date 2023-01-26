@@ -24,6 +24,8 @@ import {
     sortDimensions,
 } from './utils';
 
+export const EMPTY_X_AXIS = 'empty_x_axis';
+
 type Args = {
     chartType: ChartType;
     initialChartConfig: CartesianChart | undefined;
@@ -381,7 +383,8 @@ const useCartesianChartConfig = ({
         if (availableFields.length > 0 && chartType === ChartType.CARTESIAN) {
             setDirtyLayout((prev) => {
                 const isCurrentXFieldValid: boolean =
-                    !!prev?.xField && availableFields.includes(prev.xField);
+                    prev?.xField === EMPTY_X_AXIS ||
+                    (!!prev?.xField && availableFields.includes(prev.xField));
                 const currentValidYFields = prev?.yField
                     ? prev.yField.filter((y) => availableFields.includes(y))
                     : [];
