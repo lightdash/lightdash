@@ -3,10 +3,10 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
-import { AcceptedResources, ResourceListCommonProps } from '..';
-import { useSpaces } from '../../../../hooks/useSpaces';
-import ResourceActionMenu from '../ResourceActionMenu';
-import ResourceLastEdited from '../ResourceLastEdited';
+import { AcceptedResources, ResourceListCommonProps } from '.';
+import { useSpaces } from '../../../hooks/useSpaces';
+import ResourceActionMenu from './ResourceActionMenu';
+import ResourceLastEdited from './ResourceLastEdited';
 import {
     Flex,
     ResourceLink,
