@@ -61,7 +61,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                     />
 
                     <Input
-                        label="Chart descriptionsss"
+                        label="Chart description"
                         name="description"
                         placeholder="A few words to give your team some context"
                         disabled={isUpdating}
