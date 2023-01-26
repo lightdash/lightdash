@@ -79,6 +79,8 @@ export const TileAddModal: FC<AddProps> = ({
                 <DialogFooter
                     actions={
                         <>
+                            {errorMessage}
+
                             <Button onClick={modalProps.onClose}>Cancel</Button>
 
                             <Button
