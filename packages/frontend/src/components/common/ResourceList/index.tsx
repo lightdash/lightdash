@@ -4,11 +4,9 @@ import {
     DashboardBasicDetails,
     SpaceQuery,
 } from '@lightdash/common';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useUpdateDashboardName } from '../../../hooks/dashboard/useDashboard';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
-import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
@@ -72,34 +70,31 @@ const ResourceList: React.FC<ResourceListProps> = ({
         actionState.data,
     );
 
-    const actions = useMemo(() => {
-        switch (resourceType) {
-            case 'dashboard':
-                return {
-                    update: useUpdateDashboardName,
-                    moveToSpace: moveDashboard,
-                };
-            case 'chart':
-                return {
-                    update: useUpdateMutation,
-                    moveToSpace: moveChart,
-                };
-            default:
-                return assertUnreachable(
-                    resourceType,
-                    'Unexpected resource type',
-                );
-        }
-    }, [moveChart, moveDashboard, resourceType]);
+    const handleMoveToSpace = useCallback(
+        (data: { uuid: string; name: string; spaceUuid?: string }) => {
+            switch (resourceType) {
+                case 'chart':
+                    return moveChart(data);
+                case 'dashboard':
+                    return moveDashboard(data);
+                default:
+                    return assertUnreachable(
+                        resourceType,
+                        'Resource type not supported',
+                    );
+            }
+        },
+        [moveChart, moveDashboard, resourceType],
+    );
 
     useEffect(() => {
         if (
             actionState.actionType === ResourceAction.MOVE_TO_SPACE &&
             actionState.data
         ) {
-            actions.moveToSpace(actionState.data);
+            handleMoveToSpace(actionState.data);
         }
-    }, [actionState, actions]);
+    }, [actionState, handleMoveToSpace]);
 
     return (
         <>
@@ -234,7 +229,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         }
                         onSubmitForm={(space) => {
                             if (space && actionState.data) {
-                                actions.moveToSpace({
+                                handleMoveToSpace({
                                     uuid: actionState.data.uuid,
                                     name: actionState.data.name,
                                     spaceUuid: space.uuid,
