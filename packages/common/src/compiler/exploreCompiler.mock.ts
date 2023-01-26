@@ -779,6 +779,43 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
     },
 };
 
+export const joinedExploreWithSubsetOfFields: UncompiledExplore = {
+    ...exploreReferenceInJoin,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            fields: ['dim1'],
+        },
+    ],
+};
+
+export const joinedExploreWithSubsetOfFieldsCausingError: UncompiledExplore = {
+    ...exploreReferenceInJoin,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            fields: ['dim2'], // not possible because it dim1 is also needed for the join sql
+        },
+    ],
+};
+
+export const compiledJoinedExploreWithSubsetOfFields: Explore = {
+    ...exploreReferenceInJoinCompiled,
+    tables: {
+        ...exploreReferenceInJoinCompiled.tables,
+        b: {
+            ...exploreReferenceInJoinCompiled.tables.b,
+            dimensions: {
+                dim1: {
+                    ...exploreReferenceInJoinCompiled.tables.b.dimensions.dim1,
+                },
+            },
+        },
+    },
+};
+
 export const exploreWithMetricNumber: UncompiledExplore = {
     ...exploreBase,
     tables: {
