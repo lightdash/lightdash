@@ -20,6 +20,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import {
@@ -34,7 +35,6 @@ import {
 } from '../../common/PageHeader';
 import { UpdatedInfo } from '../../common/UpdatedInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import ChartCreateModal from '../../SavedQueries/ChartCreateModal';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {

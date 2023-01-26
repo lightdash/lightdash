@@ -10,12 +10,15 @@ import {
 import { CreateSavedChartVersion } from '@lightdash/common';
 import { FC, useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useCreateMutation } from '../../hooks/useSavedQuery';
+import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaces,
-} from '../../hooks/useSpaces';
-import { CreateNewText, FormGroupWrapper } from './SavedQueries.style';
+} from '../../../hooks/useSpaces';
+import {
+    CreateNewText,
+    FormGroupWrapper,
+} from '../../SavedQueries/SavedQueries.style';
 
 interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
