@@ -1,3 +1,10 @@
+## [0.388.3](https://github.com/lightdash/lightdash/compare/0.388.2...0.388.3) (2023-01-26)
+
+
+### Bug Fixes
+
+* get snowflake catalog for specific tables ([#4269](https://github.com/lightdash/lightdash/issues/4269)) ([77a3c7c](https://github.com/lightdash/lightdash/commit/77a3c7ca5c3264b3493158cdb47b06b46f7b81fa))
+
 ## [0.388.2](https://github.com/lightdash/lightdash/compare/0.388.1...0.388.2) (2023-01-26)
 
 
