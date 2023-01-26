@@ -211,7 +211,6 @@ const ResourceTable: FC<ResourceTableProps> = ({
         );
     }, [
         columnVisibility,
-        resourceIcon,
         resourceType,
         enableSorting,
         spaces,
