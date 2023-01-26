@@ -1740,6 +1740,11 @@
   dependencies:
     defer-to-connect "^1.0.1"
 
+"@tabler/icons@^2.1.1":
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/@tabler/icons/-/icons-2.1.1.tgz#412055a3635f629dadf5c2aa11f88784bb517e78"
+  integrity sha512-mg3ggGdTz0KYnombTj3Ur1RsLGMF5j0f+SxLvVBNlt+a4Qb4Ml++7NHWy7pBi6RWpqyroywwkvBeMutnJu9HfQ==
+
 "@tanstack/match-sorter-utils@^8.1.1":
   version "8.1.1"
   resolved "https://registry.npmjs.org/@tanstack/match-sorter-utils/-/match-sorter-utils-8.1.1.tgz"
