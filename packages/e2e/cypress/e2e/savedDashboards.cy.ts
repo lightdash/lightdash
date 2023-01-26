@@ -60,7 +60,7 @@ describe('Dashboard List', () => {
         // click on delete
         cy.findByRole('button', { name: 'Delete' }).click();
         // click on delete in the popup
-        cy.findByText('Delete').click();
+        cy.findByRole('button', { name: 'Delete' }).click();
         cy.findByText('Jaffle dashboard'); // still exists
     });
 });
