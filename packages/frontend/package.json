@@ -45,7 +45,6 @@
         "react-hook-form": "^7.26.1",
         "react-query": "^3.34.14",
         "react-router-dom": "^5.2.0",
-        "react-syntax-highlighter": "^15.4.5",
         "react-transition-group": "^4.4.2",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
