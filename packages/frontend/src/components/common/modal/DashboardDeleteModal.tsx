@@ -45,13 +45,17 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
 
             <DialogFooter
                 actions={
-                    <Button
-                        loading={isDeleting}
-                        intent="danger"
-                        onClick={handleConfirm}
-                    >
-                        Delete
-                    </Button>
+                    <>
+                        <Button onClick={modalProps.onClose}>Cancel</Button>
+
+                        <Button
+                            loading={isDeleting}
+                            intent="danger"
+                            onClick={handleConfirm}
+                        >
+                            Delete
+                        </Button>
+                    </>
                 }
             />
         </Dialog>

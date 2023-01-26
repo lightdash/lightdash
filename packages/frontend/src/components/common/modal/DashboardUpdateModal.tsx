@@ -78,14 +78,18 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
 
                 <DialogFooter
                     actions={
-                        <Button
-                            disabled={!form.formState.isValid}
-                            loading={isUpdating}
-                            intent="primary"
-                            type="submit"
-                        >
-                            Save
-                        </Button>
+                        <>
+                            <Button onClick={modalProps.onClose}>Cancel</Button>
+
+                            <Button
+                                disabled={!form.formState.isValid}
+                                loading={isUpdating}
+                                intent="primary"
+                                type="submit"
+                            >
+                                Save
+                            </Button>
+                        </>
                     }
                 />
             </Form>

@@ -63,6 +63,8 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
             <DialogFooter
                 actions={
                     <>
+                        <Button onClick={onClose}>Cancel</Button>
+
                         <Button
                             data-cy="submit-base-modal"
                             disabled={

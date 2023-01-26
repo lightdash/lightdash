@@ -45,7 +45,7 @@ const TileUpdateModal = <T extends Tile>({
     };
 
     return (
-        <Dialog title="Edit tile content" {...modalProps}>
+        <Dialog lazy title="Edit tile content" {...modalProps}>
             <Form
                 name="Edit tile content"
                 methods={form}
@@ -65,13 +65,17 @@ const TileUpdateModal = <T extends Tile>({
 
                 <DialogFooter
                     actions={
-                        <Button
-                            intent="primary"
-                            type="submit"
-                            disabled={!form.formState.isValid}
-                        >
-                            Save
-                        </Button>
+                        <>
+                            <Button onClick={modalProps.onClose}>Cancel</Button>
+
+                            <Button
+                                intent="primary"
+                                type="submit"
+                                disabled={!form.formState.isValid}
+                            >
+                                Save
+                            </Button>
+                        </>
                     }
                 />
             </Form>

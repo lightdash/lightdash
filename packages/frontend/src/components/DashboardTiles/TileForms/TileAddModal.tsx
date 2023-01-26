@@ -58,7 +58,7 @@ export const TileAddModal: FC<AddProps> = ({
     };
 
     return (
-        <Dialog title="Add tile to dashboard" {...modalProps}>
+        <Dialog lazy title="Add tile to dashboard" {...modalProps}>
             <Form
                 title="Add tile to dashboard"
                 methods={form}
@@ -78,13 +78,17 @@ export const TileAddModal: FC<AddProps> = ({
 
                 <DialogFooter
                     actions={
-                        <Button
-                            intent="primary"
-                            type="submit"
-                            disabled={!form.formState.isValid}
-                        >
-                            Add
-                        </Button>
+                        <>
+                            <Button onClick={modalProps.onClose}>Cancel</Button>
+
+                            <Button
+                                intent="primary"
+                                type="submit"
+                                disabled={!form.formState.isValid}
+                            >
+                                Add
+                            </Button>
+                        </>
                     }
                 />
             </Form>

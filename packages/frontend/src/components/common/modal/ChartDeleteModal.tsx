@@ -71,13 +71,17 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
 
             <DialogFooter
                 actions={
-                    <Button
-                        loading={isDeleting}
-                        intent="danger"
-                        onClick={handleConfirm}
-                    >
-                        Delete
-                    </Button>
+                    <>
+                        <Button onClick={modalProps.onClose}>Cancel</Button>
+
+                        <Button
+                            loading={isDeleting}
+                            intent="danger"
+                            onClick={handleConfirm}
+                        >
+                            Delete
+                        </Button>
+                    </>
                 }
             />
         </Dialog>
