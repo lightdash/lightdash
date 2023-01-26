@@ -11,7 +11,6 @@ import {
     DashboardTileTypes,
 } from '@lightdash/common';
 import produce from 'immer';
-import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import Form from '../../ReactHookForm/Form';
 import ChartTileForm from './ChartTileForm';
@@ -23,11 +22,13 @@ type TileProperties = Tile['properties'];
 
 interface TileUpdateModalProps<T> extends DialogProps {
     tile: T;
+    onClose?: () => void;
     onConfirm?: (tile: T) => void;
 }
 
 const TileUpdateModal = <T extends Tile>({
     tile,
+    onClose,
     onConfirm,
     ...modalProps
 }: TileUpdateModalProps<T>) => {
@@ -44,8 +45,18 @@ const TileUpdateModal = <T extends Tile>({
         );
     };
 
+    const handleClose = () => {
+        form.reset();
+        onClose?.();
+    };
+
     return (
-        <Dialog lazy title="Edit tile content" {...modalProps}>
+        <Dialog
+            lazy
+            title="Edit tile content"
+            {...modalProps}
+            onClose={handleClose}
+        >
             <Form
                 name="Edit tile content"
                 methods={form}
@@ -66,7 +77,7 @@ const TileUpdateModal = <T extends Tile>({
                 <DialogFooter
                     actions={
                         <>
-                            <Button onClick={modalProps.onClose}>Cancel</Button>
+                            <Button onClick={handleClose}>Cancel</Button>
 
                             <Button
                                 intent="primary"

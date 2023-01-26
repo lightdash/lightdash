@@ -24,11 +24,13 @@ type TileProperties = Tile['properties'];
 
 interface AddProps extends DialogProps {
     type?: DashboardTileTypes;
+    onClose?: () => void;
     onConfirm: (tile: Tile) => void;
 }
 
 export const TileAddModal: FC<AddProps> = ({
     type,
+    onClose,
     onConfirm,
     ...modalProps
 }) => {
@@ -57,8 +59,18 @@ export const TileAddModal: FC<AddProps> = ({
         });
     };
 
+    const handleClose = () => {
+        form.reset();
+        onClose?.();
+    };
+
     return (
-        <Dialog lazy title="Add tile to dashboard" {...modalProps}>
+        <Dialog
+            lazy
+            title="Add tile to dashboard"
+            {...modalProps}
+            onClose={handleClose}
+        >
             <Form
                 title="Add tile to dashboard"
                 methods={form}
@@ -81,7 +93,7 @@ export const TileAddModal: FC<AddProps> = ({
                         <>
                             {errorMessage}
 
-                            <Button onClick={modalProps.onClose}>Cancel</Button>
+                            <Button onClick={handleClose}>Cancel</Button>
 
                             <Button
                                 intent="primary"
