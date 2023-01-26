@@ -81,6 +81,7 @@ module.exports = {
                 'references/lightdashyaml',
                 'references/personal_tokens',
                 'references/ip_addresses',
+                'references/usage-analytics',
             ],
         },
         {
