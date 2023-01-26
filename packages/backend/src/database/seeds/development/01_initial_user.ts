@@ -40,13 +40,21 @@ export async function seed(knex: Knex): Promise<void> {
         seedEmail: Omit<DbEmailIn, 'user_id'>,
         seedPassword: { password: string },
     ) => {
-        const [organizationId] = await knex('organizations')
+        const [{ organization_id: organizationId }] = await knex(
+            'organizations',
+        )
             .insert(seedOrganization)
             .returning('organization_id');
+        if (organizationId === undefined) {
+            throw new Error('Organization was not created');
+        }
 
-        const [userId] = await knex('users')
+        const [{ user_id: userId }] = await knex('users')
             .insert(seedUser)
             .returning('user_id');
+        if (userId === undefined) {
+            throw new Error('User was not created');
+        }
 
         await knex('emails').insert({ ...seedEmail, user_id: userId });
 
@@ -103,13 +111,16 @@ export async function seed(knex: Knex): Promise<void> {
         JSON.stringify(projectSettings),
     );
 
-    const [projectId] = await knex('projects')
+    const [{ project_id: projectId }] = await knex('projects')
         .insert({
             ...SEED_PROJECT,
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
         })
         .returning('project_id');
+    if (projectId === undefined) {
+        throw new Error('Project was not created');
+    }
 
     let encryptedCredentials: Buffer;
     if (
