@@ -1,3 +1,10 @@
+## [0.388.1](https://github.com/lightdash/lightdash/compare/0.388.0...0.388.1) (2023-01-26)
+
+
+### Bug Fixes
+
+* fix miN/max for table calculation on reference lines ([#4261](https://github.com/lightdash/lightdash/issues/4261)) ([bab4d10](https://github.com/lightdash/lightdash/commit/bab4d10a65a14d774f9ff64f479966fa062b986a))
+
 # [0.388.0](https://github.com/lightdash/lightdash/compare/0.387.2...0.388.0) (2023-01-25)
 
 
