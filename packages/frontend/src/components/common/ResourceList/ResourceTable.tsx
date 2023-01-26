@@ -1,4 +1,4 @@
-import { Colors, Icon, Position } from '@blueprintjs/core';
+import { Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -11,7 +11,9 @@ import ResourceLastEdited from './ResourceLastEdited';
 import {
     Flex,
     ResourceLink,
+    ResourceMetadata,
     ResourceName,
+    ResourceNameBox,
     ResourceSpaceLink,
     Spacer,
     StyledTable,
@@ -22,6 +24,7 @@ import {
     StyledTr,
     ThInteractiveWrapper,
 } from './ResourceTable.styles';
+import ResourceType from './ResourceType';
 
 export enum SortDirection {
     ASC = 'asc',
@@ -106,7 +109,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         lazy
                         disabled={!row.description}
                         content={row.description}
-                        position={Position.TOP}
+                        position={Position.TOP_LEFT}
                     >
                         <ResourceLink
                             to={getURL(row)}
@@ -119,7 +122,17 @@ const ResourceTable: FC<ResourceTableProps> = ({
 
                             <Spacer $width={16} />
 
-                            <ResourceName>{row.name}</ResourceName>
+                            <ResourceNameBox>
+                                <ResourceName>{row.name}</ResourceName>
+
+                                <ResourceMetadata>
+                                    <ResourceType
+                                        resource={row}
+                                        resourceType={resourceType}
+                                    />{' '}
+                                    • {row.views} views
+                                </ResourceMetadata>
+                            </ResourceNameBox>
                         </ResourceLink>
                     </Tooltip2>
                 ),

@@ -74,10 +74,22 @@ export const Spacer = styled.div<SpacerProps>`
     width: ${(props) => props.$width}px;
 `;
 
+export const ResourceNameBox = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+`;
+
 export const ResourceName = styled.div`
     font-size: 13px;
     font-weight: 600;
     color: ${Colors.DARK_GRAY4};
+`;
+
+export const ResourceMetadata = styled.div`
+    font-size: 12px;
+    font-weight: 400;
+    color: ${Colors.GRAY2};
 `;
 
 export const ResourceLink = styled(Link)`
