@@ -42,7 +42,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
         </Callout>
         <BooleanSwitch
             name="dbt.hideRefreshButton"
-            label="Hide refresh button"
+            label="Hide refresh dbt in the app"
             labelHelp={
                 <p>
                     This is intended to hide the "refresh dbt" button from the
