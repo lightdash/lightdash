@@ -1,3 +1,10 @@
+## [0.389.1](https://github.com/lightdash/lightdash/compare/0.389.0...0.389.1) (2023-01-26)
+
+
+### Bug Fixes
+
+* hover state for clickable dashboard chart titles and no hover state for non-clickable tiles ([#4278](https://github.com/lightdash/lightdash/issues/4278)) ([5fbcc52](https://github.com/lightdash/lightdash/commit/5fbcc52e7df2b33c5f7662b26995ca26a6cba308))
+
 # [0.389.0](https://github.com/lightdash/lightdash/compare/0.388.3...0.389.0) (2023-01-26)
 
 
