@@ -23,7 +23,7 @@ jest.mock('snowflake-sdk', () => ({
                 expectedRow,
             ]);
         }),
-        destroy: jest.fn(),
+        destroy: jest.fn((callback) => callback(null, {})),
     })),
 }));
 
@@ -44,7 +44,7 @@ describe('SnowflakeWarehouseClient', () => {
                     columns,
                 );
             }),
-            destroy: jest.fn(),
+            destroy: jest.fn((callback) => callback(null, {})),
         }));
         const warehouse = new SnowflakeWarehouseClient(credentials);
         expect(await warehouse.getCatalog(config)).toEqual(
