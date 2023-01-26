@@ -728,7 +728,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.GITLAB]: 'GitLab',
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
-    [DbtProjectType.NONE]: 'None',
+    [DbtProjectType.NONE]: 'CLI',
 };
 
 export interface DbtProjectConfigBase {
