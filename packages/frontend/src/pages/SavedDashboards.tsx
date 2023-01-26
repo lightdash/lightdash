@@ -5,7 +5,7 @@ import { LightdashMode } from '@lightdash/common';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
-import CreateSavedDashboardModal from '../components/common/modal/DashboardCreateModal';
+import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import {
     PageBreadcrumbsWrapper,
@@ -129,13 +129,18 @@ const SavedDashboards = () => {
                             </Tooltip2>
                         )}
                 </PageHeader>
-                {isCreateDashboardOpen && (
-                    <CreateSavedDashboardModal
-                        isOpen={true}
-                        redirectToEditDashboard={true}
-                        onClose={() => setIsCreateDashboardOpen(false)}
-                    />
-                )}
+
+                <DashboardCreateModal
+                    isOpen={isCreateDashboardOpen}
+                    onClose={() => setIsCreateDashboardOpen(false)}
+                    onConfirm={(dashboard) => {
+                        history.push(
+                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                        );
+
+                        setIsCreateDashboardOpen(false);
+                    }}
+                />
 
                 <ResourceList
                     resourceType="dashboard"
