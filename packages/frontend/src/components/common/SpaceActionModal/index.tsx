@@ -78,7 +78,6 @@ const SpaceModal: FC<ActionModalProps> = ({
     });
 
     const handleSubmit = (state: any) => {
-        console.log(state);
         try {
             onSubmitForm?.(state);
         } catch (e: any) {
