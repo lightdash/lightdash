@@ -359,8 +359,6 @@ const SavedChartsHeader: FC = () => {
                     isOpen={isDeleteDialogOpen}
                     onClose={() => setIsDeleteDialogOpen(false)}
                     onConfirm={() => {
-                        // FIXME: THIS IS A COPY OF THE CODE
-                        // NOT SURE WHAT IT DOES...
                         history.listen((location, action) => {
                             if (action === 'POP') {
                                 if (location.pathname.includes('/tables/')) {
