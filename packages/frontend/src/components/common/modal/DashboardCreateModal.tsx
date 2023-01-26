@@ -9,10 +9,10 @@ import {
 import { Dashboard } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useCreateMutation } from '../../hooks/dashboard/useDashboard';
-import { useApp } from '../../providers/AppProvider';
+import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import { useApp } from '../../../providers/AppProvider';
 
-interface CreateSavedDashboardModalProps {
+interface DashboardCreateModalProps {
     isOpen: boolean;
     tiles?: Dashboard['tiles'];
     showRedirectButton?: boolean;
@@ -20,7 +20,7 @@ interface CreateSavedDashboardModalProps {
     onClose?: () => void;
 }
 
-const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
+const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     isOpen,
     tiles,
     showRedirectButton,
@@ -103,4 +103,4 @@ const CreateSavedDashboardModal: FC<CreateSavedDashboardModalProps> = ({
     );
 };
 
-export default CreateSavedDashboardModal;
+export default DashboardCreateModal;
