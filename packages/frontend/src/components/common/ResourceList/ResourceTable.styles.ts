@@ -74,7 +74,7 @@ export const Spacer = styled.div<SpacerProps>`
     width: ${(props) => props.$width}px;
 `;
 
-export const ResourcNameBox = styled.div`
+export const ResourceNameBox = styled.div`
     display: flex;
     flex-direction: column;
 `;
