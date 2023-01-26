@@ -8,17 +8,10 @@ import {
 import { SavedChart } from '@lightdash/common';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useParams } from 'react-router-dom';
 import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../../../hooks/dashboard/useDashboard';
-import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
-import {
-    useDeleteMutation,
-    useSavedQuery,
-    useUpdateMutation,
-} from '../../../hooks/useSavedQuery';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 
