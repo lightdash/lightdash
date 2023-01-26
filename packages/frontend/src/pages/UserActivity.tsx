@@ -47,7 +47,8 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
 
 const chartWeeklyQueryingUsers = (data: any) => ({
     grid: {
-        height: '280px',
+        height: '250px',
+        top: '90',
     },
     xAxis: {
         type: 'time',
@@ -55,20 +56,22 @@ const chartWeeklyQueryingUsers = (data: any) => ({
     yAxis: [
         {
             type: 'value',
-            name: 'Number of weekly querying users',
+            name: 'Num users',
             nameLocation: 'center',
             nameGap: '40',
         },
         {
             type: 'value',
-            name: '% of weekly querying users',
+            name: '% users',
             nameLocation: 'center',
             nameGap: '40',
             nameRotate: -90,
         },
     ],
+    legend: { top: '40' },
     series: [
         {
+            name: 'Number of weekly querying users',
             data: data.map((queries: any) => [
                 queries.date,
                 queries.num_7d_active_users,
@@ -77,6 +80,7 @@ const chartWeeklyQueryingUsers = (data: any) => ({
             color: '#7262ff',
         },
         {
+            name: '% of weekly querying users',
             yAxisIndex: 1,
             data: data.map((queries: any) => [
                 queries.date,

@@ -23,9 +23,7 @@ export const ActivityCard = styled(Card)<{ grid: string }>`
     overflow: auto;
 `;
 
-export const ChartCard = styled(ActivityCard)`
-    overflow: hidden;
-`;
+export const ChartCard = styled(ActivityCard)``;
 
 export const BigNumberContainer = styled.div`
     height: 100%;

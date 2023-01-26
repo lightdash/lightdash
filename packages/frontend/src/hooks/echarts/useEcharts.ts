@@ -1240,7 +1240,6 @@ const useEcharts = () => {
     ) {
         return undefined;
     }
-
     return eChartsOptions;
 };
 
