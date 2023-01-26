@@ -6,6 +6,7 @@ import { useMount } from 'react-use';
 import { AcceptedResources, ResourceListCommonProps } from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
 import ResourceActionMenu from './ResourceActionMenu';
+import ResourceIcon from './ResourceIcon';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
     Flex,
@@ -111,7 +112,11 @@ const ResourceTable: FC<ResourceTableProps> = ({
                             to={getURL(row)}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <Icon icon={resourceIcon} color={Colors.BLUE5} />
+                            <ResourceIcon
+                                resource={row}
+                                resourceType={resourceType}
+                            />
+
                             <Spacer $width={16} />
 
                             <ResourceName>{row.name}</ResourceName>
