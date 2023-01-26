@@ -1,3 +1,10 @@
+## [0.388.2](https://github.com/lightdash/lightdash/compare/0.388.1...0.388.2) (2023-01-26)
+
+
+### Bug Fixes
+
+* remove highlight js ([#4271](https://github.com/lightdash/lightdash/issues/4271)) ([1f34007](https://github.com/lightdash/lightdash/commit/1f34007117c9f9243b4a159ee2737d05197e72e4))
+
 ## [0.388.1](https://github.com/lightdash/lightdash/compare/0.388.0...0.388.1) (2023-01-26)
 
 
