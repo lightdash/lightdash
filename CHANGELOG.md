@@ -1,3 +1,10 @@
+# [0.391.0](https://github.com/lightdash/lightdash/compare/0.390.0...0.391.0) (2023-01-27)
+
+
+### Features
+
+* support join fields ([#4277](https://github.com/lightdash/lightdash/issues/4277)) ([8647c04](https://github.com/lightdash/lightdash/commit/8647c045aa29274e044e862afc90426b9296b92e)), closes [#2009](https://github.com/lightdash/lightdash/issues/2009)
+
 # [0.390.0](https://github.com/lightdash/lightdash/compare/0.389.1...0.390.0) (2023-01-27)
 
 
