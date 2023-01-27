@@ -288,7 +288,7 @@ const UserActivity: FC = () => {
                                     <tr>
                                         <th>First Name</th>
                                         <th>Last Name</th>
-                                        <th>Number of updated charts</th>
+                                        <th>Number of chart updates</th>
                                     </tr>
                                 </thead>
                                 {showTableBodyWithUsers(
