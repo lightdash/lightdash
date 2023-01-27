@@ -279,8 +279,8 @@ const UserActivity: FC = () => {
                         </ActivityCard>
                         <ActivityCard grid="table-most-charts">
                             <Description>
-                                Which users have updated the most charts in the
-                                last 7 days? (top 10)
+                                Which users have made the most updates to charts
+                                in the last 7 days? (top 10)
                             </Description>
 
                             <Table bordered condensed $showFooter={false}>
