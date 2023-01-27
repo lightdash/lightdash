@@ -1,13 +1,19 @@
 import {
+    CompileError,
     CreatePostgresCredentials,
     DimensionType,
+    Metric,
+    MetricType,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
     WeekDay,
 } from '@lightdash/common';
+import assertUnreachable from '@lightdash/common/dist/utils/assertUnreachable';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
 import { WarehouseClient } from '../types';
+import { getDefaultMetricSql } from '../utils/sql';
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -243,6 +249,17 @@ export class PostgresClient implements WarehouseClient {
 
     getEscapeStringQuoteChar() {
         return "'";
+    }
+
+    getMetricSql(sql: string, metric: Metric) {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `PERCENTILE_CONT(${
+                    (metric.percentile ?? 50) / 100
+                }) WITHIN GROUP (ORDER BY ${sql})`;
+            default:
+                return getDefaultMetricSql(sql, metric.type);
+        }
     }
 }
 

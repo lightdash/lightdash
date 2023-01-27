@@ -30,6 +30,7 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
+    getMetricSql: () => '',
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -52,6 +53,10 @@ export const bigqueryClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '`',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => '\\',
+<<<<<<< HEAD
+=======
+    getMetricSql: () => '',
+>>>>>>> cb53e9a74 (chore: explore compiler class)
 };
 
 export const emptyTable = (name: string): CompiledTable => ({

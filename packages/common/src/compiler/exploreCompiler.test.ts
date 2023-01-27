@@ -1,7 +1,6 @@
-import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import { friendlyName } from '../types/field';
-import { compileExplore, compileMetric } from './exploreCompiler';
+import { ExploreCompiler } from './exploreCompiler';
 import {
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
@@ -36,123 +35,106 @@ import {
     warehouseClientMock,
 } from './exploreCompiler.mock';
 
+const compiler = new ExploreCompiler(warehouseClientMock);
+
 test('Should compile empty table', () => {
-    expect(
-        compileExplore(exploreOneEmptyTable, warehouseClientMock),
-    ).toStrictEqual(exploreOneEmptyTableCompiled);
+    expect(compiler.compileExplore(exploreOneEmptyTable)).toStrictEqual(
+        exploreOneEmptyTableCompiled,
+    );
 });
 
 test('Should throw error when missing base table', () => {
-    expect(() =>
-        compileExplore(exploreMissingBaseTable, warehouseClientMock),
-    ).toThrowError(CompileError);
+    expect(() => compiler.compileExplore(exploreMissingBaseTable)).toThrowError(
+        CompileError,
+    );
 });
 
 test('Should throw error when missing joined table', () => {
-    expect(() =>
-        compileExplore(exploreMissingJoinTable, warehouseClientMock),
-    ).toThrowError(CompileError);
+    expect(() => compiler.compileExplore(exploreMissingJoinTable)).toThrowError(
+        CompileError,
+    );
 });
 
 test('Should throw error when dimension/metric has circular reference', () => {
     expect(() =>
-        compileExplore(exploreCircularDimensionReference, warehouseClientMock),
+        compiler.compileExplore(exploreCircularDimensionReference),
     ).toThrowError(CompileError);
     expect(() =>
-        compileExplore(
-            exploreCircularDimensionShortReference,
-            warehouseClientMock,
-        ),
+        compiler.compileExplore(exploreCircularDimensionShortReference),
     ).toThrowError(CompileError);
     expect(() =>
-        compileExplore(exploreCircularMetricReference, warehouseClientMock),
+        compiler.compileExplore(exploreCircularMetricReference),
     ).toThrowError(CompileError);
     expect(() =>
-        compileExplore(
-            exploreCircularMetricShortReference,
-            warehouseClientMock,
-        ),
+        compiler.compileExplore(exploreCircularMetricShortReference),
     ).toThrowError(CompileError);
 });
 
 test('Should compile table with TABLE reference', () => {
-    expect(
-        compileExplore(exploreTableSelfReference, warehouseClientMock),
-    ).toStrictEqual(exploreTableSelfReferenceCompiled);
+    expect(compiler.compileExplore(exploreTableSelfReference)).toStrictEqual(
+        exploreTableSelfReferenceCompiled,
+    );
 });
 
 test('Should compile table with reference to another dimension', () => {
-    expect(
-        compileExplore(exploreReferenceDimension, warehouseClientMock),
-    ).toStrictEqual(exploreReferenceDimensionCompiled);
+    expect(compiler.compileExplore(exploreReferenceDimension)).toStrictEqual(
+        exploreReferenceDimensionCompiled,
+    );
 });
 
 test('Should compile table with nested references in dimensions and metrics', () => {
-    expect(
-        compileExplore(exploreComplexReference, warehouseClientMock),
-    ).toStrictEqual(exploreComplexReferenceCompiled);
+    expect(compiler.compileExplore(exploreComplexReference)).toStrictEqual(
+        exploreComplexReferenceCompiled,
+    );
 });
 
 test('Should compile with a reference to a dimension in a joined table', () => {
-    expect(
-        compileExplore(exploreReferenceInJoin, warehouseClientMock),
-    ).toStrictEqual(exploreReferenceInJoinCompiled);
+    expect(compiler.compileExplore(exploreReferenceInJoin)).toStrictEqual(
+        exploreReferenceInJoinCompiled,
+    );
 });
 
 test('Should compile with a reference to a metric in a non-aggregate metric', () => {
-    expect(
-        compileExplore(exploreWithMetricNumber, warehouseClientMock),
-    ).toStrictEqual(exploreWithMetricNumberCompiled);
+    expect(compiler.compileExplore(exploreWithMetricNumber)).toStrictEqual(
+        exploreWithMetricNumberCompiled,
+    );
 });
 
 describe('Explores with a base table and joined table', () => {
     test('should compile', () => {
-        expect(
-            compileExplore(simpleJoinedExplore, warehouseClientMock),
-        ).toStrictEqual(compiledSimpleJoinedExplore);
+        expect(compiler.compileExplore(simpleJoinedExplore)).toStrictEqual(
+            compiledSimpleJoinedExplore,
+        );
     });
     test('should compile with a reference to a dimension in a joined table', () => {
-        expect(
-            compileExplore(exploreReferenceInJoin, warehouseClientMock),
-        ).toStrictEqual(exploreReferenceInJoinCompiled);
+        expect(compiler.compileExplore(exploreReferenceInJoin)).toStrictEqual(
+            exploreReferenceInJoinCompiled,
+        );
     });
     test('should compile with custom label on join', () => {
         expect(
-            compileExplore(
-                joinedExploreOverridingJoinLabel,
-                warehouseClientMock,
-            ),
+            compiler.compileExplore(joinedExploreOverridingJoinLabel),
         ).toStrictEqual(compiledJoinedExploreOverridingJoinLabel);
     });
     test('should compile with alias on join', () => {
         expect(
-            compileExplore(
-                joinedExploreOverridingJoinAlias,
-                warehouseClientMock,
-            ),
+            compiler.compileExplore(joinedExploreOverridingJoinAlias),
         ).toStrictEqual(compiledJoinedExploreOverridingJoinAlias);
     });
     test('should compile with an alias and custom label on join', () => {
         expect(
-            compileExplore(
-                joinedExploreOverridingAliasAndLabel,
-                warehouseClientMock,
-            ),
+            compiler.compileExplore(joinedExploreOverridingAliasAndLabel),
         ).toStrictEqual(compiledJoinedExploreOverridingAliasAndLabel);
     });
     test('should compile with a subset of fields selected on join', () => {
         expect(
-            compileExplore(
-                joinedExploreWithSubsetOfFields,
-                warehouseClientMock,
-            ),
+            compiler.compileExplore(joinedExploreWithSubsetOfFields),
         ).toStrictEqual(compiledJoinedExploreWithSubsetOfFields);
     });
     test('should throw error if referenced field is removed from join', () => {
         expect(() =>
-            compileExplore(
+            compiler.compileExplore(
                 joinedExploreWithSubsetOfFieldsCausingError,
-                warehouseClientMock,
             ),
         ).toThrowError(CompileError);
     });
@@ -187,13 +169,9 @@ describe('Compile metrics with filters', () => {
     });
     test('should show filters as columns metric1', () => {
         expect(
-            compileMetric(
+            compiler.compileMetric(
                 tablesWithMetricsWithFilters.table1.metrics.metric1,
                 tablesWithMetricsWithFilters,
-                '"',
-                "'",
-                "'",
-                SupportedDbtAdapter.POSTGRES,
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END)`,
@@ -201,13 +179,9 @@ describe('Compile metrics with filters', () => {
     });
     test('should show filters as columns metric2', () => {
         expect(
-            compileMetric(
+            compiler.compileMetric(
                 tablesWithMetricsWithFilters.table2.metrics.metric2,
                 tablesWithMetricsWithFilters,
-                '"',
-                "'",
-                "'",
-                SupportedDbtAdapter.POSTGRES,
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (("table2".dim2) < (10) AND ("table2".dim2) > (5)) THEN ("table2".number_column) ELSE NULL END)`,
@@ -216,13 +190,9 @@ describe('Compile metrics with filters', () => {
 
     test('should show filters as columns metric with sql', () => {
         expect(
-            compileMetric(
+            compiler.compileMetric(
                 tablesWithMetricsWithFilters.table1.metrics.metric_with_sql,
                 tablesWithMetricsWithFilters,
-                '"',
-                "'",
-                "'",
-                SupportedDbtAdapter.POSTGRES,
             ).compiledSql,
         ).toStrictEqual(
             `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,

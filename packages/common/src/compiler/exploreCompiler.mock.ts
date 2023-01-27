@@ -25,6 +25,24 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
+    getMetricSql: (sql, metric) => {
+        switch (metric.type) {
+            case MetricType.AVERAGE:
+                return `AVG(${sql})`;
+            case MetricType.COUNT:
+                return `COUNT(${sql})`;
+            case MetricType.COUNT_DISTINCT:
+                return `COUNT(DISTINCT ${sql})`;
+            case MetricType.MAX:
+                return `MAX(${sql})`;
+            case MetricType.MIN:
+                return `MIN(${sql})`;
+            case MetricType.SUM:
+                return `SUM(${sql})`;
+            default:
+                return sql;
+        }
+    },
 };
 
 const sourceMock: Source = {

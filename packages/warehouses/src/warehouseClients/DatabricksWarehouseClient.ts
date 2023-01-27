@@ -8,12 +8,15 @@ import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIServi
 import {
     CreateDatabricksCredentials,
     DimensionType,
+    Metric,
+    MetricType,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
     WeekDay,
 } from '@lightdash/common';
 import { WarehouseCatalog, WarehouseClient } from '../types';
+import { getDefaultMetricSql } from '../utils/sql';
 
 type SchemaResult = {
     TABLE_CAT: string;
@@ -316,5 +319,14 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
     getEscapeStringQuoteChar() {
         return '\\';
+    }
+
+    getMetricSql(sql: string, metric: Metric) {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `PERCENTILE(${sql}, ${(metric.percentile ?? 50) / 100})`;
+            default:
+                return getDefaultMetricSql(sql, metric.type);
+        }
     }
 }
