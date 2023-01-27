@@ -15,7 +15,7 @@ export const ResourceIconBox = styled.div<ResourceIconBoxProps>`
     justify-content: center;
     flex: 0 0 auto;
 
-    border-radius: 3px;
+    border-radius: 6px;
 
     background-color: ${(props) => {
         const color = new Color(props.color);
