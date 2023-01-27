@@ -37,6 +37,7 @@ export enum PageName {
     SPACE = 'space',
     SPACES = 'spaces',
     SHARE = 'share',
+    USER_ACTIVITY = 'user_activity',
 }
 
 export enum CategoryName {

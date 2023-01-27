@@ -74,6 +74,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'Analytics', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });

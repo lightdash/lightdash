@@ -1263,7 +1263,6 @@ const useEcharts = () => {
         }),
         [axis, colors, rows, series, stackedSeries, validCartesianConfig],
     );
-
     if (
         !explore ||
         series.length <= 0 ||
