@@ -75,9 +75,8 @@ const LatestDashboards: FC<Props> = ({ projectUuid }) => {
             resourceType="dashboard"
             resourceList={featuredDashboards}
             enableSorting={false}
-            defaultSort={{
-                updatedAt: SortDirection.DESC,
-            }}
+            defaultSort={{ updatedAt: SortDirection.DESC }}
+            defaultColumnVisibility={{ space: false }}
             showCount={false}
             getURL={({ uuid }) =>
                 `/projects/${projectUuid}/dashboards/${uuid}/view`
