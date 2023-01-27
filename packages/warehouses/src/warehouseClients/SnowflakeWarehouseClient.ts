@@ -2,6 +2,8 @@ import {
     CreateSnowflakeCredentials,
     DimensionType,
     isWeekDay,
+    Metric,
+    MetricType,
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -11,6 +13,7 @@ import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import * as Util from 'util';
 import { WarehouseCatalog, WarehouseClient } from '../types';
+import { getDefaultMetricSql } from '../utils/sql';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -316,5 +319,16 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
 
     getEscapeStringQuoteChar() {
         return '\\';
+    }
+
+    getMetricSql(sql: string, metric: Metric) {
+        switch (metric.type) {
+            case MetricType.PERCENTILE:
+                return `PERCENTILE_CONT(${
+                    (metric.percentile ?? 50) / 100
+                }) WITHIN GROUP (ORDER BY ${sql})`;
+            default:
+                return getDefaultMetricSql(sql, metric.type);
+        }
     }
 }

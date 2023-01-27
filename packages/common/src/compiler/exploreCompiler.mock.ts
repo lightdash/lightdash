@@ -25,6 +25,18 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
+    getMetricSql: (sql, metric) => {
+        switch (metric.type) {
+            case MetricType.AVERAGE:
+                return `AVG(${sql})`;
+            case MetricType.MAX:
+                return `MAX(${sql})`;
+            case MetricType.SUM:
+                return `SUM(${sql})`;
+            default:
+                return sql;
+        }
+    },
 };
 
 const sourceMock: Source = {

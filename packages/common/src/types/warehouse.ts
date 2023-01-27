@@ -1,5 +1,5 @@
 import { WeekDay } from '../utils/timeFrames';
-import { DimensionType } from './field';
+import { DimensionType, Metric } from './field';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
@@ -35,4 +35,6 @@ export interface WarehouseClient {
     getStringQuoteChar(): string;
 
     getEscapeStringQuoteChar(): string;
+
+    getMetricSql(sql: string, metric: Metric): string;
 }

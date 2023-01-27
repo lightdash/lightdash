@@ -4,9 +4,9 @@ import {
     CompiledMetricQuery,
     CompiledTableCalculation,
     CompileError,
-    compileMetricSql,
     convertAdditionalMetric,
     Explore,
+    ExploreCompiler,
     FieldId,
     lightdashVariablePattern,
     MetricQuery,
@@ -76,18 +76,12 @@ const compileAdditionalMetric = ({
             {},
         );
     }
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
-    const stringQuoteChar = warehouseClient.getStringQuoteChar();
-    const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
+    const exploreCompiler = new ExploreCompiler(warehouseClient);
 
     const metric = convertAdditionalMetric({ additionalMetric, table });
-    const compiledMetric = compileMetricSql(
+    const compiledMetric = exploreCompiler.compileMetricSql(
         metric,
         explore.tables,
-        fieldQuoteChar,
-        stringQuoteChar,
-        escapeStringQuoteChar,
-        explore.targetDatabase,
     );
     return {
         ...metric,
