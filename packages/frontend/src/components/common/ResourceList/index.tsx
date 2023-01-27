@@ -13,7 +13,7 @@ import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import { ResourceAction } from './ResourceActionMenu';
-import { EmptyStateWrapper } from './ResourceEmptyState.styles';
+import { ResourceEmptyStateWrapper } from './ResourceList.styles';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
@@ -136,7 +136,9 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 showCount={showCount}
             >
                 {data.length === 0 ? (
-                    <EmptyStateWrapper>{renderEmptyState()}</EmptyStateWrapper>
+                    <ResourceEmptyStateWrapper>
+                        {renderEmptyState()}
+                    </ResourceEmptyStateWrapper>
                 ) : (
                     <ResourceTable
                         data={data}

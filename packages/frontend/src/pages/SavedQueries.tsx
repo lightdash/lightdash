@@ -14,6 +14,8 @@ import {
 import ResourceList from '../components/common/ResourceList';
 import {
     ResourceBreadcrumbTitle,
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
@@ -96,11 +98,24 @@ const SavedQueries: FC = () => {
                 <ResourceList
                     data={savedQueries}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
-                    onClickCTA={
-                        !isDemo && userCanManageCharts
-                            ? handleCreateChart
-                            : undefined
-                    }
+                    renderEmptyState={() => (
+                        <>
+                            <ResourceEmptyStateIcon icon="chart" size={40} />
+
+                            <ResourceEmptyStateHeader>
+                                No charts added yet
+                            </ResourceEmptyStateHeader>
+
+                            {!isDemo && userCanManageCharts && (
+                                <Button
+                                    text="Create chart"
+                                    icon="plus"
+                                    intent="primary"
+                                    onClick={handleCreateChart}
+                                />
+                            )}
+                        </>
+                    )}
                 />
             </PageContentWrapper>
         </Page>

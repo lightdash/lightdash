@@ -15,6 +15,8 @@ import {
 import ResourceList from '../components/common/ResourceList';
 import {
     ResourceBreadcrumbTitle,
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
@@ -145,11 +147,26 @@ const SavedDashboards = () => {
                 <ResourceList
                     data={dashboards}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
-                    onClickCTA={
-                        !isDemo && !hasNoSpaces && userCanManageDashboards
-                            ? handleCreateDashboard
-                            : undefined
-                    }
+                    renderEmptyState={() => (
+                        <>
+                            <ResourceEmptyStateIcon icon="chart" size={40} />
+
+                            <ResourceEmptyStateHeader>
+                                No dashboards added yet
+                            </ResourceEmptyStateHeader>
+
+                            {!isDemo &&
+                                !hasNoSpaces &&
+                                userCanManageDashboards && (
+                                    <Button
+                                        text="Create chart"
+                                        icon="plus"
+                                        intent="primary"
+                                        onClick={handleCreateDashboard}
+                                    />
+                                )}
+                        </>
+                    )}
                 />
             </PageContentWrapper>
         </Page>

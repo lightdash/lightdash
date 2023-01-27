@@ -4,13 +4,13 @@ import { LightdashMode } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import { EmptyStateText } from '../../common/ResourceList/ResourceEmptyState.styles';
+import {
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
+    ResourceEmptyStateWrapper,
+} from '../../common/ResourceList/ResourceList.styles';
 import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import {
-    EmptyStateIcon,
-    EmptyStateWrapper,
-} from '../../DashboardTiles/EmptyStateNoTiles/EmptyStateNoTiles.styles';
 import { SpaceListWrapper } from './SpaceBrowser.styles';
 import SpaceItem from './SpaceItem';
 
@@ -60,10 +60,12 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             }
         >
             {spaces.length === 0 ? (
-                <EmptyStateWrapper>
-                    <EmptyStateIcon icon="folder-close" size={40} />
+                <ResourceEmptyStateWrapper>
+                    <ResourceEmptyStateIcon icon="folder-close" size={40} />
 
-                    <EmptyStateText>No spaces added yet</EmptyStateText>
+                    <ResourceEmptyStateHeader>
+                        No spaces added yet
+                    </ResourceEmptyStateHeader>
 
                     <Button
                         text="Create space"
@@ -75,7 +77,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 : undefined
                         }
                     />
-                </EmptyStateWrapper>
+                </ResourceEmptyStateWrapper>
             ) : (
                 <SpaceListWrapper>
                     {spaces.map(({ uuid, name, dashboards, queries }) => (
