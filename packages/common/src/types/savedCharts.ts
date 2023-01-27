@@ -5,7 +5,8 @@ import { UpdatedByUser } from './user';
 
 export enum ChartKind {
     LINE = 'line',
-    BAR = 'bar',
+    HORIZONTAL_BAR = 'horizontal_bar',
+    VERTICAL_BAR = 'vertical_bar',
     SCATTER = 'scatter',
     AREA = 'area',
     MIXED = 'mixed',
@@ -339,9 +340,13 @@ export const getChartType = (
                     case CartesianSeriesType.AREA:
                         return ChartKind.AREA;
                     case CartesianSeriesType.BAR:
-                        return ChartKind.BAR;
+                        return value.layout.flipAxes
+                            ? ChartKind.HORIZONTAL_BAR
+                            : ChartKind.VERTICAL_BAR;
                     case CartesianSeriesType.LINE:
-                        return ChartKind.LINE;
+                        return value.eChartsConfig.series?.[0]?.areaStyle
+                            ? ChartKind.AREA
+                            : ChartKind.LINE;
                     case CartesianSeriesType.SCATTER:
                         return ChartKind.SCATTER;
                     default:

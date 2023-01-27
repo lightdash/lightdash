@@ -35,10 +35,20 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
                             <IconChartLine color={Colors.BLUE3} size={20} />
                         </ResourceIconBox>
                     );
-                case ChartKind.BAR:
+                case ChartKind.VERTICAL_BAR:
                     return (
                         <ResourceIconBox color={Colors.BLUE3}>
                             <IconChartBar color={Colors.BLUE3} size={20} />
+                        </ResourceIconBox>
+                    );
+                case ChartKind.HORIZONTAL_BAR:
+                    return (
+                        <ResourceIconBox color={Colors.BLUE3}>
+                            <IconChartBar
+                                color={Colors.BLUE3}
+                                size={20}
+                                style={{ rotate: '90deg' }}
+                            />
                         </ResourceIconBox>
                     );
                 case ChartKind.SCATTER:
