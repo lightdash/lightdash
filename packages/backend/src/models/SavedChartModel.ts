@@ -115,96 +115,84 @@ const createSavedChartVersion = async (
     }: CreateSavedChartVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
-        try {
-            const [version] = await trx('saved_queries_versions')
-                .insert({
-                    row_limit: limit,
-                    filters: JSON.stringify(filters),
-                    explore_name: tableName,
-                    saved_query_id: savedChartId,
-                    pivot_dimensions: pivotConfig
-                        ? pivotConfig.columns
-                        : undefined,
-                    chart_type: chartConfig.type,
-                    chart_config: chartConfig.config,
-                    updated_by_user_uuid: updatedByUser?.userUuid,
-                })
-                .returning('*');
-            const promises: Promise<any>[] = [];
-            dimensions.forEach((dimension) => {
-                promises.push(
-                    createSavedChartVersionField(trx, {
-                        name: dimension,
-                        field_type: DBFieldTypes.DIMENSION,
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                        order: tableConfig.columnOrder.findIndex(
-                            (column) => column === dimension,
-                        ),
-                    }),
-                );
-            });
-            metrics.forEach((metric) => {
-                promises.push(
-                    createSavedChartVersionField(trx, {
-                        name: metric,
-                        field_type: DBFieldTypes.METRIC,
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                        order: tableConfig.columnOrder.findIndex(
-                            (column) => column === metric,
-                        ),
-                    }),
-                );
-            });
-            sorts.forEach((sort, index) => {
-                promises.push(
-                    createSavedChartVersionSort(trx, {
-                        field_name: sort.fieldId,
-                        descending: sort.descending,
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                        order: index,
-                    }),
-                );
-            });
-            tableCalculations.forEach((tableCalculation) => {
-                promises.push(
-                    createSavedChartVersionTableCalculation(trx, {
-                        name: tableCalculation.name,
-                        display_name: tableCalculation.displayName,
-                        calculation_raw_sql: tableCalculation.sql,
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                        order: tableConfig.columnOrder.findIndex(
-                            (column) => column === tableCalculation.name,
-                        ),
-                    }),
-                );
-            });
-            additionalMetrics?.forEach((additionalMetric) => {
-                promises.push(
-                    createSavedChartVersionAdditionalMetrics(trx, {
-                        table: additionalMetric.table,
-                        name: additionalMetric.name,
-                        type: additionalMetric.type,
-                        label: additionalMetric.label,
-                        description: additionalMetric.description,
-                        sql: additionalMetric.sql,
-                        hidden: additionalMetric.hidden,
-                        compact: additionalMetric.compact,
-                        round: additionalMetric.round,
-                        format: additionalMetric.format,
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                    }),
-                );
-            });
-            await Promise.all(promises);
-        } catch (e) {
-            await trx.rollback(e);
-            throw e;
-        }
+        const [version] = await trx('saved_queries_versions')
+            .insert({
+                row_limit: limit,
+                filters: JSON.stringify(filters),
+                explore_name: tableName,
+                saved_query_id: savedChartId,
+                pivot_dimensions: pivotConfig ? pivotConfig.columns : undefined,
+                chart_type: chartConfig.type,
+                chart_config: chartConfig.config,
+                updated_by_user_uuid: updatedByUser?.userUuid,
+            })
+            .returning('*');
+        const promises: Promise<any>[] = [];
+        dimensions.forEach((dimension) => {
+            promises.push(
+                createSavedChartVersionField(trx, {
+                    name: dimension,
+                    field_type: DBFieldTypes.DIMENSION,
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) => column === dimension,
+                    ),
+                }),
+            );
+        });
+        metrics.forEach((metric) => {
+            promises.push(
+                createSavedChartVersionField(trx, {
+                    name: metric,
+                    field_type: DBFieldTypes.METRIC,
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) => column === metric,
+                    ),
+                }),
+            );
+        });
+        sorts.forEach((sort, index) => {
+            promises.push(
+                createSavedChartVersionSort(trx, {
+                    field_name: sort.fieldId,
+                    descending: sort.descending,
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    order: index,
+                }),
+            );
+        });
+        tableCalculations.forEach((tableCalculation) => {
+            promises.push(
+                createSavedChartVersionTableCalculation(trx, {
+                    name: tableCalculation.name,
+                    display_name: tableCalculation.displayName,
+                    calculation_raw_sql: tableCalculation.sql,
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) => column === tableCalculation.name,
+                    ),
+                }),
+            );
+        });
+        additionalMetrics?.forEach((additionalMetric) => {
+            promises.push(
+                createSavedChartVersionAdditionalMetrics(trx, {
+                    table: additionalMetric.table,
+                    name: additionalMetric.name,
+                    type: additionalMetric.type,
+                    label: additionalMetric.label,
+                    description: additionalMetric.description,
+                    sql: additionalMetric.sql,
+                    hidden: additionalMetric.hidden,
+                    compact: additionalMetric.compact,
+                    round: additionalMetric.round,
+                    format: additionalMetric.format,
+                    saved_queries_version_id: version.saved_queries_version_id,
+                }),
+            );
+        });
+        await Promise.all(promises);
     });
 };
 
@@ -235,30 +223,25 @@ export class SavedChartModel {
     ): Promise<SavedChart> {
         const newSavedChartUuid = await this.database.transaction(
             async (trx) => {
-                try {
-                    const spaceId = spaceUuid
-                        ? await getSpaceId(trx, spaceUuid)
-                        : (await getSpace(trx, projectUuid)).space_id;
-                    const [newSavedChart] = await trx('saved_queries')
-                        .insert({ name, space_id: spaceId, description })
-                        .returning('*');
-                    await createSavedChartVersion(
-                        trx,
-                        newSavedChart.saved_query_id,
-                        {
-                            tableName,
-                            metricQuery,
-                            chartConfig,
-                            tableConfig,
-                            pivotConfig,
-                            updatedByUser,
-                        },
-                    );
-                    return newSavedChart.saved_query_uuid;
-                } catch (e) {
-                    await trx.rollback(e);
-                    throw e;
-                }
+                const spaceId = spaceUuid
+                    ? await getSpaceId(trx, spaceUuid)
+                    : (await getSpace(trx, projectUuid)).space_id;
+                const [newSavedChart] = await trx('saved_queries')
+                    .insert({ name, space_id: spaceId, description })
+                    .returning('*');
+                await createSavedChartVersion(
+                    trx,
+                    newSavedChart.saved_query_id,
+                    {
+                        tableName,
+                        metricQuery,
+                        chartConfig,
+                        tableConfig,
+                        pivotConfig,
+                        updatedByUser,
+                    },
+                );
+                return newSavedChart.saved_query_uuid;
             },
         );
         return this.get(newSavedChartUuid);
@@ -270,19 +253,14 @@ export class SavedChartModel {
         user: SessionUser,
     ): Promise<SavedChart> {
         await this.database.transaction(async (trx) => {
-            try {
-                const [savedChart] = await trx('saved_queries')
-                    .select(['saved_query_id'])
-                    .where('saved_query_uuid', savedChartUuid);
+            const [savedChart] = await trx('saved_queries')
+                .select(['saved_query_id'])
+                .where('saved_query_uuid', savedChartUuid);
 
-                await createSavedChartVersion(trx, savedChart.saved_query_id, {
-                    ...data,
-                    updatedByUser: user,
-                });
-            } catch (e) {
-                trx.rollback(e);
-                throw e;
-            }
+            await createSavedChartVersion(trx, savedChart.saved_query_id, {
+                ...data,
+                updatedByUser: user,
+            });
         });
         return this.get(savedChartUuid);
     }
@@ -305,24 +283,16 @@ export class SavedChartModel {
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
         await this.database.transaction(async (trx) => {
-            try {
-                const promises = data.map(async (savedChart) =>
-                    trx('saved_queries')
-                        .update({
-                            name: savedChart.name,
-                            description: savedChart.description,
-                            space_id: await getSpaceId(
-                                trx,
-                                savedChart.spaceUuid,
-                            ),
-                        })
-                        .where('saved_query_uuid', savedChart.uuid),
-                );
-                await Promise.all(promises);
-            } catch (e) {
-                trx.rollback(e);
-                throw e;
-            }
+            const promises = data.map(async (savedChart) =>
+                trx('saved_queries')
+                    .update({
+                        name: savedChart.name,
+                        description: savedChart.description,
+                        space_id: await getSpaceId(trx, savedChart.spaceUuid),
+                    })
+                    .where('saved_query_uuid', savedChart.uuid),
+            );
+            await Promise.all(promises);
         });
         return Promise.all(
             data.map(async (savedChart) => this.get(savedChart.uuid)),

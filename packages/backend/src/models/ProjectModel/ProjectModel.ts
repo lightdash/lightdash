@@ -197,84 +197,68 @@ export class ProjectModel {
             throw new NotExistsError('Cannot find organization');
         }
         return this.database.transaction(async (trx) => {
+            let encryptedCredentials: Buffer;
             try {
-                let encryptedCredentials: Buffer;
-                try {
-                    encryptedCredentials = this.encryptionService.encrypt(
-                        JSON.stringify(data.dbtConnection),
-                    );
-                } catch (e) {
-                    throw new UnexpectedServerError(
-                        'Could not save credentials.',
-                    );
-                }
-                const [project] = await trx('projects')
-                    .insert({
-                        name: data.name,
-                        project_type: data.type,
-                        organization_id: orgs[0].organization_id,
-                        dbt_connection_type: data.dbtConnection.type,
-                        dbt_connection: encryptedCredentials,
-                    })
-                    .returning('*');
-
-                await this.upsertWarehouseConnection(
-                    trx,
-                    project.project_id,
-                    data.warehouseConnection,
+                encryptedCredentials = this.encryptionService.encrypt(
+                    JSON.stringify(data.dbtConnection),
                 );
-
-                await trx('spaces').insert({
-                    project_id: project.project_id,
-                    name: 'Shared',
-                    is_private: false,
-                });
-
-                return project.project_uuid;
             } catch (e) {
-                await trx.rollback(e);
-                throw e;
+                throw new UnexpectedServerError('Could not save credentials.');
             }
+            const [project] = await trx('projects')
+                .insert({
+                    name: data.name,
+                    project_type: data.type,
+                    organization_id: orgs[0].organization_id,
+                    dbt_connection_type: data.dbtConnection.type,
+                    dbt_connection: encryptedCredentials,
+                })
+                .returning('*');
+
+            await this.upsertWarehouseConnection(
+                trx,
+                project.project_id,
+                data.warehouseConnection,
+            );
+
+            await trx('spaces').insert({
+                project_id: project.project_id,
+                name: 'Shared',
+                is_private: false,
+            });
+
+            return project.project_uuid;
         });
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         await this.database.transaction(async (trx) => {
+            let encryptedCredentials: Buffer;
             try {
-                let encryptedCredentials: Buffer;
-                try {
-                    encryptedCredentials = this.encryptionService.encrypt(
-                        JSON.stringify(data.dbtConnection),
-                    );
-                } catch (e) {
-                    throw new UnexpectedServerError(
-                        'Could not save credentials.',
-                    );
-                }
-                const projects = await trx('projects')
-                    .update({
-                        name: data.name,
-                        dbt_connection_type: data.dbtConnection.type,
-                        dbt_connection: encryptedCredentials,
-                    })
-                    .where('project_uuid', projectUuid)
-                    .returning('*');
-                if (projects.length === 0) {
-                    throw new UnexpectedServerError(
-                        'Could not update project.',
-                    );
-                }
-                const [project] = projects;
-
-                await this.upsertWarehouseConnection(
-                    trx,
-                    project.project_id,
-                    data.warehouseConnection,
+                encryptedCredentials = this.encryptionService.encrypt(
+                    JSON.stringify(data.dbtConnection),
                 );
             } catch (e) {
-                await trx.rollback(e);
-                throw e;
+                throw new UnexpectedServerError('Could not save credentials.');
             }
+            const projects = await trx('projects')
+                .update({
+                    name: data.name,
+                    dbt_connection_type: data.dbtConnection.type,
+                    dbt_connection: encryptedCredentials,
+                })
+                .where('project_uuid', projectUuid)
+                .returning('*');
+            if (projects.length === 0) {
+                throw new UnexpectedServerError('Could not update project.');
+            }
+            const [project] = projects;
+
+            await this.upsertWarehouseConnection(
+                trx,
+                project.project_id,
+                data.warehouseConnection,
+            );
         });
     }
 

@@ -635,30 +635,25 @@ export class DashboardModel {
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
         await this.database.transaction(async (trx) => {
-            try {
-                await Promise.all(
-                    dashboards.map(async (dashboard) => {
-                        const withSpaceId = dashboard.spaceUuid
-                            ? {
-                                  space_id: await getSpaceId(
-                                      this.database,
-                                      dashboard.spaceUuid,
-                                  ),
-                              }
-                            : {};
-                        await trx(DashboardsTableName)
-                            .update({
-                                name: dashboard.name,
-                                description: dashboard.description,
-                                ...withSpaceId,
-                            })
-                            .where('dashboard_uuid', dashboard.uuid);
-                    }),
-                );
-            } catch (e) {
-                trx.rollback(e);
-                throw e;
-            }
+            await Promise.all(
+                dashboards.map(async (dashboard) => {
+                    const withSpaceId = dashboard.spaceUuid
+                        ? {
+                              space_id: await getSpaceId(
+                                  this.database,
+                                  dashboard.spaceUuid,
+                              ),
+                          }
+                        : {};
+                    await trx(DashboardsTableName)
+                        .update({
+                            name: dashboard.name,
+                            description: dashboard.description,
+                            ...withSpaceId,
+                        })
+                        .where('dashboard_uuid', dashboard.uuid);
+                }),
+            );
         });
 
         return Promise.all(
