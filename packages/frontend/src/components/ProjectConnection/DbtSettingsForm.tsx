@@ -60,16 +60,13 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             DbtProjectType.GITLAB,
             DbtProjectType.BITBUCKET,
             DbtProjectType.AZURE_DEVOPS,
+            DbtProjectType.NONE,
         ];
         if (health.data?.localDbtEnabled) {
             enabledTypes.push(DbtProjectType.DBT);
         }
         if (type === DbtProjectType.DBT_CLOUD_IDE) {
             enabledTypes.push(DbtProjectType.DBT_CLOUD_IDE);
-        }
-
-        if (type === DbtProjectType.NONE) {
-            enabledTypes.push(DbtProjectType.NONE);
         }
 
         return enabledTypes.map((value) => ({
@@ -95,7 +92,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case DbtProjectType.AZURE_DEVOPS:
                 return <AzureDevOpsForm disabled={disabled} />;
             case DbtProjectType.NONE:
-                return <DbtNoneForm />;
+                return <DbtNoneForm disabled={disabled} />;
             default: {
                 const never: never = type;
                 return null;
