@@ -2,15 +2,11 @@ import { Colors, H3 } from '@blueprintjs/core';
 import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
 
-export const LandingPanelWrapper = styled.div`
-    width: 54.857em;
-    padding-top: 4.286em;
-`;
-
 export const LandingHeaderWrapper = styled.div`
     display: flex;
     align-items: center;
-    margin-bottom: 2.5em;
+    padding-top: 60px;
+    margin-bottom: 35px;
 `;
 
 export const WelcomeText = styled.div`
