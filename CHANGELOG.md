@@ -1,3 +1,10 @@
+# [0.395.0](https://github.com/lightdash/lightdash/compare/0.394.0...0.395.0) (2023-01-27)
+
+
+### Features
+
+* conditional table formatting for table calculations ([#4306](https://github.com/lightdash/lightdash/issues/4306)) ([0fbc817](https://github.com/lightdash/lightdash/commit/0fbc817e219030cee6be383125c28d40f4b78fa3))
+
 # [0.394.0](https://github.com/lightdash/lightdash/compare/0.393.0...0.394.0) (2023-01-27)
 
 
