@@ -88,7 +88,7 @@ export class AnalyticsModel {
         const userUuids = usersInProject.map((user) => user.user_uuid);
 
         const numberWeeklyQueryingUsersQuery = await this.database.raw(
-            numberWeeklyQueryingUsersSql(userUuids),
+            numberWeeklyQueryingUsersSql(userUuids, projectUuid),
         );
         const numberWeeklyQueryingUsers: number = parseInt(
             numberWeeklyQueryingUsersQuery.rows[0].count,
@@ -96,23 +96,23 @@ export class AnalyticsModel {
         );
 
         const tableMostQueries = await this.database.raw(
-            tableMostQueriesSql(userUuids),
+            tableMostQueriesSql(userUuids, projectUuid),
         );
 
         const tableMostCreatedCharts = await this.database.raw(
-            tableMostCreatedChartsSql(userUuids),
+            tableMostCreatedChartsSql(userUuids, projectUuid),
         );
 
         const tableNoQueries = await this.database.raw(
-            tableNoQueriesSql(userUuids),
+            tableNoQueriesSql(userUuids, projectUuid),
         );
 
         const chartWeeklyQueryingUsers = await this.database.raw(
-            chartWeeklyQueryingUsersSql(userUuids),
+            chartWeeklyQueryingUsersSql(userUuids, projectUuid),
         );
 
         const chartWeeklyAverageQueries = await this.database.raw(
-            chartWeeklyAverageQueriesSql(userUuids),
+            chartWeeklyAverageQueriesSql(userUuids, projectUuid),
         );
 
         const parseUsersWithCount = (
