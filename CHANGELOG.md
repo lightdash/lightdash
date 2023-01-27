@@ -1,3 +1,10 @@
+# [0.394.0](https://github.com/lightdash/lightdash/compare/0.393.0...0.394.0) (2023-01-27)
+
+
+### Features
+
+* user activity dashboard ([#4235](https://github.com/lightdash/lightdash/issues/4235)) ([cf2d7bf](https://github.com/lightdash/lightdash/commit/cf2d7bfdb8c9e361df09a7e306d207038061096f))
+
 # [0.393.0](https://github.com/lightdash/lightdash/compare/0.392.0...0.393.0) (2023-01-27)
 
 
