@@ -45,7 +45,6 @@ export interface ResourceListCommonProps<
     headerAction?: React.ReactNode;
     data: T[];
     showCount?: boolean;
-    getURL: (data: T) => string;
     onClickCTA?: () => void;
 }
 
@@ -62,7 +61,6 @@ const ResourceList: React.FC<ResourceListProps> = ({
     defaultColumnVisibility,
     defaultSort,
     showCount = true,
-    getURL,
     // onClickCTA,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -152,7 +150,6 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         enableMultiSort={enableMultiSort}
                         defaultColumnVisibility={defaultColumnVisibility}
                         defaultSort={defaultSort}
-                        getURL={getURL}
                         onAction={handleOpenModal}
                     />
                 )}

@@ -101,9 +101,6 @@ const SavedQueries: FC = () => {
                             ? handleCreateChart
                             : undefined
                     }
-                    getURL={({ uuid }) =>
-                        `/projects/${projectUuid}/saved/${uuid}`
-                    }
                 />
             </PageContentWrapper>
         </Page>

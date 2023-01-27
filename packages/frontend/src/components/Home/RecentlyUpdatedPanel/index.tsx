@@ -20,7 +20,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                     new Date(a.updatedAt).getTime()
                 );
             })
-            .slice(0, 5);
+            .slice(0, 10);
     }, [dashboards, savedCharts]);
 
     return (
@@ -31,9 +31,6 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
                 showCount={false}
-                getURL={({ uuid }) =>
-                    `/projects/${projectUuid}/dashboards/${uuid}/view`
-                }
                 headerTitle="Recently updated"
             />
         </>

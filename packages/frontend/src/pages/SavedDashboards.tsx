@@ -150,9 +150,6 @@ const SavedDashboards = () => {
                             ? handleCreateDashboard
                             : undefined
                     }
-                    getURL={({ uuid }) =>
-                        `/projects/${projectUuid}/dashboards/${uuid}/view`
-                    }
                 />
             </PageContentWrapper>
         </Page>
