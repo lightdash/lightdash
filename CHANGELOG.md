@@ -1,3 +1,10 @@
+# [0.392.0](https://github.com/lightdash/lightdash/compare/0.391.0...0.392.0) (2023-01-27)
+
+
+### Features
+
+* cli check dbt version ([#4288](https://github.com/lightdash/lightdash/issues/4288)) ([26b52c1](https://github.com/lightdash/lightdash/commit/26b52c1fab0adf3eba3b567a98322f3265baaa6c))
+
 # [0.391.0](https://github.com/lightdash/lightdash/compare/0.390.0...0.391.0) (2023-01-27)
 
 
