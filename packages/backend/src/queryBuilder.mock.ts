@@ -30,7 +30,14 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
-    getMetricSql: () => '',
+    getMetricSql: (sql, metric) => {
+        switch (metric.type) {
+            case MetricType.COUNT:
+                return `COUNT(${sql})`;
+            default:
+                return sql;
+        }
+    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
