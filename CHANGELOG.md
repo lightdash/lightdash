@@ -1,3 +1,10 @@
+## [0.395.1](https://github.com/lightdash/lightdash/compare/0.395.0...0.395.1) (2023-01-27)
+
+
+### Bug Fixes
+
+* upgrade knex from 2.4.0 to 2.4.2 ([#4309](https://github.com/lightdash/lightdash/issues/4309)) ([4bb578c](https://github.com/lightdash/lightdash/commit/4bb578c0e6bf62639b34e209506b49439cc41fc8))
+
 # [0.395.0](https://github.com/lightdash/lightdash/compare/0.394.0...0.395.0) (2023-01-27)
 
 
