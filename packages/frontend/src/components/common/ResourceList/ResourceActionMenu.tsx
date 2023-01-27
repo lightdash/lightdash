@@ -1,7 +1,8 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Space } from '@lightdash/common';
-import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
+import { AcceptedResourceTypes } from '.';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
 import { useApp } from '../../../providers/AppProvider';
@@ -19,9 +20,11 @@ type Props = {
     data: any;
     spaces: Space[];
     url: string;
-    setActionState: Dispatch<
-        SetStateAction<{ actionType: number; data?: any }>
-    >;
+    onAction: (
+        action: ResourceAction,
+        resource: AcceptedResourceTypes,
+        data?: any,
+    ) => void;
     isChart?: boolean;
 };
 
@@ -29,7 +32,7 @@ const ResourceActionMenu: FC<Props> = ({
     data,
     spaces,
     url,
-    setActionState,
+    onAction,
     isChart = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -71,10 +74,7 @@ const ResourceActionMenu: FC<Props> = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
-                            setActionState({
-                                actionType: ResourceAction.UPDATE,
-                                data,
-                            });
+                            onAction(ResourceAction.UPDATE, 'chart', data);
                         }}
                     />
                     <MenuItem2
@@ -103,10 +103,11 @@ const ResourceActionMenu: FC<Props> = ({
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setIsOpen(false);
-                                setActionState({
-                                    actionType: ResourceAction.ADD_TO_DASHBOARD,
+                                onAction(
+                                    ResourceAction.ADD_TO_DASHBOARD,
+                                    'chart',
                                     data,
-                                });
+                                );
                             }}
                         />
                     )}
@@ -133,15 +134,16 @@ const ResourceActionMenu: FC<Props> = ({
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        if (!isSelected)
-                                            setActionState({
-                                                actionType:
-                                                    ResourceAction.MOVE_TO_SPACE,
-                                                data: {
+                                        if (!isSelected) {
+                                            onAction(
+                                                ResourceAction.MOVE_TO_SPACE,
+                                                'chart',
+                                                {
                                                     ...data,
                                                     spaceUuid: space.uuid,
                                                 },
-                                            });
+                                            );
+                                        }
                                     }}
                                 />
                             );
@@ -155,10 +157,11 @@ const ResourceActionMenu: FC<Props> = ({
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setActionState({
-                                    actionType: ResourceAction.CREATE_SPACE,
+                                onAction(
+                                    ResourceAction.CREATE_SPACE,
+                                    'chart',
                                     data,
-                                });
+                                );
                             }}
                         />
                     </MenuItem2>
@@ -174,10 +177,7 @@ const ResourceActionMenu: FC<Props> = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
-                            setActionState({
-                                actionType: ResourceAction.DELETE,
-                                data,
-                            });
+                            onAction(ResourceAction.DELETE, 'chart', data);
                         }}
                     />
                 </Menu>

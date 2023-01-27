@@ -2,9 +2,13 @@ import { Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { AcceptedResources, ResourceListCommonProps } from '.';
+import {
+    AcceptedResources,
+    AcceptedResourceTypes,
+    ResourceListCommonProps,
+} from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
-import ResourceActionMenu from './ResourceActionMenu';
+import ResourceActionMenu, { ResourceAction } from './ResourceActionMenu';
 import ResourceIcon from './ResourceIcon';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
@@ -46,16 +50,12 @@ export interface ResourceTableCommonProps {
 }
 
 type ResourceTableProps = ResourceTableCommonProps &
-    Pick<
-        ResourceListCommonProps,
-        'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
-    > & {
-        onChangeAction: React.Dispatch<
-            React.SetStateAction<{
-                actionType: number;
-                data?: any;
-            }>
-        >;
+    Pick<ResourceListCommonProps, 'data' | 'getURL'> & {
+        onAction: (
+            action: ResourceAction,
+            resource: AcceptedResourceTypes,
+            data?: any,
+        ) => void;
     };
 
 const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
@@ -77,14 +77,13 @@ const getNextSortDirection = (current: SortingState): SortingState => {
 };
 
 const ResourceTable: FC<ResourceTableProps> = ({
-    resourceList,
-    resourceType,
+    data,
     enableSorting: enableSortingProp = true,
     enableMultiSort = false,
     defaultColumnVisibility,
     defaultSort,
     getURL,
-    onChangeAction,
+    onAction,
 }) => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -110,7 +109,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
         );
     };
 
-    const enableSorting = enableSortingProp && resourceList.length > 1;
+    const enableSorting = enableSortingProp && data.length > 1;
 
     const columns = useMemo<Column[]>(
         () => [
@@ -130,7 +129,8 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         >
                             <ResourceIcon
                                 resource={row}
-                                resourceType={resourceType}
+                                // TODO: fix this
+                                resourceType={'chart'}
                             />
 
                             <Spacer $width={16} />
@@ -141,7 +141,8 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                 <ResourceMetadata>
                                     <ResourceType
                                         resource={row}
-                                        resourceType={resourceType}
+                                        // TODO: fix this
+                                        resourceType={'chart'}
                                     />{' '}
                                     • {row.views} views
                                 </ResourceMetadata>
@@ -216,8 +217,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         data={row}
                         spaces={spaces}
                         url={getURL(row)}
-                        setActionState={onChangeAction}
-                        isChart={resourceType === 'chart'}
+                        onAction={onAction}
+                        // TODO: fix this
+                        isChart={true}
                     />
                 ),
                 enableSorting: false,
@@ -228,11 +230,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
         ],
         [
             columnVisibility,
-            resourceType,
             enableSorting,
             spaces,
             projectUuid,
-            onChangeAction,
+            onAction,
             getURL,
         ],
     );
@@ -245,10 +246,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
 
     const sortedResourceList = useMemo(() => {
         if (columnSorts.size === 0) {
-            return resourceList;
+            return data;
         }
 
-        return resourceList.sort((a, b) => {
+        return data.sort((a, b) => {
             return [...columnSorts.entries()].reduce(
                 (acc, [columnId, sortDirection]) => {
                     const column = visibleColumns.find(
@@ -278,7 +279,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 0,
             );
         });
-    }, [resourceList, columnSorts, visibleColumns]);
+    }, [data, columnSorts, visibleColumns]);
 
     return (
         <StyledTable>

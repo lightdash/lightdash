@@ -12,8 +12,8 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     const { data: dashboards = [] } = useDashboards(projectUuid);
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
-    const featuredDashboards = useMemo(() => {
-        return dashboards
+    const recentItems = useMemo(() => {
+        return [...dashboards, ...savedCharts]
             .sort((a, b) => {
                 return (
                     new Date(b.updatedAt).getTime() -
@@ -21,25 +21,12 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 );
             })
             .slice(0, 5);
-    }, [dashboards]);
-
-    const featuredCharts = useMemo(() => {
-        return savedCharts
-            .sort((a, b) => {
-                return (
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime()
-                );
-            })
-            .slice(0, 5);
-    }, [savedCharts]);
+    }, [dashboards, savedCharts]);
 
     return (
         <>
             <ResourceList
-                resourceIcon="control"
-                resourceType="dashboard"
-                resourceList={[...featuredDashboards, ...featuredCharts]}
+                data={recentItems}
                 enableSorting={false}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}

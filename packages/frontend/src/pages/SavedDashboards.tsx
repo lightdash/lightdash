@@ -143,9 +143,7 @@ const SavedDashboards = () => {
                 />
 
                 <ResourceList
-                    resourceType="dashboard"
-                    resourceIcon="control"
-                    resourceList={dashboards}
+                    data={dashboards}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
                     onClickCTA={
                         !isDemo && !hasNoSpaces && userCanManageDashboards

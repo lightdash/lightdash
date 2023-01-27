@@ -133,9 +133,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <ResourceList
                 headerTitle="Dashboards"
-                resourceIcon="control"
-                resourceType="dashboard"
-                resourceList={savedDashboards}
+                data={savedDashboards}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
                 getURL={({ uuid }) =>
@@ -161,9 +159,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <ResourceList
                 headerTitle="Saved charts"
-                resourceList={savedCharts}
-                resourceIcon="chart"
-                resourceType="chart"
+                data={savedCharts}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
                 getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
