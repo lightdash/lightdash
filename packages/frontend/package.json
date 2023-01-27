@@ -3,7 +3,7 @@
     "version": "0.394.0",
     "private": true,
     "dependencies": {
-        "@blueprintjs/core": "^4.15.0",
+        "@blueprintjs/core": "^4.10.0",
         "@blueprintjs/datetime": "^4.4.13",
         "@blueprintjs/datetime2": "^0.9.11",
         "@blueprintjs/popover2": "^1.12.0",

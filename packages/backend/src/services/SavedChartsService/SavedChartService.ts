@@ -61,6 +61,15 @@ export class SavedChartService {
     static getCreateEventProperties(
         savedChart: SavedChart,
     ): CreateSavedChartOrVersionEvent['properties'] {
+        const echartsConfig =
+            savedChart.chartConfig.type === ChartType.CARTESIAN
+                ? savedChart.chartConfig.config.eChartsConfig
+                : undefined;
+        const tableConfig =
+            savedChart.chartConfig.type === ChartType.TABLE
+                ? savedChart.chartConfig.config
+                : undefined;
+
         return {
             projectId: savedChart.projectUuid,
             savedQueryId: savedChart.uuid,
@@ -72,6 +81,16 @@ export class SavedChartService {
                 savedChart.metricQuery.tableCalculations.length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
+            constantReferenceLinesNum: echartsConfig?.series?.filter(
+                (serie) => serie.markLine?.data !== undefined,
+            ).length,
+            conditionalFormattingNumRules:
+                tableConfig?.conditionalFormattings?.length,
+            showLegend:
+                echartsConfig?.legend && echartsConfig.legend.show !== false,
+            margins:
+                echartsConfig?.grid &&
+                (echartsConfig.grid.top === undefined ? 'default' : 'custom'),
             cartesian:
                 savedChart.chartConfig.type === ChartType.CARTESIAN
                     ? {
@@ -117,6 +136,7 @@ export class SavedChartService {
             data,
             user,
         );
+
         analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
@@ -151,6 +171,10 @@ export class SavedChartService {
             properties: {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
+                constantReferenceLinesNum: 0,
+                conditionalFormattingNumRules: 0,
+                showLegend: true,
+                margins: 'default',
             },
         });
         return savedChart;
