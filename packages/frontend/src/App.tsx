@@ -283,7 +283,7 @@ const App = () => (
                                                                     <NavBar />
                                                                     <TrackPage
                                                                         name={
-                                                                            PageName.HOME
+                                                                            PageName.USER_ACTIVITY
                                                                         }
                                                                     >
                                                                         <UserActivity />

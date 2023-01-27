@@ -14,6 +14,13 @@ export type UserActivity = {
     tableMostQueries: UserWithCount[];
     tableMostCreatedCharts: UserWithCount[];
     tableNoQueries: UserWithCount[];
-    chartWeeklyQueryingUsers: any;
-    chartWeeklyAverageQueries: any;
+    chartWeeklyQueryingUsers: {
+        date: Date;
+        num_7d_active_users: string;
+        percent_7d_active_users: string;
+    }[];
+    chartWeeklyAverageQueries: {
+        date: Date;
+        average_number_of_weekly_queries_per_user: string;
+    }[];
 };

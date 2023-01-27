@@ -1,6 +1,9 @@
 import { Classes, Icon, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
-import { UserWithCount } from '@lightdash/common';
+import {
+    UserActivity as UserActivityResponse,
+    UserWithCount,
+} from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
@@ -45,7 +48,9 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     );
 };
 
-const chartWeeklyQueryingUsers = (data: any) => ({
+const chartWeeklyQueryingUsers = (
+    data: UserActivityResponse['chartWeeklyQueryingUsers'],
+) => ({
     grid: {
         height: '250px',
         top: '90',
@@ -94,7 +99,9 @@ const chartWeeklyQueryingUsers = (data: any) => ({
     ],
 });
 
-const chartWeeklyAverageQueries = (data: any) => ({
+const chartWeeklyAverageQueries = (
+    data: UserActivityResponse['chartWeeklyAverageQueries'],
+) => ({
     grid: {
         height: '280px',
     },
@@ -109,7 +116,7 @@ const chartWeeklyAverageQueries = (data: any) => ({
     },
     series: [
         {
-            data: data.map((queries: any) => [
+            data: data.map((queries) => [
                 queries.date,
                 queries.average_number_of_weekly_queries_per_user,
             ]),

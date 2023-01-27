@@ -1,22 +1,5 @@
-import { subject } from '@casl/ability';
-import {
-    ChartType,
-    countTotalFilterRules,
-    CreateSavedChart,
-    CreateSavedChartVersion,
-    ForbiddenError,
-    SavedChart,
-    SessionUser,
-    UpdateMultipleSavedChart,
-    UpdateSavedChart,
-} from '@lightdash/common';
-import { analytics } from '../../analytics/client';
-import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import { ForbiddenError, SessionUser } from '@lightdash/common';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedChartModel } from '../../models/SavedChartModel';
-import { SpaceModel } from '../../models/SpaceModel';
-import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     analyticsModel: AnalyticsModel;
@@ -41,6 +24,9 @@ export class AnalyticsService {
         projectUuid: string,
         user: SessionUser,
     ): Promise<any> {
+        if (user.ability.cannot('view', 'Analytics')) {
+            throw new ForbiddenError();
+        }
         return this.analyticsModel.getUserActivity(
             projectUuid,
             user.organizationUuid,
