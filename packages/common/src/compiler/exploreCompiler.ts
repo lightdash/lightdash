@@ -502,32 +502,42 @@ export const compileExplore = (
                     ...tables[join.table],
                     name: joinTableName,
                     label: joinTableLabel,
-                    dimensions: Object.keys(
-                        tables[join.table].dimensions,
-                    ).reduce<Record<string, Dimension>>(
-                        (prevDimensions, dimensionKey) => ({
-                            ...prevDimensions,
-                            [dimensionKey]: {
-                                ...tables[join.table].dimensions[dimensionKey],
-                                table: joinTableName,
-                                tableLabel: joinTableLabel,
-                            },
-                        }),
-                        {},
-                    ),
-                    metrics: Object.keys(tables[join.table].metrics).reduce<
-                        Record<string, Metric>
-                    >(
-                        (prevMetrics, metricKey) => ({
-                            ...prevMetrics,
-                            [metricKey]: {
-                                ...tables[join.table].metrics[metricKey],
-                                table: joinTableName,
-                                tableLabel: joinTableLabel,
-                            },
-                        }),
-                        {},
-                    ),
+                    dimensions: Object.keys(tables[join.table].dimensions)
+                        .filter(
+                            (d) =>
+                                join.fields === undefined ||
+                                join.fields.includes(d),
+                        )
+                        .reduce<Record<string, Dimension>>(
+                            (prevDimensions, dimensionKey) => ({
+                                ...prevDimensions,
+                                [dimensionKey]: {
+                                    ...tables[join.table].dimensions[
+                                        dimensionKey
+                                    ],
+                                    table: joinTableName,
+                                    tableLabel: joinTableLabel,
+                                },
+                            }),
+                            {},
+                        ),
+                    metrics: Object.keys(tables[join.table].metrics)
+                        .filter(
+                            (d) =>
+                                join.fields === undefined ||
+                                join.fields.includes(d),
+                        )
+                        .reduce<Record<string, Metric>>(
+                            (prevMetrics, metricKey) => ({
+                                ...prevMetrics,
+                                [metricKey]: {
+                                    ...tables[join.table].metrics[metricKey],
+                                    table: joinTableName,
+                                    tableLabel: joinTableLabel,
+                                },
+                            }),
+                            {},
+                        ),
                 },
             };
         },

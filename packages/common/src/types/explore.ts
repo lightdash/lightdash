@@ -13,6 +13,8 @@ export type ExploreJoin = {
     sqlOn: string; // Built sql
     alias?: string; // Optional alias for the joined tableName
     label?: string; // Optional UI label override for the underlying table
+
+    fields?: string[]; // Optional list of fields to include from the joined table
 };
 
 export type CompiledExploreJoin = Pick<ExploreJoin, 'table' | 'sqlOn'> & {

@@ -492,6 +492,7 @@ export const convertExplores = async (
                         sqlOn: join.sql_on,
                         alias: join.alias,
                         label: join.label,
+                        fields: join.fields,
                     })),
                     tables: tableLookup,
                     targetDatabase: adapterType,

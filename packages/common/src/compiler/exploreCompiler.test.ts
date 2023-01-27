@@ -6,6 +6,7 @@ import {
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
     compiledJoinedExploreOverridingJoinLabel,
+    compiledJoinedExploreWithSubsetOfFields,
     compiledSimpleJoinedExplore,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
@@ -28,6 +29,8 @@ import {
     joinedExploreOverridingAliasAndLabel,
     joinedExploreOverridingJoinAlias,
     joinedExploreOverridingJoinLabel,
+    joinedExploreWithSubsetOfFields,
+    joinedExploreWithSubsetOfFieldsCausingError,
     simpleJoinedExplore,
     tablesWithMetricsWithFilters,
     warehouseClientMock,
@@ -136,6 +139,22 @@ describe('Explores with a base table and joined table', () => {
                 warehouseClientMock,
             ),
         ).toStrictEqual(compiledJoinedExploreOverridingAliasAndLabel);
+    });
+    test('should compile with a subset of fields selected on join', () => {
+        expect(
+            compileExplore(
+                joinedExploreWithSubsetOfFields,
+                warehouseClientMock,
+            ),
+        ).toStrictEqual(compiledJoinedExploreWithSubsetOfFields);
+    });
+    test('should throw error if referenced field is removed from join', () => {
+        expect(() =>
+            compileExplore(
+                joinedExploreWithSubsetOfFieldsCausingError,
+                warehouseClientMock,
+            ),
+        ).toThrowError(CompileError);
     });
 });
 

@@ -59,6 +59,8 @@ type DbtModelJoin = {
     sql_on: string;
     alias?: string;
     label?: string;
+
+    fields?: string[];
 };
 type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {
