@@ -1,3 +1,10 @@
+# [0.390.0](https://github.com/lightdash/lightdash/compare/0.389.1...0.390.0) (2023-01-27)
+
+
+### Features
+
+* groups are collapsable in explorer sidebar even when a field is… ([#4267](https://github.com/lightdash/lightdash/issues/4267)) ([343a673](https://github.com/lightdash/lightdash/commit/343a673b6a8da41f3b808b1fd77e4bdf68be0974))
+
 ## [0.389.1](https://github.com/lightdash/lightdash/compare/0.389.0...0.389.1) (2023-01-26)
 
 
