@@ -1,7 +1,7 @@
 import { Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import { FilterableField, getItemId } from '@lightdash/common';
+import { FilterableItem, getItemId } from '@lightdash/common';
 import React, { FC, useCallback } from 'react';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
@@ -14,7 +14,7 @@ import {
 } from './autoCompleteUtils';
 
 type Props = {
-    field: FilterableField;
+    field: FilterableItem;
     values: string[];
     suggestions: string[];
     popoverProps?: Popover2Props;

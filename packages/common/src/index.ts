@@ -16,12 +16,12 @@ import {
     fieldId,
     FilterableField,
     Metric,
+    TableCalculation,
 } from './types/field';
 import {
     AdditionalMetric,
     isAdditionalMetric,
     MetricQuery,
-    TableCalculation,
 } from './types/metricQuery';
 import {
     OrganizationMemberProfile,

@@ -5,12 +5,9 @@ import {
     isDimension,
     isField,
     MetricType,
-} from '../types/field';
-import {
-    AdditionalMetric,
-    isAdditionalMetric,
     TableCalculation,
-} from '../types/metricQuery';
+} from '../types/field';
+import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
 
 export const isNumericItem = (
     item: Field | AdditionalMetric | TableCalculation | undefined,

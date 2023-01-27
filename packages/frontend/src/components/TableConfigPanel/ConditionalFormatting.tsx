@@ -1,13 +1,13 @@
 import { Button, FormGroup } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
-    CompiledField,
     ConditionalFormattingConfig,
     ConditionalFormattingRule as ConditionalFormattingRuleT,
     ConditionalOperator,
     createConditionalFormatingRule,
-    FilterType,
+    FilterableItem,
     getItemId,
+    Item,
 } from '@lightdash/common';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
@@ -26,7 +26,7 @@ import ConditionalFormattingRule from './ConditionalFormattingRule';
 interface ConditionalFormattingProps {
     isDefaultOpen?: boolean;
     index: number;
-    fields: CompiledField[];
+    fields: FilterableItem[];
     value: ConditionalFormattingConfig;
     onChange: (newConfig: ConditionalFormattingConfig) => void;
     onRemove: () => void;
@@ -58,7 +58,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         onChange(newConfig);
     };
 
-    const handleChangeField = (newField: CompiledField | undefined) => {
+    const handleChangeField = (newField: Item | undefined) => {
         handleChange(
             produce(config, (draft) => {
                 draft.target = newField

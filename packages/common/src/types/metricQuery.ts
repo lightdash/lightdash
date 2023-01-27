@@ -1,21 +1,13 @@
 import {
     CompactOrAlias,
     CompiledMetric,
+    CompiledTableCalculation,
     FieldId,
     friendlyName,
     MetricType,
+    TableCalculation,
 } from './field';
 import { Filters } from './filter';
-
-export type TableCalculation = {
-    index?: number;
-    name: string;
-    displayName: string;
-    sql: string;
-};
-export type CompiledTableCalculation = TableCalculation & {
-    compiledSql: string;
-};
 
 export interface AdditionalMetric {
     label?: string;
