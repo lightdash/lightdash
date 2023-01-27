@@ -1,3 +1,10 @@
+# [0.393.0](https://github.com/lightdash/lightdash/compare/0.392.0...0.393.0) (2023-01-27)
+
+
+### Features
+
+* enable dbt connection CLI option ([#4279](https://github.com/lightdash/lightdash/issues/4279)) ([e538f3d](https://github.com/lightdash/lightdash/commit/e538f3de0169b3df8bf429f473fc32e920917f49))
+
 # [0.392.0](https://github.com/lightdash/lightdash/compare/0.391.0...0.392.0) (2023-01-27)
 
 
