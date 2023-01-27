@@ -285,36 +285,31 @@ export class UserModel {
         }: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
-            try {
-                const [user] = await trx(UserTableName)
-                    .where('user_uuid', userUuid)
-                    .update<DbUserUpdate>({
-                        first_name: firstName,
-                        last_name: lastName,
-                        is_setup_complete: isSetupComplete,
-                        is_marketing_opted_in: isMarketingOptedIn,
-                        is_tracking_anonymized: canTrackingBeAnonymized()
-                            ? isTrackingAnonymized
-                            : false,
-                    })
-                    .returning('*');
+            const [user] = await trx(UserTableName)
+                .where('user_uuid', userUuid)
+                .update<DbUserUpdate>({
+                    first_name: firstName,
+                    last_name: lastName,
+                    is_setup_complete: isSetupComplete,
+                    is_marketing_opted_in: isMarketingOptedIn,
+                    is_tracking_anonymized: canTrackingBeAnonymized()
+                        ? isTrackingAnonymized
+                        : false,
+                })
+                .returning('*');
 
-                if (email && currentEmail !== email) {
-                    if (currentEmail) {
-                        await deleteEmail(trx, {
-                            user_id: user.user_id,
-                            email: currentEmail,
-                        });
-                    }
-                    await createEmail(trx, {
+            if (email && currentEmail !== email) {
+                if (currentEmail) {
+                    await deleteEmail(trx, {
                         user_id: user.user_id,
-                        email,
-                        is_primary: true,
+                        email: currentEmail,
                     });
                 }
-            } catch (e) {
-                await trx.rollback(e);
-                throw e;
+                await createEmail(trx, {
+                    user_id: user.user_id,
+                    email,
+                    is_primary: true,
+                });
             }
         });
         return this.getUserDetailsByUuid(userUuid);
@@ -420,42 +415,37 @@ export class UserModel {
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
-            try {
-                const [user] = await trx(UserTableName)
-                    .where('user_uuid', userUuid)
-                    .update<DbUserUpdate>({
-                        first_name: isOpenIdUser(activateUser)
-                            ? activateUser.openId.firstName
-                            : activateUser.firstName,
-                        last_name: isOpenIdUser(activateUser)
-                            ? activateUser.openId.lastName
-                            : activateUser.lastName,
-                        is_active: true,
+            const [user] = await trx(UserTableName)
+                .where('user_uuid', userUuid)
+                .update<DbUserUpdate>({
+                    first_name: isOpenIdUser(activateUser)
+                        ? activateUser.openId.firstName
+                        : activateUser.firstName,
+                    last_name: isOpenIdUser(activateUser)
+                        ? activateUser.openId.lastName
+                        : activateUser.lastName,
+                    is_active: true,
+                })
+                .returning('*');
+
+            if (!isOpenIdUser(activateUser)) {
+                await UserModel.createPasswordLogin(trx, {
+                    user_id: user.user_id,
+                    password_hash: await bcrypt.hash(
+                        activateUser.password,
+                        await bcrypt.genSalt(),
+                    ),
+                });
+            } else {
+                await trx(OpenIdIdentitiesTableName)
+                    .insert({
+                        issuer_type: activateUser.openId.issuerType,
+                        issuer: activateUser.openId.issuer,
+                        subject: activateUser.openId.subject,
+                        user_id: user.user_id,
+                        email: activateUser.openId.email,
                     })
                     .returning('*');
-
-                if (!isOpenIdUser(activateUser)) {
-                    await UserModel.createPasswordLogin(trx, {
-                        user_id: user.user_id,
-                        password_hash: await bcrypt.hash(
-                            activateUser.password,
-                            await bcrypt.genSalt(),
-                        ),
-                    });
-                } else {
-                    await trx(OpenIdIdentitiesTableName)
-                        .insert({
-                            issuer_type: activateUser.openId.issuerType,
-                            issuer: activateUser.openId.issuer,
-                            subject: activateUser.openId.subject,
-                            user_id: user.user_id,
-                            email: activateUser.openId.email,
-                        })
-                        .returning('*');
-                }
-            } catch (e) {
-                await trx.rollback(e);
-                throw e;
             }
         });
         return this.getUserDetailsByUuid(userUuid);
