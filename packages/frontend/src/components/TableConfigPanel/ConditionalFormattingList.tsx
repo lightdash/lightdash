@@ -1,9 +1,10 @@
-import { Button, Classes, FormGroup } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Button, FormGroup } from '@blueprintjs/core';
 import {
     createConditionalFormattingConfig,
-    fieldId,
-    getVisibleFields,
+    FilterableItem,
+    getItemId,
+    getItemMap,
+    isFilterableItem,
     isNumericItem,
 } from '@lightdash/common';
 import produce from 'immer';
@@ -17,24 +18,33 @@ const ConditionalFormattingList = ({}) => {
     const [isAddingNew, setIsAddingNew] = useState(false);
     const {
         explore,
+        resultsData,
         tableConfig: { conditionalFormattings, onSetConditionalFormattings },
     } = useVisualizationContext();
 
     const activeFields = useExplorerContext((c) => c.state.activeFields);
 
-    const visibleActiveNumericFields = useMemo(() => {
+    const visibleActiveNumericFields = useMemo<FilterableItem[]>(() => {
         if (!explore) return [];
 
-        return getVisibleFields(explore)
-            .filter((field) => activeFields.has(fieldId(field)))
-            .filter((field) => isNumericItem(field));
-    }, [explore, activeFields]);
+        return Object.values(
+            getItemMap(
+                explore,
+                resultsData?.metricQuery.additionalMetrics,
+                resultsData?.metricQuery.tableCalculations,
+            ),
+        )
+            .filter((field) => activeFields.has(getItemId(field)))
+            .filter(
+                (field) => isNumericItem(field) && isFilterableItem(field),
+            ) as FilterableItem[];
+    }, [explore, resultsData, activeFields]);
 
     const activeConfigs = useMemo(() => {
         return conditionalFormattings.filter((config) =>
             config.target
                 ? visibleActiveNumericFields.find(
-                      (field) => fieldId(field) === config.target?.fieldId,
+                      (field) => getItemId(field) === config.target?.fieldId,
                   )
                 : true,
         );

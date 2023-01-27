@@ -3,7 +3,7 @@ import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     ConditionalRule,
-    FilterableField,
+    FilterableItem,
     FilterOperator,
     FilterType,
     isFilterRule,
@@ -16,7 +16,7 @@ import { StyledNumericInput } from './NumericInput.styles';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
-    field: FilterableField;
+    field: FilterableItem;
     rule: T;
     onChange: (value: T) => void;
     popoverProps?: Popover2Props;

@@ -1,9 +1,9 @@
 import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
-    CompiledField,
     ConditionalFormattingRule as ConditionalFormattingRuleT,
     ConditionalOperator,
+    FilterableItem,
     FilterType,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
@@ -21,7 +21,7 @@ interface ConditionalFormattingRuleProps {
     isDefaultOpen?: boolean;
     ruleIndex: number;
     rule: ConditionalFormattingRuleT;
-    field: CompiledField;
+    field: FilterableItem;
     hasRemove?: boolean;
     onChangeRule: (newRule: ConditionalFormattingRuleT) => void;
     onChangeRuleOperator: (newOperator: ConditionalOperator) => void;

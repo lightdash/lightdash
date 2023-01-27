@@ -3,8 +3,7 @@ import {
     ConditionalFormattingRule,
 } from '../types/conditionalFormatting';
 import { ConditionalOperator } from '../types/conditionalRule';
-import { Field, isField } from '../types/field';
-import { TableCalculation } from '../types/metricQuery';
+import { Field, TableCalculation } from '../types/field';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem } from './item';
 
@@ -71,12 +70,7 @@ export const getConditionalFormattingConfig = (
     value: number | string | undefined,
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
 ) => {
-    if (
-        !conditionalFormattings ||
-        !field ||
-        !isField(field) ||
-        !isNumericItem(field)
-    )
+    if (!conditionalFormattings || !field || !isNumericItem(field))
         return undefined;
 
     const fieldConfigs = conditionalFormattings.filter(

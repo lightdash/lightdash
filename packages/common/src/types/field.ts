@@ -69,6 +69,18 @@ export function findCompactConfig(
     );
 }
 
+export type Item = Field | TableCalculation;
+
+export type TableCalculation = {
+    index?: number;
+    name: string;
+    displayName: string;
+    sql: string;
+};
+export type CompiledTableCalculation = TableCalculation & {
+    compiledSql: string;
+};
+
 export enum FieldType {
     METRIC = 'metric',
     DIMENSION = 'dimension',
@@ -174,6 +186,12 @@ export const isFilterableDimension = (
 export type FilterableField = FilterableDimension | Metric;
 export const isFilterableField = (
     field: Field | Dimension | Metric,
+): field is FilterableField =>
+    isDimension(field) ? isFilterableDimension(field) : true;
+
+export type FilterableItem = FilterableField | TableCalculation;
+export const isFilterableItem = (
+    field: Field | Dimension | Metric | TableCalculation,
 ): field is FilterableField =>
     isDimension(field) ? isFilterableDimension(field) : true;
 
