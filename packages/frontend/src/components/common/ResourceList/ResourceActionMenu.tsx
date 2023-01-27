@@ -74,7 +74,11 @@ const ResourceActionMenu: FC<Props> = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
-                            onAction(ResourceAction.UPDATE, 'chart', data);
+                            onAction(
+                                ResourceAction.UPDATE,
+                                isChart ? 'chart' : 'dashboard',
+                                data,
+                            );
                         }}
                     />
                     <MenuItem2
@@ -105,7 +109,7 @@ const ResourceActionMenu: FC<Props> = ({
                                 setIsOpen(false);
                                 onAction(
                                     ResourceAction.ADD_TO_DASHBOARD,
-                                    'chart',
+                                    isChart ? 'chart' : 'dashboard',
                                     data,
                                 );
                             }}
@@ -137,7 +141,7 @@ const ResourceActionMenu: FC<Props> = ({
                                         if (!isSelected) {
                                             onAction(
                                                 ResourceAction.MOVE_TO_SPACE,
-                                                'chart',
+                                                isChart ? 'chart' : 'dashboard',
                                                 {
                                                     ...data,
                                                     spaceUuid: space.uuid,
@@ -159,7 +163,7 @@ const ResourceActionMenu: FC<Props> = ({
                                 e.stopPropagation();
                                 onAction(
                                     ResourceAction.CREATE_SPACE,
-                                    'chart',
+                                    isChart ? 'chart' : 'dashboard',
                                     data,
                                 );
                             }}
@@ -177,7 +181,11 @@ const ResourceActionMenu: FC<Props> = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
-                            onAction(ResourceAction.DELETE, 'chart', data);
+                            onAction(
+                                ResourceAction.DELETE,
+                                isChart ? 'chart' : 'dashboard',
+                                data,
+                            );
                         }}
                     />
                 </Menu>

@@ -14,7 +14,6 @@ import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import { ResourceAction } from './ResourceActionMenu';
-import ResourceEmptyState from './ResourceEmptyState';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
@@ -22,6 +21,16 @@ import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
 
 export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
 export type AcceptedResourceTypes = 'chart' | 'dashboard';
+
+export const getResourceType = (
+    resource: AcceptedResources,
+): AcceptedResourceTypes => {
+    if ('chartType' in resource) {
+        return 'chart';
+    } else {
+        return 'dashboard';
+    }
+};
 
 interface ActionStateWithData {
     actionType: ResourceAction;

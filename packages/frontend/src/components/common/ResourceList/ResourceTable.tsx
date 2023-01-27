@@ -5,6 +5,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import {
     AcceptedResources,
     AcceptedResourceTypes,
+    getResourceType,
     ResourceListCommonProps,
 } from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
@@ -129,8 +130,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         >
                             <ResourceIcon
                                 resource={row}
-                                // TODO: fix this
-                                resourceType={'chart'}
+                                resourceType={getResourceType(row)}
                             />
 
                             <Spacer $width={16} />
@@ -141,8 +141,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                 <ResourceMetadata>
                                     <ResourceType
                                         resource={row}
-                                        // TODO: fix this
-                                        resourceType={'chart'}
+                                        resourceType={getResourceType(row)}
                                     />{' '}
                                     • {row.views} views
                                 </ResourceMetadata>
@@ -218,8 +217,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         spaces={spaces}
                         url={getURL(row)}
                         onAction={onAction}
-                        // TODO: fix this
-                        isChart={true}
+                        isChart={getResourceType(row) === 'chart'}
                     />
                 ),
                 enableSorting: false,

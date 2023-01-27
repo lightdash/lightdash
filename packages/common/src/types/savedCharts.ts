@@ -257,7 +257,7 @@ export type SpaceQuery = Pick<
     | 'spaceUuid'
     | 'views'
     | 'pinnedListUuid'
-> & { chartType?: ChartKind | undefined };
+> & { chartType: ChartKind | undefined };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
