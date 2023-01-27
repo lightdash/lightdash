@@ -1,4 +1,3 @@
-import { IconName } from '@blueprintjs/core';
 import {
     assertUnreachable,
     DashboardBasicDetails,
@@ -14,6 +13,7 @@ import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import { ResourceAction } from './ResourceActionMenu';
+import { EmptyStateWrapper } from './ResourceEmptyState.styles';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
@@ -45,7 +45,7 @@ export interface ResourceListCommonProps<
     headerAction?: React.ReactNode;
     data: T[];
     showCount?: boolean;
-    onClickCTA?: () => void;
+    renderEmptyState: () => React.ReactNode;
 }
 
 type ResourceListProps = ResourceListCommonProps &
@@ -61,7 +61,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
     defaultColumnVisibility,
     defaultSort,
     showCount = true,
-    // onClickCTA,
+    renderEmptyState,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -136,14 +136,8 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 showCount={showCount}
             >
                 {data.length === 0 ? (
-                    <></>
+                    <EmptyStateWrapper>{renderEmptyState()}</EmptyStateWrapper>
                 ) : (
-                    // <ResourceEmptyState
-                    //     resourceIcon={resourceIcon}
-                    //     resourceType={resourceType}
-                    //     headerAction={headerAction}
-                    //     onClickCTA={onClickCTA}
-                    // />
                     <ResourceTable
                         data={data}
                         enableSorting={enableSorting}
