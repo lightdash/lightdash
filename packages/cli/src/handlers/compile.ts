@@ -8,6 +8,7 @@ import {
     ParseError,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import inquirer from 'inquirer';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
@@ -21,6 +22,7 @@ import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
+import { getDbtVersion } from './dbt/getDbtVersion';
 
 type GenerateHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -37,6 +39,29 @@ export const compile = async (options: GenerateHandlerOptions) => {
         properties: {},
     });
 
+    const dbtVersion = await getDbtVersion();
+    GlobalState.debug(`> DBT version ${dbtVersion}`);
+
+    if (!dbtVersion.includes('1.3.')) {
+        if (process.env.CI === 'true') {
+            console.error(
+                `Your DBT version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
+            );
+        } else {
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `${styles.warning(
+                        `Your DBT version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
+                    )}\nDo you still want to continue?`,
+                },
+            ]);
+            if (!answers.isConfirm) {
+                throw new Error(`Unsupported DBT version ${dbtVersion}`);
+            }
+        }
+    }
     await dbtCompile(options);
 
     const absoluteProjectPath = path.resolve(options.projectDir);
