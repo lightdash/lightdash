@@ -1,10 +1,16 @@
 import { Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { AcceptedResources, ResourceListCommonProps } from '.';
+import {
+    AcceptedResources,
+    AcceptedResourceTypes,
+    getResourceType,
+    ResourceListCommonProps,
+} from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
-import ResourceActionMenu from './ResourceActionMenu';
+import ResourceActionMenu, { ResourceAction } from './ResourceActionMenu';
 import ResourceIcon from './ResourceIcon';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
@@ -46,16 +52,12 @@ export interface ResourceTableCommonProps {
 }
 
 type ResourceTableProps = ResourceTableCommonProps &
-    Pick<
-        ResourceListCommonProps,
-        'resourceList' | 'resourceType' | 'resourceIcon' | 'getURL'
-    > & {
-        onChangeAction: React.Dispatch<
-            React.SetStateAction<{
-                actionType: number;
-                data?: any;
-            }>
-        >;
+    Pick<ResourceListCommonProps, 'data'> & {
+        onAction: (
+            action: ResourceAction,
+            resource: AcceptedResourceTypes,
+            data?: any,
+        ) => void;
     };
 
 const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
@@ -76,15 +78,29 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
 
+const getResourceUrl = (projectUuid: string, resource: AcceptedResources) => {
+    const resourceType = getResourceType(resource);
+
+    switch (resourceType) {
+        case 'dashboard':
+            return `/projects/${projectUuid}/dashboards/${resource.uuid}/view`;
+        case 'chart':
+            return `/projects/${projectUuid}/saved/${resource.uuid}`;
+        default:
+            return assertUnreachable(
+                resourceType,
+                `Can't get URL for ${resourceType}`,
+            );
+    }
+};
+
 const ResourceTable: FC<ResourceTableProps> = ({
-    resourceList,
-    resourceType,
+    data,
     enableSorting: enableSortingProp = true,
     enableMultiSort = false,
     defaultColumnVisibility,
     defaultSort,
-    getURL,
-    onChangeAction,
+    onAction,
 }) => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -110,7 +126,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
         );
     };
 
-    const enableSorting = enableSortingProp && resourceList.length > 1;
+    const enableSorting = enableSortingProp && data.length > 1;
 
     const columns = useMemo<Column[]>(
         () => [
@@ -125,12 +141,12 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         position={Position.TOP_LEFT}
                     >
                         <ResourceLink
-                            to={getURL(row)}
+                            to={getResourceUrl(projectUuid, row)}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <ResourceIcon
                                 resource={row}
-                                resourceType={resourceType}
+                                resourceType={getResourceType(row)}
                             />
 
                             <Spacer $width={16} />
@@ -141,9 +157,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                 <ResourceMetadata>
                                     <ResourceType
                                         resource={row}
-                                        resourceType={resourceType}
+                                        resourceType={getResourceType(row)}
                                     />{' '}
-                                    • {row.views} views
+                                    • {row.views || '0'} views
                                 </ResourceMetadata>
                             </ResourceNameBox>
                         </ResourceLink>
@@ -215,9 +231,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     <ResourceActionMenu
                         data={row}
                         spaces={spaces}
-                        url={getURL(row)}
-                        setActionState={onChangeAction}
-                        isChart={resourceType === 'chart'}
+                        url={getResourceUrl(projectUuid, row)}
+                        onAction={onAction}
+                        isChart={getResourceType(row) === 'chart'}
                     />
                 ),
                 enableSorting: false,
@@ -226,15 +242,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 },
             },
         ],
-        [
-            columnVisibility,
-            resourceType,
-            enableSorting,
-            spaces,
-            projectUuid,
-            onChangeAction,
-            getURL,
-        ],
+        [columnVisibility, enableSorting, spaces, projectUuid, onAction],
     );
 
     const visibleColumns = useMemo(() => {
@@ -245,10 +253,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
 
     const sortedResourceList = useMemo(() => {
         if (columnSorts.size === 0) {
-            return resourceList;
+            return data;
         }
 
-        return resourceList.sort((a, b) => {
+        return data.sort((a, b) => {
             return [...columnSorts.entries()].reduce(
                 (acc, [columnId, sortDirection]) => {
                     const column = visibleColumns.find(
@@ -278,7 +286,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 0,
             );
         });
-    }, [resourceList, columnSorts, visibleColumns]);
+    }, [data, columnSorts, visibleColumns]);
 
     return (
         <StyledTable>
@@ -338,7 +346,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 {sortedResourceList.map((row) => (
                     <StyledTr
                         key={row.uuid}
-                        onClick={() => history.push(getURL(row))}
+                        onClick={() =>
+                            history.push(getResourceUrl(projectUuid, row))
+                        }
                     >
                         {visibleColumns.map((column) => (
                             <StyledTd key={column.id}>

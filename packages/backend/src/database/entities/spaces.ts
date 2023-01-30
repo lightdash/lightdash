@@ -1,4 +1,10 @@
-import { NotFoundError, Space } from '@lightdash/common';
+import {
+    ChartConfig,
+    ChartType,
+    getChartType,
+    NotFoundError,
+    Space,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
 import { PinnedChartTableName, PinnedListTableName } from './pinnedList';
@@ -102,12 +108,16 @@ export const getSpaceWithQueries = async (
                 first_name: string;
                 last_name: string;
                 pinned_list_uuid: string | undefined;
+                chart_config: ChartConfig['config'];
+                chart_type: ChartType;
             }[]
         >([
             `saved_queries.saved_query_uuid`,
             `saved_queries.name`,
             `saved_queries.description`,
             `saved_queries_versions.created_at`,
+            `saved_queries_versions.chart_config`,
+            `saved_queries_versions.chart_type`,
             `users.user_uuid`,
             `users.first_name`,
             `users.last_name`,
@@ -141,6 +151,10 @@ export const getSpaceWithQueries = async (
             },
             spaceUuid: space.space_uuid,
             pinnedListUuid: savedQuery.pinned_list_uuid,
+            chartType: getChartType(
+                savedQuery.chart_type,
+                savedQuery.chart_config,
+            ),
         })),
         projectUuid,
         dashboards: [],

@@ -5,9 +5,11 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import { PageContentWrapper } from '../components/common/Page/Page.styles';
+import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
+import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
@@ -59,11 +61,18 @@ const Home: FC = () => {
                         userName={user.data?.firstName}
                     />
                 ) : (
-                    <LandingPanel
-                        hasSavedChart={!!savedChartStatus.data}
-                        userName={user.data?.firstName}
-                        projectUuid={project.data.projectUuid}
-                    />
+                    <>
+                        <LandingPanel
+                            userName={user.data?.firstName}
+                            projectUuid={project.data.projectUuid}
+                        />
+
+                        <SpaceBrowser projectUuid={project.data.projectUuid} />
+
+                        <RecentlyUpdatedPanel
+                            projectUuid={project.data.projectUuid}
+                        />
+                    </>
                 )}
             </PageContentWrapper>
         </Page>

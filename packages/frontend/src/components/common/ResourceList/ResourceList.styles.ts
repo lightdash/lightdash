@@ -1,4 +1,4 @@
-import { Card, Colors, H3, Tag } from '@blueprintjs/core';
+import { Card, Colors, H3, H4, Icon, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 const paddingX = 20;
@@ -43,4 +43,35 @@ export const ResourceTag = styled(Tag)`
     font-weight: bold;
     background-color: ${Colors.LIGHT_GRAY2};
     color: ${Colors.DARK_GRAY1};
+`;
+
+export const ResourceEmptyStateWrapper = styled.div`
+    padding: 40px 0;
+    display: flex;
+    gap: 18px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+`;
+
+export const ResourceEmptyStateIcon = styled(Icon)`
+    path {
+        fill: ${Colors.LIGHT_GRAY1};
+    }
+`;
+
+export const ResourceEmptyStateHeaderWrapper = styled.div`
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+`;
+
+export const ResourceEmptyStateHeader = styled(H4)`
+    margin: 0;
+`;
+
+export const ResourceEmptyStateText = styled.span`
+    color: ${Colors.GRAY1};
 `;

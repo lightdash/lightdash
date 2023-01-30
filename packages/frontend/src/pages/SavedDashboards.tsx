@@ -15,6 +15,8 @@ import {
 import ResourceList from '../components/common/ResourceList';
 import {
     ResourceBreadcrumbTitle,
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
@@ -119,13 +121,14 @@ const SavedDashboards = () => {
                                 interactionKind="hover"
                             >
                                 <Button
-                                    text="Create dashboard"
                                     icon="plus"
                                     loading={isCreatingDashboard}
                                     onClick={handleCreateDashboard}
                                     disabled={hasNoSpaces}
                                     intent="primary"
-                                />
+                                >
+                                    Create dashboard
+                                </Button>
                             </Tooltip2>
                         )}
                 </PageHeader>
@@ -144,18 +147,29 @@ const SavedDashboards = () => {
                 />
 
                 <ResourceList
-                    resourceType="dashboard"
-                    resourceIcon="control"
-                    resourceList={dashboards}
+                    data={dashboards}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
-                    onClickCTA={
-                        !isDemo && !hasNoSpaces && userCanManageDashboards
-                            ? handleCreateDashboard
-                            : undefined
-                    }
-                    getURL={({ uuid }) =>
-                        `/projects/${projectUuid}/dashboards/${uuid}/view`
-                    }
+                    renderEmptyState={() => (
+                        <>
+                            <ResourceEmptyStateIcon icon="chart" size={40} />
+
+                            <ResourceEmptyStateHeader>
+                                No dashboards added yet
+                            </ResourceEmptyStateHeader>
+
+                            {!isDemo &&
+                                !hasNoSpaces &&
+                                userCanManageDashboards && (
+                                    <Button
+                                        icon="plus"
+                                        intent="primary"
+                                        onClick={handleCreateDashboard}
+                                    >
+                                        Create dashboard
+                                    </Button>
+                                )}
+                        </>
+                    )}
                 />
             </PageContentWrapper>
         </Page>

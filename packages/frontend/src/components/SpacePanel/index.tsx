@@ -12,6 +12,10 @@ import {
     PageHeader,
 } from '../common/Page/Page.styles';
 import ResourceList from '../common/ResourceList';
+import {
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
+} from '../common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
@@ -133,14 +137,9 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <ResourceList
                 headerTitle="Dashboards"
-                resourceIcon="control"
-                resourceType="dashboard"
-                resourceList={savedDashboards}
+                data={savedDashboards}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
-                getURL={({ uuid }) =>
-                    `/projects/${projectUuid}/dashboards/${uuid}/view`
-                }
                 headerAction={
                     !isDemo &&
                     userCanManageDashboards && (
@@ -157,16 +156,22 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         </AddResourceToSpaceMenu>
                     )
                 }
+                renderEmptyState={() => (
+                    <>
+                        <ResourceEmptyStateIcon icon="control" size={40} />
+
+                        <ResourceEmptyStateHeader>
+                            No dashboards added yet
+                        </ResourceEmptyStateHeader>
+                    </>
+                )}
             />
 
             <ResourceList
                 headerTitle="Saved charts"
-                resourceList={savedCharts}
-                resourceIcon="chart"
-                resourceType="chart"
+                data={savedCharts}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
-                getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
                     !isDemo &&
                     userCanManageCharts && (
@@ -183,6 +188,15 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         </AddResourceToSpaceMenu>
                     )
                 }
+                renderEmptyState={() => (
+                    <>
+                        <ResourceEmptyStateIcon icon="chart" size={40} />
+
+                        <ResourceEmptyStateHeader>
+                            No charts added yet
+                        </ResourceEmptyStateHeader>
+                    </>
+                )}
             />
 
             {addToSpace && (

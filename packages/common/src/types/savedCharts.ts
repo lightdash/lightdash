@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
@@ -257,7 +258,7 @@ export type SpaceQuery = Pick<
     | 'spaceUuid'
     | 'views'
     | 'pinnedListUuid'
-> & { chartType?: ChartKind | undefined };
+> & { chartType: ChartKind | undefined };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
@@ -326,6 +327,7 @@ export const getChartType = (
     value: ChartConfig['config'],
 ): ChartKind | undefined => {
     if (value === undefined) return undefined;
+
     switch (chartType) {
         case ChartType.BIG_NUMBER:
             return ChartKind.BIG_NUMBER;
@@ -333,10 +335,16 @@ export const getChartType = (
             return ChartKind.TABLE;
         case ChartType.CARTESIAN:
             if (isCartesianChartConfig(value)) {
-                if (isSeriesWithMixedChartTypes(value.eChartsConfig.series))
-                    return ChartKind.MIXED;
+                const { series } = value.eChartsConfig;
 
-                switch (value.eChartsConfig.series?.[0]?.type) {
+                if (isSeriesWithMixedChartTypes(series)) {
+                    return ChartKind.MIXED;
+                }
+
+                const type = series?.[0]?.type;
+                if (!type) return undefined;
+
+                switch (type) {
                     case CartesianSeriesType.AREA:
                         return ChartKind.AREA;
                     case CartesianSeriesType.BAR:
@@ -344,15 +352,19 @@ export const getChartType = (
                             ? ChartKind.HORIZONTAL_BAR
                             : ChartKind.VERTICAL_BAR;
                     case CartesianSeriesType.LINE:
-                        return value.eChartsConfig.series?.[0]?.areaStyle
+                        return series?.[0]?.areaStyle
                             ? ChartKind.AREA
                             : ChartKind.LINE;
                     case CartesianSeriesType.SCATTER:
                         return ChartKind.SCATTER;
                     default:
-                        return undefined;
+                        return assertUnreachable(
+                            type,
+                            `Unknown cartesian series type: ${type}`,
+                        );
                 }
             }
+
             return undefined;
         default:
             return undefined;

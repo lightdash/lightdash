@@ -14,6 +14,8 @@ import {
 import ResourceList from '../components/common/ResourceList';
 import {
     ResourceBreadcrumbTitle,
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
@@ -81,31 +83,39 @@ const SavedQueries: FC = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageCharts &&
-                        !isDemo &&
-                        savedQueries.length > 0 && (
-                            <Button
-                                text="Create chart"
-                                icon="plus"
-                                intent="primary"
-                                onClick={handleCreateChart}
-                            />
-                        )}
+                    {userCanManageCharts && !isDemo && savedQueries.length > 0 && (
+                        <Button
+                            icon="plus"
+                            intent="primary"
+                            onClick={handleCreateChart}
+                        >
+                            Create chart
+                        </Button>
+                    )}
                 </PageHeader>
 
                 <ResourceList
-                    resourceIcon="chart"
-                    resourceType="chart"
-                    resourceList={savedQueries}
+                    data={savedQueries}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
-                    onClickCTA={
-                        !isDemo && userCanManageCharts
-                            ? handleCreateChart
-                            : undefined
-                    }
-                    getURL={({ uuid }) =>
-                        `/projects/${projectUuid}/saved/${uuid}`
-                    }
+                    renderEmptyState={() => (
+                        <>
+                            <ResourceEmptyStateIcon icon="chart" size={40} />
+
+                            <ResourceEmptyStateHeader>
+                                No charts added yet
+                            </ResourceEmptyStateHeader>
+
+                            {!isDemo && userCanManageCharts && (
+                                <Button
+                                    icon="plus"
+                                    intent="primary"
+                                    onClick={handleCreateChart}
+                                >
+                                    Create chart
+                                </Button>
+                            )}
+                        </>
+                    )}
                 />
             </PageContentWrapper>
         </Page>
