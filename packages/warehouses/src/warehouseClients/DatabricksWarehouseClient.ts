@@ -325,6 +325,8 @@ export class DatabricksWarehouseClient implements WarehouseClient {
         switch (metric.type) {
             case MetricType.PERCENTILE:
                 return `PERCENTILE(${sql}, ${(metric.percentile ?? 50) / 100})`;
+            case MetricType.MEDIAN:
+                return `PERCENTILE(${sql}, 0.5)`;
             default:
                 return getDefaultMetricSql(sql, metric.type);
         }

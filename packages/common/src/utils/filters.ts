@@ -86,6 +86,7 @@ export const getFilterTypeFromField = (field: FilterableField): FilterType => {
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case MetricType.PERCENTILE:
+        case MetricType.MEDIAN:
         case MetricType.AVERAGE:
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:

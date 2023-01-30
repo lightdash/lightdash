@@ -63,6 +63,8 @@ const getAxisTypeFromField = (item?: Field | TableCalculation): string => {
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
             case MetricType.PERCENTILE:
+            case MetricType.MEDIAN:
+
             case MetricType.AVERAGE:
             case MetricType.COUNT:
             case MetricType.COUNT_DISTINCT:

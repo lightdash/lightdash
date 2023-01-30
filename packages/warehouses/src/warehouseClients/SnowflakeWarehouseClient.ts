@@ -327,6 +327,8 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 return `PERCENTILE_CONT(${
                     (metric.percentile ?? 50) / 100
                 }) WITHIN GROUP (ORDER BY ${sql})`;
+            case MetricType.MEDIAN:
+                return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
             default:
                 return getDefaultMetricSql(sql, metric.type);
         }

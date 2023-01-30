@@ -275,6 +275,8 @@ export class TrinoWarehouseClient implements WarehouseClient {
                 return `APPROX_PERCENTILE(${sql}, ${
                     (metric.percentile ?? 50) / 100
                 })`;
+            case MetricType.MEDIAN:
+                return `APPROX_PERCENTILE(${sql},0.5)`;
             default:
                 return getDefaultMetricSql(sql, metric.type);
         }
