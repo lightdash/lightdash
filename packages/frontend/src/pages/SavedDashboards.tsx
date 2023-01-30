@@ -131,6 +131,7 @@ const SavedDashboards = () => {
                 </PageHeader>
 
                 <DashboardCreateModal
+                    projectUuid={projectUuid}
                     isOpen={isCreateDashboardOpen}
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {

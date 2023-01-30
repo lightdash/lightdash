@@ -53,7 +53,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const {
         isLoading: isCreatingDashboard,
         isSuccess: hasCreatedDashboard,
-        mutate: createDashboard,
         data: newDashboard,
         reset,
     } = useCreateMutation(projectUuid);
@@ -175,6 +174,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
             )}
 
             <DashboardCreateModal
+                projectUuid={projectUuid}
                 isOpen={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
