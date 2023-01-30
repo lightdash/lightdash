@@ -894,6 +894,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "thomaspurchas",
+      "name": "Thomas Purchas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/782311?v=4",
+      "profile": "https://github.com/thomaspurchas",
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
