@@ -61,15 +61,19 @@ const Home: FC = () => {
                         userName={user.data?.firstName}
                     />
                 ) : (
-                    <LandingPanel
-                        userName={user.data?.firstName}
-                        projectUuid={project.data.projectUuid}
-                    />
+                    <>
+                        <LandingPanel
+                            userName={user.data?.firstName}
+                            projectUuid={project.data.projectUuid}
+                        />
+
+                        <SpaceBrowser projectUuid={project.data.projectUuid} />
+
+                        <RecentlyUpdatedPanel
+                            projectUuid={project.data.projectUuid}
+                        />
+                    </>
                 )}
-
-                <SpaceBrowser projectUuid={project.data.projectUuid} />
-
-                <RecentlyUpdatedPanel projectUuid={project.data.projectUuid} />
             </PageContentWrapper>
         </Page>
     );
