@@ -1,3 +1,10 @@
+# [0.398.0](https://github.com/lightdash/lightdash/compare/0.397.0...0.398.0) (2023-01-30)
+
+
+### Features
+
+* support dbt 1.4.1 projects ([#4319](https://github.com/lightdash/lightdash/issues/4319)) ([20b376e](https://github.com/lightdash/lightdash/commit/20b376ee06eff89d7276c83dec7d8af69559d159)), closes [#4920](https://github.com/lightdash/lightdash/issues/4920)
+
 # [0.397.0](https://github.com/lightdash/lightdash/compare/0.396.1...0.397.0) (2023-01-30)
 
 
