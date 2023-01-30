@@ -159,11 +159,12 @@ const SavedDashboards = () => {
                                 !hasNoSpaces &&
                                 userCanManageDashboards && (
                                     <Button
-                                        text="Create chart"
                                         icon="plus"
                                         intent="primary"
                                         onClick={handleCreateDashboard}
-                                    />
+                                    >
+                                        Create dashboard
+                                    </Button>
                                 )}
                         </>
                     )}

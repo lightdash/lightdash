@@ -83,16 +83,15 @@ const SavedQueries: FC = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageCharts &&
-                        !isDemo &&
-                        savedQueries.length > 0 && (
-                            <Button
-                                text="Create chart"
-                                icon="plus"
-                                intent="primary"
-                                onClick={handleCreateChart}
-                            />
-                        )}
+                    {userCanManageCharts && !isDemo && savedQueries.length > 0 && (
+                        <Button
+                            icon="plus"
+                            intent="primary"
+                            onClick={handleCreateChart}
+                        >
+                            Create chart
+                        </Button>
+                    )}
                 </PageHeader>
 
                 <ResourceList
@@ -108,11 +107,12 @@ const SavedQueries: FC = () => {
 
                             {!isDemo && userCanManageCharts && (
                                 <Button
-                                    text="Create chart"
                                     icon="plus"
                                     intent="primary"
                                     onClick={handleCreateChart}
-                                />
+                                >
+                                    Create chart
+                                </Button>
                             )}
                         </>
                     )}

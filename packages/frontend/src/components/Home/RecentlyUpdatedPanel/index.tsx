@@ -1,5 +1,6 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { FC, useMemo } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import ResourceList from '../../common/ResourceList';
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
+    const history = useHistory();
     const { data: dashboards = [] } = useDashboards(projectUuid);
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
@@ -29,6 +31,10 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             })
             .slice(0, 10);
     }, [dashboards, savedCharts]);
+
+    const handleCreateChart = () => {
+        history.push(`/projects/${projectUuid}/tables`);
+    };
 
     return (
         <ResourceList
@@ -60,7 +66,11 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                         </ResourceEmptyStateText>
                     </ResourceEmptyStateHeaderWrapper>
 
-                    <Button icon="plus" intent="primary">
+                    <Button
+                        icon="plus"
+                        intent="primary"
+                        onClick={handleCreateChart}
+                    >
                         Create chart
                     </Button>
                 </>
