@@ -171,10 +171,6 @@ export class SavedChartService {
             properties: {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
-                constantReferenceLinesNum: 0,
-                conditionalFormattingNumRules: 0,
-                showLegend: true,
-                margins: 'default',
             },
         });
         return savedChart;
