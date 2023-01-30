@@ -85,7 +85,7 @@ export class SavedChartService {
                 savedChart.chartConfig.type === ChartType.TABLE
                     ? {
                           conditionalFormattingRulesCount:
-                              tableConfig?.conditionalFormattings?.length,
+                              tableConfig?.conditionalFormattings?.length || 0,
                       }
                     : undefined,
             cartesian:
@@ -107,9 +107,10 @@ export class SavedChartService {
                               savedChart.chartConfig.config.eChartsConfig
                                   .series || []
                           ).length,
-                          referenceLinesCount: echartsConfig?.series?.filter(
-                              (serie) => serie.markLine?.data !== undefined,
-                          ).length,
+                          referenceLinesCount:
+                              echartsConfig?.series?.filter(
+                                  (serie) => serie.markLine?.data !== undefined,
+                              ).length || 0,
                           margins:
                               echartsConfig?.grid?.top === undefined
                                   ? 'default'
