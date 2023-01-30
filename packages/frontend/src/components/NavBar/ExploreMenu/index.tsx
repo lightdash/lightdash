@@ -50,23 +50,11 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const { user } = useApp();
     const history = useHistory();
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const {
-        isLoading: isCreatingDashboard,
-        isSuccess: hasCreatedDashboard,
-        mutate: createDashboard,
-        data: newDashboard,
-        reset,
-    } = useCreateMutation(projectUuid);
+
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState<boolean>(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
-    if (!isCreatingDashboard && hasCreatedDashboard && newDashboard) {
-        history.push(
-            `/projects/${projectUuid}/dashboards/${newDashboard.uuid}`,
-        );
-        reset();
-    }
     return (
         <>
             <Popover2
@@ -175,6 +163,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
             )}
 
             <DashboardCreateModal
+                projectUuid={projectUuid}
                 isOpen={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {

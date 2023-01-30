@@ -10,21 +10,21 @@ import {
 } from '@blueprintjs/core';
 import { Dashboard } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useApp } from '../../../providers/AppProvider';
 import {} from '../ShareSpaceModal/ShareSpaceModal.style';
 
 interface DashboardCreateModalProps extends DialogProps {
+    projectUuid: string;
     onConfirm?: (dashboard: Dashboard) => void;
 }
 
 const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
+    projectUuid,
     onConfirm,
     onClose,
     ...modalProps
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { mutateAsync, isLoading: isCreating } =
         useCreateMutation(projectUuid);
     const { user } = useApp();
