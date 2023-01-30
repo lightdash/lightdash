@@ -1,3 +1,10 @@
+## [0.395.2](https://github.com/lightdash/lightdash/compare/0.395.1...0.395.2) (2023-01-30)
+
+
+### Bug Fixes
+
+* add Snowflake private key credentials to sensitive credentials list ([#4310](https://github.com/lightdash/lightdash/issues/4310)) ([7c80450](https://github.com/lightdash/lightdash/commit/7c804500f42ddf75397a1e67dd0fa130a7c42fa4))
+
 ## [0.395.1](https://github.com/lightdash/lightdash/compare/0.395.0...0.395.1) (2023-01-27)
 
 
