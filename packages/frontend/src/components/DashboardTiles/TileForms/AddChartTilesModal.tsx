@@ -77,7 +77,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 return {
                     uuid: uuid4(),
                     properties: {
-                        title: savedChart?.name,
+                        title: savedChart?.name || null,
                         savedChartUuid: uuid,
                     },
                     type: DashboardTileTypes.SAVED_CHART,

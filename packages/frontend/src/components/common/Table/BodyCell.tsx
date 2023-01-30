@@ -82,7 +82,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                     renderTarget={({ ref: ref1, ...tooltipProps }) => (
                         <Td
                             ref={mergeRefs(ref1, ref2)}
-                            {...tooltipProps}
+                            {...(tooltipProps as any)}
                             {...popoverProps}
                             className={className}
                             style={style}

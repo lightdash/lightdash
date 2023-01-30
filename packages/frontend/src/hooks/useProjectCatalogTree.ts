@@ -1,4 +1,4 @@
-import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
+import { TreeNodeInfo } from '@blueprintjs/core';
 import { ProjectCatalog } from '@lightdash/common';
 import { useMemo } from 'react';
 

@@ -64,7 +64,7 @@ const GridTile: FC<
             if (isLoading) return <></>;
             if (isError)
                 return (
-                    <TileBase title={''} {...props}>
+                    <TileBase title={''} {...props} clickableTitle={false}>
                         <NonIdealState
                             icon="lock"
                             title={`You don't have access to view this chart`}

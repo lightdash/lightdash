@@ -15,7 +15,7 @@ export const PageWithSidebar = styled.div<PageWithSidebarProps>`
 `;
 
 interface PageContentContainerProps {
-    hasDraggableSidebar: boolean;
+    hasDraggableSidebar?: boolean;
 }
 
 export const PageWrapper = styled.div`

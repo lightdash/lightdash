@@ -53,6 +53,7 @@ const DashboardCellContextMenu: FC<
                       },
                       operator: FilterOperator.EQUALS,
                       values: [value.raw],
+                      label: undefined,
                   },
               ]
             : [];
@@ -73,6 +74,7 @@ const DashboardCellContextMenu: FC<
             },
             operator: FilterOperator.EQUALS,
             values: [pivot.value],
+            label: undefined,
         };
     });
     const filters: DashboardFilterRule[] = [
