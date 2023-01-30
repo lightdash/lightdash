@@ -78,6 +78,22 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
 
+const getResourceUrl = (projectUuid: string, resource: AcceptedResources) => {
+    const resourceType = getResourceType(resource);
+
+    switch (resourceType) {
+        case 'dashboard':
+            return `/projects/${projectUuid}/dashboards/${resource.uuid}/view`;
+        case 'chart':
+            return `/projects/${projectUuid}/saved/${resource.uuid}`;
+        default:
+            return assertUnreachable(
+                resourceType,
+                `Can't get URL for ${resourceType}`,
+            );
+    }
+};
+
 const ResourceTable: FC<ResourceTableProps> = ({
     data,
     enableSorting: enableSortingProp = true,
@@ -98,22 +114,6 @@ const ResourceTable: FC<ResourceTableProps> = ({
             ? new Map(Object.entries(defaultColumnVisibility))
             : new Map(),
     );
-
-    const getResourceUrl = (resource: AcceptedResources) => {
-        const resourceType = getResourceType(resource);
-
-        switch (resourceType) {
-            case 'dashboard':
-                return `/projects/${projectUuid}/dashboards/${resource.uuid}/view`;
-            case 'chart':
-                return `/projects/${projectUuid}/saved/${resource.uuid}`;
-            default:
-                return assertUnreachable(
-                    resourceType,
-                    `Can't get URL for ${resourceType}`,
-                );
-        }
-    };
 
     const handleSort = (
         columnId: ColumnName,
@@ -141,7 +141,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                         position={Position.TOP_LEFT}
                     >
                         <ResourceLink
-                            to={getResourceUrl(row)}
+                            to={getResourceUrl(projectUuid, row)}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <ResourceIcon
@@ -231,7 +231,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     <ResourceActionMenu
                         data={row}
                         spaces={spaces}
-                        url={getResourceUrl(row)}
+                        url={getResourceUrl(projectUuid, row)}
                         onAction={onAction}
                         isChart={getResourceType(row) === 'chart'}
                     />
@@ -242,14 +242,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 },
             },
         ],
-        [
-            columnVisibility,
-            enableSorting,
-            spaces,
-            projectUuid,
-            onAction,
-            getResourceUrl,
-        ],
+        [columnVisibility, enableSorting, spaces, projectUuid, onAction],
     );
 
     const visibleColumns = useMemo(() => {
@@ -353,7 +346,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 {sortedResourceList.map((row) => (
                     <StyledTr
                         key={row.uuid}
-                        onClick={() => history.push(getResourceUrl(row))}
+                        onClick={() =>
+                            history.push(getResourceUrl(projectUuid, row))
+                        }
                     >
                         {visibleColumns.map((column) => (
                             <StyledTd key={column.id}>
