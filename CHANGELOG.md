@@ -1,3 +1,10 @@
+# [0.397.0](https://github.com/lightdash/lightdash/compare/0.396.1...0.397.0) (2023-01-30)
+
+
+### Features
+
+* resource recently updated ([#4311](https://github.com/lightdash/lightdash/issues/4311)) ([50ddbba](https://github.com/lightdash/lightdash/commit/50ddbbacb582651686f8b76094e6d5f216a34f72))
+
 ## [0.396.1](https://github.com/lightdash/lightdash/compare/0.396.0...0.396.1) (2023-01-30)
 
 
