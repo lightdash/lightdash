@@ -596,6 +596,8 @@ export const sensitiveCredentialsFieldNames = [
     'password',
     'keyfileContents',
     'personalAccessToken',
+    'privateKey',
+    'privateKeyPass',
 ] as const;
 
 export const sensitiveDbtCredentialsFieldNames = [
