@@ -28,8 +28,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                 <BigNumber>{bigNumber}</BigNumber>
             ) : (
                 <BigNumberContextMenu
-                    renderTarget={({ ref, isOpen: _isOpen, onClick }) => (
-                        <BigNumber $interactive ref={ref} onClick={onClick}>
+                    renderTarget={({ ref, ...popoverProps }) => (
+                        <BigNumber
+                            $interactive
+                            ref={ref}
+                            onClick={(popoverProps as any).onClick}
+                        >
                             {bigNumber}
                         </BigNumber>
                     )}

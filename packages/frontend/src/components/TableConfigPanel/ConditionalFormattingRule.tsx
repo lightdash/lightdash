@@ -61,7 +61,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         renderTarget={({ ref, ...tooltipProps }) => (
                             <Button
                                 style={{ marginLeft: 'auto' }}
-                                {...tooltipProps}
+                                {...(tooltipProps as any)}
                                 elementRef={ref}
                                 minimal
                                 small
