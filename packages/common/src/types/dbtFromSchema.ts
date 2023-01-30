@@ -141,7 +141,6 @@ export interface CompiledAnalysisNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -278,7 +277,6 @@ export interface CompiledSingularTestNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -360,7 +358,6 @@ export interface CompiledModelNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -461,7 +458,6 @@ export interface CompiledHookNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -563,7 +559,6 @@ export interface CompiledRPCNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -664,7 +659,6 @@ export interface CompiledSqlNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -766,7 +760,6 @@ export interface CompiledGenericTestNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -860,7 +853,6 @@ export interface CompiledSeedNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -962,7 +954,6 @@ export interface CompiledSnapshotNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1062,7 +1053,6 @@ export interface ParsedAnalysisNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1158,7 +1148,6 @@ export interface ParsedSingularTestNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1235,7 +1224,6 @@ export interface ParsedHookNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1332,7 +1320,6 @@ export interface ParsedModelNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1428,7 +1415,6 @@ export interface ParsedRPCNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1524,7 +1510,6 @@ export interface ParsedSqlNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1621,7 +1606,6 @@ export interface ParsedGenericTestNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1700,7 +1684,6 @@ export interface ParsedSeedNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1797,7 +1780,6 @@ export interface ParsedSnapshotNode {
     raw_code: string;
     language: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1897,7 +1879,6 @@ export interface ParsedSourceDefinition {
     schema: string;
     unique_id: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -1987,7 +1968,6 @@ export interface ExternalPartition {
 export interface ParsedMacro {
     unique_id: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -2030,7 +2010,6 @@ export interface MacroArgument {
 export interface ParsedDocumentation {
     unique_id: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -2043,7 +2022,6 @@ export interface ParsedExposure {
     fqn: string[];
     unique_id: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;
@@ -2106,7 +2084,6 @@ export interface ParsedMetric {
     fqn: string[];
     unique_id: string;
     package_name: string;
-    root_path: string;
     path: string;
     original_file_path: string;
     name: string;

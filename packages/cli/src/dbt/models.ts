@@ -21,7 +21,6 @@ type CompiledModel = {
     name: string;
     schema: string;
     database: string;
-    rootPath: string;
     originalFilePath: string;
     patchPath: string | null | undefined;
     alias?: string;
@@ -137,12 +136,14 @@ type FindAndUpdateModelYamlArgs = {
     table: WarehouseTableSchema;
     docs: Record<string, DbtDoc>;
     includeMeta: boolean;
+    projectDir: string;
 };
 export const findAndUpdateModelYaml = async ({
     model,
     table,
     docs,
     includeMeta,
+    projectDir,
 }: FindAndUpdateModelYamlArgs): Promise<{
     updatedYml: YamlSchema;
     outputFilePath: string;
@@ -156,11 +157,11 @@ export const findAndUpdateModelYaml = async ({
     const { patchPath } = model;
     if (patchPath) {
         const { path: expectedYamlSubPath } = patchPathParts(patchPath);
-        const expectedYamlPath = path.join(model.rootPath, expectedYamlSubPath);
+        const expectedYamlPath = path.join(projectDir, expectedYamlSubPath);
         filenames.push(expectedYamlPath);
     }
     const defaultYmlPath = path.join(
-        path.dirname(path.join(model.rootPath, model.originalFilePath)),
+        path.dirname(path.join(projectDir, model.originalFilePath)),
         `${model.name}.yml`,
     );
     filenames.push(defaultYmlPath);
@@ -434,7 +435,6 @@ export const getCompiledModelsFromManifest = ({
         name: modelLookup[nodeId].name,
         schema: modelLookup[nodeId].schema,
         database: modelLookup[nodeId].database,
-        rootPath: modelLookup[nodeId].root_path,
         originalFilePath: modelLookup[nodeId].original_file_path,
         patchPath: modelLookup[nodeId].patch_path,
         alias: modelLookup[nodeId].alias,
