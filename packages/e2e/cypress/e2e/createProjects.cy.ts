@@ -136,7 +136,7 @@ const testCompile = () => {
     cy.findByText('Welcome, David! ⚡');
     cy.findByText('Shared');
     cy.findByText('Spaces');
-    cy.findByText('No charts added yet');
+    cy.findByText('get started by creating some charts');
     cy.wait(1000);
 };
 
