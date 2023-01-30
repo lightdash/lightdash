@@ -56,9 +56,8 @@ const LatestSavedCharts: FC<Props> = ({ projectUuid }) => {
             resourceType="chart"
             resourceList={featuredCharts}
             enableSorting={false}
-            defaultSort={{
-                updatedAt: SortDirection.DESC,
-            }}
+            defaultSort={{ updatedAt: SortDirection.DESC }}
+            defaultColumnVisibility={{ space: false }}
             showCount={false}
             getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
             headerTitle="Recently updated charts"

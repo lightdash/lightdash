@@ -97,9 +97,7 @@ const SavedQueries: FC = () => {
                     resourceIcon="chart"
                     resourceType="chart"
                     resourceList={savedQueries}
-                    defaultSort={{
-                        updatedAt: SortDirection.DESC,
-                    }}
+                    defaultSort={{ updatedAt: SortDirection.DESC }}
                     onClickCTA={
                         !isDemo && userCanManageCharts
                             ? handleCreateChart

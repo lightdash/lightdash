@@ -136,9 +136,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 resourceIcon="control"
                 resourceType="dashboard"
                 resourceList={savedDashboards}
-                defaultSort={{
-                    updatedAt: SortDirection.DESC,
-                }}
+                defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
                 getURL={({ uuid }) =>
                     `/projects/${projectUuid}/dashboards/${uuid}/view`
@@ -166,9 +164,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 resourceList={savedCharts}
                 resourceIcon="chart"
                 resourceType="chart"
-                defaultSort={{
-                    updatedAt: SortDirection.DESC,
-                }}
+                defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
                 getURL={({ uuid }) => `/projects/${projectUuid}/saved/${uuid}`}
                 headerAction={
