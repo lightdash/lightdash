@@ -1,5 +1,10 @@
-import { HotkeyConfig, Menu, Tab, useHotkeys } from '@blueprintjs/core';
-import { TreeNodeInfo } from '@blueprintjs/core/src/components/tree/treeNode';
+import {
+    HotkeyConfig,
+    Menu,
+    Tab,
+    TreeNodeInfo,
+    useHotkeys,
+} from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { DbtCloudMetric, TableBase } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';

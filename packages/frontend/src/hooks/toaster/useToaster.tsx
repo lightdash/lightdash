@@ -1,5 +1,4 @@
-import { Intent } from '@blueprintjs/core';
-import { IToastProps } from '@blueprintjs/core/src/components/toast/toast';
+import { Intent, IToastProps } from '@blueprintjs/core';
 import MDEditor from '@uiw/react-md-editor';
 import React, { useCallback } from 'react';
 import { AppToaster } from '../../components/AppToaster';
