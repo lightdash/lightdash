@@ -1,3 +1,10 @@
+## [0.396.1](https://github.com/lightdash/lightdash/compare/0.396.0...0.396.1) (2023-01-30)
+
+
+### Bug Fixes
+
+* fix create dashboard from menu ([#4318](https://github.com/lightdash/lightdash/issues/4318)) ([a3291a7](https://github.com/lightdash/lightdash/commit/a3291a7e090d89b8c42fd2b6732251530a55bdaa))
+
 # [0.396.0](https://github.com/lightdash/lightdash/compare/0.395.2...0.396.0) (2023-01-30)
 
 
