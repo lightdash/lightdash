@@ -1,3 +1,10 @@
+# [0.396.0](https://github.com/lightdash/lightdash/compare/0.395.2...0.396.0) (2023-01-30)
+
+
+### Features
+
+* update appearance of charts and dashboards in list view ([#4285](https://github.com/lightdash/lightdash/issues/4285)) ([4ba2c27](https://github.com/lightdash/lightdash/commit/4ba2c271309a873c0eb42a97dcdbf83e1926f16b))
+
 ## [0.395.2](https://github.com/lightdash/lightdash/compare/0.395.1...0.395.2) (2023-01-30)
 
 
