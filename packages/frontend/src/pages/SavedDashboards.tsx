@@ -121,13 +121,14 @@ const SavedDashboards = () => {
                                 interactionKind="hover"
                             >
                                 <Button
-                                    text="Create dashboard"
                                     icon="plus"
                                     loading={isCreatingDashboard}
                                     onClick={handleCreateDashboard}
                                     disabled={hasNoSpaces}
                                     intent="primary"
-                                />
+                                >
+                                    Create dashboard
+                                </Button>
                             </Tooltip2>
                         )}
                 </PageHeader>
