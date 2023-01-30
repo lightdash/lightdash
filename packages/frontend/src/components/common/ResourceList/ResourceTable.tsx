@@ -159,7 +159,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                         resource={row}
                                         resourceType={getResourceType(row)}
                                     />{' '}
-                                    • {row.views} views
+                                    • {row.views || '0'} views
                                 </ResourceMetadata>
                             </ResourceNameBox>
                         </ResourceLink>
