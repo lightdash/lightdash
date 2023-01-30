@@ -217,6 +217,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 },
                 operator: FilterOperator.EQUALS,
                 values: [e.data[fieldId(dimension)]],
+                label: undefined,
             }));
             const serie = series[e.seriesIndex];
             const fields = getFields(explore);
@@ -242,6 +243,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                               },
                               operator: FilterOperator.EQUALS,
                               values: [pivotValue],
+                              label: undefined,
                           },
                       ]
                     : [];

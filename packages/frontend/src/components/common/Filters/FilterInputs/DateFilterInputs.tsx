@@ -7,6 +7,7 @@ import {
     FilterOperator,
     formatDate,
     isDimension,
+    isField,
     isFilterRule,
     isWeekDay,
     parseDate,
@@ -31,7 +32,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled } = props;
     const { startOfWeek } = useFiltersContext();
-    const isTimestamp = field.type === DimensionType.TIMESTAMP;
+    const isTimestamp =
+        isField(field) && field.type === DimensionType.TIMESTAMP;
 
     if (!isFilterRule(rule)) {
         throw new Error('DateFilterInputs expects a FilterRule');

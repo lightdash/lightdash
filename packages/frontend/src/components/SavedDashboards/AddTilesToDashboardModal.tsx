@@ -266,6 +266,8 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                             // on isSuccess hook
                                             spaceCreateMutation({
                                                 name: newSpaceName,
+                                                isPrivate: false,
+                                                access: [],
                                             });
                                         } else {
                                             addChartToDashboard(spaceUuid);

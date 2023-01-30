@@ -28,6 +28,7 @@ export const SqlCallout = styled(Callout)`
     margin-top: 20px;
 `;
 
+// @ts-ignore
 export const StyledTabs = styled(Tabs)`
     margin-bottom: 10px;
 `;
