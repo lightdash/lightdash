@@ -81,16 +81,13 @@ export class SavedChartService {
                 savedChart.metricQuery.tableCalculations.length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
-            constantReferenceLinesNum: echartsConfig?.series?.filter(
-                (serie) => serie.markLine?.data !== undefined,
-            ).length,
-            conditionalFormattingNumRules:
-                tableConfig?.conditionalFormattings?.length,
-            showLegend:
-                echartsConfig?.legend && echartsConfig.legend.show !== false,
-            margins:
-                echartsConfig?.grid &&
-                (echartsConfig.grid.top === undefined ? 'default' : 'custom'),
+            table:
+                savedChart.chartConfig.type === ChartType.TABLE
+                    ? {
+                          conditionalFormattingRulesCount:
+                              tableConfig?.conditionalFormattings?.length,
+                      }
+                    : undefined,
             cartesian:
                 savedChart.chartConfig.type === ChartType.CARTESIAN
                     ? {
@@ -110,6 +107,14 @@ export class SavedChartService {
                               savedChart.chartConfig.config.eChartsConfig
                                   .series || []
                           ).length,
+                          referenceLinesCount: echartsConfig?.series?.filter(
+                              (serie) => serie.markLine?.data !== undefined,
+                          ).length,
+                          margins:
+                              echartsConfig?.grid?.top === undefined
+                                  ? 'default'
+                                  : 'custom',
+                          showLegend: echartsConfig?.legend?.show !== false,
                       }
                     : undefined,
         };

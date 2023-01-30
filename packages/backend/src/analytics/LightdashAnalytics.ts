@@ -162,6 +162,12 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             yAxisCount: number;
             seriesCount: number;
             seriesTypes: CartesianSeriesType[];
+            referenceLinesCount?: number;
+            margins?: string;
+            showLegend?: boolean;
+        };
+        table?: {
+            conditionalFormattingRulesCount?: number;
         };
         duplicated?: boolean;
     };
