@@ -61,6 +61,15 @@ export class SavedChartService {
     static getCreateEventProperties(
         savedChart: SavedChart,
     ): CreateSavedChartOrVersionEvent['properties'] {
+        const echartsConfig =
+            savedChart.chartConfig.type === ChartType.CARTESIAN
+                ? savedChart.chartConfig.config.eChartsConfig
+                : undefined;
+        const tableConfig =
+            savedChart.chartConfig.type === ChartType.TABLE
+                ? savedChart.chartConfig.config
+                : undefined;
+
         return {
             projectId: savedChart.projectUuid,
             savedQueryId: savedChart.uuid,
@@ -72,6 +81,13 @@ export class SavedChartService {
                 savedChart.metricQuery.tableCalculations.length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
+            table:
+                savedChart.chartConfig.type === ChartType.TABLE
+                    ? {
+                          conditionalFormattingRulesCount:
+                              tableConfig?.conditionalFormattings?.length || 0,
+                      }
+                    : undefined,
             cartesian:
                 savedChart.chartConfig.type === ChartType.CARTESIAN
                     ? {
@@ -91,6 +107,15 @@ export class SavedChartService {
                               savedChart.chartConfig.config.eChartsConfig
                                   .series || []
                           ).length,
+                          referenceLinesCount:
+                              echartsConfig?.series?.filter(
+                                  (serie) => serie.markLine?.data !== undefined,
+                              ).length || 0,
+                          margins:
+                              echartsConfig?.grid?.top === undefined
+                                  ? 'default'
+                                  : 'custom',
+                          showLegend: echartsConfig?.legend?.show !== false,
                       }
                     : undefined,
         };
@@ -117,6 +142,7 @@ export class SavedChartService {
             data,
             user,
         );
+
         analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
