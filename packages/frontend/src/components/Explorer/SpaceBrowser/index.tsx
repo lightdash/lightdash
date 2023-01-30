@@ -67,16 +67,14 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         No spaces added yet
                     </ResourceEmptyStateHeader>
 
-                    <Button
-                        text="Create space"
-                        icon="plus"
-                        intent="primary"
-                        onClick={
-                            !isDemo && userCanManageSpace
-                                ? handleCreateSpace
-                                : undefined
-                        }
-                    />
+                    {!isDemo && userCanManageSpace && (
+                        <Button
+                            text="Create space"
+                            icon="plus"
+                            intent="primary"
+                            onClick={handleCreateSpace}
+                        />
+                    )}
                 </ResourceEmptyStateWrapper>
             ) : (
                 <SpaceListWrapper>

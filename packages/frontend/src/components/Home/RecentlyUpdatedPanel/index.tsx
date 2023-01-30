@@ -1,8 +1,11 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
+import { LightdashMode } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useApp } from '../../../providers/AppProvider';
 import ResourceList from '../../common/ResourceList';
 import {
     ResourceEmptyStateHeader,
@@ -18,6 +21,7 @@ interface Props {
 
 const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     const history = useHistory();
+    const { user, health } = useApp();
     const { data: dashboards = [] } = useDashboards(projectUuid);
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
@@ -35,6 +39,16 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     const handleCreateChart = () => {
         history.push(`/projects/${projectUuid}/tables`);
     };
+
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     return (
         <ResourceList
@@ -66,13 +80,15 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                         </ResourceEmptyStateText>
                     </ResourceEmptyStateHeaderWrapper>
 
-                    <Button
-                        icon="plus"
-                        intent="primary"
-                        onClick={handleCreateChart}
-                    >
-                        Create chart
-                    </Button>
+                    {!isDemo && userCanManageCharts && (
+                        <Button
+                            icon="plus"
+                            intent="primary"
+                            onClick={handleCreateChart}
+                        >
+                            Create chart
+                        </Button>
+                    )}
                 </>
             )}
         />
