@@ -12,29 +12,6 @@ const inputFieldStyles = css`
     }
 `;
 
-export const LogoWrapper = styled.div`
-    margin: 30px auto;
-`;
-
-export const Logo = styled.img`
-    width: 130px;
-`;
-
-export const FormWrapper = styled.div`
-    width: 400px;
-    margin-top: 30px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    flex: 1;
-`;
-
-export const CardWrapper = styled(Card)`
-    padding: 30px 27px;
-    display: flex;
-    flex-direction: column;
-`;
-
 export const InputField = styled(Input)`
     ${inputFieldStyles}
 `;

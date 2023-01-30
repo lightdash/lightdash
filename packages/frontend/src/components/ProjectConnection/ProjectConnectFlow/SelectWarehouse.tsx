@@ -1,12 +1,12 @@
 import { Colors } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
-import BigQuery from './Assets/bigquery.svg';
-import Databricks from './Assets/databricks.svg';
-import PostgressLogo from './Assets/postgresql.svg';
-import Redshift from './Assets/redshift.svg';
-import Snowflake from './Assets/snowflake.svg';
-import Trino from './Assets/trino.svg';
+import { ReactComponent as BigQuery } from './Assets/bigquery.svg';
+import { ReactComponent as Databricks } from './Assets/databricks.svg';
+import { ReactComponent as PostgreSQL } from './Assets/postgresql.svg';
+import { ReactComponent as Redshift } from './Assets/redshift.svg';
+import { ReactComponent as Snowflake } from './Assets/snowflake.svg';
+import { ReactComponent as Trino } from './Assets/trino.svg';
 import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
@@ -15,7 +15,7 @@ import {
     Subtitle,
     WarehouseButton,
     WarehouseGrid,
-    WarehouseIcon,
+    WarehouseIconWrapper,
     Wrapper,
 } from './ProjectConnectFlow.styles';
 
@@ -27,32 +27,56 @@ export const WarehouseTypeLabels = [
     {
         label: 'BigQuery',
         key: WarehouseTypes.BIGQUERY,
-        icon: <WarehouseIcon src={BigQuery} alt="BigQuery" />,
+        icon: (
+            <WarehouseIconWrapper>
+                <BigQuery />
+            </WarehouseIconWrapper>
+        ),
     },
     {
         label: 'Trino',
         key: WarehouseTypes.TRINO,
-        icon: <WarehouseIcon src={Trino} alt="Trino" />,
+        icon: (
+            <WarehouseIconWrapper>
+                <Trino />
+            </WarehouseIconWrapper>
+        ),
     },
     {
         label: 'Databricks',
         key: WarehouseTypes.DATABRICKS,
-        icon: <WarehouseIcon src={Databricks} alt="Databricks" />,
+        icon: (
+            <WarehouseIconWrapper>
+                <Databricks />
+            </WarehouseIconWrapper>
+        ),
     },
     {
         label: 'PostgreSQL',
         key: WarehouseTypes.POSTGRES,
-        icon: <WarehouseIcon src={PostgressLogo} alt="Postgres" />,
+        icon: (
+            <WarehouseIconWrapper>
+                <PostgreSQL />
+            </WarehouseIconWrapper>
+        ),
     },
     {
         label: 'Redshift',
         key: WarehouseTypes.REDSHIFT,
-        icon: <WarehouseIcon src={Redshift} alt="Redshift" />,
+        icon: (
+            <WarehouseIconWrapper>
+                <Redshift />
+            </WarehouseIconWrapper>
+        ),
     },
     {
         label: 'Snowflake',
         key: WarehouseTypes.SNOWFLAKE,
-        icon: <WarehouseIcon src={Snowflake} alt="Snowflake" />,
+        icon: (
+            <WarehouseIconWrapper>
+                <Snowflake />
+            </WarehouseIconWrapper>
+        ),
     },
     {
         label: 'Other',

@@ -26,8 +26,8 @@ import { useAbilityContext } from '../common/Authorization';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
-import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
+import { ReactComponent as DbtLogo } from './ProjectConnectFlow/Assets/dbt.svg';
+import { WarehouseIconWrapper } from './ProjectConnectFlow/ProjectConnectFlow.styles';
 import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
@@ -113,7 +113,9 @@ const ProjectForm: FC<Props> = ({
             </ProjectConnectionCard>
             <ProjectConnectionCard elevation={1}>
                 <LeftPanel>
-                    <WarehouseIcon src={DbtLogo} alt="dbt icon" />
+                    <WarehouseIconWrapper>
+                        <DbtLogo />
+                    </WarehouseIconWrapper>
                     <LeftPanelTitle>
                         <H5>dbt connection</H5>
                         <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />

@@ -15,7 +15,6 @@ import PageSpinner from '../components/PageSpinner';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
     CardWrapper,
     Divider,
@@ -105,7 +104,7 @@ const Register: FC = () => {
             </Helmet>
             <FormWrapper>
                 <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                    <Logo />
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <Title>Create your account</Title>

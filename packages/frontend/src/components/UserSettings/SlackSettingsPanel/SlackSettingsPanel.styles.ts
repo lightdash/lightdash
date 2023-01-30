@@ -1,5 +1,6 @@
-import { AnchorButton, Button, Colors } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
+import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 
 export const SlackSettingsWrapper = styled.div`
     display: flex;
@@ -17,7 +18,7 @@ export const Title = styled.h3`
     margin: 5px 0 20px;
 `;
 
-export const SlackIcon = styled.img`
+export const SlackIcon = styled(SlackSvg)`
     width: 32px;
     height: 32px;
 `;

@@ -23,7 +23,6 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
     BoldSubtitle,
     CardWrapper,
@@ -189,7 +188,7 @@ const Signup: FC = () => {
             </Helmet>
             <FormWrapper>
                 <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                    <Logo />
                 </LogoWrapper>
                 {inviteLinkQuery.error ? (
                     <ErrorCard

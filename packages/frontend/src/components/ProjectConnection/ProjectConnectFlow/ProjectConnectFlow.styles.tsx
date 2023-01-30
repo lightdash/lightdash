@@ -81,8 +81,11 @@ export const WarehouseButton = styled(Button)`
     font-weight: 600;
 `;
 
-export const WarehouseIcon = styled.img`
-    width: 25px;
+export const WarehouseIconWrapper = styled.div`
+    svg {
+        width: 25px;
+        height: 25px;
+    }
 `;
 
 export const OtherIcon = styled(Icon)`

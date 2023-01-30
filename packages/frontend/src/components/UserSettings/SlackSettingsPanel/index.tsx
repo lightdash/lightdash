@@ -1,7 +1,6 @@
-import { AnchorButton, Button, Icon, Spinner } from '@blueprintjs/core';
+import { AnchorButton, Button, Spinner } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
-import slackSvg from '../../../svgs/slack.svg';
 import {
     Actions,
     AppearancePanelWrapper,
@@ -25,7 +24,7 @@ const SlackSettingsPanel: FC = () => {
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
     return (
         <SlackSettingsWrapper>
-            <SlackIcon src={slackSvg} />
+            <SlackIcon />
             <AppearancePanelWrapper>
                 <Title> Slack integration</Title>
 

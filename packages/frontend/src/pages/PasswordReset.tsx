@@ -11,18 +11,14 @@ import {
     usePasswordResetMutation,
 } from '../hooks/usePasswordReset';
 import { useApp } from '../providers/AppProvider';
-import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
-    CardWrapper,
     FormLink,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
     PasswordInputField,
     SubmitButton,
     Subtitle,
     Title,
 } from './PasswordRecovery.styles';
+import { CardWrapper, FormWrapper, Logo, LogoWrapper } from './SignUp.styles';
 
 type ResetPasswordForm = { password: string };
 
@@ -51,7 +47,7 @@ const PasswordReset: FC = () => {
         <Page isFullHeight>
             <FormWrapper>
                 <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                    <Logo />
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     {error ? (

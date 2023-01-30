@@ -1,9 +1,9 @@
 import { Intent } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useTracking } from '../../../providers/TrackingProvider';
-import Step1 from '../../../svgs/onboarding1.svg';
-import Step2 from '../../../svgs/onboarding2.svg';
-import Step3 from '../../../svgs/onboarding3.svg';
+import { ReactComponent as Step1 } from '../../../svgs/onboarding1.svg';
+import { ReactComponent as Step2 } from '../../../svgs/onboarding2.svg';
+import { ReactComponent as Step3 } from '../../../svgs/onboarding3.svg';
 import { EventName } from '../../../types/Events';
 import {
     ButtonWrapper,
@@ -27,17 +27,17 @@ const onboardingSteps = [
     {
         title: '1. Run queries',
         description: 'to explore your data',
-        image: <img src={Step1} alt="onboarding-step-1" />,
+        image: <Step1 />,
     },
     {
         title: '2. Create charts',
         description: 'using your query results',
-        image: <img src={Step2} alt="onboarding-step-2" />,
+        image: <Step2 />,
     },
     {
         title: '3. Build dashboards',
         description: 'to share your insights',
-        image: <img src={Step3} alt="onboarding-step-3" />,
+        image: <Step3 />,
     },
 ];
 

@@ -3,14 +3,8 @@ import { Redirect } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
-import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    CardWrapper,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-} from './PasswordRecovery.styles';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
+import { CardWrapper, FormWrapper, Logo, LogoWrapper } from './SignUp.styles';
 
 const PasswordRecovery: FC = () => {
     const { health } = useApp();
@@ -27,7 +21,7 @@ const PasswordRecovery: FC = () => {
         <Page isFullHeight>
             <FormWrapper>
                 <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
+                    <Logo />
                 </LogoWrapper>
                 <CardWrapper elevation={2}>
                     <PasswordRecoveryForm />

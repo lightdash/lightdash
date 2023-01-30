@@ -3,6 +3,7 @@ import styled, { css } from 'styled-components';
 import { BigButton } from '../components/common/BigButton';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
+import { ReactComponent as LightdashLogo } from '../svgs/lightdash-black.svg';
 
 const inputFieldStyles = css`
     margin-bottom: 20px;
@@ -15,7 +16,7 @@ export const LogoWrapper = styled.div`
     margin: 30px auto;
 `;
 
-export const Logo = styled.img`
+export const Logo = styled(LightdashLogo)`
     width: 130px;
 `;
 
