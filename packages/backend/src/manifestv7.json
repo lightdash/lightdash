@@ -323,7 +323,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -364,9 +363,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -870,7 +866,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -911,9 +906,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -1223,7 +1215,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -1264,9 +1255,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -1459,7 +1447,7 @@
                     ]
                 }
             },
-            "additionalProperties": false,
+            "additionalProperties": true,
             "description": "CompiledModelNode(compiled: bool, database: Optional[str], schema: str, fqn: List[str], unique_id: str, raw_code: str, language: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, resource_type: dbt.node_types.NodeType, alias: str, checksum: dbt.contracts.files.FileHash, config: dbt.contracts.graph.model_config.NodeConfig = <factory>, _event_status: Dict[str, Any] = <factory>, tags: List[str] = <factory>, refs: List[List[str]] = <factory>, sources: List[List[str]] = <factory>, metrics: List[List[str]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, description: str = '', columns: Dict[str, dbt.contracts.graph.parsed.ColumnInfo] = <factory>, meta: Dict[str, Any] = <factory>, docs: dbt.contracts.graph.unparsed.Docs = <factory>, patch_path: Optional[str] = None, compiled_path: Optional[str] = None, build_path: Optional[str] = None, deferred: bool = False, unrendered_config: Dict[str, Any] = <factory>, created_at: float = <factory>, config_call_dict: Dict[str, Any] = <factory>, compiled_code: Optional[str] = None, extra_ctes_injected: bool = False, extra_ctes: List[dbt.contracts.graph.compiled.InjectedCTE] = <factory>, relation_name: Optional[str] = None, _pre_injected_sql: Optional[str] = None)"
         },
         "CompiledHookNode": {
@@ -1472,7 +1460,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -1513,9 +1500,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -1731,7 +1715,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -1772,9 +1755,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -1980,7 +1960,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -2021,9 +2000,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -2230,7 +2206,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -2274,9 +2249,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -2519,7 +2491,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -2560,9 +2531,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -2934,7 +2902,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -2975,9 +2942,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -3182,7 +3146,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -3220,9 +3183,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -3396,7 +3356,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -3434,9 +3393,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -3602,7 +3558,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -3640,9 +3595,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -3826,7 +3778,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -3864,9 +3815,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -4040,7 +3988,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -4078,9 +4025,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -4254,7 +4198,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -4292,9 +4235,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -4469,7 +4409,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -4510,9 +4449,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -4698,7 +4634,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -4736,9 +4671,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -4913,7 +4845,6 @@
                 "raw_code",
                 "language",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -4952,9 +4883,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -5307,10 +5235,6 @@
                 "schema",
                 "unique_id",
                 "package_name",
-                "root_path",
-                "path",
-                "original_file_path",
-                "name",
                 "source_name",
                 "source_description",
                 "loader",
@@ -5341,9 +5265,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -5854,7 +5775,6 @@
             "required": [
                 "unique_id",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -5866,9 +5786,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -5999,7 +5916,6 @@
             "required": [
                 "unique_id",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -6010,9 +5926,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -6037,7 +5950,6 @@
                 "fqn",
                 "unique_id",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -6055,9 +5967,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -6231,7 +6140,6 @@
                 "fqn",
                 "unique_id",
                 "package_name",
-                "root_path",
                 "path",
                 "original_file_path",
                 "name",
@@ -6255,9 +6163,6 @@
                     "type": "string"
                 },
                 "package_name": {
-                    "type": "string"
-                },
-                "root_path": {
                     "type": "string"
                 },
                 "path": {
@@ -6414,7 +6319,7 @@
                     "default": 1664991685.8293078
                 }
             },
-            "additionalProperties": false,
+            "additionalProperties": true,
             "description": "ParsedMetric(fqn: List[str], unique_id: str, package_name: str, root_path: str, path: str, original_file_path: str, name: str, description: str, label: str, calculation_method: str, expression: str, timestamp: str, filters: List[dbt.contracts.graph.unparsed.MetricFilter], time_grains: List[str], dimensions: List[str], window: Optional[dbt.contracts.graph.unparsed.MetricTime] = None, model: Optional[str] = None, model_unique_id: Optional[str] = None, resource_type: dbt.node_types.NodeType = <NodeType.Metric: 'metric'>, meta: Dict[str, Any] = <factory>, tags: List[str] = <factory>, config: dbt.contracts.graph.model_config.MetricConfig = <factory>, unrendered_config: Dict[str, Any] = <factory>, sources: List[List[str]] = <factory>, depends_on: dbt.contracts.graph.parsed.DependsOn = <factory>, refs: List[List[str]] = <factory>, metrics: List[List[str]] = <factory>, created_at: float = <factory>)"
         },
         "MetricFilter": {

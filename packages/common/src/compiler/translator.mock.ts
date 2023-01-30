@@ -40,7 +40,6 @@ export const DBT_METRIC: DbtMetric = {
     unique_id: 'dbt_metric_1',
     package_name: '',
     path: '',
-    root_path: '',
     original_file_path: '',
     model: "ref('myTable')",
     name: 'dbt_metric_1',
@@ -197,7 +196,6 @@ export const model: DbtModelNode & { relation_name: string } = {
     tags: [],
     relation_name: 'relation_name',
     depends_on: { nodes: [] },
-    root_path: 'root_path',
     patch_path: null,
     original_file_path: '',
 };

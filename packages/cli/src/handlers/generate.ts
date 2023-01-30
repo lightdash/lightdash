@@ -107,6 +107,7 @@ export const generateHandler = async (options: GenerateHandlerOptions) => {
                     table,
                     docs: manifest.docs,
                     includeMeta: !options.excludeMeta,
+                    projectDir: absoluteProjectPath,
                 },
             );
             try {
