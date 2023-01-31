@@ -1,8 +1,16 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
+import { NonIdealState, Spinner, SpinnerSize } from '@blueprintjs/core';
 import { PivotReference } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
-import { FC, memo, useCallback, useEffect, useMemo } from 'react';
+import {
+    FC,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -54,11 +62,55 @@ export const EmptyChart = () => (
     </div>
 );
 
-export const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <NonIdealState title="Loading chart" icon={<Spinner />} />
-    </div>
-);
+export const LoadingChart = () => {
+    const refLoadingChart = useRef<HTMLDivElement | null>(null);
+    const [isSmall, setIsSmall] = useState<boolean>(false);
+
+    const handleResize = useCallback(() => {
+        if (refLoadingChart.current) {
+            const resizeableElement = refLoadingChart.current;
+            const styles = window.getComputedStyle(
+                resizeableElement as Element,
+            );
+            const width = parseInt(styles.width);
+            const height = parseInt(styles.height);
+
+            setIsSmall(height < 140 || width < 140);
+        }
+    }, [refLoadingChart]);
+
+    useEffect(() => {
+        if (refLoadingChart.current) {
+            handleResize();
+            window.addEventListener('resize', handleResize);
+        }
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    });
+
+    return (
+        <div
+            ref={refLoadingChart}
+            style={{
+                height: '100%',
+                width: '100%',
+                padding: isSmall ? '0' : '50px 0',
+            }}
+        >
+            <NonIdealState
+                icon={
+                    <Spinner
+                        size={
+                            isSmall ? SpinnerSize.SMALL : SpinnerSize.STANDARD
+                        }
+                    />
+                }
+            />
+        </div>
+    );
+};
 
 const isSeriesClickEvent = (e: EchartClickEvent): e is EchartSeriesClickEvent =>
     e.componentType === 'series';
