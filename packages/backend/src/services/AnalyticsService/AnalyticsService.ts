@@ -1,4 +1,5 @@
 import { ForbiddenError, SessionUser } from '@lightdash/common';
+import { analytics } from '../../analytics/client';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 
 type Dependencies = {
@@ -27,6 +28,17 @@ export class AnalyticsService {
         if (user.ability.cannot('view', 'Analytics')) {
             throw new ForbiddenError();
         }
+
+        analytics.track({
+            event: 'usage_analytics.dashboard_viewed',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: user.organizationUuid,
+                dashboardType: 'user_activity',
+            },
+        });
+
         return this.analyticsModel.getUserActivity(
             projectUuid,
             user.organizationUuid,

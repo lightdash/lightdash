@@ -19,6 +19,8 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
+import { useTracking } from '../providers/TrackingProvider';
+import { EventName } from '../types/Events';
 import { TabsWrapper } from './ProjectSettings.styles';
 
 enum SettingsTabs {
@@ -42,8 +44,15 @@ const ProjectSettings: FC = () => {
 
     const { isLoading, data: project, error } = useProject(projectUuid);
     const basePath = `/generalSettings/projectManagement/${projectUuid}`;
+    const { track } = useTracking();
 
     const changeTab = (newTab: SettingsTabs | IntegrationsTabs) => {
+        if (newTab === SettingsTabs.USAGE_ANALYTICS) {
+            track({
+                name: EventName.USAGE_ANALYTICS_CLICKED,
+            });
+        }
+
         if (newTab === IntegrationsTabs.DBT_CLOUD) {
             history.push(`${basePath}/integrations/${newTab}`);
         } else {
