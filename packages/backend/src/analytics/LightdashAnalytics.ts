@@ -442,6 +442,16 @@ type DashboardView = BaseTrack & {
     };
 };
 
+type AnalyticsDashboardView = BaseTrack & {
+    event: 'usage_analytics.dashboard_viewed';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        dashboardType: 'user_activity';
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -478,7 +488,8 @@ type Track =
     | ShareUrl
     | ShareSlack
     | SavedChartView
-    | DashboardView;
+    | DashboardView
+    | AnalyticsDashboardView;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
