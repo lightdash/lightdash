@@ -334,6 +334,8 @@ const getMinAndMaxReferenceLines = (
                 case MetricType.COUNT:
                 case MetricType.COUNT_DISTINCT:
                 case MetricType.SUM:
+                case MetricType.MEDIAN:
+                case MetricType.PERCENTILE:
                 case MetricType.MIN:
                 case MetricType.MAX:
                     return serie.markLine?.data.reduce<number[]>(
