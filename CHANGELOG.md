@@ -1,3 +1,10 @@
+## [0.398.1](https://github.com/lightdash/lightdash/compare/0.398.0...0.398.1) (2023-01-31)
+
+
+### Bug Fixes
+
+* hide learn link when there are no items in the recently updated list ([#4335](https://github.com/lightdash/lightdash/issues/4335)) ([b919f72](https://github.com/lightdash/lightdash/commit/b919f724bea43ef97f4bc4476d1424ff2497ef6f))
+
 # [0.398.0](https://github.com/lightdash/lightdash/compare/0.397.0...0.398.0) (2023-01-30)
 
 
