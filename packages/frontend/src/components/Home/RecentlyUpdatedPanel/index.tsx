@@ -59,12 +59,14 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             showCount={false}
             headerTitle="Recently updated"
             headerAction={
-                <AnchorButton
-                    text="Learn"
-                    minimal
-                    target="_blank"
-                    href="https://docs.lightdash.com/get-started/exploring-data/intro"
-                />
+                recentItems.length === 0 && (
+                    <AnchorButton
+                        text="Learn"
+                        minimal
+                        target="_blank"
+                        href="https://docs.lightdash.com/get-started/exploring-data/intro"
+                    />
+                )
             }
             renderEmptyState={() => (
                 <>
