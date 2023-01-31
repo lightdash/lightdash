@@ -15,12 +15,13 @@ const ResourceType: FC<ResourceTypeProps> = ({ resource, resourceType }) => {
             const chartType = (resource as SpaceQuery).chartType;
 
             switch (chartType) {
-                case ChartKind.LINE:
-                    return <>Line chart</>;
+                case null:
                 case ChartKind.VERTICAL_BAR:
                     return <>Bar chart</>;
                 case ChartKind.HORIZONTAL_BAR:
                     return <>Horizontal bar chart</>;
+                case ChartKind.LINE:
+                    return <>Line chart</>;
                 case ChartKind.SCATTER:
                     return <>Scatter chart</>;
                 case ChartKind.AREA:
@@ -31,8 +32,6 @@ const ResourceType: FC<ResourceTypeProps> = ({ resource, resourceType }) => {
                     return <>Table</>;
                 case ChartKind.BIG_NUMBER:
                     return <>Big number</>;
-                case null:
-                    return <>Chart</>;
                 default:
                     return assertUnreachable(
                         chartType,

@@ -30,12 +30,7 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
         case 'chart':
             const chartType = (resource as SpaceQuery).chartType;
             switch (chartType) {
-                case ChartKind.LINE:
-                    return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartLine color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
-                    );
+                case null:
                 case ChartKind.VERTICAL_BAR:
                     return (
                         <ResourceIconBox color={Colors.BLUE3}>
@@ -50,6 +45,12 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
                                 size={20}
                                 style={{ rotate: '90deg' }}
                             />
+                        </ResourceIconBox>
+                    );
+                case ChartKind.LINE:
+                    return (
+                        <ResourceIconBox color={Colors.BLUE3}>
+                            <IconChartLine color={Colors.BLUE3} size={20} />
                         </ResourceIconBox>
                     );
                 case ChartKind.SCATTER:
@@ -80,12 +81,6 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
                     return (
                         <ResourceIconBox color={Colors.BLUE3}>
                             <Icon123 color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
-                    );
-                case null:
-                    return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartBar color={Colors.BLUE3} size={20} />
                         </ResourceIconBox>
                     );
                 default:
