@@ -221,7 +221,7 @@ const testPercentile = (rowValues = percentileRowValues) => {
     cy.findByText('Percentile 75').click();
 
     cy.get('th')
-        .contains('Timestamp tz raw')
+        .contains('Timestamp tz day')
         .closest('th')
         .find('button')
         .click();
