@@ -1,3 +1,10 @@
+# [0.399.0](https://github.com/lightdash/lightdash/compare/0.398.1...0.399.0) (2023-01-31)
+
+
+### Features
+
+* median metric type ([#4333](https://github.com/lightdash/lightdash/issues/4333)) ([cf24d1d](https://github.com/lightdash/lightdash/commit/cf24d1d13df78182e5016cd214ca7a695b2d822c))
+
 ## [0.398.1](https://github.com/lightdash/lightdash/compare/0.398.0...0.398.1) (2023-01-31)
 
 
