@@ -7,6 +7,7 @@ import {
     Menu,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { IconEye } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
@@ -34,6 +35,7 @@ import {
     SeparatorDot,
 } from '../../common/PageHeader';
 import { UpdatedInfo } from '../../common/UpdatedInfo';
+import { ViewCountTag } from '../../common/ViewCount.styles';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
 
@@ -180,6 +182,15 @@ const SavedChartsHeader: FC = () => {
                                     updatedAt={savedChart.updatedAt}
                                     user={savedChart.updatedByUser}
                                 />
+
+                                <SeparatorDot icon="dot" size={6} />
+
+                                <ViewCountTag
+                                    minimal
+                                    icon={<IconEye size={16} />}
+                                >
+                                    {savedChart.views || '0'} views
+                                </ViewCountTag>
 
                                 {space && (
                                     <>

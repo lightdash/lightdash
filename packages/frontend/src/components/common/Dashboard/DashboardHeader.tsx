@@ -1,11 +1,7 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import {
-    Dashboard,
-    Space,
-    UpdateDashboardDetails,
-    UpdatedByUser,
-} from '@lightdash/common';
+import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
+import { IconEye } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
@@ -26,6 +22,7 @@ import {
 } from '../PageHeader';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import { UpdatedInfo } from '../UpdatedInfo';
+import { ViewCountTag } from '../ViewCount.styles';
 
 type DashboardHeaderProps = {
     spaces?: Space[];
@@ -34,6 +31,7 @@ type DashboardHeaderProps = {
     dashboardSpaceName?: string;
     dashboardSpaceUuid?: string;
     dashboardUpdatedAt: Date;
+    dashboardViews: number;
     dashboardUpdatedByUser?: UpdatedByUser;
     hasDashboardChanged: boolean;
     isEditMode: boolean;
@@ -52,6 +50,7 @@ const DashboardHeader = ({
     dashboardName,
     dashboardSpaceName,
     dashboardSpaceUuid,
+    dashboardViews,
     dashboardUpdatedAt,
     dashboardUpdatedByUser,
     hasDashboardChanged,
@@ -124,11 +123,16 @@ const DashboardHeader = ({
                         <>
                             <SeparatorDot icon="dot" size={6} />
 
+                            <ViewCountTag minimal icon={<IconEye size={16} />}>
+                                {dashboardViews || '0'} views
+                            </ViewCountTag>
+
+                            <SeparatorDot icon="dot" size={6} />
+
                             <IconWithRightMargin
                                 icon="folder-close"
                                 size={10}
                             />
-
                             <Link
                                 to={`/projects/${projectUuid}/spaces/${dashboardSpaceUuid}`}
                             >
