@@ -254,9 +254,10 @@ export const convertTable = (
     }
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
     const tableLabel = meta.label || friendlyName(model.name);
-    const [dimensions, metrics] = Object.values(model.columns).reduce<
-        [Record<string, Dimension>, Metric[]]
-    >(
+    const [dimensions, metrics]: [
+        Record<string, Dimension>,
+        Record<string, Metric>,
+    ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column, index) => {
             const dimension = convertDimension(
                 index,
@@ -309,16 +310,20 @@ export const convertTable = (
                 );
             }
 
-            const columnMetrics = Object.entries(column.meta.metrics || {}).map(
-                ([name, metric]) =>
-                    convertColumnMetric({
-                        modelName: model.name,
-                        dimensionName: dimension.name,
-                        dimensionSql: dimension.sql,
+            const columnMetrics = Object.fromEntries(
+                Object.entries(column.meta.metrics || {}).map(
+                    ([name, metric]) => [
                         name,
-                        metric,
-                        tableLabel,
-                    }),
+                        convertColumnMetric({
+                            modelName: model.name,
+                            dimensionName: dimension.name,
+                            dimensionSql: dimension.sql,
+                            name,
+                            metric,
+                            tableLabel,
+                        }),
+                    ],
+                ),
             );
 
             return [
@@ -327,30 +332,41 @@ export const convertTable = (
                     [column.name]: dimension,
                     ...extraDimensions,
                 },
-                [...prevMetrics, ...columnMetrics],
+                { ...prevMetrics, ...columnMetrics },
             ];
         },
-        [{}, []],
+        [{}, {}],
     );
 
-    const modelMetrics = Object.entries(model.meta.metrics || {}).map(
-        ([name, metric]) =>
+    const modelMetrics = Object.fromEntries(
+        Object.entries(model.meta.metrics || {}).map(([name, metric]) => [
+            name,
             convertModelMetric({
                 modelName: model.name,
                 name,
                 metric,
                 tableLabel,
             }),
+        ]),
     );
 
-    const convertedDbtMetrics = dbtMetrics.map((metric) =>
-        convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
+    const convertedDbtMetrics = Object.fromEntries(
+        dbtMetrics.map((metric) => [
+            metric.name,
+            convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
+        ]),
     );
 
-    const allMetrics: Record<string, Metric> = Object.fromEntries(
-        [...convertedDbtMetrics, ...modelMetrics, ...metrics].map(
-            (metric, index) => [metric.name, { ...metric, index }],
-        ),
+    const allMetrics: Record<string, Metric> = Object.values({
+        ...convertedDbtMetrics,
+        ...modelMetrics,
+        ...metrics,
+    }).reduce(
+        (acc, metric, index) => ({
+            ...acc,
+            [metric.name]: { ...metric, index },
+        }),
+        {},
     );
 
     const duplicatedNames = Object.keys(allMetrics).filter((metric) =>
