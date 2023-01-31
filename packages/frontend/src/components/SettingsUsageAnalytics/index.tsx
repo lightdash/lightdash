@@ -1,8 +1,7 @@
-import { Button, Card, Colors, Icon } from '@blueprintjs/core';
+import { Colors, Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { FC, useState } from 'react';
+import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useApp } from '../../providers/AppProvider';
 import {
     ActivityIcon,
     ActivityLabel,
