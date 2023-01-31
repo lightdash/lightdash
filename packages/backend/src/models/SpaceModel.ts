@@ -132,7 +132,7 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw(
-                    `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = analytics_dashboard_views.dashboard_uuid) as views `,
+                    `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = analytics_dashboard_views.dashboard_uuid) as views`,
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
             ])

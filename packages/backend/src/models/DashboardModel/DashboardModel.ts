@@ -268,6 +268,9 @@ export class DashboardModel {
                         `${OrganizationTableName}.organization_uuid`,
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
+                        this.database.raw(
+                            `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                        ),
                     ])
                     .orderBy([
                         {
@@ -321,6 +324,7 @@ export class DashboardModel {
                 organization_uuid,
                 space_uuid,
                 pinned_list_uuid,
+                views,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -335,6 +339,7 @@ export class DashboardModel {
                 },
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
+                views: parseInt(views, 10) || 0,
             }),
         );
     }
