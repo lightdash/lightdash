@@ -1,6 +1,7 @@
 import { DbtMetric, DbtModelColumn, DbtModelNode } from '../types/dbt';
 import { Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
+import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';
 
 type WarehouseCatalog = {
@@ -233,9 +234,11 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 round: undefined,
                 compact: undefined,
                 groupLabel: undefined,
+                index: 0,
             },
         },
         metrics: {},
+        orderFieldsBy: OrderFieldsByStrategy.LABEL,
     };
 
 export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
@@ -260,6 +263,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             source: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 0,
         },
         dbt_metric_2: {
             description: 'Description',
@@ -280,6 +284,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             source: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 1,
         },
         dbt_metric_3: {
             description: 'Description',
@@ -300,6 +305,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             source: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 2,
         },
         dbt_metric_4: {
             description: 'Description',
@@ -320,6 +326,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             source: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 3,
         },
         dbt_metric_5: {
             description: 'Description',
@@ -340,6 +347,7 @@ export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
             source: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 4,
         },
     },
 };
@@ -420,6 +428,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         num_participating_athletes: {
             fieldType: FieldType.DIMENSION,
@@ -438,6 +447,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 1,
         },
     },
     metrics: {
@@ -460,6 +470,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             showUnderlyingValues: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 0,
         },
         total_num_participating_athletes: {
             fieldType: FieldType.METRIC,
@@ -480,8 +491,10 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             showUnderlyingValues: undefined,
             groupLabel: undefined,
             filters: [],
+            index: 1,
         },
     },
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
@@ -524,6 +537,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_RAW: {
             fieldType: FieldType.DIMENSION,
@@ -542,6 +556,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,
@@ -560,6 +575,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_WEEK: {
             fieldType: FieldType.DIMENSION,
@@ -578,6 +594,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_MONTH: {
             fieldType: FieldType.DIMENSION,
@@ -596,6 +613,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_QUARTER: {
             description: undefined,
@@ -614,6 +632,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             tableLabel: 'My table',
             timeInterval: TimeFrames.QUARTER,
             type: DimensionType.DATE,
+            index: 0,
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
@@ -632,9 +651,11 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
     },
     metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Omit<
@@ -665,6 +686,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_RAW: {
             fieldType: FieldType.DIMENSION,
@@ -685,6 +707,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_DAY: {
             fieldType: FieldType.DIMENSION,
@@ -705,6 +728,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_WEEK: {
             fieldType: FieldType.DIMENSION,
@@ -726,6 +750,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_MONTH: {
             fieldType: FieldType.DIMENSION,
@@ -747,6 +772,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_QUARTER: {
             description: undefined,
@@ -765,6 +791,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             tableLabel: 'My table',
             timeInterval: TimeFrames.QUARTER,
             type: DimensionType.DATE,
+            index: 0,
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
@@ -785,9 +812,11 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
     },
     metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
@@ -825,9 +854,11 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
     },
     metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
@@ -865,6 +896,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
         user_created_YEAR: {
             fieldType: FieldType.DIMENSION,
@@ -883,9 +915,11 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            index: 0,
         },
     },
     metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const warehouseSchema: WarehouseCatalog = {
