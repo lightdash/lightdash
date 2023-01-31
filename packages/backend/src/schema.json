@@ -107,6 +107,10 @@
                             }
                         }
                     }
+                },
+                "order_fields_by": {
+                    "type": "string",
+                    "enum": ["index", "label"]
                 }
             },
             "default": {}

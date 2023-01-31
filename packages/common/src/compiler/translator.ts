@@ -26,6 +26,7 @@ import {
     Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
+import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';
 import { WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -77,6 +78,7 @@ const convertTimezone = (
 };
 
 const convertDimension = (
+    index: number,
     targetWarehouse: SupportedDbtAdapter,
     model: Pick<DbtModelNode, 'name' | 'relation_name'>,
     tableLabel: string,
@@ -120,6 +122,7 @@ const convertDimension = (
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
     return {
+        index,
         fieldType: FieldType.DIMENSION,
         name,
         label,
@@ -251,12 +254,12 @@ export const convertTable = (
     }
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
     const tableLabel = meta.label || friendlyName(model.name);
-    const [dimensions, metrics]: [
-        Record<string, Dimension>,
-        Record<string, Metric>,
-    ] = Object.values(model.columns).reduce(
-        ([prevDimensions, prevMetrics], column) => {
+    const [dimensions, metrics] = Object.values(model.columns).reduce<
+        [Record<string, Dimension>, Metric[]]
+    >(
+        ([prevDimensions, prevMetrics], column, index) => {
             const dimension = convertDimension(
+                index,
                 adapterType,
                 model,
                 tableLabel,
@@ -292,6 +295,7 @@ export const convertTable = (
                     (acc, interval) => ({
                         ...acc,
                         [`${column.name}_${interval}`]: convertDimension(
+                            index,
                             adapterType,
                             model,
                             tableLabel,
@@ -305,20 +309,16 @@ export const convertTable = (
                 );
             }
 
-            const columnMetrics = Object.fromEntries(
-                Object.entries(column.meta.metrics || {}).map(
-                    ([name, metric]) => [
+            const columnMetrics = Object.entries(column.meta.metrics || {}).map(
+                ([name, metric]) =>
+                    convertColumnMetric({
+                        modelName: model.name,
+                        dimensionName: dimension.name,
+                        dimensionSql: dimension.sql,
                         name,
-                        convertColumnMetric({
-                            modelName: model.name,
-                            dimensionName: dimension.name,
-                            dimensionSql: dimension.sql,
-                            name,
-                            metric,
-                            tableLabel,
-                        }),
-                    ],
-                ),
+                        metric,
+                        tableLabel,
+                    }),
             );
 
             return [
@@ -327,31 +327,31 @@ export const convertTable = (
                     [column.name]: dimension,
                     ...extraDimensions,
                 },
-                { ...prevMetrics, ...columnMetrics },
+                [...prevMetrics, ...columnMetrics],
             ];
         },
-        [{}, {}],
+        [{}, []],
     );
 
-    const modelMetrics = Object.fromEntries(
-        Object.entries(model.meta.metrics || {}).map(([name, metric]) => [
-            name,
+    const modelMetrics = Object.entries(model.meta.metrics || {}).map(
+        ([name, metric]) =>
             convertModelMetric({
                 modelName: model.name,
                 name,
                 metric,
                 tableLabel,
             }),
-        ]),
     );
 
-    const convertedDbtMetrics = Object.fromEntries(
-        dbtMetrics.map((metric) => [
-            metric.name,
-            convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
-        ]),
+    const convertedDbtMetrics = dbtMetrics.map((metric) =>
+        convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
     );
-    const allMetrics = { ...convertedDbtMetrics, ...modelMetrics, ...metrics }; // Model-level metric names take priority
+
+    const allMetrics: Record<string, Metric> = Object.fromEntries(
+        [...convertedDbtMetrics, ...modelMetrics, ...metrics].map(
+            (metric, index) => [metric.name, { ...metric, index }],
+        ),
+    );
 
     const duplicatedNames = Object.keys(allMetrics).filter((metric) =>
         Object.keys(dimensions).includes(metric),
@@ -376,6 +376,13 @@ export const convertTable = (
         description: model.description || `${model.name} table`,
         dimensions,
         metrics: allMetrics,
+        orderFieldsBy:
+            meta.order_fields_by &&
+            Object.values(OrderFieldsByStrategy).includes(
+                meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy,
+            )
+                ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
+                : OrderFieldsByStrategy.LABEL,
     };
 };
 
