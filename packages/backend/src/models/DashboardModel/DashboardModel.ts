@@ -56,7 +56,9 @@ export type GetDashboardQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'>;
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+        views: string;
+    };
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
@@ -66,7 +68,9 @@ export type GetDashboardDetailsQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'>;
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+        views: string;
+    };
 
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
@@ -392,6 +396,10 @@ export class DashboardModel {
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
+                this.database.raw(
+                    `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = ?) as views`,
+                    dashboardUuid,
+                ),
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -420,6 +428,7 @@ export class DashboardModel {
                     content: string | null;
                     hide_title: boolean | null;
                     title: string | null;
+                    views: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -574,6 +583,7 @@ export class DashboardModel {
             },
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.spaceName,
+            views: parseInt(dashboard.views, 10) || 0,
             updatedByUser: {
                 userUuid: dashboard.user_uuid,
                 firstName: dashboard.first_name,

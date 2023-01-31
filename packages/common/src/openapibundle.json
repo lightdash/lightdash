@@ -1991,6 +1991,9 @@
                     "spaceName": {
                         "type": "string"
                     },
+                    "views": {
+                        "type": "number"
+                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     },
