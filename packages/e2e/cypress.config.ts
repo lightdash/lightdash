@@ -7,7 +7,6 @@ export default defineConfig({
         runMode: 1,
         openMode: 0,
     },
-
     e2e: {
         specPattern: 'cypress/**/**/*.cy.{js,jsx,ts,tsx}',
         baseUrl: 'http://localhost:3000',

@@ -66,6 +66,7 @@
                                                 "type": "string",
                                                 "enum": [
                                                     "percentile",
+                                                    "median",
                                                     "average",
                                                     "boolean",
                                                     "count",
@@ -162,6 +163,7 @@
                                                             "type": "string",
                                                             "enum": [
                                                                 "percentile",
+                                                                "median",
                                                                 "average",
                                                                 "boolean",
                                                                 "count",
