@@ -20,6 +20,7 @@ export function getDefaultMetricSql(sql: string, type: MetricType): string {
         case MetricType.DATE:
         case MetricType.BOOLEAN:
         case MetricType.PERCENTILE:
+        case MetricType.MEDIAN:
             break;
         default:
             return assertUnreachable(

@@ -266,6 +266,8 @@ export class BigqueryWarehouseClient implements WarehouseClient {
                 return `APPROX_QUANTILES(${sql}, 100)[OFFSET(${
                     metric.percentile ?? 50
                 })]`;
+            case MetricType.MEDIAN:
+                return `APPROX_QUANTILES(${sql}, 100)[OFFSET(50)]`;
             default:
                 return getDefaultMetricSql(sql, metric.type);
         }

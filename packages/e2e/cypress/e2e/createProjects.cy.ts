@@ -204,6 +204,43 @@ const defaultRowValues = [
     '2,020',
 ];
 
+const percentileRowValues = ['2020-08-11', '1,298', '828', '1,298', '1,717'];
+
+const testPercentile = (rowValues = percentileRowValues) => {
+    cy.contains('New').click();
+    cy.findByText('Query from tables').click();
+    cy.url().should('include', '/tables', { timeout: 30000 });
+
+    cy.contains('Events').click();
+    cy.findByText('Timestamp tz').click();
+    cy.findByText('Day').click();
+
+    cy.findByText('Median').click();
+    cy.findByText('Percentile 25').click();
+    cy.findByText('Percentile 50').click();
+    cy.findByText('Percentile 75').click();
+
+    cy.get('th')
+        .contains('Timestamp tz day')
+        .closest('th')
+        .find('button')
+        .click();
+
+    // sort `Customers First-Name` by ascending
+    cy.findByRole('option', { name: 'Sort New-Old' }).click();
+
+    // wait for query to finish
+    cy.findByText('Loading chart', { timeout: 30000 }).should('not.exist');
+    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
+
+    // check first row values
+    rowValues.forEach((value, index) => {
+        cy.get('table')
+            .find('td', { timeout: 10000 })
+            .eq(index + 1)
+            .should('contain.text', value);
+    });
+};
 const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
     cy.contains('New').click();
     cy.findByText('Query from tables').click();
@@ -279,7 +316,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually');
     });
 
-    it('Should create a Postgres project', () => {
+    it.only('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'PostgreSQL').click();
@@ -294,6 +331,7 @@ describe('Create projects', () => {
         testFilterStringEscaping();
         testRunQuery();
         testTimeIntervalsResults();
+        testPercentile();
     });
     it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
@@ -314,6 +352,7 @@ describe('Create projects', () => {
         testFilterStringEscaping();
         testRunQuery();
         testTimeIntervalsResults();
+        testPercentile();
     });
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
@@ -353,6 +392,8 @@ describe('Create projects', () => {
         ];
 
         testTimeIntervalsResults(bigqueryRowValues);
+
+        testPercentile();
     });
     it('Should create a Trino project', () => {
         cy.visit(`/createProject`);
@@ -392,6 +433,7 @@ describe('Create projects', () => {
         ];
 
         testTimeIntervalsResults(trinoRowValues);
+        testPercentile();
     });
     it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
@@ -430,6 +472,7 @@ describe('Create projects', () => {
         ];
 
         testTimeIntervalsResults(databricksRowValues);
+        testPercentile();
     });
 
     it('Should create a Snowflake project', () => {
@@ -470,5 +513,6 @@ describe('Create projects', () => {
         ];
 
         testTimeIntervalsResults(snowflakeRowValues);
+        testPercentile();
     });
 });

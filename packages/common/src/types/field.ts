@@ -211,6 +211,7 @@ export enum MetricType {
     MIN = 'min',
     MAX = 'max',
     NUMBER = 'number',
+    MEDIAN = 'median',
     STRING = 'string',
     DATE = 'date',
     BOOLEAN = 'boolean',
@@ -220,6 +221,9 @@ export const parseMetricType = (metricType: string): MetricType => {
     switch (metricType) {
         case 'percentile':
             return MetricType.PERCENTILE;
+        case 'median':
+            return MetricType.MEDIAN;
+
         case 'average':
             return MetricType.AVERAGE;
         case 'count':

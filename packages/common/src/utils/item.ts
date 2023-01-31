@@ -20,6 +20,7 @@ export const isNumericItem = (
             DimensionType.NUMBER,
             MetricType.NUMBER,
             MetricType.PERCENTILE,
+            MetricType.MEDIAN,
             MetricType.AVERAGE,
             MetricType.COUNT,
             MetricType.COUNT_DISTINCT,

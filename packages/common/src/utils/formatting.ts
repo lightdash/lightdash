@@ -228,6 +228,7 @@ export function formatFieldValue(
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case MetricType.PERCENTILE:
+        case MetricType.MEDIAN:
         case MetricType.AVERAGE:
         case MetricType.COUNT:
         case MetricType.COUNT_DISTINCT:

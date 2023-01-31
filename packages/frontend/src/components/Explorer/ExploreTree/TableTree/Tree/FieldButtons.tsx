@@ -34,6 +34,7 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
                 MetricType.MAX,
                 MetricType.SUM,
                 MetricType.PERCENTILE,
+                MetricType.MEDIAN,
                 MetricType.AVERAGE,
                 MetricType.COUNT_DISTINCT,
                 MetricType.COUNT,
@@ -62,6 +63,7 @@ const FieldButtons: FC<{
         (dimension: Dimension, type: MetricType) => {
             const shouldCopyFormatting = [
                 MetricType.PERCENTILE,
+                MetricType.MEDIAN,
                 MetricType.AVERAGE,
                 MetricType.SUM,
                 MetricType.MIN,
