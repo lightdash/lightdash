@@ -28,7 +28,8 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
                 </ResourceIconBox>
             );
         case 'chart':
-            switch ((resource as SpaceQuery).chartType) {
+            const chartType = (resource as SpaceQuery).chartType;
+            switch (chartType) {
                 case ChartKind.LINE:
                     return (
                         <ResourceIconBox color={Colors.BLUE3}>
@@ -81,8 +82,17 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
                             <Icon123 color={Colors.BLUE3} size={20} />
                         </ResourceIconBox>
                     );
+                case null:
+                    return (
+                        <ResourceIconBox color={Colors.BLUE3}>
+                            <IconChartBar color={Colors.BLUE3} size={20} />
+                        </ResourceIconBox>
+                    );
                 default:
-                    return null;
+                    return assertUnreachable(
+                        chartType,
+                        `Chart type ${chartType} not supported`,
+                    );
             }
         default:
             return assertUnreachable(
