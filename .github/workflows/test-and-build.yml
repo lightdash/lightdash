@@ -30,3 +30,6 @@ jobs:
 
     - name: Test backend
       run: yarn test
+
+    - name: Test running scheduler
+      run: yarn workspace backend scheduler
