@@ -13,6 +13,7 @@ import { getConfig } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { compile } from './compile';
 import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
@@ -110,7 +111,8 @@ export const previewHandler = async (
         },
     });
     try {
-        await deploy({
+        const explores = await compile(options);
+        await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             ignoreErrors: true,
@@ -144,7 +146,7 @@ export const previewHandler = async (
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                 if (project) {
-                    await deploy({
+                    await deploy(await compile(options), {
                         ...options,
                         projectUuid: project.projectUuid,
                         ignoreErrors: true,
@@ -222,7 +224,8 @@ export const startPreviewHandler = async (
 
         // Update
         console.error(`Updating project preview ${projectName}`);
-        await deploy({
+        const explores = await compile(options);
+        await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
             ignoreErrors: true,
@@ -263,7 +266,8 @@ export const startPreviewHandler = async (
                 name: options.name,
             },
         });
-        await deploy({
+        const explores = await compile(options);
+        await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             ignoreErrors: true,

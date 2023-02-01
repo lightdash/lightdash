@@ -1,5 +1,7 @@
 import {
     AuthorizationError,
+    Explore,
+    ExploreError,
     friendlyName,
     isExploreError,
     Project,
@@ -9,7 +11,7 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig } from '../config';
+import { getConfig, setProjectUuid } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -32,9 +34,10 @@ type DeployHandlerOptions = DbtCompileOptions & {
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
 };
-export const deploy = async (options: DeployArgs): Promise<void> => {
-    const explores = await compile(options);
-
+export const deploy = async (
+    explores: (Explore | ExploreError)[],
+    options: DeployArgs,
+): Promise<void> => {
     const errors = explores.filter((e) => isExploreError(e)).length;
     if (errors > 0) {
         if (options.ignoreErrors) {
@@ -135,6 +138,7 @@ const createNewProject = async (
 export const deployHandler = async (options: DeployHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
+    const explores = await compile(options);
 
     const config = await getConfig();
     let projectUuid: string;
@@ -156,6 +160,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
             return;
         }
         projectUuid = project.projectUuid;
+        await setProjectUuid(projectUuid);
     } else {
         if (!(config.context?.project && config.context.serverUrl)) {
             throw new AuthorizationError(
@@ -165,7 +170,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
         projectUuid = config.context.project;
     }
 
-    await deploy({ ...options, projectUuid });
+    await deploy(explores, { ...options, projectUuid });
 
     const displayUrl = options.create
         ? `${config.context?.serverUrl}/createProject/cli?projectUuid=${projectUuid}`
