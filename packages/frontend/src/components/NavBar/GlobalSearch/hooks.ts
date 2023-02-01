@@ -183,7 +183,7 @@ export const useDebouncedSearch = (
             data?.pages.map<SearchItem>((item) => ({
                 type: 'page',
                 typeLabel: 'Page',
-                icon: 'page-layout',
+                icon: 'application',
                 name: item.name,
                 meta: item,
                 location: {
