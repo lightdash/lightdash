@@ -38,6 +38,7 @@ models:
   - name: my_table
     meta:
       label: "My Custom Table Name"
+      order_fields_by: "label"
       joins:
         - join: my_other_table
           sql_on: ${my_table.column_a} = ${my_other_table.column_a}
@@ -45,10 +46,12 @@ models:
 
 Here are all of the properties you can customize:
 
-| Property                                            | Value                 | Note                                                                                  |
-| --------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------- |
-| label                                               | string                | Custom label. This is what you'll see in Lightdash instead of the Table name.        |
-| [joins](joins.md)       | string                |  Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)|
+| Property                                          | Value              | Note                                                                                                      |
+|---------------------------------------------------|--------------------|-----------------------------------------------------------------------------------------------------------|
+| label                                             | string             | Custom label. This is what you'll see in Lightdash instead of the Table name.                             |
+| [order_fields_by](#order-fields-by)               | 'index' or 'label' | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by) |
+| [joins](joins.md)                                 | array              | Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)             |
+| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object             | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)            |
 
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 
@@ -65,3 +68,13 @@ table you're expecting. So you need to do `dbt run` to update the table from the
 2. **Click `dbt refresh` in Lightdash.**
 This will re-sync your dbt project in Lightdash so that any changes you made
 to your dbt models is shown in Lightdash (e.g. adding a new table).
+
+
+### Order fields by
+
+Notes on the order logic:
+- Fields order defaults to "label"
+- Since metrics can be declared in multiple places we forced the following order: **dbt metrics** > **metrics in model
+metadata** > **metrics in dimension metadata**
+- Group labels inherit the index of the first dimension that uses it
+
