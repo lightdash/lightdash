@@ -1,3 +1,10 @@
+# [0.400.0](https://github.com/lightdash/lightdash/compare/0.399.1...0.400.0) (2023-02-01)
+
+
+### Features
+
+* order fields by index ([#4345](https://github.com/lightdash/lightdash/issues/4345)) ([922e7bd](https://github.com/lightdash/lightdash/commit/922e7bd3b53e2cdc8650c1bed1e48aff642b4f44))
+
 ## [0.399.1](https://github.com/lightdash/lightdash/compare/0.399.0...0.399.1) (2023-02-01)
 
 
