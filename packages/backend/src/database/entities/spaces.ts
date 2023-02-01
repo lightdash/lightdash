@@ -161,9 +161,7 @@ export const getSpaceWithQueries = async (
                 savedQuery.chart_type,
                 savedQuery.chart_config,
             ),
-
-            // TODO:...
-            views: 0,
+            views: parseInt(savedQuery.views, 10) || 0,
         })),
         projectUuid,
         dashboards: [],
