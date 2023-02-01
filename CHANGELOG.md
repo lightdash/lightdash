@@ -1,3 +1,10 @@
+## [0.399.1](https://github.com/lightdash/lightdash/compare/0.399.0...0.399.1) (2023-02-01)
+
+
+### Bug Fixes
+
+* unknown chart type appearing as dashboard ([#4343](https://github.com/lightdash/lightdash/issues/4343)) ([2295f91](https://github.com/lightdash/lightdash/commit/2295f914074f63a52c92ae06e3588c58dd7b183d))
+
 # [0.399.0](https://github.com/lightdash/lightdash/compare/0.398.1...0.399.0) (2023-01-31)
 
 
