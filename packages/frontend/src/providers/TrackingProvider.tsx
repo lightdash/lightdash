@@ -87,7 +87,13 @@ export type SetupStepClickedEvent = {
 export type SearchResultClickedEvent = {
     name: EventName.SEARCH_RESULT_CLICKED;
     properties: {
-        type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field';
+        type:
+            | 'space'
+            | 'dashboard'
+            | 'saved_chart'
+            | 'table'
+            | 'field'
+            | 'page';
         id: string;
     };
 };

@@ -34,12 +34,19 @@ export type FieldSearchResult = Pick<
     exploreLabel: string;
 };
 
+type PageResult = {
+    uuid: string;
+    name: string;
+    url: string;
+};
+
 export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
     | SavedChartSearchResult
     | TableSearchResult
-    | FieldSearchResult;
+    | FieldSearchResult
+    | PageResult;
 
 export const isExploreSearchResult = (
     value: SearchResult,
@@ -55,6 +62,7 @@ export type SearchResults = {
     savedCharts: SavedChartSearchResult[];
     tables: TableSearchResult[];
     fields: FieldSearchResult[];
+    pages: PageResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {

@@ -236,6 +236,16 @@ export class SearchModel {
             projectUuid,
             query,
         );
+        const allPages = [
+            {
+                uuid: `user-activity`,
+                name: 'User activity',
+                url: `/projects/${projectUuid}/user-activity`,
+            },
+        ];
+        const pages = allPages.filter((page) =>
+            page.name?.toLowerCase().includes(query.toLowerCase()),
+        );
 
         return {
             spaces,
@@ -243,6 +253,7 @@ export class SearchModel {
             savedCharts,
             tables,
             fields,
+            pages,
         };
     }
 }
