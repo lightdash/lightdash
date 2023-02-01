@@ -84,9 +84,9 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         return FilterType.NUMBER;
     }
 
-    const fieldType = item.type;
+    const { type } = item;
 
-    switch (item.type) {
+    switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
             return FilterType.STRING;
@@ -110,8 +110,8 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
             return FilterType.BOOLEAN;
         default: {
             return assertUnreachable(
-                item,
-                `No filter type found for field type: ${fieldType}`,
+                type,
+                `No filter type found for field type: ${type}`,
             );
         }
     }
