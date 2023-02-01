@@ -269,7 +269,7 @@ export class DashboardModel {
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
                         this.database.raw(
-                            `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                            `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
                         ),
                     ])
                     .orderBy([
@@ -402,7 +402,7 @@ export class DashboardModel {
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 this.database.raw(
-                    `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = ?) as views`,
+                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ?) as views`,
                     dashboardUuid,
                 ),
             ])

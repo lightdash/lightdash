@@ -374,7 +374,7 @@ export class SavedChartModel {
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 this.database.raw(
-                    `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = ?) as views`,
+                    `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = ?) as views`,
                     savedChartUuid,
                 ),
             ])

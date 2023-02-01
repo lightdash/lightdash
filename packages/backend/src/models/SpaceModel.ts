@@ -132,7 +132,7 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw(
-                    `(SELECT count('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where ${DashboardsTableName}.dashboard_uuid = analytics_dashboard_views.dashboard_uuid) as views`,
+                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
             ])
@@ -297,7 +297,7 @@ export class SpaceModel {
                 `users.first_name`,
                 `users.last_name`,
                 this.database.raw(
-                    `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = saved_queries.saved_query_uuid) as views`,
+                    `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = saved_queries.saved_query_uuid) as views`,
                 ),
                 `saved_queries_versions.chart_config`,
                 `saved_queries_versions.chart_type`,

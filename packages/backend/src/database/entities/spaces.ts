@@ -125,7 +125,7 @@ export const getSpaceWithQueries = async (
             `${PinnedListTableName}.pinned_list_uuid`,
 
             database.raw(
-                `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views`,
+                `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views`,
             ),
         ])
         .orderBy([
