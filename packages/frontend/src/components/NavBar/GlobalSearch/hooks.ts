@@ -9,7 +9,7 @@ import { EventName } from '../../../types/Events';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 export type SearchItem = {
-    type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field';
+    type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field' | 'page';
     typeLabel:
         | 'Space'
         | 'Dashboard'
@@ -17,7 +17,8 @@ export type SearchItem = {
         | 'Table'
         | 'Joined table'
         | 'Dimension'
-        | 'Metric';
+        | 'Metric'
+        | 'Page';
     icon: IconName;
     name: string;
     prefix?: string;
@@ -178,7 +179,25 @@ export const useDebouncedSearch = (
                 };
             }) || [];
 
-        return [...spaces, ...dashboards, ...saveCharts, ...tables, ...fields];
+        const pages =
+            data?.pages.map<SearchItem>((item) => ({
+                type: 'page',
+                typeLabel: 'Page',
+                icon: 'application',
+                name: item.name,
+                meta: item,
+                location: {
+                    pathname: item.url,
+                },
+            })) || [];
+        return [
+            ...spaces,
+            ...dashboards,
+            ...saveCharts,
+            ...tables,
+            ...fields,
+            ...pages,
+        ];
     }, [data, projectUuid]);
 
     return {

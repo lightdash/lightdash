@@ -82,6 +82,14 @@ export class SearchService {
             dashboards: results.dashboards.filter(filterItem),
             savedCharts: results.savedCharts.filter(filterItem),
             spaces: results.spaces.filter(filterItem),
+            pages: user.ability.can(
+                'view',
+                subject('Analytics', {
+                    organizationUuid,
+                }),
+            )
+                ? results.pages
+                : [], // For now there is only 1 page and it is for admins only
         };
         analytics.track({
             event: 'project.search',
