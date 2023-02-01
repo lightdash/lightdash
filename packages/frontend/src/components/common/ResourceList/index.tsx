@@ -25,10 +25,10 @@ export type AcceptedResourceTypes = 'chart' | 'dashboard';
 export const getResourceType = (
     resource: AcceptedResources,
 ): AcceptedResourceTypes => {
-    if ('chartType' in resource) {
-        return 'chart';
-    } else {
+    if ('organizationUuid' in resource) {
         return 'dashboard';
+    } else {
+        return 'chart';
     }
 };
 
