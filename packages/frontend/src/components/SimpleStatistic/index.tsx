@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { Textfit } from 'react-textfit';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
@@ -34,13 +35,15 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                             ref={ref}
                             onClick={(popoverProps as any).onClick}
                         >
-                            {bigNumber}
+                            <Textfit mode="single">{bigNumber}</Textfit>
                         </BigNumber>
                     )}
                 />
             )}
 
-            <BigNumberLabel>{bigNumberLabel || defaultLabel}</BigNumberLabel>
+            <BigNumberLabel>
+                <Textfit>{bigNumberLabel || defaultLabel}</Textfit>
+            </BigNumberLabel>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
