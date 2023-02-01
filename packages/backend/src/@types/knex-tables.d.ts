@@ -114,6 +114,12 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
+import {
+    SchedulerSlackTargetTable,
+    SchedulerSlackTargetTableName,
+    SchedulerTable,
+    SchedulerTableName,
+} from '../database/entities/scheduler';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -158,5 +164,7 @@ declare module 'knex/types/tables' {
         [PinnedListTableName]: PinnedListTable;
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;
+        [SchedulerTableName]: SchedulerTable;
+        [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
     }
 }

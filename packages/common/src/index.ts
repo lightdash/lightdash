@@ -78,6 +78,7 @@ export * from './types/pinning';
 export * from './types/projectMemberProfile';
 export * from './types/results';
 export * from './types/savedCharts';
+export * from './types/scheduler';
 export * from './types/search';
 export * from './types/share';
 export * from './types/slackSettings';
