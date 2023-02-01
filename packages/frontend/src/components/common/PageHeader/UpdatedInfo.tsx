@@ -1,7 +1,7 @@
 import { SessionUser } from '@lightdash/common';
 import { FC } from 'react';
+import { UpdatedInfoLabel } from '.';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { UpdatedLabel } from './UpdatedInfo.styles';
 
 export const UpdatedInfo: FC<{
     updatedAt: Date;
@@ -10,7 +10,7 @@ export const UpdatedInfo: FC<{
     const timeAgo = useTimeAgo(updatedAt);
 
     return (
-        <UpdatedLabel>
+        <UpdatedInfoLabel>
             Last edited <b>{timeAgo}</b>{' '}
             {user && user.firstName ? (
                 <>
@@ -22,6 +22,6 @@ export const UpdatedInfo: FC<{
             ) : (
                 ''
             )}
-        </UpdatedLabel>
+        </UpdatedInfoLabel>
     );
 };
