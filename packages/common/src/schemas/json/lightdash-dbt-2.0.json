@@ -56,6 +56,10 @@
                                     "required": ["join", "sql_on"]
                                 }
                             },
+                            "order_fields_by": {
+                                "type": "string",
+                                "enum": ["index", "label"]
+                            },
                             "metrics": {
                                 "type": "object",
                                 "patternProperties": {

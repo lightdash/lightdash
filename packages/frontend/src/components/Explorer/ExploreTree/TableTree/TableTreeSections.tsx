@@ -73,6 +73,7 @@ const TableTreeSections: FC<Props> = ({
                 </EmptyState>
             ) : (
                 <TreeProvider
+                    orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={dimensions}
                     selectedItems={selectedItems}
@@ -116,6 +117,7 @@ const TableTreeSections: FC<Props> = ({
                 <EmptyState>No metrics defined in your dbt project</EmptyState>
             ) : (
                 <TreeProvider
+                    orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={metrics}
                     selectedItems={selectedItems}
@@ -162,6 +164,7 @@ const TableTreeSections: FC<Props> = ({
                 </EmptyState>
             ) : (
                 <TreeProvider
+                    orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}

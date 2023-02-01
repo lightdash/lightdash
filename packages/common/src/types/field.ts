@@ -108,6 +108,7 @@ export interface Field {
     format?: string;
     groupLabel?: string;
     urls?: FieldUrl[];
+    index?: number;
 }
 
 export const isField = (field: any): field is Field =>

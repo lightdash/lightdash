@@ -26,6 +26,7 @@ import {
     Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
+import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';
 import { WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -77,6 +78,7 @@ const convertTimezone = (
 };
 
 const convertDimension = (
+    index: number,
     targetWarehouse: SupportedDbtAdapter,
     model: Pick<DbtModelNode, 'name' | 'relation_name'>,
     tableLabel: string,
@@ -120,6 +122,7 @@ const convertDimension = (
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
     return {
+        index,
         fieldType: FieldType.DIMENSION,
         name,
         label,
@@ -255,8 +258,9 @@ export const convertTable = (
         Record<string, Dimension>,
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
-        ([prevDimensions, prevMetrics], column) => {
+        ([prevDimensions, prevMetrics], column, index) => {
             const dimension = convertDimension(
+                index,
                 adapterType,
                 model,
                 tableLabel,
@@ -292,6 +296,7 @@ export const convertTable = (
                     (acc, interval) => ({
                         ...acc,
                         [`${column.name}_${interval}`]: convertDimension(
+                            index,
                             adapterType,
                             model,
                             tableLabel,
@@ -351,7 +356,18 @@ export const convertTable = (
             convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
         ]),
     );
-    const allMetrics = { ...convertedDbtMetrics, ...modelMetrics, ...metrics }; // Model-level metric names take priority
+
+    const allMetrics: Record<string, Metric> = Object.values({
+        ...convertedDbtMetrics,
+        ...modelMetrics,
+        ...metrics,
+    }).reduce(
+        (acc, metric, index) => ({
+            ...acc,
+            [metric.name]: { ...metric, index },
+        }),
+        {},
+    );
 
     const duplicatedNames = Object.keys(allMetrics).filter((metric) =>
         Object.keys(dimensions).includes(metric),
@@ -376,6 +392,13 @@ export const convertTable = (
         description: model.description || `${model.name} table`,
         dimensions,
         metrics: allMetrics,
+        orderFieldsBy:
+            meta.order_fields_by &&
+            Object.values(OrderFieldsByStrategy).includes(
+                meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy,
+            )
+                ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
+                : OrderFieldsByStrategy.LABEL,
     };
 };
 

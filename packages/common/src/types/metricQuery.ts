@@ -20,6 +20,7 @@ export interface AdditionalMetric {
     format?: string;
     table: string;
     name: string;
+    index?: number;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>

@@ -3,6 +3,7 @@ import {
     Dimension,
     isDimension,
     Metric,
+    OrderFieldsByStrategy,
     sortTimeFrames,
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
@@ -16,8 +17,15 @@ import {
 import TreeSingleNode from './TreeSingleNode';
 
 const sortNodes =
-    (itemsMap: Record<string, Dimension | Metric | AdditionalMetric>) =>
+    (
+        orderStrategy: OrderFieldsByStrategy,
+        itemsMap: Record<string, Dimension | Metric | AdditionalMetric>,
+    ) =>
     (a: Node, b: Node) => {
+        if (orderStrategy === OrderFieldsByStrategy.INDEX) {
+            return a.index - b.index;
+        }
+
         const itemA = itemsMap[a.key];
         const itemB = itemsMap[b.key];
 
@@ -37,10 +45,12 @@ const TreeNodes: FC<{ nodeMap: NodeMap; depth: number }> = ({
     nodeMap,
     depth,
 }) => {
-    const { itemsMap } = useTableTreeContext();
+    const { itemsMap, orderFieldsBy } = useTableTreeContext();
     const sortedItems = useMemo(() => {
-        return Object.values(nodeMap).sort(sortNodes(itemsMap));
-    }, [nodeMap, itemsMap]);
+        return Object.values(nodeMap).sort(
+            sortNodes(orderFieldsBy ?? OrderFieldsByStrategy.LABEL, itemsMap),
+        );
+    }, [nodeMap, orderFieldsBy, itemsMap]);
 
     return (
         <div>

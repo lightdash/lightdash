@@ -14,7 +14,7 @@ import {
 } from './field';
 import { parseFilters } from './filterGrammar';
 import { AdditionalMetric } from './metricQuery';
-import { TableBase } from './table';
+import { OrderFieldsByStrategy, TableBase } from './table';
 import { TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
@@ -53,6 +53,7 @@ type DbtModelLightdashConfig = {
     label?: string;
     joins?: DbtModelJoin[];
     metrics?: Record<string, DbtModelLightdashMetric>;
+    order_fields_by?: OrderFieldsByStrategy;
 };
 type DbtModelJoin = {
     join: string;

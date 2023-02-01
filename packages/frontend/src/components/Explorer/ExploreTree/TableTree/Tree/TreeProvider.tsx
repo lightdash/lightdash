@@ -5,6 +5,7 @@ import {
     isDimension,
     isField,
     Metric,
+    OrderFieldsByStrategy,
 } from '@lightdash/common';
 import Fuse from 'fuse.js';
 import React, { createContext, FC, useContext } from 'react';
@@ -35,6 +36,7 @@ const getNodeMapFromItemsMap = (
             const node: Node = {
                 key: itemId,
                 label: item.label || item.name,
+                index: item.index ?? Number.MAX_SAFE_INTEGER,
             };
             if (isField(item) && item.groupLabel) {
                 // first in group
@@ -43,6 +45,7 @@ const getNodeMapFromItemsMap = (
                         key: item.groupLabel,
                         label: item.groupLabel,
                         children: { [node.key]: node },
+                        index: item.index ?? Number.MAX_SAFE_INTEGER,
                     };
                     return { ...acc, [item.groupLabel]: groupNode };
                 }
@@ -121,6 +124,7 @@ const getNodeMapFromItemsMap = (
 export type Node = {
     key: string;
     label: string;
+    index: number;
     children?: NodeMap;
 };
 
@@ -134,6 +138,7 @@ export const isGroupNode = (node: Node): node is GroupNode =>
 type Item = Dimension | Metric | AdditionalMetric;
 
 type Props = {
+    orderFieldsBy?: OrderFieldsByStrategy;
     searchQuery?: string;
     itemsMap: Record<string, Item>;
     selectedItems: Set<string>;
