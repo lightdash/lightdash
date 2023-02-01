@@ -1012,28 +1012,41 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const explores =
-            (await this.projectModel.getExploresFromCache(projectUuid)) || [];
-        const explore = explores.find((t) => t.name === exploreName);
-        if (explore === undefined || isExploreError(explore)) {
-            throw new NotExistsError(
-                `Explore "${exploreName}" does not exist.`,
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'ProjectService.getExplore',
+            description: 'Gets a single explore from the cache',
+        });
+        try {
+            const { organizationUuid } = await this.projectModel.get(
+                projectUuid,
             );
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            const explore = await this.projectModel.getExploreFromCache(
+                projectUuid,
+                exploreName,
+            );
+            if (isExploreError(explore)) {
+                throw new NotExistsError(
+                    `Explore "${exploreName}" does not exist.`,
+                );
+            }
+            return explore;
+        } finally {
+            span?.finish();
         }
-
-        return explore;
     }
 
     async getExploreByFieldId(
