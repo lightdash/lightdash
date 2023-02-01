@@ -435,19 +435,21 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        const [explore] = await this.database('cached_explores')
-            .select<(Explore | ExploreError)[]>(['explore'])
+        const [row] = await this.database('cached_explores')
+            .select<{ explore: Explore | ExploreError }[]>(['explore'])
             .crossJoin(
                 this.database.raw('jsonb_array_elements(explores) as explore'),
             )
             .where('project_uuid', projectUuid)
-            .andWhere("explore->>'name'", exploreName);
-        if (explore === undefined) {
+            .andWhereRaw(
+                this.database.raw("explore->>'name' = ?", [exploreName]),
+            );
+        if (row === undefined) {
             throw new NotExistsError(
                 `Explore "${exploreName}" does not exist.`,
             );
         }
-        return explore;
+        return row.explore;
     }
 
     async saveExploresToCache(
