@@ -15,7 +15,7 @@ const ResourceType: FC<ResourceTypeProps> = ({ resource, resourceType }) => {
             const chartType = (resource as SpaceQuery).chartType;
 
             switch (chartType) {
-                case null:
+                case undefined:
                 case ChartKind.VERTICAL_BAR:
                     return <>Bar chart</>;
                 case ChartKind.HORIZONTAL_BAR:

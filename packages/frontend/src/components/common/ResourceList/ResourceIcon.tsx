@@ -30,7 +30,7 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
         case 'chart':
             const chartType = (resource as SpaceQuery).chartType;
             switch (chartType) {
-                case null:
+                case undefined:
                 case ChartKind.VERTICAL_BAR:
                     return (
                         <ResourceIconBox color={Colors.BLUE3}>

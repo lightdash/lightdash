@@ -258,7 +258,7 @@ export type SpaceQuery = Pick<
     | 'spaceUuid'
     | 'views'
     | 'pinnedListUuid'
-> & { chartType: ChartKind | null };
+> & { chartType: ChartKind | undefined };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
@@ -325,8 +325,8 @@ export const isSeriesWithMixedChartTypes = (
 export const getChartType = (
     chartType: ChartType,
     value: ChartConfig['config'],
-): ChartKind | null => {
-    if (value === undefined) return null;
+): ChartKind | undefined => {
+    if (value === undefined) return undefined;
 
     switch (chartType) {
         case ChartType.BIG_NUMBER:
@@ -342,7 +342,7 @@ export const getChartType = (
                 }
 
                 const type = series?.[0]?.type;
-                if (!type) return null;
+                if (!type) return undefined;
 
                 switch (type) {
                     case CartesianSeriesType.AREA:
@@ -365,8 +365,8 @@ export const getChartType = (
                 }
             }
 
-            return null;
+            return undefined;
         default:
-            return null;
+            return undefined;
     }
 };
