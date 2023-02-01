@@ -5,14 +5,11 @@ import {
     useAvailableDashboardFilterTargets,
     useDashboardAvailableTileFilters,
 } from '../../../hooks/dashboard/useDashboard';
-import { useExplores } from '../../../hooks/useExplores';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
-import { useTableContext } from '../../common/Table/TableProvider';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
 import {
