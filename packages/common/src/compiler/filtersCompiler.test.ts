@@ -1,5 +1,6 @@
 import moment from 'moment/moment';
 import { FilterOperator, UnitOfTime } from '../types/filter';
+import { WeekDay } from '../utils/timeFrames';
 import {
     renderDateFilterSql,
     renderNumberFilterSql,
@@ -8,8 +9,11 @@ import {
 import {
     DimensionSqlMock,
     ExpectedInTheCurrentFilterSQL,
+    ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
     ExpectedInTheNextCompleteFilterSQL,
+    ExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedInTheNextFilterSQL,
+    ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
@@ -40,6 +44,7 @@ import {
     InTheLast1YearFilter,
     InTheLast1YearFilterSQL,
     InTheNextFilterBase,
+    InThePastFilterBase,
     NumberDimensionMock,
     NumberFilterBase,
     stringFilterDimension,
@@ -123,6 +128,72 @@ describe('Filter SQL', () => {
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheNextCompleteFilterSQL[unitOfTime]);
+        },
+    );
+    test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
+        'should return in the next complete week filter sql with %s as the start of the week',
+        (weekDay) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            const filter = {
+                ...InTheNextFilterBase,
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    filter,
+                    formatTimestamp,
+                    weekDay,
+                ),
+            ).toStrictEqual(
+                ExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek[
+                    weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
+                ],
+            );
+        },
+    );
+    test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
+        'should return in the last complete week filter sql with %s as the start of the week',
+        (weekDay) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            const filter = {
+                ...InThePastFilterBase,
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    filter,
+                    formatTimestamp,
+                    weekDay,
+                ),
+            ).toStrictEqual(
+                ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek[
+                    weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
+                ],
+            );
+        },
+    );
+    test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
+        'should return in the current complete week filter sql with %s as the start of the week',
+        (weekDay) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            const filter = {
+                ...InTheCurrentFilterBase,
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    filter,
+                    formatTimestamp,
+                    weekDay,
+                ),
+            ).toStrictEqual(
+                ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek[
+                    weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
+                ],
+            );
         },
     );
     test('should return in the last date filter sql', () => {

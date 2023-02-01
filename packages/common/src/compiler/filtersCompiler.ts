@@ -14,6 +14,7 @@ import {
 } from '../types/filter';
 import assertUnreachable from '../utils/assertUnreachable';
 import { formatDate } from '../utils/formatting';
+import { isWeekDay, WeekDay } from '../utils/timeFrames';
 
 const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ss');
@@ -107,111 +108,130 @@ export const renderNumberFilterSql = (
     }
 };
 
+// from 0 (Monday) to 6 (Sunday) to 0 (Sunday) to 6 (Saturday)
+const convertWeekDayToMomentWeekDay = (weekDay: WeekDay) => {
+    const converted = weekDay + 1;
+    return converted <= 6 ? converted : 0;
+};
 export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
     dateFormatter: (date: Date) => string = formatDate,
+    startOfWeek: WeekDay | null | undefined = undefined,
 ): string => {
     const filterType = filter.operator;
-    switch (filter.operator) {
-        case 'equals':
-            return `(${dimensionSql}) = ('${dateFormatter(
-                filter.values?.[0],
-            )}')`;
-        case 'notEquals':
-            return `(${dimensionSql}) != ('${dateFormatter(
-                filter.values?.[0],
-            )}')`;
-        case 'isNull':
-            return `(${dimensionSql}) IS NULL`;
-        case 'notNull':
-            return `(${dimensionSql}) IS NOT NULL`;
-        case 'greaterThan':
-            return `(${dimensionSql}) > ('${dateFormatter(
-                filter.values?.[0],
-            )}')`;
-        case 'greaterThanOrEqual':
-            return `(${dimensionSql}) >= ('${dateFormatter(
-                filter.values?.[0],
-            )}')`;
-        case 'lessThan':
-            return `(${dimensionSql}) < ('${dateFormatter(
-                filter.values?.[0],
-            )}')`;
-        case 'lessThanOrEqual':
-            return `(${dimensionSql}) <= ('${dateFormatter(
-                filter.values?.[0],
-            )}')`;
-        case FilterOperator.IN_THE_PAST: {
-            const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
-            const completed: boolean = !!filter.settings?.completed;
+    const currentLocale = moment.locale();
+    if (isWeekDay(startOfWeek)) {
+        moment.locale('lightdash-custom', {
+            week: {
+                dow: convertWeekDayToMomentWeekDay(startOfWeek),
+            },
+        });
+        moment.locale('lightdash-custom');
+    }
+    try {
+        switch (filter.operator) {
+            case 'equals':
+                return `(${dimensionSql}) = ('${dateFormatter(
+                    filter.values?.[0],
+                )}')`;
+            case 'notEquals':
+                return `(${dimensionSql}) != ('${dateFormatter(
+                    filter.values?.[0],
+                )}')`;
+            case 'isNull':
+                return `(${dimensionSql}) IS NULL`;
+            case 'notNull':
+                return `(${dimensionSql}) IS NOT NULL`;
+            case 'greaterThan':
+                return `(${dimensionSql}) > ('${dateFormatter(
+                    filter.values?.[0],
+                )}')`;
+            case 'greaterThanOrEqual':
+                return `(${dimensionSql}) >= ('${dateFormatter(
+                    filter.values?.[0],
+                )}')`;
+            case 'lessThan':
+                return `(${dimensionSql}) < ('${dateFormatter(
+                    filter.values?.[0],
+                )}')`;
+            case 'lessThanOrEqual':
+                return `(${dimensionSql}) <= ('${dateFormatter(
+                    filter.values?.[0],
+                )}')`;
+            case FilterOperator.IN_THE_PAST: {
+                const unitOfTime: UnitOfTime =
+                    filter.settings?.unitOfTime || UnitOfTime.days;
+                const completed: boolean = !!filter.settings?.completed;
 
-            if (completed) {
-                const completedDate = moment(
-                    moment()
-                        .startOf(unitOfTime)
-                        .format(unitOfTimeFormat[unitOfTime]),
-                ).toDate();
-                const untilDate = dateFormatter(
+                if (completed) {
+                    const completedDate = moment(
+                        moment()
+                            .startOf(unitOfTime)
+                            .format(unitOfTimeFormat[unitOfTime]),
+                    ).toDate();
+                    const untilDate = dateFormatter(
+                        moment().startOf(unitOfTime).toDate(),
+                    );
+                    return `((${dimensionSql}) >= ('${dateFormatter(
+                        moment(completedDate)
+                            .subtract(filter.values?.[0], unitOfTime)
+                            .toDate(),
+                    )}') AND (${dimensionSql}) < ('${untilDate}'))`;
+                }
+                const untilDate = dateFormatter(moment().toDate());
+                return `((${dimensionSql}) >= ('${dateFormatter(
+                    moment().subtract(filter.values?.[0], unitOfTime).toDate(),
+                )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
+            }
+            case FilterOperator.IN_THE_NEXT: {
+                const unitOfTime: UnitOfTime =
+                    filter.settings?.unitOfTime || UnitOfTime.days;
+                const completed: boolean = !!filter.settings?.completed;
+
+                if (completed) {
+                    const fromDate = moment(
+                        moment().add(1, unitOfTime).startOf(unitOfTime),
+                    ).toDate();
+                    const toDate = dateFormatter(
+                        moment(fromDate)
+                            .add(filter.values?.[0], unitOfTime)
+                            .toDate(),
+                    );
+                    return `((${dimensionSql}) >= ('${dateFormatter(
+                        fromDate,
+                    )}') AND (${dimensionSql}) < ('${toDate}'))`;
+                }
+                const fromDate = dateFormatter(moment().toDate());
+                const toDate = dateFormatter(
+                    moment().add(filter.values?.[0], unitOfTime).toDate(),
+                );
+                return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${toDate}'))`;
+            }
+            case FilterOperator.IN_THE_CURRENT: {
+                const unitOfTime: UnitOfTime =
+                    filter.settings?.unitOfTime || UnitOfTime.days;
+                const fromDate = dateFormatter(
                     moment().startOf(unitOfTime).toDate(),
                 );
-                return `((${dimensionSql}) >= ('${dateFormatter(
-                    moment(completedDate)
-                        .subtract(filter.values?.[0], unitOfTime)
-                        .toDate(),
-                )}') AND (${dimensionSql}) < ('${untilDate}'))`;
-            }
-            const untilDate = dateFormatter(moment().toDate());
-            return `((${dimensionSql}) >= ('${dateFormatter(
-                moment().subtract(filter.values?.[0], unitOfTime).toDate(),
-            )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
-        }
-        case FilterOperator.IN_THE_NEXT: {
-            const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
-            const completed: boolean = !!filter.settings?.completed;
-
-            if (completed) {
-                const fromDate = moment(
-                    moment().add(1, unitOfTime).startOf(unitOfTime),
-                ).toDate();
-                const toDate = dateFormatter(
-                    moment(fromDate)
-                        .add(filter.values?.[0], unitOfTime)
-                        .toDate(),
+                const untilDate = dateFormatter(
+                    moment().endOf(unitOfTime).toDate(),
                 );
-                return `((${dimensionSql}) >= ('${dateFormatter(
-                    fromDate,
-                )}') AND (${dimensionSql}) < ('${toDate}'))`;
+                return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
             }
-            const fromDate = dateFormatter(moment().toDate());
-            const toDate = dateFormatter(
-                moment().add(filter.values?.[0], unitOfTime).toDate(),
-            );
-            return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${toDate}'))`;
-        }
-        case FilterOperator.IN_THE_CURRENT: {
-            const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
-            const fromDate = dateFormatter(
-                moment().startOf(unitOfTime).toDate(),
-            );
-            const untilDate = dateFormatter(
-                moment().endOf(unitOfTime).toDate(),
-            );
-            return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
-        }
-        case FilterOperator.IN_BETWEEN: {
-            const startDate = dateFormatter(filter.values?.[0]);
-            const endDate = dateFormatter(filter.values?.[1]);
+            case FilterOperator.IN_BETWEEN: {
+                const startDate = dateFormatter(filter.values?.[0]);
+                const endDate = dateFormatter(filter.values?.[1]);
 
-            return `((${dimensionSql}) >= ('${startDate}') AND (${dimensionSql}) <= ('${endDate}'))`;
+                return `((${dimensionSql}) >= ('${startDate}') AND (${dimensionSql}) <= ('${endDate}'))`;
+            }
+            default:
+                throw Error(
+                    `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
+                );
         }
-        default:
-            throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
-            );
+    } finally {
+        moment.locale(currentLocale);
     }
 };
 
@@ -240,6 +260,7 @@ export const renderFilterRuleSql = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    startOfWeek: WeekDay | null | undefined,
 ): string => {
     const fieldType = field.type;
     const fieldSql = isMetric(field)
@@ -270,10 +291,20 @@ export const renderFilterRuleSql = (
         }
         case DimensionType.DATE:
         case MetricType.DATE: {
-            return renderDateFilterSql(fieldSql, filterRule);
+            return renderDateFilterSql(
+                fieldSql,
+                filterRule,
+                undefined,
+                startOfWeek,
+            );
         }
         case DimensionType.TIMESTAMP: {
-            return renderDateFilterSql(fieldSql, filterRule, formatTimestamp);
+            return renderDateFilterSql(
+                fieldSql,
+                filterRule,
+                formatTimestamp,
+                startOfWeek,
+            );
         }
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN: {
