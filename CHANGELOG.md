@@ -1,3 +1,10 @@
+# [0.401.0](https://github.com/lightdash/lightdash/compare/0.400.1...0.401.0) (2023-02-01)
+
+
+### Features
+
+* User activity global search ([#4351](https://github.com/lightdash/lightdash/issues/4351)) ([edb7c98](https://github.com/lightdash/lightdash/commit/edb7c98178b1f98c6894ae3778b9e6b835ce7ba2))
+
 ## [0.400.1](https://github.com/lightdash/lightdash/compare/0.400.0...0.400.1) (2023-02-01)
 
 
