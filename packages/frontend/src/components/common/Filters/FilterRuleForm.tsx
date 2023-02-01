@@ -109,7 +109,12 @@ const FilterRuleForm: FC<Props> = ({
                         filterType={filterType}
                         field={activeField}
                         rule={filterRule}
-                        onChange={onChange}
+                        onChange={(rule) => {
+                            onChange({
+                                ...rule,
+                                values: Array.from(new Set(rule.values)),
+                            });
+                        }}
                         disabled={!isEditMode}
                     />
                 </>

@@ -59,7 +59,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     field={field}
                     rule={filterRule}
                     onChange={(newFilterRule) =>
-                        onChangeFilterRule(newFilterRule as DashboardFilterRule)
+                        onChangeFilterRule({
+                            ...newFilterRule,
+                            values: Array.from(new Set(newFilterRule.values)),
+                        } as DashboardFilterRule)
                     }
                 />
             </FormGroup>
