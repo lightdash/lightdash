@@ -2159,6 +2159,9 @@
                     },
                     "pinnedListUuid": {
                         "type": "string"
+                    },
+                    "views": {
+                        "type": "number"
                     }
                 },
                 "required": [

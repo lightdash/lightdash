@@ -297,7 +297,7 @@ export class SpaceModel {
                 `users.first_name`,
                 `users.last_name`,
                 this.database.raw(
-                    `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views where saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views `,
+                    `(SELECT count('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = saved_queries.saved_query_uuid) as views`,
                 ),
                 `saved_queries_versions.chart_config`,
                 `saved_queries_versions.chart_type`,
