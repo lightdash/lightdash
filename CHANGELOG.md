@@ -1,3 +1,10 @@
+## [0.400.1](https://github.com/lightdash/lightdash/compare/0.400.0...0.400.1) (2023-02-01)
+
+
+### Bug Fixes
+
+* catch errors in cli onboarding before create ([#4355](https://github.com/lightdash/lightdash/issues/4355)) ([b304548](https://github.com/lightdash/lightdash/commit/b304548ef72f7192a522b225d3f4604df1a079cc)), closes [#4217](https://github.com/lightdash/lightdash/issues/4217)
+
 # [0.400.0](https://github.com/lightdash/lightdash/compare/0.399.1...0.400.0) (2023-02-01)
 
 
