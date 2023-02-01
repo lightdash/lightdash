@@ -86,4 +86,5 @@ services:
     volumes:
       - "../:/usr/app"
       - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
-    entrypoint: ["/bin/sh", "-c", "sleep infinity"] # Bash into the container and then run `yarn worskpace backend scheduler`
+
+    entrypoint: ["yarn", "workspace", "backend", "scheduler"]

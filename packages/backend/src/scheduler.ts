@@ -1,9 +1,8 @@
 import * as Sentry from '@sentry/node';
+import { parseCrontab, run } from 'graphile-worker';
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logger';
 import { VERSION } from './version';
-
-const { run, parseCrontab } = require('graphile-worker');
 
 process
     .on('unhandledRejection', (reason, p) => {
@@ -32,8 +31,7 @@ async function main() {
         // Install signal handlers for graceful shutdown on SIGINT, SIGTERM, etc
         noHandleSignals: false,
         pollInterval: 1000,
-        // crontab: '* * * * * generateJobs',
-        parsedCronItems: parseCrontab('* * * * * generateJobs'), // not working ?
+        parsedCronItems: parseCrontab('0 0 * * * generateDailyJobs'), // Generate daily jobs every day at 00:00
 
         // you can set the taskList or taskDirectory but not both
         taskList: {
@@ -41,10 +39,11 @@ async function main() {
                 const { name } = payload;
                 helpers.logger.info(`Hello, ${name}`);
             },
+            generateDailyJobs: async (payload: any, helpers: any) => {
+                Logger.info(' generateDailyJobs', payload);
+            },
         },
-        generateJobs: async (payload: any, helpers: any) => {
-            Logger.info(' generateJobs', payload);
-        },
+
         // or:
         //   taskDirectory: `${__dirname}/tasks`,
     });
