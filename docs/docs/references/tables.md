@@ -53,10 +53,6 @@ Here are all of the properties you can customize:
 | [joins](joins.md)                                 | array              | Join logic to join other data models to the Table. [Read more about joins in here.](joins.md)             |
 | [metrics](metrics.mdx#2-using-the-model-meta-tag) | object             | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)            |
 
-
-    metrics?: Record<string, DbtModelLightdashMetric>;
-    order_fields_by?: OrderFieldsByStrategy;
-
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 
 Lightdash gets information about your data models from dbt.
