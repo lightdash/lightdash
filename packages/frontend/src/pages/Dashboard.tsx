@@ -360,6 +360,7 @@ const Dashboard = () => {
                 dashboardUpdatedAt={dashboard.updatedAt}
                 dashboardSpaceName={dashboard.spaceName}
                 dashboardSpaceUuid={dashboard.spaceUuid}
+                dashboardViews={dashboard.views}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={

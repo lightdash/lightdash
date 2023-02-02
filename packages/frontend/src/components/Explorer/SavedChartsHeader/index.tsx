@@ -7,6 +7,7 @@ import {
     Menu,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { IconEye, IconFolder } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
@@ -24,7 +25,6 @@ import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
 import {
-    IconWithRightMargin,
     PageActionsContainer,
     PageDetailsContainer,
     PageHeaderContainer,
@@ -33,7 +33,9 @@ import {
     PageTitleContainer,
     SeparatorDot,
 } from '../../common/PageHeader';
-import { UpdatedInfo } from '../../common/UpdatedInfo';
+import SpaceInfo from '../../common/PageHeader/SpaceInfo';
+import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
+import ViewInfo from '../../common/PageHeader/ViewInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import SaveChartButton from '../SaveChartButton';
 
@@ -181,18 +183,18 @@ const SavedChartsHeader: FC = () => {
                                     user={savedChart.updatedByUser}
                                 />
 
+                                <SeparatorDot icon="dot" size={6} />
+
+                                <ViewInfo views={savedChart.views} />
+
                                 {space && (
                                     <>
                                         <SeparatorDot icon="dot" size={6} />
-                                        <IconWithRightMargin
-                                            icon="folder-close"
-                                            size={10}
+
+                                        <SpaceInfo
+                                            link={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                                            name={space.name}
                                         />
-                                        <Link
-                                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                                        >
-                                            {space.name}
-                                        </Link>
                                     </>
                                 )}
                             </PageDetailsContainer>

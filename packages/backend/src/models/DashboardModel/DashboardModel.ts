@@ -56,7 +56,9 @@ export type GetDashboardQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'>;
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+        views: string;
+    };
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
@@ -66,7 +68,9 @@ export type GetDashboardDetailsQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'>;
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+        views: string;
+    };
 
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
@@ -264,6 +268,9 @@ export class DashboardModel {
                         `${OrganizationTableName}.organization_uuid`,
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
+                        this.database.raw(
+                            `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                        ),
                     ])
                     .orderBy([
                         {
@@ -317,6 +324,7 @@ export class DashboardModel {
                 organization_uuid,
                 space_uuid,
                 pinned_list_uuid,
+                views,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -331,6 +339,7 @@ export class DashboardModel {
                 },
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
+                views: parseInt(views, 10) || 0,
             }),
         );
     }
@@ -392,6 +401,10 @@ export class DashboardModel {
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
+                this.database.raw(
+                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ?) as views`,
+                    dashboardUuid,
+                ),
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -420,6 +433,7 @@ export class DashboardModel {
                     content: string | null;
                     hide_title: boolean | null;
                     title: string | null;
+                    views: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -574,6 +588,7 @@ export class DashboardModel {
             },
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.spaceName,
+            views: parseInt(dashboard.views, 10) || 0,
             updatedByUser: {
                 userUuid: dashboard.user_uuid,
                 firstName: dashboard.first_name,

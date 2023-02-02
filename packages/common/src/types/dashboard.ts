@@ -93,7 +93,7 @@ export type Dashboard = {
     updatedByUser?: UpdatedByUser;
     spaceUuid: string;
     spaceName: string;
-    views?: number;
+    views: number;
     pinnedListUuid: string | undefined;
 };
 

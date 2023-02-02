@@ -110,6 +110,7 @@ export const getSpaceWithQueries = async (
                 pinned_list_uuid: string | undefined;
                 chart_config: ChartConfig['config'];
                 chart_type: ChartType;
+                views: string;
             }[]
         >([
             `saved_queries.saved_query_uuid`,
@@ -122,6 +123,10 @@ export const getSpaceWithQueries = async (
             `users.first_name`,
             `users.last_name`,
             `${PinnedListTableName}.pinned_list_uuid`,
+
+            database.raw(
+                `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views`,
+            ),
         ])
         .orderBy([
             {
@@ -134,6 +139,7 @@ export const getSpaceWithQueries = async (
         ])
         .distinctOn(`saved_queries_versions.saved_query_id`)
         .where('space_id', space.space_id);
+
     return {
         organizationUuid: space.organization_uuid,
         uuid: space.space_uuid,
@@ -155,6 +161,7 @@ export const getSpaceWithQueries = async (
                 savedQuery.chart_type,
                 savedQuery.chart_config,
             ),
+            views: parseInt(savedQuery.views, 10) || 0,
         })),
         projectUuid,
         dashboards: [],

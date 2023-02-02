@@ -251,6 +251,7 @@ export const spacesWithSavedCharts: Space[] = [
                 spaceUuid: 'uuid',
                 pinnedListUuid: undefined,
                 chartType: ChartKind.AREA,
+                views: 1,
             },
         ],
         projectUuid,

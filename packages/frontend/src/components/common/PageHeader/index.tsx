@@ -43,12 +43,29 @@ export const PageDetailsContainer = styled.div`
 export const SeparatorDot = styled(Icon)`
     margin-left: 11px;
     margin-right: 11px;
-    color: ${Colors.GRAY2};
+    color: ${Colors.GRAY4};
 `;
 
-export const IconWithRightMargin = styled(Icon)`
-    margin-right: 4px;
+export const InfoContainer = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
     color: ${Colors.GRAY2};
+    font-size: 12px;
+    line-height: 14px;
+
+    svg: {
+        stroke: ${Colors.GRAY2} !important;
+    }
+`;
+
+export const UpdatedInfoLabel = styled.p`
+    color: ${Colors.GRAY2};
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 14px;
+    margin-bottom: 0;
 `;
 
 export const PageActionsContainer = styled.div`
