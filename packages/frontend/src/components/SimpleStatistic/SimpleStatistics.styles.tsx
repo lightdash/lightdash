@@ -16,17 +16,14 @@ interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const BigNumber = styled.div<BigNumberProps>`
     ${({ $interactive }) => ($interactive ? 'cursor: pointer;' : '')}
-    font-size: 4em;
-    line-height: 1.196em;
     font-weight: 500;
     color: ${Colors.DARK_GRAY4};
+    text-align: center;
 `;
 
 export const BigNumberLabel = styled.h2`
     text-align: center;
     color: ${Colors.GRAY3};
     font-weight: 500;
-    line-height: 1.389em;
-    font-size: 1.286em;
     margin: 0;
 `;

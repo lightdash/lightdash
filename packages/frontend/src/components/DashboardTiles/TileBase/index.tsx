@@ -59,6 +59,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
             : false;
+
     return (
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
