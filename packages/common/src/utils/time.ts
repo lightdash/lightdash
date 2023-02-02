@@ -7,19 +7,23 @@ export const convertWeekDayToMomentWeekDay = (weekDay: WeekDay) => {
     return converted <= 6 ? converted : 0;
 };
 
+const createMomentLocaleForWeekStart = (name: string, startOfWeek: WeekDay) => {
+    if (!moment.locales().includes(name)) {
+        moment.locale(name, {
+            week: {
+                dow: convertWeekDayToMomentWeekDay(startOfWeek),
+            },
+        });
+    }
+};
+
 export const getMomentDateWithCustomStartOfWeek = (
     startOfWeek: WeekDay | null | undefined,
     inp?: moment.MomentInput,
 ) => {
     if (isWeekDay(startOfWeek)) {
         const localeName = `lightdash-start-of-week-${startOfWeek}`;
-        if (!moment.locales().includes(localeName)) {
-            moment.locale(localeName, {
-                week: {
-                    dow: convertWeekDayToMomentWeekDay(startOfWeek),
-                },
-            });
-        }
+        createMomentLocaleForWeekStart(localeName, startOfWeek);
         return moment(inp).locale(localeName);
     }
     return moment(inp);
