@@ -1,7 +1,9 @@
 import * as Sentry from '@sentry/node';
-import { parseCrontab, run } from 'graphile-worker';
+import { JobHelpers, parseCrontab, run } from 'graphile-worker';
+import { slackService } from '.';
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logger';
+import { slackClient } from './services/services';
 import { VERSION } from './version';
 
 process
@@ -37,12 +39,16 @@ async function main() {
 
         // you can set the taskList or taskDirectory but not both
         taskList: {
-            hello: async (payload: any, helpers: any) => {
-                const { name } = payload;
-                helpers.logger.info(`Hello, ${name}`);
-            },
-            generateDailyJobs: async (payload: any, helpers: any) => {
+            generateDailyJobs: async (
+                payload: unknown,
+                helpers: JobHelpers,
+            ) => {
                 Logger.info(' generateDailyJobs', payload);
+            },
+            sendSlackMessage: async (payload: any, helpers: JobHelpers) => {
+                Logger.info(' sendSlackMessage', payload);
+
+                slackClient.sendNotification(payload);
             },
         },
 
