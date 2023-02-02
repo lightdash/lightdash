@@ -13,6 +13,7 @@ const LinkButton: FC<LinkButtonProps> = ({
     href,
     target,
     trackingEvent,
+    onClick,
     ...rest
 }) => {
     const history = useHistory();
@@ -30,6 +31,8 @@ const LinkButton: FC<LinkButtonProps> = ({
                     e.preventDefault();
                     history.push(href);
                 }
+
+                onClick?.(e);
             }}
         />
     );
