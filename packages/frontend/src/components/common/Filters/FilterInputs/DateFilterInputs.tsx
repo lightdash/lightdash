@@ -270,20 +270,26 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 onChange({
                                     ...rule,
                                     values: [
-                                        range[0]
-                                            ? formatDate(
-                                                  range[0],
-                                                  undefined,
-                                                  false,
-                                              )
-                                            : moment(range[1]).add(-1, 'days'),
-                                        range[1]
-                                            ? formatDate(
-                                                  range[1],
-                                                  undefined,
-                                                  false,
-                                              )
-                                            : moment(range[0]).add(1, 'days'),
+                                        formatDate(
+                                            range[0]
+                                                ? range[0]
+                                                : moment(range[1]).add(
+                                                      -1,
+                                                      'days',
+                                                  ),
+                                            undefined,
+                                            false,
+                                        ),
+                                        formatDate(
+                                            range[1]
+                                                ? range[1]
+                                                : moment(range[0]).add(
+                                                      1,
+                                                      'days',
+                                                  ),
+                                            undefined,
+                                            false,
+                                        ),
                                     ],
                                 });
                             }
