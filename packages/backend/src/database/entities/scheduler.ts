@@ -8,7 +8,7 @@ export type SchedulerDb = {
     name: string;
     created_at: Date;
     updated_at: Date;
-    user_uuid: string;
+    created_by: string;
     cron: string;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;

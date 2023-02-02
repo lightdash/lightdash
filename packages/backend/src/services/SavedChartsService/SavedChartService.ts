@@ -413,7 +413,7 @@ export class SavedChartService {
         await this.checkUpdateAccess(user, chartUuid);
         return this.schedulerModel.createScheduler({
             ...newScheduler,
-            userUuid: user.userUuid,
+            createdBy: user.userUuid,
             dashboardUuid: null,
             savedChartUuid: chartUuid,
         });
