@@ -315,6 +315,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     intent="primary"
                     href={exploreFromHereUrl}
                     icon="series-search"
+                    forceRefresh
                 >
                     Explore from here
                 </LinkButton>
