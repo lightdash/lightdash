@@ -1,13 +1,12 @@
-import { AnchorButton } from '@blueprintjs/core';
+import { AnchorButton, AnchorButtonProps } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
-export interface LinkButtonProps
-    extends React.ComponentProps<typeof AnchorButton> {
+export interface LinkButtonProps extends AnchorButtonProps {
     href: string;
     trackingEvent?: EventData;
-    replace?: boolean;
+    target?: React.HTMLAttributeAnchorTarget;
 }
 
 const LinkButton: FC<LinkButtonProps> = ({
@@ -18,18 +17,19 @@ const LinkButton: FC<LinkButtonProps> = ({
 }) => {
     const history = useHistory();
     const { track } = useTracking();
+
     return (
         <AnchorButton
             {...rest}
             href={href}
             target={target}
             onClick={(e) => {
-                if (trackingEvent) {
-                    track(trackingEvent);
+                if (trackingEvent) track(trackingEvent);
+
+                if (!e.ctrlKey && !e.metaKey && target !== '_blank') {
+                    e.preventDefault();
+                    history.push(href);
                 }
-                if (target === '_blank') return;
-                e.preventDefault();
-                history.push(href);
             }}
         />
     );
