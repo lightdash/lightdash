@@ -26,11 +26,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <Textfit
-                    mode="single"
-                    forceSingleModeWidth
-                    style={{ width: '100%' }}
-                >
+                <Textfit mode="single" style={{ width: '45%' }}>
                     <BigNumber>{bigNumber}</BigNumber>
                 </Textfit>
             ) : (
@@ -48,7 +44,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                     )}
                 />
             )}
-            <Textfit mode="multi" style={{ width: '100%' }}>
+            <Textfit mode="single" style={{ width: '80%' }}>
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
