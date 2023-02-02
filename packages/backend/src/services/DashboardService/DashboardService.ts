@@ -9,6 +9,7 @@ import {
     ForbiddenError,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    SchedulerAndTargets,
     SessionUser,
     UpdateDashboard,
     UpdateMultipleDashboards,
@@ -466,7 +467,7 @@ export class DashboardService {
         user: SessionUser,
         dashboardUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
-    ): Promise<string> {
+    ): Promise<SchedulerAndTargets> {
         await this.checkUpdateAccess(user, dashboardUuid);
         return this.schedulerModel.createScheduler({
             ...newScheduler,
