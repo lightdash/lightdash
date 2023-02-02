@@ -151,6 +151,23 @@ export class SchedulerModel {
                     updated_at: new Date(),
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
+
+            const targetsToUpdate = scheduler.targets.reduce<string[]>(
+                (acc, target) =>
+                    isUpdateSchedulerSlackTarget(target)
+                        ? [...acc, target.schedulerSlackTargetUuid]
+                        : acc,
+                [],
+            );
+            await trx(SchedulerSlackTargetTableName)
+                .delete()
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .andWhere(
+                    'scheduler_slack_target_uuid',
+                    'not in',
+                    targetsToUpdate,
+                );
+
             const targetPromises = scheduler.targets.map(async (target) => {
                 if (isUpdateSchedulerSlackTarget(target)) {
                     await trx(SchedulerSlackTargetTableName)
