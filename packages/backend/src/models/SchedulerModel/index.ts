@@ -49,7 +49,7 @@ export class SchedulerModel {
             createdAt: scheduler.created_at,
             updatedAt: scheduler.updated_at,
             schedulerUuid: scheduler.scheduler_uuid,
-            channels: scheduler.channels,
+            channel: scheduler.channel,
         };
     }
 
@@ -129,7 +129,7 @@ export class SchedulerModel {
             const targetPromises = newScheduler.targets.map(async (target) =>
                 trx(SchedulerSlackTargetTableName).insert({
                     scheduler_uuid: scheduler.scheduler_uuid,
-                    channels: target.channels,
+                    channel: target.channel,
                     updated_at: new Date(),
                 }),
             );
@@ -171,7 +171,7 @@ export class SchedulerModel {
                 if (isUpdateSchedulerSlackTarget(target)) {
                     await trx(SchedulerSlackTargetTableName)
                         .update({
-                            channels: target.channels,
+                            channel: target.channel,
                             updated_at: new Date(),
                         })
                         .where(
@@ -182,7 +182,7 @@ export class SchedulerModel {
                 } else {
                     await trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
-                        channels: target.channels,
+                        channel: target.channel,
                         updated_at: new Date(),
                     });
                 }

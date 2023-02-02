@@ -27,8 +27,8 @@ export type SchedulerSlackTargetDb = {
     scheduler_slack_target_uuid: string;
     created_at: Date;
     updated_at: Date;
-    scheduler_uuid: string; // secondary key to scheduler table
-    channels: string[]; // slack channel ids
+    scheduler_uuid: string;
+    channel: string; // slack channel id
 };
 
 export type SchedulerTable = Knex.CompositeTableType<
@@ -43,5 +43,5 @@ export type SchedulerTable = Knex.CompositeTableType<
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<
     SchedulerSlackTargetDb,
     Omit<SchedulerSlackTargetDb, 'scheduler_slack_target_uuid' | 'created_at'>,
-    Pick<SchedulerSlackTargetDb, 'channels' | 'updated_at'>
+    Pick<SchedulerSlackTargetDb, 'channel' | 'updated_at'>
 >;

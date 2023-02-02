@@ -28,14 +28,14 @@ export type SchedulerSlackTarget = {
     schedulerSlackTargetUuid: string;
     createdAt: Date;
     updatedAt: Date;
-    schedulerUuid: string; // secondary key to scheduler table
-    channels: string[]; // slack channel ids
+    schedulerUuid: string;
+    channel: string;
 };
 
-export type CreateSchedulerSlackTarget = Pick<SchedulerSlackTarget, 'channels'>;
+export type CreateSchedulerSlackTarget = Pick<SchedulerSlackTarget, 'channel'>;
 export type UpdateSchedulerSlackTarget = Pick<
     SchedulerSlackTarget,
-    'schedulerSlackTargetUuid' | 'channels'
+    'schedulerSlackTargetUuid' | 'channel'
 >;
 
 export type CreateSchedulerAndTargets = Omit<
