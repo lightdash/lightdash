@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 
 const SchedulerTableName = 'scheduler';
 const SchedulerSlackTargetTableName = 'scheduler_slack_target';
+
 export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable(SchedulerTableName))) {
         await knex.schema.createTable(SchedulerTableName, (table) => {
@@ -20,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
                 .notNullable()
                 .defaultTo(knex.fn.now());
             table
-                .uuid('user_uuid')
+                .uuid('created_by')
                 .notNullable()
                 .references('user_uuid')
                 .inTable('users')
@@ -30,14 +31,15 @@ export async function up(knex: Knex): Promise<void> {
                 .uuid('saved_chart_uuid')
                 .references('saved_query_uuid')
                 .inTable('saved_queries')
-                .notNullable()
                 .onDelete('CASCADE');
             table
                 .uuid('dashboard_uuid')
                 .references('dashboard_uuid')
                 .inTable('dashboards')
-                .notNullable()
                 .onDelete('CASCADE');
+            table.check(
+                '(saved_chart_uuid is null and dashboard_uuid is not null) OR (dashboard_uuid is null and saved_chart_uuid is not null)',
+            );
         });
     }
 
@@ -64,7 +66,7 @@ export async function up(knex: Knex): Promise<void> {
                     .references('scheduler_uuid')
                     .inTable(SchedulerTableName)
                     .onDelete('CASCADE');
-                table.specificType('channels', 'text[]');
+                table.string('channel').notNullable();
             },
         );
     }
