@@ -2,32 +2,29 @@ import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
+import { ResourceListActionState } from '.';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
 import { useApp } from '../../../providers/AppProvider';
 import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
-export enum ResourceAction {
+export enum ResourceListAction {
     CLOSE,
     UPDATE,
-    ADD_TO_DASHBOARD,
     DELETE,
-    MOVE_TO_SPACE,
     CREATE_SPACE,
+    MOVE_TO_SPACE,
+    ADD_TO_DASHBOARD,
 }
 
 type Props = {
     item: ResourceListItem;
     spaces: Space[];
     url: string;
-    onAction: (
-        action: ResourceAction,
-        item: ResourceListItem,
-        data?: any,
-    ) => void;
+    onAction: (newAction: ResourceListActionState) => void;
 };
 
-const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
+const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [itemId, setItemId] = useState<string>('');
 
@@ -77,7 +74,7 @@ const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
-                            onAction(ResourceAction.UPDATE, item);
+                            onAction({ type: ResourceListAction.UPDATE, item });
                         }}
                     />
                     <MenuItem2
@@ -114,7 +111,10 @@ const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setIsOpen(false);
-                                onAction(ResourceAction.ADD_TO_DASHBOARD, item);
+                                onAction({
+                                    type: ResourceListAction.ADD_TO_DASHBOARD,
+                                    item,
+                                });
                             }}
                         />
                     )}
@@ -143,14 +143,14 @@ const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         if (!isSelected) {
-                                            onAction(
-                                                ResourceAction.MOVE_TO_SPACE,
+                                            onAction({
+                                                type: ResourceListAction.MOVE_TO_SPACE,
                                                 item,
-                                                {
+                                                data: {
                                                     ...item.data,
                                                     spaceUuid: space.uuid,
                                                 },
-                                            );
+                                            });
                                         }
                                     }}
                                 />
@@ -165,7 +165,10 @@ const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                onAction(ResourceAction.CREATE_SPACE, item);
+                                onAction({
+                                    type: ResourceListAction.CREATE_SPACE,
+                                    item,
+                                });
                             }}
                         />
                     </MenuItem2>
@@ -181,7 +184,7 @@ const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
-                            onAction(ResourceAction.DELETE, item);
+                            onAction({ type: ResourceListAction.DELETE, item });
                         }}
                     />
                 </Menu>
@@ -200,4 +203,4 @@ const ResourceActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     );
 };
 
-export default ResourceActionMenu;
+export default ResourceListActionMenu;

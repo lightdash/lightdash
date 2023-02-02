@@ -3,9 +3,9 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { ResourceListCommonProps } from '.';
+import { ResourceListActionState, ResourceListCommonProps } from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
-import ResourceActionMenu, { ResourceAction } from './ResourceActionMenu';
+import ResourceActionMenu from './ResourceActionMenu';
 import ResourceIcon from './ResourceIcon';
 import ResourceLastEdited from './ResourceLastEdited';
 import {
@@ -49,11 +49,7 @@ export interface ResourceTableCommonProps {
 
 type ResourceTableProps = ResourceTableCommonProps &
     Pick<ResourceListCommonProps, 'items'> & {
-        onAction: (
-            actionType: ResourceAction,
-            item: ResourceListItem,
-            data: any,
-        ) => void;
+        onAction: (newAction: ResourceListActionState) => void;
     };
 
 const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
