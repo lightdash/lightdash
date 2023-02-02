@@ -31,7 +31,9 @@ async function main() {
         // Install signal handlers for graceful shutdown on SIGINT, SIGTERM, etc
         noHandleSignals: false,
         pollInterval: 1000,
-        parsedCronItems: parseCrontab('0 0 * * * generateDailyJobs'), // Generate daily jobs every day at 00:00
+        parsedCronItems: parseCrontab(
+            '0 0 * * * generateDailyJobs ?fill=12h&max=1',
+        ), // Generate daily jobs every day at 00:00
 
         // you can set the taskList or taskDirectory but not both
         taskList: {
