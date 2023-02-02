@@ -266,12 +266,31 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         onChange={(
                             range: [Date | null, Date | null] | null,
                         ) => {
-                            if (range && range[0] && range[1]) {
+                            if (range && (range[0] || range[1])) {
                                 onChange({
                                     ...rule,
-                                    values: range.map((value) =>
-                                        formatDate(value, undefined, false),
-                                    ),
+                                    values: [
+                                        formatDate(
+                                            range[0]
+                                                ? range[0]
+                                                : moment(range[1]).add(
+                                                      -1,
+                                                      'days',
+                                                  ),
+                                            undefined,
+                                            false,
+                                        ),
+                                        formatDate(
+                                            range[1]
+                                                ? range[1]
+                                                : moment(range[0]).add(
+                                                      1,
+                                                      'days',
+                                                  ),
+                                            undefined,
+                                            false,
+                                        ),
+                                    ],
                                 });
                             }
                         }}
