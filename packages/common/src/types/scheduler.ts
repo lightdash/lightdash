@@ -1,5 +1,3 @@
-import { ShareUrl } from './share';
-
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -49,7 +47,7 @@ export type CreateSchedulerAndTargets = Omit<
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
     CreateSchedulerAndTargets,
-    'savedChartUuid' | 'dashboardUuid'
+    'savedChartUuid' | 'dashboardUuid' | 'userUuid'
 >;
 
 export type UpdateSchedulerAndTargets = Pick<
@@ -60,7 +58,7 @@ export type UpdateSchedulerAndTargets = Pick<
 };
 
 export type UpdateSchedulerAndTargetsWithoutId = Omit<
-    CreateSchedulerAndTargets,
+    UpdateSchedulerAndTargets,
     'schedulerUuid'
 >;
 
