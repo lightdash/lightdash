@@ -26,24 +26,33 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <BigNumber>{bigNumber}</BigNumber>
+                <Textfit
+                    mode="single"
+                    forceSingleModeWidth
+                    style={{ width: '100%' }}
+                >
+                    <BigNumber>{bigNumber}</BigNumber>
+                </Textfit>
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <BigNumber
-                            $interactive
-                            ref={ref}
-                            onClick={(popoverProps as any).onClick}
-                        >
-                            <Textfit mode="single">{bigNumber}</Textfit>
-                        </BigNumber>
+                        <Textfit mode="single" style={{ width: '45%' }}>
+                            <BigNumber
+                                $interactive
+                                ref={ref}
+                                onClick={(popoverProps as any).onClick}
+                            >
+                                {bigNumber}
+                            </BigNumber>
+                        </Textfit>
                     )}
                 />
             )}
-
-            <BigNumberLabel>
-                <Textfit>{bigNumberLabel || defaultLabel}</Textfit>
-            </BigNumberLabel>
+            <Textfit mode="multi" style={{ width: '100%' }}>
+                <BigNumberLabel>
+                    {bigNumberLabel || defaultLabel}
+                </BigNumberLabel>
+            </Textfit>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
