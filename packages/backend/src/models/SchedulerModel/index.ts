@@ -114,8 +114,8 @@ export class SchedulerModel {
 
     async createScheduler(
         newScheduler: CreateSchedulerAndTargets,
-    ): Promise<string> {
-        return this.database.transaction(async (trx) => {
+    ): Promise<SchedulerAndTargets> {
+        const schedulerUuid = await this.database.transaction(async (trx) => {
             const [scheduler] = await trx(SchedulerTableName)
                 .insert({
                     name: newScheduler.name,
@@ -137,6 +137,7 @@ export class SchedulerModel {
             await Promise.all(targetPromises);
             return scheduler.scheduler_uuid;
         });
+        return this.getSchedulerAndTargets(schedulerUuid);
     }
 
     async updateScheduler(

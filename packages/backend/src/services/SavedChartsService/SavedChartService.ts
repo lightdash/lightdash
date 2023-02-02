@@ -8,6 +8,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     SavedChart,
+    SchedulerAndTargets,
     SessionUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -409,7 +410,7 @@ export class SavedChartService {
         user: SessionUser,
         chartUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
-    ): Promise<string> {
+    ): Promise<SchedulerAndTargets> {
         await this.checkUpdateAccess(user, chartUuid);
         return this.schedulerModel.createScheduler({
             ...newScheduler,
