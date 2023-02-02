@@ -42,19 +42,10 @@ export class SchedulerService {
         this.savedChartModel = savedChartModel;
     }
 
-    async getAllSchedulers(): Promise<Scheduler[]> {
-        return this.schedulerModel.getAllSchedulers();
-    }
-
-    async getScheduler(schedulerUuid: string): Promise<SchedulerAndTargets> {
-        return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
-    }
-
-    async updateScheduler(
+    private async checkUserCanUpdateScheduler(
         user: SessionUser,
         schedulerUuid: string,
-        updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
-    ): Promise<SchedulerAndTargets> {
+    ): Promise<void> {
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         if (isChartScheduler(scheduler)) {
             const { organizationUuid, projectUuid } =
@@ -80,9 +71,33 @@ export class SchedulerService {
                 throw new ForbiddenError();
             }
         }
+    }
+
+    async getAllSchedulers(): Promise<Scheduler[]> {
+        return this.schedulerModel.getAllSchedulers();
+    }
+
+    async getScheduler(schedulerUuid: string): Promise<SchedulerAndTargets> {
+        return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+    }
+
+    async updateScheduler(
+        user: SessionUser,
+        schedulerUuid: string,
+        updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
+    ): Promise<SchedulerAndTargets> {
+        await this.checkUserCanUpdateScheduler(user, schedulerUuid);
         return this.schedulerModel.updateScheduler({
             ...updatedScheduler,
             schedulerUuid,
         });
+    }
+
+    async deleteScheduler(
+        user: SessionUser,
+        schedulerUuid: string,
+    ): Promise<void> {
+        await this.checkUserCanUpdateScheduler(user, schedulerUuid);
+        return this.schedulerModel.deleteScheduler(schedulerUuid);
     }
 }
