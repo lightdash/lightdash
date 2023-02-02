@@ -20,7 +20,7 @@ export type DashboardScheduler = SchedulerBase & {
 
 export type Scheduler = ChartScheduler | DashboardScheduler;
 
-export type SchedulerWithTargets = Scheduler & {
+export type SchedulerAndTargets = Scheduler & {
     targets: SchedulerSlackTarget[];
 };
 
@@ -38,19 +38,29 @@ export type UpdateSchedulerSlackTarget = Pick<
     'schedulerSlackTargetUuid' | 'channels'
 >;
 
-export type CreateSchedulerWithTargets = Omit<
+export type CreateSchedulerAndTargets = Omit<
     Scheduler,
     'schedulerUuid' | 'createdAt' | 'updatedAt'
 > & {
     targets: CreateSchedulerSlackTarget[];
 };
 
-export type UpdateSchedulerWithTargets = Pick<
+export type CreateSchedulerAndTargetsWithoutIds = Omit<
+    CreateSchedulerAndTargets,
+    'savedChartUuid' | 'dashboardUuid'
+>;
+
+export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
     'schedulerUuid' | 'name' | 'cron'
 > & {
     targets: Array<CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget>;
 };
+
+export type UpdateSchedulerAndTargetsWithoutId = Omit<
+    CreateSchedulerAndTargets,
+    'schedulerUuid'
+>;
 
 export const isUpdateSchedulerSlackTarget = (
     data: CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget,
