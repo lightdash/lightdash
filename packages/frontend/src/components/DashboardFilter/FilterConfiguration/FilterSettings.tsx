@@ -5,7 +5,7 @@ import {
     FilterableField,
     FilterRule,
     FilterType,
-    getFilterTypeFromField,
+    getFilterTypeFromItem,
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
@@ -28,9 +28,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onChangeFilterOperator,
     onChangeFilterRule,
 }) => {
-    const filterType = field
-        ? getFilterTypeFromField(field)
-        : FilterType.STRING;
+    const filterType = field ? getFilterTypeFromItem(field) : FilterType.STRING;
 
     const filterConfig = useMemo(
         () => FilterTypeConfig[filterType],

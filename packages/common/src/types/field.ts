@@ -77,6 +77,10 @@ export type TableCalculation = {
     displayName: string;
     sql: string;
 };
+
+export const isTableCalculation = (item: Item): item is TableCalculation =>
+    item ? !!item.sql && !('type' in item) && !('tableName' in item) : false;
+
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
@@ -192,9 +196,9 @@ export const isFilterableField = (
 
 export type FilterableItem = FilterableField | TableCalculation;
 export const isFilterableItem = (
-    field: Field | Dimension | Metric | TableCalculation,
-): field is FilterableField =>
-    isDimension(field) ? isFilterableDimension(field) : true;
+    item: Field | Dimension | Metric | TableCalculation,
+): item is FilterableItem =>
+    isDimension(item) ? isFilterableDimension(item) : true;
 
 export type FieldRef = string;
 export const getFieldRef = (field: Field): FieldRef =>
