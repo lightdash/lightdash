@@ -1,7 +1,8 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, Space } from '@lightdash/common';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import useMoveToSpace from '../../../hooks/useMoveToSpace';
+import { useMoveDashboard } from '../../../hooks/dashboard/useDashboard';
+import { useMoveMutation } from '../../../hooks/useSavedQuery';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
@@ -24,7 +25,7 @@ export type ResourceListActionState =
     | {
           type: ResourceListAction.MOVE_TO_SPACE;
           item: ResourceListItem;
-          data: { uuid: string; name: string; spaceUuid?: string };
+          data: { name: string; spaceUuid: string };
       }
     | { type: ResourceListAction.ADD_TO_DASHBOARD; item: ResourceListItem };
 
@@ -57,33 +58,36 @@ const ResourceList: React.FC<ResourceListProps> = ({
         type: ResourceListAction.CLOSE,
     });
 
+    const { mutate: moveChartMutation } = useMoveMutation(
+        action.type === ResourceListAction.MOVE_TO_SPACE
+            ? action.item.data.uuid
+            : undefined,
+    );
+    const { mutate: moveDashboardMutation } = useMoveDashboard(
+        action.type === ResourceListAction.MOVE_TO_SPACE
+            ? action.item.data.uuid
+            : undefined,
+    );
+
     const handleAction = useCallback((newAction: ResourceListActionState) => {
         setAction(newAction);
     }, []);
 
     const handleCloseModal = useCallback(() => {
         handleAction({ type: ResourceListAction.CLOSE });
-    }, []);
-
-    const { moveChart, moveDashboard } = useMoveToSpace(
-        action.type === ResourceListAction.MOVE_TO_SPACE &&
-            action.item.type === ResourceListType.CHART,
-        action.type === ResourceListAction.MOVE_TO_SPACE
-            ? action.data
-            : undefined,
-    );
+    }, [handleAction]);
 
     const handleMoveToSpace = useCallback(
-        (actionData: { uuid: string; name: string; spaceUuid?: string }) => {
+        (actionData: { name: string; spaceUuid: string }) => {
             if (action.type !== ResourceListAction.MOVE_TO_SPACE) {
                 return;
             }
 
             switch (action.item.type) {
                 case ResourceListType.CHART:
-                    return moveChart(actionData);
+                    return moveChartMutation(actionData);
                 case ResourceListType.DASHBOARD:
-                    return moveDashboard(actionData);
+                    return moveDashboardMutation(actionData);
                 default:
                     return assertUnreachable(
                         action.item,
@@ -91,7 +95,24 @@ const ResourceList: React.FC<ResourceListProps> = ({
                     );
             }
         },
-        [moveChart, moveDashboard, action],
+        [action, moveChartMutation, moveDashboardMutation],
+    );
+
+    const handleCreateSpace = useCallback(
+        (space: Space | undefined) => {
+            if (!space) return;
+            if (action.type !== ResourceListAction.CREATE_SPACE) return;
+
+            handleAction({
+                type: ResourceListAction.MOVE_TO_SPACE,
+                item: action.item,
+                data: {
+                    name: action.item.data.name,
+                    spaceUuid: space.uuid,
+                },
+            });
+        },
+        [handleAction, action],
     );
 
     useEffect(() => {
@@ -178,25 +199,14 @@ const ResourceList: React.FC<ResourceListProps> = ({
 
             {action.type === ResourceListAction.CREATE_SPACE && (
                 <SpaceActionModal
+                    shouldRedirect={false}
                     projectUuid={projectUuid}
                     actionType={ActionType.CREATE}
                     title="Create new space"
                     confirmButtonLabel="Create"
                     icon="folder-close"
                     onClose={handleCloseModal}
-                    onSubmitForm={(space) => {
-                        if (space) {
-                            handleAction({
-                                type: ResourceListAction.MOVE_TO_SPACE,
-                                item: action.item,
-                                data: {
-                                    uuid: action.item.data.uuid,
-                                    name: action.item.data.name,
-                                    spaceUuid: space.uuid,
-                                },
-                            });
-                        }
-                    }}
+                    onSubmitForm={handleCreateSpace}
                 />
             )}
         </>
