@@ -2,20 +2,14 @@ import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
-import { ResourceListActionState } from '.';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
 import { useApp } from '../../../providers/AppProvider';
+import {
+    ResourceListAction,
+    ResourceListActionState,
+} from './ResourceActionHandlers';
 import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
-
-export enum ResourceListAction {
-    CLOSE,
-    UPDATE,
-    DELETE,
-    CREATE_SPACE,
-    MOVE_TO_SPACE,
-    ADD_TO_DASHBOARD,
-}
 
 type Props = {
     item: ResourceListItem;
