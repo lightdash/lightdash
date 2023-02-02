@@ -31,3 +31,8 @@ export type SchedulerSlackTarget = {
     schedulerUuid: string; // secondary key to scheduler table
     channels: string[]; // slack channel ids
 };
+
+export type CreateSchedulerWithTargets = Omit<
+    SchedulerWithTargets,
+    'schedulerUuid' | 'createdAt' | 'updatedAt'
+>;

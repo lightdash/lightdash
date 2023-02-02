@@ -1,4 +1,4 @@
-import { Scheduler } from '@lightdash/common';
+import { CreateSchedulerWithTargets, Scheduler } from '@lightdash/common';
 import { SchedulerWithTargets } from '@lightdash/common/dist/types/scheduler';
 import { LightdashConfig } from '../../config/parseConfig';
 import { SchedulerModel } from '../../models/SchedulerModel';
@@ -30,9 +30,13 @@ export class SchedulerService {
         return scheduler;
     }
 
-    // async createScheduler() {
-    //     // todo
-    // }
+    async createScheduler(
+        newScheduler: CreateSchedulerWithTargets,
+    ): Promise<string> {
+        // todo: check if user has edit permission to chart/dashboard
+        return this.schedulerModel.createScheduler(newScheduler);
+    }
+
     //
     // async updateScheduler() {
     //     // todo
