@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
+    ChartScheduler,
     ChartType,
     countTotalFilterRules,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     SavedChart,
     SessionUser,
@@ -16,6 +18,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
@@ -25,6 +28,7 @@ type Dependencies = {
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
+    schedulerModel: SchedulerModel;
 };
 
 export class SavedChartService {
@@ -38,12 +42,32 @@ export class SavedChartService {
 
     private readonly pinnedListModel: PinnedListModel;
 
+    private readonly schedulerModel: SchedulerModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.spaceModel = dependencies.spaceModel;
         this.analyticsModel = dependencies.analyticsModel;
         this.pinnedListModel = dependencies.pinnedListModel;
+        this.schedulerModel = dependencies.schedulerModel;
+    }
+
+    private async checkUpdateAccess(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<void> {
+        const { organizationUuid, projectUuid } =
+            await this.savedChartModel.get(chartUuid);
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
     }
 
     async hasChartSpaceAccess(
@@ -371,5 +395,26 @@ export class SavedChartService {
             },
         });
         return newSavedChart;
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ChartScheduler[]> {
+        await this.checkUpdateAccess(user, chartUuid);
+        return this.schedulerModel.getChartSchedulers(chartUuid);
+    }
+
+    async createScheduler(
+        user: SessionUser,
+        chartUuid: string,
+        newScheduler: CreateSchedulerAndTargetsWithoutIds,
+    ): Promise<string> {
+        await this.checkUpdateAccess(user, chartUuid);
+        return this.schedulerModel.createScheduler({
+            ...newScheduler,
+            dashboardUuid: null,
+            savedChartUuid: chartUuid,
+        });
     }
 }

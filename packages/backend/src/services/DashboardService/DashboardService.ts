@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     CreateDashboard,
+    CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
+    DashboardScheduler,
     DashboardTileTypes,
     ForbiddenError,
     isDashboardUnversionedFields,
@@ -18,6 +20,7 @@ import { getSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
@@ -26,6 +29,7 @@ type Dependencies = {
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
+    schedulerModel: SchedulerModel;
 };
 
 export class DashboardService {
@@ -37,16 +41,36 @@ export class DashboardService {
 
     pinnedListModel: PinnedListModel;
 
+    schedulerModel: SchedulerModel;
+
     constructor({
         dashboardModel,
         spaceModel,
         analyticsModel,
         pinnedListModel,
+        schedulerModel,
     }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
         this.pinnedListModel = pinnedListModel;
+        this.schedulerModel = schedulerModel;
+    }
+
+    private async checkUpdateAccess(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const { organizationUuid, projectUuid } =
+            await this.dashboardModel.getById(dashboardUuid);
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
     }
 
     async hasDashboardSpaceAccess(
@@ -427,6 +451,27 @@ export class DashboardService {
                 dashboardId: deletedDashboard.uuid,
                 projectId: deletedDashboard.projectUuid,
             },
+        });
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<DashboardScheduler[]> {
+        await this.checkUpdateAccess(user, dashboardUuid);
+        return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
+    }
+
+    async createScheduler(
+        user: SessionUser,
+        dashboardUuid: string,
+        newScheduler: CreateSchedulerAndTargetsWithoutIds,
+    ): Promise<string> {
+        await this.checkUpdateAccess(user, dashboardUuid);
+        return this.schedulerModel.createScheduler({
+            ...newScheduler,
+            dashboardUuid,
+            savedChartUuid: null,
         });
     }
 }

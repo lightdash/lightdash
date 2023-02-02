@@ -1,13 +1,13 @@
 import {
     ChartScheduler,
-    CreateSchedulerWithTargets,
+    CreateSchedulerAndTargets,
     DashboardScheduler,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
+    SchedulerAndTargets,
     SchedulerSlackTarget,
-    SchedulerWithTargets,
-    UpdateSchedulerWithTargets,
+    UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -80,9 +80,19 @@ export class SchedulerModel {
         ) as DashboardScheduler[];
     }
 
-    async getSchedulerWithTargets(
+    async getScheduler(schedulerUuid: string): Promise<Scheduler> {
+        const [scheduler] = await this.database(SchedulerTableName)
+            .select()
+            .where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
+        if (!scheduler) {
+            throw new NotFoundError('Scheduler not found');
+        }
+        return SchedulerModel.convertScheduler(scheduler);
+    }
+
+    async getSchedulerAndTargets(
         schedulerUuid: string,
-    ): Promise<SchedulerWithTargets> {
+    ): Promise<SchedulerAndTargets> {
         const [scheduler] = await this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
@@ -103,7 +113,7 @@ export class SchedulerModel {
     }
 
     async createScheduler(
-        newScheduler: CreateSchedulerWithTargets,
+        newScheduler: CreateSchedulerAndTargets,
     ): Promise<string> {
         const schedulerUuid = await this.database.transaction(async (trx) => {
             const [scheduler] = await trx(SchedulerTableName)
@@ -131,8 +141,8 @@ export class SchedulerModel {
     }
 
     async updateScheduler(
-        scheduler: UpdateSchedulerWithTargets,
-    ): Promise<SchedulerWithTargets> {
+        scheduler: UpdateSchedulerAndTargets,
+    ): Promise<SchedulerAndTargets> {
         await this.database.transaction(async (trx) => {
             await trx(SchedulerTableName)
                 .update({
@@ -164,6 +174,6 @@ export class SchedulerModel {
 
             await Promise.all(targetPromises);
         });
-        return this.getSchedulerWithTargets(scheduler.schedulerUuid);
+        return this.getSchedulerAndTargets(scheduler.schedulerUuid);
     }
 }

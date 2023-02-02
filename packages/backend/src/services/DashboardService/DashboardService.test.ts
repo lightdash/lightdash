@@ -4,6 +4,7 @@ import {
     analyticsModel,
     dashboardModel,
     pinnedListModel,
+    schedulerModel,
     spaceModel,
 } from '../../models/models';
 
@@ -57,6 +58,7 @@ jest.mock('../../models/models', () => ({
         addDashboardViewEvent: jest.fn(async () => null),
     },
     pinnedListModel: {},
+    schedulerModel: {},
 }));
 
 describe('DashboardService', () => {
@@ -67,6 +69,7 @@ describe('DashboardService', () => {
         spaceModel,
         analyticsModel,
         pinnedListModel,
+        schedulerModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

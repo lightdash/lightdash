@@ -1,15 +1,24 @@
+import { subject } from '@casl/ability';
 import {
-    CreateSchedulerWithTargets,
+    ForbiddenError,
+    isChartScheduler,
     Scheduler,
-    SchedulerWithTargets,
-    UpdateSchedulerWithTargets,
+    SchedulerAndTargets,
+    SessionUser,
+    UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
     schedulerModel: SchedulerModel;
+
+    dashboardModel: DashboardModel;
+
+    savedChartModel: SavedChartModel;
 };
 
 export class SchedulerService {
@@ -17,34 +26,63 @@ export class SchedulerService {
 
     schedulerModel: SchedulerModel;
 
-    constructor({ lightdashConfig, schedulerModel }: ServiceDependencies) {
+    dashboardModel: DashboardModel;
+
+    savedChartModel: SavedChartModel;
+
+    constructor({
+        lightdashConfig,
+        schedulerModel,
+        dashboardModel,
+        savedChartModel,
+    }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.schedulerModel = schedulerModel;
+        this.dashboardModel = dashboardModel;
+        this.savedChartModel = savedChartModel;
     }
 
     async getAllSchedulers(): Promise<Scheduler[]> {
-        const schedulers = await this.schedulerModel.getAllSchedulers();
-        return schedulers;
+        return this.schedulerModel.getAllSchedulers();
     }
 
-    async getScheduler(schedulerUuid: string): Promise<SchedulerWithTargets> {
-        const scheduler = await this.schedulerModel.getSchedulerWithTargets(
-            schedulerUuid,
-        );
-        return scheduler;
-    }
-
-    async createScheduler(
-        newScheduler: CreateSchedulerWithTargets,
-    ): Promise<string> {
-        // todo: check if user has edit permission to chart/dashboard
-        return this.schedulerModel.createScheduler(newScheduler);
+    async getScheduler(schedulerUuid: string): Promise<SchedulerAndTargets> {
+        return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
     }
 
     async updateScheduler(
-        scheduler: UpdateSchedulerWithTargets,
-    ): Promise<SchedulerWithTargets> {
-        // todo: check if user has edit permission to chart/dashboard
-        return this.schedulerModel.updateScheduler(scheduler);
+        user: SessionUser,
+        schedulerUuid: string,
+        updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
+    ): Promise<SchedulerAndTargets> {
+        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+        if (isChartScheduler(scheduler)) {
+            const { organizationUuid, projectUuid } =
+                await this.savedChartModel.get(scheduler.savedChartUuid);
+
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('SavedChart', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        } else {
+            const { organizationUuid, projectUuid } =
+                await this.dashboardModel.getById(scheduler.dashboardUuid);
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('Dashboard', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+        return this.schedulerModel.updateScheduler({
+            ...updatedScheduler,
+            schedulerUuid,
+        });
     }
 }

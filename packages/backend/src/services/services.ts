@@ -88,6 +88,7 @@ export const dashboardService = new DashboardService({
     spaceModel,
     analyticsModel,
     pinnedListModel,
+    schedulerModel,
 });
 
 export const savedChartsService = new SavedChartService({
@@ -96,6 +97,7 @@ export const savedChartsService = new SavedChartService({
     spaceModel,
     analyticsModel,
     pinnedListModel,
+    schedulerModel,
 });
 
 export const personalAccessTokenService = new PersonalAccessTokenService({
@@ -134,6 +136,8 @@ export const analyticsService = new AnalyticsService({
 export const schedulerService = new SchedulerService({
     lightdashConfig,
     schedulerModel,
+    savedChartModel,
+    dashboardModel,
 });
 
 export const slackClient = new SlackClient({
