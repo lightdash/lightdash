@@ -25,14 +25,14 @@ const LinkButton: FC<LinkButtonProps> = ({
             href={href}
             target={target}
             onClick={(e) => {
-                if (trackingEvent) track(trackingEvent);
-
                 if (!e.ctrlKey && !e.metaKey && target !== '_blank') {
                     e.preventDefault();
                     history.push(href);
                 }
 
                 onClick?.(e);
+
+                if (trackingEvent) track(trackingEvent);
             }}
         />
     );
