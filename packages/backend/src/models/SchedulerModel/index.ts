@@ -1,4 +1,8 @@
-import { NotFoundError, Scheduler } from '@lightdash/common';
+import {
+    CreateSchedulerWithTargets,
+    NotFoundError,
+    Scheduler,
+} from '@lightdash/common';
 import {
     ChartScheduler,
     DashboardScheduler,
@@ -55,22 +59,22 @@ export class SchedulerModel {
     }
 
     async getChartSchedulers(
-        saved_chart_uuid: string,
+        savedChartUuid: string,
     ): Promise<ChartScheduler[]> {
         const schedulers = await this.database(SchedulerTableName)
             .select('*')
-            .where(`${SchedulerTableName}.saved_chart_uuid`, saved_chart_uuid);
+            .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid);
         return schedulers.map(
             SchedulerModel.convertScheduler,
         ) as ChartScheduler[];
     }
 
     async getDashboardSchedulers(
-        dashboard_uuid: string,
+        dashboardUuid: string,
     ): Promise<DashboardScheduler[]> {
         const schedulers = await this.database(SchedulerTableName)
             .select()
-            .where(`${SchedulerTableName}.dashboard_uuid`, dashboard_uuid);
+            .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid);
         return schedulers.map(
             SchedulerModel.convertScheduler,
         ) as DashboardScheduler[];
@@ -96,5 +100,33 @@ export class SchedulerModel {
             ...SchedulerModel.convertScheduler(scheduler),
             targets: targets.map(SchedulerModel.convertSlackTarget),
         };
+    }
+
+    async createScheduler(
+        newScheduler: CreateSchedulerWithTargets,
+    ): Promise<string> {
+        const schedulerUuid = await this.database.transaction(async (trx) => {
+            const [scheduler] = await trx(SchedulerTableName)
+                .insert({
+                    name: newScheduler.name,
+                    user_uuid: newScheduler.userUuid,
+                    cron: newScheduler.cron,
+                    saved_chart_uuid: newScheduler.savedChartUuid,
+                    dashboard_uuid: newScheduler.dashboardUuid,
+                    updated_at: new Date(),
+                })
+                .returning('*');
+            const targetPromises = newScheduler.targets.map(async (target) =>
+                trx(SchedulerSlackTargetTableName).insert({
+                    scheduler_uuid: scheduler.scheduler_uuid,
+                    channels: target.channels,
+                    updated_at: new Date(),
+                }),
+            );
+
+            await Promise.all(targetPromises);
+            return scheduler.scheduler_uuid;
+        });
+        return schedulerUuid;
     }
 }
