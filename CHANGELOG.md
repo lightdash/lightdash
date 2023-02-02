@@ -1,3 +1,10 @@
+# [0.402.0](https://github.com/lightdash/lightdash/compare/0.401.0...0.402.0) (2023-02-02)
+
+
+### Features
+
+* views counts in chart and dashboard headers ([#4352](https://github.com/lightdash/lightdash/issues/4352)) ([480461a](https://github.com/lightdash/lightdash/commit/480461a167d1d4614571426daedae94fb6b6b660))
+
 # [0.401.0](https://github.com/lightdash/lightdash/compare/0.400.1...0.401.0) (2023-02-01)
 
 
