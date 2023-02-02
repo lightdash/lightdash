@@ -1,7 +1,6 @@
 import {
     ChartScheduler,
     CreateSchedulerAndTargets,
-    CreateSchedulerAndTargetsWithoutIds,
     DashboardScheduler,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
@@ -35,7 +34,7 @@ export class SchedulerModel {
             name: scheduler.name,
             createdAt: scheduler.created_at,
             updatedAt: scheduler.updated_at,
-            userUuid: scheduler.user_uuid,
+            createdBy: scheduler.created_by,
             cron: scheduler.cron,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
@@ -116,11 +115,11 @@ export class SchedulerModel {
     async createScheduler(
         newScheduler: CreateSchedulerAndTargets,
     ): Promise<string> {
-        const schedulerUuid = await this.database.transaction(async (trx) => {
+        return this.database.transaction(async (trx) => {
             const [scheduler] = await trx(SchedulerTableName)
                 .insert({
                     name: newScheduler.name,
-                    user_uuid: newScheduler.userUuid,
+                    created_by: newScheduler.createdBy,
                     cron: newScheduler.cron,
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
@@ -138,7 +137,6 @@ export class SchedulerModel {
             await Promise.all(targetPromises);
             return scheduler.scheduler_uuid;
         });
-        return schedulerUuid;
     }
 
     async updateScheduler(

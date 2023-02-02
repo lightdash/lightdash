@@ -3,7 +3,7 @@ export type SchedulerBase = {
     name: string;
     createdAt: Date;
     updatedAt: Date;
-    userUuid: string;
+    createdBy: string;
     cron: string;
     savedChartUuid: string | null;
     dashboardUuid: string | null;
@@ -47,7 +47,7 @@ export type CreateSchedulerAndTargets = Omit<
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
     CreateSchedulerAndTargets,
-    'savedChartUuid' | 'dashboardUuid' | 'userUuid'
+    'savedChartUuid' | 'dashboardUuid' | 'createdBy'
 >;
 
 export type UpdateSchedulerAndTargets = Pick<
