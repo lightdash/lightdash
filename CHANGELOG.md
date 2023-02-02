@@ -1,3 +1,10 @@
+## [0.402.2](https://github.com/lightdash/lightdash/compare/0.402.1...0.402.2) (2023-02-02)
+
+
+### Bug Fixes
+
+* add indices to analytics tables ([#4369](https://github.com/lightdash/lightdash/issues/4369)) ([22595e2](https://github.com/lightdash/lightdash/commit/22595e2eb9cee9183dea2bbc7895a0fdd7f1bb51))
+
 ## [0.402.1](https://github.com/lightdash/lightdash/compare/0.402.0...0.402.1) (2023-02-02)
 
 
