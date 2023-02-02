@@ -32,7 +32,27 @@ export type SchedulerSlackTarget = {
     channels: string[]; // slack channel ids
 };
 
-export type CreateSchedulerWithTargets = Omit<
-    SchedulerWithTargets,
-    'schedulerUuid' | 'createdAt' | 'updatedAt'
+export type CreateSchedulerSlackTarget = Pick<SchedulerSlackTarget, 'channels'>;
+export type UpdateSchedulerSlackTarget = Pick<
+    SchedulerSlackTarget,
+    'schedulerSlackTargetUuid' | 'channels'
 >;
+
+export type CreateSchedulerWithTargets = Omit<
+    Scheduler,
+    'schedulerUuid' | 'createdAt' | 'updatedAt'
+> & {
+    targets: CreateSchedulerSlackTarget[];
+};
+
+export type UpdateSchedulerWithTargets = Pick<
+    Scheduler,
+    'schedulerUuid' | 'name' | 'cron'
+> & {
+    targets: Array<CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget>;
+};
+
+export const isUpdateSchedulerSlackTarget = (
+    data: CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget,
+): data is UpdateSchedulerSlackTarget =>
+    'schedulerSlackTargetUuid' in data && !!data.schedulerSlackTargetUuid;

@@ -1,14 +1,14 @@
 import {
+    ChartScheduler,
     CreateSchedulerWithTargets,
+    DashboardScheduler,
+    isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
-} from '@lightdash/common';
-import {
-    ChartScheduler,
-    DashboardScheduler,
     SchedulerSlackTarget,
     SchedulerWithTargets,
-} from '@lightdash/common/dist/types/scheduler';
+    UpdateSchedulerWithTargets,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     SchedulerDb,
@@ -128,5 +128,42 @@ export class SchedulerModel {
             return scheduler.scheduler_uuid;
         });
         return schedulerUuid;
+    }
+
+    async updateScheduler(
+        scheduler: UpdateSchedulerWithTargets,
+    ): Promise<SchedulerWithTargets> {
+        await this.database.transaction(async (trx) => {
+            await trx(SchedulerTableName)
+                .update({
+                    name: scheduler.name,
+                    cron: scheduler.cron,
+                    updated_at: new Date(),
+                })
+                .where('scheduler_uuid', scheduler.schedulerUuid);
+            const targetPromises = scheduler.targets.map(async (target) => {
+                if (isUpdateSchedulerSlackTarget(target)) {
+                    await trx(SchedulerSlackTargetTableName)
+                        .update({
+                            channels: target.channels,
+                            updated_at: new Date(),
+                        })
+                        .where(
+                            'scheduler_slack_target_uuid',
+                            target.schedulerSlackTargetUuid,
+                        )
+                        .andWhere('scheduler_uuid', scheduler.schedulerUuid);
+                } else {
+                    await trx(SchedulerSlackTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        channels: target.channels,
+                        updated_at: new Date(),
+                    });
+                }
+            });
+
+            await Promise.all(targetPromises);
+        });
+        return this.getSchedulerWithTargets(scheduler.schedulerUuid);
     }
 }
