@@ -1,15 +1,18 @@
-import { NotFoundError, Scheduler } from '@lightdash/common';
 import {
     ChartScheduler,
+    CreateSchedulerWithTargets,
     DashboardScheduler,
+    isUpdateSchedulerSlackTarget,
+    NotFoundError,
+    Scheduler,
     SchedulerSlackTarget,
     SchedulerWithTargets,
-} from '@lightdash/common/dist/types/scheduler';
+    UpdateSchedulerWithTargets,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     SchedulerDb,
     SchedulerSlackTargetDb,
-    SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
@@ -35,7 +38,7 @@ export class SchedulerModel {
             cron: scheduler.cron,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
-        };
+        } as Scheduler;
     }
 
     static convertSlackTarget(
@@ -50,29 +53,36 @@ export class SchedulerModel {
         };
     }
 
+    async getAllSchedulers(): Promise<Scheduler[]> {
+        const schedulers = await this.database(SchedulerTableName).select();
+        return schedulers.map(SchedulerModel.convertScheduler);
+    }
+
     async getChartSchedulers(
-        saved_chart_uuid: string,
+        savedChartUuid: string,
     ): Promise<ChartScheduler[]> {
         const schedulers = await this.database(SchedulerTableName)
             .select('*')
-            .where(`${SchedulerTableName}.saved_chart_uuid`, saved_chart_uuid);
+            .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid);
         return schedulers.map(
             SchedulerModel.convertScheduler,
         ) as ChartScheduler[];
     }
 
     async getDashboardSchedulers(
-        dashboard_uuid: string,
+        dashboardUuid: string,
     ): Promise<DashboardScheduler[]> {
         const schedulers = await this.database(SchedulerTableName)
             .select()
-            .where(`${SchedulerTableName}.dashboard_uuid`, dashboard_uuid);
+            .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid);
         return schedulers.map(
             SchedulerModel.convertScheduler,
         ) as DashboardScheduler[];
     }
 
-    async getScheduler(schedulerUuid: string): Promise<SchedulerWithTargets> {
+    async getSchedulerWithTargets(
+        schedulerUuid: string,
+    ): Promise<SchedulerWithTargets> {
         const [scheduler] = await this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);
@@ -90,5 +100,70 @@ export class SchedulerModel {
             ...SchedulerModel.convertScheduler(scheduler),
             targets: targets.map(SchedulerModel.convertSlackTarget),
         };
+    }
+
+    async createScheduler(
+        newScheduler: CreateSchedulerWithTargets,
+    ): Promise<string> {
+        const schedulerUuid = await this.database.transaction(async (trx) => {
+            const [scheduler] = await trx(SchedulerTableName)
+                .insert({
+                    name: newScheduler.name,
+                    user_uuid: newScheduler.userUuid,
+                    cron: newScheduler.cron,
+                    saved_chart_uuid: newScheduler.savedChartUuid,
+                    dashboard_uuid: newScheduler.dashboardUuid,
+                    updated_at: new Date(),
+                })
+                .returning('*');
+            const targetPromises = newScheduler.targets.map(async (target) =>
+                trx(SchedulerSlackTargetTableName).insert({
+                    scheduler_uuid: scheduler.scheduler_uuid,
+                    channels: target.channels,
+                    updated_at: new Date(),
+                }),
+            );
+
+            await Promise.all(targetPromises);
+            return scheduler.scheduler_uuid;
+        });
+        return schedulerUuid;
+    }
+
+    async updateScheduler(
+        scheduler: UpdateSchedulerWithTargets,
+    ): Promise<SchedulerWithTargets> {
+        await this.database.transaction(async (trx) => {
+            await trx(SchedulerTableName)
+                .update({
+                    name: scheduler.name,
+                    cron: scheduler.cron,
+                    updated_at: new Date(),
+                })
+                .where('scheduler_uuid', scheduler.schedulerUuid);
+            const targetPromises = scheduler.targets.map(async (target) => {
+                if (isUpdateSchedulerSlackTarget(target)) {
+                    await trx(SchedulerSlackTargetTableName)
+                        .update({
+                            channels: target.channels,
+                            updated_at: new Date(),
+                        })
+                        .where(
+                            'scheduler_slack_target_uuid',
+                            target.schedulerSlackTargetUuid,
+                        )
+                        .andWhere('scheduler_uuid', scheduler.schedulerUuid);
+                } else {
+                    await trx(SchedulerSlackTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        channels: target.channels,
+                        updated_at: new Date(),
+                    });
+                }
+            });
+
+            await Promise.all(targetPromises);
+        });
+        return this.getSchedulerWithTargets(scheduler.schedulerUuid);
     }
 }

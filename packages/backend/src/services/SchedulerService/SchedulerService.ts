@@ -1,3 +1,9 @@
+import {
+    CreateSchedulerWithTargets,
+    Scheduler,
+    SchedulerWithTargets,
+    UpdateSchedulerWithTargets,
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { SchedulerModel } from '../../models/SchedulerModel';
 
@@ -16,16 +22,29 @@ export class SchedulerService {
         this.schedulerModel = schedulerModel;
     }
 
-    async getScheduler(schedulerUuid: string) {
-        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+    async getAllSchedulers(): Promise<Scheduler[]> {
+        const schedulers = await this.schedulerModel.getAllSchedulers();
+        return schedulers;
+    }
+
+    async getScheduler(schedulerUuid: string): Promise<SchedulerWithTargets> {
+        const scheduler = await this.schedulerModel.getSchedulerWithTargets(
+            schedulerUuid,
+        );
         return scheduler;
     }
 
-    async createScheduler() {
-        // todo
+    async createScheduler(
+        newScheduler: CreateSchedulerWithTargets,
+    ): Promise<string> {
+        // todo: check if user has edit permission to chart/dashboard
+        return this.schedulerModel.createScheduler(newScheduler);
     }
 
-    async updateScheduler() {
-        // todo
+    async updateScheduler(
+        scheduler: UpdateSchedulerWithTargets,
+    ): Promise<SchedulerWithTargets> {
+        // todo: check if user has edit permission to chart/dashboard
+        return this.schedulerModel.updateScheduler(scheduler);
     }
 }
