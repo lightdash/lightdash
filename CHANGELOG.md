@@ -1,3 +1,10 @@
+# [0.403.0](https://github.com/lightdash/lightdash/compare/0.402.3...0.403.0) (2023-02-02)
+
+
+### Features
+
+* big numbers responsiveness ([#4276](https://github.com/lightdash/lightdash/issues/4276)) ([5a004db](https://github.com/lightdash/lightdash/commit/5a004dbcfb9970ed3b1cf01ee029a14a4e3042dd))
+
 ## [0.402.3](https://github.com/lightdash/lightdash/compare/0.402.2...0.402.3) (2023-02-02)
 
 
