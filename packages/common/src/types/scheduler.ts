@@ -56,3 +56,6 @@ export const isUpdateSchedulerSlackTarget = (
     data: CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget,
 ): data is UpdateSchedulerSlackTarget =>
     'schedulerSlackTargetUuid' in data && !!data.schedulerSlackTargetUuid;
+
+export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
+    'saved_chartUuid' in data && !!data.saved_chartUuid;
