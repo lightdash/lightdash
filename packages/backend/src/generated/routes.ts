@@ -170,7 +170,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 cron: { dataType: 'string', required: true },
-                userUuid: { dataType: 'string', required: true },
+                createdBy: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 name: { dataType: 'string', required: true },
@@ -241,11 +241,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                channels: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
+                channel: { dataType: 'string', required: true },
                 schedulerUuid: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
@@ -290,32 +286,6 @@ const models: TsoaRoute.Models = {
                 results: { ref: 'SchedulerAndTargets', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.schedulerUuid__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {},
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_CreateSchedulerAndTargets.schedulerUuid_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.schedulerUuid__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UpdateSchedulerAndTargetsWithoutId: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Omit_CreateSchedulerAndTargets.schedulerUuid_',
             validators: {},
         },
     },
@@ -590,7 +560,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'UpdateSchedulerAndTargetsWithoutId',
+                    dataType: 'any',
                 },
             };
 
