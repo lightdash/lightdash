@@ -1,4 +1,4 @@
-export type Scheduler = {
+export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
     createdAt: Date;
@@ -9,17 +9,19 @@ export type Scheduler = {
     dashboardUuid: string | null;
 };
 
-export type SchedulerWithTargets = Scheduler & {
-    targets: SchedulerSlackTarget[];
-};
-
-export type ChartScheduler = Scheduler & {
+export type ChartScheduler = SchedulerBase & {
     saved_chartUuid: string;
     dashboardUuid: null;
 };
-export type DashboardScheduler = Scheduler & {
+export type DashboardScheduler = SchedulerBase & {
     saved_chartUuid: null;
     dashboardUuid: string;
+};
+
+export type Scheduler = ChartScheduler | DashboardScheduler;
+
+export type SchedulerWithTargets = Scheduler & {
+    targets: SchedulerSlackTarget[];
 };
 
 export type SchedulerSlackTarget = {
