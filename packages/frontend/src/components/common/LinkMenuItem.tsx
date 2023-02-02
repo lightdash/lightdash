@@ -7,12 +7,14 @@ export interface LinkMenuItemProps extends MenuItem2Props {
     href: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
+    forceRefresh?: boolean;
 }
 
 const LinkMenuItem: FC<LinkMenuItemProps> = ({
     href,
     target,
     trackingEvent,
+    forceRefresh = false,
     onClick,
     ...rest
 }) => {
@@ -25,7 +27,12 @@ const LinkMenuItem: FC<LinkMenuItemProps> = ({
             href={href}
             target={target}
             onClick={(e) => {
-                if (!e.ctrlKey && !e.metaKey && target !== '_blank') {
+                if (
+                    !forceRefresh &&
+                    !e.ctrlKey &&
+                    !e.metaKey &&
+                    target !== '_blank'
+                ) {
                     e.preventDefault();
                     history.push(href);
                 }
