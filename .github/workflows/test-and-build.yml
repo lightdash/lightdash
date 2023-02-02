@@ -34,4 +34,4 @@ jobs:
     - name: Test running scheduler
       env:
         LIGHTDASH_CONFIG_FILE: "${PWD}/lightdash.yml"
-      run: yarn workspace backend scheduler
+      run:  yarn workspace backend build && yarn workspace backend scheduler
