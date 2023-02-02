@@ -41,6 +41,7 @@ services:
       - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
       - HEADLESS_BROWSER_HOST=headless-browser
       - HEADLESS_BROWSER_PORT=3000
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
@@ -64,27 +65,3 @@ services:
     restart: always
     ports:
       - "3001:3000"
-
-  scheduler:
-    build:
-      context: ..
-      dockerfile: dockerfile
-      target: ${DOCKERFILE_TARGET}
-    depends_on:
-      - db-dev
-
-    environment:
-      - PGHOST=${PGHOST:-db}
-      - PGPORT=${PGPORT:-5432}
-      - PGUSER=${PGUSER:-postgres}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGDATABASE=${PGDATABASE:-postgres}
-      - NODE_ENV=${NODE_ENV}
-      - LIGHTDASH_CONFIG_FILE=${LIGHTDASH_CONFIG_FILE}
-      - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
-
-    volumes:
-      - "../:/usr/app"
-      - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
-
-    entrypoint: ["yarn", "workspace", "backend", "scheduler"]
