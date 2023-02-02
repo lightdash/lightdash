@@ -1,3 +1,10 @@
+## [0.402.1](https://github.com/lightdash/lightdash/compare/0.402.0...0.402.1) (2023-02-02)
+
+
+### Bug Fixes
+
+* date range bug ([#4358](https://github.com/lightdash/lightdash/issues/4358)) ([95ec339](https://github.com/lightdash/lightdash/commit/95ec339b841ec659466029650c63f92c4d470b14))
+
 # [0.402.0](https://github.com/lightdash/lightdash/compare/0.401.0...0.402.0) (2023-02-02)
 
 
