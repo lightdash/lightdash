@@ -1,3 +1,5 @@
+import { Scheduler } from '@lightdash/common';
+import { SchedulerWithTargets } from '@lightdash/common/dist/types/scheduler';
 import { LightdashConfig } from '../../config/parseConfig';
 import { SchedulerModel } from '../../models/SchedulerModel';
 
@@ -16,16 +18,23 @@ export class SchedulerService {
         this.schedulerModel = schedulerModel;
     }
 
-    async getScheduler(schedulerUuid: string) {
-        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+    async getAllSchedulers(): Promise<Scheduler[]> {
+        const schedulers = await this.schedulerModel.getAllSchedulers();
+        return schedulers;
+    }
+
+    async getScheduler(schedulerUuid: string): Promise<SchedulerWithTargets> {
+        const scheduler = await this.schedulerModel.getSchedulerWithTargets(
+            schedulerUuid,
+        );
         return scheduler;
     }
 
-    async createScheduler() {
-        // todo
-    }
-
-    async updateScheduler() {
-        // todo
-    }
+    // async createScheduler() {
+    //     // todo
+    // }
+    //
+    // async updateScheduler() {
+    //     // todo
+    // }
 }

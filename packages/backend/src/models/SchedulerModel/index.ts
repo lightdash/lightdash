@@ -9,7 +9,6 @@ import { Knex } from 'knex';
 import {
     SchedulerDb,
     SchedulerSlackTargetDb,
-    SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
@@ -35,7 +34,7 @@ export class SchedulerModel {
             cron: scheduler.cron,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
-        };
+        } as Scheduler;
     }
 
     static convertSlackTarget(
@@ -48,6 +47,11 @@ export class SchedulerModel {
             schedulerUuid: scheduler.scheduler_uuid,
             channels: scheduler.channels,
         };
+    }
+
+    async getAllSchedulers(): Promise<Scheduler[]> {
+        const schedulers = await this.database(SchedulerTableName).select();
+        return schedulers.map(SchedulerModel.convertScheduler);
     }
 
     async getChartSchedulers(
@@ -72,7 +76,9 @@ export class SchedulerModel {
         ) as DashboardScheduler[];
     }
 
-    async getScheduler(schedulerUuid: string): Promise<SchedulerWithTargets> {
+    async getSchedulerWithTargets(
+        schedulerUuid: string,
+    ): Promise<SchedulerWithTargets> {
         const [scheduler] = await this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.scheduler_uuid`, schedulerUuid);

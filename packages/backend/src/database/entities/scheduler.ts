@@ -14,11 +14,11 @@ export type SchedulerDb = {
     dashboard_uuid: string | null;
 };
 
-type ChartSchedulerDb = SchedulerDb & {
+export type ChartSchedulerDb = SchedulerDb & {
     saved_chart_uuid: string;
     dashboard_uuid: null;
 };
-type DashboardSchedulerDB = SchedulerDb & {
+export type DashboardSchedulerDB = SchedulerDb & {
     saved_chart_uuid: null;
     dashboard_uuid: string;
 };
