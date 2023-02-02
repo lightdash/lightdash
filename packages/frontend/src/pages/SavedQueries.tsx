@@ -19,6 +19,10 @@ import {
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
+import {
+    ResourceListType,
+    wrapResourceList,
+} from '../components/common/ResourceList/ResourceTypeUtils';
 import { LoadingChart } from '../components/SimpleChart';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -95,7 +99,10 @@ const SavedQueries: FC = () => {
                 </PageHeader>
 
                 <ResourceList
-                    data={savedQueries}
+                    items={wrapResourceList(
+                        savedQueries,
+                        ResourceListType.CHART,
+                    )}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
                     renderEmptyState={() => (
                         <>

@@ -20,6 +20,10 @@ import {
     ResourceTag,
 } from '../components/common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../components/common/ResourceList/ResourceTable';
+import {
+    ResourceListType,
+    wrapResourceList,
+} from '../components/common/ResourceList/ResourceTypeUtils';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
@@ -147,7 +151,10 @@ const SavedDashboards = () => {
                 />
 
                 <ResourceList
-                    data={dashboards}
+                    items={wrapResourceList(
+                        dashboards,
+                        ResourceListType.DASHBOARD,
+                    )}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
                     renderEmptyState={() => (
                         <>

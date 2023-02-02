@@ -1,8 +1,4 @@
-import {
-    assertUnreachable,
-    DashboardBasicDetails,
-    SpaceQuery,
-} from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import useMoveToSpace from '../../../hooks/useMoveToSpace';
@@ -18,30 +14,18 @@ import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
 import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
-import { AcceptedResources, AcceptedResourceTypes } from './ResourceTypeUtils';
-
-export const getResourceType = (
-    resource: AcceptedResources,
-): AcceptedResourceTypes => {
-    if ('organizationUuid' in resource) {
-        return 'dashboard';
-    } else {
-        return 'chart';
-    }
-};
+import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
 interface ActionStateWithData {
     actionType: ResourceAction;
-    resourceType?: AcceptedResourceTypes;
+    item?: ResourceListItem;
     data?: any;
 }
 
-export interface ResourceListCommonProps<
-    T extends AcceptedResources = AcceptedResources,
-> {
+export interface ResourceListCommonProps {
     headerTitle?: string;
     headerAction?: React.ReactNode;
-    data: T[];
+    items: ResourceListItem[];
     showCount?: boolean;
     renderEmptyState: () => React.ReactNode;
 }
@@ -51,7 +35,7 @@ type ResourceListProps = ResourceListCommonProps &
     ResourceListWrapperProps;
 
 const ResourceList: React.FC<ResourceListProps> = ({
-    data,
+    items,
     headerTitle,
     headerAction,
     enableSorting,
@@ -68,52 +52,40 @@ const ResourceList: React.FC<ResourceListProps> = ({
     });
 
     const handleOpenModal = useCallback(
-        (
-            actionType: ResourceAction,
-            resourceType: AcceptedResourceTypes,
-            actionData: any,
-        ) => {
-            setActionState({
-                actionType,
-                resourceType,
-                data: actionData,
-            });
+        (actionType: ResourceAction, item: ResourceListItem, data: any) => {
+            setActionState({ actionType, item, data });
         },
         [],
     );
 
     const handleCloseModal = useCallback(() => {
-        setActionState({
-            actionType: ResourceAction.CLOSE,
-            resourceType: undefined,
-            data: undefined,
-        });
+        setActionState({ actionType: ResourceAction.CLOSE });
     }, []);
 
     const { moveChart, moveDashboard } = useMoveToSpace(
-        actionState.resourceType === 'chart',
+        actionState.item?.type === ResourceListType.CHART,
         actionState.data,
     );
 
     const handleMoveToSpace = useCallback(
         (actionData: { uuid: string; name: string; spaceUuid?: string }) => {
-            if (!actionState.resourceType) {
+            if (!actionState.item?.type) {
                 return;
             }
 
-            switch (actionState.resourceType) {
-                case 'chart':
+            switch (actionState.item.type) {
+                case ResourceListType.CHART:
                     return moveChart(actionData);
-                case 'dashboard':
+                case ResourceListType.DASHBOARD:
                     return moveDashboard(actionData);
                 default:
                     return assertUnreachable(
-                        actionState.resourceType,
+                        actionState.item,
                         'Resource type not supported',
                     );
             }
         },
-        [moveChart, moveDashboard, actionState.resourceType],
+        [moveChart, moveDashboard, actionState],
     );
 
     useEffect(() => {
@@ -130,16 +102,16 @@ const ResourceList: React.FC<ResourceListProps> = ({
             <ResourceListWrapper
                 headerTitle={headerTitle}
                 headerAction={headerAction}
-                resourceCount={data.length}
+                resourceCount={items.length}
                 showCount={showCount}
             >
-                {data.length === 0 ? (
+                {items.length === 0 ? (
                     <ResourceEmptyStateWrapper>
                         {renderEmptyState()}
                     </ResourceEmptyStateWrapper>
                 ) : (
                     <ResourceTable
-                        data={data}
+                        items={items}
                         enableSorting={enableSorting}
                         enableMultiSort={enableMultiSort}
                         defaultColumnVisibility={defaultColumnVisibility}
@@ -149,61 +121,71 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 )}
             </ResourceListWrapper>
 
-            {actionState.resourceType &&
-                actionState.actionType === ResourceAction.UPDATE &&
-                (actionState.resourceType === 'chart' ? (
+            {actionState.actionType === ResourceAction.UPDATE &&
+                actionState.item &&
+                (actionState.item.type === ResourceListType.CHART ? (
                     <ChartUpdateModal
                         isOpen={
                             actionState.actionType === ResourceAction.UPDATE
                         }
-                        uuid={actionState.data.uuid}
+                        uuid={actionState.item.data.uuid}
                         onClose={handleCloseModal}
                         onConfirm={handleCloseModal}
                     />
-                ) : actionState.resourceType === 'dashboard' ? (
+                ) : actionState.item.type === ResourceListType.DASHBOARD ? (
                     <DashboardUpdateModal
                         isOpen={
                             actionState.actionType === ResourceAction.UPDATE
                         }
-                        uuid={actionState.data.uuid}
+                        uuid={actionState.item.data.uuid}
                         onClose={handleCloseModal}
                         onConfirm={handleCloseModal}
                     />
-                ) : null)}
+                ) : (
+                    assertUnreachable(
+                        actionState.item,
+                        'Resource type not supported',
+                    )
+                ))}
 
-            {actionState.resourceType &&
-                actionState.actionType === ResourceAction.DELETE &&
-                actionState.data &&
-                (actionState.resourceType === 'chart' ? (
+            {actionState.actionType === ResourceAction.DELETE &&
+                actionState.item &&
+                (actionState.item.type === ResourceListType.CHART ? (
                     <ChartDeleteModal
                         isOpen={
                             actionState.actionType === ResourceAction.DELETE
                         }
-                        uuid={actionState.data.uuid}
+                        uuid={actionState.item.data.uuid}
                         onClose={handleCloseModal}
                         onConfirm={handleCloseModal}
                     />
-                ) : actionState.resourceType === 'dashboard' ? (
+                ) : actionState.item.type === ResourceListType.DASHBOARD ? (
                     <DashboardDeleteModal
                         isOpen={
                             actionState.actionType === ResourceAction.DELETE
                         }
-                        uuid={actionState.data.uuid}
+                        uuid={actionState.item.data.uuid}
                         onClose={handleCloseModal}
                         onConfirm={handleCloseModal}
                     />
-                ) : null)}
+                ) : (
+                    assertUnreachable(
+                        actionState.item,
+                        'Resource type not supported',
+                    )
+                ))}
 
-            {actionState.actionType === ResourceAction.ADD_TO_DASHBOARD && (
-                <AddTilesToDashboardModal
-                    savedChart={actionState.data}
-                    isOpen={
-                        actionState.actionType ===
-                        ResourceAction.ADD_TO_DASHBOARD
-                    }
-                    onClose={handleCloseModal}
-                />
-            )}
+            {actionState.actionType === ResourceAction.ADD_TO_DASHBOARD &&
+                actionState.item && (
+                    <AddTilesToDashboardModal
+                        savedChart={actionState.item.data}
+                        isOpen={
+                            actionState.actionType ===
+                            ResourceAction.ADD_TO_DASHBOARD
+                        }
+                        onClose={handleCloseModal}
+                    />
+                )}
 
             {actionState.actionType === ResourceAction.CREATE_SPACE &&
                 actionState.data && (

@@ -49,24 +49,28 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                     <b>"{chart.name}"</b>?
                 </p>
 
-                <b>
-                    This action will remove a chart tile from{' '}
-                    {relatedDashboards.length} dashboard
-                    {relatedDashboards.length > 1 ? 's' : ''}:
-                </b>
+                {relatedDashboards.length > 0 && (
+                    <>
+                        <b>
+                            This action will remove a chart tile from{' '}
+                            {relatedDashboards.length} dashboard
+                            {relatedDashboards.length > 1 ? 's' : ''}:
+                        </b>
 
-                <ul>
-                    {relatedDashboards.map((dashboard) => (
-                        <li key={dashboard.uuid}>
-                            <Link
-                                target="_blank"
-                                to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
-                            >
-                                {dashboard.name}
-                            </Link>
-                        </li>
-                    ))}
-                </ul>
+                        <ul>
+                            {relatedDashboards.map((dashboard) => (
+                                <li key={dashboard.uuid}>
+                                    <Link
+                                        target="_blank"
+                                        to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                                    >
+                                        {dashboard.name}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
             </DialogBody>
 
             <DialogFooter

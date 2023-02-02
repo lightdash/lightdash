@@ -8,14 +8,16 @@ import {
     ResourceLastEditedBy,
     ResourceLastEditedTimeAgo,
 } from './ResourceLastEdited.styles';
-import { AcceptedResources } from './ResourceTypeUtils';
+import { ResourceListItem } from './ResourceTypeUtils';
 
 interface ResourceLastEditedProps {
-    resource: AcceptedResources;
+    item: ResourceListItem;
 }
 
 const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
-    resource: { updatedAt, updatedByUser: user },
+    item: {
+        data: { updatedAt, updatedByUser: user },
+    },
 }) => {
     const timeAgo = useTimeAgo(updatedAt);
 

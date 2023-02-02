@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import Color from 'colorjs.io';
 import styled from 'styled-components';
 

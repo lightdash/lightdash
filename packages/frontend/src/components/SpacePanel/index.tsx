@@ -17,6 +17,10 @@ import {
     ResourceEmptyStateIcon,
 } from '../common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
+import {
+    ResourceListType,
+    wrapResourceList,
+} from '../common/ResourceList/ResourceTypeUtils';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
@@ -136,10 +140,13 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             </PageHeader>
 
             <ResourceList
-                headerTitle="Dashboards"
-                data={savedDashboards}
+                items={wrapResourceList(
+                    savedDashboards,
+                    ResourceListType.DASHBOARD,
+                )}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
+                headerTitle="Dashboards"
                 headerAction={
                     !isDemo &&
                     userCanManageDashboards && (
@@ -169,7 +176,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <ResourceList
                 headerTitle="Saved charts"
-                data={savedCharts}
+                items={wrapResourceList(savedCharts, ResourceListType.CHART)}
                 defaultSort={{ updatedAt: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false }}
                 headerAction={

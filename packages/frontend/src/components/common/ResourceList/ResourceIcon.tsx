@@ -1,5 +1,5 @@
 import { Colors } from '@blueprintjs/core';
-import { assertUnreachable, ChartKind, SpaceQuery } from '@lightdash/common';
+import { assertUnreachable, ChartKind } from '@lightdash/common';
 import {
     Icon123,
     IconChartArea,
@@ -12,24 +12,22 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { ResourceIconBox } from './ResourceIcon.styles';
-import { AcceptedResources, AcceptedResourceTypes } from './ResourceTypeUtils';
+import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
 interface ResourceIconProps {
-    resource: AcceptedResources;
-    resourceType: AcceptedResourceTypes;
+    item: ResourceListItem;
 }
 
-const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
-    switch (resourceType) {
-        case 'dashboard':
+const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
+    switch (item.type) {
+        case ResourceListType.DASHBOARD:
             return (
                 <ResourceIconBox color={Colors.GREEN3}>
                     <IconLayoutDashboard color={Colors.GREEN3} size={20} />
                 </ResourceIconBox>
             );
-        case 'chart':
-            const chartType = (resource as SpaceQuery).chartType;
-            switch (chartType) {
+        case ResourceListType.CHART:
+            switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:
                     return (
@@ -85,15 +83,12 @@ const ResourceIcon: FC<ResourceIconProps> = ({ resource, resourceType }) => {
                     );
                 default:
                     return assertUnreachable(
-                        chartType,
-                        `Chart type ${chartType} not supported`,
+                        item.data.chartType,
+                        `Chart type ${item.data.chartType} not supported`,
                     );
             }
         default:
-            return assertUnreachable(
-                resourceType,
-                'Resource type not supported',
-            );
+            return assertUnreachable(item, 'Resource type not supported');
     }
 };
 
