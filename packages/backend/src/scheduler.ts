@@ -1,10 +1,7 @@
 import * as Sentry from '@sentry/node';
-import { JobHelpers, parseCrontab, run } from 'graphile-worker';
-import { slackService } from '.';
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import { slackClient } from './services/services';
 import { VERSION } from './version';
 
 process
