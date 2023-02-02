@@ -10,11 +10,11 @@ export type SchedulerBase = {
 };
 
 export type ChartScheduler = SchedulerBase & {
-    saved_chartUuid: string;
+    savedChartUuid: string;
     dashboardUuid: null;
 };
 export type DashboardScheduler = SchedulerBase & {
-    saved_chartUuid: null;
+    savedChartUuid: null;
     dashboardUuid: string;
 };
 
@@ -58,4 +58,4 @@ export const isUpdateSchedulerSlackTarget = (
     'schedulerSlackTargetUuid' in data && !!data.schedulerSlackTargetUuid;
 
 export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
-    'saved_chartUuid' in data && !!data.saved_chartUuid;
+    'savedChartUuid' in data && !!data.savedChartUuid;
