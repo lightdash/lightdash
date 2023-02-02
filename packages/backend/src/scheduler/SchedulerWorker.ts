@@ -38,7 +38,7 @@ export class SchedulerWorker {
                         maxAttempts: 1,
                     },
                 },
-                { task: 'periodicSlackMessage', pattern: '* * * * *' }, // TODO remove after testing
+                // { task: 'periodicSlackMessage', pattern: '* * * * *' }, // TODO remove after testing
             ]), // Generate daily jobs every day at 00:00
             // new CronItem(), ['0 0 * * * generateDailyJobs ?fill=12h&max=1', '* * * * * periodicSlackMessage '])
             // you can set the taskList or taskDirectory but not both
@@ -73,6 +73,10 @@ export class SchedulerWorker {
                 },
                 sendSlackMessage: async (payload: any, helpers: JobHelpers) => {
                     Logger.info(`sendSlackMessage`, payload);
+                    slackClient.sendText(payload);
+                },
+
+                sendSlackNotification: async (payload: any) => {
                     slackClient.sendNotification(payload);
                 },
             },
