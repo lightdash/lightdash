@@ -1,3 +1,5 @@
+import { ShareUrl } from './share';
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -69,3 +71,8 @@ export const isUpdateSchedulerSlackTarget = (
 
 export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
     'savedChartUuid' in data && !!data.savedChartUuid;
+
+export type ApiSchedulerAndTargetsResponse = {
+    status: 'ok';
+    results: SchedulerAndTargets;
+};
