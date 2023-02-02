@@ -2,12 +2,13 @@ import { Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import moment from 'moment';
 import { FC } from 'react';
-import { AcceptedResources } from '.';
+
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import {
     ResourceLastEditedBy,
     ResourceLastEditedTimeAgo,
 } from './ResourceLastEdited.styles';
+import { AcceptedResources } from './ResourceTypeUtils';
 
 interface ResourceLastEditedProps {
     resource: AcceptedResources;

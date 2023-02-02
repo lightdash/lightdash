@@ -11,8 +11,8 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { AcceptedResources, AcceptedResourceTypes } from '.';
 import { ResourceIconBox } from './ResourceIcon.styles';
+import { AcceptedResources, AcceptedResourceTypes } from './ResourceTypeUtils';
 
 interface ResourceIconProps {
     resource: AcceptedResources;

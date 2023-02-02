@@ -18,9 +18,7 @@ import ResourceListWrapper, {
     ResourceListWrapperProps,
 } from './ResourceListWrapper';
 import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
-
-export type AcceptedResources = SpaceQuery | DashboardBasicDetails;
-export type AcceptedResourceTypes = 'chart' | 'dashboard';
+import { AcceptedResources, AcceptedResourceTypes } from './ResourceTypeUtils';
 
 export const getResourceType = (
     resource: AcceptedResources,

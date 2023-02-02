@@ -2,10 +2,10 @@ import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Space } from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
-import { AcceptedResourceTypes } from '.';
 import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
 import { useApp } from '../../../providers/AppProvider';
+import { AcceptedResourceTypes } from './ResourceTypeUtils';
 
 export enum ResourceAction {
     CLOSE,

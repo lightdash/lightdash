@@ -1,10 +1,10 @@
 import { assertUnreachable, ChartKind, SpaceQuery } from '@lightdash/common';
 import { FC } from 'react';
-import { AcceptedResources } from '.';
+import { AcceptedResources, AcceptedResourceTypes } from './ResourceTypeUtils';
 
 interface ResourceTypeProps {
     resource: AcceptedResources;
-    resourceType: 'chart' | 'dashboard';
+    resourceType: AcceptedResourceTypes;
 }
 
 const ResourceType: FC<ResourceTypeProps> = ({ resource, resourceType }) => {

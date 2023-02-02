@@ -3,12 +3,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import {
-    AcceptedResources,
-    AcceptedResourceTypes,
-    getResourceType,
-    ResourceListCommonProps,
-} from '.';
+import { getResourceType, ResourceListCommonProps } from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
 import ResourceActionMenu, { ResourceAction } from './ResourceActionMenu';
 import ResourceIcon from './ResourceIcon';
@@ -30,6 +25,7 @@ import {
     ThInteractiveWrapper,
 } from './ResourceTable.styles';
 import ResourceType from './ResourceType';
+import { AcceptedResources, AcceptedResourceTypes } from './ResourceTypeUtils';
 
 export enum SortDirection {
     ASC = 'asc',
