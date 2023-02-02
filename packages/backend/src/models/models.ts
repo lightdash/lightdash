@@ -16,6 +16,7 @@ import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { SavedChartModel } from './SavedChartModel';
+import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
@@ -69,3 +70,5 @@ export const analyticsModel = new AnalyticsModel({
     database,
 });
 export const pinnedListModel = new PinnedListModel({ database });
+
+export const schedulerModel = new SchedulerModel({ database });
