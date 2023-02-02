@@ -60,19 +60,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             ? tile.properties.hideTitle
             : false;
 
-    const hasTitle = hideTitle ? false : true;
     return (
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
             isEditMode={isEditMode}
             isHovering={isHovering}
-            hasTitle={hasTitle}
         >
             <HeaderContainer
                 isEditMode={isEditMode}
                 onMouseEnter={() => setIsHovering(true)}
                 onMouseLeave={() => setIsHovering(false)}
-                hasTitle={hasTitle}
             >
                 <HeaderWrapper>
                     {!hideTitle && description && clickableTitle ? (

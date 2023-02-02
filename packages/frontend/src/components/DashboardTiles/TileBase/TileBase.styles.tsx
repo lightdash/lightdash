@@ -4,7 +4,6 @@ import styled, { createGlobalStyle } from 'styled-components';
 interface HeaderContainerProps {
     isEditMode: boolean;
     isHovering?: boolean;
-    hasTitle: boolean;
 }
 
 interface TitleWrapperProps {
@@ -43,8 +42,6 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
                 }
             `
             : ''}
-    ${(props) =>
-        !props.hasTitle ? `margin-top: -5px; margin-bottom: -5px;` : ''}
 `;
 
 export const GlobalTileStyles = createGlobalStyle`
