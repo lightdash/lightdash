@@ -3,6 +3,7 @@ import {
     ApiSchedulerAndTargetsResponse,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
+import { Delete } from '@tsoa/runtime';
 import express from 'express';
 import {
     Body,
@@ -45,6 +46,30 @@ export class SchedulerController extends Controller {
                 schedulerUuid,
                 body,
             ),
+        };
+    }
+
+    /**
+     * Delete a scheduler
+     * @param schedulerUuid The uuid of the scheduler to delete
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('201', 'Deleted')
+    @Delete('{schedulerUuid}')
+    @OperationId('deleteScheduler')
+    async delete(
+        @Path() schedulerUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{
+        status: 'ok';
+        results: undefined;
+    }> {
+        this.setStatus(201);
+        await schedulerService.deleteScheduler(req.user!, schedulerUuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

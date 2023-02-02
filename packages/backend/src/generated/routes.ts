@@ -613,6 +613,52 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/schedulers/:schedulerUuid',
+        ...fetchMiddlewares<RequestHandler>(SchedulerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerController.prototype.delete,
+        ),
+
+        function SchedulerController_delete(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                schedulerUuid: {
+                    in: 'path',
+                    name: 'schedulerUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SchedulerController();
+
+                const promise = controller.delete.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 201, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
         '/api/v1/share/:nanoId',
         ...fetchMiddlewares<RequestHandler>(ShareController),

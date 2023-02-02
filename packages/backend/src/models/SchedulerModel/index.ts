@@ -176,4 +176,15 @@ export class SchedulerModel {
         });
         return this.getSchedulerAndTargets(scheduler.schedulerUuid);
     }
+
+    async deleteScheduler(schedulerUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(SchedulerTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid);
+            await trx(SchedulerSlackTargetTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid);
+        });
+    }
 }
