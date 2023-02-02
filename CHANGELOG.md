@@ -1,3 +1,10 @@
+## [0.402.3](https://github.com/lightdash/lightdash/compare/0.402.2...0.402.3) (2023-02-02)
+
+
+### Bug Fixes
+
+* conditional formatting tooltip for table calculations ([#4360](https://github.com/lightdash/lightdash/issues/4360)) ([b541cf4](https://github.com/lightdash/lightdash/commit/b541cf4b6fd37a2ab085123c05c42427c09c9152))
+
 ## [0.402.2](https://github.com/lightdash/lightdash/compare/0.402.1...0.402.2) (2023-02-02)
 
 
