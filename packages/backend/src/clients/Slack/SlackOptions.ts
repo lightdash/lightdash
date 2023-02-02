@@ -9,7 +9,7 @@ export const slackOptions = {
 
     // Slack only allow https on redirections
     // When testing locally on http://localhost:3000, replace again https:// with http:// after redirection happens
-    redirectUri: `${lightdashConfig.siteUrl.replace(
+    redirectUri: `${(lightdashConfig?.siteUrl || '').replace(
         'http://',
         'https://',
     )}/api/v1/slack/oauth_redirect`,
