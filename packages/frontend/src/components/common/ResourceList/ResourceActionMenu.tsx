@@ -20,6 +20,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const { user } = useApp();
+    const isPinned = item.data.pinnedListUuid ? true : false;
     const isDashboardPage =
         url.includes('/dashboards') || item.type === ResourceListType.DASHBOARD;
 
@@ -71,6 +72,23 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             setIsOpen(false);
                             onAction({
                                 type: ResourceListAction.DUPLICATE,
+                                item,
+                            });
+                        }}
+                    />
+                    <MenuItem2
+                        role="menuitem"
+                        icon="pin"
+                        text={
+                            isPinned ? 'Unpin from homepage' : 'Pin to homepage'
+                        }
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            setIsOpen(false);
+                            onAction({
+                                type: ResourceListAction.PIN_TO_HOMEPAGE,
                                 item,
                             });
                         }}

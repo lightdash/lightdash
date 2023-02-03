@@ -1,10 +1,10 @@
-import { ApiError } from '@lightdash/common';
+import { ApiError, Dashboard } from '@lightdash/common';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 const updateDashboardPinning = async (data: { uuid: string }) =>
-    lightdashApi<undefined>({
+    lightdashApi<Dashboard>({
         url: `/dashboards/${data.uuid}/pinning`,
         method: 'PATCH',
         body: JSON.stringify({}),
@@ -13,17 +13,23 @@ const updateDashboardPinning = async (data: { uuid: string }) =>
 export const useDashboardPinningMutation = () => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
-    return useMutation<undefined, ApiError, { uuid: string }>(
+    return useMutation<Dashboard, ApiError, { uuid: string }>(
         updateDashboardPinning,
         {
             mutationKey: ['dashboard_pinning_update'],
-            onSuccess: async (_, variables) => {
+            onSuccess: async (dashboard, variables) => {
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
                     variables.uuid,
                 ]);
+                await queryClient.invalidateQueries('dashboards');
+                if (dashboard.pinnedListUuid) {
+                    showToastSuccess({
+                        title: 'Success! Dashboard was pinned to homepage',
+                    });
+                }
                 showToastSuccess({
-                    title: 'Success! Dashboard was pinned to homepage',
+                    title: 'Success! Dashboard was unpinned from homepage',
                 });
             },
             onError: (error) => {
