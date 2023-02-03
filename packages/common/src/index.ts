@@ -485,8 +485,7 @@ type ApiResults =
     | SlackSettings
     | UserActivity
     | SchedulerAndTargets
-    | ChartScheduler[]
-    | DashboardScheduler[];
+    | SchedulerAndTargets[];
 
 export type ApiResponse = {
     status: 'ok';

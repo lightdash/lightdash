@@ -1,12 +1,12 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { ApiError, Scheduler } from '@lightdash/common';
+import { ApiError, SchedulerAndTargets } from '@lightdash/common';
 import React, { FC } from 'react';
 import { UseQueryResult } from 'react-query/types/react/types';
 import ErrorState from '../common/ErrorState';
 import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
-    schedulersQuery: UseQueryResult<Scheduler[], ApiError>;
+    schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
     onEdit: (schedulerUuid: string) => void;
 };
 

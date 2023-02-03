@@ -19,11 +19,7 @@ import {
 } from '../../hooks/scheduler/useChartSchedulers';
 import { useScheduler } from '../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../hooks/scheduler/useSchedulersUpdateMutation';
-import {
-    hasNoWhiteSpaces,
-    isValidCronExpression,
-    isValidGithubToken,
-} from '../../utils/fieldValidators';
+import { isValidCronExpression } from '../../utils/fieldValidators';
 import ErrorState from '../common/ErrorState';
 import { ArrayInput } from '../ReactHookForm/ArrayInput';
 import Form from '../ReactHookForm/Form';

@@ -6,9 +6,9 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { Scheduler } from '@lightdash/common';
+import { SchedulerAndTargets } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import React, { FC, useMemo } from 'react';
+import React, { FC } from 'react';
 import {
     InfoContainer,
     PageDetailsContainer,
@@ -18,12 +18,11 @@ import {
 import {
     SchedulerContainer,
     SchedulerDetailsContainer,
-    SchedulerIcon,
     SchedulerName,
 } from './SchedulerModals.styles';
 
 type SchedulersListItemProps = {
-    scheduler: Scheduler;
+    scheduler: SchedulerAndTargets;
     onEdit: (schedulerUuid: string) => void;
     onDelete: (schedulerUuid: string) => void;
 };
@@ -71,7 +70,9 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
 
                 <SeparatorDot icon="dot" size={6} />
 
-                <InfoContainer>0 slack recipients</InfoContainer>
+                <InfoContainer>
+                    {scheduler.targets.length} slack recipients
+                </InfoContainer>
             </PageDetailsContainer>
         </SchedulerContainer>
     );
