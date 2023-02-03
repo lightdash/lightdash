@@ -8,7 +8,7 @@ import {
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Scheduler } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import React, { FC } from 'react';
+import React, { FC, useMemo } from 'react';
 import {
     InfoContainer,
     PageDetailsContainer,
@@ -63,7 +63,10 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
             </SchedulerDetailsContainer>
             <PageDetailsContainer>
                 <UpdatedInfoLabel>
-                    {cronstrue.toString(scheduler.cron, { verbose: true })}
+                    {cronstrue.toString(scheduler.cron, {
+                        verbose: true,
+                        throwExceptionOnParseError: false,
+                    })}
                 </UpdatedInfoLabel>
 
                 <SeparatorDot icon="dot" size={6} />

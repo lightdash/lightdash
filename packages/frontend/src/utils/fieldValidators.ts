@@ -1,4 +1,5 @@
 import { validateEmail, validateGithubToken } from '@lightdash/common';
+import cronstrue from 'cronstrue';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -56,5 +57,19 @@ export const isValidGithubToken: FieldValidator<string> =
         if (value) {
             const [isValid, error] = validateGithubToken(value);
             return error;
+        }
+    };
+
+export const isValidCronExpression: FieldValidator<string> =
+    (fieldName) => (value) => {
+        if (value) {
+            try {
+                cronstrue.toString(value, {
+                    verbose: true,
+                    throwExceptionOnParseError: true,
+                });
+            } catch (e) {
+                return `${fieldName} is not valid`;
+            }
         }
     };
