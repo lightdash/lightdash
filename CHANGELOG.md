@@ -1,3 +1,10 @@
+## [0.403.1](https://github.com/lightdash/lightdash/compare/0.403.0...0.403.1) (2023-02-03)
+
+
+### Bug Fixes
+
+* explore from here open in a new tab ([#4372](https://github.com/lightdash/lightdash/issues/4372)) ([46f742d](https://github.com/lightdash/lightdash/commit/46f742db22fa26ecc26309767fa265fb7b11cec5))
+
 # [0.403.0](https://github.com/lightdash/lightdash/compare/0.402.3...0.403.0) (2023-02-02)
 
 
