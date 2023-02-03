@@ -33,5 +33,5 @@ jobs:
 
     - name: Test running scheduler
       env:
-        LIGHTDASH_CONFIG_FILE: "${PWD}/lightdash.yml"
+        LIGHTDASH_CONFIG_FILE: "/home/runner/work/lightdash/lightdash/lightdash.yml"
       run:  yarn workspace backend build && yarn workspace backend scheduler
