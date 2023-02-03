@@ -1,16 +1,16 @@
-import { AnchorButton, AnchorButtonProps } from '@blueprintjs/core';
+import { MenuItem2, MenuItem2Props } from '@blueprintjs/popover2';
 import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
-export interface LinkButtonProps extends AnchorButtonProps {
+export interface LinkMenuItemProps extends MenuItem2Props {
     href: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
     forceRefresh?: boolean;
 }
 
-const LinkButton: FC<LinkButtonProps> = ({
+const LinkMenuItem: FC<LinkMenuItemProps> = ({
     href,
     target,
     trackingEvent,
@@ -22,7 +22,7 @@ const LinkButton: FC<LinkButtonProps> = ({
     const { track } = useTracking();
 
     return (
-        <AnchorButton
+        <MenuItem2
             {...rest}
             href={href}
             target={target}
@@ -45,4 +45,4 @@ const LinkButton: FC<LinkButtonProps> = ({
     );
 };
 
-export default LinkButton;
+export default LinkMenuItem;

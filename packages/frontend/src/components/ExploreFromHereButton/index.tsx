@@ -1,11 +1,9 @@
-import React, { useMemo } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useMemo } from 'react';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import { ExploreFromHerePrimary } from './ExploreFromHere.styles';
+import LinkButton from '../common/LinkButton';
 
 const ExploreFromHereButton = () => {
-    const history = useHistory();
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
@@ -20,16 +18,17 @@ const ExploreFromHereButton = () => {
         }
     }, [savedChart]);
 
+    if (!exploreFromHereUrl) return null;
+
     return (
-        <ExploreFromHerePrimary
+        <LinkButton
             intent="primary"
+            large
             icon="series-search"
-            onClick={() =>
-                exploreFromHereUrl ? history.push(exploreFromHereUrl) : null
-            }
+            href={exploreFromHereUrl}
         >
             Explore from here
-        </ExploreFromHerePrimary>
+        </LinkButton>
     );
 };
 

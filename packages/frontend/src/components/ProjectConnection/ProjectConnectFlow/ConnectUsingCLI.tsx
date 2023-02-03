@@ -154,7 +154,6 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             <LinkButton
                 minimal
                 intent={Intent.PRIMARY}
-                replace
                 href="/createProject/manual"
                 trackingEvent={{
                     name: EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED,
