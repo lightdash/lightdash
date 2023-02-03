@@ -77,7 +77,10 @@ export class SchedulerService {
         return this.schedulerModel.getAllSchedulers();
     }
 
-    async getScheduler(schedulerUuid: string): Promise<SchedulerAndTargets> {
+    async getScheduler(
+        user: SessionUser,
+        schedulerUuid: string,
+    ): Promise<SchedulerAndTargets> {
         return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
     }
 

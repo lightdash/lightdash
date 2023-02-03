@@ -8,6 +8,7 @@ import express from 'express';
 import {
     Body,
     Controller,
+    Get,
     Middlewares,
     OperationId,
     Patch,
@@ -23,6 +24,29 @@ import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
 export class SchedulerController extends Controller {
+    /**
+     * Get a scheduler
+     * @param schedulerUuid The uuid of the scheduler to update
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{schedulerUuid}')
+    @OperationId('getScheduler')
+    async get(
+        @Path() schedulerUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSchedulerAndTargetsResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await schedulerService.getScheduler(
+                req.user!,
+                schedulerUuid,
+            ),
+        };
+    }
+
     /**
      * Update a scheduler
      * @param schedulerUuid The uuid of the scheduler to update
