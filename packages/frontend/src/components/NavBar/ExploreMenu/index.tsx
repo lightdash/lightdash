@@ -1,7 +1,8 @@
 import {
     Button,
+    Colors,
     Icon,
-    IconName,
+    Menu,
     PopoverInteractionKind,
     Position,
 } from '@blueprintjs/core';
@@ -9,43 +10,22 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import DashboardCreateModal from '../../common/modal/DashboardCreateModal';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 import {
-    ButtonWrapper,
-    HelpItem,
-    IconContainer,
-    ItemCTA,
-    ItemDescription,
-    MenuWrapper,
+    LargeMenuItem,
+    LargeMenuItemIconWrapper,
+    LargeMenuItemSubText,
+    LargeMenuItemText,
+    LargeMenuTextWrapper,
 } from './ExploreMenu.styles';
 
 interface Props {
     projectUuid: string;
 }
 
-interface ExploreItemProps {
-    icon: IconName;
-    title: string;
-    description: string;
-}
-
-const ExploreItem: FC<ExploreItemProps> = ({ icon, title, description }) => {
-    return (
-        <HelpItem>
-            <IconContainer>
-                <Icon icon={icon} />
-            </IconContainer>
-            <div>
-                <ItemCTA>{title}</ItemCTA>
-                <ItemDescription>{description}</ItemDescription>
-            </div>
-        </HelpItem>
-    );
-};
 const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const { user } = useApp();
     const history = useHistory();
@@ -62,19 +42,30 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                 interactionKind={PopoverInteractionKind.CLICK}
                 onClose={() => setIsOpen(false)}
                 content={
-                    <MenuWrapper>
-                        <ButtonWrapper
-                            onClick={() => {
-                                setIsOpen(false);
-                                history.push(`/projects/${projectUuid}/tables`);
-                            }}
-                        >
-                            <ExploreItem
-                                icon="th"
-                                title="Query from tables"
-                                description="Build queries and save them as charts."
-                            />
-                        </ButtonWrapper>
+                    <Menu large>
+                        <LargeMenuItem
+                            icon={
+                                <LargeMenuItemIconWrapper>
+                                    <Icon
+                                        icon="th"
+                                        iconSize={20}
+                                        color={Colors.WHITE}
+                                    />
+                                </LargeMenuItemIconWrapper>
+                            }
+                            href={`/projects/${projectUuid}/tables`}
+                            // onClick={() => setIsOpen(false)}
+                            text={
+                                <>
+                                    <LargeMenuItemText>
+                                        Query from tables
+                                    </LargeMenuItemText>
+                                    <LargeMenuItemSubText>
+                                        Build queries and save them as charts.
+                                    </LargeMenuItemSubText>
+                                </>
+                            }
+                        />
                         <Can
                             I="manage"
                             this={subject('SqlRunner', {
@@ -82,20 +73,30 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 projectUuid,
                             })}
                         >
-                            <ButtonWrapper
-                                onClick={() => {
-                                    setIsOpen(false);
-                                    history.push(
-                                        `/projects/${projectUuid}/sqlRunner`,
-                                    );
-                                }}
-                            >
-                                <ExploreItem
-                                    icon="console"
-                                    title="Query using SQL runner"
-                                    description="Access your database to run ad-hoc queries."
-                                />
-                            </ButtonWrapper>
+                            <LargeMenuItem
+                                icon={
+                                    <LargeMenuItemIconWrapper>
+                                        <Icon
+                                            icon="console"
+                                            iconSize={20}
+                                            color={Colors.WHITE}
+                                        />
+                                    </LargeMenuItemIconWrapper>
+                                }
+                                href={`/projects/${projectUuid}/sqlRunner`}
+                                onClick={() => setIsOpen(false)}
+                                text={
+                                    <>
+                                        <LargeMenuItemText>
+                                            Query using SQL runner
+                                        </LargeMenuItemText>
+                                        <LargeMenuItemSubText>
+                                            Access your database to run ad-hoc
+                                            queries.
+                                        </LargeMenuItemSubText>
+                                    </>
+                                }
+                            />
                         </Can>
                         <Can
                             I="manage"
@@ -104,18 +105,32 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 projectUuid,
                             })}
                         >
-                            <ButtonWrapper
+                            <LargeMenuItem
+                                icon={
+                                    <LargeMenuItemIconWrapper>
+                                        <Icon
+                                            icon="control"
+                                            iconSize={20}
+                                            color={Colors.WHITE}
+                                        />
+                                    </LargeMenuItemIconWrapper>
+                                }
                                 onClick={() => {
                                     setIsOpen(false);
                                     setIsCreateDashboardOpen(true);
                                 }}
-                            >
-                                <ExploreItem
-                                    icon="control"
-                                    title="Dashboard"
-                                    description="Arrange multiple charts into a single view."
-                                />
-                            </ButtonWrapper>
+                                text={
+                                    <>
+                                        <LargeMenuItemText>
+                                            Dashboard
+                                        </LargeMenuItemText>
+                                        <LargeMenuItemSubText>
+                                            Arrange multiple charts into a
+                                            single view.
+                                        </LargeMenuItemSubText>
+                                    </>
+                                }
+                            />
                         </Can>
                         <Can
                             I="manage"
@@ -124,20 +139,34 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 projectUuid,
                             })}
                         >
-                            <ButtonWrapper
+                            <LargeMenuItem
+                                icon={
+                                    <LargeMenuItemIconWrapper>
+                                        <Icon
+                                            icon="folder-new"
+                                            iconSize={20}
+                                            color={Colors.WHITE}
+                                        />
+                                    </LargeMenuItemIconWrapper>
+                                }
                                 onClick={() => {
                                     setIsOpen(false);
                                     setIsCreateSpaceOpen(true);
                                 }}
-                            >
-                                <ExploreItem
-                                    icon="folder-new"
-                                    title="Space"
-                                    description="Organize your saved charts and dashboards."
-                                />
-                            </ButtonWrapper>
+                                text={
+                                    <>
+                                        <LargeMenuItemText>
+                                            Space
+                                        </LargeMenuItemText>
+                                        <LargeMenuItemSubText>
+                                            Organize your saved charts and
+                                            dashboards.
+                                        </LargeMenuItemSubText>
+                                    </>
+                                }
+                            />
                         </Can>
-                    </MenuWrapper>
+                    </Menu>
                 }
                 position={Position.BOTTOM_LEFT}
             >
@@ -145,6 +174,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     New
                 </Button>
             </Popover2>
+
             {isCreateSpaceOpen && (
                 <SpaceActionModal
                     projectUuid={projectUuid}
