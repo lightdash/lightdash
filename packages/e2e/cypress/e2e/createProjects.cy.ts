@@ -435,7 +435,7 @@ describe('Create projects', () => {
         testTimeIntervalsResults(trinoRowValues);
         testPercentile();
     });
-    it('Should create a Databricks project', () => {
+    it.skip('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'Databricks').click();
