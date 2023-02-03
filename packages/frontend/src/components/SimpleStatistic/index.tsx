@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { Textfit } from 'react-textfit';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
@@ -25,22 +26,33 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <BigNumber>{bigNumber}</BigNumber>
+                <Textfit mode="single" style={{ width: '45%' }} max={100}>
+                    <BigNumber>{bigNumber}</BigNumber>
+                </Textfit>
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <BigNumber
-                            $interactive
-                            ref={ref}
-                            onClick={(popoverProps as any).onClick}
+                        <Textfit
+                            mode="single"
+                            style={{ width: '45%' }}
+                            max={100}
                         >
-                            {bigNumber}
-                        </BigNumber>
+                            <BigNumber
+                                $interactive
+                                ref={ref}
+                                onClick={(popoverProps as any).onClick}
+                            >
+                                {bigNumber}
+                            </BigNumber>
+                        </Textfit>
                     )}
                 />
             )}
-
-            <BigNumberLabel>{bigNumberLabel || defaultLabel}</BigNumberLabel>
+            <Textfit mode="single" style={{ width: '80%' }} max={20}>
+                <BigNumberLabel>
+                    {bigNumberLabel || defaultLabel}
+                </BigNumberLabel>
+            </Textfit>
         </BigNumberContainer>
     ) : (
         <EmptyChart />

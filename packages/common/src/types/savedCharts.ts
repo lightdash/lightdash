@@ -212,7 +212,7 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
-    views?: number;
+    views: number;
     pinnedListUuid: string | undefined;
 };
 
@@ -225,6 +225,7 @@ export type CreateSavedChart = Omit<
     | 'spaceUuid'
     | 'spaceName'
     | 'pinnedListUuid'
+    | 'views'
 > & { spaceUuid?: string };
 
 export type CreateSavedChartVersion = Omit<
@@ -237,6 +238,7 @@ export type CreateSavedChartVersion = Omit<
     | 'spaceUuid'
     | 'spaceName'
     | 'pinnedListUuid'
+    | 'views'
 >;
 
 export type UpdateSavedChart = Partial<

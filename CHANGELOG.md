@@ -1,3 +1,38 @@
+# [0.403.0](https://github.com/lightdash/lightdash/compare/0.402.3...0.403.0) (2023-02-02)
+
+
+### Features
+
+* big numbers responsiveness ([#4276](https://github.com/lightdash/lightdash/issues/4276)) ([5a004db](https://github.com/lightdash/lightdash/commit/5a004dbcfb9970ed3b1cf01ee029a14a4e3042dd))
+
+## [0.402.3](https://github.com/lightdash/lightdash/compare/0.402.2...0.402.3) (2023-02-02)
+
+
+### Bug Fixes
+
+* conditional formatting tooltip for table calculations ([#4360](https://github.com/lightdash/lightdash/issues/4360)) ([b541cf4](https://github.com/lightdash/lightdash/commit/b541cf4b6fd37a2ab085123c05c42427c09c9152))
+
+## [0.402.2](https://github.com/lightdash/lightdash/compare/0.402.1...0.402.2) (2023-02-02)
+
+
+### Bug Fixes
+
+* add indices to analytics tables ([#4369](https://github.com/lightdash/lightdash/issues/4369)) ([22595e2](https://github.com/lightdash/lightdash/commit/22595e2eb9cee9183dea2bbc7895a0fdd7f1bb51))
+
+## [0.402.1](https://github.com/lightdash/lightdash/compare/0.402.0...0.402.1) (2023-02-02)
+
+
+### Bug Fixes
+
+* date range bug ([#4358](https://github.com/lightdash/lightdash/issues/4358)) ([95ec339](https://github.com/lightdash/lightdash/commit/95ec339b841ec659466029650c63f92c4d470b14))
+
+# [0.402.0](https://github.com/lightdash/lightdash/compare/0.401.0...0.402.0) (2023-02-02)
+
+
+### Features
+
+* views counts in chart and dashboard headers ([#4352](https://github.com/lightdash/lightdash/issues/4352)) ([480461a](https://github.com/lightdash/lightdash/commit/480461a167d1d4614571426daedae94fb6b6b660))
+
 # [0.401.0](https://github.com/lightdash/lightdash/compare/0.400.1...0.401.0) (2023-02-01)
 
 

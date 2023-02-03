@@ -904,6 +904,15 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "robolyst",
+      "name": "Adrian Letchford",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7521223?v=4",
+      "profile": "http://www.dradrian.com",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7,

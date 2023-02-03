@@ -2,18 +2,23 @@ import {
     assertUnreachable,
     ConditionalRule,
     DimensionType,
+    Field,
     FilterableField,
+    FilterableItem,
     FilterOperator,
     FilterType,
     formatBoolean,
     formatDate,
     formatTimestamp,
-    getFilterTypeFromField,
+    getFilterTypeFromItem,
     getItemId,
     isDashboardFilterRule,
     isDimension,
+    isField,
+    isFilterableItem,
     isFilterRule,
     isMomentInput,
+    TableCalculation,
 } from '@lightdash/common';
 import isEmpty from 'lodash-es/isEmpty';
 import uniq from 'lodash-es/uniq';
@@ -126,7 +131,7 @@ type FilterRuleLabels = {
 export const getValueAsString = (
     filterType: FilterType,
     rule: ConditionalRule,
-    field: FilterableField,
+    field: Field | TableCalculation,
 ) => {
     const { operator, values } = rule;
     const firstValue = values?.[0];
@@ -202,10 +207,10 @@ export const getValueAsString = (
 
 export const getConditionalRuleLabel = (
     rule: ConditionalRule,
-    field: FilterableField,
+    item: FilterableItem,
 ): FilterRuleLabels => {
-    const filterType = field
-        ? getFilterTypeFromField(field)
+    const filterType = isFilterableItem(item)
+        ? getFilterTypeFromItem(item)
         : FilterType.STRING;
     const filterConfig = FilterTypeConfig[filterType];
     const operationLabel =
@@ -213,9 +218,9 @@ export const getConditionalRuleLabel = (
             ?.label || filterOperatorLabel[rule.operator];
 
     return {
-        field: field.label,
+        field: isField(item) ? item.label : item.name,
         operator: operationLabel,
-        value: getValueAsString(filterType, rule, field),
+        value: getValueAsString(filterType, rule, item),
     };
 };
 

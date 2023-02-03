@@ -6,7 +6,7 @@ import {
     FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
-    getFilterTypeFromField,
+    getFilterTypeFromItem,
     isField,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
@@ -33,7 +33,7 @@ const FilterRuleForm: FC<Props> = ({
     );
 
     const filterType = activeField
-        ? getFilterTypeFromField(activeField)
+        ? getFilterTypeFromItem(activeField)
         : FilterType.STRING;
     const filterConfig = useMemo(
         () => FilterTypeConfig[filterType],

@@ -52,6 +52,7 @@ type DbSavedChartDetails = {
     first_name: string;
     last_name: string;
     pinned_list_uuid: string;
+    views: string;
 };
 
 const createSavedChartVersionField = async (
@@ -372,6 +373,10 @@ export class SavedChartModel {
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
+                this.database.raw(
+                    `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = ?) as views`,
+                    savedChartUuid,
+                ),
             ])
             .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
             .orderBy('saved_queries_versions.created_at', 'desc')
@@ -493,6 +498,7 @@ export class SavedChartModel {
             spaceUuid: savedQuery.space_uuid,
             spaceName: savedQuery.spaceName,
             pinnedListUuid: savedQuery.pinned_list_uuid,
+            views: parseInt(savedQuery.views, 10) || 0,
         };
     }
 }

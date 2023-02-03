@@ -7,7 +7,6 @@ import {
 import {
     CronItem,
     JobHelpers,
-    Logger as GraphileLogger,
     parseCronItems,
     parseCrontab,
     run as runGraphileWorker,
@@ -38,6 +37,7 @@ export const getDailyDatesFromCron = (
     }
     return dailyDates;
 };
+
 export class SchedulerWorker {
     lightdashConfig: LightdashConfig;
 
