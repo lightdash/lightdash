@@ -27,10 +27,11 @@ export const useDashboardPinningMutation = () => {
                     showToastSuccess({
                         title: 'Success! Dashboard was pinned to homepage',
                     });
+                } else {
+                    showToastSuccess({
+                        title: 'Success! Dashboard was unpinned from homepage',
+                    });
                 }
-                showToastSuccess({
-                    title: 'Success! Dashboard was unpinned from homepage',
-                });
             },
             onError: (error) => {
                 showToastError({

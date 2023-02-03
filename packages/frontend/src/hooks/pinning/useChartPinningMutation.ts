@@ -25,12 +25,13 @@ export const useChartPinningMutation = () => {
                 await queryClient.invalidateQueries('spaces');
                 if (savedChart.pinnedListUuid) {
                     showToastSuccess({
-                        title: 'Success! Dashboard was pinned to homepage',
+                        title: 'Success! Chart was pinned to homepage',
+                    });
+                } else {
+                    showToastSuccess({
+                        title: 'Success! Chart was unpinned from homepage',
                     });
                 }
-                showToastSuccess({
-                    title: 'Success! Dashboard was unpinned from homepage',
-                });
             },
             onError: (error) => {
                 showToastError({

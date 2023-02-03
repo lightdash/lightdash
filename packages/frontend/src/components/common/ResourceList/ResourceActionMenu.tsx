@@ -3,6 +3,7 @@ import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../Authorization';
 import {
     ResourceListAction,
     ResourceListActionState,
@@ -76,23 +77,27 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             });
                         }}
                     />
-                    <MenuItem2
-                        role="menuitem"
-                        icon="pin"
-                        text={
-                            isPinned ? 'Unpin from homepage' : 'Pin to homepage'
-                        }
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                    <Can I="manage" a="SavedChart">
+                        <MenuItem2
+                            role="menuitem"
+                            icon="pin"
+                            text={
+                                isPinned
+                                    ? 'Unpin from homepage'
+                                    : 'Pin to homepage'
+                            }
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
 
-                            setIsOpen(false);
-                            onAction({
-                                type: ResourceListAction.PIN_TO_HOMEPAGE,
-                                item,
-                            });
-                        }}
-                    />
+                                setIsOpen(false);
+                                onAction({
+                                    type: ResourceListAction.PIN_TO_HOMEPAGE,
+                                    item,
+                                });
+                            }}
+                        />
+                    </Can>
                     {!isDashboardPage && (
                         <MenuItem2
                             icon="insert"

@@ -35,9 +35,7 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
             headerTitle="Pinned items"
             renderEmptyState={() => <></>}
         />
-    ) : (
-        <></>
-    );
+    ) : null;
 };
 
 export default PinnedItemsPanel;
