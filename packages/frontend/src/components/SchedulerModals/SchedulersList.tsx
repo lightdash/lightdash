@@ -1,13 +1,15 @@
-import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiError, Scheduler } from '@lightdash/common';
 import React, { FC } from 'react';
 import { UseQueryResult } from 'react-query/types/react/types';
 import ErrorState from '../common/ErrorState';
+import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
     schedulersQuery: UseQueryResult<Scheduler[], ApiError>;
     onEdit: (schedulerUuid: string) => void;
 };
+
 const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     const { data: schedulers, isLoading, error } = schedulersQuery;
 
@@ -28,12 +30,12 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     return (
         <div>
             {schedulers.map((scheduler) => (
-                <div key={scheduler.schedulerUuid}>
-                    {scheduler.name}
-                    <Button onClick={() => onEdit(scheduler.schedulerUuid)}>
-                        Edit
-                    </Button>
-                </div>
+                <SchedulersListItem
+                    key={scheduler.schedulerUuid}
+                    scheduler={scheduler}
+                    onEdit={onEdit}
+                    onDelete={() => undefined}
+                />
             ))}
         </div>
     );

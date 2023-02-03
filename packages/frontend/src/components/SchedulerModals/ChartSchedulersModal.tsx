@@ -23,8 +23,8 @@ import ErrorState from '../common/ErrorState';
 import { ArrayInput } from '../ReactHookForm/ArrayInput';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
+import { SlackIcon, TargetRow } from './SchedulerModals.styles';
 import SchedulersList from './SchedulersList';
-import { SlackIcon, TargetRow } from './ScheulerModals.styles';
 
 interface Props extends DialogProps {
     chartUuid: string;
@@ -75,6 +75,15 @@ const SchedulerForm: FC<
                 label="Name"
                 name="name"
                 placeholder="Scheduled delivery name"
+                disabled={disabled}
+                rules={{
+                    required: 'Required field',
+                }}
+            />
+            <Input
+                label="Cron expression"
+                name="cron"
+                placeholder="0 0 0 * * *"
                 disabled={disabled}
                 rules={{
                     required: 'Required field',
@@ -134,10 +143,7 @@ const CreateStateContent: FC<{
         }
     }, [mutation.isSuccess, onBack]);
     const handleSubmit = (data: CreateSchedulerAndTargetsWithoutIds) => {
-        mutation.mutate({
-            ...data,
-            cron: '0 0 * * *',
-        });
+        mutation.mutate(data);
     };
     return (
         <>
@@ -186,10 +192,7 @@ const UpdateStateContent: FC<{
         }
     }, [mutation.isSuccess, onBack]);
     const handleSubmit = (data: UpdateSchedulerAndTargetsWithoutId) => {
-        mutation.mutate({
-            ...data,
-            cron: '0 * * * *',
-        });
+        mutation.mutate(data);
     };
     if (scheduler.isLoading || scheduler.error) {
         return (

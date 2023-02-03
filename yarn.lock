@@ -4712,6 +4712,11 @@ cron-parser@^4.2.1:
   dependencies:
     luxon "^2.4.0"
 
+cronstrue@^2.22.0:
+  version "2.22.0"
+  resolved "https://registry.yarnpkg.com/cronstrue/-/cronstrue-2.22.0.tgz#7581c280fcc737c85e6082700ce317c1cc280292"
+  integrity sha512-jS6dApMpBBkfNkc4nUDC35w+YC1EO6qGRofMb6+94yhVVO5XeQO/zUXkZggOvJMEFGCQJGkbH/JkA/KmTTuQew==
+
 cross-fetch@3.1.5, cross-fetch@^3.0.4, cross-fetch@^3.1.5:
   version "3.1.5"
   resolved "https://registry.npmjs.org/cross-fetch/-/cross-fetch-3.1.5.tgz"
