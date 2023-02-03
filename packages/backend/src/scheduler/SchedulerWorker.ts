@@ -1,4 +1,10 @@
 import {
+    arrayToString,
+    getSchedule,
+    getUnits,
+    stringToArray,
+} from 'cron-converter';
+import {
     CronItem,
     JobHelpers,
     Logger as GraphileLogger,
@@ -6,6 +12,7 @@ import {
     parseCrontab,
     run as runGraphileWorker,
 } from 'graphile-worker';
+import moment from 'moment';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService, slackClient } from '../services/services';
@@ -14,6 +21,23 @@ type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
+export const getDailyDatesFromCron = (
+    cron: string,
+    when = new Date(),
+): Date[] => {
+    const arr = stringToArray(cron);
+    const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
+    const schedule = getSchedule(arr, startOfMinute, 'UTC');
+    const tomorrow = moment(startOfMinute)
+        .add(1, 'day')
+        .startOf('day')
+        .toDate();
+    const dailyDates: Date[] = [];
+    while (schedule.next() < tomorrow) {
+        dailyDates.push(schedule.date.toJSDate());
+    }
+    return dailyDates;
+};
 export class SchedulerWorker {
     lightdashConfig: LightdashConfig;
 
@@ -52,8 +76,11 @@ export class SchedulerWorker {
                     const schedulers =
                         await schedulerService.getAllSchedulers();
                     schedulers.map(async (scheduler) => {
-                        await runner.addJob(scheduler.name, {
-                            ...scheduler,
+                        const dates = getDailyDatesFromCron(scheduler.cron);
+                        dates.map(async (date) => {
+                            await runner.addJob(scheduler.name, scheduler, {
+                                runAt: date,
+                            });
                         });
                     });
                 },
