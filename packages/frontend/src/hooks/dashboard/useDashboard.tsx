@@ -216,7 +216,7 @@ export const useUpdateDashboard = (
     );
 };
 
-export const useMoveDashboard = (uuid: string | undefined) => {
+export const useMoveDashboardMutation = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
@@ -224,14 +224,10 @@ export const useMoveDashboard = (uuid: string | undefined) => {
     return useMutation<
         Dashboard,
         ApiError,
-        Pick<Dashboard, 'name' | 'spaceUuid'>
+        Pick<Dashboard, 'uuid' | 'name' | 'spaceUuid'>
     >(
-        (data) => {
-            if (uuid) {
-                return updateDashboard(uuid, data);
-            }
-            throw new Error('Dashboard ID is undefined');
-        },
+        ({ uuid, name, spaceUuid }) =>
+            updateDashboard(uuid, { name, spaceUuid }),
         {
             mutationKey: ['dashboard_move'],
             onSuccess: async (data) => {
@@ -319,16 +315,19 @@ export const useCreateMutation = (
     );
 };
 
+type DuplicateDashboardMutationOptions = {
+    showRedirectButton: boolean;
+};
+
 export const useDuplicateDashboardMutation = (
-    dashboardUuid: string,
-    showRedirectButton: boolean = false,
+    options?: DuplicateDashboardMutationOptions,
 ) => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<Dashboard, ApiError, string>(
-        () => duplicateDashboard(projectUuid, dashboardUuid),
+    return useMutation<Dashboard, ApiError, Dashboard['uuid']>(
+        (dashboardUuid) => duplicateDashboard(projectUuid, dashboardUuid),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (data) => {
@@ -339,7 +338,7 @@ export const useDuplicateDashboardMutation = (
                 );
                 showToastSuccess({
                     title: `Dashboard successfully duplicated!`,
-                    action: showRedirectButton
+                    action: options?.showRedirectButton
                         ? {
                               text: 'Open dashboard',
                               icon: 'arrow-right',

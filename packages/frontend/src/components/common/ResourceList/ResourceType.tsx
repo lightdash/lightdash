@@ -1,20 +1,17 @@
-import { assertUnreachable, ChartKind, SpaceQuery } from '@lightdash/common';
+import { assertUnreachable, ChartKind } from '@lightdash/common';
 import { FC } from 'react';
-import { AcceptedResources } from '.';
+import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
 interface ResourceTypeProps {
-    resource: AcceptedResources;
-    resourceType: 'chart' | 'dashboard';
+    item: ResourceListItem;
 }
 
-const ResourceType: FC<ResourceTypeProps> = ({ resource, resourceType }) => {
-    switch (resourceType) {
-        case 'dashboard':
+const ResourceType: FC<ResourceTypeProps> = ({ item }) => {
+    switch (item.type) {
+        case ResourceListType.DASHBOARD:
             return <>Dashboard</>;
-        case 'chart':
-            const chartType = (resource as SpaceQuery).chartType;
-
-            switch (chartType) {
+        case ResourceListType.CHART:
+            switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:
                     return <>Bar chart</>;
@@ -34,15 +31,12 @@ const ResourceType: FC<ResourceTypeProps> = ({ resource, resourceType }) => {
                     return <>Big number</>;
                 default:
                     return assertUnreachable(
-                        chartType,
-                        `Chart type ${chartType} not supported`,
+                        item.data.chartType,
+                        `Chart type ${item.data.chartType} not supported`,
                     );
             }
         default:
-            return assertUnreachable(
-                resourceType,
-                'Resource type not supported',
-            );
+            return assertUnreachable(item, 'Resource type not supported');
     }
 };
 

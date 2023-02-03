@@ -44,6 +44,7 @@ interface ActionModalProps {
     onClose?: () => void;
     onSubmitForm?: (data?: Space) => void;
     isDisabled: boolean;
+    shouldRedirect?: boolean;
 }
 
 export interface SpaceModalBody {
@@ -191,6 +192,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     projectUuid,
     spaceUuid,
     onSubmitForm,
+    shouldRedirect = true,
     ...props
 }) => {
     const { data, isLoading } = useSpace(projectUuid, spaceUuid!, {
@@ -202,7 +204,11 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
     const { mutateAsync: createMutation, isLoading: isCreating } =
         useCreateMutation(projectUuid, {
             onSuccess: (space) => {
-                history.push(`/projects/${projectUuid}/spaces/${space.uuid}`);
+                if (shouldRedirect) {
+                    history.push(
+                        `/projects/${projectUuid}/spaces/${space.uuid}`,
+                    );
+                }
             },
         });
 
