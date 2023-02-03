@@ -10,8 +10,8 @@ import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import {
-    useDuplicateMutation,
-    useMoveMutation,
+    useDuplicateChartMutation,
+    useMoveChartMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
@@ -68,14 +68,12 @@ const SavedChartsHeader: FC = () => {
         useState<boolean>(false);
     const { user } = useApp();
     const { data: spaces } = useSpaces(projectUuid);
-    const { mutate: moveChartToSpace } = useMoveMutation(savedChart?.uuid);
+    const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(savedChart?.uuid);
 
     const space = spaces?.find((s) => s.uuid === savedChart?.spaceUuid);
 
-    const { mutate: duplicateChart } = useDuplicateMutation(
-        savedChart?.uuid || '',
-    );
+    const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
 
     useEffect(() => {
@@ -307,6 +305,7 @@ const SavedChartsHeader: FC = () => {
                                                                 spaceToMove.uuid
                                                         )
                                                             moveChartToSpace({
+                                                                uuid: savedChart.uuid,
                                                                 name: savedChart.name,
                                                                 spaceUuid:
                                                                     spaceToMove.uuid,

@@ -1,9 +1,7 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { FC, useEffect, useState } from 'react';
-import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
-import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
+import { FC, useState } from 'react';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ResourceListAction,
@@ -20,20 +18,10 @@ type Props = {
 
 const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [itemId, setItemId] = useState<string>('');
 
     const { user } = useApp();
-    const { mutate: duplicateChart } = useDuplicateMutation(itemId, true);
-    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
-        itemId,
-        true,
-    );
     const isDashboardPage =
         url.includes('/dashboards') || item.type === ResourceListType.DASHBOARD;
-
-    useEffect(() => {
-        setItemId(item.data.uuid);
-    }, [item.data.uuid]);
 
     switch (item.type) {
         case ResourceListType.CHART:
@@ -67,6 +55,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+
                             setIsOpen(false);
                             onAction({ type: ResourceListAction.UPDATE, item });
                         }}
@@ -79,21 +68,11 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             e.preventDefault();
                             e.stopPropagation();
 
-                            switch (item.type) {
-                                case ResourceListType.CHART:
-                                    duplicateChart(itemId);
-                                    break;
-                                case ResourceListType.DASHBOARD:
-                                    duplicateDashboard(itemId);
-                                    break;
-                                default:
-                                    assertUnreachable(
-                                        item,
-                                        'Resource type not supported',
-                                    );
-                            }
-
                             setIsOpen(false);
+                            onAction({
+                                type: ResourceListAction.DUPLICATE,
+                                item,
+                            });
                         }}
                     />
                     {!isDashboardPage && (
@@ -104,6 +83,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+
                                 setIsOpen(false);
                                 onAction({
                                     type: ResourceListAction.ADD_TO_DASHBOARD,
@@ -136,6 +116,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
+
                                         if (!isSelected) {
                                             onAction({
                                                 type: ResourceListAction.MOVE_TO_SPACE,
@@ -159,6 +140,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+
                                 onAction({
                                     type: ResourceListAction.CREATE_SPACE,
                                     item,
@@ -177,6 +159,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+
                             setIsOpen(false);
                             onAction({ type: ResourceListAction.DELETE, item });
                         }}
@@ -190,6 +173,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+
                     setIsOpen(true);
                 }}
             />
