@@ -143,6 +143,4 @@ export const schedulerService = new SchedulerService({
 export const slackClient = new SlackClient({
     slackAuthenticationModel,
     lightdashConfig,
-    savedChartModel,
-    dashboardModel,
 });

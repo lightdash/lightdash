@@ -35,5 +35,4 @@ jobs:
       env:
         LIGHTDASH_CONFIG_FILE: "/home/runner/work/lightdash/lightdash/lightdash.yml"
         LIGHTDASH_SECRET: "test"
-
       run:  yarn workspace backend build && yarn workspace backend scheduler

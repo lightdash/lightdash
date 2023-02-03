@@ -338,6 +338,11 @@ export class UnfurlService {
         imageId: string,
         authUserUuid: string,
     ): Promise<string | undefined> {
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            throw new Error(
+                'Headless browser host is not defined. Please set the LIGHTDASH_HEADLESS_BROWSER_HOST environment variable.',
+            );
+        }
         const cookie = await this.getUserCookie(authUserUuid);
 
         const buffer = await this.saveScreenshot(

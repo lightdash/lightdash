@@ -15,6 +15,7 @@ import moment from 'moment';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService, slackClient } from '../services/services';
+import { sendSlackNotification } from './SchedulerTask';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
@@ -89,7 +90,10 @@ export class SchedulerWorker {
                     payload: unknown,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(`periodicSlackMessage`, payload);
+                    Logger.info(
+                        `Processing new job periodicSlackMessage`,
+                        payload,
+                    );
 
                     await runner.addJob('sendSlackMessage', {
                         organizationUuid:
@@ -99,12 +103,19 @@ export class SchedulerWorker {
                     });
                 },
                 sendSlackMessage: async (payload: any, helpers: JobHelpers) => {
-                    Logger.info(`sendSlackMessage`, payload);
-                    slackClient.sendText(payload);
+                    Logger.info(`Processing new job sendSlackMessage`, payload);
+                    slackClient.postMessage(payload);
                 },
 
-                sendSlackNotification: async (payload: any) => {
-                    slackClient.sendNotification(payload);
+                sendSlackNotification: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    Logger.info(
+                        `Processing new job sendSlackNotification`,
+                        payload,
+                    );
+                    sendSlackNotification(payload);
                 },
             },
         });
