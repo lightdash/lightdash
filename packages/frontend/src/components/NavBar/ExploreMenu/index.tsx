@@ -19,7 +19,6 @@ import {
     LargeMenuItemIconWrapper,
     LargeMenuItemSubText,
     LargeMenuItemText,
-    LargeMenuTextWrapper,
 } from './ExploreMenu.styles';
 
 interface Props {
@@ -168,7 +167,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                         </Can>
                     </Menu>
                 }
-                position={Position.BOTTOM_LEFT}
+                position={Position.BOTTOM_RIGHT}
             >
                 <Button minimal icon="add" onClick={() => setIsOpen(!isOpen)}>
                     New

@@ -1,27 +1,25 @@
 import {
     Button,
+    Colors,
     Icon,
+    Menu,
     PopoverInteractionKind,
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import {
-    ButtonWrapper,
-    HelpItem,
-    IconContainer,
-    ItemCTA,
-    ItemDescription,
-    LinkWrapper,
-    MenuWrapper,
-    NotificationWidget,
-    NotificationWrapper,
-} from './HelpMenu.styles';
+    LargeMenuItem,
+    LargeMenuItemIconWrapper,
+    LargeMenuItemSubText,
+    LargeMenuItemText,
+} from '../ExploreMenu/ExploreMenu.styles';
+import { NotificationWidget, NotificationWrapper } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
     const { show: showIntercom } = useIntercom();
@@ -75,81 +73,106 @@ const HelpMenu: FC = () => {
             <Popover2
                 interactionKind={PopoverInteractionKind.CLICK}
                 content={
-                    <MenuWrapper>
-                        <ButtonWrapper onClick={() => showIntercom()}>
-                            <HelpItem>
-                                <IconContainer>
-                                    <Icon icon="chat" />
-                                </IconContainer>
-                                <div>
-                                    <ItemCTA>Contact support</ItemCTA>
-                                    <ItemDescription>
+                    <Menu large>
+                        <LargeMenuItem
+                            onClick={() => showIntercom()}
+                            icon={
+                                <LargeMenuItemIconWrapper>
+                                    <Icon
+                                        icon="chat"
+                                        color={Colors.WHITE}
+                                        size={20}
+                                    />
+                                </LargeMenuItemIconWrapper>
+                            }
+                            text={
+                                <>
+                                    <LargeMenuItemText>
+                                        Contact support
+                                    </LargeMenuItemText>
+                                    <LargeMenuItemSubText>
                                         Drop us a message and we’ll get back to
                                         you asap!
-                                    </ItemDescription>
-                                </div>
-                            </HelpItem>
-                        </ButtonWrapper>
-                        <LinkWrapper
-                            role="button"
+                                    </LargeMenuItemSubText>
+                                </>
+                            }
+                        />
+
+                        <LargeMenuItem
                             href="https://docs.lightdash.com/"
                             target="_blank"
-                            rel="noreferrer"
-                        >
-                            <HelpItem>
-                                <IconContainer>
-                                    <Icon icon="manual" />
-                                </IconContainer>
-                                <div>
-                                    <ItemCTA>View Docs</ItemCTA>
-                                    <ItemDescription>
-                                        Learn how to deploy, use, &amp;
-                                        contribute to Lightdash
-                                    </ItemDescription>
-                                </div>
-                            </HelpItem>
-                        </LinkWrapper>
-                        <LinkWrapper
-                            role="button"
+                            icon={
+                                <LargeMenuItemIconWrapper>
+                                    <Icon
+                                        icon="manual"
+                                        color={Colors.WHITE}
+                                        size={20}
+                                    />
+                                </LargeMenuItemIconWrapper>
+                            }
+                            text={
+                                <>
+                                    <LargeMenuItemText>
+                                        View Docs
+                                    </LargeMenuItemText>
+                                    <LargeMenuItemSubText>
+                                        Learn how to deploy, use, contribute to
+                                        Lightdash.
+                                    </LargeMenuItemSubText>
+                                </>
+                            }
+                        />
+
+                        <LargeMenuItem
                             href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
                             target="_blank"
-                            rel="noreferrer"
-                        >
-                            <HelpItem>
-                                <IconContainer>
-                                    <Icon icon="people" />
-                                </IconContainer>
+                            icon={
+                                <LargeMenuItemIconWrapper>
+                                    <Icon
+                                        icon="people"
+                                        color={Colors.WHITE}
+                                        size={20}
+                                    />
+                                </LargeMenuItemIconWrapper>
+                            }
+                            text={
+                                <>
+                                    <LargeMenuItemText>
+                                        Join Slack community
+                                    </LargeMenuItemText>
+                                    <LargeMenuItemSubText>
+                                        Get advice share best practices with
+                                        other users.
+                                    </LargeMenuItemSubText>
+                                </>
+                            }
+                        />
 
-                                <div>
-                                    <ItemCTA>Join Slack community</ItemCTA>
-                                    <ItemDescription>
-                                        Get advice &amp; share best practices
-                                        with other users.
-                                    </ItemDescription>
-                                </div>
-                            </HelpItem>
-                        </LinkWrapper>
-                        <LinkWrapper
-                            role="button"
+                        <LargeMenuItem
                             href="https://github.com/lightdash/lightdash/issues/new/choose"
                             target="_blank"
-                            rel="noreferrer"
-                        >
-                            <HelpItem>
-                                <IconContainer>
-                                    <Icon icon="issue" />
-                                </IconContainer>
-
-                                <div>
-                                    <ItemCTA>Feedback on Lightdash</ItemCTA>
-                                    <ItemDescription>
+                            icon={
+                                <LargeMenuItemIconWrapper>
+                                    <Icon
+                                        icon="issue"
+                                        color={Colors.WHITE}
+                                        size={20}
+                                    />
+                                </LargeMenuItemIconWrapper>
+                            }
+                            text={
+                                <>
+                                    <LargeMenuItemText>
+                                        Feedback on Lightdash
+                                    </LargeMenuItemText>
+                                    <LargeMenuItemSubText>
                                         Submit a feature request or bug report
                                         to improve Lightdash.
-                                    </ItemDescription>
-                                </div>
-                            </HelpItem>
-                        </LinkWrapper>
-                    </MenuWrapper>
+                                    </LargeMenuItemSubText>
+                                </>
+                            }
+                        />
+                    </Menu>
                 }
                 position={Position.BOTTOM_LEFT}
             >
