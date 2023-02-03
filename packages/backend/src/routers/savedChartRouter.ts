@@ -134,7 +134,7 @@ savedChartRouter.post(
 );
 
 savedChartRouter.get(
-    '/schedulers',
+    '/:savedQueryUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -153,7 +153,7 @@ savedChartRouter.get(
 );
 
 savedChartRouter.post(
-    '/schedulers',
+    '/:savedQueryUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {

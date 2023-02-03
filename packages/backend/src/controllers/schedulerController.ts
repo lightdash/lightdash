@@ -36,9 +36,9 @@ export class SchedulerController extends Controller {
     async patch(
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
-        @Body() body: UpdateSchedulerAndTargetsWithoutId,
+        @Body() body: any, // TODO: It should be UpdateSchedulerAndTargetsWithoutId but tsoa returns an error
     ): Promise<ApiSchedulerAndTargetsResponse> {
-        this.setStatus(201);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await schedulerService.updateScheduler(
@@ -65,7 +65,7 @@ export class SchedulerController extends Controller {
         status: 'ok';
         results: undefined;
     }> {
-        this.setStatus(201);
+        this.setStatus(200);
         await schedulerService.deleteScheduler(req.user!, schedulerUuid);
         return {
             status: 'ok',

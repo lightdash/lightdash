@@ -49,7 +49,7 @@ export class SchedulerModel {
             createdAt: scheduler.created_at,
             updatedAt: scheduler.updated_at,
             schedulerUuid: scheduler.scheduler_uuid,
-            channels: scheduler.channels,
+            channel: scheduler.channel,
         };
     }
 
@@ -114,8 +114,8 @@ export class SchedulerModel {
 
     async createScheduler(
         newScheduler: CreateSchedulerAndTargets,
-    ): Promise<string> {
-        return this.database.transaction(async (trx) => {
+    ): Promise<SchedulerAndTargets> {
+        const schedulerUuid = await this.database.transaction(async (trx) => {
             const [scheduler] = await trx(SchedulerTableName)
                 .insert({
                     name: newScheduler.name,
@@ -129,7 +129,7 @@ export class SchedulerModel {
             const targetPromises = newScheduler.targets.map(async (target) =>
                 trx(SchedulerSlackTargetTableName).insert({
                     scheduler_uuid: scheduler.scheduler_uuid,
-                    channels: target.channels,
+                    channel: target.channel,
                     updated_at: new Date(),
                 }),
             );
@@ -137,6 +137,7 @@ export class SchedulerModel {
             await Promise.all(targetPromises);
             return scheduler.scheduler_uuid;
         });
+        return this.getSchedulerAndTargets(schedulerUuid);
     }
 
     async updateScheduler(
@@ -171,7 +172,7 @@ export class SchedulerModel {
                 if (isUpdateSchedulerSlackTarget(target)) {
                     await trx(SchedulerSlackTargetTableName)
                         .update({
-                            channels: target.channels,
+                            channel: target.channel,
                             updated_at: new Date(),
                         })
                         .where(
@@ -182,7 +183,7 @@ export class SchedulerModel {
                 } else {
                     await trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
-                        channels: target.channels,
+                        channel: target.channel,
                         updated_at: new Date(),
                     });
                 }
