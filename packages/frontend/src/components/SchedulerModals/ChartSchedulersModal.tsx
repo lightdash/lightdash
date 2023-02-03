@@ -136,7 +136,7 @@ const CreateStateContent: FC<{
     const handleSubmit = (data: CreateSchedulerAndTargetsWithoutIds) => {
         mutation.mutate({
             ...data,
-            cron: '0 0 0 * * *',
+            cron: '0 0 * * *',
         });
     };
     return (
@@ -188,7 +188,7 @@ const UpdateStateContent: FC<{
     const handleSubmit = (data: UpdateSchedulerAndTargetsWithoutId) => {
         mutation.mutate({
             ...data,
-            cron: '0 0 0 * * *',
+            cron: '0 * * * *',
         });
     };
     if (scheduler.isLoading || scheduler.error) {

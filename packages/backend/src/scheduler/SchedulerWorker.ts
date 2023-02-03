@@ -56,7 +56,7 @@ export class SchedulerWorker {
             pollInterval: 1000,
             parsedCronItems: parseCronItems([
                 {
-                    task: 'generateDailyJobs',
+                    task: 'newGenerateDailyJobs',
                     pattern: '0 0 * * *',
                     options: {
                         backfillPeriod: 12 * 3600 * 1000 /* 12 hours in ms */,
@@ -68,23 +68,34 @@ export class SchedulerWorker {
             // new CronItem(), ['0 0 * * * generateDailyJobs ?fill=12h&max=1', '* * * * * periodicSlackMessage '])
             // you can set the taskList or taskDirectory but not both
             taskList: {
-                generateDailyJobs: async (
-                    payload: unknown,
+                newGenerateDailyJobs: async (
+                    payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(`generateDailyJobs`, payload);
-
+                    Logger.info(
+                        `Processing new job generateDailyJobs`,
+                        payload,
+                    );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
                     schedulers.map(async (scheduler) => {
                         const dates = getDailyDatesFromCron(scheduler.cron);
                         dates.map(async (date) => {
-                            await runner.addJob(scheduler.name, scheduler, {
-                                runAt: date,
-                            });
+                            Logger.info(
+                                `creating new job ${scheduler.name} at ${date}`,
+                            );
+                            // TODo add another jobs per target
+                            await runner.addJob(
+                                'sendSlackNotification',
+                                scheduler,
+                                {
+                                    runAt: date,
+                                },
+                            );
                         });
                     });
                 },
+
                 periodicSlackMessage: async (
                     // TODO remove after testing
                     payload: unknown,

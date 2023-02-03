@@ -59,7 +59,7 @@ export class SlackClient {
         organizationUuid: string;
         text: string;
         channel: string;
-        blocks: Block[];
+        blocks?: Block[];
     }): Promise<void> {
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');

@@ -11,7 +11,7 @@ const apiUrl = '/api/v1';
 
 const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     name: 'test',
-    cron: '0 0 0 * * *',
+    cron: '0 0 * * *',
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
 };
 
@@ -19,7 +19,7 @@ const getUpdateSchedulerBody = (
     schedulerSlackTargetUuid: string,
 ): UpdateSchedulerAndTargetsWithoutId => ({
     name: 'test2',
-    cron: '1 0 0 * * *',
+    cron: '1 0 * * *',
     targets: [{ schedulerSlackTargetUuid, channel: 'C1' }, { channel: 'C3' }],
 });
 
@@ -81,7 +81,7 @@ describe('Lightdash pinning endpoints', () => {
                     }).then((updateResponse) => {
                         expect(updateResponse.body.results.name).to.eq('test2');
                         expect(updateResponse.body.results.cron).to.eq(
-                            '1 0 0 * * *',
+                            '1 0 * * *',
                         );
                         expect(
                             updateResponse.body.results.targets,
@@ -158,7 +158,7 @@ describe('Lightdash pinning endpoints', () => {
                     }).then((updateResponse) => {
                         expect(updateResponse.body.results.name).to.eq('test2');
                         expect(updateResponse.body.results.cron).to.eq(
-                            '1 0 0 * * *',
+                            '1 0 * * *',
                         );
                         expect(
                             updateResponse.body.results.targets,
