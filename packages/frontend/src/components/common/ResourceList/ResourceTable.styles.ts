@@ -58,7 +58,7 @@ export const ThInteractiveWrapper = styled.div<ThInteractiveWrapperProps>`
 
 export const StyledTd = styled.td`
     vertical-align: middle !important;
-    padding: 12px ${paddingX}px !important;
+    padding: 15px ${paddingX}px !important;
 `;
 
 interface SpacerProps {
@@ -77,12 +77,13 @@ export const Spacer = styled.div<SpacerProps>`
 export const ResourceNameBox = styled.div`
     display: flex;
     flex-direction: column;
+    gap: 4px;
 `;
 
 export const ResourceName = styled.div`
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    color: ${Colors.DARK_GRAY4};
+    color: ${Colors.DARK_GRAY1};
 `;
 
 export const ResourceMetadata = styled.div`
