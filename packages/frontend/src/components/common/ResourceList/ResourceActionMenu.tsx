@@ -1,5 +1,6 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useApp } from '../../../providers/AppProvider';
@@ -77,7 +78,12 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             });
                         }}
                     />
-                    <Can I="manage" a="SavedChart">
+                    <Can
+                        I="manage"
+                        this={subject('SavedChart', {
+                            spaceUuid: item.data?.spaceUuid,
+                        })}
+                    >
                         <MenuItem2
                             role="menuitem"
                             icon="pin"
