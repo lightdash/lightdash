@@ -1,4 +1,4 @@
-import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
+import { Button, Card, InputGroup, Intent, Tab, Tabs } from '@blueprintjs/core';
 import { CreatePersonalAccessToken, formatTimestamp } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -117,27 +117,77 @@ const CreateTokenPanel: FC<{
                             Your token has been generated.
                         </InvitedCallout>
                     )}
-                    <InputGroup
-                        id="invite-link-input"
-                        className="cohere-block"
-                        type="text"
-                        readOnly
-                        value={data.token}
-                        rightElement={
-                            <CopyToClipboard
-                                text={data.token}
-                                options={{ message: 'Copied' }}
-                                onCopy={() =>
-                                    showToastSuccess({
-                                        title: 'Token copied',
-                                    })
+
+                    <ShareLinkCallout intent="primary" icon={null}>
+                        <Tabs
+                            animate={true}
+                            id="CLI"
+                            key="vertical"
+                            renderActiveTabPanelOnly={true}
+                            vertical={false}
+                        >
+                            <Tab
+                                id="rx"
+                                title="Europe Users"
+                                panel={
+                                    <InputGroup
+                                        id="invite-link-input"
+                                        className="cohere-block"
+                                        type="text"
+                                        readOnly
+                                        value={`lightdash login https://eu1.lightdash.cloud --token ${data.token}`}
+                                        rightElement={
+                                            <CopyToClipboard
+                                                text={`lightdash login https://eu1.lightdash.cloud --token ${data.token}`}
+                                                options={{ message: 'Copied' }}
+                                                onCopy={() =>
+                                                    showToastSuccess({
+                                                        title: 'Token copied',
+                                                    })
+                                                }
+                                            >
+                                                <Button
+                                                    minimal
+                                                    icon="clipboard"
+                                                />
+                                            </CopyToClipboard>
+                                        }
+                                    />
                                 }
-                            >
-                                <Button minimal icon="clipboard" />
-                            </CopyToClipboard>
-                        }
-                    />
-                    <ShareLinkCallout intent="primary">
+                            />
+                            <Tab
+                                id="ng"
+                                title="United State Users"
+                                panel={
+                                    <InputGroup
+                                        id="invite-link-input"
+                                        className="cohere-block"
+                                        type="text"
+                                        readOnly
+                                        value={`lightdash login https://app.lightdash.cloud --token ${data.token}`}
+                                        rightElement={
+                                            <CopyToClipboard
+                                                text={`lightdash login https://app.lightdash.cloud --token ${data.token}`}
+                                                options={{ message: 'Copied' }}
+                                                onCopy={() =>
+                                                    showToastSuccess({
+                                                        title: 'Token copied',
+                                                    })
+                                                }
+                                            >
+                                                <Button
+                                                    minimal
+                                                    icon="clipboard"
+                                                />
+                                            </CopyToClipboard>
+                                        }
+                                    />
+                                }
+                            />
+                        </Tabs>
+                    </ShareLinkCallout>
+
+                    <ShareLinkCallout intent="warning">
                         {expireDate &&
                             `This token will expire on
                         ${formatTimestamp(expireDate)} `}
