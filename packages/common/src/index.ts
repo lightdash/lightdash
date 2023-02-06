@@ -46,6 +46,7 @@ import {
     DashboardScheduler,
     SchedulerAndTargets,
 } from './types/scheduler';
+import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -86,6 +87,7 @@ export * from './types/savedCharts';
 export * from './types/scheduler';
 export * from './types/search';
 export * from './types/share';
+export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
 export * from './types/table';
@@ -484,6 +486,7 @@ type ApiResults =
     | ShareUrl
     | SlackSettings
     | UserActivity
+    | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[];
 
