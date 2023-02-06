@@ -70,6 +70,7 @@ export const buildQuery = ({
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
+    const startOfWeek = warehouseClient.getStartOfWeek();
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
 
     const dimensionSelects = dimensions.map((field) => {
@@ -191,6 +192,7 @@ export const buildQuery = ({
             fieldQuoteChar,
             stringQuoteChar,
             escapeStringQuoteChar,
+            startOfWeek,
         );
     };
 
@@ -238,6 +240,7 @@ export const buildQuery = ({
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeStringQuoteChar,
+                startOfWeek,
             );
         },
     );

@@ -297,6 +297,7 @@ export class ExploreCompiler {
                     this.warehouseClient.getFieldQuoteChar(),
                     this.warehouseClient.getStringQuoteChar(),
                     this.warehouseClient.getEscapeStringQuoteChar(),
+                    this.warehouseClient.getStartOfWeek(),
                 );
             });
             renderedSql = `CASE WHEN (${conditions.join(

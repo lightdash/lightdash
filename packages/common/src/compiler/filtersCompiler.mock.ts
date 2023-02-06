@@ -1,4 +1,5 @@
 import { FilterOperator, UnitOfTime } from '../types/filter';
+import { WeekDay } from '../utils/timeFrames';
 
 export const DimensionSqlMock = 'customers.created';
 export const NumberDimensionMock = 'customers.age';
@@ -89,6 +90,42 @@ export const ExpectedInTheNextCompleteFilterSQL: Record<UnitOfTime, string> = {
     [UnitOfTime.months]: `((customers.created) >= ('2020-05-01 00:00:00') AND (customers.created) < ('2020-06-01 00:00:00'))`,
     [UnitOfTime.quarters]: `((customers.created) >= ('2020-07-01 00:00:00') AND (customers.created) < ('2020-10-01 00:00:00'))`,
     [UnitOfTime.years]: `((customers.created) >= ('2021-01-01 00:00:00') AND (customers.created) < ('2022-01-01 00:00:00'))`,
+};
+
+export const InThePastFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_THE_PAST,
+    values: [1],
+    settings: {
+        unitOfTime: UnitOfTime.days,
+        completed: false,
+    },
+};
+
+export const ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek: Record<
+    WeekDay.MONDAY | WeekDay.SUNDAY,
+    string
+> = {
+    [WeekDay.MONDAY]: `((customers.created) >= ('2020-03-23 00:00:00') AND (customers.created) < ('2020-03-30 00:00:00'))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-03-22 00:00:00') AND (customers.created) < ('2020-03-29 00:00:00'))`,
+};
+
+export const ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek: Record<
+    WeekDay.MONDAY | WeekDay.SUNDAY,
+    string
+> = {
+    [WeekDay.MONDAY]: `((customers.created) >= ('2020-03-30 00:00:00') AND (customers.created) <= ('2020-04-05 23:59:59'))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-03-29 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
+};
+export const ExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek: Record<
+    WeekDay.MONDAY | WeekDay.SUNDAY,
+    string
+> = {
+    [WeekDay.MONDAY]: `((customers.created) >= ('2020-04-06 00:00:00') AND (customers.created) < ('2020-04-13 00:00:00'))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-12 00:00:00'))`,
 };
 
 export const InTheLast1DayFilter = {

@@ -14,6 +14,8 @@ import {
 } from '../types/filter';
 import assertUnreachable from '../utils/assertUnreachable';
 import { formatDate } from '../utils/formatting';
+import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
+import { WeekDay } from '../utils/timeFrames';
 
 const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ss');
@@ -111,6 +113,7 @@ export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
     dateFormatter: (date: Date) => string = formatDate,
+    startOfWeek: WeekDay | null | undefined = undefined,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {
@@ -149,22 +152,31 @@ export const renderDateFilterSql = (
 
             if (completed) {
                 const completedDate = moment(
-                    moment()
+                    getMomentDateWithCustomStartOfWeek(startOfWeek)
                         .startOf(unitOfTime)
                         .format(unitOfTimeFormat[unitOfTime]),
                 ).toDate();
                 const untilDate = dateFormatter(
-                    moment().startOf(unitOfTime).toDate(),
+                    getMomentDateWithCustomStartOfWeek(startOfWeek)
+                        .startOf(unitOfTime)
+                        .toDate(),
                 );
                 return `((${dimensionSql}) >= ('${dateFormatter(
-                    moment(completedDate)
+                    getMomentDateWithCustomStartOfWeek(
+                        startOfWeek,
+                        completedDate,
+                    )
                         .subtract(filter.values?.[0], unitOfTime)
                         .toDate(),
                 )}') AND (${dimensionSql}) < ('${untilDate}'))`;
             }
-            const untilDate = dateFormatter(moment().toDate());
+            const untilDate = dateFormatter(
+                getMomentDateWithCustomStartOfWeek(startOfWeek).toDate(),
+            );
             return `((${dimensionSql}) >= ('${dateFormatter(
-                moment().subtract(filter.values?.[0], unitOfTime).toDate(),
+                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .subtract(filter.values?.[0], unitOfTime)
+                    .toDate(),
             )}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         }
         case FilterOperator.IN_THE_NEXT: {
@@ -174,10 +186,12 @@ export const renderDateFilterSql = (
 
             if (completed) {
                 const fromDate = moment(
-                    moment().add(1, unitOfTime).startOf(unitOfTime),
+                    getMomentDateWithCustomStartOfWeek(startOfWeek)
+                        .add(1, unitOfTime)
+                        .startOf(unitOfTime),
                 ).toDate();
                 const toDate = dateFormatter(
-                    moment(fromDate)
+                    getMomentDateWithCustomStartOfWeek(startOfWeek, fromDate)
                         .add(filter.values?.[0], unitOfTime)
                         .toDate(),
                 );
@@ -185,9 +199,13 @@ export const renderDateFilterSql = (
                     fromDate,
                 )}') AND (${dimensionSql}) < ('${toDate}'))`;
             }
-            const fromDate = dateFormatter(moment().toDate());
+            const fromDate = dateFormatter(
+                getMomentDateWithCustomStartOfWeek(startOfWeek).toDate(),
+            );
             const toDate = dateFormatter(
-                moment().add(filter.values?.[0], unitOfTime).toDate(),
+                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .add(filter.values?.[0], unitOfTime)
+                    .toDate(),
             );
             return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${toDate}'))`;
         }
@@ -195,10 +213,14 @@ export const renderDateFilterSql = (
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const fromDate = dateFormatter(
-                moment().startOf(unitOfTime).toDate(),
+                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .startOf(unitOfTime)
+                    .toDate(),
             );
             const untilDate = dateFormatter(
-                moment().endOf(unitOfTime).toDate(),
+                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .endOf(unitOfTime)
+                    .toDate(),
             );
             return `((${dimensionSql}) >= ('${fromDate}') AND (${dimensionSql}) <= ('${untilDate}'))`;
         }
@@ -240,6 +262,7 @@ export const renderFilterRuleSql = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    startOfWeek: WeekDay | null | undefined,
 ): string => {
     const fieldType = field.type;
     const fieldSql = isMetric(field)
@@ -270,10 +293,20 @@ export const renderFilterRuleSql = (
         }
         case DimensionType.DATE:
         case MetricType.DATE: {
-            return renderDateFilterSql(fieldSql, filterRule);
+            return renderDateFilterSql(
+                fieldSql,
+                filterRule,
+                undefined,
+                startOfWeek,
+            );
         }
         case DimensionType.TIMESTAMP: {
-            return renderDateFilterSql(fieldSql, filterRule, formatTimestamp);
+            return renderDateFilterSql(
+                fieldSql,
+                filterRule,
+                formatTimestamp,
+                startOfWeek,
+            );
         }
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN: {
