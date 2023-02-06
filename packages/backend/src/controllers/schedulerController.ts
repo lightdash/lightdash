@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -18,6 +19,7 @@ import {
     Route,
     SuccessResponse,
 } from 'tsoa';
+import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
@@ -94,6 +96,29 @@ export class SchedulerController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Get scheduled jobs
+     * @param schedulerUuid The uuid of the scheduler to update
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{schedulerUuid}/jobs')
+    @OperationId('getScheduledJobs')
+    async getJobs(
+        @Path() schedulerUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiScheduledJobsResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await SchedulerService.getScheduledJobs(
+                req.user!,
+                schedulerUuid,
+            ),
         };
     }
 }

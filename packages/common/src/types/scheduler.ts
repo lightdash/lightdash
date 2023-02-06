@@ -74,3 +74,13 @@ export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
 };
+
+export type ScheduledJobs = {
+    date: Date;
+    id: string;
+    channel?: string;
+};
+export type ApiScheduledJobsResponse = {
+    status: 'ok';
+    results: ScheduledJobs[];
+};

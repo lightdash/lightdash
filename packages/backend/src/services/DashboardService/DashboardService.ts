@@ -22,6 +22,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { generateDailyJobsForScheduler } from '../../scheduler/SchedulerClient';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -468,11 +469,15 @@ export class DashboardService {
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
         await this.checkUpdateAccess(user, dashboardUuid);
-        return this.schedulerModel.createScheduler({
+        const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
             dashboardUuid,
             savedChartUuid: null,
         });
+
+        await generateDailyJobsForScheduler(scheduler);
+
+        return scheduler;
     }
 }

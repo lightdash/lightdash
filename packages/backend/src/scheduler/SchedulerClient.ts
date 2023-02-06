@@ -1,4 +1,8 @@
-import { Scheduler, SchedulerAndTargets } from '@lightdash/common';
+import {
+    ScheduledJobs,
+    Scheduler,
+    SchedulerAndTargets,
+} from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils } from 'graphile-worker';
 import moment from 'moment';
@@ -19,6 +23,25 @@ const getDailyDatesFromCron = (cron: string, when = new Date()): Date[] => {
         dailyDates.push(schedule.date.toJSDate());
     }
     return dailyDates;
+};
+
+export const getScheduledJobs = async (
+    schedulerUuid: string,
+): Promise<ScheduledJobs[]> => {
+    const graphileClient = await graphileUtils;
+
+    const scheduledJobs = await graphileClient.withPgClient((pgClient) =>
+        pgClient.query(
+            "select id, run_at , payload->>'channel' as channel from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+            [`${schedulerUuid}%`],
+        ),
+    );
+
+    return scheduledJobs.rows.map((r) => ({
+        id: r.id,
+        channel: r.channel,
+        date: r.run_at,
+    }));
 };
 
 export const deleteScheduledJobs = async (

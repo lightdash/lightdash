@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     isChartScheduler,
+    ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
     SessionUser,
@@ -14,6 +15,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import {
     deleteScheduledJobs,
     generateDailyJobsForScheduler,
+    getScheduledJobs,
 } from '../../scheduler/SchedulerClient';
 
 type ServiceDependencies = {
@@ -115,5 +117,12 @@ export class SchedulerService {
         await deleteScheduledJobs(schedulerUuid);
 
         return this.schedulerModel.deleteScheduler(schedulerUuid);
+    }
+
+    static async getScheduledJobs(
+        user: SessionUser,
+        schedulerUuid: string,
+    ): Promise<ScheduledJobs[]> {
+        return getScheduledJobs(schedulerUuid);
     }
 }

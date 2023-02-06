@@ -2,6 +2,7 @@ import {
     ChartScheduler,
     CreateSchedulerAndTargetsWithoutIds,
     DashboardScheduler,
+    ScheduledJobs,
     SchedulerAndTargets,
     SEED_PROJECT,
     UpdateSchedulerAndTargetsWithoutId,
@@ -9,9 +10,10 @@ import {
 
 const apiUrl = '/api/v1';
 
+const cron = '59 22 * * *';
 const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     name: 'test',
-    cron: '0 0 * * *',
+    cron,
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
 };
 
@@ -19,11 +21,11 @@ const getUpdateSchedulerBody = (
     schedulerSlackTargetUuid: string,
 ): UpdateSchedulerAndTargetsWithoutId => ({
     name: 'test2',
-    cron: '1 0 * * *',
+    cron,
     targets: [{ schedulerSlackTargetUuid, channel: 'C1' }, { channel: 'C3' }],
 });
 
-describe('Lightdash pinning endpoints', () => {
+describe('Lightdash scheduler endpoints', () => {
     before(() => {
         cy.login();
     });
@@ -69,6 +71,25 @@ describe('Lightdash pinning endpoints', () => {
                         expect(schedulerIds).to.include(schedulerUuid);
                     });
 
+                    // Get created jobs
+                    cy.request<{ results: ScheduledJobs[] }>({
+                        url: `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
+                        method: 'GET',
+                        failOnStatusCode: false,
+                    }).then((response) => {
+                        expect(response.body.results).to.be.length(2); // 1 per channel
+                        const channels = response.body.results.map(
+                            (r) => r.channel,
+                        );
+                        expect(channels).to.have.deep.members(['C1', 'C2']);
+                        expect(response.body.results[0].date).to.be.eq(
+                            response.body.results[1].date,
+                        );
+                        expect(
+                            `${response.body.results[0].date}`.split('T')[1],
+                        ).to.be.eq('22:59:00.000Z');
+                    });
+
                     // Update
                     cy.request<{ results: SchedulerAndTargets }>({
                         url: `${apiUrl}/schedulers/${schedulerUuid}`,
@@ -80,9 +101,7 @@ describe('Lightdash pinning endpoints', () => {
                         failOnStatusCode: false,
                     }).then((updateResponse) => {
                         expect(updateResponse.body.results.name).to.eq('test2');
-                        expect(updateResponse.body.results.cron).to.eq(
-                            '1 0 * * *',
-                        );
+                        expect(updateResponse.body.results.cron).to.eq(cron);
                         expect(
                             updateResponse.body.results.targets,
                         ).to.have.length(2);
@@ -101,6 +120,15 @@ describe('Lightdash pinning endpoints', () => {
                         failOnStatusCode: false,
                     }).then((deleteResponse) => {
                         expect(deleteResponse.status).to.eq(200);
+                    });
+
+                    // Jobs are deleted
+                    cy.request<{ results: ScheduledJobs[] }>({
+                        url: `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
+                        method: 'GET',
+                        failOnStatusCode: false,
+                    }).then((response) => {
+                        expect(response.body.results).to.be.length(0);
                     });
                 });
             },
@@ -132,6 +160,25 @@ describe('Lightdash pinning endpoints', () => {
                     const { schedulerUuid, targets } =
                         createResponse.body.results;
 
+                    // Get created jobs
+                    cy.request<{ results: ScheduledJobs[] }>({
+                        url: `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
+                        method: 'GET',
+                        failOnStatusCode: false,
+                    }).then((response) => {
+                        expect(response.body.results).to.be.length(2); // 1 per channel
+                        const channels = response.body.results.map(
+                            (r) => r.channel,
+                        );
+                        expect(channels).to.have.deep.members(['C1', 'C2']);
+                        expect(response.body.results[0].date).to.be.eq(
+                            response.body.results[1].date,
+                        );
+                        expect(
+                            `${response.body.results[0].date}`.split('T')[1],
+                        ).to.be.eq('22:59:00.000Z');
+                    });
+
                     // Get all dashboard schedulers
                     cy.request<{ results: DashboardScheduler[] }>({
                         url: `${apiUrl}/dashboards/${dashboard.uuid}/schedulers`,
@@ -157,9 +204,7 @@ describe('Lightdash pinning endpoints', () => {
                         failOnStatusCode: false,
                     }).then((updateResponse) => {
                         expect(updateResponse.body.results.name).to.eq('test2');
-                        expect(updateResponse.body.results.cron).to.eq(
-                            '1 0 * * *',
-                        );
+                        expect(updateResponse.body.results.cron).to.eq(cron);
                         expect(
                             updateResponse.body.results.targets,
                         ).to.have.length(2);
@@ -178,6 +223,15 @@ describe('Lightdash pinning endpoints', () => {
                         failOnStatusCode: false,
                     }).then((deleteResponse) => {
                         expect(deleteResponse.status).to.eq(200);
+                    });
+
+                    // Jobs are deleted
+                    cy.request<{ results: ScheduledJobs[] }>({
+                        url: `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
+                        method: 'GET',
+                        failOnStatusCode: false,
+                    }).then((response) => {
+                        expect(response.body.results).to.be.length(0);
                     });
                 });
             },
