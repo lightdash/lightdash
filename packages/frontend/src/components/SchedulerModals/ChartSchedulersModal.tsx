@@ -83,7 +83,7 @@ const SchedulerForm: FC<
             <Input
                 label="Cron expression"
                 name="cron"
-                placeholder="0 0 0 * * *"
+                placeholder="0 0 * * *"
                 disabled={disabled}
                 rules={{
                     required: 'Required field',
