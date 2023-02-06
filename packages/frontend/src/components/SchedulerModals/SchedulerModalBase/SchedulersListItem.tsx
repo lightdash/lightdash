@@ -14,12 +14,12 @@ import {
     PageDetailsContainer,
     SeparatorDot,
     UpdatedInfoLabel,
-} from '../common/PageHeader';
+} from '../../common/PageHeader';
 import {
     SchedulerContainer,
     SchedulerDetailsContainer,
     SchedulerName,
-} from './SchedulerModals.styles';
+} from './SchedulerModalBase.styles';
 
 type SchedulersListItemProps = {
     scheduler: SchedulerAndTargets;

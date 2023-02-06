@@ -2,7 +2,7 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { ApiError, SchedulerAndTargets } from '@lightdash/common';
 import React, { FC, useState } from 'react';
 import { UseQueryResult } from 'react-query/types/react/types';
-import ErrorState from '../common/ErrorState';
+import ErrorState from '../../common/ErrorState';
 import SchedulerDeleteModal from './SchedulerDeleteModal';
 import SchedulersListItem from './SchedulersListItem';
 

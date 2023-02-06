@@ -4,7 +4,7 @@ import {
     useDashboardSchedulerCreateMutation,
     useDashboardSchedulers,
 } from '../../hooks/scheduler/useDashboardSchedulers';
-import SchedulersModalBase from './SchedulersModalBase';
+import SchedulersModalBase from './SchedulerModalBase';
 
 interface Props extends DialogProps {
     dashboardUuid: string;

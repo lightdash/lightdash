@@ -1,6 +1,6 @@
 import { Card, H5 } from '@blueprintjs/core';
 import styled from 'styled-components';
-import { ReactComponent as SlackSvg } from '../../svgs/slack.svg';
+import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 
 export const SlackIcon = styled(SlackSvg)`
     width: 20px;

@@ -1,13 +1,13 @@
 import { Button } from '@blueprintjs/core';
 import cronstrue from 'cronstrue';
 import React, { FC, useMemo } from 'react';
-import { useSlackChannels } from '../../hooks/slack/useSlackChannels';
-import { isInvalidCronExpression } from '../../utils/fieldValidators';
-import { ArrayInput } from '../ReactHookForm/ArrayInput';
-import AutoComplete from '../ReactHookForm/AutoComplete';
-import Form from '../ReactHookForm/Form';
-import Input from '../ReactHookForm/Input';
-import { SlackIcon, TargetRow } from './SchedulerModals.styles';
+import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
+import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import { ArrayInput } from '../../ReactHookForm/ArrayInput';
+import AutoComplete from '../../ReactHookForm/AutoComplete';
+import Form from '../../ReactHookForm/Form';
+import Input from '../../ReactHookForm/Input';
+import { SlackIcon, TargetRow } from './SchedulerModalBase.styles';
 
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
