@@ -1,59 +1,41 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { Space } from '@lightdash/common';
-import { FC, useEffect, useState } from 'react';
-import { AcceptedResourceTypes } from '.';
-import { useDuplicateDashboardMutation } from '../../../hooks/dashboard/useDashboard';
-import { useDuplicateMutation } from '../../../hooks/useSavedQuery';
+import { assertUnreachable, Space } from '@lightdash/common';
+import { FC, useState } from 'react';
 import { useApp } from '../../../providers/AppProvider';
-
-export enum ResourceAction {
-    CLOSE,
-    UPDATE,
-    ADD_TO_DASHBOARD,
-    DELETE,
-    MOVE_TO_SPACE,
-    CREATE_SPACE,
-}
+import {
+    ResourceListAction,
+    ResourceListActionState,
+} from './ResourceActionHandlers';
+import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
 type Props = {
-    data: any;
+    item: ResourceListItem;
     spaces: Space[];
     url: string;
-    onAction: (
-        action: ResourceAction,
-        resource: AcceptedResourceTypes,
-        data?: any,
-    ) => void;
-    isChart?: boolean;
+    onAction: (newAction: ResourceListActionState) => void;
 };
 
-const ResourceActionMenu: FC<Props> = ({
-    data,
-    spaces,
-    url,
-    onAction,
-    isChart = false,
-}) => {
+const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [itemId, setItemId] = useState<string>('');
 
     const { user } = useApp();
-    const { mutate: duplicateChart } = useDuplicateMutation(itemId, true);
-    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
-        itemId,
-        true,
-    );
-    const isDashboardPage = url.includes('/dashboards') || !isChart;
+    const isDashboardPage =
+        url.includes('/dashboards') || item.type === ResourceListType.DASHBOARD;
 
-    useEffect(() => {
-        setItemId(data.uuid);
-    }, [data.uuid]);
-
-    if (isChart) {
-        if (user.data?.ability?.cannot('manage', 'SavedChart')) return <></>;
-    } else {
-        if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    switch (item.type) {
+        case ResourceListType.CHART:
+            if (user.data?.ability?.cannot('manage', 'SavedChart')) {
+                return null;
+            }
+            break;
+        case ResourceListType.DASHBOARD:
+            if (user.data?.ability?.cannot('manage', 'Dashboard')) {
+                return null;
+            }
+            break;
+        default:
+            return assertUnreachable(item, 'Resource type not supported');
     }
 
     return (
@@ -73,12 +55,9 @@ const ResourceActionMenu: FC<Props> = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+
                             setIsOpen(false);
-                            onAction(
-                                ResourceAction.UPDATE,
-                                isChart ? 'chart' : 'dashboard',
-                                data,
-                            );
+                            onAction({ type: ResourceListAction.UPDATE, item });
                         }}
                     />
                     <MenuItem2
@@ -89,13 +68,11 @@ const ResourceActionMenu: FC<Props> = ({
                             e.preventDefault();
                             e.stopPropagation();
 
-                            if (isChart) {
-                                duplicateChart(itemId);
-                            } else {
-                                duplicateDashboard(itemId);
-                            }
-
                             setIsOpen(false);
+                            onAction({
+                                type: ResourceListAction.DUPLICATE,
+                                item,
+                            });
                         }}
                     />
                     {!isDashboardPage && (
@@ -106,12 +83,12 @@ const ResourceActionMenu: FC<Props> = ({
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+
                                 setIsOpen(false);
-                                onAction(
-                                    ResourceAction.ADD_TO_DASHBOARD,
-                                    isChart ? 'chart' : 'dashboard',
-                                    data,
-                                );
+                                onAction({
+                                    type: ResourceListAction.ADD_TO_DASHBOARD,
+                                    item,
+                                });
                             }}
                         />
                     )}
@@ -126,7 +103,8 @@ const ResourceActionMenu: FC<Props> = ({
                         }}
                     >
                         {spaces.map((space) => {
-                            const isSelected = data.spaceUuid === space.uuid;
+                            const isSelected =
+                                item.data.spaceUuid === space.uuid;
                             return (
                                 <MenuItem2
                                     key={space.uuid}
@@ -138,15 +116,16 @@ const ResourceActionMenu: FC<Props> = ({
                                         // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                         e.preventDefault();
                                         e.stopPropagation();
+
                                         if (!isSelected) {
-                                            onAction(
-                                                ResourceAction.MOVE_TO_SPACE,
-                                                isChart ? 'chart' : 'dashboard',
-                                                {
-                                                    ...data,
+                                            onAction({
+                                                type: ResourceListAction.MOVE_TO_SPACE,
+                                                item,
+                                                data: {
+                                                    ...item.data,
                                                     spaceUuid: space.uuid,
                                                 },
-                                            );
+                                            });
                                         }
                                     }}
                                 />
@@ -161,11 +140,11 @@ const ResourceActionMenu: FC<Props> = ({
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                onAction(
-                                    ResourceAction.CREATE_SPACE,
-                                    isChart ? 'chart' : 'dashboard',
-                                    data,
-                                );
+
+                                onAction({
+                                    type: ResourceListAction.CREATE_SPACE,
+                                    item,
+                                });
                             }}
                         />
                     </MenuItem2>
@@ -180,12 +159,9 @@ const ResourceActionMenu: FC<Props> = ({
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+
                             setIsOpen(false);
-                            onAction(
-                                ResourceAction.DELETE,
-                                isChart ? 'chart' : 'dashboard',
-                                data,
-                            );
+                            onAction({ type: ResourceListAction.DELETE, item });
                         }}
                     />
                 </Menu>
@@ -197,6 +173,7 @@ const ResourceActionMenu: FC<Props> = ({
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+
                     setIsOpen(true);
                 }}
             />
@@ -204,4 +181,4 @@ const ResourceActionMenu: FC<Props> = ({
     );
 };
 
-export default ResourceActionMenu;
+export default ResourceListActionMenu;

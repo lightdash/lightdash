@@ -1,4 +1,3 @@
-import { AnchorButton } from '@blueprintjs/core';
 import {
     ChartType,
     CreateSavedChartVersion,
@@ -22,6 +21,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
 import ErrorState from '../common/ErrorState';
+import LinkButton from '../common/LinkButton';
 import { TableColumn } from '../common/Table/types';
 import DownloadCsvButton from '../DownloadCsvButton';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
@@ -311,14 +311,14 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     fileName={tableName}
                     rows={resultsData && getResultValues(resultsData.rows)}
                 />
-                <AnchorButton
+                <LinkButton
                     intent="primary"
                     href={exploreFromHereUrl}
                     icon="series-search"
-                    target="_blank"
+                    forceRefresh
                 >
                     Explore from here
-                </AnchorButton>
+                </LinkButton>
             </HeaderRightContent>
             <UnderlyingDataResultsTable
                 isLoading={isLoading}

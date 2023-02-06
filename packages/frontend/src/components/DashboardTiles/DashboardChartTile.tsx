@@ -40,6 +40,7 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
+import LinkMenuItem from '../common/LinkMenuItem';
 import { TableColumn } from '../common/Table/types';
 import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
@@ -359,12 +360,6 @@ const DashboardChartTile: FC<Props> = (props) => {
         }
     }, [savedQueryWithDashboardFilters]);
 
-    const handleExploreFromHereClick = useCallback(() => {
-        if (exploreFromHereUrl) {
-            history.push(exploreFromHereUrl);
-        }
-    }, [history, exploreFromHereUrl]);
-
     return (
         <>
             <GlobalTileStyles />
@@ -410,17 +405,21 @@ const DashboardChartTile: FC<Props> = (props) => {
                                 'manage',
                                 'SavedChart',
                             ) && (
-                                <MenuItem2
+                                <LinkMenuItem
                                     icon="document-open"
                                     text="Edit chart"
                                     href={`/projects/${projectUuid}/saved/${savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
                                 />
                             )}
-                            <MenuItem2
-                                icon="series-search"
-                                text="Explore from here"
-                                onClick={handleExploreFromHereClick}
-                            />
+
+                            {exploreFromHereUrl && (
+                                <LinkMenuItem
+                                    icon="series-search"
+                                    text="Explore from here"
+                                    href={exploreFromHereUrl}
+                                />
+                            )}
+
                             {savedQueryWithDashboardFilters &&
                                 savedQueryWithDashboardFilters.chartConfig
                                     .type === ChartType.TABLE && (

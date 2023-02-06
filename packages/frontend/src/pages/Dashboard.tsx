@@ -28,7 +28,7 @@ import {
     useDashboardQuery,
     useDeleteMutation,
     useDuplicateDashboardMutation,
-    useMoveDashboard,
+    useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
@@ -129,11 +129,10 @@ const Dashboard = () => {
         reset,
         isLoading: isSaving,
     } = useUpdateDashboard(dashboardUuid);
-    const { mutate: moveDashboardToSpace } = useMoveDashboard(dashboardUuid);
-    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation(
-        dashboardUuid,
-        true,
-    );
+    const { mutate: moveDashboardToSpace } = useMoveDashboardMutation();
+    const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
+        showRedirectButton: true,
+    });
     const { mutateAsync: deleteDashboard } = useDeleteMutation();
 
     const layouts = useMemo(
@@ -257,7 +256,12 @@ const Dashboard = () => {
 
     const handleMoveDashboardToSpace = (spaceUuid: string) => {
         if (!dashboard) return;
-        moveDashboardToSpace({ name: dashboard.name, spaceUuid });
+
+        moveDashboardToSpace({
+            uuid: dashboard.uuid,
+            name: dashboard.name,
+            spaceUuid,
+        });
     };
 
     const handleDuplicateDashboard = () => {

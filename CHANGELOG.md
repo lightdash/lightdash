@@ -1,3 +1,24 @@
+## [0.403.3](https://github.com/lightdash/lightdash/compare/0.403.2...0.403.3) (2023-02-06)
+
+
+### Bug Fixes
+
+* new menu redesign + open in new tab ([#4378](https://github.com/lightdash/lightdash/issues/4378)) ([9574b75](https://github.com/lightdash/lightdash/commit/9574b758238890f4b3a6454af164a8916e99e90c))
+
+## [0.403.2](https://github.com/lightdash/lightdash/compare/0.403.1...0.403.2) (2023-02-06)
+
+
+### Bug Fixes
+
+* complete week filters with custom start of week ([#4357](https://github.com/lightdash/lightdash/issues/4357)) ([bd346bd](https://github.com/lightdash/lightdash/commit/bd346bdef2817c9908a3bdbc6566afa492c9376b))
+
+## [0.403.1](https://github.com/lightdash/lightdash/compare/0.403.0...0.403.1) (2023-02-03)
+
+
+### Bug Fixes
+
+* explore from here open in a new tab ([#4372](https://github.com/lightdash/lightdash/issues/4372)) ([46f742d](https://github.com/lightdash/lightdash/commit/46f742db22fa26ecc26309767fa265fb7b11cec5))
+
 # [0.403.0](https://github.com/lightdash/lightdash/compare/0.402.3...0.403.0) (2023-02-02)
 
 

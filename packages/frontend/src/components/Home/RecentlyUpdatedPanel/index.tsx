@@ -14,6 +14,10 @@ import {
     ResourceEmptyStateText,
 } from '../../common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../../common/ResourceList/ResourceTable';
+import {
+    ResourceListType,
+    wrapResourceList,
+} from '../../common/ResourceList/ResourceTypeUtils';
 
 interface Props {
     projectUuid: string;
@@ -26,11 +30,14 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
     const recentItems = useMemo(() => {
-        return [...dashboards, ...savedCharts]
+        return [
+            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
+            ...wrapResourceList(savedCharts, ResourceListType.CHART),
+        ]
             .sort((a, b) => {
                 return (
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime()
+                    new Date(b.data.updatedAt).getTime() -
+                    new Date(a.data.updatedAt).getTime()
                 );
             })
             .slice(0, 10);
@@ -52,7 +59,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
 
     return (
         <ResourceList
-            data={recentItems}
+            items={recentItems}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false }}
