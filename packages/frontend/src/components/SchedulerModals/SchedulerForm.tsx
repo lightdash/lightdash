@@ -1,7 +1,9 @@
 import { Button } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import React, { FC, useMemo } from 'react';
+import { useSlackChannels } from '../../hooks/slack/useSlackChannels';
 import { isValidCronExpression } from '../../utils/fieldValidators';
 import { ArrayInput } from '../ReactHookForm/ArrayInput';
+import AutoComplete from '../ReactHookForm/AutoComplete';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import { SlackIcon, TargetRow } from './SchedulerModals.styles';
@@ -9,6 +11,15 @@ import { SlackIcon, TargetRow } from './SchedulerModals.styles';
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, ...rest }) => {
+    const slackChannelsQuery = useSlackChannels();
+    const slackChannels = useMemo(
+        () =>
+            (slackChannelsQuery.data || []).map((channel) => ({
+                value: channel.id,
+                label: channel.label,
+            })),
+        [slackChannelsQuery.data],
+    );
     return (
         <Form name="scheduler" {...rest}>
             <Input
@@ -40,12 +51,18 @@ const SchedulerForm: FC<
                 renderRow={(key, index, remove) => (
                     <TargetRow key={key}>
                         <SlackIcon />
-                        <Input
+                        <AutoComplete
                             name={`targets.${index}.channel`}
-                            placeholder="Slack channel"
+                            items={slackChannels}
                             disabled={disabled}
+                            isLoading={slackChannelsQuery.isLoading}
                             rules={{
                                 required: 'Required field',
+                            }}
+                            suggestProps={{
+                                inputProps: {
+                                    placeholder: 'Search slack channel...',
+                                },
                             }}
                         />
                         <Button
