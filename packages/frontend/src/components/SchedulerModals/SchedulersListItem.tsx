@@ -30,6 +30,7 @@ type SchedulersListItemProps = {
 const SchedulersListItem: FC<SchedulersListItemProps> = ({
     scheduler,
     onEdit,
+    onDelete,
 }) => {
     return (
         <SchedulerContainer>
@@ -50,7 +51,9 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                 icon="delete"
                                 intent="danger"
                                 text="Delete"
-                                onClick={() => undefined}
+                                onClick={() =>
+                                    onDelete(scheduler.schedulerUuid)
+                                }
                             />
                         </Menu>
                     }

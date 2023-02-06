@@ -7,35 +7,27 @@ import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
-const updateScheduler = async (
-    uuid: string,
-    data: UpdateSchedulerAndTargetsWithoutId,
-) =>
-    lightdashApi<SchedulerAndTargets>({
+const deleteScheduler = async (uuid: string) =>
+    lightdashApi<undefined>({
         url: `/schedulers/${uuid}`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
+        method: 'DELETE',
+        body: undefined,
     });
 
-export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
+export const useSchedulersDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<
-        SchedulerAndTargets,
-        ApiError,
-        UpdateSchedulerAndTargetsWithoutId
-    >((data) => updateScheduler(schedulerUuid, data), {
-        mutationKey: ['update_chart_scheduler'],
+    return useMutation<undefined, ApiError, string>(deleteScheduler, {
+        mutationKey: ['delete_chart_scheduler'],
         onSuccess: async (space) => {
             await queryClient.invalidateQueries('chart_schedulers');
-            await queryClient.invalidateQueries(['scheduler', schedulerUuid]);
             showToastSuccess({
-                title: `Success! Scheduled delivery was updated.`,
+                title: `Success! Scheduled delivery was delete.`,
             });
         },
         onError: (error) => {
             showToastError({
-                title: `Failed to update scheduled delivery`,
+                title: `Failed to delete scheduled delivery`,
                 subtitle: error.error.message,
             });
         },
