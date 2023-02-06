@@ -1,8 +1,9 @@
-import { Button, Card, InputGroup, Intent } from '@blueprintjs/core';
+import { Button, Card, InputGroup, Intent, Label } from '@blueprintjs/core';
 import { CreatePersonalAccessToken, formatTimestamp } from '@lightdash/common';
 import React, { FC, useEffect, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useForm } from 'react-hook-form';
+import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import {
@@ -13,6 +14,7 @@ import {
     InviteFormGroup,
     Panel,
     ShareLinkCallout,
+    Space,
     SubmitButton,
     TokeDescriptionInput,
 } from './CreateTokens.styles';
@@ -21,6 +23,8 @@ const CreateTokenPanel: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
     const { showToastSuccess } = useToaster();
+    const health = useHealth();
+
     const { data, mutate, isError, isLoading, isSuccess } =
         useCreateAccessToken();
 
@@ -117,26 +121,54 @@ const CreateTokenPanel: FC<{
                             Your token has been generated.
                         </InvitedCallout>
                     )}
-                    <InputGroup
-                        id="invite-link-input"
-                        className="cohere-block"
-                        type="text"
-                        readOnly
-                        value={data.token}
-                        rightElement={
-                            <CopyToClipboard
-                                text={data.token}
-                                options={{ message: 'Copied' }}
-                                onCopy={() =>
-                                    showToastSuccess({
-                                        title: 'Token copied',
-                                    })
+                    <Space gap={10}>
+                        <Label>
+                            Token
+                            <InputGroup
+                                id="invite-link-input"
+                                className="cohere-block"
+                                type="text"
+                                readOnly
+                                value={data.token}
+                                rightElement={
+                                    <CopyToClipboard
+                                        text={data.token}
+                                        options={{ message: 'Copied' }}
+                                        onCopy={() =>
+                                            showToastSuccess({
+                                                title: 'Token copied',
+                                            })
+                                        }
+                                    >
+                                        <Button minimal icon="clipboard" />
+                                    </CopyToClipboard>
                                 }
-                            >
-                                <Button minimal icon="clipboard" />
-                            </CopyToClipboard>
-                        }
-                    />
+                            />
+                        </Label>
+                        <Label>
+                            CLI Authentication code
+                            <InputGroup
+                                id="invite-link-input"
+                                className="cohere-block"
+                                type="text"
+                                readOnly
+                                value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
+                                rightElement={
+                                    <CopyToClipboard
+                                        text={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
+                                        options={{ message: 'Copied' }}
+                                        onCopy={() =>
+                                            showToastSuccess({
+                                                title: 'Token copied',
+                                            })
+                                        }
+                                    >
+                                        <Button minimal icon="clipboard" />
+                                    </CopyToClipboard>
+                                }
+                            />
+                        </Label>
+                    </Space>
                     <ShareLinkCallout intent="primary">
                         {expireDate &&
                             `This token will expire on
