@@ -461,13 +461,12 @@ type PinnedListUpdated = BaseTrack & {
     properties: {
         projectId: string;
         organizationId: string;
-        source: 'homepage' | Space['name'];
-        pinnedListUuid: string;
+        location: 'homepage';
+        pinnedListId: string;
         pinnedItems: {
-            charts: CreateChartPinnedItem[];
-            dashboards: CreateDashboardPinnedItem[];
+            chartIds: string[];
+            dashboardIds: string[];
         };
-        timestamp: string;
     };
 };
 
