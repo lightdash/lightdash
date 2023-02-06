@@ -1,3 +1,10 @@
+## [0.403.3](https://github.com/lightdash/lightdash/compare/0.403.2...0.403.3) (2023-02-06)
+
+
+### Bug Fixes
+
+* new menu redesign + open in new tab ([#4378](https://github.com/lightdash/lightdash/issues/4378)) ([9574b75](https://github.com/lightdash/lightdash/commit/9574b758238890f4b3a6454af164a8916e99e90c))
+
 ## [0.403.2](https://github.com/lightdash/lightdash/compare/0.403.1...0.403.2) (2023-02-06)
 
 
