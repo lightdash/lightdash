@@ -1,7 +1,8 @@
 import { Button } from '@blueprintjs/core';
+import cronstrue from 'cronstrue';
 import React, { FC, useMemo } from 'react';
 import { useSlackChannels } from '../../hooks/slack/useSlackChannels';
-import { isValidCronExpression } from '../../utils/fieldValidators';
+import { isInvalidCronExpression } from '../../utils/fieldValidators';
 import { ArrayInput } from '../ReactHookForm/ArrayInput';
 import AutoComplete from '../ReactHookForm/AutoComplete';
 import Form from '../ReactHookForm/Form';
@@ -10,7 +11,7 @@ import { SlackIcon, TargetRow } from './SchedulerModals.styles';
 
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
-> = ({ disabled, ...rest }) => {
+> = ({ disabled, methods, ...rest }) => {
     const slackChannelsQuery = useSlackChannels();
     const slackChannels = useMemo(
         () =>
@@ -20,8 +21,18 @@ const SchedulerForm: FC<
             })),
         [slackChannelsQuery.data],
     );
+    const cronValue = methods.watch('cron', '0 9 * * 1');
+    const cronHelperText = useMemo(() => {
+        const validationError =
+            isInvalidCronExpression('Cron expression')(cronValue);
+        const cronHumanString = cronstrue.toString(cronValue, {
+            verbose: true,
+            throwExceptionOnParseError: false,
+        });
+        return validationError ?? cronHumanString;
+    }, [cronValue]);
     return (
-        <Form name="scheduler" {...rest}>
+        <Form name="scheduler" methods={methods} {...rest}>
             <Input
                 label="Name"
                 name="name"
@@ -32,15 +43,17 @@ const SchedulerForm: FC<
                 }}
             />
             <Input
-                label="Cron expression"
+                label="Cron expression (UTC)"
                 name="cron"
-                placeholder="0 0 * * *"
+                placeholder="0 9 * * 1"
+                defaultValue="0 9 * * 1"
+                helperText={cronHelperText}
                 disabled={disabled}
                 rules={{
                     required: 'Required field',
                     validate: {
                         isValidCronExpression:
-                            isValidCronExpression('Cron expression'),
+                            isInvalidCronExpression('Cron expression'),
                     },
                 }}
             />

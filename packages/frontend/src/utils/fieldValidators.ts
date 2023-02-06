@@ -62,7 +62,7 @@ export const isValidGithubToken: FieldValidator<string> =
 const cronExpressionRegex = new RegExp(
     /^(\*|([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])|\*\/([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])) (\*|([0-9]|1[0-9]|2[0-3])|\*\/([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|1[0-9]|2[0-9]|3[0-1])|\*\/([1-9]|1[0-9]|2[0-9]|3[0-1])) (\*|([1-9]|1[0-2])|\*\/([1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/,
 );
-export const isValidCronExpression: FieldValidator<string> =
+export const isInvalidCronExpression: FieldValidator<string> =
     (fieldName) => (value) =>
         !value || value.match(cronExpressionRegex)
             ? undefined
