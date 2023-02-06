@@ -20,7 +20,7 @@ export const useChartSchedulers = (chartUuid: string) =>
         queryFn: () => getChartSchedulers(chartUuid),
     });
 
-const createChartSchedulers = async (
+const createChartScheduler = async (
     uuid: string,
     data: CreateSchedulerAndTargetsWithoutIds,
 ) =>
@@ -30,14 +30,14 @@ const createChartSchedulers = async (
         body: JSON.stringify(data),
     });
 
-export const useChartSchedulersCreateMutation = () => {
+export const useChartSchedulerCreateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         SchedulerAndTargets,
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
-    >(({ resourceUuid, data }) => createChartSchedulers(resourceUuid, data), {
+    >(({ resourceUuid, data }) => createChartScheduler(resourceUuid, data), {
         mutationKey: ['create_chart_scheduler'],
         onSuccess: async (_, variables) => {
             await queryClient.invalidateQueries([

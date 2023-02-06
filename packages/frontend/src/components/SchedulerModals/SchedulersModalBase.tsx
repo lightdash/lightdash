@@ -210,7 +210,7 @@ const SchedulersModalBase: FC<Props> = ({
             lazy
             title={
                 <>
-                    Scheduled deliveries for <b>{name}</b>
+                    Scheduled deliveries for <b>"{name}"</b>
                 </>
             }
             icon="send-message"

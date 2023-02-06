@@ -23,10 +23,11 @@ const SchedulersList: FC<Props> = ({ schedulersQuery, onEdit }) => {
     }
     if (!schedulers || schedulers.length <= 0) {
         return (
-            <p>
-                There are no existing scheduled deliveries. Add one by clicking
-                on "Create new" bellow.
-            </p>
+            <NonIdealState
+                title="There are no existing scheduled deliveries"
+                description='Add one by clicking on "Create new" bellow'
+                icon={'blank'}
+            />
         );
     }
     return (

@@ -25,9 +25,10 @@ export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
         ApiError,
         UpdateSchedulerAndTargetsWithoutId
     >((data) => updateScheduler(schedulerUuid, data), {
-        mutationKey: ['update_chart_scheduler'],
+        mutationKey: ['update_scheduler'],
         onSuccess: async (space) => {
             await queryClient.invalidateQueries('chart_schedulers');
+            await queryClient.invalidateQueries('dashboard_schedulers');
             await queryClient.invalidateQueries(['scheduler', schedulerUuid]);
             showToastSuccess({
                 title: `Success! Scheduled delivery was updated.`,

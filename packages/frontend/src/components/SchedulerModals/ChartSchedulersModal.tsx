@@ -1,8 +1,8 @@
 import { DialogProps } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import {
+    useChartSchedulerCreateMutation,
     useChartSchedulers,
-    useChartSchedulersCreateMutation,
 } from '../../hooks/scheduler/useChartSchedulers';
 import SchedulersModalBase from './SchedulersModalBase';
 
@@ -17,7 +17,7 @@ const ChartSchedulersModal: FC<Props> = ({
     ...modalProps
 }) => {
     const chartSchedulersQuery = useChartSchedulers(chartUuid);
-    const createMutation = useChartSchedulersCreateMutation();
+    const createMutation = useChartSchedulerCreateMutation();
     return (
         <SchedulersModalBase
             resourceUuid={chartUuid}
