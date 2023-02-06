@@ -59,7 +59,7 @@ export class SchedulerWorker {
             ]),
             taskList: {
                 generateDailyJobs: async (
-                    payload: any,
+                    payload: unknown,
                     helpers: JobHelpers,
                 ) => {
                     Logger.info(

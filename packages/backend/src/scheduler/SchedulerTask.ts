@@ -1,3 +1,4 @@
+import { ScheduledSlackNotification } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -42,13 +43,9 @@ const getChartOrDashboard = async (
     throw new Error("Chart or dashboard can't be both undefined");
 };
 
-export const sendSlackNotification = async (notification: {
-    organizationUuid: string;
-    userUuid: string;
-    chartUuid?: string;
-    dashboardUuid?: string;
-    channel: string;
-}) => {
+export const sendSlackNotification = async (
+    notification: ScheduledSlackNotification,
+) => {
     if (!slackClient.isEnabled) {
         throw new Error('Slack app is not configured');
     }

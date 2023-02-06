@@ -84,3 +84,13 @@ export type ApiScheduledJobsResponse = {
     status: 'ok';
     results: ScheduledJobs[];
 };
+
+// Scheduler task types
+
+export type ScheduledSlackNotification = {
+    organizationUuid: string;
+    userUuid: string;
+    chartUuid?: string;
+    dashboardUuid?: string;
+    channel: string;
+};
