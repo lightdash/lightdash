@@ -118,7 +118,6 @@ const ControlledSuggest: FC<{
             itemPredicate={itemPredicate}
             resetOnSelect
             inputValueRenderer={(item: Item) => {
-                console.log('inputValueRenderer', item);
                 return item.label;
             }}
             {...suggestProps}
