@@ -1,4 +1,4 @@
-import { FC, useMemo } from 'react';
+import { FC, ReactNode, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../hooks/useSpaces';
 import ResourceList from '../common/ResourceList';
@@ -21,7 +21,7 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
             ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
             ...wrapResourceList(savedCharts, ResourceListType.CHART),
         ].filter((item) => {
-            return item.data.pinnedListUuid ? item : null;
+            return !!item.data.pinnedListUuid;
         });
     }, [dashboards, savedCharts]);
 
