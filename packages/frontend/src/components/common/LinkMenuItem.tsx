@@ -4,7 +4,7 @@ import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
 export interface LinkMenuItemProps extends MenuItem2Props {
-    href: string;
+    href?: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
     forceRefresh?: boolean;
@@ -31,7 +31,8 @@ const LinkMenuItem: FC<LinkMenuItemProps> = ({
                     !forceRefresh &&
                     !e.ctrlKey &&
                     !e.metaKey &&
-                    target !== '_blank'
+                    target !== '_blank' &&
+                    href
                 ) {
                     e.preventDefault();
                     history.push(href);
