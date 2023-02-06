@@ -147,23 +147,3 @@ slackRouter.get(
         }
     },
 );
-
-slackRouter.get(
-    '/channels/',
-    isAuthenticated,
-    unauthorisedInDemo,
-
-    async (req, res, next) => {
-        try {
-            const organizationUuid = req.user?.organizationUuid;
-            if (!organizationUuid) throw new ForbiddenError();
-
-            res.json({
-                status: 'ok',
-                results: await slackClient.getChannels(organizationUuid),
-            });
-        } catch (error) {
-            next(error);
-        }
-    },
-);

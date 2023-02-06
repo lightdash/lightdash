@@ -1,5 +1,6 @@
 import { App, Block, LogLevel } from '@slack/bolt';
 
+import { SlackChannel } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
@@ -55,7 +56,7 @@ export class SlackClient {
         }
     }
 
-    async getChannels(organizationUuid: string) {
+    async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');
         }
@@ -73,15 +74,12 @@ export class SlackClient {
         const users = await this.slackApp.client.users.list({
             token: installation?.token,
         });
-        const channelNames =
-            channels.channels?.map((channel) => ({
-                id: channel.id,
-                name: channel.name,
-            })) || [];
-        const userNames =
-            users.members?.map((user) => ({ id: user.id, name: user.name })) ||
-            [];
-        return [...channelNames, ...userNames];
+        return [...(channels.channels || []), ...(users.members || [])].reduce<
+            SlackChannel[]
+        >(
+            (acc, { id, name }) => (id && name ? [...acc, { id, name }] : acc),
+            [],
+        );
     }
 
     async joinChannel(organizationUuid: string, channel: string) {

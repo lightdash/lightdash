@@ -1,4 +1,8 @@
-import { ApiErrorPayload, ApiSlackChannelsResponse } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    ApiSlackChannelsResponse,
+    ForbiddenError,
+} from '@lightdash/common';
 import express from 'express';
 import {
     Controller,
@@ -10,6 +14,7 @@ import {
     Route,
     SuccessResponse,
 } from 'tsoa';
+import { slackClient } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/slack')
@@ -27,26 +32,11 @@ export class SlackController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiSlackChannelsResponse> {
         this.setStatus(200);
+        const organizationUuid = req.user?.organizationUuid;
+        if (!organizationUuid) throw new ForbiddenError();
         return {
             status: 'ok',
-            results: [
-                {
-                    id: '1',
-                    label: 'Jose',
-                },
-                {
-                    id: '2',
-                    label: 'Javi',
-                },
-                {
-                    id: '3',
-                    label: 'Banana',
-                },
-                {
-                    id: '4',
-                    label: 'Test white spaces',
-                },
-            ],
+            results: await slackClient.getChannels(organizationUuid),
         };
     }
 }
