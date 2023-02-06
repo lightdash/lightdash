@@ -5,6 +5,8 @@ import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
 
+type SpaceProps = { horizontal?: boolean; vertical?: boolean; gap?: number };
+
 export const Panel = styled.div`
     height: 100%;
     display: flex;
@@ -54,4 +56,18 @@ export const ExpireDateSelect = styled(Select)`
 
 export const InvitedCallout = styled(Callout)`
     margin-bottom: 10px;
+`;
+
+export const Space = styled.div`
+    display: flex;
+    flex-direction: ${(props: SpaceProps) =>
+        props.horizontal ? 'row' : 'column'};
+    gap: ${(props: SpaceProps) =>
+        props.horizontal
+            ? props.gap
+                ? `0px ${props.gap}px`
+                : `0px 5px`
+            : props.gap
+            ? `${props.gap}px 0px`
+            : `5px 0px`};
 `;
