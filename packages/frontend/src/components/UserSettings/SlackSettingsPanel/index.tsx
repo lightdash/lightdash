@@ -1,5 +1,6 @@
 import { AnchorButton, Button, Spinner } from '@blueprintjs/core';
-import { hasRequiredScopes } from '@lightdash/common';
+import { slackRequiredScopes, SlackSettings } from '@lightdash/common';
+import intersection from 'lodash-es/intersection';
 import React, { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
@@ -14,6 +15,9 @@ import {
     Title,
 } from './SlackSettingsPanel.styles';
 
+export const hasRequiredScopes = (slackSettings: SlackSettings) =>
+    intersection(slackSettings.scopes, slackRequiredScopes) ===
+    slackRequiredScopes;
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isLoading } = useGetSlack();
     const { mutate: deleteSlack } = useDeleteSlack();

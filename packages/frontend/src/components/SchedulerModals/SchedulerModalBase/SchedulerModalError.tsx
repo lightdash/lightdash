@@ -6,9 +6,10 @@ import {
     DialogProps,
     NonIdealState,
 } from '@blueprintjs/core';
-import { hasRequiredScopes, SlackSettings } from '@lightdash/common';
+import { SlackSettings } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import { useApp } from '../../../providers/AppProvider';
+import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 
 const SchedulerModalError: FC<{
     slackSettings: SlackSettings | undefined;

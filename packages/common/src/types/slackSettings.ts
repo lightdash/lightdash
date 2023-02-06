@@ -1,5 +1,3 @@
-import intersection from 'lodash-es/intersection';
-
 export type SlackSettings = {
     organizationUuid: string;
     slackTeamName: string;
@@ -19,7 +17,3 @@ export const slackRequiredScopes = [
     'mpim:read',
     'users:read',
 ];
-
-export const hasRequiredScopes = (slackSettings: SlackSettings) =>
-    intersection(slackSettings.scopes, slackRequiredScopes) ===
-    slackRequiredScopes;
