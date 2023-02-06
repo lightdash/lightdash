@@ -1,4 +1,4 @@
-import { Scheduler } from '@lightdash/common';
+import { Scheduler, SchedulerAndTargets } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils } from 'graphile-worker';
 import moment from 'moment';
@@ -37,23 +37,28 @@ export const deleteScheduledJobs = async (
     );
     const deletedJobIds = deletedJobs.rows.map((r) => r.id);
 
-    graphileClient.completeJobs(deletedJobIds);
+    await graphileClient.completeJobs(deletedJobIds);
 };
 
 export const generateDailyJobsForScheduler = async (
-    scheduler: Scheduler,
+    scheduler: SchedulerAndTargets,
 ): Promise<void> => {
     const dates = getDailyDatesFromCron(scheduler.cron);
 
     const graphileClient = await graphileUtils;
 
     try {
-        const promises = dates.map(async (date: Date, i: number) =>
-            // TODO add 1 job per target
-            graphileClient.addJob('sendSlackNotification', scheduler, {
-                runAt: date,
-                maxAttempts: 2,
-            }),
+        const promises = dates.flatMap((date: Date) =>
+            scheduler.targets.map((target) =>
+                graphileClient.addJob(
+                    'sendSlackNotification',
+                    { channel: target.channel, ...scheduler },
+                    {
+                        runAt: date,
+                        maxAttempts: 2,
+                    },
+                ),
+            ),
         );
 
         Logger.info(

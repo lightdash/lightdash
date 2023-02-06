@@ -11,6 +11,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import {
+    deleteScheduledJobs,
+    generateDailyJobsForScheduler,
+} from '../../scheduler/SchedulerClient';
 
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -73,7 +77,7 @@ export class SchedulerService {
         }
     }
 
-    async getAllSchedulers(): Promise<Scheduler[]> {
+    async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
         return this.schedulerModel.getAllSchedulers();
     }
 
@@ -90,10 +94,16 @@ export class SchedulerService {
         updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
     ): Promise<SchedulerAndTargets> {
         await this.checkUserCanUpdateScheduler(user, schedulerUuid);
-        return this.schedulerModel.updateScheduler({
+
+        await deleteScheduledJobs(schedulerUuid);
+
+        const scheduler = await this.schedulerModel.updateScheduler({
             ...updatedScheduler,
             schedulerUuid,
         });
+
+        await generateDailyJobsForScheduler(scheduler);
+        return scheduler;
     }
 
     async deleteScheduler(
@@ -101,6 +111,9 @@ export class SchedulerService {
         schedulerUuid: string,
     ): Promise<void> {
         await this.checkUserCanUpdateScheduler(user, schedulerUuid);
+
+        await deleteScheduledJobs(schedulerUuid);
+
         return this.schedulerModel.deleteScheduler(schedulerUuid);
     }
 }
