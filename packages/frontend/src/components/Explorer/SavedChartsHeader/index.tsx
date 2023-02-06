@@ -7,6 +7,7 @@ import {
     Menu,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -122,6 +123,14 @@ const SavedChartsHeader: FC = () => {
         setIsSaveWarningModalOpen,
         isEditMode,
     ]);
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -319,15 +328,17 @@ const SavedChartsHeader: FC = () => {
                                             );
                                         })}
                                     </MenuItem2>
-                                    <MenuItem2
-                                        icon={'send-message'}
-                                        text={'Scheduled deliveries'}
-                                        onClick={() => {
-                                            toggleSchedulerDeliveriesModel(
-                                                true,
-                                            );
-                                        }}
-                                    />
+                                    {userCanManageCharts && (
+                                        <MenuItem2
+                                            icon={'send-message'}
+                                            text={'Scheduled deliveries'}
+                                            onClick={() => {
+                                                toggleSchedulerDeliveriesModel(
+                                                    true,
+                                                );
+                                            }}
+                                        />
+                                    )}
                                     <Divider />
 
                                     <MenuItem2

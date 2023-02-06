@@ -117,6 +117,7 @@ export class SlackAuthenticationModel {
             slackTeamName: row.installation?.team?.name || 'Slack',
             organizationUuid: row.organization_uuid,
             token: row.installation?.bot?.token,
+            scopes: row.installation?.bot?.scopes || [],
         };
     }
 

@@ -1,11 +1,13 @@
-import { AnchorButton, Button, Icon, Spinner } from '@blueprintjs/core';
-import { FC } from 'react';
+import { AnchorButton, Button, Spinner } from '@blueprintjs/core';
+import { hasRequiredScopes } from '@lightdash/common';
+import React, { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
 import {
     Actions,
     AppearancePanelWrapper,
     Description,
+    ScopesCallout,
     SlackIcon,
     SlackName,
     SlackSettingsWrapper,
@@ -24,54 +26,64 @@ const SlackSettingsPanel: FC = () => {
 
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
     return (
-        <SlackSettingsWrapper>
-            <SlackIcon src={slackSvg} />
-            <AppearancePanelWrapper>
-                <Title> Slack integration</Title>
+        <>
+            <SlackSettingsWrapper>
+                <SlackIcon src={slackSvg} />
+                <AppearancePanelWrapper>
+                    <Title> Slack integration</Title>
 
-                {isValidSlack && (
+                    {isValidSlack && (
+                        <Description>
+                            Added to the{' '}
+                            <SlackName>{data.slackTeamName}</SlackName> slack
+                            workspace.
+                        </Description>
+                    )}
+
                     <Description>
-                        Added to the <SlackName>{data.slackTeamName}</SlackName>{' '}
-                        slack workspace.
+                        Sharing in Slack allows you to unfurl Lightdash URLs in
+                        your workspace.{' '}
+                        <a href="https://docs.lightdash.com/guides/sharing-in-slack">
+                            View docs
+                        </a>
                     </Description>
+                </AppearancePanelWrapper>
+                {isValidSlack ? (
+                    <Actions>
+                        <AnchorButton
+                            target="_blank"
+                            intent="primary"
+                            href={installUrl}
+                        >
+                            Reinstall
+                        </AnchorButton>
+                        <Button
+                            icon="delete"
+                            intent="danger"
+                            onClick={() => deleteSlack(undefined)}
+                            text="Remove"
+                        />
+                    </Actions>
+                ) : (
+                    <Actions>
+                        <AnchorButton
+                            intent="primary"
+                            target="_blank"
+                            href={installUrl}
+                        >
+                            Add to Slack
+                        </AnchorButton>
+                    </Actions>
                 )}
-
-                <Description>
-                    Sharing in Slack allows you to unfurl Lightdash URLs in your
-                    workspace.{' '}
-                    <a href="https://docs.lightdash.com/guides/sharing-in-slack">
-                        View docs
-                    </a>
-                </Description>
-            </AppearancePanelWrapper>
-            {isValidSlack ? (
-                <Actions>
-                    <AnchorButton
-                        target="_blank"
-                        intent="primary"
-                        href={installUrl}
-                    >
-                        Reinstall
-                    </AnchorButton>
-                    <Button
-                        icon="delete"
-                        intent="danger"
-                        onClick={() => deleteSlack(undefined)}
-                        text="Remove"
-                    />
-                </Actions>
-            ) : (
-                <Actions>
-                    <AnchorButton
-                        intent="primary"
-                        target="_blank"
-                        href={installUrl}
-                    >
-                        Add to Slack
-                    </AnchorButton>
-                </Actions>
+            </SlackSettingsWrapper>
+            {data && !hasRequiredScopes(data) && (
+                <ScopesCallout intent="primary">
+                    Your Slack integration is not up to date, you should
+                    reinstall the Slack integration to guaranty the best user
+                    experience.
+                </ScopesCallout>
             )}
-        </SlackSettingsWrapper>
+        </>
     );
 };
 

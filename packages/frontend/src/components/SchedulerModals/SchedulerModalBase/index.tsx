@@ -6,6 +6,7 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
+import { hasRequiredScopes } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import { useGetSlack } from '../../../hooks/useSlack';
 import SchedulersModalContent from './SchedulerModalContent';
@@ -33,7 +34,8 @@ const SchedulersModalBase: FC<
         } else {
             const isValidSlack =
                 slackQuery.data?.slackTeamName !== undefined &&
-                !slackQuery.isError;
+                !slackQuery.isError &&
+                hasRequiredScopes(slackQuery.data);
             return isValidSlack ? States.SUCCESS : States.ERROR;
         }
     }, [slackQuery]);
@@ -78,7 +80,10 @@ const SchedulersModalBase: FC<
                 />
             )}
             {state === States.ERROR && (
-                <SchedulerModalError onClose={modalProps.onClose} />
+                <SchedulerModalError
+                    slackSettings={slackQuery.data}
+                    onClose={modalProps.onClose}
+                />
             )}
         </Dialog>
     );
