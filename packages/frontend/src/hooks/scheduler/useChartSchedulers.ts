@@ -30,19 +30,19 @@ const createChartSchedulers = async (
         body: JSON.stringify(data),
     });
 
-export const useChartSchedulersCreateMutation = (chartUuid: string) => {
+export const useChartSchedulersCreateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         SchedulerAndTargets,
         ApiError,
-        CreateSchedulerAndTargetsWithoutIds
-    >((data) => createChartSchedulers(chartUuid, data), {
+        { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
+    >(({ resourceUuid, data }) => createChartSchedulers(resourceUuid, data), {
         mutationKey: ['create_chart_scheduler'],
-        onSuccess: async () => {
+        onSuccess: async (_, variables) => {
             await queryClient.invalidateQueries([
                 'chart_schedulers',
-                chartUuid,
+                variables.resourceUuid,
             ]);
             showToastSuccess({
                 title: `Success! Scheduled delivery was created.`,

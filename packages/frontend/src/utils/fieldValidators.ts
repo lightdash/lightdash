@@ -1,5 +1,4 @@
 import { validateEmail, validateGithubToken } from '@lightdash/common';
-import cronstrue from 'cronstrue';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -60,16 +59,11 @@ export const isValidGithubToken: FieldValidator<string> =
         }
     };
 
+const cronExpressionRegex = new RegExp(
+    /^(\*|([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])|\*\/([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])) (\*|([0-9]|1[0-9]|2[0-3])|\*\/([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|1[0-9]|2[0-9]|3[0-1])|\*\/([1-9]|1[0-9]|2[0-9]|3[0-1])) (\*|([1-9]|1[0-2])|\*\/([1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/,
+);
 export const isValidCronExpression: FieldValidator<string> =
-    (fieldName) => (value) => {
-        if (value) {
-            try {
-                cronstrue.toString(value, {
-                    verbose: true,
-                    throwExceptionOnParseError: true,
-                });
-            } catch (e) {
-                return `${fieldName} is not valid`;
-            }
-        }
-    };
+    (fieldName) => (value) =>
+        !value || value.match(cronExpressionRegex)
+            ? undefined
+            : `${fieldName} is not valid`;
