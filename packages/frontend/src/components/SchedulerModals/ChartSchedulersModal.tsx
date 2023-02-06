@@ -19,6 +19,7 @@ import {
 } from '../../hooks/scheduler/useChartSchedulers';
 import { useScheduler } from '../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../hooks/scheduler/useSchedulersUpdateMutation';
+import { isValidCronExpression } from '../../utils/fieldValidators';
 import ErrorState from '../common/ErrorState';
 import { ArrayInput } from '../ReactHookForm/ArrayInput';
 import Form from '../ReactHookForm/Form';
@@ -87,6 +88,10 @@ const SchedulerForm: FC<
                 disabled={disabled}
                 rules={{
                     required: 'Required field',
+                    validate: {
+                        isValidCronExpression:
+                            isValidCronExpression('Cron expression'),
+                    },
                 }}
             />
             <ArrayInput
@@ -182,9 +187,9 @@ const UpdateStateContent: FC<{
     });
     useEffect(() => {
         if (scheduler.isSuccess) {
-            methods.reset();
+            methods.reset(scheduler.data);
         }
-    }, [methods, scheduler.isSuccess]);
+    }, [methods, scheduler.data, scheduler.isSuccess]);
     const mutation = useSchedulersUpdateMutation(schedulerUuid);
     useEffect(() => {
         if (mutation.isSuccess) {
@@ -217,7 +222,6 @@ const UpdateStateContent: FC<{
             </>
         );
     }
-
     return (
         <>
             <DialogBody>

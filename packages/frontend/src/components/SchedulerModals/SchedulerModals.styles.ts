@@ -1,4 +1,4 @@
-import { Card, Colors, H3, H5, Icon } from '@blueprintjs/core';
+import { Card, H5 } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { ReactComponent as SlackSvg } from '../../svgs/slack.svg';
 
@@ -24,12 +24,6 @@ export const SchedulerContainer = styled(Card)`
     flex-direction: column;
     padding: 10px;
     margin-bottom: 10px;
-`;
-
-export const SchedulerIcon = styled(Icon)`
-    svg {
-        color: ${Colors.GRAY2};
-    }
 `;
 
 export const SchedulerName = styled(H5)`

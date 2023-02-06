@@ -1,6 +1,5 @@
 import {
     ApiError,
-    ChartScheduler,
     CreateSchedulerAndTargetsWithoutIds,
     SchedulerAndTargets,
 } from '@lightdash/common';
@@ -9,14 +8,14 @@ import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 const getChartSchedulers = async (uuid: string) =>
-    lightdashApi<ChartScheduler[]>({
+    lightdashApi<SchedulerAndTargets[]>({
         url: `/saved/${uuid}/schedulers`,
         method: 'GET',
         body: undefined,
     });
 
 export const useChartSchedulers = (chartUuid: string) =>
-    useQuery<ChartScheduler[], ApiError>({
+    useQuery<SchedulerAndTargets[], ApiError>({
         queryKey: ['chart_schedulers', chartUuid],
         queryFn: () => getChartSchedulers(chartUuid),
     });
@@ -40,7 +39,7 @@ export const useChartSchedulersCreateMutation = (chartUuid: string) => {
         CreateSchedulerAndTargetsWithoutIds
     >((data) => createChartSchedulers(chartUuid, data), {
         mutationKey: ['create_chart_scheduler'],
-        onSuccess: async (space) => {
+        onSuccess: async () => {
             await queryClient.invalidateQueries([
                 'chart_schedulers',
                 chartUuid,

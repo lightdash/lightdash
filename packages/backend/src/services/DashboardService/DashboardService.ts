@@ -4,7 +4,6 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
-    DashboardScheduler,
     DashboardTileTypes,
     ForbiddenError,
     isDashboardUnversionedFields,
@@ -458,7 +457,7 @@ export class DashboardService {
     async getSchedulers(
         user: SessionUser,
         dashboardUuid: string,
-    ): Promise<DashboardScheduler[]> {
+    ): Promise<SchedulerAndTargets[]> {
         await this.checkUpdateAccess(user, dashboardUuid);
         return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
     }

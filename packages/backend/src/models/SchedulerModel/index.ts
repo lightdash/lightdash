@@ -1,7 +1,5 @@
 import {
-    ChartScheduler,
     CreateSchedulerAndTargets,
-    DashboardScheduler,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
@@ -14,6 +12,7 @@ import {
     SchedulerDb,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
+    SchedulerTable,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
 
@@ -53,31 +52,51 @@ export class SchedulerModel {
         };
     }
 
-    async getAllSchedulers(): Promise<Scheduler[]> {
-        const schedulers = await this.database(SchedulerTableName).select();
-        return schedulers.map(SchedulerModel.convertScheduler);
+    private async getSchedulersWithTargets(
+        schedulersQueryBuilder: Knex.QueryBuilder<
+            SchedulerTable,
+            SchedulerDb[]
+        >,
+    ): Promise<SchedulerAndTargets[]> {
+        const schedulers = await schedulersQueryBuilder;
+        const targets = await this.database(SchedulerSlackTargetTableName)
+            .select()
+            .whereIn(
+                `${SchedulerSlackTargetTableName}.scheduler_uuid`,
+                schedulers.map((s) => s.scheduler_uuid),
+            );
+        return schedulers.map((scheduler) => ({
+            ...SchedulerModel.convertScheduler(scheduler),
+            targets: targets
+                .filter(
+                    (target) =>
+                        target.scheduler_uuid === scheduler.scheduler_uuid,
+                )
+                .map(SchedulerModel.convertSlackTarget),
+        }));
+    }
+
+    async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
+        const schedulers = this.database(SchedulerTableName).select();
+        return this.getSchedulersWithTargets(schedulers);
     }
 
     async getChartSchedulers(
         savedChartUuid: string,
-    ): Promise<ChartScheduler[]> {
-        const schedulers = await this.database(SchedulerTableName)
-            .select('*')
+    ): Promise<SchedulerAndTargets[]> {
+        const schedulers = this.database(SchedulerTableName)
+            .select()
             .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid);
-        return schedulers.map(
-            SchedulerModel.convertScheduler,
-        ) as ChartScheduler[];
+        return this.getSchedulersWithTargets(schedulers);
     }
 
     async getDashboardSchedulers(
         dashboardUuid: string,
-    ): Promise<DashboardScheduler[]> {
-        const schedulers = await this.database(SchedulerTableName)
+    ): Promise<SchedulerAndTargets[]> {
+        const schedulers = this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid);
-        return schedulers.map(
-            SchedulerModel.convertScheduler,
-        ) as DashboardScheduler[];
+        return this.getSchedulersWithTargets(schedulers);
     }
 
     async getScheduler(schedulerUuid: string): Promise<Scheduler> {

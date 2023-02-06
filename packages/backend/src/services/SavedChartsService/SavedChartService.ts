@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ChartScheduler,
     ChartType,
     countTotalFilterRules,
     CreateSavedChart,
@@ -402,7 +401,7 @@ export class SavedChartService {
     async getSchedulers(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<ChartScheduler[]> {
+    ): Promise<SchedulerAndTargets[]> {
         await this.checkUpdateAccess(user, chartUuid);
         return this.schedulerModel.getChartSchedulers(chartUuid);
     }

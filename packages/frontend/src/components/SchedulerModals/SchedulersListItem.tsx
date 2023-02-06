@@ -6,7 +6,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { Scheduler } from '@lightdash/common';
+import { SchedulerAndTargets } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import React, { FC } from 'react';
 import {
@@ -18,12 +18,11 @@ import {
 import {
     SchedulerContainer,
     SchedulerDetailsContainer,
-    SchedulerIcon,
     SchedulerName,
 } from './SchedulerModals.styles';
 
 type SchedulersListItemProps = {
-    scheduler: Scheduler;
+    scheduler: SchedulerAndTargets;
     onEdit: (schedulerUuid: string) => void;
     onDelete: (schedulerUuid: string) => void;
 };
@@ -31,6 +30,7 @@ type SchedulersListItemProps = {
 const SchedulersListItem: FC<SchedulersListItemProps> = ({
     scheduler,
     onEdit,
+    onDelete,
 }) => {
     return (
         <SchedulerContainer>
@@ -51,7 +51,9 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                 icon="delete"
                                 intent="danger"
                                 text="Delete"
-                                onClick={() => undefined}
+                                onClick={() =>
+                                    onDelete(scheduler.schedulerUuid)
+                                }
                             />
                         </Menu>
                     }
@@ -63,12 +65,17 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
             </SchedulerDetailsContainer>
             <PageDetailsContainer>
                 <UpdatedInfoLabel>
-                    {cronstrue.toString(scheduler.cron, { verbose: true })}
+                    {cronstrue.toString(scheduler.cron, {
+                        verbose: true,
+                        throwExceptionOnParseError: false,
+                    })}
                 </UpdatedInfoLabel>
 
                 <SeparatorDot icon="dot" size={6} />
 
-                <InfoContainer>0 slack recipients</InfoContainer>
+                <InfoContainer>
+                    {scheduler.targets.length} slack recipients
+                </InfoContainer>
             </PageDetailsContainer>
         </SchedulerContainer>
     );
