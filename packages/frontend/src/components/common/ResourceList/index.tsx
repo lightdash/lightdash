@@ -50,9 +50,11 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 showCount={showCount}
             >
                 {items.length === 0 ? (
-                    <ResourceEmptyStateWrapper>
-                        {renderEmptyState ? renderEmptyState() : null}
-                    </ResourceEmptyStateWrapper>
+                    !!renderEmptyState ? (
+                        <ResourceEmptyStateWrapper>
+                            {renderEmptyState()}
+                        </ResourceEmptyStateWrapper>
+                    ) : null
                 ) : (
                     <ResourceTable
                         items={items}
