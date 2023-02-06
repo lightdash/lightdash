@@ -14,14 +14,18 @@ const getDailyDatesFromCron = (cron: string, when = new Date()): Date[] => {
     const arr = stringToArray(cron);
     const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
     const schedule = getSchedule(arr, startOfMinute, 'UTC');
+
     const tomorrow = moment(startOfMinute)
+        .utc()
         .add(1, 'day')
         .startOf('day')
         .toDate();
+
     const dailyDates: Date[] = [];
     while (schedule.next() < tomorrow) {
         dailyDates.push(schedule.date.toJSDate());
     }
+
     return dailyDates;
 };
 
@@ -67,7 +71,6 @@ export const generateDailyJobsForScheduler = async (
     scheduler: SchedulerAndTargets,
 ): Promise<void> => {
     const dates = getDailyDatesFromCron(scheduler.cron);
-
     const graphileClient = await graphileUtils;
 
     try {

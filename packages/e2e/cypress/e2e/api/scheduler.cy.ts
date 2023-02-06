@@ -10,7 +10,7 @@ import {
 
 const apiUrl = '/api/v1';
 
-const cron = '59 22 * * *';
+const cron = '59 23 * * *';
 const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     name: 'test',
     cron,
@@ -87,7 +87,7 @@ describe('Lightdash scheduler endpoints', () => {
                         );
                         expect(
                             `${response.body.results[0].date}`.split('T')[1],
-                        ).to.be.eq('22:59:00.000Z');
+                        ).to.be.eq('23:59:00.000Z');
                     });
 
                     // Update
@@ -176,7 +176,7 @@ describe('Lightdash scheduler endpoints', () => {
                         );
                         expect(
                             `${response.body.results[0].date}`.split('T')[1],
-                        ).to.be.eq('22:59:00.000Z');
+                        ).to.be.eq('23:59:00.000Z');
                     });
 
                     // Get all dashboard schedulers

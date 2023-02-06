@@ -31,4 +31,19 @@ describe('Cron converter', () => {
 
         expect(executionDates).toStrictEqual([]);
     });
+
+    test('Get a date at the end of the day', () => {
+        const executionDates = getDailyDatesFromCron('59 23 * * *'); // at 23:59
+
+        expect(executionDates.length).toStrictEqual(1);
+        expect(executionDates[0].toISOString().split('T')[1]).toStrictEqual(
+            '23:59:00.000Z',
+        );
+    });
+
+    test('Should not get a date at the beggining of the day', () => {
+        const executionDates = getDailyDatesFromCron('0 0 * * *'); // at 00:00
+
+        expect(executionDates.length).toStrictEqual(0);
+    });
 });
