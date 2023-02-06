@@ -31,6 +31,7 @@ jest.mock('../../analytics/client', () => ({
 }));
 
 jest.mock('../../database/database', () => ({}));
+jest.mock('../../scheduler/SchedulerClient', () => ({}));
 
 jest.mock('../../database/entities/spaces', () => ({
     getSpace: jest.fn(async () => space),
