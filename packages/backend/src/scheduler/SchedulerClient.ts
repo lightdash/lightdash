@@ -21,7 +21,9 @@ const getDailyDatesFromCron = (cron: string, when = new Date()): Date[] => {
     return dailyDates;
 };
 
-const deleteScheduledJobs = async (schedulerUuid: string): Promise<void> => {
+export const deleteScheduledJobs = async (
+    schedulerUuid: string,
+): Promise<void> => {
     const graphileClient = await graphileUtils;
 
     const deletedJobs = await graphileClient.withPgClient((pgClient) =>
@@ -30,6 +32,12 @@ const deleteScheduledJobs = async (schedulerUuid: string): Promise<void> => {
             [`${schedulerUuid}%`],
         ),
     );
+    Logger.info(
+        `Deleting ${deletedJobs.rows.length} Slack notification scheduled jobs: ${schedulerUuid}`,
+    );
+    const deletedJobIds = deletedJobs.rows.map((r) => r.id);
+
+    graphileClient.completeJobs(deletedJobIds);
 };
 
 export const generateDailyJobsForScheduler = async (
@@ -45,7 +53,6 @@ export const generateDailyJobsForScheduler = async (
             graphileClient.addJob('sendSlackNotification', scheduler, {
                 runAt: date,
                 maxAttempts: 2,
-                jobKey: `${scheduler.schedulerUuid}-${i}`,
             }),
         );
 
@@ -56,6 +63,4 @@ export const generateDailyJobsForScheduler = async (
     } catch (err: any) {
         Logger.error(`Unable to schedule job ${scheduler.name}`, err);
     }
-
-    deleteScheduledJobs(scheduler.schedulerUuid);
 };
