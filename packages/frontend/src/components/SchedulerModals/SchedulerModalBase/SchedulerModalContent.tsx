@@ -1,6 +1,5 @@
 import {
     Button,
-    Dialog,
     DialogBody,
     DialogFooter,
     DialogProps,
@@ -19,9 +18,9 @@ import {
     UseMutationResult,
     UseQueryResult,
 } from 'react-query/types/react/types';
-import { useScheduler } from '../../hooks/scheduler/useScheduler';
-import { useSchedulersUpdateMutation } from '../../hooks/scheduler/useSchedulersUpdateMutation';
-import ErrorState from '../common/ErrorState';
+import { useScheduler } from '../../../hooks/scheduler/useScheduler';
+import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
+import ErrorState from '../../common/ErrorState';
 import SchedulerForm from './SchedulerForm';
 import SchedulersList from './SchedulersList';
 
@@ -184,7 +183,6 @@ const UpdateStateContent: FC<{
 
 interface Props extends DialogProps {
     resourceUuid: string;
-    name: string;
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
     createMutation: UseMutationResult<
         SchedulerAndTargets,
@@ -193,9 +191,8 @@ interface Props extends DialogProps {
     >;
 }
 
-const SchedulersModalBase: FC<Props> = ({
+const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
     resourceUuid,
-    name,
     schedulersQuery,
     createMutation,
     ...modalProps
@@ -203,23 +200,8 @@ const SchedulersModalBase: FC<Props> = ({
     const [state, setState] = useState<States>(States.LIST);
     const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>();
 
-    // todo: check if has slack
-
     return (
-        <Dialog
-            lazy
-            title={
-                <>
-                    Scheduled deliveries for <b>"{name}"</b>
-                </>
-            }
-            icon="send-message"
-            style={{
-                minHeight: '400px',
-                minWidth: '500px',
-            }}
-            {...modalProps}
-        >
+        <>
             {state === States.LIST && (
                 <ListStateContent
                     schedulersQuery={schedulersQuery}
@@ -244,8 +226,8 @@ const SchedulersModalBase: FC<Props> = ({
                     onBack={() => setState(States.LIST)}
                 />
             )}
-        </Dialog>
+        </>
     );
 };
 
-export default SchedulersModalBase;
+export default SchedulersModalContent;

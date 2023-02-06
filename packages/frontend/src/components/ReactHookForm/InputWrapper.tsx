@@ -23,6 +23,7 @@ export interface InputWrapperProps {
     documentationUrl?: string;
     className?: string;
     labelHelp?: string | JSX.Element;
+    helperText?: string | JSX.Element;
     rules?: React.ComponentProps<typeof Controller>['rules'];
     render: (
         inputProps: InputProps,
@@ -42,6 +43,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
     render,
     className,
     labelHelp,
+    helperText,
     ...rest
 }) => {
     const {
@@ -52,7 +54,7 @@ const InputWrapper: FC<InputWrapperProps> = ({
     const requiredLabel = rules?.required ? '*' : '';
 
     const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
-
+    const error = get(errors, name);
     return (
         <FormGroup
             inline={inline}
@@ -79,7 +81,13 @@ const InputWrapper: FC<InputWrapperProps> = ({
                 </>
             }
             intent={get(errors, name) ? 'danger' : 'none'}
-            helperText={<ErrorMessage errors={errors} name={name} as="p" />}
+            helperText={
+                error ? (
+                    <ErrorMessage errors={errors} name={name} as="p" />
+                ) : (
+                    helperText
+                )
+            }
         >
             <Controller
                 control={control}

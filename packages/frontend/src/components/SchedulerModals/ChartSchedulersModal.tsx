@@ -4,7 +4,7 @@ import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
 } from '../../hooks/scheduler/useChartSchedulers';
-import SchedulersModalBase from './SchedulersModalBase';
+import SchedulersModalBase from './SchedulerModalBase';
 
 interface Props extends DialogProps {
     chartUuid: string;

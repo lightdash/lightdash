@@ -8,9 +8,9 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import React, { FC, useCallback, useEffect } from 'react';
-import { useScheduler } from '../../hooks/scheduler/useScheduler';
-import { useSchedulersDeleteMutation } from '../../hooks/scheduler/useSchedulersDeleteMutation';
-import ErrorState from '../common/ErrorState';
+import { useScheduler } from '../../../hooks/scheduler/useScheduler';
+import { useSchedulersDeleteMutation } from '../../../hooks/scheduler/useSchedulersDeleteMutation';
+import ErrorState from '../../common/ErrorState';
 
 interface DashboardDeleteModalProps extends DialogProps {
     schedulerUuid: string;
