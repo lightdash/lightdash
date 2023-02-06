@@ -1,3 +1,10 @@
+## [0.403.2](https://github.com/lightdash/lightdash/compare/0.403.1...0.403.2) (2023-02-06)
+
+
+### Bug Fixes
+
+* complete week filters with custom start of week ([#4357](https://github.com/lightdash/lightdash/issues/4357)) ([bd346bd](https://github.com/lightdash/lightdash/commit/bd346bdef2817c9908a3bdbc6566afa492c9376b))
+
 ## [0.403.1](https://github.com/lightdash/lightdash/compare/0.403.0...0.403.1) (2023-02-03)
 
 
