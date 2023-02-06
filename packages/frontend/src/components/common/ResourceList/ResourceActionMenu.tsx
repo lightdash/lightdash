@@ -1,15 +1,8 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
-import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
 import React, { FC, useState } from 'react';
-import { Route } from 'react-router-dom';
-import { CardContainer, Title } from '../../../pages/Settings.styles';
 import { useApp } from '../../../providers/AppProvider';
-import { DeleteOrganisationPanel } from '../../UserSettings/DeleteOrganisationPanel';
-import OrganisationPanel from '../../UserSettings/OrganisationPanel';
-import { Can } from '../Authorization';
-import Content from '../Page/Content';
 import {
     ResourceListAction,
     ResourceListActionState,
