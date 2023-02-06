@@ -5,6 +5,8 @@ import {
     useDuplicateDashboardMutation,
     useMoveDashboardMutation,
 } from '../../../hooks/dashboard/useDashboard';
+import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
+import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -25,6 +27,7 @@ export enum ResourceListAction {
     ADD_TO_DASHBOARD,
     CREATE_SPACE,
     MOVE_TO_SPACE,
+    PIN_TO_HOMEPAGE,
 }
 
 export type ResourceListActionState =
@@ -34,6 +37,7 @@ export type ResourceListActionState =
     | { type: ResourceListAction.DUPLICATE; item: ResourceListItem }
     | { type: ResourceListAction.ADD_TO_DASHBOARD; item: ResourceListItem }
     | { type: ResourceListAction.CREATE_SPACE; item: ResourceListItem }
+    | { type: ResourceListAction.PIN_TO_HOMEPAGE; item: ResourceListItem }
     | {
           type: ResourceListAction.MOVE_TO_SPACE;
           item: ResourceListItem;
@@ -59,6 +63,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
+    const { mutate: pinChart } = useChartPinningMutation();
+    const { mutate: pinDashboard } = useDashboardPinningMutation();
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceListAction.CLOSE });
@@ -102,6 +108,26 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         }
     }, [action, moveChartMutation, moveDashboardMutation]);
 
+    const handlePinToHomepage = useCallback(() => {
+        if (action.type !== ResourceListAction.PIN_TO_HOMEPAGE) return;
+
+        switch (action.item.type) {
+            case ResourceListType.CHART:
+                return pinChart({
+                    uuid: action.item.data.uuid,
+                });
+            case ResourceListType.DASHBOARD:
+                return pinDashboard({
+                    uuid: action.item.data.uuid,
+                });
+            default:
+                return assertUnreachable(
+                    action.item,
+                    'Resource type not supported',
+                );
+        }
+    }, [action, pinChart, pinDashboard]);
+
     const handleDuplicate = useCallback(() => {
         if (action.type !== ResourceListAction.DUPLICATE) return;
 
@@ -131,6 +157,13 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             handleReset();
         }
     }, [action, handleDuplicate, handleReset]);
+
+    useEffect(() => {
+        if (action.type === ResourceListAction.PIN_TO_HOMEPAGE) {
+            handlePinToHomepage();
+            handleReset();
+        }
+    }, [action, handlePinToHomepage, handleReset]);
 
     return (
         <>
