@@ -21,6 +21,17 @@ const getDailyDatesFromCron = (cron: string, when = new Date()): Date[] => {
     return dailyDates;
 };
 
+const deleteScheduledJobs = async (schedulerUuid: string): Promise<void> => {
+    const graphileClient = await graphileUtils;
+
+    const deletedJobs = await graphileClient.withPgClient((pgClient) =>
+        pgClient.query(
+            "select id from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+            [`${schedulerUuid}%`],
+        ),
+    );
+};
+
 export const generateDailyJobsForScheduler = async (
     scheduler: Scheduler,
 ): Promise<void> => {
@@ -45,4 +56,6 @@ export const generateDailyJobsForScheduler = async (
     } catch (err: any) {
         Logger.error(`Unable to schedule job ${scheduler.name}`, err);
     }
+
+    deleteScheduledJobs(scheduler.schedulerUuid);
 };

@@ -8,10 +8,8 @@ import moment from 'moment';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
-import {
-    generateDailyJobsForScheduler,
-    sendSlackNotification,
-} from './SchedulerTask';
+import { generateDailyJobsForScheduler } from './SchedulerClient';
+import { sendSlackNotification } from './SchedulerTask';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
