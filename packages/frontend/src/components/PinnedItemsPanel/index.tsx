@@ -33,7 +33,6 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
             defaultColumnVisibility={{ space: false }}
             showCount={false}
             headerTitle="Pinned items"
-            renderEmptyState={() => <></>}
         />
     ) : null;
 };
