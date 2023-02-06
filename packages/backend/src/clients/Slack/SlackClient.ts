@@ -55,6 +55,51 @@ export class SlackClient {
         }
     }
 
+    async getChannels(organizationUuid: string) {
+        if (this.slackApp === undefined) {
+            throw new Error('Slack app is not configured');
+        }
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        const channels = await this.slackApp.client.conversations.list({
+            token: installation?.token,
+            types: 'public_channel',
+        });
+
+        const users = await this.slackApp.client.users.list({
+            token: installation?.token,
+        });
+        const channelNames =
+            channels.channels?.map((channel) => ({
+                id: channel.id,
+                name: channel.name,
+            })) || [];
+        const userNames =
+            users.members?.map((user) => ({ id: user.id, name: user.name })) ||
+            [];
+        return [...channelNames, ...userNames];
+    }
+
+    async joinChannel(organizationUuid: string, channel: string) {
+        if (this.slackApp === undefined) {
+            throw new Error('Slack app is not configured');
+        }
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        await this.slackApp.client.conversations.join({
+            token: installation?.token,
+            channel,
+        });
+    }
+
     async postMessage(message: {
         organizationUuid: string;
         text: string;

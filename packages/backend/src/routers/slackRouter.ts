@@ -15,6 +15,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { slackAuthenticationModel } from '../models/models';
+import { slackClient } from '../services/services';
 
 export const slackRouter = express.Router({ mergeParams: true });
 
@@ -142,6 +143,26 @@ slackRouter.get(
                     error: `${error}`,
                 },
             });
+            next(error);
+        }
+    },
+);
+
+slackRouter.get(
+    '/channels/',
+    isAuthenticated,
+    unauthorisedInDemo,
+
+    async (req, res, next) => {
+        try {
+            const organizationUuid = req.user?.organizationUuid;
+            if (!organizationUuid) throw new ForbiddenError();
+
+            res.json({
+                status: 'ok',
+                results: await slackClient.getChannels(organizationUuid),
+            });
+        } catch (error) {
             next(error);
         }
     },

@@ -5,7 +5,17 @@ export const slackOptions = {
     clientId: lightdashConfig.slack?.clientId || '',
     clientSecret: lightdashConfig.slack?.clientSecret || '',
     stateSecret: lightdashConfig.slack?.stateSecret,
-    scopes: ['links:read', 'links:write'],
+    scopes: [
+        'links:read',
+        'links:write',
+        'chat:write',
+        'channels:read',
+        'channels:join',
+        'im:read',
+        'groups:read',
+        'mpim:read',
+        'users:read',
+    ],
 
     // Slack only allow https on redirections
     // When testing locally on http://localhost:3000, replace again https:// with http:// after redirection happens

@@ -1,6 +1,6 @@
 export type SlackChannel = {
     id: string;
-    label: string;
+    name: string;
 };
 
 export type ApiSlackChannelsResponse = {

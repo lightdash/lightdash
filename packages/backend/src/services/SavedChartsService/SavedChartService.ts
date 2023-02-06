@@ -419,6 +419,12 @@ export class SavedChartService {
             savedChartUuid: chartUuid,
         });
 
+        /* // Dependency cycle 
+       const joinPromises = scheduler.targets.map((target) => {
+            slackClient.joinChannel(user.organizationUuid, target.channel);
+        });
+        await Promise.all(joinPromises)
+*/
         await generateDailyJobsForScheduler(scheduler);
 
         return scheduler;

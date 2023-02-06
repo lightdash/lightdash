@@ -16,7 +16,7 @@ const SchedulerForm: FC<
         () =>
             (slackChannelsQuery.data || []).map((channel) => ({
                 value: channel.id,
-                label: channel.label,
+                label: channel.name,
             })),
         [slackChannelsQuery.data],
     );
