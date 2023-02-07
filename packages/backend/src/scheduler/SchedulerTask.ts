@@ -65,6 +65,9 @@ export const sendSlackNotification = async (
             `slack-notification-image-${nanoid()}`,
             userUuid,
         );
+        if (imageUrl === undefined) {
+            throw new Error('Unable to unfurl image');
+        }
 
         const unfurl: Unfurl = {
             title: details.name,

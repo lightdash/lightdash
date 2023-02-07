@@ -99,7 +99,7 @@ export class SchedulerClient {
                         { channel: target.channel, ...scheduler },
                         {
                             runAt: date,
-                            maxAttempts: 2,
+                            maxAttempts: 3,
                         },
                     ),
                 ),
