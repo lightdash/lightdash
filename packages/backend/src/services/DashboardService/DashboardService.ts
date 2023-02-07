@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import { schedulerClient, slackClient } from '../../clients/clients';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -22,7 +23,6 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { generateDailyJobsForScheduler } from '../../scheduler/SchedulerClient';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -476,7 +476,12 @@ export class DashboardService {
             savedChartUuid: null,
         });
 
-        await generateDailyJobsForScheduler(scheduler);
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            scheduler.targets.map((target) => target.channel),
+        );
+
+        await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
     }

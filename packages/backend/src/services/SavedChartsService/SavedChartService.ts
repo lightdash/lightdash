@@ -14,13 +14,13 @@ import {
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateSavedChartOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import { schedulerClient, slackClient } from '../../clients/clients';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { generateDailyJobsForScheduler } from '../../scheduler/SchedulerClient';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -419,13 +419,12 @@ export class SavedChartService {
             savedChartUuid: chartUuid,
         });
 
-        /* // Dependency cycle 
-       const joinPromises = scheduler.targets.map((target) => {
-            slackClient.joinChannel(user.organizationUuid, target.channel);
-        });
-        await Promise.all(joinPromises)
-*/
-        await generateDailyJobsForScheduler(scheduler);
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            scheduler.targets.map((target) => target.channel),
+        );
+
+        await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
     }

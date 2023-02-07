@@ -69,6 +69,7 @@ export class SlackClient {
         const channels = await this.slackApp.client.conversations.list({
             token: installation?.token,
             types: 'public_channel',
+            limit: 500,
         });
 
         const users = await this.slackApp.client.users.list({
@@ -82,20 +83,21 @@ export class SlackClient {
         );
     }
 
-    async joinChannel(organizationUuid: string, channel: string) {
+    async joinChannels(organizationUuid: string, channels: string[]) {
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');
         }
-
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             );
-
-        await this.slackApp.client.conversations.join({
-            token: installation?.token,
-            channel,
-        });
+        const joinPromises = channels.map((channel) =>
+            this.slackApp?.client.conversations.join({
+                token: installation?.token,
+                channel,
+            }),
+        );
+        await Promise.all(joinPromises);
     }
 
     async postMessage(message: {

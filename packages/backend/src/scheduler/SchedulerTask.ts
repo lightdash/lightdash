@@ -1,20 +1,17 @@
 import { ScheduledSlackNotification } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import { slackClient } from '../clients/clients';
 import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
-import {
-    schedulerService,
-    slackClient,
-    unfurlService,
-} from '../services/services';
+import { schedulerService, unfurlService } from '../services/services';
 import { LightdashPage, Unfurl } from '../services/UnfurlService/UnfurlService';
 
 const getChartOrDashboard = async (
     chartUuid?: string,
     dashboardUuid?: string,
 ) => {
-    if (chartUuid !== undefined) {
+    if (chartUuid) {
         const chart = await schedulerService.savedChartModel.get(chartUuid);
         return {
             url: `${lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
@@ -23,10 +20,11 @@ const getChartOrDashboard = async (
                 description: chart.description,
             },
             pageType: LightdashPage.CHART,
+            organizationUuid: chart.organizationUuid,
         };
     }
 
-    if (dashboardUuid !== undefined) {
+    if (dashboardUuid) {
         const dashboard = await schedulerService.dashboardModel.getById(
             dashboardUuid,
         );
@@ -37,6 +35,7 @@ const getChartOrDashboard = async (
                 description: dashboard.description,
             },
             pageType: LightdashPage.DASHBOARD,
+            organizationUuid: dashboard.organizationUuid,
         };
     }
 
@@ -50,17 +49,11 @@ export const sendSlackNotification = async (
         throw new Error('Slack app is not configured');
     }
     try {
-        const {
-            organizationUuid,
-            userUuid,
-            chartUuid,
-            dashboardUuid,
-            channel,
-        } = notification;
-        const { url, details, pageType } = await getChartOrDashboard(
-            chartUuid,
-            dashboardUuid,
-        );
+        const { userUuid, savedChartUuid, dashboardUuid, channel } =
+            notification;
+
+        const { url, details, pageType, organizationUuid } =
+            await getChartOrDashboard(savedChartUuid, dashboardUuid);
 
         let imageUrl;
         try {

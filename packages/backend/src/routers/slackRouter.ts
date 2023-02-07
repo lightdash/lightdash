@@ -15,7 +15,6 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import { slackAuthenticationModel } from '../models/models';
-import { slackClient } from '../services/services';
 
 export const slackRouter = express.Router({ mergeParams: true });
 

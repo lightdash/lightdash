@@ -90,7 +90,7 @@ export type ApiScheduledJobsResponse = {
 export type ScheduledSlackNotification = {
     organizationUuid: string;
     userUuid: string;
-    chartUuid?: string;
+    savedChartUuid?: string;
     dashboardUuid?: string;
     channel: string;
 };

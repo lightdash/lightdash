@@ -14,7 +14,7 @@ import {
     Route,
     SuccessResponse,
 } from 'tsoa';
-import { slackClient } from '../services/services';
+import { slackClient } from '../clients/clients';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/slack')

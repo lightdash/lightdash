@@ -5,10 +5,10 @@ import {
     run as runGraphileWorker,
 } from 'graphile-worker';
 import moment from 'moment';
+import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
-import { generateDailyJobsForScheduler } from './SchedulerClient';
 import { sendSlackNotification } from './SchedulerTask';
 
 type SchedulerWorkerDependencies = {
@@ -68,7 +68,9 @@ export class SchedulerWorker {
                     );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
-                    schedulers.map(generateDailyJobsForScheduler);
+                    schedulers.map(
+                        schedulerClient.generateDailyJobsForScheduler,
+                    );
                 },
                 sendSlackNotification: async (
                     payload: any,

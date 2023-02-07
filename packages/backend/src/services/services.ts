@@ -1,6 +1,5 @@
 import { S3Service } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';
-import { SlackClient } from '../clients/Slack/SlackClient';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
@@ -138,9 +137,4 @@ export const schedulerService = new SchedulerService({
     schedulerModel,
     savedChartModel,
     dashboardModel,
-});
-
-export const slackClient = new SlackClient({
-    slackAuthenticationModel,
-    lightdashConfig,
 });

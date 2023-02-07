@@ -8,15 +8,11 @@ import {
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
+import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
-import {
-    deleteScheduledJobs,
-    generateDailyJobsForScheduler,
-    getScheduledJobs,
-} from '../../scheduler/SchedulerClient';
 
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -97,14 +93,18 @@ export class SchedulerService {
     ): Promise<SchedulerAndTargets> {
         await this.checkUserCanUpdateScheduler(user, schedulerUuid);
 
-        await deleteScheduledJobs(schedulerUuid);
+        await schedulerClient.deleteScheduledJobs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.updateScheduler({
             ...updatedScheduler,
             schedulerUuid,
         });
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            scheduler.targets.map((target) => target.channel),
+        );
 
-        await generateDailyJobsForScheduler(scheduler);
+        await schedulerClient.generateDailyJobsForScheduler(scheduler);
         return scheduler;
     }
 
@@ -114,7 +114,7 @@ export class SchedulerService {
     ): Promise<void> {
         await this.checkUserCanUpdateScheduler(user, schedulerUuid);
 
-        await deleteScheduledJobs(schedulerUuid);
+        await schedulerClient.deleteScheduledJobs(schedulerUuid);
 
         return this.schedulerModel.deleteScheduler(schedulerUuid);
     }
@@ -123,6 +123,6 @@ export class SchedulerService {
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<ScheduledJobs[]> {
-        return getScheduledJobs(schedulerUuid);
+        return schedulerClient.getScheduledJobs(schedulerUuid);
     }
 }
