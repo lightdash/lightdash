@@ -4,19 +4,19 @@ export const PinnedListTableName = 'pinned_list';
 export const PinnedChartTableName = 'pinned_chart';
 export const PinnedDashboardTableName = 'pinned_dashboard';
 
-type PinnedList = {
+export type DbPinnedList = {
     pinned_list_uuid: string;
     project_uuid: string;
-    created_at: Date;
+    created_at?: Date;
 };
 
-type PinnedChart = {
+export type DbPinnedChart = {
     pinned_item_uuid: string;
     pinned_list_uuid: string;
     saved_chart_uuid: string;
     created_at: Date;
 };
-type PinnedDashboard = {
+export type DbPinnedDashboard = {
     pinned_item_uuid: string;
     pinned_list_uuid: string;
     dashboard_uuid: string;
@@ -24,23 +24,23 @@ type PinnedDashboard = {
 };
 
 export type CreatePinnedChart = Omit<
-    PinnedChart,
+    DbPinnedChart,
     'pinned_item_uuid' | 'created_at'
 >;
 export type CreatePinnedDashboard = Omit<
-    PinnedDashboard,
+    DbPinnedDashboard,
     'pinned_item_uuid' | 'created_at'
 >;
 
 export type PinnedListTable = Knex.CompositeTableType<
-    PinnedList,
-    Pick<PinnedList, 'project_uuid'>
+    DbPinnedList,
+    Pick<DbPinnedList, 'project_uuid'>
 >;
 export type PinnedChartTable = Knex.CompositeTableType<
-    PinnedChart,
+    DbPinnedChart,
     CreatePinnedChart
 >;
 export type PinnedDashboardTable = Knex.CompositeTableType<
-    PinnedDashboard,
+    DbPinnedChart,
     CreatePinnedDashboard
 >;

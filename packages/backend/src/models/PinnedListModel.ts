@@ -5,14 +5,21 @@ import {
     DeleteDashboardPinnedItem,
     isCreateChartPinnedItem,
     isDeleteChartPinnedItem,
+    NotFoundError,
+    PinnedItem,
     PinnedList,
+    PinnedListAndItems,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    DbPinnedChart,
+    DbPinnedDashboard,
+    DbPinnedList,
     PinnedChartTableName,
     PinnedDashboardTableName,
     PinnedListTableName,
 } from '../database/entities/pinnedList';
+import { isDbPinnedChart } from '../utils';
 
 type PinnedListModelDependencies = {
     database: Knex;
@@ -76,5 +83,64 @@ export class PinnedListModel {
                 .where('dashboard_uuid', item.dashboardUuid)
                 .andWhere('pinned_list_uuid', item.pinnedListUuid);
         }
+    }
+
+    static convertPinnedList(data: DbPinnedList): PinnedList {
+        return {
+            pinnedListUuid: data.pinned_list_uuid,
+            projectUuid: data.project_uuid,
+        };
+    }
+
+    static convertPinnedItem(
+        data: DbPinnedChart | DbPinnedDashboard,
+    ): PinnedItem {
+        return {
+            pinnedListUuid: data.pinned_list_uuid,
+            pinnedItemUuid: data.pinned_item_uuid,
+            savedChartUuid: isDbPinnedChart(data)
+                ? data.saved_chart_uuid
+                : undefined,
+            dashboardUuid: isDbPinnedChart(data)
+                ? undefined
+                : data.dashboard_uuid,
+            createdAt: data.created_at,
+        };
+    }
+
+    async getPinnedListAndItems(
+        projectUuid: string,
+    ): Promise<PinnedListAndItems> {
+        const [list] = await this.database(PinnedListTableName)
+            .select(['pinned_list_uuid', 'project_uuid'])
+            .where('project_uuid', projectUuid);
+        if (!list) {
+            throw new NotFoundError('No pinned list found');
+        }
+
+        const pinnedListUuid = [list][0].pinned_list_uuid;
+        const pinnedCharts = await this.database(PinnedChartTableName)
+            .select(
+                'pinned_list_uuid',
+                'pinned_item_uuid',
+                'saved_chart_uuid',
+                'created_at',
+            )
+            .where(['pinned_list_uuid', pinnedListUuid]);
+        const pinnedDashboards = await this.database(PinnedDashboardTableName)
+            .select(
+                'pinned_list_uuid',
+                'pinned_item_uuid',
+                'dashboard_uuid',
+                'created_at',
+            )
+            .where(['pinned_list_uuid', pinnedListUuid]);
+
+        const pinnedList = PinnedListModel.convertPinnedList(list);
+        const pinnedItems = [...pinnedCharts, ...pinnedDashboards].map(
+            PinnedListModel.convertPinnedItem,
+        );
+
+        return { ...pinnedList, items: pinnedItems };
     }
 }
