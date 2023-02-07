@@ -59,21 +59,13 @@ export const sendSlackNotification = async (
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);
 
-        let imageUrl;
-        try {
-            imageUrl = await unfurlService.unfurlImage(
-                url,
-                pageType,
-                `slack-notification-image-${nanoid()}`,
-                userUuid,
-            );
-        } catch (e) {
-            // TODO track error here and retry
-            // Placeholder image
-            // TODO only use placeholder image on test env, when HEADLESS browser is not defined
-            imageUrl =
-                'https://uploads-ssl.webflow.com/62a9ae93cf7542032ae55b9c/62bb343438ff242c3efb5489_Group%2024%20(1)-p-1600.png';
-        }
+        // TODO use placeholder image on development
+        const imageUrl = await unfurlService.unfurlImage(
+            url,
+            pageType,
+            `slack-notification-image-${nanoid()}`,
+            userUuid,
+        );
 
         const unfurl: Unfurl = {
             title: details.name,
@@ -93,5 +85,6 @@ export const sendSlackNotification = async (
         Logger.error(
             `Unable to sendNotification on slack : ${JSON.stringify(e)}`,
         );
+        throw e; // Cascade error to it can be retried by graphile
     }
 };
