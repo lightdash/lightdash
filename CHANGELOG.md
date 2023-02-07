@@ -1,3 +1,10 @@
+## [0.404.1](https://github.com/lightdash/lightdash/compare/0.404.0...0.404.1) (2023-02-07)
+
+
+### Bug Fixes
+
+* open table configuration in SQL runner page ([#4395](https://github.com/lightdash/lightdash/issues/4395)) ([befbafe](https://github.com/lightdash/lightdash/commit/befbafe35f832725b093e17694215f93e2557dac))
+
 # [0.404.0](https://github.com/lightdash/lightdash/compare/0.403.3...0.404.0) (2023-02-06)
 
 
