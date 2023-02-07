@@ -209,6 +209,22 @@ export class SavedChartService {
             });
         }
 
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
+
         return this.get(savedChartUuid, user);
     }
 

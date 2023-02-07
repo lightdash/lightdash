@@ -3,6 +3,18 @@ export type PinnedList = {
     projectUuid: string;
 };
 
+export type PinnedItem = {
+    pinnedItemUuid: string;
+    pinnedListUuid: string;
+    savedChartUuid?: string;
+    dashboardUuid?: string;
+    createdAt: Date;
+};
+
+export type PinnedListAndItems = PinnedList & {
+    items: PinnedItem[];
+};
+
 export type CreateChartPinnedItem = {
     projectUuid: string;
     savedChartUuid: string;

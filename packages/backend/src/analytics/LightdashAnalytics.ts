@@ -2,11 +2,15 @@
 import {
     CartesianSeriesType,
     ChartType,
+    CreateChartPinnedItem,
+    CreateDashboardPinnedItem,
     DbtProjectType,
     LightdashInstallType,
     LightdashUser,
     OrganizationMemberRole,
+    PinnedItem,
     RequestMethod,
+    Space,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -452,6 +456,18 @@ type AnalyticsDashboardView = BaseTrack & {
     };
 };
 
+type PinnedListUpdated = BaseTrack & {
+    event: 'pinned_list.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        location: 'homepage';
+        pinnedListId: string;
+        pinnedItems: PinnedItem[];
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -489,7 +505,8 @@ type Track =
     | ShareSlack
     | SavedChartView
     | DashboardView
-    | AnalyticsDashboardView;
+    | AnalyticsDashboardView
+    | PinnedListUpdated;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

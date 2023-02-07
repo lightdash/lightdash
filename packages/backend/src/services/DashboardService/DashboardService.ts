@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    PinnedListAndItems,
     SessionUser,
     UpdateDashboard,
     UpdateMultipleDashboards,
@@ -352,6 +353,22 @@ export class DashboardService {
                 dashboardUuid,
             });
         }
+
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            existingDashboard.projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingDashboard.projectUuid,
+                organizationId: existingDashboard.organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
 
         return this.getById(user, dashboardUuid);
     }
