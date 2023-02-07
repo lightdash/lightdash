@@ -15,9 +15,12 @@ import {
     Title,
 } from './SlackSettingsPanel.styles';
 
-export const hasRequiredScopes = (slackSettings: SlackSettings) =>
-    intersection(slackSettings.scopes, slackRequiredScopes) ===
-    slackRequiredScopes;
+export const hasRequiredScopes = (slackSettings: SlackSettings) => {
+    return (
+        intersection(slackSettings.scopes, slackRequiredScopes).length ===
+        slackRequiredScopes.length
+    );
+};
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isLoading } = useGetSlack();
     const { mutate: deleteSlack } = useDeleteSlack();
@@ -53,21 +56,30 @@ const SlackSettingsPanel: FC = () => {
                     </Description>
                 </AppearancePanelWrapper>
                 {isValidSlack ? (
-                    <Actions>
-                        <AnchorButton
-                            target="_blank"
-                            intent="primary"
-                            href={installUrl}
-                        >
-                            Reinstall
-                        </AnchorButton>
-                        <Button
-                            icon="delete"
-                            intent="danger"
-                            onClick={() => deleteSlack(undefined)}
-                            text="Remove"
-                        />
-                    </Actions>
+                    <div>
+                        <Actions>
+                            <AnchorButton
+                                target="_blank"
+                                intent="primary"
+                                href={installUrl}
+                            >
+                                Reinstall
+                            </AnchorButton>
+                            <Button
+                                icon="delete"
+                                intent="danger"
+                                onClick={() => deleteSlack(undefined)}
+                                text="Remove"
+                            />
+                        </Actions>
+                        {data && !hasRequiredScopes(data) && (
+                            <ScopesCallout intent="primary">
+                                Your Slack integration is not up to date, you
+                                should reinstall the Slack integration to
+                                guaranty the best user experience.
+                            </ScopesCallout>
+                        )}
+                    </div>
                 ) : (
                     <Actions>
                         <AnchorButton
@@ -80,13 +92,6 @@ const SlackSettingsPanel: FC = () => {
                     </Actions>
                 )}
             </SlackSettingsWrapper>
-            {data && !hasRequiredScopes(data) && (
-                <ScopesCallout intent="primary">
-                    Your Slack integration is not up to date, you should
-                    reinstall the Slack integration to guaranty the best user
-                    experience.
-                </ScopesCallout>
-            )}
         </>
     );
 };

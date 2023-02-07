@@ -12,8 +12,5 @@ export const slackRequiredScopes = [
     'chat:write',
     'channels:read',
     'channels:join',
-    'im:read',
-    'groups:read',
-    'mpim:read',
     'users:read',
 ];

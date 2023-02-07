@@ -6,9 +6,9 @@ import {
     NonIdealState,
     Spinner,
 } from '@blueprintjs/core';
-import { hasRequiredScopes } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import { useGetSlack } from '../../../hooks/useSlack';
+import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import SchedulersModalContent from './SchedulerModalContent';
 import SchedulerModalError from './SchedulerModalError';
 

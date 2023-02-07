@@ -42,4 +42,5 @@ export const Actions = styled.div`
 
 export const ScopesCallout = styled(Callout)`
     margin-top: 20px;
+    width: 280px;
 `;
