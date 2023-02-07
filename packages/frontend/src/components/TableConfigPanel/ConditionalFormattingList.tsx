@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
-import { useExplorerContext } from '../../providers/ExplorerProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 import { ConditionalFormattingListWrapper } from './ConditionalFormatting.styles';
@@ -22,7 +21,14 @@ const ConditionalFormattingList = ({}) => {
         tableConfig: { conditionalFormattings, onSetConditionalFormattings },
     } = useVisualizationContext();
 
-    const activeFields = useExplorerContext((c) => c.state.activeFields);
+    const activeFields = useMemo(() => {
+        if (!resultsData) return new Set<string>();
+        return new Set([
+            ...resultsData.metricQuery.dimensions,
+            ...resultsData.metricQuery.metrics,
+            ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
+        ]);
+    }, [resultsData]);
 
     const visibleActiveNumericFields = useMemo<FilterableItem[]>(() => {
         if (!explore) return [];
