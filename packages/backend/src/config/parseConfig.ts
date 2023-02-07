@@ -55,6 +55,10 @@ export type LightdashConfig = {
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
     slack?: SlackConfig;
+    scheduler?: {
+        enabled: boolean;
+        concurrency: number;
+    };
 };
 
 export type SlackConfig = {
@@ -284,6 +288,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,
             stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
+        },
+        scheduler: {
+            enabled: process.env.SCHEDULER_ENABLED === 'true',
+            concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '1', 10),
         },
     };
 };

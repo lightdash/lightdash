@@ -40,11 +40,11 @@ export class SchedulerWorker {
         this.lightdashConfig = lightdashConfig;
     }
 
-    static async run() {
+    async run() {
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
         const runner = await runGraphileWorker({
-            concurrency: 2,
+            concurrency: this.lightdashConfig.scheduler?.concurrency,
             noHandleSignals: false,
             pollInterval: 1000,
             parsedCronItems: parseCronItems([
@@ -68,9 +68,10 @@ export class SchedulerWorker {
                     );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
-                    schedulers.map(
+                    const promises = schedulers.map(
                         schedulerClient.generateDailyJobsForScheduler,
                     );
+                    await Promise.all(promises);
                 },
                 sendSlackNotification: async (
                     payload: any,
@@ -80,7 +81,7 @@ export class SchedulerWorker {
                         `Processing new job sendSlackNotification`,
                         payload,
                     );
-                    sendSlackNotification(payload);
+                    await sendSlackNotification(payload);
                 },
             },
         });

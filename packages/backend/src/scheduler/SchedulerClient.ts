@@ -42,9 +42,8 @@ export class SchedulerClient {
     }
 
     async start() {
-        this.graphileUtils = await makeWorkerUtils({}).then(
-            (workerUtils) => workerUtils,
-        );
+        this.graphileUtils = await makeWorkerUtils({});
+        this.graphileUtils?.migrate();
     }
 
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
