@@ -39,6 +39,7 @@ jest.mock('../../analytics/client', () => ({
         track: jest.fn(),
     },
 }));
+jest.mock('../../clients/clients', () => ({}));
 
 jest.mock('../../models/models', () => ({
     projectModel: {
