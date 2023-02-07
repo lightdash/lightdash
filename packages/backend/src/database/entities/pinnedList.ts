@@ -7,7 +7,7 @@ export const PinnedDashboardTableName = 'pinned_dashboard';
 export type DbPinnedList = {
     pinned_list_uuid: string;
     project_uuid: string;
-    created_at: Date;
+    created_at?: Date;
 };
 
 export type DbPinnedChart = {

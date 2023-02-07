@@ -112,7 +112,7 @@ export class PinnedListModel {
         projectUuid: string,
     ): Promise<PinnedListAndItems> {
         const [list] = await this.database(PinnedListTableName)
-            .select(['pinned_list_uuid', 'project_uuid'])
+            .select('pinned_list_uuid', 'project_uuid')
             .where('project_uuid', projectUuid);
         if (!list) {
             throw new NotFoundError('No pinned list found');
@@ -126,7 +126,7 @@ export class PinnedListModel {
                 'saved_chart_uuid',
                 'created_at',
             )
-            .where(['pinned_list_uuid', pinnedListUuid]);
+            .where('pinned_list_uuid', pinnedListUuid);
         const pinnedDashboards = await this.database(PinnedDashboardTableName)
             .select(
                 'pinned_list_uuid',
@@ -134,7 +134,7 @@ export class PinnedListModel {
                 'dashboard_uuid',
                 'created_at',
             )
-            .where(['pinned_list_uuid', pinnedListUuid]);
+            .where('pinned_list_uuid', pinnedListUuid);
 
         const pinnedList = PinnedListModel.convertPinnedList(list);
         const pinnedItems = [...pinnedCharts, ...pinnedDashboards].map(
