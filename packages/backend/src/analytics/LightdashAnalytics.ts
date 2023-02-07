@@ -8,6 +8,7 @@ import {
     LightdashInstallType,
     LightdashUser,
     OrganizationMemberRole,
+    PinnedItem,
     RequestMethod,
     Space,
     TableSelectionType,
@@ -463,10 +464,7 @@ type PinnedListUpdated = BaseTrack & {
         organizationId: string;
         location: 'homepage';
         pinnedListId: string;
-        pinnedItems: {
-            chartIds: string[];
-            dashboardIds: string[];
-        };
+        pinnedItems: PinnedItem[];
     };
 };
 
