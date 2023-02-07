@@ -91,12 +91,15 @@ export class SlackClient {
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             );
-        const joinPromises = channels.map((channel) =>
-            this.slackApp?.client.conversations.join({
+        const joinPromises = channels.map((channel) => {
+            // Don't need to join user channels (DM)
+            if (channel.startsWith('U')) return undefined;
+
+            return this.slackApp?.client.conversations.join({
                 token: installation?.token,
                 channel,
-            }),
-        );
+            });
+        });
         await Promise.all(joinPromises);
     }
 

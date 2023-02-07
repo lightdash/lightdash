@@ -54,6 +54,8 @@ services:
           type: pserv
           name: headless-browser
           property: host
+      - key: SCHEDULER_ENABLED
+        value: true 
 
 envVarGroups:
   - name: rudder-settings
