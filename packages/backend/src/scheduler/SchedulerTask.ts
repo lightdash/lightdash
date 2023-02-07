@@ -8,8 +8,8 @@ import { schedulerService, unfurlService } from '../services/services';
 import { LightdashPage, Unfurl } from '../services/UnfurlService/UnfurlService';
 
 const getChartOrDashboard = async (
-    chartUuid?: string,
-    dashboardUuid?: string,
+    chartUuid: string | null,
+    dashboardUuid: string | null,
 ) => {
     if (chartUuid) {
         const chart = await schedulerService.savedChartModel.get(chartUuid);
@@ -49,8 +49,12 @@ export const sendSlackNotification = async (
         throw new Error('Slack app is not configured');
     }
     try {
-        const { userUuid, savedChartUuid, dashboardUuid, channel } =
-            notification;
+        const {
+            createdBy: userUuid,
+            savedChartUuid,
+            dashboardUuid,
+            channel,
+        } = notification;
 
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);

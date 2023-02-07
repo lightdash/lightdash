@@ -85,6 +85,7 @@ export class SchedulerWorker {
                 },
             },
         });
+
         await runner.promise;
     }
 }
