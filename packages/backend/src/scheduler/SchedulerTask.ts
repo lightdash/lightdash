@@ -59,7 +59,6 @@ export const sendSlackNotification = async (
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);
 
-        // TODO use placeholder image on development
         const imageUrl = await unfurlService.unfurlImage(
             url,
             pageType,
