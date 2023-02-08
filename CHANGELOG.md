@@ -1,3 +1,24 @@
+# [0.406.0](https://github.com/lightdash/lightdash/compare/0.405.1...0.406.0) (2023-02-08)
+
+
+### Features
+
+* csv full download ([#4406](https://github.com/lightdash/lightdash/issues/4406)) ([2a65bba](https://github.com/lightdash/lightdash/commit/2a65bba7779a9e6dd8c55359264ae483913f8a6d))
+
+## [0.405.1](https://github.com/lightdash/lightdash/compare/0.405.0...0.405.1) (2023-02-08)
+
+
+### Bug Fixes
+
+* sort autocomplete results case-insensitive ([#4408](https://github.com/lightdash/lightdash/issues/4408)) ([43da52d](https://github.com/lightdash/lightdash/commit/43da52d6c6bb7c8db1ddef4d2272e757c45fe484))
+
+# [0.405.0](https://github.com/lightdash/lightdash/compare/0.404.1...0.405.0) (2023-02-08)
+
+
+### Features
+
+* virtualize table rows ([#4405](https://github.com/lightdash/lightdash/issues/4405)) ([e56f308](https://github.com/lightdash/lightdash/commit/e56f308dd84afdb89b379edfe76da479bdf85c20))
+
 ## [0.404.1](https://github.com/lightdash/lightdash/compare/0.404.0...0.404.1) (2023-02-07)
 
 

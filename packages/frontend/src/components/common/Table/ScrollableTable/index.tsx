@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useRef } from 'react';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import TableBody from './TableBody';
@@ -11,12 +11,12 @@ interface ScrollableTableProps {
 
 const ScrollableTable: FC<ScrollableTableProps> = ({ $shouldExpand }) => {
     const { footer } = useTableContext();
-
+    const tableContainerRef = useRef<HTMLDivElement>(null);
     return (
-        <TableScrollableWrapper>
+        <TableScrollableWrapper ref={tableContainerRef}>
             <Table bordered condensed $showFooter={!!footer?.show}>
                 <TableHeader />
-                <TableBody />
+                <TableBody tableContainerRef={tableContainerRef} />
                 <TableFooter />
             </Table>
         </TableScrollableWrapper>

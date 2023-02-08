@@ -7,10 +7,15 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
+    NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
+import * as fs from 'fs/promises';
+import { nanoid } from 'nanoid';
+import path from 'path';
+import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -19,6 +24,7 @@ import {
 import {
     dashboardService,
     projectService,
+    s3Service,
     savedChartsService,
     searchService,
     spaceService,
@@ -193,6 +199,78 @@ projectRouter.post(
             });
         } catch (e) {
             next(e);
+        }
+    },
+);
+
+projectRouter.post(
+    '/explores/:exploreId/downloadCsv',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const { body } = req;
+            const { csvLimit, onlyRaw } = body;
+            const metricQuery: MetricQuery = {
+                dimensions: body.dimensions,
+                metrics: body.metrics,
+                filters: body.filters,
+                sorts: body.sorts,
+                limit: body.limit,
+                tableCalculations: body.tableCalculations,
+                additionalMetrics: body.additionalMetrics,
+            };
+            const results: ApiQueryResults = await projectService.runQuery(
+                req.user!,
+                metricQuery,
+                req.params.projectUuid,
+                req.params.exploreId,
+                csvLimit,
+            );
+
+            const csvHeader = Object.keys(results.rows[0]);
+            // TODO formatted or raw argument
+            // TODO improve column naming
+            const csvBody = results.rows.map((row) =>
+                Object.values(row)
+                    .map((r) => (onlyRaw ? r.value.raw : r.value.formatted))
+                    .join(','),
+            );
+            const csvContent = [csvHeader, ...csvBody].join('\n');
+            const fileId = `csv-${nanoid()}.csv`;
+
+            let fileUrl;
+            try {
+                fileUrl = await s3Service.uploadCsv(csvContent, fileId);
+            } catch (e) {
+                // Can't store file in S3, storing locally
+                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
+            }
+
+            res.json({
+                status: 'ok',
+                results: {
+                    url: fileUrl,
+                },
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.get(
+    '/csv/:fileId',
+
+    async (req, res, next) => {
+        if (!req.params.fileId.startsWith('csv-')) {
+            throw new NotFoundError(`File not found ${req.params.fileId}`);
+        }
+        try {
+            const filePath = path.join('/tmp', req.params.fileId);
+            res.sendFile(filePath);
+        } catch (error) {
+            next(error);
         }
     },
 );

@@ -84,7 +84,9 @@ const AutoComplete: FC<Props2> = ({
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             fill
-            items={Array.from(options).sort()}
+            items={Array.from(options).sort((a, b) =>
+                a.localeCompare(b, undefined, { sensitivity: 'base' }),
+            )}
             noResults={
                 isFetchingInitialData ? (
                     <StyledSpinner />

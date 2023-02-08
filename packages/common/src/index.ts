@@ -267,6 +267,9 @@ export type ApiSqlQueryResults = {
     rows: { [col: string]: any }[];
 };
 
+export type ApiDownloadCsv = {
+    url: string;
+};
 export type ProjectCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -485,7 +488,8 @@ type ApiResults =
     | UserActivity
     | SlackChannel[]
     | SchedulerAndTargets
-    | SchedulerAndTargets[];
+    | SchedulerAndTargets[]
+    | ApiDownloadCsv;
 
 export type ApiResponse = {
     status: 'ok';

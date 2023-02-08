@@ -59,10 +59,6 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
     }
 
     tbody tr {
-        :nth-child(even) {
-            background-color: ${Colors.LIGHT_GRAY5};
-        }
-
         :hover {
             background: ${Colors.LIGHT_GRAY3};
         }
@@ -114,6 +110,16 @@ const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
 `;
 
+export const Tr = styled.tr<{
+    $index?: number;
+}>`
+    ${({ $index = 0 }) =>
+        $index % 2 === 0
+            ? `
+                background-color: ${Colors.LIGHT_GRAY5};
+            `
+            : ''}
+`;
 export const Td = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;
