@@ -33,12 +33,12 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
-    const { dashboardTiles, availableFilterableFields, availableTileFilters } =
+    const { dashboardTiles, allFilterableFields, filterableFieldsByTileUuid } =
         useDashboardContext();
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (!availableTileFilters || !availableFilterableFields) {
+    if (!filterableFieldsByTileUuid || !allFilterableFields) {
         return null;
     }
 
@@ -53,7 +53,7 @@ const ActiveFilter: FC<Props> = ({
     const filterRuleTables = getFilterRuleTables(
         filterRule,
         field,
-        availableFilterableFields,
+        allFilterableFields,
     );
 
     return (
@@ -67,7 +67,7 @@ const ActiveFilter: FC<Props> = ({
                         selectedTabId={selectedTabId}
                         onTabChange={setSelectedTabId}
                         field={field}
-                        availableTileFilters={availableTileFilters}
+                        availableTileFilters={filterableFieldsByTileUuid}
                         filterRule={filterRule}
                         onSave={onUpdate}
                     />

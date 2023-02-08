@@ -134,7 +134,7 @@ export type UpdateMultipleDashboards = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 
-export type DashboardAvailableTileFilters = Record<string, FilterableField[]>;
+export type DashboardAvailableFilters = Record<string, FilterableField[]>;
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,

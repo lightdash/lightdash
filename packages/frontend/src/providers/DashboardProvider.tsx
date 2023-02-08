@@ -1,10 +1,11 @@
 import {
     Dashboard,
-    DashboardAvailableTileFilters,
+    DashboardAvailableFilters,
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
     FilterableField,
+    isDashboardChartTileType,
 } from '@lightdash/common';
 import uniqBy from 'lodash-es/uniqBy';
 import React, {
@@ -21,7 +22,7 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import {
-    useDashboardAvailableTileFilters,
+    useDashboardAvailableFilters,
     useDashboardQuery,
 } from '../hooks/dashboard/useDashboard';
 
@@ -59,8 +60,9 @@ type DashboardContext = {
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
-    availableFilterableFields: FilterableField[] | undefined;
-    availableTileFilters: DashboardAvailableTileFilters | undefined;
+    allFilterableFields: FilterableField[] | undefined;
+    filterableFieldsBySavedQueryUuid: DashboardAvailableFilters | undefined;
+    filterableFieldsByTileUuid: DashboardAvailableFilters | undefined;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -75,17 +77,36 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [],
     );
 
-    const { isLoading, data: availableTileFilters } =
-        useDashboardAvailableTileFilters(dashboardUuid);
+    const { isLoading, data: filterableFieldsBySavedQueryUuid } =
+        useDashboardAvailableFilters(dashboardUuid);
 
-    const availableFilterableFields = useMemo(() => {
-        if (isLoading || !availableTileFilters) return;
+    const allFilterableFields = useMemo(() => {
+        if (isLoading || !filterableFieldsBySavedQueryUuid) return;
 
-        const allFilters = Object.values(availableTileFilters).flat();
+        const allFilters = Object.values(
+            filterableFieldsBySavedQueryUuid,
+        ).flat();
         if (allFilters.length === 0) return;
 
         return uniqBy(allFilters, (f) => fieldId(f));
-    }, [isLoading, availableTileFilters]);
+    }, [isLoading, filterableFieldsBySavedQueryUuid]);
+
+    const filterableFieldsByTileUuid = useMemo(() => {
+        if (!dashboard || !filterableFieldsBySavedQueryUuid) return;
+
+        return dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .reduce<Record<string, FilterableField[]>>((acc, tile) => {
+                const savedChartUuid = tile.properties.savedChartUuid;
+                if (!savedChartUuid) return acc;
+
+                return {
+                    ...acc,
+                    [tile.uuid]:
+                        filterableFieldsBySavedQueryUuid[savedChartUuid],
+                };
+            }, {});
+    }, [dashboard, filterableFieldsBySavedQueryUuid]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -165,9 +186,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
 
     useEffect(() => {
-        if (availableFilterableFields && availableFilterableFields.length > 0) {
+        if (allFilterableFields && allFilterableFields.length > 0) {
             setFieldsWithSuggestions((prev) =>
-                availableFilterableFields.reduce<FieldsWithSuggestions>(
+                allFilterableFields.reduce<FieldsWithSuggestions>(
                     (sum, field) => ({
                         ...sum,
                         [fieldId(field)]: {
@@ -180,7 +201,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ),
             );
         }
-    }, [availableFilterableFields]);
+    }, [allFilterableFields]);
 
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
@@ -245,8 +266,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         addSuggestions,
-        availableFilterableFields,
-        availableTileFilters,
+        allFilterableFields,
+        filterableFieldsBySavedQueryUuid,
+        filterableFieldsByTileUuid,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

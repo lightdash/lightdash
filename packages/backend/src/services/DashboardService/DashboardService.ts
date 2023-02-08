@@ -3,11 +3,9 @@ import {
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
-    DashboardAvailableTileFilters,
     DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
-    isDashboardChartTileType,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SchedulerAndTargets,
@@ -25,7 +23,6 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { projectService } from '../services';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -500,45 +497,5 @@ export class DashboardService {
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
-    }
-
-    async getAvailableTileFilters(user: SessionUser, dashboardUuid: string) {
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
-
-        const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
-        const savedQueryUuids = chartTiles
-            .map((tile) => tile.properties.savedChartUuid)
-            .filter((uuid): uuid is string => !!uuid);
-
-        // TODO: optimize this to fetch all saved query filters in one go
-        const availableTiles = await Promise.all(
-            savedQueryUuids.map(async (savedQueryUuid) => {
-                try {
-                    return await projectService.getAvailableFiltersForSavedQuery(
-                        user,
-                        savedQueryUuid,
-                    );
-                } catch (e: unknown) {
-                    if (e instanceof ForbiddenError) {
-                        return null;
-                    }
-
-                    throw e;
-                }
-            }),
-        );
-
-        return chartTiles.reduce<DashboardAvailableTileFilters>(
-            (acc, tile, index) => {
-                const tileFilters = availableTiles[index];
-                if (!tileFilters) return acc;
-
-                return {
-                    ...acc,
-                    [tile.uuid]: tileFilters,
-                };
-            },
-            {},
-        );
     }
 }

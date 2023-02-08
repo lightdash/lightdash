@@ -2,7 +2,7 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
-    DashboardAvailableTileFilters,
+    DashboardAvailableFilters,
     DashboardTile,
     UpdateDashboard,
     UpdateDashboardDetails,
@@ -52,17 +52,17 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const getDashboardAvailableTileFilters = async (dashboardUuid: string) =>
-    lightdashApi<DashboardAvailableTileFilters>({
-        url: `/dashboards/${dashboardUuid}/availableTileFilters`,
+export const getDashboardAvailableFilters = async (dashboardUuid: string) =>
+    lightdashApi<DashboardAvailableFilters>({
+        url: `/dashboards/${dashboardUuid}/availableFilters`,
         method: 'GET',
         body: undefined,
     });
 
-export const useDashboardAvailableTileFilters = (dashboardUuid?: string) =>
-    useQuery<DashboardAvailableTileFilters, ApiError>(
-        ['dashboards', dashboardUuid, 'availableTileFilters'],
-        () => getDashboardAvailableTileFilters(dashboardUuid!),
+export const useDashboardAvailableFilters = (dashboardUuid?: string) =>
+    useQuery<DashboardAvailableFilters, ApiError>(
+        ['dashboards', dashboardUuid, 'availableFilters'],
+        () => getDashboardAvailableFilters(dashboardUuid!),
         { enabled: dashboardUuid !== undefined },
     );
 

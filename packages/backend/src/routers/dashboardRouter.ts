@@ -1,10 +1,15 @@
+import { isDashboardChartTileType } from '@lightdash/common';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { analyticsService, dashboardService } from '../services/services';
+import {
+    analyticsService,
+    dashboardService,
+    projectService,
+} from '../services/services';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
 
@@ -28,17 +33,28 @@ dashboardRouter.get(
 );
 
 dashboardRouter.get(
-    '/availableTileFilters',
+    '/availableFilters',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const dashboard = await dashboardService.getById(
+                req.user!,
+                req.params.dashboardUuid,
+            );
+
+            const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
+            const savedQueryUuids = chartTiles
+                .map((tile) => tile.properties.savedChartUuid)
+                .filter((uuid): uuid is string => !!uuid);
+
             res.json({
                 status: 'ok',
-                results: await dashboardService.getAvailableTileFilters(
-                    req.user!,
-                    req.params.dashboardUuid,
-                ),
+                results:
+                    await projectService.getAvailableFiltersForSavedQueries(
+                        req.user!,
+                        savedQueryUuids,
+                    ),
             });
         } catch (e) {
             next(e);

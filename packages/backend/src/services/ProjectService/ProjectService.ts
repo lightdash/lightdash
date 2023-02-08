@@ -9,6 +9,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    DashboardAvailableFilters,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -1199,6 +1200,41 @@ export class ProjectService {
         } finally {
             span?.finish();
         }
+    }
+
+    async getAvailableFiltersForSavedQueries(
+        user: SessionUser,
+        savedQueryUuids: string[],
+    ): Promise<DashboardAvailableFilters> {
+        const allFilters = await Promise.all(
+            savedQueryUuids.map(async (savedQueryUuid) => {
+                try {
+                    return await this.getAvailableFiltersForSavedQuery(
+                        user,
+                        savedQueryUuid,
+                    );
+                } catch (e: unknown) {
+                    if (e instanceof ForbiddenError) {
+                        return null;
+                    }
+
+                    throw e;
+                }
+            }),
+        );
+
+        return savedQueryUuids.reduce<DashboardAvailableFilters>(
+            (acc, savedQueryUuid, index) => {
+                const filters = allFilters[index];
+                if (!filters) return acc;
+
+                return {
+                    ...acc,
+                    [savedQueryUuid]: filters,
+                };
+            },
+            {},
+        );
     }
 
     async hasSavedCharts(

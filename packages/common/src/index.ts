@@ -1,7 +1,7 @@
 import { UserActivity } from './types/analytics';
 import {
     Dashboard,
-    DashboardAvailableTileFilters,
+    DashboardAvailableFilters,
     DashboardBasicDetails,
 } from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
@@ -475,7 +475,7 @@ type ApiResults =
     | ApiFlashResults
     | OpenIdIdentitySummary[]
     | FilterableField[]
-    | DashboardAvailableTileFilters
+    | DashboardAvailableFilters
     | ProjectSavedChartStatus
     | undefined
     | Array<unknown>

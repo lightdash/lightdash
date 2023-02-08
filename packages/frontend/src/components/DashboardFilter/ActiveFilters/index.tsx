@@ -14,12 +14,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         dashboardTemporaryFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
-        availableFilterableFields,
+        allFilterableFields,
     } = useDashboardContext();
 
-    if (!availableFilterableFields) return null;
+    if (!allFilterableFields) return null;
 
-    const fieldMap = availableFilterableFields.reduce<
+    const fieldMap = allFilterableFields.reduce<
         Record<FieldId, FilterableField>
     >((acc, field) => ({ ...acc, [fieldId(field)]: field }), {});
 
