@@ -17,6 +17,7 @@ import {
 import { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
@@ -304,12 +305,23 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         return <ErrorState error={error.error} hasMarginTop={false} />;
     }
 
+    const getCsvLink = async () => {
+        const csvResponse = await downloadCsv({
+            projectUuid,
+            tableId: tableName,
+            query: defaultMetricQuery,
+            csvLimit: null,
+            onlyRaw: false,
+        });
+        return csvResponse.url;
+    };
+
     return (
         <>
             <HeaderRightContent>
                 <DownloadCsvButton
-                    fileName={tableName}
                     rows={resultsData && getResultValues(resultsData.rows)}
+                    getCsvLink={getCsvLink}
                 />
                 <LinkButton
                     intent="primary"

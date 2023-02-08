@@ -4,6 +4,8 @@ import {
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    getItemLabel,
+    getItemMap,
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
@@ -227,9 +229,21 @@ projectRouter.post(
                 csvLimit,
             );
 
-            const csvHeader = Object.keys(results.rows[0]);
+            const explore = await projectService.getExplore(
+                req.user!,
+                req.params.projectUuid,
+                req.params.exploreId,
+            );
+            const itemMap = getItemMap(
+                explore,
+                metricQuery.additionalMetrics,
+                metricQuery.tableCalculations,
+            );
+
+            const csvHeader = Object.keys(results.rows[0]).map((id) =>
+                getItemLabel(itemMap[id]),
+            );
             // TODO formatted or raw argument
-            // TODO improve column naming
             const csvBody = results.rows.map((row) =>
                 Object.values(row)
                     .map((r) => (onlyRaw ? r.value.raw : r.value.formatted))

@@ -31,6 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useToaster from '../../hooks/toaster/useToaster';
+import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useSavedChartResults } from '../../hooks/useQueryResults';
@@ -42,7 +43,6 @@ import { EventName } from '../../types/Events';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import { TableColumn } from '../common/Table/types';
-import CSVExporter from '../CSVExporter';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -117,19 +117,27 @@ const DownloadCSV: FC<{
 }> = ({ data, project }) => {
     const { data: resultData } = useSavedChartResults(project, data);
     const rows = resultData?.rows;
+    const getCsvLink = async () => {
+        const csvResponse = await downloadCsv({
+            projectUuid: data.projectUuid,
+            tableId: data.tableName,
+            query: data.metricQuery,
+            csvLimit: null,
+            onlyRaw: false,
+        });
+        return csvResponse.url;
+    };
 
     return (
-        <CSVExporter
-            data={getResultValues(rows || [])}
-            filename={`${data?.name}.csv`}
-            renderElement={({ handleCsvExport, isDisabled }) => (
-                <MenuItem2
-                    icon="export"
-                    text="Export CSV"
-                    disabled={isDisabled}
-                    onClick={handleCsvExport}
-                />
-            )}
+        <MenuItem2
+            icon="export"
+            text="Export CSV"
+            disabled={!rows || rows.length <= 0}
+            onClick={() =>
+                getCsvLink().then((url) => {
+                    window.open(url, '_blank');
+                })
+            }
         />
     );
 };
