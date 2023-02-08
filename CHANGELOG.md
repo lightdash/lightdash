@@ -1,3 +1,10 @@
+# [0.405.0](https://github.com/lightdash/lightdash/compare/0.404.1...0.405.0) (2023-02-08)
+
+
+### Features
+
+* virtualize table rows ([#4405](https://github.com/lightdash/lightdash/issues/4405)) ([e56f308](https://github.com/lightdash/lightdash/commit/e56f308dd84afdb89b379edfe76da479bdf85c20))
+
 ## [0.404.1](https://github.com/lightdash/lightdash/compare/0.404.0...0.404.1) (2023-02-07)
 
 
