@@ -128,11 +128,9 @@ const MultiAutoComplete: FC<Props> = ({
             disabled={disabled}
             fill
             query={searchQuery}
-            items={Array.from(options)
-                .sort()
-                .sort((a, b) =>
-                    a.localeCompare(b, undefined, { sensitivity: 'base' }),
-                )}
+            items={Array.from(options).sort((a, b) =>
+                a.localeCompare(b, undefined, { sensitivity: 'base' }),
+            )}
             noResults={
                 isFetchingInitialData ? (
                     <StyledSpinner />
