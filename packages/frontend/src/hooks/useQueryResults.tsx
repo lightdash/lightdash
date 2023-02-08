@@ -1,7 +1,6 @@
 import {
     ApiError,
     ApiQueryResults,
-    CreateSavedChartVersion,
     MetricQuery,
     SavedChart,
 } from '@lightdash/common';
@@ -52,26 +51,25 @@ export const useQueryResults = () => {
     const { mutateAsync } = mutation;
 
     const mutateAsyncOverride = useCallback(
-        (unsavedChartVersion: CreateSavedChartVersion) => {
+        (tableName: string, metricQuery: MetricQuery) => {
             const fields = new Set([
-                ...unsavedChartVersion.metricQuery.dimensions,
-                ...unsavedChartVersion.metricQuery.metrics,
-                ...unsavedChartVersion.metricQuery.tableCalculations.map(
-                    ({ name }) => name,
-                ),
+                ...metricQuery.dimensions,
+                ...metricQuery.metrics,
+                ...metricQuery.tableCalculations.map(({ name }) => name),
             ]);
             const isValidQuery = fields.size > 0;
-            if (!!unsavedChartVersion.tableName && isValidQuery) {
+            if (!!tableName && isValidQuery) {
                 return mutateAsync({
                     projectUuid,
-                    tableId: unsavedChartVersion.tableName,
-                    query: unsavedChartVersion.metricQuery,
+                    tableId: tableName,
+                    query: metricQuery,
                 });
             } else {
                 console.warn(
                     `Can't make SQL request, invalid state`,
-                    unsavedChartVersion.tableName,
+                    tableName,
                     isValidQuery,
+                    metricQuery,
                 );
                 return Promise.reject();
             }
