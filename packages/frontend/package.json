@@ -51,6 +51,7 @@
         "react-transition-group": "^4.4.2",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
+        "react-virtual": "^2.10.4",
         "rudder-sdk-js": "^2.8.0",
         "scheduler": "^0.23.0",
         "styled-components": "^5.3.3",
