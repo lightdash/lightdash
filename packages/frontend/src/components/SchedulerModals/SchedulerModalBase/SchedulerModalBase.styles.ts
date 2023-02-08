@@ -13,6 +13,8 @@ export const TargetRow = styled.div`
     align-items: flex-start;
     gap: 5px;
 
+    margin-bottom: 10px;
+
     .bp4-form-group {
         margin-bottom: 0;
         flex: 1;

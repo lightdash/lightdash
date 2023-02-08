@@ -50,7 +50,7 @@ const SchedulersModalBase: FC<
             }
             icon="send-message"
             style={{
-                minHeight: '400px',
+                minHeight: '300px',
                 minWidth: '500px',
             }}
             {...modalProps}
