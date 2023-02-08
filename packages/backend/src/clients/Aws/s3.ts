@@ -50,6 +50,22 @@ export class S3Service {
         return data.Location;
     }
 
+    async uploadCsv(csv: string, csvName: string): Promise<string> {
+        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
+            throw new Error(
+                "Missing S3 bucket configuration, can't upload csv",
+            );
+        }
+        const params: AWS.S3.PutObjectRequest = {
+            Body: csv,
+            ACL: 'public-read',
+            Bucket: this.lightdashConfig.s3.bucket,
+            Key: csvName,
+        };
+        const data = await this.s3.upload(params).promise();
+        return data.Location;
+    }
+
     isEnabled(): boolean {
         return this.s3 !== undefined;
     }
