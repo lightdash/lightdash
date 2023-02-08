@@ -1,3 +1,10 @@
+## [0.405.1](https://github.com/lightdash/lightdash/compare/0.405.0...0.405.1) (2023-02-08)
+
+
+### Bug Fixes
+
+* sort autocomplete results case-insensitive ([#4408](https://github.com/lightdash/lightdash/issues/4408)) ([43da52d](https://github.com/lightdash/lightdash/commit/43da52d6c6bb7c8db1ddef4d2272e757c45fe484))
+
 # [0.405.0](https://github.com/lightdash/lightdash/compare/0.404.1...0.405.0) (2023-02-08)
 
 
