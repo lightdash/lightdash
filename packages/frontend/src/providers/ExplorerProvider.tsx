@@ -1052,10 +1052,7 @@ export const ExplorerProvider: FC<{
             savedChart,
         ],
     );
-    const queryResults = useQueryResults(
-        state.isValidQuery,
-        state.unsavedChartVersion,
-    );
+    const queryResults = useQueryResults();
 
     // Fetch query results after state update
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
@@ -1063,7 +1060,7 @@ export const ExplorerProvider: FC<{
 
     const mutateAsync = useCallback(async () => {
         try {
-            const result = await mutateAsyncQuery();
+            const result = await mutateAsyncQuery(state.unsavedChartVersion);
 
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,

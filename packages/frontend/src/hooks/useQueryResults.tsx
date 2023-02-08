@@ -31,10 +31,7 @@ export const getQueryResults = async ({
     });
 };
 
-export const useQueryResults = (
-    isValidQuery: boolean,
-    unsavedChartVersion: CreateSavedChartVersion,
-) => {
+export const useQueryResults = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
     const mutation = useMutation<
@@ -54,22 +51,33 @@ export const useQueryResults = (
     });
     const { mutateAsync } = mutation;
 
-    const mutateAsyncOverride = useCallback(() => {
-        if (!!unsavedChartVersion.tableName && isValidQuery) {
-            return mutateAsync({
-                projectUuid,
-                tableId: unsavedChartVersion.tableName,
-                query: unsavedChartVersion.metricQuery,
-            });
-        } else {
-            console.warn(
-                `Can't make SQL request, invalid state`,
-                unsavedChartVersion.tableName,
-                isValidQuery,
-            );
-            return Promise.reject();
-        }
-    }, [mutateAsync, projectUuid, isValidQuery, unsavedChartVersion]);
+    const mutateAsyncOverride = useCallback(
+        (unsavedChartVersion: CreateSavedChartVersion) => {
+            const fields = new Set([
+                ...unsavedChartVersion.metricQuery.dimensions,
+                ...unsavedChartVersion.metricQuery.metrics,
+                ...unsavedChartVersion.metricQuery.tableCalculations.map(
+                    ({ name }) => name,
+                ),
+            ]);
+            const isValidQuery = fields.size > 0;
+            if (!!unsavedChartVersion.tableName && isValidQuery) {
+                return mutateAsync({
+                    projectUuid,
+                    tableId: unsavedChartVersion.tableName,
+                    query: unsavedChartVersion.metricQuery,
+                });
+            } else {
+                console.warn(
+                    `Can't make SQL request, invalid state`,
+                    unsavedChartVersion.tableName,
+                    isValidQuery,
+                );
+                return Promise.reject();
+            }
+        },
+        [mutateAsync, projectUuid],
+    );
 
     return useMemo(
         () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
