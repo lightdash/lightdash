@@ -58,12 +58,17 @@ export class S3Service {
         }
         const params: AWS.S3.PutObjectRequest = {
             Body: csv,
-            ACL: 'public-read',
             Bucket: this.lightdashConfig.s3.bucket,
             Key: csvName,
         };
-        const data = await this.s3.upload(params).promise();
-        return data.Location;
+        await this.s3.upload(params).promise();
+        const url = await this.s3.getSignedUrl('getObject', {
+            Bucket: this.lightdashConfig.s3.bucket,
+            Key: csvName,
+            Expires: 3600, // an hour
+        });
+
+        return url;
     }
 
     isEnabled(): boolean {
