@@ -80,23 +80,12 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const { isLoading, data: filterableFieldsBySavedQueryUuid } =
         useDashboardAvailableFilters(dashboardUuid);
 
-    const allFilterableFields = useMemo(() => {
-        if (isLoading || !filterableFieldsBySavedQueryUuid) return;
-
-        const allFilters = Object.values(
-            filterableFieldsBySavedQueryUuid,
-        ).flat();
-        if (allFilters.length === 0) return;
-
-        return uniqBy(allFilters, (f) => fieldId(f));
-    }, [isLoading, filterableFieldsBySavedQueryUuid]);
-
     const filterableFieldsByTileUuid = useMemo(() => {
         if (!dashboard || !filterableFieldsBySavedQueryUuid) return;
 
         return dashboard.tiles
             .filter(isDashboardChartTileType)
-            .reduce<Record<string, FilterableField[]>>((acc, tile) => {
+            .reduce<DashboardAvailableFilters>((acc, tile) => {
                 const savedChartUuid = tile.properties.savedChartUuid;
                 if (!savedChartUuid) return acc;
 
@@ -107,6 +96,17 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 };
             }, {});
     }, [dashboard, filterableFieldsBySavedQueryUuid]);
+
+    const allFilterableFields = useMemo(() => {
+        if (isLoading || !filterableFieldsBySavedQueryUuid) return;
+
+        const allFilters = Object.values(
+            filterableFieldsBySavedQueryUuid,
+        ).flat();
+        if (allFilters.length === 0) return;
+
+        return uniqBy(allFilters, (f) => fieldId(f));
+    }, [isLoading, filterableFieldsBySavedQueryUuid]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
