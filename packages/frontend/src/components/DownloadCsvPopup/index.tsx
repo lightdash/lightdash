@@ -17,10 +17,7 @@ import { InputWrapper, Title } from './DownloadCsvPopup.styles';
 type Props = {
     fileName: string | undefined;
     rows: ResultRow[] | undefined;
-    getCsvResults: (
-        limit: number | null,
-        onlyRaw: boolean,
-    ) => Promise<object[]>;
+    getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
 };
 
 export enum Limit {
@@ -39,126 +36,115 @@ const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
     );
 };
 
-const DownloadCsvPopup: FC<Props> = memo(
-    ({ fileName, rows, getCsvResults }) => {
-        const [isOpen, setIsOpen] = useState<boolean>(false);
-        const [limit, setLimit] = useState<string>(Limit.TABLE);
-        const [customLimit, setCustomLimit] = useState<number>(1);
-        const [format, setFormat] = useState<string>(Values.FORMATTED);
+const DownloadCsvPopup: FC<Props> = memo(({ fileName, rows, getCsvLink }) => {
+    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [limit, setLimit] = useState<string>(Limit.TABLE);
+    const [customLimit, setCustomLimit] = useState<number>(1);
+    const [format, setFormat] = useState<string>(Values.FORMATTED);
 
-        const [csvRows, setCsvRows] = useState<object[]>([]);
-        const csvRef = useRef<CsvExporterElementType>(null);
+    const [csvRows, setCsvRows] = useState<object[]>([]);
+    const csvRef = useRef<CsvExporterElementType>(null);
 
-        useEffect(() => {
-            if (csvRows.length > 0 && csvRef.current?.link) {
-                csvRef.current.link.click();
-                setCsvRows([]);
-                setIsOpen(false);
-            }
-        }, [csvRows]);
-
-        const csvFilename = `lightdash-${fileName || 'export'}-${
-            limit === Limit.ALL ? 'all-' : ''
-        }${new Date().toISOString().slice(0, 10)}.csv`;
-
-        if (!rows || rows.length <= 0) {
-            return <ExportAsCSVButton disabled />;
+    useEffect(() => {
+        if (csvRows.length > 0 && csvRef.current?.link) {
+            csvRef.current.link.click();
+            setCsvRows([]);
+            setIsOpen(false);
         }
+    }, [csvRows]);
 
-        return (
-            <Popover2
-                lazy
-                isOpen={isOpen}
-                onInteraction={setIsOpen}
-                position={PopoverPosition.BOTTOM_LEFT}
-                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                content={
-                    <>
-                        <FormGroup>
-                            <RadioGroup
-                                label={<Title>Values</Title>}
-                                onChange={(e) =>
-                                    setFormat(e.currentTarget.value)
-                                }
-                                selectedValue={format}
-                            >
-                                <Radio
-                                    label="Formatted"
-                                    value={Values.FORMATTED}
-                                />
-                                <Radio label="Raw" value={Values.RAW} />
-                            </RadioGroup>
-                        </FormGroup>
+    const csvFilename = `lightdash-${fileName || 'export'}-${
+        limit === Limit.ALL ? 'all-' : ''
+    }${new Date().toISOString().slice(0, 10)}.csv`;
 
-                        <FormGroup>
-                            <RadioGroup
-                                label={<Title>Limit</Title>}
-                                onChange={(e) =>
-                                    setLimit(e.currentTarget.value)
-                                }
-                                selectedValue={limit}
-                            >
-                                <Radio
-                                    label="Results in Table"
-                                    value={Limit.TABLE}
-                                />
-                                <Radio label="All Results" value={Limit.ALL} />
-                                <Radio label="Custom..." value={Limit.CUSTOM} />
-                            </RadioGroup>
-                        </FormGroup>
+    if (!rows || rows.length <= 0) {
+        return <ExportAsCSVButton disabled />;
+    }
 
-                        {limit === Limit.CUSTOM && (
-                            <InputWrapper>
-                                <NumericInput
-                                    value={customLimit}
-                                    min={1}
-                                    fill
-                                    onValueChange={(value: any) =>
-                                        setCustomLimit(value)
-                                    }
-                                />
-                            </InputWrapper>
-                        )}
-
-                        <CSVExporter
-                            linkRef={csvRef}
-                            data={csvRows}
-                            filename={csvFilename}
-                        />
-
-                        <Button
-                            fill
-                            intent={Intent.PRIMARY}
-                            icon="export"
-                            onClick={() => {
-                                if (limit === Limit.TABLE) {
-                                    setCsvRows(
-                                        getResultValues(
-                                            rows,
-                                            format === Values.RAW,
-                                        ),
-                                    );
-                                } else {
-                                    getCsvResults(
-                                        limit === Limit.CUSTOM
-                                            ? customLimit
-                                            : null,
-                                        format === Values.RAW,
-                                    ).then((allRows) => {
-                                        setCsvRows(allRows);
-                                    });
-                                }
-                            }}
+    return (
+        <Popover2
+            lazy
+            isOpen={isOpen}
+            onInteraction={setIsOpen}
+            position={PopoverPosition.BOTTOM_LEFT}
+            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+            content={
+                <>
+                    <FormGroup>
+                        <RadioGroup
+                            label={<Title>Values</Title>}
+                            onChange={(e) => setFormat(e.currentTarget.value)}
+                            selectedValue={format}
                         >
-                            Export CSV
-                        </Button>
-                    </>
-                }
-            >
-                <ExportAsCSVButton />
-            </Popover2>
-        );
-    },
-);
+                            <Radio label="Formatted" value={Values.FORMATTED} />
+                            <Radio label="Raw" value={Values.RAW} />
+                        </RadioGroup>
+                    </FormGroup>
+
+                    <FormGroup>
+                        <RadioGroup
+                            label={<Title>Limit</Title>}
+                            onChange={(e) => setLimit(e.currentTarget.value)}
+                            selectedValue={limit}
+                        >
+                            <Radio
+                                label="Results in Table"
+                                value={Limit.TABLE}
+                            />
+                            <Radio label="All Results" value={Limit.ALL} />
+                            <Radio label="Custom..." value={Limit.CUSTOM} />
+                        </RadioGroup>
+                    </FormGroup>
+
+                    {limit === Limit.CUSTOM && (
+                        <InputWrapper>
+                            <NumericInput
+                                value={customLimit}
+                                min={1}
+                                fill
+                                onValueChange={(value: any) =>
+                                    setCustomLimit(value)
+                                }
+                            />
+                        </InputWrapper>
+                    )}
+
+                    <CSVExporter
+                        linkRef={csvRef}
+                        data={csvRows}
+                        filename={csvFilename}
+                    />
+
+                    <Button
+                        fill
+                        intent={Intent.PRIMARY}
+                        icon="export"
+                        onClick={() => {
+                            if (limit === Limit.TABLE) {
+                                setCsvRows(
+                                    getResultValues(
+                                        rows,
+                                        format === Values.RAW,
+                                    ),
+                                );
+                            } else {
+                                getCsvLink(
+                                    limit === Limit.CUSTOM ? customLimit : null,
+                                    format === Values.RAW,
+                                ).then((url) => {
+                                    window.open(url, '_blank');
+                                });
+                            }
+                        }}
+                    >
+                        Export CSV
+                    </Button>
+                </>
+            }
+        >
+            <ExportAsCSVButton />
+        </Popover2>
+    );
+});
 
 export default DownloadCsvPopup;

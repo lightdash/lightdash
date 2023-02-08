@@ -1,6 +1,7 @@
 import { getResultValues } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { getQueryResults } from '../../../hooks/useQueryResults';
 import {
     ExplorerSection,
@@ -43,13 +44,15 @@ const ResultsCard: FC = memo(() => {
     );
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const getCsvResults = (csvLimit: number | null, onlyRaw: boolean) => {
-        return getQueryResults({
+    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
+        const csvResponse = await downloadCsv({
             projectUuid,
             tableId: tableName,
             query: metricQuery,
             csvLimit,
-        }).then((results) => getResultValues(results.rows, onlyRaw));
+            onlyRaw,
+        });
+        return csvResponse.url;
     };
 
     const resultsIsOpen = useMemo(
@@ -89,7 +92,7 @@ const ResultsCard: FC = memo(() => {
                         <DownloadCsvPopup
                             fileName={tableName}
                             rows={rows}
-                            getCsvResults={getCsvResults}
+                            getCsvLink={getCsvLink}
                         />
                     </>
                 )

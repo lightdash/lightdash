@@ -263,6 +263,9 @@ export type ApiSqlQueryResults = {
     rows: { [col: string]: any }[];
 };
 
+export type ApiDownloadCsv = {
+    url: string;
+};
 export type ProjectCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -478,7 +481,8 @@ type ApiResults =
     | DbtCloudIntegration
     | ShareUrl
     | SlackSettings
-    | UserActivity;
+    | UserActivity
+    | ApiDownloadCsv;
 
 export type ApiResponse = {
     status: 'ok';
