@@ -49,16 +49,16 @@ export class SchedulerWorker {
             pollInterval: 1000,
             parsedCronItems: parseCronItems([
                 {
-                    task: 'generateDailyJobs3',
-                    pattern: '*/5 * * * *',
+                    task: 'generateDailyJobs',
+                    pattern: '0 0 * * *',
                     options: {
-                        backfillPeriod: 1000, /// 12 * 3600 * 1000 /* 12 hours in ms */,
+                        backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
                         maxAttempts: 1,
                     },
                 },
             ]),
             taskList: {
-                generateDailyJobs3: async (
+                generateDailyJobs: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
