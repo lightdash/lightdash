@@ -5,17 +5,14 @@ import {
     DashboardAvailableTileFilters,
     DashboardTile,
     fieldId,
-    FilterableField,
-    isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
-import { uniqBy } from 'lodash-es';
-import { useMemo, useState } from 'react';
+import uniqBy from 'lodash-es/uniqBy';
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
+import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
-import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
