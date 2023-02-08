@@ -3,6 +3,7 @@ import {
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
+    FilterableField,
 } from '@lightdash/common';
 import React, {
     createContext,
@@ -55,6 +56,7 @@ type DashboardContext = {
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
+    filterableFields: FilterableField[] | undefined;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -229,6 +231,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         addSuggestions,
+        filterableFields,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

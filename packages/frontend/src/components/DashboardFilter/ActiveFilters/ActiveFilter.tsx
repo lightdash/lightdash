@@ -1,10 +1,7 @@
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
 import { FC, useState } from 'react';
-import {
-    useAvailableDashboardFilterTargets,
-    useDashboardAvailableTileFilters,
-} from '../../../hooks/dashboard/useDashboard';
+import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -37,22 +34,13 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
-    const { dashboardTiles } = useDashboardContext();
+    const { dashboardTiles, filterableFields } = useDashboardContext();
     const { data: availableTileFilters, isLoading: isLoadingTileFilters } =
         useDashboardAvailableTileFilters(dashboardTiles);
-    const {
-        data: availableDashboardFilterTargets,
-        isLoading: isLoadingDashboardFilterTargets,
-    } = useAvailableDashboardFilterTargets(dashboardTiles);
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (
-        isLoadingTileFilters ||
-        isLoadingDashboardFilterTargets ||
-        !availableTileFilters ||
-        !availableDashboardFilterTargets
-    ) {
+    if (isLoadingTileFilters || !availableTileFilters || !filterableFields) {
         return null;
     }
 
@@ -67,7 +55,7 @@ const ActiveFilter: FC<Props> = ({
     const filterRuleTables = getFilterRuleTables(
         filterRule,
         field,
-        availableDashboardFilterTargets,
+        filterableFields,
     );
 
     return (

@@ -1,6 +1,5 @@
 import { FieldId, fieldId, FilterableField } from '@lightdash/common';
 import { FC } from 'react';
-import { useAvailableDashboardFilterTargets } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { ActiveDashboardFiltersWrapper } from '../DashboardFilter.styles';
 import ActiveFilter from './ActiveFilter';
@@ -15,12 +14,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({ isEditMode }) => {
         dashboardTemporaryFilters,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
-        dashboardTiles,
+        filterableFields,
     } = useDashboardContext();
-    const { isLoading, data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboardTiles);
 
-    if (isLoading || !filterableFields) return null;
+    if (!filterableFields) return null;
 
     const fieldMap = filterableFields.reduce<Record<FieldId, FilterableField>>(
         (acc, field) => ({ ...acc, [fieldId(field)]: field }),
