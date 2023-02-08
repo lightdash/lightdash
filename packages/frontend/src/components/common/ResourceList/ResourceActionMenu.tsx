@@ -1,7 +1,9 @@
 import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { FC, useState } from 'react';
+import React, { FC, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ResourceListAction,
@@ -20,8 +22,11 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const { user } = useApp();
+    const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage =
         url.includes('/dashboards') || item.type === ResourceListType.DASHBOARD;
+    const organizationUuid = user.data?.organizationUuid;
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     switch (item.type) {
         case ResourceListType.CHART:
@@ -75,6 +80,30 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             });
                         }}
                     />
+                    {user.data?.ability.can(
+                        'update',
+                        subject('Project', { organizationUuid, projectUuid }),
+                    ) && (
+                        <MenuItem2
+                            role="menuitem"
+                            icon="pin"
+                            text={
+                                isPinned
+                                    ? 'Unpin from homepage'
+                                    : 'Pin to homepage'
+                            }
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                setIsOpen(false);
+                                onAction({
+                                    type: ResourceListAction.PIN_TO_HOMEPAGE,
+                                    item,
+                                });
+                            }}
+                        />
+                    )}
                     {!isDashboardPage && (
                         <MenuItem2
                             icon="insert"
