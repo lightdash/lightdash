@@ -90,4 +90,4 @@ export type ApiScheduledJobsResponse = {
 export type ScheduledSlackNotification = Pick<
     SchedulerBase,
     'createdBy' | 'savedChartUuid' | 'dashboardUuid'
-> & { organizationUuid: string; channel: string };
+> & { channel: string };

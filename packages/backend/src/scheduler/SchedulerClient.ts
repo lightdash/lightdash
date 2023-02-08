@@ -1,7 +1,12 @@
-import { ScheduledJobs, SchedulerAndTargets } from '@lightdash/common';
+import {
+    ScheduledJobs,
+    ScheduledSlackNotification,
+    SchedulerAndTargets,
+} from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
+import { loggers } from 'winston';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 
@@ -31,6 +36,14 @@ export const getDailyDatesFromCron = (
     return dailyDates;
 };
 
+const initializeGraphileUtils = async () => {
+    Logger.info('Starting scheduler client');
+    const workerUtils = await makeWorkerUtils({});
+    workerUtils.migrate();
+
+    return workerUtils;
+};
+
 export class SchedulerClient {
     lightdashConfig: LightdashConfig;
 
@@ -38,17 +51,11 @@ export class SchedulerClient {
 
     constructor({ lightdashConfig }: SchedulerClientDependencies) {
         this.lightdashConfig = lightdashConfig;
-        this.start();
-    }
-
-    async start() {
-        this.graphileUtils = await makeWorkerUtils({});
-        this.graphileUtils?.migrate();
     }
 
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
         if (this.graphileUtils === undefined)
-            throw new Error('Graphile utils not initialized');
+            this.graphileUtils = await initializeGraphileUtils();
 
         const scheduledJobs = await this.graphileUtils.withPgClient(
             (pgClient) =>
@@ -67,7 +74,7 @@ export class SchedulerClient {
 
     async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
         if (this.graphileUtils === undefined)
-            throw new Error('Graphile utils not initialized');
+            this.graphileUtils = await initializeGraphileUtils();
 
         const deletedJobs = await this.graphileUtils.withPgClient((pgClient) =>
             pgClient.query(
@@ -87,21 +94,27 @@ export class SchedulerClient {
         scheduler: SchedulerAndTargets,
     ): Promise<void> {
         if (this.graphileUtils === undefined)
-            throw new Error('Graphile utils not initialized');
+            this.graphileUtils = await initializeGraphileUtils();
 
         const dates = getDailyDatesFromCron(scheduler.cron);
         try {
             const promises = dates.flatMap((date: Date) =>
-                scheduler.targets.map((target) =>
-                    this.graphileUtils?.addJob(
+                scheduler.targets.map((target) => {
+                    const slackNotification: ScheduledSlackNotification = {
+                        channel: target.channel,
+                        createdBy: scheduler.createdBy,
+                        dashboardUuid: scheduler.dashboardUuid,
+                        savedChartUuid: scheduler.savedChartUuid,
+                    };
+                    return this.graphileUtils?.addJob(
                         'sendSlackNotification',
-                        { channel: target.channel, ...scheduler },
+                        slackNotification,
                         {
                             runAt: date,
                             maxAttempts: 3,
                         },
-                    ),
-                ),
+                    );
+                }),
             );
 
             Logger.info(

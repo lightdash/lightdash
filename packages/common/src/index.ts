@@ -41,11 +41,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
-import {
-    ChartScheduler,
-    DashboardScheduler,
-    SchedulerAndTargets,
-} from './types/scheduler';
+import { SchedulerAndTargets } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';

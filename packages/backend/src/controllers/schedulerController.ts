@@ -115,7 +115,7 @@ export class SchedulerController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await SchedulerService.getScheduledJobs(
+            results: await schedulerService.getScheduledJobs(
                 req.user!,
                 schedulerUuid,
             ),

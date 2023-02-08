@@ -119,10 +119,11 @@ export class SchedulerService {
         return this.schedulerModel.deleteScheduler(schedulerUuid);
     }
 
-    static async getScheduledJobs(
+    async getScheduledJobs(
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<ScheduledJobs[]> {
+        await this.checkUserCanUpdateScheduler(user, schedulerUuid);
         return schedulerClient.getScheduledJobs(schedulerUuid);
     }
 }
