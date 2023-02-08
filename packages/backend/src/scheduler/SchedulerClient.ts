@@ -36,33 +36,28 @@ export const getDailyDatesFromCron = (
     return dailyDates;
 };
 
-const initializeGraphileUtils = async () => {
-    Logger.info('Starting scheduler client');
-    const workerUtils = await makeWorkerUtils({});
-    workerUtils.migrate();
-
-    return workerUtils;
-};
-
 export class SchedulerClient {
     lightdashConfig: LightdashConfig;
 
-    graphileUtils: WorkerUtils | undefined;
+    graphileUtils: Promise<WorkerUtils>;
 
     constructor({ lightdashConfig }: SchedulerClientDependencies) {
         this.lightdashConfig = lightdashConfig;
+        this.graphileUtils = makeWorkerUtils({});
+
+        this.graphileUtils.then((utils) => {
+            utils.migrate();
+        });
     }
 
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
-        if (this.graphileUtils === undefined)
-            this.graphileUtils = await initializeGraphileUtils();
+        const graphileClient = await this.graphileUtils;
 
-        const scheduledJobs = await this.graphileUtils.withPgClient(
-            (pgClient) =>
-                pgClient.query(
-                    "select id, run_at , payload->>'channel' as channel from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
-                    [`${schedulerUuid}%`],
-                ),
+        const scheduledJobs = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                "select id, run_at , payload->>'channel' as channel from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+                [`${schedulerUuid}%`],
+            ),
         );
 
         return scheduledJobs.rows.map((r) => ({
@@ -73,10 +68,9 @@ export class SchedulerClient {
     }
 
     async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
-        if (this.graphileUtils === undefined)
-            this.graphileUtils = await initializeGraphileUtils();
+        const graphileClient = await this.graphileUtils;
 
-        const deletedJobs = await this.graphileUtils.withPgClient((pgClient) =>
+        const deletedJobs = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
                 "select id from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
                 [`${schedulerUuid}%`],
@@ -87,14 +81,13 @@ export class SchedulerClient {
         );
         const deletedJobIds = deletedJobs.rows.map((r) => r.id);
 
-        await this.graphileUtils.completeJobs(deletedJobIds);
+        await graphileClient.completeJobs(deletedJobIds);
     }
 
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
     ): Promise<void> {
-        if (this.graphileUtils === undefined)
-            this.graphileUtils = await initializeGraphileUtils();
+        const graphileClient = await this.graphileUtils;
 
         const dates = getDailyDatesFromCron(scheduler.cron);
         try {
@@ -106,7 +99,7 @@ export class SchedulerClient {
                         dashboardUuid: scheduler.dashboardUuid,
                         savedChartUuid: scheduler.savedChartUuid,
                     };
-                    return this.graphileUtils?.addJob(
+                    return graphileClient.addJob(
                         'sendSlackNotification',
                         slackNotification,
                         {

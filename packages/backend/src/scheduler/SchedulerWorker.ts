@@ -65,8 +65,10 @@ export class SchedulerWorker {
                     Logger.info(`Processing new job generateDailyJobs`);
                     const schedulers =
                         await schedulerService.getAllSchedulers();
-                    const promises = schedulers.map(
-                        schedulerClient.generateDailyJobsForScheduler,
+                    const promises = schedulers.map((scheduler) =>
+                        schedulerClient.generateDailyJobsForScheduler(
+                            scheduler,
+                        ),
                     );
                     await Promise.all(promises);
                 },
