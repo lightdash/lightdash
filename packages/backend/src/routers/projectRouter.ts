@@ -209,7 +209,7 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const { body } = req;
-            const { csvLimit } = body;
+            const { csvLimit, onlyRaw } = body;
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -232,7 +232,7 @@ projectRouter.post(
             // TODO improve column naming
             const csvBody = results.rows.map((row) =>
                 Object.values(row)
-                    .map((r) => r.value.formatted)
+                    .map((r) => (onlyRaw ? r.value.raw : r.value.formatted))
                     .join(','),
             );
             const csvContent = [csvHeader, ...csvBody].join('\n');
