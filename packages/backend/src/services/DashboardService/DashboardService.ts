@@ -3,6 +3,7 @@ import {
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
+    DashboardAvailableTileFilters,
     DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
@@ -518,7 +519,7 @@ export class DashboardService {
             ),
         );
 
-        return chartTiles.reduce<Record<string, typeof availableTiles[0]>>(
+        return chartTiles.reduce<DashboardAvailableTileFilters>(
             (acc, tile, index) => ({
                 ...acc,
                 [tile.uuid]: availableTiles[index],
