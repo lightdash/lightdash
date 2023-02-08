@@ -90,11 +90,10 @@ export class SchedulerClient {
             throw new Error('Graphile utils not initialized');
 
         const dates = getDailyDatesFromCron(scheduler.cron);
-        const graphileClient = await this.graphileUtils;
         try {
             const promises = dates.flatMap((date: Date) =>
                 scheduler.targets.map((target) =>
-                    graphileClient.addJob(
+                    this.graphileUtils?.addJob(
                         'sendSlackNotification',
                         { channel: target.channel, ...scheduler },
                         {

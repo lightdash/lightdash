@@ -50,7 +50,7 @@ export class SchedulerWorker {
             parsedCronItems: parseCronItems([
                 {
                     task: 'generateDailyJobs',
-                    pattern: '0 0 * * *',
+                    pattern: '0 8 * * *',
                     options: {
                         backfillPeriod: 12 * 3600 * 1000 /* 12 hours in ms */,
                         maxAttempts: 1,
