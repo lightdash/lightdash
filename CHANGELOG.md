@@ -1,3 +1,10 @@
+# [0.406.0](https://github.com/lightdash/lightdash/compare/0.405.1...0.406.0) (2023-02-08)
+
+
+### Features
+
+* csv full download ([#4406](https://github.com/lightdash/lightdash/issues/4406)) ([2a65bba](https://github.com/lightdash/lightdash/commit/2a65bba7779a9e6dd8c55359264ae483913f8a6d))
+
 ## [0.405.1](https://github.com/lightdash/lightdash/compare/0.405.0...0.405.1) (2023-02-08)
 
 
