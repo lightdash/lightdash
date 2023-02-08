@@ -84,23 +84,29 @@ export class SlackClient {
     }
 
     async joinChannels(organizationUuid: string, channels: string[]) {
-        if (this.slackApp === undefined) {
-            throw new Error('Slack app is not configured');
-        }
-        const installation =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                organizationUuid,
-            );
-        const joinPromises = channels.map((channel) => {
-            // Don't need to join user channels (DM)
-            if (channel.startsWith('U')) return undefined;
+        try {
+            if (this.slackApp === undefined) {
+                throw new Error('Slack app is not configured');
+            }
+            const installation =
+                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    organizationUuid,
+                );
+            const joinPromises = channels.map((channel) => {
+                // Don't need to join user channels (DM)
+                if (channel.startsWith('U')) return undefined;
 
-            return this.slackApp?.client.conversations.join({
-                token: installation?.token,
-                channel,
+                return this.slackApp?.client.conversations.join({
+                    token: installation?.token,
+                    channel,
+                });
             });
-        });
-        await Promise.all(joinPromises);
+            await Promise.all(joinPromises);
+        } catch (e) {
+            Logger.error(
+                `Unable to join channels ${channels} on organization ${organizationUuid}: ${e}`,
+            );
+        }
     }
 
     async postMessage(message: {

@@ -128,7 +128,7 @@ describe('Lightdash scheduler endpoints', () => {
                         method: 'GET',
                         failOnStatusCode: false,
                     }).then((response) => {
-                        expect(response.body.results).to.be.length(0);
+                        expect(response.status).to.eq(404);
                     });
                 });
             },
@@ -231,7 +231,7 @@ describe('Lightdash scheduler endpoints', () => {
                         method: 'GET',
                         failOnStatusCode: false,
                     }).then((response) => {
-                        expect(response.body.results).to.be.length(0);
+                        expect(response.status).to.eq(404);
                     });
                 });
             },

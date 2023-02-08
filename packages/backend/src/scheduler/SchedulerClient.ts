@@ -59,7 +59,6 @@ export class SchedulerClient {
                 [`${schedulerUuid}%`],
             ),
         );
-
         return scheduledJobs.rows.map((r) => ({
             id: r.id,
             channel: r.channel,
@@ -94,6 +93,7 @@ export class SchedulerClient {
             const promises = dates.flatMap((date: Date) =>
                 scheduler.targets.map((target) => {
                     const slackNotification: ScheduledSlackNotification = {
+                        schedulerUuid: scheduler.schedulerUuid,
                         channel: target.channel,
                         createdBy: scheduler.createdBy,
                         dashboardUuid: scheduler.dashboardUuid,
