@@ -1,3 +1,22 @@
+## [0.404.1](https://github.com/lightdash/lightdash/compare/0.404.0...0.404.1) (2023-02-07)
+
+
+### Bug Fixes
+
+* open table configuration in SQL runner page ([#4395](https://github.com/lightdash/lightdash/issues/4395)) ([befbafe](https://github.com/lightdash/lightdash/commit/befbafe35f832725b093e17694215f93e2557dac))
+
+# [0.404.0](https://github.com/lightdash/lightdash/compare/0.403.3...0.404.0) (2023-02-06)
+
+
+### Bug Fixes
+
+* access token copy to cli command ([#4385](https://github.com/lightdash/lightdash/issues/4385)) ([4124776](https://github.com/lightdash/lightdash/commit/4124776c8f62456309ea752be224a6bd08779900))
+
+
+### Features
+
+* pinned charts and dashboards component added to homepage ([#4376](https://github.com/lightdash/lightdash/issues/4376)) ([63702bb](https://github.com/lightdash/lightdash/commit/63702bb23e83cd8f0de6f745c5e3d562b6bc3f7a))
+
 ## [0.403.3](https://github.com/lightdash/lightdash/compare/0.403.2...0.403.3) (2023-02-06)
 
 

@@ -9,6 +9,7 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SchedulerAndTargets,
+    PinnedListAndItems,
     SessionUser,
     UpdateDashboard,
     UpdateMultipleDashboards,
@@ -350,36 +351,49 @@ export class DashboardService {
         const existingDashboard = await this.dashboardModel.getById(
             dashboardUuid,
         );
+        const { projectUuid, organizationUuid, pinnedListUuid, spaceUuid } =
+            existingDashboard;
         if (
             user.ability.cannot(
                 'update',
-                subject('Dashboard', existingDashboard),
+                subject('Project', { projectUuid, organizationUuid }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        if (
-            !(await this.hasDashboardSpaceAccess(
-                existingDashboard.spaceUuid,
-                user.userUuid,
-            ))
-        ) {
+        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-        if (existingDashboard.pinnedListUuid) {
+        if (pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
-                pinnedListUuid: existingDashboard.pinnedListUuid,
+                pinnedListUuid,
                 dashboardUuid,
             });
         } else {
             await this.pinnedListModel.addItem({
-                projectUuid: existingDashboard.projectUuid,
+                projectUuid,
                 dashboardUuid,
             });
         }
+
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            existingDashboard.projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingDashboard.projectUuid,
+                organizationId: existingDashboard.organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
 
         return this.getById(user, dashboardUuid);
     }

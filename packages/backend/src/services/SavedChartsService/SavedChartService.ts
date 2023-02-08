@@ -217,7 +217,7 @@ export class SavedChartService {
         if (
             user.ability.cannot(
                 'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -233,6 +233,22 @@ export class SavedChartService {
                 savedChartUuid,
             });
         }
+
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
 
         return this.get(savedChartUuid, user);
     }

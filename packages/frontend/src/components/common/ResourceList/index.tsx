@@ -15,7 +15,7 @@ export interface ResourceListCommonProps {
     headerAction?: React.ReactNode;
     items: ResourceListItem[];
     showCount?: boolean;
-    renderEmptyState: () => React.ReactNode;
+    renderEmptyState?: () => React.ReactNode;
 }
 
 type ResourceListProps = ResourceListCommonProps &
@@ -50,9 +50,11 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 showCount={showCount}
             >
                 {items.length === 0 ? (
-                    <ResourceEmptyStateWrapper>
-                        {renderEmptyState()}
-                    </ResourceEmptyStateWrapper>
+                    !!renderEmptyState ? (
+                        <ResourceEmptyStateWrapper>
+                            {renderEmptyState()}
+                        </ResourceEmptyStateWrapper>
+                    ) : null
                 ) : (
                     <ResourceTable
                         items={items}

@@ -10,6 +10,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
+import PinnedItemsPanel from '../components/PinnedItemsPanel';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
@@ -66,7 +67,9 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
-
+                        <PinnedItemsPanel
+                            projectUuid={project.data.projectUuid}
+                        />
                         <SpaceBrowser projectUuid={project.data.projectUuid} />
 
                         <RecentlyUpdatedPanel

@@ -913,6 +913,24 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "Ifunanyacollins",
+      "name": "Collins",
+      "avatar_url": "https://avatars.githubusercontent.com/u/31220512?v=4",
+      "profile": "https://github.com/Ifunanyacollins",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "pvanderlinden",
+      "name": "Paul van der Linden",
+      "avatar_url": "https://avatars.githubusercontent.com/u/391586?v=4",
+      "profile": "https://github.com/pvanderlinden",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,

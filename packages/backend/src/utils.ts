@@ -1,4 +1,8 @@
 import { ParameterError, validateEmail } from '@lightdash/common';
+import {
+    DbPinnedChart,
+    DbPinnedDashboard,
+} from './database/entities/pinnedList';
 
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {
@@ -18,3 +22,8 @@ export const sanitizeEmailParam = (value: any) => {
     }
     return email;
 };
+
+export const isDbPinnedChart = (
+    data: DbPinnedChart | DbPinnedDashboard,
+): data is DbPinnedChart =>
+    'saved_chart_uuid' in data && !!data.saved_chart_uuid;
