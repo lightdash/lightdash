@@ -82,9 +82,22 @@ Using the `metrics` tag has a couple of limitations (a.k.a. "features" 😉) in 
 
 - **The `expression` field must be a simple column name.**
 
-  It should be the column name that you want to apply your metric to (e.g. `customer_id` for the metric `total_customers`). Itcannot be anything more than a column name.
+It should be the column name that you want to apply your metric to (e.g. `customer_id` for the metric `total_customers`). Itcannot be anything more than a column name.
 
-  The reason for this limitation is that dbt assumes metrics are only from a single table. In Lightdash, metrics can be queried from many tables.
+The reason for this limitation is that dbt assumes metrics are only from a single table. In Lightdash, metrics can be queried from many tables.
+
+If you are using `calculation_method: derived` then you may reference other metrics such as `expression: metric('a')/metric('b')`
+
+```yaml
+# All non-derived metrics must be a single column name:
+metrics:
+  - name: customer_count
+    calculation_method: count_distinct
+    expression: customer_id # ok
+  - name: active_ratio
+    calculation_method: derived
+    expression: metric('active_customer_count') / metric('customer_count') # ok
+```
 
 - **Metrics automatically get all dimensions on the model**
 
