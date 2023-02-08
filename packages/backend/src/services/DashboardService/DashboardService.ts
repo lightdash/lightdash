@@ -6,9 +6,9 @@ import {
     DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
+    isDashboardChartTileType,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
-    PinnedListAndItems,
     SchedulerAndTargets,
     SessionUser,
     UpdateDashboard,
@@ -24,6 +24,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { projectService } from '../services';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
@@ -498,5 +499,31 @@ export class DashboardService {
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
         return scheduler;
+    }
+
+    async getAvailableTileFilters(user: SessionUser, dashboardUuid: string) {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
+        const savedQueryUuids = chartTiles
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => !!uuid);
+
+        const availableTiles = await Promise.all(
+            savedQueryUuids.map((savedQueryUuid) =>
+                projectService.getAvailableFiltersForSavedQuery(
+                    user,
+                    savedQueryUuid,
+                ),
+            ),
+        );
+
+        return chartTiles.reduce<Record<string, typeof availableTiles[0]>>(
+            (acc, tile, index) => ({
+                ...acc,
+                [tile.uuid]: availableTiles[index],
+            }),
+            {},
+        );
     }
 }

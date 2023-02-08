@@ -2,14 +2,17 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
+    DashboardAvailableTileFilters,
     DashboardTile,
+    fieldId,
     FilterableField,
     isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
+import { uniqBy } from 'lodash-es';
 import { useMemo, useState } from 'react';
-import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDeepCompareEffect } from 'react-use';
@@ -55,89 +58,30 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const getChartAvailableFilters = async (savedChartUuid: string) =>
-    lightdashApi<FilterableField[]>({
-        url: `/saved/${savedChartUuid}/availableFilters`,
+export const getDashboardAvailableTileFilters = async (dashboardUuid: string) =>
+    lightdashApi<DashboardAvailableTileFilters>({
+        url: `/dashboards/${dashboardUuid}/availableTileFilters`,
         method: 'GET',
         body: undefined,
     });
 
-export const getQueryConfig = (
-    savedChartUuid: string,
-    queryOptions?: Omit<UseQueryOptions, 'queryKey' | 'queryFn'>,
-): UseQueryOptions => {
-    return {
-        queryKey: ['available_filters', savedChartUuid],
-        queryFn: () => getChartAvailableFilters(savedChartUuid),
-        ...queryOptions,
-    };
-};
-
-export const useDashboardAvailableTileFilters = (tiles: DashboardTile[]) => {
-    const savedChartTiles = useMemo(() => {
-        return tiles
-            .filter(isDashboardChartTileType)
-            .filter((tile) => !!tile.properties.savedChartUuid);
-    }, [tiles]);
-
-    const queries = useQueries(
-        savedChartTiles.map((tile) =>
-            getQueryConfig(tile.properties.savedChartUuid!, { retry: false }),
-        ),
-    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
-
-    const results = queries.map((query) =>
-        query.isSuccess ? query.data : undefined,
+export const useDashboardAvailableTileFilters = (dashboardUuid?: string) =>
+    useQuery<DashboardAvailableTileFilters, ApiError>(
+        ['dashboards', dashboardUuid, 'availableTileFilters'],
+        () => getDashboardAvailableTileFilters(dashboardUuid!),
+        { enabled: dashboardUuid !== undefined },
     );
 
-    const isFetched = queries.every((query) => query.isFetched);
-
-    const [data, setData] =
-        useState<Record<string, FilterableField[] | undefined>>();
-
-    useDeepCompareEffect(() => {
-        if (!isFetched) return;
-
-        const newData = results.reduce<
-            Record<string, FilterableField[] | undefined>
-        >(
-            (acc, result, index) => ({
-                ...acc,
-                [savedChartTiles[index].uuid]: result,
-            }),
-            {},
-        );
-
-        setData(newData);
-    }, [results]);
-
-    return useMemo(
-        () => ({
-            isLoading: !isFetched,
-            data,
-        }),
-        [isFetched, data],
-    );
-};
-
-export const useAvailableDashboardFilterTargets = (tiles: DashboardTile[]) => {
-    const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
+export const useAvailableDashboardFilterTargets = (dashoardUuid: string) => {
+    const { isLoading, data } = useDashboardAvailableTileFilters(dashoardUuid);
 
     const availableFilters = useMemo(() => {
         if (isLoading || !data) return;
 
-        const allFilters = Object.values(data)
-            .flat()
-            .filter((f): f is FilterableField => !!f);
+        const allFilters = Object.values(data).flat();
         if (allFilters.length === 0) return;
 
-        return allFilters.filter(
-            (field, index, allFields) =>
-                index ===
-                allFields.findIndex(
-                    (f) => f.table === field.table && f.name === field.name,
-                ),
-        );
+        return uniqBy(allFilters, (f) => fieldId(f));
     }, [isLoading, data]);
 
     return useMemo(

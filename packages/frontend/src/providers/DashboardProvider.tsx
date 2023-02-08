@@ -71,7 +71,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [],
     );
     const { data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboardTiles);
+        useAvailableDashboardFilterTargets(dashboardUuid);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});

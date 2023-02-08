@@ -34,9 +34,10 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
-    const { dashboardTiles, filterableFields } = useDashboardContext();
+    const { dashboard, dashboardTiles, filterableFields } =
+        useDashboardContext();
     const { data: availableTileFilters, isLoading: isLoadingTileFilters } =
-        useDashboardAvailableTileFilters(dashboardTiles);
+        useDashboardAvailableTileFilters(dashboard?.uuid);
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 

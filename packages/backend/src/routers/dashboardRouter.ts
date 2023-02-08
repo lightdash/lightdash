@@ -28,6 +28,25 @@ dashboardRouter.get(
 );
 
 dashboardRouter.get(
+    '/availableTileFilters',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await dashboardService.getAvailableTileFilters(
+                    req.user!,
+                    req.params.dashboardUuid,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.get(
     '/views',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -43,6 +62,7 @@ dashboardRouter.get(
             .catch(next);
     },
 );
+
 dashboardRouter.patch(
     '/',
     isAuthenticated,

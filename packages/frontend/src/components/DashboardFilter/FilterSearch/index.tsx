@@ -33,9 +33,9 @@ const FilterSearch: FC<Props> = ({
     popoverProps,
 }) => {
     const { track } = useTracking();
-    const { dashboardTiles } = useDashboardContext();
+    const { dashboard, dashboardTiles } = useDashboardContext();
     const { data: availableTileFilters, isLoading } =
-        useDashboardAvailableTileFilters(dashboardTiles);
+        useDashboardAvailableTileFilters(dashboard?.uuid);
     const { addDimensionDashboardFilter } = useDashboardContext();
 
     const [selectedField, setSelectedField] = useState<FilterableField>();
