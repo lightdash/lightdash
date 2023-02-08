@@ -4,12 +4,9 @@ import {
     Dashboard,
     DashboardAvailableTileFilters,
     DashboardTile,
-    fieldId,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
-import uniqBy from 'lodash-es/uniqBy';
-import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
@@ -68,27 +65,6 @@ export const useDashboardAvailableTileFilters = (dashboardUuid?: string) =>
         () => getDashboardAvailableTileFilters(dashboardUuid!),
         { enabled: dashboardUuid !== undefined },
     );
-
-export const useAvailableDashboardFilterTargets = (dashoardUuid: string) => {
-    const { isLoading, data } = useDashboardAvailableTileFilters(dashoardUuid);
-
-    const availableFilters = useMemo(() => {
-        if (isLoading || !data) return;
-
-        const allFilters = Object.values(data).flat();
-        if (allFilters.length === 0) return;
-
-        return uniqBy(allFilters, (f) => fieldId(f));
-    }, [isLoading, data]);
-
-    return useMemo(
-        () => ({
-            isLoading,
-            data: availableFilters,
-        }),
-        [isLoading, availableFilters],
-    );
-};
 
 export const useDashboardQuery = (
     id?: string,

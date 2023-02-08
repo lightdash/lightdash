@@ -26,7 +26,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
         dashboardFilters,
         fieldsWithSuggestions,
         dashboardTiles,
-        filterableFields,
+        availableFilterableFields,
     } = useDashboardContext();
 
     const hasChartTiles =
@@ -56,7 +56,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     content={
                         <FilterSearch
                             isEditMode={isEditMode}
-                            fields={filterableFields || []}
+                            fields={availableFilterableFields || []}
                             popoverProps={{
                                 onOpened: () => setIsSubmenuOpen(true),
                                 onOpening: () => setIsSubmenuOpen(true),

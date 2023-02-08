@@ -1,10 +1,12 @@
 import {
     Dashboard,
+    DashboardAvailableTileFilters,
     DashboardFilterRule,
     DashboardFilters,
     fieldId,
     FilterableField,
 } from '@lightdash/common';
+import uniqBy from 'lodash-es/uniqBy';
 import React, {
     createContext,
     Dispatch,
@@ -12,13 +14,14 @@ import React, {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
 } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import {
-    useAvailableDashboardFilterTargets,
+    useDashboardAvailableTileFilters,
     useDashboardQuery,
 } from '../hooks/dashboard/useDashboard';
 
@@ -56,7 +59,8 @@ type DashboardContext = {
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addSuggestions: (newSuggestionsMap: Record<string, string[]>) => void;
-    filterableFields: FilterableField[] | undefined;
+    availableFilterableFields: FilterableField[] | undefined;
+    availableTileFilters: DashboardAvailableTileFilters | undefined;
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -70,8 +74,18 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
         [],
     );
-    const { data: filterableFields } =
-        useAvailableDashboardFilterTargets(dashboardUuid);
+
+    const { isLoading, data: availableTileFilters } =
+        useDashboardAvailableTileFilters(dashboardUuid);
+
+    const availableFilterableFields = useMemo(() => {
+        if (isLoading || !availableTileFilters) return;
+
+        const allFilters = Object.values(availableTileFilters).flat();
+        if (allFilters.length === 0) return;
+
+        return uniqBy(allFilters, (f) => fieldId(f));
+    }, [isLoading, availableTileFilters]);
 
     const [fieldsWithSuggestions, setFieldsWithSuggestions] =
         useState<FieldsWithSuggestions>({});
@@ -151,9 +165,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
     );
 
     useEffect(() => {
-        if (filterableFields && filterableFields.length > 0) {
+        if (availableFilterableFields && availableFilterableFields.length > 0) {
             setFieldsWithSuggestions((prev) =>
-                filterableFields.reduce<FieldsWithSuggestions>(
+                availableFilterableFields.reduce<FieldsWithSuggestions>(
                     (sum, field) => ({
                         ...sum,
                         [fieldId(field)]: {
@@ -166,7 +180,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                 ),
             );
         }
-    }, [filterableFields]);
+    }, [availableFilterableFields]);
 
     const addSuggestions = useCallback(
         (newSuggestionsMap: Record<string, string[]>) => {
@@ -231,7 +245,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         haveFiltersChanged,
         setHaveFiltersChanged,
         addSuggestions,
-        filterableFields,
+        availableFilterableFields,
+        availableTileFilters,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
