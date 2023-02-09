@@ -9,13 +9,11 @@ import {
     RadioGroup,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { getResultValues, ResultRow } from '@lightdash/common';
-import { FC, memo, useEffect, useRef, useState } from 'react';
-import CSVExporter, { CsvExporterElementType } from '../CSVExporter';
+import { ResultRow } from '@lightdash/common';
+import { FC, memo, useState } from 'react';
 import { InputWrapper, Title } from './DownloadCsvPopup.styles';
 
 type Props = {
-    fileName: string | undefined;
     rows: ResultRow[] | undefined;
     getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
 };
@@ -25,6 +23,7 @@ export enum Limit {
     ALL = 'all',
     CUSTOM = 'custom',
 }
+
 export enum Values {
     FORMATTED = 'formatted',
     RAW = 'raw',
@@ -36,26 +35,11 @@ const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
     );
 };
 
-const DownloadCsvPopup: FC<Props> = memo(({ fileName, rows, getCsvLink }) => {
+const DownloadCsvPopup: FC<Props> = memo(({ rows, getCsvLink }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [limit, setLimit] = useState<string>(Limit.TABLE);
     const [customLimit, setCustomLimit] = useState<number>(1);
     const [format, setFormat] = useState<string>(Values.FORMATTED);
-
-    const [csvRows, setCsvRows] = useState<object[]>([]);
-    const csvRef = useRef<CsvExporterElementType>(null);
-
-    useEffect(() => {
-        if (csvRows.length > 0 && csvRef.current?.link) {
-            csvRef.current.link.click();
-            setCsvRows([]);
-            setIsOpen(false);
-        }
-    }, [csvRows]);
-
-    const csvFilename = `lightdash-${fileName || 'export'}-${
-        limit === Limit.ALL ? 'all-' : ''
-    }${new Date().toISOString().slice(0, 10)}.csv`;
 
     if (!rows || rows.length <= 0) {
         return <ExportAsCSVButton disabled />;
@@ -108,33 +92,21 @@ const DownloadCsvPopup: FC<Props> = memo(({ fileName, rows, getCsvLink }) => {
                             />
                         </InputWrapper>
                     )}
-
-                    <CSVExporter
-                        linkRef={csvRef}
-                        data={csvRows}
-                        filename={csvFilename}
-                    />
-
                     <Button
                         fill
                         intent={Intent.PRIMARY}
                         icon="export"
                         onClick={() => {
-                            if (limit === Limit.TABLE) {
-                                setCsvRows(
-                                    getResultValues(
-                                        rows,
-                                        format === Values.RAW,
-                                    ),
-                                );
-                            } else {
-                                getCsvLink(
-                                    limit === Limit.CUSTOM ? customLimit : null,
-                                    format === Values.RAW,
-                                ).then((url) => {
-                                    window.open(url, '_blank');
-                                });
-                            }
+                            getCsvLink(
+                                limit === Limit.CUSTOM
+                                    ? customLimit
+                                    : limit === Limit.TABLE
+                                    ? rows.length
+                                    : null,
+                                format === Values.RAW,
+                            ).then((url) => {
+                                window.open(url, '_blank');
+                            });
                         }}
                     >
                         Export CSV

@@ -7,12 +7,19 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType, getResultValues, ResultRow } from '@lightdash/common';
+import {
+    ChartType,
+    getResultValues,
+    NotFoundError,
+    ResultRow,
+} from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import useEcharts from '../hooks/echarts/useEcharts';
-import CSVExporter from './CSVExporter';
+import { downloadCsv } from '../hooks/useDownloadCsv';
+import DownloadCsvButton from './DownloadCsvButton';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -101,12 +108,14 @@ function downloadPdf(base64: string, width: number, height: number) {
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
-    tableData: ResultRow[];
+    getCsvLink: () => Promise<string>;
+    disabled: boolean;
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
-    tableData,
+    getCsvLink,
+    disabled,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
     const isTable = chartType === ChartType.TABLE;
@@ -166,21 +175,9 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 
             <FormGroup label="File format" labelFor="download-type" inline>
                 {isTable ? (
-                    <CSVExporter
-                        data={tableData}
-                        filename={`lightdash-export-${new Date()
-                            .toISOString()
-                            .slice(0, 10)}.csv`}
-                        renderElement={({ handleCsvExport, isDisabled }) => (
-                            <Button
-                                intent="primary"
-                                icon="export"
-                                disabled={isDisabled}
-                                onClick={handleCsvExport}
-                            >
-                                Export CSV
-                            </Button>
-                        )}
+                    <DownloadCsvButton
+                        disabled={disabled}
+                        getCsvLink={getCsvLink}
                     />
                 ) : (
                     <HTMLSelect
@@ -217,13 +214,31 @@ export const ChartDownloadMenu: React.FC = memo(() => {
         chartRef,
         chartType,
         tableConfig: { rows },
+        resultsData,
+        explore,
     } = useVisualizationContext();
     const eChartsOptions = useEcharts();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isOpen, setIsOpen] = useState(false);
     const disabled =
         (chartType === ChartType.TABLE && rows.length <= 0) ||
+        !resultsData?.metricQuery ||
         chartType === ChartType.BIG_NUMBER ||
         (chartType === ChartType.CARTESIAN && !eChartsOptions);
+
+    const getCsvLink = async () => {
+        if (explore?.name && resultsData?.metricQuery) {
+            const csvResponse = await downloadCsv({
+                projectUuid,
+                tableId: explore?.name,
+                query: resultsData?.metricQuery,
+                csvLimit: rows.length,
+                onlyRaw: false,
+            });
+            return csvResponse.url;
+        }
+        throw new NotFoundError('no metric query defined');
+    };
 
     return (
         <Popover2
@@ -232,7 +247,8 @@ export const ChartDownloadMenu: React.FC = memo(() => {
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
-                    tableData={getResultValues(rows)}
+                    getCsvLink={getCsvLink}
+                    disabled={disabled}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}

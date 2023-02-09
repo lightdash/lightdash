@@ -89,11 +89,7 @@ const ResultsCard: FC = memo(() => {
                 tableName && (
                     <>
                         {isEditMode && <AddColumnButton />}
-                        <DownloadCsvPopup
-                            fileName={tableName}
-                            rows={rows}
-                            getCsvLink={getCsvLink}
-                        />
+                        <DownloadCsvPopup rows={rows} getCsvLink={getCsvLink} />
                     </>
                 )
             }

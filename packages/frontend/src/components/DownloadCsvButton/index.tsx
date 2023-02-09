@@ -1,29 +1,26 @@
 import { Button } from '@blueprintjs/core';
+import { ResultRow } from '@lightdash/common';
 import { FC, memo } from 'react';
-import CSVExporter from '../CSVExporter';
 
 type Props = {
-    fileName: string | undefined;
-    rows: object[] | undefined;
+    disabled: boolean;
+    getCsvLink: () => Promise<string>;
 };
 
-const DownloadCsvButton: FC<Props> = memo(({ fileName, rows = [] }) => {
+const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
     return (
-        <CSVExporter
-            data={rows}
-            filename={`lightdash-${fileName || 'export'}-${new Date()
-                .toISOString()
-                .slice(0, 10)}.csv`}
-            renderElement={({ handleCsvExport, isDisabled }) => (
-                <Button
-                    icon="export"
-                    disabled={isDisabled}
-                    onClick={handleCsvExport}
-                >
-                    Export CSV
-                </Button>
-            )}
-        />
+        <Button
+            intent="primary"
+            icon="export"
+            disabled={disabled}
+            onClick={() =>
+                getCsvLink().then((url) => {
+                    window.open(url, '_blank');
+                })
+            }
+        >
+            Export CSV
+        </Button>
     );
 });
 
