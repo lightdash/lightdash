@@ -1,3 +1,10 @@
+## [0.407.4](https://github.com/lightdash/lightdash/compare/0.407.3...0.407.4) (2023-02-09)
+
+
+### Bug Fixes
+
+* csv columns should use labels instead of ids ([#4416](https://github.com/lightdash/lightdash/issues/4416)) ([872ed89](https://github.com/lightdash/lightdash/commit/872ed891a4a5f3655f5eca7ef07151a2adfbd526))
+
 ## [0.407.3](https://github.com/lightdash/lightdash/compare/0.407.2...0.407.3) (2023-02-09)
 
 
