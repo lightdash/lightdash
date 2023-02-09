@@ -63,7 +63,7 @@ export const postDashboardsAvailableFilters = async (
 
 export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
     useQuery<DashboardAvailableFilters, ApiError>(
-        ['savedQueries', 'availableFilters', ...savedQueryUuids],
+        ['dashboards', 'availableFilters', ...savedQueryUuids],
         () => postDashboardsAvailableFilters(savedQueryUuids),
         { enabled: savedQueryUuids.length > 0 },
     );
