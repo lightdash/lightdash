@@ -4,7 +4,7 @@ export const FormWrapper = styled.div`
     height: 100%;
 
     & form {
-        height: 100%;
+        height: fit-content;
         display: flex;
         flex-direction: column;
     }

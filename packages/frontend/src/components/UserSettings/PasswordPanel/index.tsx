@@ -67,7 +67,11 @@ const PasswordPanel: FC = () => {
 
     return (
         <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            style={{
+                height: 'fit-content',
+                display: 'flex',
+                flexDirection: 'column',
+            }}
         >
             {hasPassword && (
                 <PasswordInput
