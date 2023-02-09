@@ -1,3 +1,10 @@
+## [0.407.2](https://github.com/lightdash/lightdash/compare/0.407.1...0.407.2) (2023-02-09)
+
+
+### Bug Fixes
+
+* multiple run queries on page load ([#4404](https://github.com/lightdash/lightdash/issues/4404)) ([af819f5](https://github.com/lightdash/lightdash/commit/af819f5f2b6f78ab39654c50d3e362fa80771e3d))
+
 ## [0.407.1](https://github.com/lightdash/lightdash/compare/0.407.0...0.407.1) (2023-02-09)
 
 
