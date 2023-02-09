@@ -1,4 +1,5 @@
 import {
+    ApiError,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilterRule,
@@ -33,6 +34,7 @@ const emptyFilters: DashboardFilters = {
 
 type DashboardContext = {
     dashboard: Dashboard | undefined;
+    dashboardError: ApiError | null;
     fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardTiles: Dashboard['tiles'] | [];
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | []>>;
@@ -72,7 +74,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         dashboardUuid: string;
     }>();
 
-    const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const { data: dashboard, error: dashboardError } =
+        useDashboardQuery(dashboardUuid);
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
         [],
     );
@@ -259,6 +262,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     const value = {
         dashboard,
+        dashboardError,
         fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
