@@ -46,7 +46,9 @@ export class SchedulerClient {
         this.graphileUtils = makeWorkerUtils({});
 
         this.graphileUtils.then((utils) => {
-            utils.migrate();
+            utils.migrate().catch((e: any) => {
+                Logger.warn('Error migrating graphile worker', e);
+            });
         });
     }
 
