@@ -52,18 +52,20 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const getDashboardAvailableFilters = async (dashboardUuid: string) =>
+export const postDashboardsAvailableFilters = async (
+    savedQueryUuids: string[],
+) =>
     lightdashApi<DashboardAvailableFilters>({
-        url: `/dashboards/${dashboardUuid}/availableFilters`,
-        method: 'GET',
-        body: undefined,
+        url: `/dashboards/availableFilters`,
+        method: 'POST',
+        body: JSON.stringify(savedQueryUuids),
     });
 
-export const useDashboardAvailableFilters = (dashboardUuid?: string) =>
+export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
     useQuery<DashboardAvailableFilters, ApiError>(
-        ['dashboards', dashboardUuid, 'availableFilters'],
-        () => getDashboardAvailableFilters(dashboardUuid!),
-        { enabled: dashboardUuid !== undefined },
+        ['savedQueries', 'availableFilters', ...savedQueryUuids],
+        () => postDashboardsAvailableFilters(savedQueryUuids),
+        { enabled: savedQueryUuids.length > 0 },
     );
 
 export const useDashboardQuery = (

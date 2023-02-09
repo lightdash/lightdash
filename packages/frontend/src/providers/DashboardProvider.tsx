@@ -22,8 +22,8 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
 import {
-    useDashboardAvailableFilters,
     useDashboardQuery,
+    useDashboardsAvailableFilters,
 } from '../hooks/dashboard/useDashboard';
 
 const emptyFilters: DashboardFilters = {
@@ -77,8 +77,15 @@ export const DashboardProvider: React.FC = ({ children }) => {
         [],
     );
 
+    const tileSavedChartUuids = useMemo(() => {
+        return dashboardTiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => !!uuid);
+    }, [dashboardTiles]);
+
     const { isLoading, data: filterableFieldsBySavedQueryUuid } =
-        useDashboardAvailableFilters(dashboardUuid);
+        useDashboardsAvailableFilters(tileSavedChartUuids);
 
     const filterableFieldsByTileUuid = useMemo(() => {
         if (!dashboard || !filterableFieldsBySavedQueryUuid) return;

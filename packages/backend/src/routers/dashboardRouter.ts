@@ -1,4 +1,3 @@
-import { isDashboardChartTileType } from '@lightdash/common';
 import express from 'express';
 import {
     allowApiKeyAuthentication,
@@ -14,7 +13,7 @@ import {
 export const dashboardRouter = express.Router({ mergeParams: true });
 
 dashboardRouter.get(
-    '/',
+    '/:dashboardUuid',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -33,37 +32,7 @@ dashboardRouter.get(
 );
 
 dashboardRouter.get(
-    '/availableFilters',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const dashboard = await dashboardService.getById(
-                req.user!,
-                req.params.dashboardUuid,
-            );
-
-            const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
-            const savedQueryUuids = chartTiles
-                .map((tile) => tile.properties.savedChartUuid)
-                .filter((uuid): uuid is string => !!uuid);
-
-            res.json({
-                status: 'ok',
-                results:
-                    await projectService.getAvailableFiltersForSavedQueries(
-                        req.user!,
-                        savedQueryUuids,
-                    ),
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-dashboardRouter.get(
-    '/views',
+    '/:dashboardUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -80,7 +49,7 @@ dashboardRouter.get(
 );
 
 dashboardRouter.patch(
-    '/',
+    '/:dashboardUuid',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -100,7 +69,7 @@ dashboardRouter.patch(
 );
 
 dashboardRouter.patch(
-    '/pinning',
+    '/:dashboardUuid/pinning',
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -120,7 +89,7 @@ dashboardRouter.patch(
 );
 
 dashboardRouter.delete(
-    '/',
+    '/:dashboardUuid',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -137,7 +106,7 @@ dashboardRouter.delete(
 );
 
 dashboardRouter.get(
-    '/schedulers',
+    '/:dashboardUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -156,7 +125,7 @@ dashboardRouter.get(
 );
 
 dashboardRouter.post(
-    '/schedulers',
+    '/:dashboardUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -168,6 +137,27 @@ dashboardRouter.post(
                     req.params.dashboardUuid,
                     req.body,
                 ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.post(
+    '/availableFilters',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results =
+                await projectService.getAvailableFiltersForSavedQueries(
+                    req.user!,
+                    req.body,
+                );
+
+            res.json({
+                status: 'ok',
+                results,
             });
         } catch (e) {
             next(e);

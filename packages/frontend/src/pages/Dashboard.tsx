@@ -180,14 +180,6 @@ const Dashboard = () => {
         setHaveFiltersChanged,
     ]);
 
-    const handleInvalidateDashboardFilters = useCallback(async () => {
-        await queryClient.invalidateQueries([
-            'dashboards',
-            dashboardUuid,
-            'availableFilters',
-        ]);
-    }, [dashboardUuid, queryClient]);
-
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
             setDashboardTiles((currentDashboardTiles) =>
@@ -212,11 +204,9 @@ const Dashboard = () => {
                 }),
             );
 
-            await handleInvalidateDashboardFilters();
-
             setHasTilesChanged(true);
         },
-        [setDashboardTiles, handleInvalidateDashboardFilters],
+        [setDashboardTiles],
     );
 
     const handleAddTiles = useCallback(
@@ -225,11 +215,9 @@ const Dashboard = () => {
                 return appendNewTilesToBottom(currentDashboardTiles, tiles);
             });
 
-            await handleInvalidateDashboardFilters();
-
             setHasTilesChanged(true);
         },
-        [setDashboardTiles, handleInvalidateDashboardFilters],
+        [setDashboardTiles],
     );
 
     const handleDeleteTile = useCallback(
@@ -240,11 +228,9 @@ const Dashboard = () => {
                 ),
             );
 
-            await handleInvalidateDashboardFilters();
-
             setHasTilesChanged(true);
         },
-        [setDashboardTiles, handleInvalidateDashboardFilters],
+        [setDashboardTiles],
     );
 
     const handleEditTiles = useCallback(
