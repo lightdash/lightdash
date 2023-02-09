@@ -73,7 +73,7 @@ type Action =
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
           type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
-          payload: CreateSavedChartVersion;
+          payload: MetricQuery;
       }
     | { type: ActionType.SET_TABLE_NAME; payload: string }
     | { type: ActionType.TOGGLE_EXPANDED_SECTION; payload: ExplorerSection }
@@ -150,7 +150,7 @@ export interface ExplorerReduceState {
     shouldFetchResults: boolean;
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
-    previouslyFetchedState?: CreateSavedChartVersion;
+    previouslyFetchedState?: MetricQuery;
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -1052,10 +1052,7 @@ export const ExplorerProvider: FC<{
             savedChart,
         ],
     );
-    const queryResults = useQueryResults(
-        state.isValidQuery,
-        state.unsavedChartVersion,
-    );
+    const queryResults = useQueryResults();
 
     // Fetch query results after state update
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
@@ -1063,25 +1060,32 @@ export const ExplorerProvider: FC<{
 
     const mutateAsync = useCallback(async () => {
         try {
-            const result = await mutateAsyncQuery();
+            const result = await mutateAsyncQuery(
+                unsavedChartVersion.tableName,
+                unsavedChartVersion.metricQuery,
+            );
 
             dispatch({
                 type: ActionType.SET_PREVIOUSLY_FETCHED_STATE,
-                payload: cloneDeep(state.unsavedChartVersion),
+                payload: cloneDeep(unsavedChartVersion.metricQuery),
             });
 
             return result;
         } catch (e) {
             console.error(e);
         }
-    }, [mutateAsyncQuery, state.unsavedChartVersion]);
+    }, [
+        mutateAsyncQuery,
+        unsavedChartVersion.tableName,
+        unsavedChartVersion.metricQuery,
+    ]);
 
     const hasUnfetchedChanges = useMemo(() => {
         return !isEqual(
-            state.unsavedChartVersion,
+            state.unsavedChartVersion.metricQuery,
             state.previouslyFetchedState,
         );
-    }, [state.unsavedChartVersion, state.previouslyFetchedState]);
+    }, [state.unsavedChartVersion.metricQuery, state.previouslyFetchedState]);
 
     useEffect(() => {
         if (!state.shouldFetchResults) return;
