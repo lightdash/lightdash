@@ -132,3 +132,42 @@ savedChartRouter.post(
             .catch(next);
     },
 );
+
+savedChartRouter.get(
+    '/:savedQueryUuid/schedulers',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await savedChartsService.getSchedulers(
+                    req.user!,
+                    req.params.savedQueryUuid,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+savedChartRouter.post(
+    '/:savedQueryUuid/schedulers',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            res.json({
+                status: 'ok',
+                results: await savedChartsService.createScheduler(
+                    req.user!,
+                    req.params.savedQueryUuid,
+                    req.body,
+                ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

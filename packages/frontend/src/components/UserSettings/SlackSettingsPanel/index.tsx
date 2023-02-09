@@ -1,17 +1,26 @@
-import { AnchorButton, Button, Icon, Spinner } from '@blueprintjs/core';
-import { FC } from 'react';
+import { AnchorButton, Button, Spinner } from '@blueprintjs/core';
+import { slackRequiredScopes, SlackSettings } from '@lightdash/common';
+import intersection from 'lodash-es/intersection';
+import React, { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
 import {
     Actions,
     AppearancePanelWrapper,
     Description,
+    ScopesCallout,
     SlackIcon,
     SlackName,
     SlackSettingsWrapper,
     Title,
 } from './SlackSettingsPanel.styles';
 
+export const hasRequiredScopes = (slackSettings: SlackSettings) => {
+    return (
+        intersection(slackSettings.scopes, slackRequiredScopes).length ===
+        slackRequiredScopes.length
+    );
+};
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isLoading } = useGetSlack();
     const { mutate: deleteSlack } = useDeleteSlack();
@@ -45,21 +54,30 @@ const SlackSettingsPanel: FC = () => {
                 </Description>
             </AppearancePanelWrapper>
             {isValidSlack ? (
-                <Actions>
-                    <AnchorButton
-                        target="_blank"
-                        intent="primary"
-                        href={installUrl}
-                    >
-                        Reinstall
-                    </AnchorButton>
-                    <Button
-                        icon="delete"
-                        intent="danger"
-                        onClick={() => deleteSlack(undefined)}
-                        text="Remove"
-                    />
-                </Actions>
+                <div>
+                    <Actions>
+                        <AnchorButton
+                            target="_blank"
+                            intent="primary"
+                            href={installUrl}
+                        >
+                            Reinstall
+                        </AnchorButton>
+                        <Button
+                            icon="delete"
+                            intent="danger"
+                            onClick={() => deleteSlack(undefined)}
+                            text="Remove"
+                        />
+                    </Actions>
+                    {data && !hasRequiredScopes(data) && (
+                        <ScopesCallout intent="primary">
+                            Your Slack integration is not up to date, you should
+                            reinstall the Slack integration to guaranty the best
+                            user experience.
+                        </ScopesCallout>
+                    )}
+                </div>
             ) : (
                 <Actions>
                     <AnchorButton

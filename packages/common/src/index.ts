@@ -41,6 +41,8 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
+import { SchedulerAndTargets } from './types/scheduler';
+import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
@@ -78,8 +80,10 @@ export * from './types/pinning';
 export * from './types/projectMemberProfile';
 export * from './types/results';
 export * from './types/savedCharts';
+export * from './types/scheduler';
 export * from './types/search';
 export * from './types/share';
+export * from './types/slack';
 export * from './types/slackSettings';
 export * from './types/space';
 export * from './types/table';
@@ -482,6 +486,9 @@ type ApiResults =
     | ShareUrl
     | SlackSettings
     | UserActivity
+    | SlackChannel[]
+    | SchedulerAndTargets
+    | SchedulerAndTargets[]
     | ApiDownloadCsv;
 
 export type ApiResponse = {

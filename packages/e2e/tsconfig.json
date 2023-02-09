@@ -8,7 +8,8 @@
             "@testing-library/cypress",
             "node",
             "cypress-file-upload"
-        ]
+        ],
+        "strictNullChecks": true /* Enable strict null checks. */,
     },
     "include": ["**/*.ts"],
     "references": [

@@ -1,4 +1,4 @@
-import { AnchorButton, Button, Colors } from '@blueprintjs/core';
+import { AnchorButton, Button, Callout, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const SlackSettingsWrapper = styled.div`
@@ -37,5 +37,10 @@ export const Actions = styled.div`
     flex-direction: row;
     gap: 10px;
     height: 30px;
+    width: 280px;
+`;
+
+export const ScopesCallout = styled(Callout)`
+    margin-top: 20px;
     width: 280px;
 `;

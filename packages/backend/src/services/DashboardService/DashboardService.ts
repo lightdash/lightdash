@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     CreateDashboard,
+    CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
@@ -8,17 +9,20 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     PinnedListAndItems,
+    SchedulerAndTargets,
     SessionUser,
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
+import { schedulerClient, slackClient } from '../../clients/clients';
 import database from '../../database/database';
 import { getSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
@@ -27,6 +31,7 @@ type Dependencies = {
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
+    schedulerModel: SchedulerModel;
 };
 
 export class DashboardService {
@@ -38,16 +43,36 @@ export class DashboardService {
 
     pinnedListModel: PinnedListModel;
 
+    schedulerModel: SchedulerModel;
+
     constructor({
         dashboardModel,
         spaceModel,
         analyticsModel,
         pinnedListModel,
+        schedulerModel,
     }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
         this.pinnedListModel = pinnedListModel;
+        this.schedulerModel = schedulerModel;
+    }
+
+    private async checkUpdateAccess(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const { organizationUuid, projectUuid } =
+            await this.dashboardModel.getById(dashboardUuid);
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Dashboard', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
     }
 
     async hasDashboardSpaceAccess(
@@ -442,5 +467,36 @@ export class DashboardService {
                 projectId: deletedDashboard.projectUuid,
             },
         });
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        await this.checkUpdateAccess(user, dashboardUuid);
+        return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
+    }
+
+    async createScheduler(
+        user: SessionUser,
+        dashboardUuid: string,
+        newScheduler: CreateSchedulerAndTargetsWithoutIds,
+    ): Promise<SchedulerAndTargets> {
+        await this.checkUpdateAccess(user, dashboardUuid);
+        const scheduler = await this.schedulerModel.createScheduler({
+            ...newScheduler,
+            createdBy: user.userUuid,
+            dashboardUuid,
+            savedChartUuid: null,
+        });
+
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            scheduler.targets.map((target) => target.channel),
+        );
+
+        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+
+        return scheduler;
     }
 }

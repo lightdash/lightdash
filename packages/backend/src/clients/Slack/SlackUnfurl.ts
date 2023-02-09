@@ -3,6 +3,7 @@ import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 export const unfurlChartAndDashboard = (
     originalUrl: string,
     unfurl: Unfurl,
+    withoutUrl?: boolean,
 ): any => {
     const blocks = [
         {
@@ -36,6 +37,10 @@ export const unfurlChartAndDashboard = (
         image_url: unfurl.imageUrl,
         alt_text: unfurl.title,
     };
+
+    if (withoutUrl) {
+        return imageBlock ? [...blocks, imageBlock] : blocks;
+    }
 
     return {
         [originalUrl]: {

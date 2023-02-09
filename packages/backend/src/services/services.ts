@@ -16,9 +16,11 @@ import {
     pinnedListModel,
     projectModel,
     savedChartModel,
+    schedulerModel,
     searchModel,
     sessionModel,
     shareModel,
+    slackAuthenticationModel,
     spaceModel,
     userModel,
 } from '../models/models';
@@ -30,6 +32,7 @@ import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
+import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
@@ -84,6 +87,7 @@ export const dashboardService = new DashboardService({
     spaceModel,
     analyticsModel,
     pinnedListModel,
+    schedulerModel,
 });
 
 export const savedChartsService = new SavedChartService({
@@ -92,6 +96,7 @@ export const savedChartsService = new SavedChartService({
     spaceModel,
     analyticsModel,
     pinnedListModel,
+    schedulerModel,
 });
 
 export const personalAccessTokenService = new PersonalAccessTokenService({
@@ -125,4 +130,11 @@ export const unfurlService = new UnfurlService({
 
 export const analyticsService = new AnalyticsService({
     analyticsModel,
+});
+
+export const schedulerService = new SchedulerService({
+    lightdashConfig,
+    schedulerModel,
+    savedChartModel,
+    dashboardModel,
 });

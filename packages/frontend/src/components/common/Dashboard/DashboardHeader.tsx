@@ -3,10 +3,12 @@ import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
 import { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { useToggle } from 'react-use';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
 import ShareLinkButton from '../../ShareLinkButton';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import {
@@ -70,7 +72,8 @@ const DashboardHeader = ({
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
-
+    const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
+        useToggle(false);
     const handleEditClick = () => {
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
@@ -242,7 +245,13 @@ const DashboardHeader = ({
                                         }}
                                     />
                                 </MenuItem2>
-
+                                <MenuItem2
+                                    icon={'send-message'}
+                                    text={'Scheduled deliveries'}
+                                    onClick={() => {
+                                        toggleSchedulerDeliveriesModel(true);
+                                    }}
+                                />
                                 <Divider />
 
                                 <MenuItem2
@@ -268,6 +277,16 @@ const DashboardHeader = ({
                             onSubmitForm={(space) => {
                                 if (space) onMoveToSpace(space.uuid);
                             }}
+                        />
+                    )}
+                    {isScheduledDeliveriesModalOpen && dashboardUuid && (
+                        <DashboardSchedulersModal
+                            dashboardUuid={dashboardUuid}
+                            name={dashboardName}
+                            isOpen={isScheduledDeliveriesModalOpen}
+                            onClose={() =>
+                                toggleSchedulerDeliveriesModel(false)
+                            }
                         />
                     )}
                 </PageActionsContainer>

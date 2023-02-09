@@ -55,5 +55,19 @@ services:
     ports:
       - "3001:3000"
 
+  scheduler:
+    image: lightdash/lightdash:latest
+    entrypoint: ["yarn", "workspace", "backend", "scheduler"]
+    depends_on:
+      - db
+    environment:
+      - PGHOST=${PGHOST:-db}
+      - PGPORT=${PGPORT:-5432}
+      - PGUSER=${PGUSER:-postgres}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE:-postgres}
+      - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
+
+
 volumes:
   db-data:

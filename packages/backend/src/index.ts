@@ -31,7 +31,7 @@ import Logger from './logger';
 import { slackAuthenticationModel, userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
 import { apiV1Router } from './routers/apiV1Router';
-import { unfurlService } from './services/services';
+import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 
 // @ts-ignore
@@ -282,3 +282,8 @@ export const slackService = new SlackService({
     slackAuthenticationModel,
     lightdashConfig,
 });
+
+if (lightdashConfig.scheduler?.enabled) {
+    const worker = new SchedulerWorker({ lightdashConfig });
+    worker.run();
+}

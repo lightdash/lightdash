@@ -7,8 +7,10 @@ import {
     Menu,
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { useToggle } from 'react-use';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -36,6 +38,7 @@ import SpaceInfo from '../../common/PageHeader/SpaceInfo';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
@@ -62,6 +65,8 @@ const SavedChartsHeader: FC = () => {
         useState<boolean>(false);
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
+    const [isScheduledDeliveriesModalOpen, toggleSchedulerDeliveriesModel] =
+        useToggle(false);
     const [isAddToDashboardModalOpen, setIsAddToDashboardModalOpen] =
         useState<boolean>(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
@@ -118,6 +123,14 @@ const SavedChartsHeader: FC = () => {
         setIsSaveWarningModalOpen,
         isEditMode,
     ]);
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
@@ -315,7 +328,17 @@ const SavedChartsHeader: FC = () => {
                                             );
                                         })}
                                     </MenuItem2>
-
+                                    {userCanManageCharts && (
+                                        <MenuItem2
+                                            icon={'send-message'}
+                                            text={'Scheduled deliveries'}
+                                            onClick={() => {
+                                                toggleSchedulerDeliveriesModel(
+                                                    true,
+                                                );
+                                            }}
+                                        />
+                                    )}
                                     <Divider />
 
                                     <MenuItem2
@@ -373,6 +396,14 @@ const SavedChartsHeader: FC = () => {
 
                         setIsDeleteDialogOpen(false);
                     }}
+                />
+            )}
+            {isScheduledDeliveriesModalOpen && savedChart?.uuid && (
+                <ChartSchedulersModal
+                    chartUuid={savedChart.uuid}
+                    name={savedChart.name}
+                    isOpen={isScheduledDeliveriesModalOpen}
+                    onClose={() => toggleSchedulerDeliveriesModel(false)}
                 />
             )}
         </TrackSection>

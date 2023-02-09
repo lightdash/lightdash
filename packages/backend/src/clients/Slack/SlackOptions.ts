@@ -1,3 +1,4 @@
+import { slackRequiredScopes } from '@lightdash/common';
 import { lightdashConfig } from '../../config/lightdashConfig';
 
 export const slackOptions = {
@@ -5,11 +6,11 @@ export const slackOptions = {
     clientId: lightdashConfig.slack?.clientId || '',
     clientSecret: lightdashConfig.slack?.clientSecret || '',
     stateSecret: lightdashConfig.slack?.stateSecret,
-    scopes: ['links:read', 'links:write'],
+    scopes: slackRequiredScopes,
 
     // Slack only allow https on redirections
     // When testing locally on http://localhost:3000, replace again https:// with http:// after redirection happens
-    redirectUri: `${lightdashConfig.siteUrl.replace(
+    redirectUri: `${(lightdashConfig?.siteUrl || '').replace(
         'http://',
         'https://',
     )}/api/v1/slack/oauth_redirect`,
