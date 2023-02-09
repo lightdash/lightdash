@@ -174,7 +174,9 @@ const DashboardChartTile: FC<Props> = (props) => {
         id: savedChartUuid || undefined,
         useQueryOptions: { refetchOnMount: false },
     });
-    const { data: explore } = useExplore(savedQuery?.tableName);
+    const { data: explore, isLoading: isLoadingExplore } = useExplore(
+        savedQuery?.tableName,
+    );
     const { addDimensionDashboardFilter } = useDashboardContext();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
@@ -405,7 +407,7 @@ const DashboardChartTile: FC<Props> = (props) => {
                 clickableTitle={true}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
-                isLoading={isLoading}
+                isLoading={isLoading || isLoadingExplore}
                 extraMenuItems={
                     savedChartUuid !== null && (
                         <>
