@@ -107,12 +107,14 @@ const DashboardHeader = ({
                         />
                     )}
 
-                    <DashboardUpdateModal
-                        uuid={dashboardUuid}
-                        isOpen={isUpdating}
-                        onClose={() => setIsUpdating(false)}
-                        onConfirm={() => setIsUpdating(false)}
-                    />
+                    {isUpdating && (
+                        <DashboardUpdateModal
+                            uuid={dashboardUuid}
+                            isOpen={isUpdating}
+                            onClose={() => setIsUpdating(false)}
+                            onConfirm={() => setIsUpdating(false)}
+                        />
+                    )}
                 </PageTitleContainer>
 
                 <PageDetailsContainer>

@@ -25,7 +25,6 @@ import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDa
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
-    useDashboardQuery,
     useDeleteMutation,
     useDuplicateDashboardMutation,
     useMoveDashboardMutation,
@@ -104,6 +103,8 @@ const Dashboard = () => {
     const { data: spaces } = useSpaces(projectUuid);
 
     const {
+        dashboard,
+        dashboardError,
         dashboardFilters,
         dashboardTemporaryFilters,
         haveFiltersChanged,
@@ -120,8 +121,6 @@ const Dashboard = () => {
         [dashboardTemporaryFilters],
     );
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
-    const { data: dashboard, error: dashboardError } =
-        useDashboardQuery(dashboardUuid);
     const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const {
         mutate,
