@@ -1,3 +1,10 @@
+## [0.407.1](https://github.com/lightdash/lightdash/compare/0.407.0...0.407.1) (2023-02-09)
+
+
+### Bug Fixes
+
+* changed section title  copy group - Pivot column ([#4413](https://github.com/lightdash/lightdash/issues/4413)) ([d883f0a](https://github.com/lightdash/lightdash/commit/d883f0a9d595f7fdf895fc3a4e5c5ec14e5d97e5))
+
 # [0.407.0](https://github.com/lightdash/lightdash/compare/0.406.0...0.407.0) (2023-02-09)
 
 
