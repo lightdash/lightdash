@@ -122,7 +122,7 @@ const DownloadCSV: FC<{
             projectUuid: data.projectUuid,
             tableId: data.tableName,
             query: data.metricQuery,
-            csvLimit: null,
+            csvLimit: rows?.length,
             onlyRaw: false,
         });
         return csvResponse.url;

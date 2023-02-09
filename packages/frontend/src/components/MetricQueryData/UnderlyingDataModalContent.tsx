@@ -309,8 +309,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         const csvResponse = await downloadCsv({
             projectUuid,
             tableId: tableName,
-            query: defaultMetricQuery,
-            csvLimit: null,
+            query: underlyingDataMetricQuery,
+            csvLimit: resultsData?.rows.length,
             onlyRaw: false,
         });
         return csvResponse.url;
@@ -320,8 +320,10 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         <>
             <HeaderRightContent>
                 <DownloadCsvButton
-                    rows={resultsData && getResultValues(resultsData.rows)}
                     getCsvLink={getCsvLink}
+                    disabled={
+                        !resultsData?.rows || resultsData?.rows.length <= 0
+                    }
                 />
                 <LinkButton
                     intent="primary"

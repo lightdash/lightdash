@@ -3,16 +3,16 @@ import { ResultRow } from '@lightdash/common';
 import { FC, memo } from 'react';
 
 type Props = {
-    rows: ResultRow[] | undefined;
+    disabled: boolean;
     getCsvLink: () => Promise<string>;
 };
 
-const DownloadCsvButton: FC<Props> = memo(({ rows, getCsvLink }) => {
+const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
     return (
         <Button
             intent="primary"
             icon="export"
-            disabled={!rows || rows.length <= 0}
+            disabled={disabled}
             onClick={() =>
                 getCsvLink().then((url) => {
                     window.open(url, '_blank');
