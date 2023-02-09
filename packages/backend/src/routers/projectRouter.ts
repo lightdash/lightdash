@@ -4,17 +4,22 @@ import {
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    DimensionType,
+    formatTimestamp,
     getItemLabel,
     getItemMap,
     getRequestMethod,
+    isField,
     LightdashRequestMethodHeader,
     MetricQuery,
     NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
+import { stringify } from 'csv-stringify';
 import express from 'express';
 import * as fs from 'fs/promises';
+import moment from 'moment';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -243,13 +248,43 @@ projectRouter.post(
             const csvHeader = Object.keys(results.rows[0]).map((id) =>
                 getItemLabel(itemMap[id]),
             );
-            // TODO formatted or raw argument
             const csvBody = results.rows.map((row) =>
-                Object.values(row)
-                    .map((r) => (onlyRaw ? r.value.raw : r.value.formatted))
-                    .join(','),
+                Object.keys(row).map((id) => {
+                    const rowData = row[id];
+                    const item = itemMap[id];
+                    if (
+                        isField(item) &&
+                        item.type === DimensionType.TIMESTAMP
+                    ) {
+                        return moment(rowData.value.raw).format(
+                            'YYYY-MM-DD HH:mm:ss',
+                        );
+                    }
+                    if (isField(item) && item.type === DimensionType.DATE) {
+                        return moment(rowData.value.raw).format('YYYY-MM-DD');
+                    }
+                    if (onlyRaw) {
+                        return rowData.value.raw;
+                    }
+                    return rowData.value.formatted;
+                }),
             );
-            const csvContent = [csvHeader, ...csvBody].join('\n');
+
+            const csvContent: string = await new Promise((resolve, reject) => {
+                stringify(
+                    [csvHeader, ...csvBody],
+                    {
+                        delimiter: ',',
+                    },
+                    (err, output) => {
+                        if (err) {
+                            reject(new Error(err.message));
+                        }
+                        resolve(output);
+                    },
+                );
+            });
+
             const fileId = `csv-${nanoid()}.csv`;
 
             let fileUrl;

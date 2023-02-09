@@ -4846,6 +4846,11 @@ csstype@^3.0.6:
   resolved "https://registry.npmjs.org/csstype/-/csstype-3.0.8.tgz"
   integrity sha512-jXKhWqXPmlUeoQnF/EhTtTl4C9SnrxSH/jZUih3jmO6lBKr99rP3/+FmrMj4EFpOXzMtXHAZkd3x0E6h6Fgflw==
 
+csv-stringify@^6.2.4:
+  version "6.2.4"
+  resolved "https://registry.yarnpkg.com/csv-stringify/-/csv-stringify-6.2.4.tgz#9ae7a660b771e55c09d6cf4cf936fbbdf9499962"
+  integrity sha512-RVzGaBeHl0IspzOSiNr1e7XDM7ajuESlqetQbxH2pBPplIWycx0gAVclxNEa4lc91brK6LIE0PrdEoHtZYIHIQ==
+
 cypress-file-upload@^5.0.8:
   version "5.0.8"
   resolved "https://registry.npmjs.org/cypress-file-upload/-/cypress-file-upload-5.0.8.tgz"
