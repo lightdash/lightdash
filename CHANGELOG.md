@@ -1,3 +1,10 @@
+## [0.407.5](https://github.com/lightdash/lightdash/compare/0.407.4...0.407.5) (2023-02-09)
+
+
+### Bug Fixes
+
+* dashboard firing multiple /availableFilters queries ([#4410](https://github.com/lightdash/lightdash/issues/4410)) ([c8b6e5d](https://github.com/lightdash/lightdash/commit/c8b6e5ddec185dc5ce0727338b8b78dbd6c90fbe))
+
 ## [0.407.4](https://github.com/lightdash/lightdash/compare/0.407.3...0.407.4) (2023-02-09)
 
 
