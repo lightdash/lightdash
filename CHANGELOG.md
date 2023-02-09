@@ -1,3 +1,10 @@
+# [0.407.0](https://github.com/lightdash/lightdash/compare/0.406.0...0.407.0) (2023-02-09)
+
+
+### Features
+
+* scheduled deliveries to slack ([#4368](https://github.com/lightdash/lightdash/issues/4368)) ([98a05f3](https://github.com/lightdash/lightdash/commit/98a05f3160b39d73f3c1e9075434181e297e154d))
+
 # [0.406.0](https://github.com/lightdash/lightdash/compare/0.405.1...0.406.0) (2023-02-08)
 
 
