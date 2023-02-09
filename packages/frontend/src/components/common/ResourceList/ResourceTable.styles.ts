@@ -6,6 +6,7 @@ const paddingX = 20;
 
 export const StyledTable = styled(HTMLTable)`
     width: 100%;
+    border-collapse: collapse;
 `;
 
 export const StyledTHead = styled.thead`
@@ -24,7 +25,7 @@ export const StyledTBody = styled.tbody`
     }
 
     ${StyledTr}:not(:last-child) {
-        box-shadow: inset 0 -1px 0 0 ${Colors.LIGHT_GRAY3} !important;
+        border-bottom: 1pt solid ${Colors.LIGHT_GRAY3} !important;
     }
 `;
 
