@@ -63,7 +63,7 @@ const GeneralSettings: FC = () => {
     );
     return (
         <>
-            <SectionTitle>Group</SectionTitle>
+            <SectionTitle>Pivot column</SectionTitle>
             {pivotDimensions &&
                 pivotDimensions.map((pivotKey) => {
                     // Group series logic
