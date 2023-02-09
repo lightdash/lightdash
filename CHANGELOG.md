@@ -1,3 +1,10 @@
+## [0.407.7](https://github.com/lightdash/lightdash/compare/0.407.6...0.407.7) (2023-02-09)
+
+
+### Bug Fixes
+
+* corrupt csv files because of commas and semicolons ([#4434](https://github.com/lightdash/lightdash/issues/4434)) ([15ccb38](https://github.com/lightdash/lightdash/commit/15ccb38f67f8c9c3f80a6cb7cb5db8eccf98f124))
+
 ## [0.407.6](https://github.com/lightdash/lightdash/compare/0.407.5...0.407.6) (2023-02-09)
 
 
