@@ -149,6 +149,9 @@ const MultiAutoComplete: FC<Props> = ({
                 tagProps: {
                     minimal: true,
                 },
+                inputProps: {
+                    placeholder: 'Start typing to search',
+                },
                 onRemove: handleRemove,
             }}
             popoverProps={{
