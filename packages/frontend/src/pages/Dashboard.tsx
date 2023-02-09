@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { Helmet } from 'react-helmet';
+import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -134,6 +135,7 @@ const Dashboard = () => {
         showRedirectButton: true,
     });
     const { mutateAsync: deleteDashboard } = useDeleteMutation();
+    const queryClient = useQueryClient();
 
     const layouts = useMemo(
         () => ({
@@ -178,8 +180,8 @@ const Dashboard = () => {
         setHaveFiltersChanged,
     ]);
 
-    const updateTiles = useCallback(
-        (layout: Layout[]) => {
+    const handleUpdateTiles = useCallback(
+        async (layout: Layout[]) => {
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles.map((tile) => {
                     const layoutTile = layout.find(({ i }) => i === tile.uuid);
@@ -201,31 +203,37 @@ const Dashboard = () => {
                     return tile;
                 }),
             );
+
             setHasTilesChanged(true);
         },
         [setDashboardTiles],
     );
-    const onAddTiles = useCallback(
-        (tiles: IDashboard['tiles'][number][]) => {
-            setHasTilesChanged(true);
+
+    const handleAddTiles = useCallback(
+        async (tiles: IDashboard['tiles'][number][]) => {
             setDashboardTiles((currentDashboardTiles) => {
                 return appendNewTilesToBottom(currentDashboardTiles, tiles);
             });
+
+            setHasTilesChanged(true);
         },
         [setDashboardTiles],
     );
-    const onDelete = useCallback(
-        (tile: IDashboard['tiles'][number]) => {
+
+    const handleDeleteTile = useCallback(
+        async (tile: IDashboard['tiles'][number]) => {
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles.filter(
                     (filteredTile) => filteredTile.uuid !== tile.uuid,
                 ),
             );
+
             setHasTilesChanged(true);
         },
         [setDashboardTiles],
     );
-    const onEdit = useCallback(
+
+    const handleEditTiles = useCallback(
         (updatedTile: IDashboard['tiles'][number]) => {
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles.map((tile) =>
@@ -236,7 +244,8 @@ const Dashboard = () => {
         },
         [setDashboardTiles],
     );
-    const onCancel = useCallback(() => {
+
+    const handleCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
         setHasTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
@@ -370,7 +379,7 @@ const Dashboard = () => {
                 hasDashboardChanged={
                     hasTilesChanged || haveFiltersChanged || hasTemporaryFilters
                 }
-                onAddTiles={onAddTiles}
+                onAddTiles={handleAddTiles}
                 onSaveDashboard={() =>
                     mutate({
                         tiles: dashboardTiles,
@@ -387,7 +396,7 @@ const Dashboard = () => {
                         name: dashboard.name,
                     })
                 }
-                onCancel={onCancel}
+                onCancel={handleCancel}
                 onMoveToSpace={handleMoveDashboardToSpace}
                 onDuplicate={handleDuplicateDashboard}
                 onDelete={handleDeleteDashboard}
@@ -399,8 +408,8 @@ const Dashboard = () => {
                 <ResponsiveGridLayout
                     useCSSTransforms={false}
                     draggableCancel=".non-draggable"
-                    onDragStop={updateTiles}
-                    onResizeStop={updateTiles}
+                    onDragStop={handleUpdateTiles}
+                    onResizeStop={handleUpdateTiles}
                     breakpoints={{ lg: 1200, md: 996, sm: 768 }}
                     cols={{ lg: 36, md: 30, sm: 18 }}
                     rowHeight={50}
@@ -413,8 +422,8 @@ const Dashboard = () => {
                                     <GridTile
                                         isEditMode={isEditMode}
                                         tile={tile}
-                                        onDelete={onDelete}
-                                        onEdit={onEdit}
+                                        onDelete={handleDeleteTile}
+                                        onEdit={handleEditTiles}
                                     />
                                 </TrackSection>
                             </div>
@@ -422,7 +431,7 @@ const Dashboard = () => {
                     })}
                 </ResponsiveGridLayout>
                 {dashboardTiles.length <= 0 && (
-                    <EmptyStateNoTiles onAddTiles={onAddTiles} />
+                    <EmptyStateNoTiles onAddTiles={handleAddTiles} />
                 )}
             </Page>
         </>

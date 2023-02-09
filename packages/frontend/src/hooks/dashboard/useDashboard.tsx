@@ -2,17 +2,14 @@ import {
     ApiError,
     CreateDashboard,
     Dashboard,
+    DashboardAvailableFilters,
     DashboardTile,
-    FilterableField,
-    isDashboardChartTileType,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
-import { useMemo, useState } from 'react';
-import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
-import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
-import { useDeepCompareEffect } from 'react-use';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -55,99 +52,21 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const getChartAvailableFilters = async (savedChartUuid: string) =>
-    lightdashApi<FilterableField[]>({
-        url: `/saved/${savedChartUuid}/availableFilters`,
-        method: 'GET',
-        body: undefined,
+export const postDashboardsAvailableFilters = async (
+    savedQueryUuids: string[],
+) =>
+    lightdashApi<DashboardAvailableFilters>({
+        url: `/dashboards/availableFilters`,
+        method: 'POST',
+        body: JSON.stringify(savedQueryUuids),
     });
 
-export const getQueryConfig = (
-    savedChartUuid: string,
-    queryOptions?: Omit<UseQueryOptions, 'queryKey' | 'queryFn'>,
-): UseQueryOptions => {
-    return {
-        queryKey: ['available_filters', savedChartUuid],
-        queryFn: () => getChartAvailableFilters(savedChartUuid),
-        ...queryOptions,
-    };
-};
-
-export const useDashboardAvailableTileFilters = (tiles: DashboardTile[]) => {
-    const savedChartTiles = useMemo(() => {
-        return tiles
-            .filter(isDashboardChartTileType)
-            .filter((tile) => !!tile.properties.savedChartUuid);
-    }, [tiles]);
-
-    const queries = useQueries(
-        savedChartTiles.map((tile) =>
-            getQueryConfig(tile.properties.savedChartUuid!, { retry: false }),
-        ),
-    ) as UseQueryResult<FilterableField[], ApiError>[]; // useQueries doesn't allow us to specify TError
-
-    const results = queries.map((query) =>
-        query.isSuccess ? query.data : undefined,
+export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
+    useQuery<DashboardAvailableFilters, ApiError>(
+        ['dashboards', 'availableFilters', ...savedQueryUuids],
+        () => postDashboardsAvailableFilters(savedQueryUuids),
+        { enabled: savedQueryUuids.length > 0 },
     );
-
-    const isFetched = queries.every((query) => query.isFetched);
-
-    const [data, setData] =
-        useState<Record<string, FilterableField[] | undefined>>();
-
-    useDeepCompareEffect(() => {
-        if (!isFetched) return;
-
-        const newData = results.reduce<
-            Record<string, FilterableField[] | undefined>
-        >(
-            (acc, result, index) => ({
-                ...acc,
-                [savedChartTiles[index].uuid]: result,
-            }),
-            {},
-        );
-
-        setData(newData);
-    }, [results]);
-
-    return useMemo(
-        () => ({
-            isLoading: !isFetched,
-            data,
-        }),
-        [isFetched, data],
-    );
-};
-
-export const useAvailableDashboardFilterTargets = (tiles: DashboardTile[]) => {
-    const { isLoading, data } = useDashboardAvailableTileFilters(tiles);
-
-    const availableFilters = useMemo(() => {
-        if (isLoading || !data) return;
-
-        const allFilters = Object.values(data)
-            .flat()
-            .filter((f): f is FilterableField => !!f);
-        if (allFilters.length === 0) return;
-
-        return allFilters.filter(
-            (field, index, allFields) =>
-                index ===
-                allFields.findIndex(
-                    (f) => f.table === field.table && f.name === field.name,
-                ),
-        );
-    }, [isLoading, data]);
-
-    return useMemo(
-        () => ({
-            isLoading,
-            data: availableFilters,
-        }),
-        [isLoading, availableFilters],
-    );
-};
 
 export const useDashboardQuery = (
     id?: string,

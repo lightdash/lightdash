@@ -1,3 +1,4 @@
+import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
 import { SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
@@ -132,6 +133,8 @@ export type UpdateMultipleDashboards = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
+
+export type DashboardAvailableFilters = Record<string, FilterableField[]>;
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,

@@ -8,7 +8,6 @@ import {
     ForbiddenError,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
-    PinnedListAndItems,
     SchedulerAndTargets,
     SessionUser,
     UpdateDashboard,

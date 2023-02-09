@@ -1,5 +1,9 @@
 import { UserActivity } from './types/analytics';
-import { Dashboard, DashboardBasicDetails } from './types/dashboard';
+import {
+    Dashboard,
+    DashboardAvailableFilters,
+    DashboardBasicDetails,
+} from './types/dashboard';
 import { convertAdditionalMetric } from './types/dbt';
 import {
     DbtCloudIntegration,
@@ -471,6 +475,7 @@ type ApiResults =
     | ApiFlashResults
     | OpenIdIdentitySummary[]
     | FilterableField[]
+    | DashboardAvailableFilters
     | ProjectSavedChartStatus
     | undefined
     | Array<unknown>

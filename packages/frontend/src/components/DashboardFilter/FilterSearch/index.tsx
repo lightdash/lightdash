@@ -9,7 +9,6 @@ import {
     isFilterableField,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { useDashboardAvailableTileFilters } from '../../../hooks/dashboard/useDashboard';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -33,15 +32,14 @@ const FilterSearch: FC<Props> = ({
     popoverProps,
 }) => {
     const { track } = useTracking();
-    const { dashboardTiles } = useDashboardContext();
-    const { data: availableTileFilters, isLoading } =
-        useDashboardAvailableTileFilters(dashboardTiles);
+    const { dashboardTiles, filterableFieldsByTileUuid } =
+        useDashboardContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
 
     const [selectedField, setSelectedField] = useState<FilterableField>();
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (isLoading || !availableTileFilters) {
+    if (!filterableFieldsByTileUuid) {
         return null;
     }
 
@@ -109,7 +107,7 @@ const FilterSearch: FC<Props> = ({
                     onTabChange={setSelectedTabId}
                     tiles={dashboardTiles}
                     field={selectedField}
-                    availableTileFilters={availableTileFilters}
+                    availableTileFilters={filterableFieldsByTileUuid}
                     popoverProps={{
                         lazy: true,
                         captureDismiss: !popoverProps?.isOpen,

@@ -4,12 +4,16 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { analyticsService, dashboardService } from '../services/services';
+import {
+    analyticsService,
+    dashboardService,
+    projectService,
+} from '../services/services';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
 
 dashboardRouter.get(
-    '/',
+    '/:dashboardUuid',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -28,7 +32,7 @@ dashboardRouter.get(
 );
 
 dashboardRouter.get(
-    '/views',
+    '/:dashboardUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -43,8 +47,9 @@ dashboardRouter.get(
             .catch(next);
     },
 );
+
 dashboardRouter.patch(
-    '/',
+    '/:dashboardUuid',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -64,7 +69,7 @@ dashboardRouter.patch(
 );
 
 dashboardRouter.patch(
-    '/pinning',
+    '/:dashboardUuid/pinning',
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -84,7 +89,7 @@ dashboardRouter.patch(
 );
 
 dashboardRouter.delete(
-    '/',
+    '/:dashboardUuid',
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -101,7 +106,7 @@ dashboardRouter.delete(
 );
 
 dashboardRouter.get(
-    '/schedulers',
+    '/:dashboardUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -120,7 +125,7 @@ dashboardRouter.get(
 );
 
 dashboardRouter.post(
-    '/schedulers',
+    '/:dashboardUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
@@ -132,6 +137,27 @@ dashboardRouter.post(
                     req.params.dashboardUuid,
                     req.body,
                 ),
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.post(
+    '/availableFilters',
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results =
+                await projectService.getAvailableFiltersForSavedQueries(
+                    req.user!,
+                    req.body,
+                );
+
+            res.json({
+                status: 'ok',
+                results,
             });
         } catch (e) {
             next(e);
