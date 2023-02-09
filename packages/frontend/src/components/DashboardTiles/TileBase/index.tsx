@@ -33,7 +33,7 @@ type Props<T> = {
     extraMenuItems?: React.ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;
-    children: ReactNode;
+    children?: ReactNode;
     extraHeaderElement?: React.ReactNode;
 };
 

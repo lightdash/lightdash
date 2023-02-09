@@ -62,7 +62,15 @@ const GridTile: FC<
     });
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
-            if (isLoading) return <></>;
+            if (isLoading)
+                return (
+                    <TileBase
+                        isLoading={true}
+                        title={''}
+                        {...props}
+                        clickableTitle={false}
+                    />
+                );
             if (isError)
                 return (
                     <TileBase title={''} {...props} clickableTitle={false}>
