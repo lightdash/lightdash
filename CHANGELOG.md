@@ -1,3 +1,10 @@
+## [0.407.6](https://github.com/lightdash/lightdash/compare/0.407.5...0.407.6) (2023-02-09)
+
+
+### Bug Fixes
+
+* multiple dashboard requests on page load ([#4422](https://github.com/lightdash/lightdash/issues/4422)) ([d458532](https://github.com/lightdash/lightdash/commit/d458532cb5267ed12a9a758af83b133848d66b6d))
+
 ## [0.407.5](https://github.com/lightdash/lightdash/compare/0.407.4...0.407.5) (2023-02-09)
 
 
