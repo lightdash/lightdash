@@ -1,3 +1,10 @@
+## [0.407.3](https://github.com/lightdash/lightdash/compare/0.407.2...0.407.3) (2023-02-09)
+
+
+### Bug Fixes
+
+* graphile migration ([#4421](https://github.com/lightdash/lightdash/issues/4421)) ([e3b731b](https://github.com/lightdash/lightdash/commit/e3b731b6a30d08f929bfc3e9bfad9a6e5612eef2))
+
 ## [0.407.2](https://github.com/lightdash/lightdash/compare/0.407.1...0.407.2) (2023-02-09)
 
 
