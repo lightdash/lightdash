@@ -1,3 +1,10 @@
+## [0.407.8](https://github.com/lightdash/lightdash/compare/0.407.7...0.407.8) (2023-02-10)
+
+
+### Bug Fixes
+
+* chart tile loading state and duplicated requests ([#4432](https://github.com/lightdash/lightdash/issues/4432)) ([2445b07](https://github.com/lightdash/lightdash/commit/2445b079b9d8beba95b3c3b89e81c1780cdda38b))
+
 ## [0.407.7](https://github.com/lightdash/lightdash/compare/0.407.6...0.407.7) (2023-02-09)
 
 
