@@ -1,7 +1,9 @@
-
+/* tslint:disable */
+/* eslint-disable */
 const { workerData, parentPort } = require("worker_threads");
 
 const { formatItemValue } = require("@lightdash/common");
+
 function formatRows(
     rows,
     itemMap,
@@ -17,7 +19,6 @@ function formatRows(
                     value: {
                         raw: col,
                         formatted: formatItemValue(item, col),
-                       // item: item,
                     },
                 },
             };
@@ -28,13 +29,3 @@ function formatRows(
 }
 
 formatRows(workerData.rows, workerData.itemMap);
-
-/*
-
-let counter = 0;
-for (let i = 0; i < 20_000_000; i++) {
-  counter++;
-}
-
-parentPort.postMessage(counter);
-*/
