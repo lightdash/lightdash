@@ -1,9 +1,10 @@
-import React, { FC } from 'react';
-import { Textfit } from 'react-textfit';
+import React, { FC, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
 import {
+    AutoFitBigNumber,
+    AutoFitBigNumberLabel,
     BigNumber,
     BigNumberContainer,
     BigNumberLabel,
@@ -19,6 +20,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
         isSqlRunner,
     } = useVisualizationContext();
 
+    const [labelMaxSize, setLabelMaxSize] = useState(20);
     const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
@@ -26,16 +28,22 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <Textfit mode="single" style={{ width: '45%' }} max={100}>
+                <AutoFitBigNumber min={15} max={100} start={50}>
                     <BigNumber>{bigNumber}</BigNumber>
-                </Textfit>
+                </AutoFitBigNumber>
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <Textfit
-                            mode="single"
-                            style={{ width: '45%' }}
+                        <AutoFitBigNumber
+                            min={10}
                             max={100}
+                            start={30}
+                            onFontSize={(size: number) =>
+                                size > 30
+                                    ? setLabelMaxSize(size / 2.5)
+                                    : undefined
+                            }
+                            hideOnCalc
                         >
                             <BigNumber
                                 $interactive
@@ -44,15 +52,20 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                             >
                                 {bigNumber}
                             </BigNumber>
-                        </Textfit>
+                        </AutoFitBigNumber>
                     )}
                 />
             )}
-            <Textfit mode="single" style={{ width: '80%' }} max={20}>
+            <AutoFitBigNumberLabel
+                min={10}
+                max={labelMaxSize}
+                start={15}
+                hideOnCalc
+            >
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
-            </Textfit>
+            </AutoFitBigNumberLabel>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
