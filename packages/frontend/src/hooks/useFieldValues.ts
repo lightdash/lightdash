@@ -1,13 +1,12 @@
 import {
     ApiError,
     FieldValueSearchResult,
-    FilterableField,
     FilterableItem,
     getItemId,
     isField,
 } from '@lightdash/common';
 import { uniq } from 'lodash-es';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, UseQueryOptions } from 'react-query';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
@@ -52,6 +51,19 @@ export const useFieldValues = (
 
     const fieldId = useMemo(() => getItemId(field), [field]);
 
+    const handleUpdateResults = useCallback(
+        (newResults: string[]) => {
+            setResults((prevResults) =>
+                uniq([...prevResults, ...newResults]).sort((a, b) =>
+                    a.localeCompare(b, undefined, {
+                        sensitivity: 'base',
+                    }),
+                ),
+            );
+        },
+        [setResults],
+    );
+
     const query = useQuery<FieldValueSearchResult, ApiError>(
         [
             'project',
@@ -75,27 +87,16 @@ export const useFieldValues = (
                     setSearches((prevSearches) => [...prevSearches, newSearch]);
                 }
 
-                setResults((prevResults) => {
-                    const normalizedNewResults = newResults.filter(
-                        (result): result is string =>
-                            typeof result === 'string',
-                    );
+                const normalizedNewResults = newResults.filter(
+                    (result): result is string => typeof result === 'string',
+                );
 
-                    const uniqResults = uniq([
-                        ...prevResults,
-                        ...normalizedNewResults,
-                    ]);
+                handleUpdateResults(normalizedNewResults);
 
-                    const sortedResults = uniqResults.sort((a, b) =>
-                        a.localeCompare(b, undefined, {
-                            sensitivity: 'base',
-                        }),
-                    );
-
-                    return sortedResults;
+                useQueryOptions?.onSuccess?.({
+                    search: newSearch,
+                    results: normalizedNewResults,
                 });
-
-                useQueryOptions?.onSuccess?.(data);
             },
         },
     );
