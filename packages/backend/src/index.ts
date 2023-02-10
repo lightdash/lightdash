@@ -70,7 +70,7 @@ const tracesSampler = (context: SamplingContext): boolean | number => {
     ) {
         return 0.0;
     }
-    return 1.0;
+    return 0.2;
 };
 Sentry.init({
     release: VERSION,

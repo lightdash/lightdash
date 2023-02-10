@@ -12,6 +12,7 @@ import {
     DashboardAvailableFilters,
     Explore,
     ExploreError,
+    Field,
     fieldId as getFieldId,
     FilterableField,
     FilterOperator,
@@ -21,6 +22,7 @@ import {
     getDimensions,
     getFields,
     getItemId,
+    getItemMap,
     getMetrics,
     hasIntersection,
     isExploreError,
@@ -41,8 +43,10 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
+    ResultRow,
     SessionUser,
     SummaryExplore,
+    TableCalculation,
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
@@ -52,6 +56,7 @@ import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -67,6 +72,7 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
+import { wrapSentryTransaction } from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ProjectServiceDependencies = {
@@ -78,6 +84,30 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
 };
 
+export function formatRowsWorker(
+    rows: { [col: string]: any }[],
+    itemMap: Record<string, TableCalculation | Field>,
+): Promise<ResultRow[]> {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(
+            './src/services/ProjectService/formatRows.js',
+            {
+                workerData: {
+                    rows,
+                    itemMap,
+                },
+            },
+        );
+        worker.on('message', resolve);
+        worker.on('error', reject);
+        worker.on('exit', (code) => {
+            if (code !== 0) {
+                Logger.error(`formatRowsWorker stopped with exit code ${code}`);
+                reject(new Error(`Worker stopped with exit code ${code}`));
+            }
+        });
+    });
+}
 export class ProjectService {
     projectModel: ProjectModel;
 
@@ -587,11 +617,15 @@ export class ProjectService {
         const adapter = await this.getAdapter(projectUuid);
         const { rows } = await adapter.runQuery(query);
 
-        const formattedRows = formatRows(
-            rows,
+        const itemMap = getItemMap(
             explore,
             metricQuery.additionalMetrics,
             metricQuery.tableCalculations,
+        );
+        const formattedRows = await wrapSentryTransaction(
+            'formatted rows',
+            {},
+            async () => formatRowsWorker(rows, itemMap),
         );
 
         return {
