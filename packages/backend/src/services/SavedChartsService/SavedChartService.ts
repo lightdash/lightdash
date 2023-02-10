@@ -6,6 +6,7 @@ import {
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
+    isChartScheduler,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
@@ -57,10 +58,9 @@ export class SavedChartService {
     private async checkUpdateAccess(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<void> {
-        const { organizationUuid, projectUuid } =
-            await this.savedChartModel.get(chartUuid);
-
+    ): Promise<SavedChart> {
+        const savedChart = await this.savedChartModel.get(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
         if (
             user.ability.cannot(
                 'update',
@@ -69,6 +69,7 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+        return savedChart;
     }
 
     async hasChartSpaceAccess(
@@ -427,7 +428,10 @@ export class SavedChartService {
         chartUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        await this.checkUpdateAccess(user, chartUuid);
+        const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
+            user,
+            chartUuid,
+        );
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
@@ -442,6 +446,22 @@ export class SavedChartService {
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
 
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.created',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerId: scheduler.schedulerUuid,
+                resourceType: isChartScheduler(scheduler)
+                    ? 'chart'
+                    : 'dashboard',
+                resourceId: isChartScheduler(scheduler)
+                    ? scheduler.savedChartUuid
+                    : scheduler.dashboardUuid,
+                targets: scheduler.targets.map(() => ({ type: 'slack' })),
+            },
+        });
         return scheduler;
     }
 }

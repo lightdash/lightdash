@@ -468,6 +468,33 @@ type PinnedListUpdated = BaseTrack & {
     };
 };
 
+export type SchedulerUpsertEvent = BaseTrack & {
+    event: 'scheduler.created' | 'scheduler.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        resourceId: string;
+        targets: Array<{
+            type: 'slack';
+        }>;
+    };
+};
+
+export type SchedulerDeleteEvent = BaseTrack & {
+    event: 'scheduler.deleted';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        resourceId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -506,6 +533,8 @@ type Track =
     | SavedChartView
     | DashboardView
     | AnalyticsDashboardView
+    | SchedulerUpsertEvent
+    | SchedulerDeleteEvent
     | PinnedListUpdated;
 
 export class LightdashAnalytics extends Analytics {
