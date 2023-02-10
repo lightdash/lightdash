@@ -55,7 +55,7 @@ const MultiAutoComplete: FC<Props> = ({
     const results = useMemo(() => [...resultsSet], [resultsSet]);
     const fuseRef = useRef(
         new Fuse(results, {
-            threshold: 0.3,
+            threshold: 0.1,
             findAllMatches: true,
         }),
     );
@@ -107,6 +107,7 @@ const MultiAutoComplete: FC<Props> = ({
             }}
             popoverProps={{
                 minimal: true,
+                matchTargetWidth: true,
                 onClosing: () => handleOnClose(search),
                 ...popoverProps,
             }}
@@ -121,9 +122,7 @@ const MultiAutoComplete: FC<Props> = ({
                     .search(query)
                     .map((result) => result.item);
             }}
-            itemRenderer={(name, { modifiers, handleClick, query }) => {
-                if (!modifiers.matchesPredicate) return null;
-
+            itemRenderer={(name, { handleClick, modifiers, query }) => {
                 return (
                     <MenuItem2
                         active={modifiers.active}
@@ -167,11 +166,11 @@ const MultiAutoComplete: FC<Props> = ({
                                 text={`Showing first ${MAX_AUTOCOMPLETE_RESULTS} results.`}
                             />
                         ) : slicedFilteredItems.length === 0 ? (
-                            <PaddedMenuItem disabled text="No results found" />
+                            <PaddedMenuItem disabled text="No results found." />
                         ) : (
                             <PaddedMenuItem
                                 disabled
-                                text="continue typing to filter results"
+                                text="Continue typing to filter results."
                             />
                         )}
 
