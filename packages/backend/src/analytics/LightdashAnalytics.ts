@@ -500,6 +500,7 @@ export type SchedulerJobEvent = BaseTrack & {
         | 'scheduler_job.started'
         | 'scheduler_job.completed'
         | 'scheduler_job.failed';
+    anonymousId: string;
     properties: {
         jobId: string;
         schedulerId: string;

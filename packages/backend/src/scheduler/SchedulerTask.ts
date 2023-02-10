@@ -1,6 +1,7 @@
 import { ScheduledSlackNotification } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackClient } from '../clients/clients';
 import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -57,6 +58,7 @@ export const sendSlackNotification = async (
     } = notification;
     analytics.track({
         event: 'scheduler_job.started',
+        anonymousId: LightdashAnalytics.anonymousId,
         properties: {
             jobId,
             schedulerId: schedulerUuid,
@@ -97,6 +99,7 @@ export const sendSlackNotification = async (
         });
         analytics.track({
             event: 'scheduler_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -109,6 +112,7 @@ export const sendSlackNotification = async (
         );
         analytics.track({
             event: 'scheduler_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,

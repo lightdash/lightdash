@@ -493,13 +493,6 @@ export class DashboardService {
             dashboardUuid,
             savedChartUuid: null,
         });
-
-        await slackClient.joinChannels(
-            user.organizationUuid,
-            scheduler.targets.map((target) => target.channel),
-        );
-
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
         analytics.track({
             userId: user.userUuid,
             event: 'scheduler.created',
@@ -519,6 +512,13 @@ export class DashboardService {
                 })),
             },
         });
+
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            scheduler.targets.map((target) => target.channel),
+        );
+
+        await schedulerClient.generateDailyJobsForScheduler(scheduler);
         return scheduler;
     }
 }

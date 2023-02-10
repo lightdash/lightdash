@@ -9,6 +9,7 @@ import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
 import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 
@@ -89,6 +90,7 @@ export class SchedulerClient {
         deletedJobs.rows.forEach(({ id, scheduler_slack_target_uuid }) => {
             analytics.track({
                 event: 'scheduler_job.deleted',
+                anonymousId: LightdashAnalytics.anonymousId,
                 properties: {
                     jobId: id,
                     schedulerId: schedulerUuid,
@@ -122,6 +124,7 @@ export class SchedulerClient {
         );
         analytics.track({
             event: 'scheduler_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,

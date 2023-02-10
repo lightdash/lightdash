@@ -107,13 +107,6 @@ export class SchedulerService {
             ...updatedScheduler,
             schedulerUuid,
         });
-        await slackClient.joinChannels(
-            user.organizationUuid,
-            scheduler.targets.map((target) => target.channel),
-        );
-
-        await schedulerClient.generateDailyJobsForScheduler(scheduler);
-
         analytics.track({
             userId: user.userUuid,
             event: 'scheduler.updated',
@@ -133,6 +126,13 @@ export class SchedulerService {
                 })),
             },
         });
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            scheduler.targets.map((target) => target.channel),
+        );
+
+        await schedulerClient.generateDailyJobsForScheduler(scheduler);
+
         return scheduler;
     }
 
