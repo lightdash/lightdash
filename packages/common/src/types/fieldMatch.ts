@@ -1,4 +1,4 @@
-export type FieldValueSearchResult = {
+export type FieldValueSearchResult<T = unknown> = {
     search: string;
-    results: unknown[];
+    results: T[];
 };

@@ -2,13 +2,16 @@ import { Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import { FilterableField, FilterableItem, getItemId } from '@lightdash/common';
-import React, { FC, useCallback, useState } from 'react';
-import { useFieldValues } from '../../../../../hooks/useFieldValues';
+import React, { FC, useCallback, useMemo, useState } from 'react';
+import {
+    MAX_AUTOCOMPLETE_RESULTS,
+    useFieldValues,
+} from '../../../../../hooks/useFieldValues';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
 import {
-    comparator,
+    isMatch,
     itemPredicate,
     toggleValueFromArray,
 } from './autoCompleteUtils';
@@ -21,9 +24,6 @@ type Props = {
     disabled?: boolean;
     onChange: (values: string[]) => void;
 };
-
-const normalize = (item: string) => item.toLowerCase();
-const itemComparator = comparator(normalize);
 
 const MultiAutoComplete: FC<Props> = ({
     values,
@@ -40,17 +40,17 @@ const MultiAutoComplete: FC<Props> = ({
 
     const [search, setSearch] = useState('');
 
-    const { isLoading, results } = useFieldValues(
-        search,
-        initialData,
-        projectUuid,
-        field,
-        true,
-    );
+    const {
+        isLoading,
+        resultCounts,
+        results: resultsSet,
+    } = useFieldValues(search, initialData, projectUuid, field, true);
+
+    const results = useMemo(() => [...resultsSet], [resultsSet]);
 
     const handleItemSelect = useCallback(
         (value: string) => {
-            onChange(toggleValueFromArray(values, value, normalize));
+            onChange(toggleValueFromArray(values, value));
         },
         [onChange, values],
     );
@@ -65,16 +65,10 @@ const MultiAutoComplete: FC<Props> = ({
     const handleOnClose = useCallback(
         (value?: string) => {
             if (!value || value === '') return;
-
             setSearch('');
-            if (!values.map(normalize).includes(normalize(value))) {
-                const existingOptionMatch = results.find((item) =>
-                    itemComparator(item, value),
-                );
-                handleItemSelect(existingOptionMatch || value);
-            }
+            handleItemSelect(value);
         },
-        [results, values, handleItemSelect, setSearch],
+        [handleItemSelect, setSearch],
     );
 
     return (
@@ -88,9 +82,6 @@ const MultiAutoComplete: FC<Props> = ({
             tagInputProps={{
                 placeholder: undefined,
                 addOnBlur: false,
-                rightElement: isLoading ? (
-                    <Spinner style={{ margin: 6 }} size={16} />
-                ) : undefined,
                 tagProps: {
                     minimal: true,
                 },
@@ -106,7 +97,7 @@ const MultiAutoComplete: FC<Props> = ({
             }}
             resetOnSelect
             tagRenderer={(name) => name}
-            itemsEqual={itemComparator}
+            itemsEqual={isMatch}
             itemPredicate={itemPredicate}
             itemRenderer={(name, { modifiers, handleClick, query }) => {
                 if (!modifiers.matchesPredicate) return null;
@@ -134,8 +125,24 @@ const MultiAutoComplete: FC<Props> = ({
                 menuProps,
                 renderCreateItem,
                 renderItem,
+                filteredItems,
             }) => (
                 <Menu role="listbox" ulRef={itemsParentRef} {...menuProps}>
+                    {isLoading ? (
+                        <MenuItem2
+                            disabled
+                            icon={<Spinner style={{ margin: 6 }} size={16} />}
+                            text="Loading results..."
+                        />
+                    ) : filteredItems.length === MAX_AUTOCOMPLETE_RESULTS ? (
+                        <MenuItem2
+                            disabled
+                            text={`Showing ${MAX_AUTOCOMPLETE_RESULTS} results`}
+                        />
+                    ) : filteredItems.length === 0 ? (
+                        <MenuItem2 disabled text="No results found" />
+                    ) : null}
+
                     {items.map(renderItem)}
                     {renderCreateItem()}
                 </Menu>

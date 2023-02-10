@@ -5,18 +5,19 @@ import {
     getItemId,
     isField,
 } from '@lightdash/common';
-import { uniq } from 'lodash-es';
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, UseQueryOptions } from 'react-query';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
+
+export const MAX_AUTOCOMPLETE_RESULTS = 100;
 
 const getFieldValues = async (
     projectId: string,
     table: string | undefined,
     fieldId: string,
     search: string,
-    limit: number = 100,
+    limit: number = MAX_AUTOCOMPLETE_RESULTS,
 ) => {
     if (!table) {
         throw new Error('Table is required to search for field values');
@@ -40,9 +41,11 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
-    const [searches, setSearches] = useState<string[]>([search]);
-
-    const [results, setResults] = useState<string[]>(initialData);
+    const [searches, setSearches] = useState(new Set<string>());
+    const [results, setResults] = useState(new Set(...initialData));
+    const [resultCounts, setResultCounts] = useState<Map<string, number>>(
+        new Map(),
+    );
 
     const tableName = useMemo(
         () => (isField(field) ? field.table : undefined),
@@ -52,14 +55,18 @@ export const useFieldValues = (
     const fieldId = useMemo(() => getItemId(field), [field]);
 
     const handleUpdateResults = useCallback(
-        (newResults: string[]) => {
-            setResults((prevResults) =>
-                uniq([...prevResults, ...newResults]).sort((a, b) =>
-                    a.localeCompare(b, undefined, {
-                        sensitivity: 'base',
-                    }),
-                ),
-            );
+        (data: FieldValueSearchResult<string>) => {
+            setSearches((s) => {
+                return s.add(data.search);
+            });
+
+            setResultCounts((map) => {
+                return map.set(data.search, data.results.length);
+            });
+
+            setResults((oldSet) => {
+                return new Set([...oldSet, ...data.results]);
+            });
         },
         [setResults],
     );
@@ -83,29 +90,33 @@ export const useFieldValues = (
             onSuccess: (data) => {
                 const { results: newResults, search: newSearch } = data;
 
-                if (!searches.includes(newSearch)) {
-                    setSearches((prevSearches) => [...prevSearches, newSearch]);
-                }
-
                 const normalizedNewResults = newResults.filter(
                     (result): result is string => typeof result === 'string',
                 );
 
-                handleUpdateResults(normalizedNewResults);
-
-                useQueryOptions?.onSuccess?.({
+                const normalizedData = {
                     search: newSearch,
                     results: normalizedNewResults,
-                });
+                };
+
+                handleUpdateResults(normalizedData);
+
+                useQueryOptions?.onSuccess?.(normalizedData);
             },
         },
     );
 
     useDebounce(
         () => setDebouncedSearch(search),
-        !debounce || searches.includes(search) ? 0 : 500,
+        !debounce || searches.has(search) ? 0 : 500,
         [search],
     );
 
-    return { ...query, searches, results: results };
+    return {
+        ...query,
+        debouncedSearch,
+        searches,
+        results,
+        resultCounts,
+    };
 };
