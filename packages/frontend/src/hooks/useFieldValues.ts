@@ -1,6 +1,6 @@
 import {
     ApiError,
-    FieldMatchResult,
+    FieldValueSearchResult,
     FilterableField,
     FilterableItem,
     getItemId,
@@ -23,7 +23,7 @@ const getFieldValues = async (
         throw new Error('Table is required to search for field values');
     }
 
-    return lightdashApi<FieldMatchResult>({
+    return lightdashApi<FieldValueSearchResult>({
         url: `/projects/${projectId}/field/${fieldId}/search?value=${encodeURIComponent(
             search,
         )}&limit=${limit}&table=${table}`,
@@ -38,7 +38,7 @@ export const useFieldValues = (
     projectId: string,
     field: FilterableItem,
     debounce: boolean = true,
-    useQueryOptions?: UseQueryOptions<FieldMatchResult, ApiError>,
+    useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState<string[]>([search]);
@@ -52,7 +52,7 @@ export const useFieldValues = (
 
     const fieldId = useMemo(() => getItemId(field), [field]);
 
-    const query = useQuery<FieldMatchResult, ApiError>(
+    const query = useQuery<FieldValueSearchResult, ApiError>(
         [
             'project',
             projectId,

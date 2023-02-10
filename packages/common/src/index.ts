@@ -45,7 +45,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
-import { FieldMatchResult } from './types/fieldMatch';
+import { FieldValueSearchResult } from './types/fieldMatch';
 import { SchedulerAndTargets } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
@@ -496,7 +496,7 @@ type ApiResults =
     | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[]
-    | FieldMatchResult
+    | FieldValueSearchResult
     | ApiDownloadCsv;
 
 export type ApiResponse = {

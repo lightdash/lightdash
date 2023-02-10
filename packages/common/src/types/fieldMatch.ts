@@ -1,4 +1,4 @@
-export type FieldMatchResult = {
+export type FieldValueSearchResult = {
     search: string;
     results: unknown[];
 };
