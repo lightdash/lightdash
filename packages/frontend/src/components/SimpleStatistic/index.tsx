@@ -26,13 +26,31 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <AutoFitText min={15} max={100} start={50}>
+                <AutoFitText
+                    min={15}
+                    max={100}
+                    start={50}
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'flex-end',
+                    }}
+                >
                     <BigNumber>{bigNumber}</BigNumber>
                 </AutoFitText>
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <AutoFitText min={15} max={100} start={50}>
+                        <AutoFitText
+                            min={15}
+                            max={100}
+                            start={50}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'flex-end',
+                            }}
+                        >
                             <BigNumber
                                 $interactive
                                 ref={ref}
@@ -44,7 +62,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                     )}
                 />
             )}
-            <AutoFitText min={5} max={20} start={15}>
+            <AutoFitText
+                min={5}
+                max={20}
+                start={15}
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start',
+                }}
+            >
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
