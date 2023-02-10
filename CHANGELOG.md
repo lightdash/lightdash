@@ -1,3 +1,10 @@
+# [0.408.0](https://github.com/lightdash/lightdash/compare/0.407.8...0.408.0) (2023-02-10)
+
+
+### Features
+
+* AutoFitText component to handle big number responsiveness ([#4441](https://github.com/lightdash/lightdash/issues/4441)) ([c061cd5](https://github.com/lightdash/lightdash/commit/c061cd55a0837a4bd9dd2c63db431e8754188895))
+
 ## [0.407.8](https://github.com/lightdash/lightdash/compare/0.407.7...0.407.8) (2023-02-10)
 
 
