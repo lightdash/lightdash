@@ -631,6 +631,7 @@ export class ProjectService {
     async searchFieldUniqueValues(
         user: SessionUser,
         projectUuid: string,
+        table: string,
         fieldId: string,
         search: string,
         limit: number,
@@ -653,11 +654,14 @@ export class ProjectService {
             );
         }
 
-        const explore = await this.getExploreByFieldId(
-            user,
+        const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
-            fieldId,
+            table,
         );
+
+        if (isExploreError(explore)) {
+            throw new NotExistsError(`Explore does not exist.`);
+        }
 
         const field = findFieldByIdInExplore(explore, fieldId);
 
@@ -723,10 +727,6 @@ export class ProjectService {
                 resultsCount: rows.length,
                 searchLimit: limit,
             },
-        });
-
-        await new Promise((resolve) => {
-            setTimeout(resolve, 1000);
         });
 
         return rows.map((row) => row[getItemId(distinctMetric)]);
@@ -1054,37 +1054,6 @@ export class ProjectService {
         } finally {
             span?.finish();
         }
-    }
-
-    async getExploreByFieldId(
-        user: SessionUser,
-        projectUuid: string,
-        fieldId: string,
-    ): Promise<Explore> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const explores =
-            (await this.projectModel.getExploresFromCache(projectUuid)) || [];
-        const explore = explores.find((t) =>
-            isExploreError(t) ? false : !!findFieldByIdInExplore(t, fieldId),
-        );
-        if (explore === undefined || isExploreError(explore)) {
-            throw new NotExistsError(
-                `Can't find explore with field id: ${fieldId}`,
-            );
-        }
-
-        return explore;
     }
 
     async getCatalog(

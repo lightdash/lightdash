@@ -1,7 +1,7 @@
-import { Spinner } from '@blueprintjs/core';
+import { Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import { FilterableItem, getItemId } from '@lightdash/common';
+import { FilterableField, FilterableItem, getItemId } from '@lightdash/common';
 import React, { FC, useCallback, useState } from 'react';
 import { useFieldValues } from '../../../../../hooks/useFieldValues';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
@@ -44,33 +44,8 @@ const MultiAutoComplete: FC<Props> = ({
         search,
         initialData,
         projectUuid,
-        getItemId(field),
-        100,
+        field,
         true,
-    );
-
-    const renderItem: ItemRenderer<string> = useCallback(
-        (name, { modifiers, handleClick, query }) => {
-            if (!modifiers.matchesPredicate) return null;
-
-            return (
-                <MenuItem2
-                    active={modifiers.active}
-                    icon={values.includes(name) ? 'tick' : 'blank'}
-                    key={name}
-                    text={
-                        <HighlightedText
-                            text={name}
-                            query={query}
-                            highlightElement={Hightlighed}
-                        />
-                    }
-                    onClick={handleClick}
-                    shouldDismissPopover={false}
-                />
-            );
-        },
-        [values],
     );
 
     const handleItemSelect = useCallback(
@@ -133,7 +108,38 @@ const MultiAutoComplete: FC<Props> = ({
             tagRenderer={(name) => name}
             itemsEqual={itemComparator}
             itemPredicate={itemPredicate}
-            itemRenderer={renderItem}
+            itemRenderer={(name, { modifiers, handleClick, query }) => {
+                if (!modifiers.matchesPredicate) return null;
+
+                return (
+                    <MenuItem2
+                        active={modifiers.active}
+                        icon={values.includes(name) ? 'tick' : 'blank'}
+                        key={name}
+                        text={
+                            <HighlightedText
+                                text={name}
+                                query={query}
+                                highlightElement={Hightlighed}
+                            />
+                        }
+                        onClick={handleClick}
+                        shouldDismissPopover={false}
+                    />
+                );
+            }}
+            itemListRenderer={({
+                items,
+                itemsParentRef,
+                menuProps,
+                renderCreateItem,
+                renderItem,
+            }) => (
+                <Menu role="listbox" ulRef={itemsParentRef} {...menuProps}>
+                    {items.map(renderItem)}
+                    {renderCreateItem()}
+                </Menu>
+            )}
             createNewItemFromQuery={(name: string) => name}
             createNewItemRenderer={(query, active, handleClick) => (
                 <MenuItem2

@@ -1,8 +1,8 @@
 import { Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
-import { FilterableField, getItemId } from '@lightdash/common';
-import React, { FC, useCallback, useState } from 'react';
+import { FilterableField } from '@lightdash/common';
+import { FC, useCallback, useState } from 'react';
 import { useFieldValues } from '../../../../../hooks/useFieldValues';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
@@ -39,7 +39,7 @@ const AutoComplete: FC<Props2> = ({
         search,
         suggestions,
         projectUuid,
-        getItemId(field),
+        field,
     );
 
     const renderItem: ItemRenderer<string> = useCallback(

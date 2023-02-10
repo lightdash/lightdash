@@ -302,11 +302,16 @@ projectRouter.get(
                 typeof req.query.limit === 'string'
                     ? parseInt(req.query.limit.toString(), 10)
                     : 100;
+
+            const table =
+                typeof req.query.table === 'string' ? req.query.table : '';
+
             const results = {
                 search: value,
                 results: await projectService.searchFieldUniqueValues(
                     req.user!,
                     req.params.projectUuid,
+                    table,
                     req.params.fieldId,
                     value,
                     limit,

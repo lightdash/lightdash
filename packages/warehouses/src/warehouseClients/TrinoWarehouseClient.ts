@@ -179,7 +179,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
         return {
             session,
             close: async () => {
-                console.log('Close trino connection');
+                console.info('Close trino connection');
             },
         };
     }

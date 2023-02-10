@@ -1,30 +1,42 @@
-import { ApiError, FieldMatchResult } from '@lightdash/common';
+import {
+    ApiError,
+    FieldMatchResult,
+    FilterableField,
+    FilterableItem,
+    getItemId,
+    isField,
+} from '@lightdash/common';
 import { uniq } from 'lodash-es';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, UseQueryOptions } from 'react-query';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 
 const getFieldValues = async (
     projectId: string,
+    table: string | undefined,
     fieldId: string,
     search: string,
-    limit: number,
-) =>
-    lightdashApi<FieldMatchResult>({
+    limit: number = 100,
+) => {
+    if (!table) {
+        throw new Error('Table is required to search for field values');
+    }
+
+    return lightdashApi<FieldMatchResult>({
         url: `/projects/${projectId}/field/${fieldId}/search?value=${encodeURIComponent(
             search,
-        )}&limit=${limit}`,
+        )}&limit=${limit}&table=${table}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 export const useFieldValues = (
     search: string,
     initialData: string[],
     projectId: string,
-    fieldId: string,
-    limit: number = 100,
+    field: FilterableItem,
     debounce: boolean = true,
     useQueryOptions?: UseQueryOptions<FieldMatchResult, ApiError>,
 ) => {
@@ -33,15 +45,32 @@ export const useFieldValues = (
 
     const [results, setResults] = useState<string[]>(initialData);
 
+    const tableName = useMemo(
+        () => (isField(field) ? field.table : undefined),
+        [field],
+    );
+
+    const fieldId = useMemo(() => getItemId(field), [field]);
+
     const query = useQuery<FieldMatchResult, ApiError>(
-        ['project', projectId, fieldId, 'search', debouncedSearch],
-        () => getFieldValues(projectId, fieldId, debouncedSearch, limit),
+        [
+            'project',
+            projectId,
+            tableName,
+            field.name,
+            'search',
+            debouncedSearch,
+        ],
+        () => getFieldValues(projectId, tableName, fieldId, debouncedSearch),
         {
             // make sure we don't cache for too long
             staleTime: 60 * 1000, // 1 minute
             cacheTime: 60 * 1000, // 1 minute
             ...useQueryOptions,
-            onSuccess: ({ results: newResults, search: newSearch }) => {
+            enabled: !!tableName,
+            onSuccess: (data) => {
+                const { results: newResults, search: newSearch } = data;
+
                 if (!searches.includes(newSearch)) {
                     setSearches((prevSearches) => [...prevSearches, newSearch]);
                 }
@@ -65,6 +94,8 @@ export const useFieldValues = (
 
                     return sortedResults;
                 });
+
+                useQueryOptions?.onSuccess?.(data);
             },
         },
     );
