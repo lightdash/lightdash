@@ -1,8 +1,10 @@
 import { Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
-import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import { FilterableField, FilterableItem, getItemId } from '@lightdash/common';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import { MultiSelect2 } from '@blueprintjs/select';
+import { FilterableItem } from '@lightdash/common';
+import Fuse from 'fuse.js';
+import React, { FC, useCallback, useMemo, useRef, useState } from 'react';
+import styled from 'styled-components';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -10,11 +12,7 @@ import {
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
-import {
-    isMatch,
-    itemPredicate,
-    toggleValueFromArray,
-} from './autoCompleteUtils';
+import { isMatch, toggleValueFromArray } from './autoCompleteUtils';
 
 type Props = {
     field: FilterableItem;
@@ -25,10 +23,16 @@ type Props = {
     onChange: (values: string[]) => void;
 };
 
+const PaddedMenuItem = styled(MenuItem2)`
+    .bp4-text-overflow-ellipsis {
+        padding: 0 24px;
+    }
+`;
+
 const MultiAutoComplete: FC<Props> = ({
     values,
     field,
-    suggestions: initialData,
+    suggestions: initialSuggestionData,
     popoverProps,
     disabled,
     onChange,
@@ -40,13 +44,21 @@ const MultiAutoComplete: FC<Props> = ({
 
     const [search, setSearch] = useState('');
 
-    const {
-        isLoading,
-        resultCounts,
-        results: resultsSet,
-    } = useFieldValues(search, initialData, projectUuid, field, true);
+    const { isLoading, results: resultsSet } = useFieldValues(
+        search,
+        initialSuggestionData,
+        projectUuid,
+        field,
+        true,
+    );
 
     const results = useMemo(() => [...resultsSet], [resultsSet]);
+    const fuseRef = useRef(
+        new Fuse(results, {
+            threshold: 0.3,
+            findAllMatches: true,
+        }),
+    );
 
     const handleItemSelect = useCallback(
         (value: string) => {
@@ -89,6 +101,9 @@ const MultiAutoComplete: FC<Props> = ({
                     placeholder: 'Start typing to search',
                 },
                 onRemove: handleRemove,
+                rightElement: isLoading ? (
+                    <Spinner size={16} style={{ margin: 7 }} />
+                ) : undefined,
             }}
             popoverProps={{
                 minimal: true,
@@ -98,7 +113,14 @@ const MultiAutoComplete: FC<Props> = ({
             resetOnSelect
             tagRenderer={(name) => name}
             itemsEqual={isMatch}
-            itemPredicate={itemPredicate}
+            itemListPredicate={(query, items) => {
+                if (query === '') return items;
+
+                fuseRef.current.setCollection(items);
+                return fuseRef.current
+                    .search(query)
+                    .map((result) => result.item);
+            }}
             itemRenderer={(name, { modifiers, handleClick, query }) => {
                 if (!modifiers.matchesPredicate) return null;
 
@@ -120,43 +142,52 @@ const MultiAutoComplete: FC<Props> = ({
                 );
             }}
             itemListRenderer={({
-                items,
                 itemsParentRef,
                 menuProps,
-                renderCreateItem,
                 renderItem,
                 filteredItems,
-            }) => (
-                <Menu role="listbox" ulRef={itemsParentRef} {...menuProps}>
-                    {isLoading ? (
-                        <MenuItem2
-                            disabled
-                            icon={<Spinner style={{ margin: 6 }} size={16} />}
-                            text="Loading results..."
-                        />
-                    ) : filteredItems.length === MAX_AUTOCOMPLETE_RESULTS ? (
-                        <MenuItem2
-                            disabled
-                            text={`Showing ${MAX_AUTOCOMPLETE_RESULTS} results`}
-                        />
-                    ) : filteredItems.length === 0 ? (
-                        <MenuItem2 disabled text="No results found" />
-                    ) : null}
+                query,
+            }) => {
+                const slicedFilteredItems = filteredItems.slice(
+                    0,
+                    MAX_AUTOCOMPLETE_RESULTS,
+                );
 
-                    {items.map(renderItem)}
-                    {renderCreateItem()}
-                </Menu>
-            )}
-            createNewItemFromQuery={(name: string) => name}
-            createNewItemRenderer={(query, active, handleClick) => (
-                <MenuItem2
-                    icon="add"
-                    text={`Add "${query}"`}
-                    active={active}
-                    onClick={handleClick}
-                    shouldDismissPopover={false}
-                />
-            )}
+                return (
+                    <Menu role="listbox" ulRef={itemsParentRef} {...menuProps}>
+                        {isLoading ? (
+                            <PaddedMenuItem
+                                disabled
+                                text="Loading results..."
+                            />
+                        ) : slicedFilteredItems.length ===
+                          MAX_AUTOCOMPLETE_RESULTS ? (
+                            <PaddedMenuItem
+                                disabled
+                                text={`Showing first ${MAX_AUTOCOMPLETE_RESULTS} results.`}
+                            />
+                        ) : slicedFilteredItems.length === 0 ? (
+                            <PaddedMenuItem disabled text="No results found" />
+                        ) : (
+                            <PaddedMenuItem
+                                disabled
+                                text="continue typing to filter results"
+                            />
+                        )}
+
+                        {slicedFilteredItems.map(renderItem)}
+
+                        {query ? (
+                            <MenuItem2
+                                icon="add"
+                                text={`Add "${query}"`}
+                                onClick={() => handleItemSelect(query)}
+                                shouldDismissPopover={false}
+                            />
+                        ) : null}
+                    </Menu>
+                );
+            }}
             onQueryChange={setSearch}
             onItemSelect={handleItemSelect}
         />
