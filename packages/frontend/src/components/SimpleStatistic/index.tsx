@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { Textfit } from 'react-textfit';
+import AutoFitText from '../AutoFitText';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
@@ -26,17 +26,13 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <Textfit mode="single" style={{ width: '45%' }} max={100}>
+                <AutoFitText min={15} max={100} start={50}>
                     <BigNumber>{bigNumber}</BigNumber>
-                </Textfit>
+                </AutoFitText>
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <Textfit
-                            mode="single"
-                            style={{ width: '45%' }}
-                            max={100}
-                        >
+                        <AutoFitText min={15} max={100} start={50}>
                             <BigNumber
                                 $interactive
                                 ref={ref}
@@ -44,15 +40,15 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                             >
                                 {bigNumber}
                             </BigNumber>
-                        </Textfit>
+                        </AutoFitText>
                     )}
                 />
             )}
-            <Textfit mode="single" style={{ width: '80%' }} max={20}>
+            <AutoFitText min={5} max={20} start={15}>
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
-            </Textfit>
+            </AutoFitText>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
