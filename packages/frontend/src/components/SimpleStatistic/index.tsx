@@ -36,7 +36,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                     renderTarget={({ ref, ...popoverProps }) => (
                         <AutoFitBigNumber
                             min={10}
-                            max={80}
+                            max={150}
                             start={30}
                             onFontSize={(size: number) =>
                                 size > 30
