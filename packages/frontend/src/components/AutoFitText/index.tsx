@@ -26,7 +26,7 @@ export interface AutoFitTextProps
     hideOnCalc?: boolean;
     onStart?: () => void;
     onEnd?: () => void;
-    onFontsize?: (fontSize: string) => void;
+    onFontSize?: (fontSize: number) => void;
 }
 
 const AutoFitText: FC<AutoFitTextProps> = ({
@@ -39,7 +39,7 @@ const AutoFitText: FC<AutoFitTextProps> = ({
     hideOnCalc = false,
     onStart = () => {},
     onEnd = () => {},
-    onFontsize = () => {},
+    onFontSize = () => {},
     children,
     ...rest
 }) => {
@@ -67,7 +67,7 @@ const AutoFitText: FC<AutoFitTextProps> = ({
         };
     }
 
-    function currentFontSize() {
+    function currentFontSize(): number {
         if (textRef.current) {
             return parseFloat(textRef.current.style.fontSize.replace('px', ''));
         }
@@ -93,7 +93,7 @@ const AutoFitText: FC<AutoFitTextProps> = ({
                 default:
                     break;
             }
-            onFontsize(textRef.current.style.fontSize);
+            onFontSize(currentFontSize());
         }
     }
 
@@ -150,7 +150,7 @@ const AutoFitText: FC<AutoFitTextProps> = ({
     const adjustText = _.debounce(async () => {
         if (textRef.current) {
             onStart();
-            onFontsize(textRef.current.style.fontSize);
+            onFontSize(currentFontSize());
             await textTooSmall();
             await textTooBig();
             setHide(false);

@@ -1,5 +1,4 @@
-import React, { FC } from 'react';
-import AutoFitText from '../AutoFitText';
+import React, { FC, useState } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
@@ -21,6 +20,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
         isSqlRunner,
     } = useVisualizationContext();
 
+    const [labelMaxSize, setLabelMaxSize] = useState(20);
     const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
@@ -34,7 +34,14 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <AutoFitBigNumber min={15} max={100} start={50}>
+                        <AutoFitBigNumber
+                            min={15}
+                            max={100}
+                            start={50}
+                            onFontSize={(size: number) =>
+                                size > 0 ? setLabelMaxSize(size / 3) : undefined
+                            }
+                        >
                             <BigNumber
                                 $interactive
                                 ref={ref}
@@ -46,7 +53,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                     )}
                 />
             )}
-            <AutoFitBigNumberLabel min={5} max={20} start={15}>
+            <AutoFitBigNumberLabel min={5} max={labelMaxSize} start={15}>
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
