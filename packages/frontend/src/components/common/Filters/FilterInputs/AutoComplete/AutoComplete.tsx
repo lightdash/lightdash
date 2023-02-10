@@ -2,11 +2,12 @@ import { Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
 import { FilterableField, getItemId } from '@lightdash/common';
-import React, { FC, useCallback } from 'react';
+import React, { FC, useCallback, useState } from 'react';
+import { useFieldValues } from '../../../../../hooks/useFieldValues';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
-import { itemPredicate, useAutoComplete } from './autoCompleteUtils';
+import { itemPredicate } from './autoCompleteUtils';
 
 type Props2 = {
     field: FilterableField;
@@ -32,8 +33,14 @@ const AutoComplete: FC<Props2> = ({
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
-    const { options, setSearch, isSearching, isFetchingInitialData } =
-        useAutoComplete(value, suggestions, getItemId(field), projectUuid);
+    const [search, setSearch] = useState('');
+
+    const { results, isLoading } = useFieldValues(
+        search,
+        suggestions,
+        projectUuid,
+        getItemId(field),
+    );
 
     const renderItem: ItemRenderer<string> = useCallback(
         (name, { modifiers, handleClick, query }) => {
@@ -60,43 +67,20 @@ const AutoComplete: FC<Props2> = ({
         [value],
     );
 
-    const renderCreateOption = useCallback(
-        (
-            q: string,
-            active: boolean,
-            handleClick: React.MouseEventHandler<HTMLElement>,
-        ) =>
-            !isSearching ? (
-                <MenuItem2
-                    icon="add"
-                    text={`Add "${q}"`}
-                    active={active}
-                    onClick={handleClick}
-                    shouldDismissPopover={false}
-                />
-            ) : (
-                <StyledSpinner />
-            ),
-        [isSearching],
-    );
     return (
         <Suggest2
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             fill
-            items={Array.from(options).sort((a, b) =>
-                a.localeCompare(b, undefined, { sensitivity: 'base' }),
-            )}
-            noResults={
-                isFetchingInitialData ? (
-                    <StyledSpinner />
-                ) : (
-                    <MenuItem2 disabled text="No suggestions." />
-                )
-            }
-            itemsEqual={(v, other) => v.toLowerCase() === other.toLowerCase()}
+            items={results}
+            itemsEqual={(a, b) => a.toLowerCase() === b.toLowerCase()}
             selectedItem={value}
             itemRenderer={renderItem}
+            inputProps={{
+                rightElement: isLoading ? (
+                    <Spinner style={{ margin: 6 }} size={16} />
+                ) : undefined,
+            }}
             onItemSelect={onChange}
             popoverProps={{
                 minimal: true,
@@ -106,7 +90,15 @@ const AutoComplete: FC<Props2> = ({
             }}
             resetOnSelect
             itemPredicate={itemPredicate}
-            createNewItemRenderer={renderCreateOption}
+            createNewItemRenderer={(query, active, handleClick) => (
+                <MenuItem2
+                    icon="add"
+                    text={`Add "${query}"`}
+                    active={active}
+                    onClick={handleClick}
+                    shouldDismissPopover={false}
+                />
+            )}
             createNewItemFromQuery={(name: string) => name}
             onQueryChange={setSearch}
             inputValueRenderer={(item: string) => {

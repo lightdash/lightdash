@@ -710,6 +710,7 @@ export class ProjectService {
         );
 
         const adapter = await this.getAdapter(projectUuid);
+
         const { rows } = await adapter.runQuery(query);
 
         analytics.track({
@@ -723,6 +724,11 @@ export class ProjectService {
                 searchLimit: limit,
             },
         });
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, 1000);
+        });
+
         return rows.map((row) => row[getItemId(distinctMetric)]);
     }
 

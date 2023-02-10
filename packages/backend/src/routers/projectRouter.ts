@@ -301,15 +301,18 @@ projectRouter.get(
             const limit: number =
                 typeof req.query.limit === 'string'
                     ? parseInt(req.query.limit.toString(), 10)
-                    : 10;
-            const results: Array<any> =
-                await projectService.searchFieldUniqueValues(
+                    : 100;
+            const results = {
+                search: value,
+                results: await projectService.searchFieldUniqueValues(
                     req.user!,
                     req.params.projectUuid,
                     req.params.fieldId,
                     value,
                     limit,
-                );
+                ),
+            };
+
             res.json({
                 status: 'ok',
                 results,

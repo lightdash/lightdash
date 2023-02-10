@@ -45,6 +45,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
+import { FieldMatchResult } from './types/fieldMatch';
 import { SchedulerAndTargets } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
@@ -74,6 +75,7 @@ export * from './types/dbtCloud';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/field';
+export * from './types/fieldMatch';
 export * from './types/filter';
 export * from './types/job';
 export * from './types/metricQuery';
@@ -494,6 +496,7 @@ type ApiResults =
     | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[]
+    | FieldMatchResult
     | ApiDownloadCsv;
 
 export type ApiResponse = {
