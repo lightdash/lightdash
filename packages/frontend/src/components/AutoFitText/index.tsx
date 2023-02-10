@@ -15,7 +15,8 @@ const dynamicTextStyles = {
     verticalAlign: 'middle',
 } as React.CSSProperties;
 
-interface AutoFitTextProps extends React.ComponentPropsWithoutRef<'div'> {
+export interface AutoFitTextProps
+    extends React.ComponentPropsWithoutRef<'div'> {
     min?: number;
     max?: number;
     start?: number;

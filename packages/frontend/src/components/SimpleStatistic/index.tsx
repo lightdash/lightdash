@@ -4,6 +4,8 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
 import {
+    AutoFitBigNumber,
+    AutoFitBigNumberLabel,
     BigNumber,
     BigNumberContainer,
     BigNumberLabel,
@@ -26,31 +28,13 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
             {isSqlRunner ? (
-                <AutoFitText
-                    min={15}
-                    max={100}
-                    start={50}
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'flex-end',
-                    }}
-                >
+                <AutoFitBigNumber min={15} max={100} start={50}>
                     <BigNumber>{bigNumber}</BigNumber>
-                </AutoFitText>
+                </AutoFitBigNumber>
             ) : (
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
-                        <AutoFitText
-                            min={15}
-                            max={100}
-                            start={50}
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'flex-end',
-                            }}
-                        >
+                        <AutoFitBigNumber min={15} max={100} start={50}>
                             <BigNumber
                                 $interactive
                                 ref={ref}
@@ -58,24 +42,15 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                             >
                                 {bigNumber}
                             </BigNumber>
-                        </AutoFitText>
+                        </AutoFitBigNumber>
                     )}
                 />
             )}
-            <AutoFitText
-                min={5}
-                max={20}
-                start={15}
-                style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'flex-start',
-                }}
-            >
+            <AutoFitBigNumberLabel min={5} max={20} start={15}>
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
-            </AutoFitText>
+            </AutoFitBigNumberLabel>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
