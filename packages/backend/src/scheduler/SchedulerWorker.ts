@@ -80,7 +80,7 @@ export class SchedulerWorker {
                         `Processing new job sendSlackNotification`,
                         payload,
                     );
-                    await sendSlackNotification(payload);
+                    await sendSlackNotification(helpers.job.id, payload);
                 },
             },
         });

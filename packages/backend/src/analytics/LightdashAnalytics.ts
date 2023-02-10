@@ -2,15 +2,12 @@
 import {
     CartesianSeriesType,
     ChartType,
-    CreateChartPinnedItem,
-    CreateDashboardPinnedItem,
     DbtProjectType,
     LightdashInstallType,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
     RequestMethod,
-    Space,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -478,6 +475,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         resourceType: 'dashboard' | 'chart';
         resourceId: string;
         targets: Array<{
+            schedulerTargetId: string;
             type: 'slack';
         }>;
     };
@@ -492,6 +490,20 @@ export type SchedulerDeleteEvent = BaseTrack & {
         schedulerId: string;
         resourceType: 'dashboard' | 'chart';
         resourceId: string;
+    };
+};
+
+export type SchedulerJobEvent = BaseTrack & {
+    event:
+        | 'scheduler_job.created'
+        | 'scheduler_job.deleted'
+        | 'scheduler_job.started'
+        | 'scheduler_job.completed'
+        | 'scheduler_job.failed';
+    properties: {
+        jobId: string;
+        schedulerId: string;
+        schedulerTargetId: string;
     };
 };
 
@@ -535,6 +547,7 @@ type Track =
     | AnalyticsDashboardView
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent
+    | SchedulerJobEvent
     | PinnedListUpdated;
 
 export class LightdashAnalytics extends Analytics {

@@ -513,7 +513,10 @@ export class DashboardService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map(() => ({ type: 'slack' })),
+                targets: scheduler.targets.map((target) => ({
+                    schedulerTargetId: target.schedulerSlackTargetUuid,
+                    type: 'slack',
+                })),
             },
         });
         return scheduler;
