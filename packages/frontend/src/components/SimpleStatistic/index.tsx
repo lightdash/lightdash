@@ -35,12 +35,15 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                 <BigNumberContextMenu
                     renderTarget={({ ref, ...popoverProps }) => (
                         <AutoFitBigNumber
-                            min={15}
-                            max={100}
-                            start={50}
+                            min={10}
+                            max={80}
+                            start={30}
                             onFontSize={(size: number) =>
-                                size > 0 ? setLabelMaxSize(size / 3) : undefined
+                                size > 30
+                                    ? setLabelMaxSize(size / 2.5)
+                                    : undefined
                             }
+                            hideOnCalc
                         >
                             <BigNumber
                                 $interactive
@@ -53,7 +56,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                     )}
                 />
             )}
-            <AutoFitBigNumberLabel min={5} max={labelMaxSize} start={15}>
+            <AutoFitBigNumberLabel
+                min={10}
+                max={labelMaxSize}
+                start={15}
+                hideOnCalc
+            >
                 <BigNumberLabel>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>
