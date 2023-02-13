@@ -1,3 +1,10 @@
+## [0.408.2](https://github.com/lightdash/lightdash/compare/0.408.1...0.408.2) (2023-02-13)
+
+
+### Bug Fixes
+
+* spaces page action menu doesnt update pinning status ([#4451](https://github.com/lightdash/lightdash/issues/4451)) ([406e1e6](https://github.com/lightdash/lightdash/commit/406e1e6c4df76c197c918dabab40be9f3153d362))
+
 ## [0.408.1](https://github.com/lightdash/lightdash/compare/0.408.0...0.408.1) (2023-02-13)
 
 
