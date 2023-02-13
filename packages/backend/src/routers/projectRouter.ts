@@ -60,6 +60,7 @@ projectRouter.get(
 
 projectRouter.patch(
     '/',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -80,18 +81,23 @@ projectRouter.patch(
     },
 );
 
-projectRouter.get('/search/:query', isAuthenticated, async (req, res, next) => {
-    try {
-        const results = await searchService.getSearchResults(
-            req.user!,
-            req.params.projectUuid,
-            req.params.query,
-        );
-        res.json({ status: 'ok', results });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.get(
+    '/search/:query',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await searchService.getSearchResults(
+                req.user!,
+                req.params.projectUuid,
+                req.params.query,
+            );
+            res.json({ status: 'ok', results });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
 projectRouter.put(
     '/explores',
@@ -110,25 +116,31 @@ projectRouter.put(
     },
 );
 
-projectRouter.get('/explores', isAuthenticated, async (req, res, next) => {
-    try {
-        const results: ApiExploresResults =
-            await projectService.getAllExploresSummary(
-                req.user!,
-                req.params.projectUuid,
-                req.query.filtered === 'true',
-            );
-        res.json({
-            status: 'ok',
-            results,
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.get(
+    '/explores',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: ApiExploresResults =
+                await projectService.getAllExploresSummary(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.query.filtered === 'true',
+                );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
 projectRouter.get(
     '/explores/:exploreId',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -146,6 +158,7 @@ projectRouter.get(
 
 projectRouter.post(
     '/explores/:exploreId/compileQuery',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -179,6 +192,7 @@ projectRouter.post(
 
 projectRouter.post(
     '/explores/:exploreId/runQuery',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -212,6 +226,7 @@ projectRouter.post(
 
 projectRouter.post(
     '/explores/:exploreId/downloadCsv',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -326,6 +341,7 @@ projectRouter.get(
 
 projectRouter.get(
     '/field/:fieldId/search',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -421,6 +437,7 @@ projectRouter.post(
 
 projectRouter.patch(
     '/saved',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -488,6 +505,7 @@ projectRouter.post(
 
 projectRouter.delete(
     '/spaces/:spaceUUid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -505,6 +523,7 @@ projectRouter.delete(
 
 projectRouter.patch(
     '/spaces/:spaceUUid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -522,6 +541,7 @@ projectRouter.patch(
 
 projectRouter.post(
     '/spaces/:spaceUUid/share',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -538,6 +558,7 @@ projectRouter.post(
 
 projectRouter.delete(
     '/spaces/:spaceUUid/share/:userUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -556,21 +577,26 @@ projectRouter.delete(
     },
 );
 
-projectRouter.get('/dashboards', isAuthenticated, async (req, res, next) => {
-    const chartUuid: string | undefined =
-        typeof req.query.chartUuid === 'string'
-            ? req.query.chartUuid.toString()
-            : undefined;
-    dashboardService
-        .getAllByProject(req.user!, req.params.projectUuid, chartUuid)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
+projectRouter.get(
+    '/dashboards',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        const chartUuid: string | undefined =
+            typeof req.query.chartUuid === 'string'
+                ? req.query.chartUuid.toString()
+                : undefined;
+        dashboardService
+            .getAllByProject(req.user!, req.params.projectUuid, chartUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 
 projectRouter.post(
     '/dashboards',
@@ -608,6 +634,7 @@ projectRouter.post(
 
 projectRouter.patch(
     '/dashboards',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -625,6 +652,7 @@ projectRouter.patch(
 
 projectRouter.post(
     '/sqlQuery',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -645,23 +673,29 @@ projectRouter.post(
     },
 );
 
-projectRouter.get('/catalog', isAuthenticated, async (req, res, next) => {
-    try {
-        const results: ProjectCatalog = await projectService.getCatalog(
-            req.user!,
-            req.params.projectUuid,
-        );
-        res.json({
-            status: 'ok',
-            results,
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.get(
+    '/catalog',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: ProjectCatalog = await projectService.getCatalog(
+                req.user!,
+                req.params.projectUuid,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
 projectRouter.get(
     '/tablesConfiguration',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -682,6 +716,7 @@ projectRouter.get(
 
 projectRouter.patch(
     '/tablesConfiguration',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -704,6 +739,7 @@ projectRouter.patch(
 
 projectRouter.get(
     '/hasSavedCharts',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
@@ -721,39 +757,52 @@ projectRouter.get(
     },
 );
 
-projectRouter.get('/access', isAuthenticated, async (req, res, next) => {
-    try {
-        const results = await projectService.getProjectAccess(
-            req.user!,
-            req.params.projectUuid,
-        );
-        res.json({
-            status: 'ok',
-            results,
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.get(
+    '/access',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.getProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 
-projectRouter.post('/access', isAuthenticated, async (req, res, next) => {
-    try {
-        const results = await projectService.createProjectAccess(
-            req.user!,
-            req.params.projectUuid,
-            req.body,
-        );
-        res.json({
-            status: 'ok',
-            results,
-        });
-    } catch (e) {
-        next(e);
-    }
-});
+projectRouter.post(
+    '/access',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const results = await projectService.createProjectAccess(
+                req.user!,
+                req.params.projectUuid,
+                req.body,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
 projectRouter.patch(
     '/access/:userUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         try {
             const results = await projectService.updateProjectAccess(
@@ -773,7 +822,9 @@ projectRouter.patch(
 );
 projectRouter.delete(
     '/access/:userUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         try {
             const results = await projectService.deleteProjectAccess(

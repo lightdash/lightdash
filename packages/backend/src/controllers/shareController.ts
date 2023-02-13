@@ -18,7 +18,7 @@ import {
     SuccessResponse,
 } from 'tsoa';
 import { shareService } from '../services/services';
-import { isAuthenticated } from './authentication';
+import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/share')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -28,7 +28,7 @@ export class ShareController extends Controller {
      * @param nanoId the short id for the share url
      * @param req express request
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('{nanoId}')
     @OperationId('getShareUrl')
     async get(
@@ -47,7 +47,7 @@ export class ShareController extends Controller {
      * @param body a full URL used to generate a short url id
      * @param req express request
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('201', 'Created')
     @Post('/')
     @OperationId('CreateShareUrl')

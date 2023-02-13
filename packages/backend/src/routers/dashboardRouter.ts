@@ -50,6 +50,7 @@ dashboardRouter.get(
 
 dashboardRouter.patch(
     '/:dashboardUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -90,6 +91,7 @@ dashboardRouter.patch(
 
 dashboardRouter.delete(
     '/:dashboardUuid',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
@@ -128,6 +130,7 @@ dashboardRouter.post(
     '/:dashboardUuid/schedulers',
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
     async (req, res, next) => {
         try {
             res.json({
@@ -146,6 +149,7 @@ dashboardRouter.post(
 
 dashboardRouter.post(
     '/availableFilters',
+    allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {

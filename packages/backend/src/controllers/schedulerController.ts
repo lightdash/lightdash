@@ -2,7 +2,6 @@ import {
     ApiErrorPayload,
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
-    UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { Delete } from '@tsoa/runtime';
 import express from 'express';
@@ -19,9 +18,12 @@ import {
     Route,
     SuccessResponse,
 } from 'tsoa';
-import { SchedulerService } from '../services/SchedulerService/SchedulerService';
 import { schedulerService } from '../services/services';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -55,7 +57,11 @@ export class SchedulerController extends Controller {
      * @param req express request
      * @param body the new scheduler data
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Updated')
     @Patch('{schedulerUuid}')
     @OperationId('updateScheduler')
@@ -80,7 +86,11 @@ export class SchedulerController extends Controller {
      * @param schedulerUuid The uuid of the scheduler to delete
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Deleted')
     @Delete('{schedulerUuid}')
     @OperationId('deleteScheduler')
