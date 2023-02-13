@@ -1,7 +1,6 @@
 import { FC } from 'react';
-import BoltIcon from '../icon/boltIcon';
-
 import {
+    BoltIcon,
     Intro,
     LandingHeaderWrapper,
     StyledLinkButton,
