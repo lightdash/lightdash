@@ -98,7 +98,7 @@ const MultiAutoComplete: FC<Props> = ({
                     minimal: true,
                 },
                 inputProps: {
-                    placeholder: 'Start typing to search',
+                    placeholder: 'Start typing to filter results',
                 },
                 onRemove: handleRemove,
                 rightElement: isLoading ? (
@@ -163,16 +163,13 @@ const MultiAutoComplete: FC<Props> = ({
                           MAX_AUTOCOMPLETE_RESULTS ? (
                             <PaddedMenuItem
                                 disabled
-                                text={`Showing first ${MAX_AUTOCOMPLETE_RESULTS} results.`}
+                                text={`Showing first ${MAX_AUTOCOMPLETE_RESULTS} results. ${
+                                    query ? 'Continue' : 'Start'
+                                } typing...`}
                             />
                         ) : slicedFilteredItems.length === 0 ? (
                             <PaddedMenuItem disabled text="No results found." />
-                        ) : (
-                            <PaddedMenuItem
-                                disabled
-                                text="Continue typing to filter results."
-                            />
-                        )}
+                        ) : null}
 
                         {slicedFilteredItems.map(renderItem)}
 
