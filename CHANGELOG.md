@@ -1,3 +1,10 @@
+## [0.408.1](https://github.com/lightdash/lightdash/compare/0.408.0...0.408.1) (2023-02-13)
+
+
+### Bug Fixes
+
+* grouped drill into ([#4447](https://github.com/lightdash/lightdash/issues/4447)) ([7d2eaa6](https://github.com/lightdash/lightdash/commit/7d2eaa605568a1b0f750a5793592962e024b6fe1))
+
 # [0.408.0](https://github.com/lightdash/lightdash/compare/0.407.8...0.408.0) (2023-02-10)
 
 
