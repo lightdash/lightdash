@@ -1,3 +1,10 @@
+## [0.408.4](https://github.com/lightdash/lightdash/compare/0.408.3...0.408.4) (2023-02-13)
+
+
+### Bug Fixes
+
+* filter autocomplete ([#4436](https://github.com/lightdash/lightdash/issues/4436)) ([2004179](https://github.com/lightdash/lightdash/commit/20041793a7e68c7f4c48652d4d0be34fb7a41807))
+
 ## [0.408.3](https://github.com/lightdash/lightdash/compare/0.408.2...0.408.3) (2023-02-13)
 
 
