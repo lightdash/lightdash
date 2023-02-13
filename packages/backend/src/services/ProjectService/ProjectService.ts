@@ -553,7 +553,7 @@ export class ProjectService {
         exploreName: string,
         csvLimit: number | undefined,
     ): Promise<ApiQueryResults> {
-        const { organizationUuid } =
+        const { organizationUuid, warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (
@@ -622,11 +622,24 @@ export class ProjectService {
             metricQuery.additionalMetrics,
             metricQuery.tableCalculations,
         );
-        const formattedRows = await wrapSentryTransaction(
-            'formatted rows',
-            {},
-            async () => formatRowsWorker(rows, itemMap),
-        );
+
+        // If there are more than 500 rows, we need to format them in a background job
+        const formattedRows =
+            rows.length > 500
+                ? await wrapSentryTransaction<ResultRow[]>(
+                      'formatted rows',
+                      {
+                          rows: rows.length,
+                          warehouse: warehouseConnection?.type,
+                      },
+                      async () => formatRowsWorker(rows, itemMap),
+                  )
+                : formatRows(
+                      rows,
+                      explore,
+                      metricQuery.additionalMetrics,
+                      metricQuery.tableCalculations,
+                  );
 
         return {
             rows: formattedRows,

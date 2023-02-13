@@ -31,11 +31,11 @@ export const isDbPinnedChart = (
 ): data is DbPinnedChart =>
     'saved_chart_uuid' in data && !!data.saved_chart_uuid;
 
-export const wrapSentryTransaction = async (
+export const wrapSentryTransaction = async <T>(
     name: string,
     context: CustomSamplingContext,
-    funct: () => Promise<any>,
-) => {
+    funct: () => Promise<T>,
+): Promise<T> => {
     const startTime = Date.now();
     const transaction = Sentry.getCurrentHub()?.getScope()?.getTransaction();
 
@@ -58,7 +58,7 @@ export const wrapSentryTransaction = async (
             `Error in wrapped sentry transaction ${transaction?.spanId} "${name}": ${error}`,
         );
         Sentry.captureException(error);
-        return null;
+        throw error;
     } finally {
         Logger.debug(
             `End sentry transaction ${transaction?.spanId} "${name}", took: ${
