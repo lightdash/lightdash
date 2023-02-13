@@ -10,6 +10,7 @@ import {
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
+import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -117,6 +118,11 @@ export class SchedulerService {
                 resourceType: isChartScheduler(scheduler)
                     ? 'chart'
                     : 'dashboard',
+                cronExpression: scheduler.cron,
+                cronString: cronstrue.toString(scheduler.cron, {
+                    verbose: true,
+                    throwExceptionOnParseError: false,
+                }),
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,

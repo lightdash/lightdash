@@ -14,6 +14,7 @@ import {
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
+import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
@@ -503,6 +504,11 @@ export class DashboardService {
                 resourceType: isChartScheduler(scheduler)
                     ? 'chart'
                     : 'dashboard',
+                cronExpression: scheduler.cron,
+                cronString: cronstrue.toString(scheduler.cron, {
+                    verbose: true,
+                    throwExceptionOnParseError: false,
+                }),
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,

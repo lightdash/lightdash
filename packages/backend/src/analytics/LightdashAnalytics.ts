@@ -473,6 +473,8 @@ export type SchedulerUpsertEvent = BaseTrack & {
         organizationId: string;
         schedulerId: string;
         resourceType: 'dashboard' | 'chart';
+        cronExpression: string;
+        cronString: string;
         resourceId: string;
         targets: Array<{
             schedulerTargetId: string;
