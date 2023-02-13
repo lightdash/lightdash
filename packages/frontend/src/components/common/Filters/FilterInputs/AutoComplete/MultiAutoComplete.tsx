@@ -1,17 +1,18 @@
-import { Spinner } from '@blueprintjs/core';
+import { Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
-import { ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
-import { FilterableItem, getItemId } from '@lightdash/common';
-import React, { FC, useCallback } from 'react';
+import { MultiSelect2 } from '@blueprintjs/select';
+import { FilterableItem } from '@lightdash/common';
+import Fuse from 'fuse.js';
+import React, { FC, useCallback, useMemo, useRef, useState } from 'react';
+import styled from 'styled-components';
+import {
+    MAX_AUTOCOMPLETE_RESULTS,
+    useFieldValues,
+} from '../../../../../hooks/useFieldValues';
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
-import {
-    comparator,
-    itemPredicate,
-    toggleValueFromArray,
-    useAutoComplete,
-} from './autoCompleteUtils';
+import { isMatch, toggleValueFromArray } from './autoCompleteUtils';
 
 type Props = {
     field: FilterableItem;
@@ -22,15 +23,16 @@ type Props = {
     onChange: (values: string[]) => void;
 };
 
-const StyledSpinner = () => <Spinner size={16} style={{ margin: 12 }} />;
-
-const normalize = (item: string) => item.toLowerCase();
-const itemComparator = comparator(normalize);
+const PaddedMenuItem = styled(MenuItem2)`
+    .bp4-text-overflow-ellipsis {
+        padding: 0 24px;
+    }
+`;
 
 const MultiAutoComplete: FC<Props> = ({
     values,
     field,
-    suggestions,
+    suggestions: initialSuggestionData,
     popoverProps,
     disabled,
     onChange,
@@ -40,62 +42,27 @@ const MultiAutoComplete: FC<Props> = ({
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
-    const {
-        options,
-        setSearch,
-        searchQuery,
-        isSearching,
-        isFetchingInitialData,
-    } = useAutoComplete(values, suggestions, getItemId(field), projectUuid);
+    const [search, setSearch] = useState('');
 
-    const renderItem: ItemRenderer<string> = useCallback(
-        (name, { modifiers, handleClick, query }) => {
-            if (!modifiers.matchesPredicate) {
-                return null;
-            }
-            return (
-                <MenuItem2
-                    active={modifiers.active}
-                    icon={values.includes(name) ? 'tick' : 'blank'}
-                    key={name}
-                    text={
-                        <HighlightedText
-                            text={name}
-                            query={query}
-                            highlightElement={Hightlighed}
-                        />
-                    }
-                    onClick={handleClick}
-                    shouldDismissPopover={false}
-                />
-            );
-        },
-        [values],
+    const { isLoading, results: resultsSet } = useFieldValues(
+        search,
+        initialSuggestionData,
+        projectUuid,
+        field,
+        true,
     );
 
-    const renderCreateOption = useCallback(
-        (
-            q: string,
-            active: boolean,
-            handleClick: React.MouseEventHandler<HTMLElement>,
-        ) =>
-            !isSearching ? (
-                <MenuItem2
-                    icon="add"
-                    text={`Add "${q}"`}
-                    active={active}
-                    onClick={handleClick}
-                    shouldDismissPopover={false}
-                />
-            ) : (
-                <StyledSpinner />
-            ),
-        [isSearching],
+    const results = useMemo(() => [...resultsSet], [resultsSet]);
+    const fuseRef = useRef(
+        new Fuse(results, {
+            threshold: 0.1,
+            findAllMatches: true,
+        }),
     );
 
     const handleItemSelect = useCallback(
         (value: string) => {
-            onChange(toggleValueFromArray(values, value, normalize));
+            onChange(toggleValueFromArray(values, value));
         },
         [onChange, values],
     );
@@ -110,16 +77,10 @@ const MultiAutoComplete: FC<Props> = ({
     const handleOnClose = useCallback(
         (value?: string) => {
             if (!value || value === '') return;
-
             setSearch('');
-            if (!values.map(normalize).includes(normalize(value))) {
-                const existingOptionMatch = [...options].find((option) =>
-                    itemComparator(option, value),
-                );
-                handleItemSelect(existingOptionMatch || value);
-            }
+            handleItemSelect(value);
         },
-        [options, values, handleItemSelect, setSearch],
+        [handleItemSelect, setSearch],
     );
 
     return (
@@ -127,42 +88,113 @@ const MultiAutoComplete: FC<Props> = ({
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
             fill
-            query={searchQuery}
-            items={Array.from(options).sort((a, b) =>
-                a.localeCompare(b, undefined, { sensitivity: 'base' }),
-            )}
-            noResults={
-                isFetchingInitialData ? (
-                    <StyledSpinner />
-                ) : (
-                    <MenuItem2 disabled text="No suggestions." />
-                )
-            }
-            itemsEqual={itemComparator}
+            query={search}
+            items={results || []}
             selectedItems={values}
-            itemRenderer={renderItem}
-            tagRenderer={(name) => name}
-            onItemSelect={handleItemSelect}
             tagInputProps={{
                 placeholder: undefined,
                 addOnBlur: false,
                 tagProps: {
                     minimal: true,
                 },
+                inputProps: {
+                    placeholder: disabled
+                        ? undefined
+                        : 'Start typing to filter results',
+                },
                 onRemove: handleRemove,
+                rightElement: isLoading ? (
+                    <Spinner size={16} style={{ margin: 7 }} />
+                ) : undefined,
             }}
             popoverProps={{
                 minimal: true,
-                onClosing: () => {
-                    handleOnClose(searchQuery);
-                },
+                matchTargetWidth: true,
+                onClosing: () => handleOnClose(search),
                 ...popoverProps,
             }}
             resetOnSelect
-            itemPredicate={itemPredicate}
-            createNewItemRenderer={renderCreateOption}
-            createNewItemFromQuery={(name: string) => name}
+            tagRenderer={(name) => name}
+            itemsEqual={isMatch}
+            itemListPredicate={(query, items) => {
+                if (query === '') return items;
+
+                fuseRef.current.setCollection(items);
+                return fuseRef.current
+                    .search(query)
+                    .map((result) => result.item);
+            }}
+            itemRenderer={(name, { handleClick, modifiers, query }) => {
+                return (
+                    <MenuItem2
+                        active={modifiers.active}
+                        icon={values.includes(name) ? 'tick' : 'blank'}
+                        key={name}
+                        text={
+                            <HighlightedText
+                                text={name}
+                                query={query}
+                                highlightElement={Hightlighed}
+                            />
+                        }
+                        onClick={handleClick}
+                        shouldDismissPopover={false}
+                    />
+                );
+            }}
+            itemListRenderer={({
+                itemsParentRef,
+                menuProps,
+                renderItem,
+                filteredItems,
+                query,
+                renderCreateItem,
+            }) => {
+                const slicedFilteredItems = filteredItems.slice(
+                    0,
+                    MAX_AUTOCOMPLETE_RESULTS,
+                );
+                return (
+                    <Menu role="listbox" ulRef={itemsParentRef} {...menuProps}>
+                        {isLoading ? (
+                            <PaddedMenuItem
+                                disabled
+                                text="Loading results..."
+                            />
+                        ) : slicedFilteredItems.length ===
+                          MAX_AUTOCOMPLETE_RESULTS ? (
+                            <PaddedMenuItem
+                                disabled
+                                text={`Showing first ${MAX_AUTOCOMPLETE_RESULTS} results. ${
+                                    query ? 'Continue' : 'Start'
+                                } typing...`}
+                            />
+                        ) : slicedFilteredItems.length === 0 ? (
+                            <PaddedMenuItem disabled text="No results found." />
+                        ) : null}
+
+                        {slicedFilteredItems.map(renderItem)}
+
+                        {query ? renderCreateItem() : null}
+                    </Menu>
+                );
+            }}
             onQueryChange={setSearch}
+            onItemSelect={handleItemSelect}
+            createNewItemRenderer={(
+                q: string,
+                active: boolean,
+                handleClick: React.MouseEventHandler<HTMLElement>,
+            ) => (
+                <MenuItem2
+                    icon="add"
+                    text={`Add "${q}"`}
+                    active={active}
+                    onClick={handleClick}
+                    shouldDismissPopover={false}
+                />
+            )}
+            createNewItemFromQuery={(name: string) => name}
         />
     );
 };
