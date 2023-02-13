@@ -1,3 +1,10 @@
+# [0.409.0](https://github.com/lightdash/lightdash/compare/0.408.4...0.409.0) (2023-02-13)
+
+
+### Features
+
+* support personal access tokens as authentication on most endpoints ([#4450](https://github.com/lightdash/lightdash/issues/4450)) ([7261a02](https://github.com/lightdash/lightdash/commit/7261a02e733113624640ac34e201ed05654e4d1a))
+
 ## [0.408.4](https://github.com/lightdash/lightdash/compare/0.408.3...0.408.4) (2023-02-13)
 
 
