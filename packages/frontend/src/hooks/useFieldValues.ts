@@ -5,7 +5,7 @@ import {
     getItemId,
     isField,
 } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, UseQueryOptions } from 'react-query';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
@@ -40,6 +40,7 @@ export const useFieldValues = (
     debounce: boolean = true,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {
+    const [selectedFieldName, setSelectedFieldName] = useState<string | null>();
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
     const [results, setResults] = useState(new Set(...initialData));
@@ -111,6 +112,16 @@ export const useFieldValues = (
         !debounce || searches.has(search) ? 0 : 500,
         [search],
     );
+
+    // reset state when field changes
+    useEffect(() => {
+        if (field.name !== selectedFieldName) {
+            setSelectedFieldName(field.name);
+            setSearches(new Set<string>());
+            setResults(new Set(...initialData));
+            setResultCounts(new Map());
+        }
+    }, [field.name, initialData, selectedFieldName]);
 
     return {
         ...query,
