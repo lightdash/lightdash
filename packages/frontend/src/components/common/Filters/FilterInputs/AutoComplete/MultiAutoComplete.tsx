@@ -146,12 +146,12 @@ const MultiAutoComplete: FC<Props> = ({
                 renderItem,
                 filteredItems,
                 query,
+                renderCreateItem,
             }) => {
                 const slicedFilteredItems = filteredItems.slice(
                     0,
                     MAX_AUTOCOMPLETE_RESULTS,
                 );
-
                 return (
                     <Menu role="listbox" ulRef={itemsParentRef} {...menuProps}>
                         {isLoading ? (
@@ -173,19 +173,26 @@ const MultiAutoComplete: FC<Props> = ({
 
                         {slicedFilteredItems.map(renderItem)}
 
-                        {query ? (
-                            <MenuItem2
-                                icon="add"
-                                text={`Add "${query}"`}
-                                onClick={() => handleItemSelect(query)}
-                                shouldDismissPopover={false}
-                            />
-                        ) : null}
+                        {query ? renderCreateItem() : null}
                     </Menu>
                 );
             }}
             onQueryChange={setSearch}
             onItemSelect={handleItemSelect}
+            createNewItemRenderer={(
+                q: string,
+                active: boolean,
+                handleClick: React.MouseEventHandler<HTMLElement>,
+            ) => (
+                <MenuItem2
+                    icon="add"
+                    text={`Add "${q}"`}
+                    active={active}
+                    onClick={handleClick}
+                    shouldDismissPopover={false}
+                />
+            )}
+            createNewItemFromQuery={(name: string) => name}
         />
     );
 };
