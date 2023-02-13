@@ -18,17 +18,22 @@ import {
 
 export const organizationRouter = express.Router();
 
-organizationRouter.get('/', isAuthenticated, async (req, res, next) => {
-    organizationService
-        .get(req.user!)
-        .then((results) => {
-            res.json({
-                status: 'ok',
-                results,
-            });
-        })
-        .catch(next);
-});
+organizationRouter.get(
+    '/',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        organizationService
+            .get(req.user!)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
 
 organizationRouter.patch(
     '/',
@@ -85,6 +90,7 @@ organizationRouter.get(
 
 organizationRouter.post(
     '/projects/precompiled',
+    allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
