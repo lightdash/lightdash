@@ -1,3 +1,10 @@
+## [0.408.3](https://github.com/lightdash/lightdash/compare/0.408.2...0.408.3) (2023-02-13)
+
+
+### Bug Fixes
+
+* success message on file upload is missing context ([#4453](https://github.com/lightdash/lightdash/issues/4453)) ([b2d9ef6](https://github.com/lightdash/lightdash/commit/b2d9ef6fb58f3a5bac9dee0e0627509003c83fb4))
+
 ## [0.408.2](https://github.com/lightdash/lightdash/compare/0.408.1...0.408.2) (2023-02-13)
 
 
