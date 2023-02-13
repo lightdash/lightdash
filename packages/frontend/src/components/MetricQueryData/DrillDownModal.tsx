@@ -19,6 +19,7 @@ import {
     Filters,
     getDimensions,
     getItemId,
+    hashFieldReference,
     isField,
     isMetric,
     MetricQuery,
@@ -177,11 +178,14 @@ const DrillDownModal: FC = () => {
         }
         return [];
     }, [explore]);
-
     const value = useMemo(() => {
-        if (drillDownConfig && isField(drillDownConfig.selectedItem))
-            return drillDownConfig.row[getFieldId(drillDownConfig.selectedItem)]
-                ?.value.formatted;
+        if (drillDownConfig && isField(drillDownConfig.selectedItem)) {
+            const fieldId =
+                drillDownConfig.pivotReference !== undefined
+                    ? hashFieldReference(drillDownConfig.pivotReference)
+                    : getFieldId(drillDownConfig.selectedItem);
+            return drillDownConfig.row[fieldId]?.value.formatted;
+        }
     }, [drillDownConfig]);
 
     const url = useMemo(() => {

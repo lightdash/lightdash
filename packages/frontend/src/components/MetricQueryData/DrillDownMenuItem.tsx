@@ -3,6 +3,7 @@ import {
     DashboardFilters,
     Field,
     fieldId as getFieldId,
+    hashFieldReference,
     isField,
     isMetric,
     PivotReference,
@@ -29,7 +30,11 @@ export const DrillDownMenuItem: FC<{
         row &&
         metricQuery
     ) {
-        const value = row[getFieldId(selectedItem)]?.value.formatted;
+        const fieldId =
+            pivotReference !== undefined
+                ? hashFieldReference(pivotReference)
+                : getFieldId(selectedItem);
+        const value = row[fieldId]?.value.formatted;
 
         return (
             <MenuItem2
