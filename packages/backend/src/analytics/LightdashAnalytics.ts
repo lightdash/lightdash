@@ -2,15 +2,12 @@
 import {
     CartesianSeriesType,
     ChartType,
-    CreateChartPinnedItem,
-    CreateDashboardPinnedItem,
     DbtProjectType,
     LightdashInstallType,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
     RequestMethod,
-    Space,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -468,6 +465,51 @@ type PinnedListUpdated = BaseTrack & {
     };
 };
 
+export type SchedulerUpsertEvent = BaseTrack & {
+    event: 'scheduler.created' | 'scheduler.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        cronExpression: string;
+        cronString: string;
+        resourceId: string;
+        targets: Array<{
+            schedulerTargetId: string;
+            type: 'slack';
+        }>;
+    };
+};
+
+export type SchedulerDeleteEvent = BaseTrack & {
+    event: 'scheduler.deleted';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId: string;
+        schedulerId: string;
+        resourceType: 'dashboard' | 'chart';
+        resourceId: string;
+    };
+};
+
+export type SchedulerJobEvent = BaseTrack & {
+    event:
+        | 'scheduler_job.created'
+        | 'scheduler_job.deleted'
+        | 'scheduler_job.started'
+        | 'scheduler_job.completed'
+        | 'scheduler_job.failed';
+    anonymousId: string;
+    properties: {
+        jobId: string;
+        schedulerId: string;
+        schedulerTargetId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -506,6 +548,9 @@ type Track =
     | SavedChartView
     | DashboardView
     | AnalyticsDashboardView
+    | SchedulerUpsertEvent
+    | SchedulerDeleteEvent
+    | SchedulerJobEvent
     | PinnedListUpdated;
 
 export class LightdashAnalytics extends Analytics {

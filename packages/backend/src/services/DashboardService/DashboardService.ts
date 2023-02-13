@@ -6,6 +6,7 @@ import {
     DashboardBasicDetails,
     DashboardTileTypes,
     ForbiddenError,
+    isChartScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     SchedulerAndTargets,
@@ -13,6 +14,7 @@ import {
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
+import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
@@ -61,9 +63,9 @@ export class DashboardService {
     private async checkUpdateAccess(
         user: SessionUser,
         dashboardUuid: string,
-    ): Promise<void> {
-        const { organizationUuid, projectUuid } =
-            await this.dashboardModel.getById(dashboardUuid);
+    ): Promise<Dashboard> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const { organizationUuid, projectUuid } = dashboard;
         if (
             user.ability.cannot(
                 'update',
@@ -72,6 +74,7 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+        return dashboard;
     }
 
     async hasDashboardSpaceAccess(
@@ -481,12 +484,39 @@ export class DashboardService {
         dashboardUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        await this.checkUpdateAccess(user, dashboardUuid);
+        const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
+            user,
+            dashboardUuid,
+        );
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
             dashboardUuid,
             savedChartUuid: null,
+        });
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.created',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerId: scheduler.schedulerUuid,
+                resourceType: isChartScheduler(scheduler)
+                    ? 'chart'
+                    : 'dashboard',
+                cronExpression: scheduler.cron,
+                cronString: cronstrue.toString(scheduler.cron, {
+                    verbose: true,
+                    throwExceptionOnParseError: false,
+                }),
+                resourceId: isChartScheduler(scheduler)
+                    ? scheduler.savedChartUuid
+                    : scheduler.dashboardUuid,
+                targets: scheduler.targets.map((target) => ({
+                    schedulerTargetId: target.schedulerSlackTargetUuid,
+                    type: 'slack',
+                })),
+            },
         });
 
         await slackClient.joinChannels(
@@ -495,7 +525,6 @@ export class DashboardService {
         );
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
-
         return scheduler;
     }
 }

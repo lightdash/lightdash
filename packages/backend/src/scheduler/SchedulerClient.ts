@@ -1,12 +1,15 @@
 import {
     ScheduledJobs,
     ScheduledSlackNotification,
+    Scheduler,
     SchedulerAndTargets,
+    SchedulerSlackTarget,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
-import { loggers } from 'winston';
+import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 
@@ -72,8 +75,8 @@ export class SchedulerClient {
         const graphileClient = await this.graphileUtils;
 
         const deletedJobs = await graphileClient.withPgClient((pgClient) =>
-            pgClient.query(
-                "select id from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+            pgClient.query<{ id: string; scheduler_slack_target_uuid: string }>(
+                "select id, payload->>'schedulerSlackTargetUuid' as scheduler_slack_target_uuid from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
                 [`${schedulerUuid}%`],
             ),
         );
@@ -83,33 +86,62 @@ export class SchedulerClient {
         const deletedJobIds = deletedJobs.rows.map((r) => r.id);
 
         await graphileClient.completeJobs(deletedJobIds);
+
+        deletedJobs.rows.forEach(({ id, scheduler_slack_target_uuid }) => {
+            analytics.track({
+                event: 'scheduler_job.deleted',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    jobId: id,
+                    schedulerId: schedulerUuid,
+                    schedulerTargetId: scheduler_slack_target_uuid,
+                },
+            });
+        });
+    }
+
+    async addJob(
+        date: Date,
+        scheduler: Scheduler,
+        target: SchedulerSlackTarget,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        const slackNotification: ScheduledSlackNotification = {
+            schedulerUuid: scheduler.schedulerUuid,
+            channel: target.channel,
+            createdBy: scheduler.createdBy,
+            dashboardUuid: scheduler.dashboardUuid,
+            savedChartUuid: scheduler.savedChartUuid,
+            schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
+        };
+        const { id } = await graphileClient.addJob(
+            'sendSlackNotification',
+            slackNotification,
+            {
+                runAt: date,
+                maxAttempts: 3,
+            },
+        );
+        analytics.track({
+            event: 'scheduler_job.created',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId: id,
+                schedulerId: scheduler.schedulerUuid,
+                schedulerTargetId: target.schedulerSlackTargetUuid,
+            },
+        });
     }
 
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
     ): Promise<void> {
-        const graphileClient = await this.graphileUtils;
-
         const dates = getDailyDatesFromCron(scheduler.cron);
         try {
             const promises = dates.flatMap((date: Date) =>
-                scheduler.targets.map((target) => {
-                    const slackNotification: ScheduledSlackNotification = {
-                        schedulerUuid: scheduler.schedulerUuid,
-                        channel: target.channel,
-                        createdBy: scheduler.createdBy,
-                        dashboardUuid: scheduler.dashboardUuid,
-                        savedChartUuid: scheduler.savedChartUuid,
-                    };
-                    return graphileClient.addJob(
-                        'sendSlackNotification',
-                        slackNotification,
-                        {
-                            runAt: date,
-                            maxAttempts: 3,
-                        },
-                    );
-                }),
+                scheduler.targets.map((target) =>
+                    this.addJob(date, scheduler, target),
+                ),
             );
 
             Logger.info(

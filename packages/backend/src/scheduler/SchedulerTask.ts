@@ -1,5 +1,7 @@
 import { ScheduledSlackNotification } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackClient } from '../clients/clients';
 import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -43,18 +45,30 @@ const getChartOrDashboard = async (
 };
 
 export const sendSlackNotification = async (
+    jobId: string,
     notification: ScheduledSlackNotification,
 ) => {
-    if (!slackClient.isEnabled) {
-        throw new Error('Slack app is not configured');
-    }
+    const {
+        schedulerUuid,
+        schedulerSlackTargetUuid,
+        createdBy: userUuid,
+        savedChartUuid,
+        dashboardUuid,
+        channel,
+    } = notification;
+    analytics.track({
+        event: 'scheduler_job.started',
+        anonymousId: LightdashAnalytics.anonymousId,
+        properties: {
+            jobId,
+            schedulerId: schedulerUuid,
+            schedulerTargetId: schedulerSlackTargetUuid,
+        },
+    });
     try {
-        const {
-            createdBy: userUuid,
-            savedChartUuid,
-            dashboardUuid,
-            channel,
-        } = notification;
+        if (!slackClient.isEnabled) {
+            throw new Error('Slack app is not configured');
+        }
 
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);
@@ -77,16 +91,34 @@ export const sendSlackNotification = async (
         };
         const blocks = unfurlChartAndDashboard(url, unfurl, true);
 
-        slackClient.postMessage({
+        await slackClient.postMessage({
             organizationUuid,
             text: details.name,
             channel,
             blocks,
         });
+        analytics.track({
+            event: 'scheduler_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerSlackTargetUuid,
+            },
+        });
     } catch (e) {
         Logger.error(
             `Unable to sendNotification on slack : ${JSON.stringify(e)}`,
         );
+        analytics.track({
+            event: 'scheduler_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerSlackTargetUuid,
+            },
+        });
         throw e; // Cascade error to it can be retried by graphile
     }
 };
