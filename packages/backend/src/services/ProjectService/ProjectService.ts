@@ -634,12 +634,7 @@ export class ProjectService {
                       },
                       async () => formatRowsWorker(rows, itemMap),
                   )
-                : formatRows(
-                      rows,
-                      explore,
-                      metricQuery.additionalMetrics,
-                      metricQuery.tableCalculations,
-                  );
+                : formatRows(rows, itemMap);
 
         return {
             rows: formattedRows,

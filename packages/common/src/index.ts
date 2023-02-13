@@ -965,12 +965,8 @@ export function itemsInMetricQuery(
 
 export function formatRows(
     rows: { [col: string]: any }[],
-    explore: Explore,
-    additionalMetrics: AdditionalMetric[] = [],
-    tableCalculations: TableCalculation[] = [],
+    itemMap: Record<string, Field | TableCalculation>,
 ): ResultRow[] {
-    const itemMap = getItemMap(explore, additionalMetrics, tableCalculations);
-
     return rows.map((row) =>
         Object.keys(row).reduce((acc, columnName) => {
             const col = row[columnName];
