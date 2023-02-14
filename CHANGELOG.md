@@ -1,3 +1,10 @@
+## [0.411.2](https://github.com/lightdash/lightdash/compare/0.411.1...0.411.2) (2023-02-14)
+
+
+### Bug Fixes
+
+* suppress warnings for dbt 1.4.1 ([#4468](https://github.com/lightdash/lightdash/issues/4468)) ([1f5ac84](https://github.com/lightdash/lightdash/commit/1f5ac848101be0d9cfee46c3ba762bfee6085ed8))
+
 ## [0.411.1](https://github.com/lightdash/lightdash/compare/0.411.0...0.411.1) (2023-02-14)
 
 
