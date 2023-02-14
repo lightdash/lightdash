@@ -1,3 +1,10 @@
+# [0.410.0](https://github.com/lightdash/lightdash/compare/0.409.1...0.410.0) (2023-02-14)
+
+
+### Features
+
+* csv exports for table charts have full options (limit and format) ([#4463](https://github.com/lightdash/lightdash/issues/4463)) ([ffe5f5c](https://github.com/lightdash/lightdash/commit/ffe5f5c1100eb84cc2866d4b707dad769e4b6076))
+
 ## [0.409.1](https://github.com/lightdash/lightdash/compare/0.409.0...0.409.1) (2023-02-14)
 
 
