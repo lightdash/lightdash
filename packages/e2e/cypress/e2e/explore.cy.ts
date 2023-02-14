@@ -259,12 +259,12 @@ describe('Explore', () => {
                     cy.findByTestId('visualization')
                         .find('th')
                         .eq(1)
-                        .contains('First name')
+                        .contains('Customers First name')
                         .should('exist');
 
                     // open configuration and flip Show table names in the config
                     cy.get('button').contains('Configure').click();
-                    cy.findByPlaceholderText('First name')
+                    cy.findByPlaceholderText('Customers First name')
                         .focus()
                         .type('Overridden header')
                         .blur();

@@ -17,7 +17,7 @@ import {
     getFieldMap,
     getFields,
     getItemId,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     getResultValues,
     hashFieldReference,
     isCompleteLayout,
@@ -856,7 +856,9 @@ const getEchartAxis = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       })
                     : xAxisConfiguration?.[0]?.name ||
-                      (xAxisItem ? getItemLabel(xAxisItem) : undefined),
+                      (xAxisItem
+                          ? getItemLabelWithoutTableName(xAxisItem)
+                          : undefined),
                 min: validCartesianConfig.layout.flipAxes
                     ? xAxisConfiguration?.[0]?.min ||
                       maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
@@ -916,7 +918,9 @@ const getEchartAxis = ({
                 type: leftAxisType,
                 name: validCartesianConfig.layout.flipAxes
                     ? yAxisConfiguration?.[0]?.name ||
-                      (yAxisItem ? getItemLabel(yAxisItem) : undefined)
+                      (yAxisItem
+                          ? getItemLabelWithoutTableName(yAxisItem)
+                          : undefined)
                     : getAxisName({
                           isAxisTheSameForAllSeries,
                           selectedAxisIndex,

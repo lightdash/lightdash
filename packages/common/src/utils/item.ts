@@ -45,6 +45,9 @@ export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
     isField(item) || isAdditionalMetric(item) ? fieldId(item) : item.name;
 
 export const getItemLabel = (item: Field | TableCalculation) =>
+    isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
+
+export const getItemLabelWithoutTableName = (item: Field | TableCalculation) =>
     isField(item) ? `${item.label}` : item.displayName;
 
 export const getItemIcon = (
