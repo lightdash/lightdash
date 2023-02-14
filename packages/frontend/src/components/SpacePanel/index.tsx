@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
+import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import {
     PageBreadcrumbsWrapper,
     PageContentWrapper,
@@ -46,6 +47,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+    const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
+        useState<boolean>(false);
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
@@ -156,7 +159,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                                 setAddToSpace(AddToSpaceResources.DASHBOARD)
                             }
                             onCreate={() =>
-                                setCreateToSpace(AddToSpaceResources.DASHBOARD)
+                                // setCreateToSpace(AddToSpaceResources.DASHBOARD)
+                                setIsCreateDashboardOpen(true)
                             }
                         >
                             <Button icon="plus" intent="primary" />
@@ -217,6 +221,18 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             {createToSpace && (
                 <CreateResourceToSpace resourceType={createToSpace} />
             )}
+            <DashboardCreateModal
+                projectUuid={projectUuid}
+                isOpen={isCreateDashboardOpen}
+                onClose={() => setIsCreateDashboardOpen(false)}
+                onConfirm={(dashboard) => {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                    );
+
+                    setIsCreateDashboardOpen(false);
+                }}
+            />
         </PageContentWrapper>
     );
 };
