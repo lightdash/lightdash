@@ -158,10 +158,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                             onAdd={() =>
                                 setAddToSpace(AddToSpaceResources.DASHBOARD)
                             }
-                            onCreate={() =>
-                                // setCreateToSpace(AddToSpaceResources.DASHBOARD)
-                                setIsCreateDashboardOpen(true)
-                            }
+                            onCreate={() => setIsCreateDashboardOpen(true)}
                         >
                             <Button icon="plus" intent="primary" />
                         </AddResourceToSpaceMenu>
