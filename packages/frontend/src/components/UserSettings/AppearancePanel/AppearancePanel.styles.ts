@@ -2,7 +2,7 @@ import { Button } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const AppearancePanelWrapper = styled.div`
-    height: 100%;
+    height: fit-content;
     display: flex;
     flex-direction: column;
 `;
