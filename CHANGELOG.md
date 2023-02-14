@@ -1,3 +1,11 @@
+## [0.409.1](https://github.com/lightdash/lightdash/compare/0.409.0...0.409.1) (2023-02-14)
+
+
+### Bug Fixes
+
+* create a new dashboard flow should be uniform ([#4460](https://github.com/lightdash/lightdash/issues/4460)) ([5daeefa](https://github.com/lightdash/lightdash/commit/5daeefa1080db5d0ac8bc139207d29127cd16640))
+* UI issues on safari  ([#4420](https://github.com/lightdash/lightdash/issues/4420)) ([53a1ed3](https://github.com/lightdash/lightdash/commit/53a1ed30f23171c248ff2b2aafb060a64f785ee5))
+
 # [0.409.0](https://github.com/lightdash/lightdash/compare/0.408.4...0.409.0) (2023-02-13)
 
 
