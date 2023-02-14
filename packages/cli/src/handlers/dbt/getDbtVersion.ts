@@ -13,3 +13,10 @@ export const getDbtVersion = async () => {
         throw new ParseError(`Failed to get dbt --version:\n  ${e.message}`);
     }
 };
+
+export const isSupportedDbtVersion = (version: string) => {
+    if (version.startsWith('1.3.')) return true;
+    if (version === '1.4.0') return true;
+    if (version === '1.4.1') return true;
+    return false;
+};
