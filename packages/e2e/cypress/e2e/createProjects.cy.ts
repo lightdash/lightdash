@@ -133,7 +133,7 @@ const testCompile = () => {
         .should('not.be.disabled')
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
-    cy.findByText('Welcome, David! ⚡');
+    cy.findByText('Welcome, David!');
     cy.findByText('Shared');
     cy.findByText('Spaces');
     cy.findByText('get started by creating some charts');
