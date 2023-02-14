@@ -1,3 +1,10 @@
+## [0.411.1](https://github.com/lightdash/lightdash/compare/0.411.0...0.411.1) (2023-02-14)
+
+
+### Bug Fixes
+
+* lowercase dbt nouns ([#4467](https://github.com/lightdash/lightdash/issues/4467)) ([5888884](https://github.com/lightdash/lightdash/commit/58888847200bc888f2f7544cf47439c022b38790))
+
 # [0.411.0](https://github.com/lightdash/lightdash/compare/0.410.0...0.411.0) (2023-02-14)
 
 
