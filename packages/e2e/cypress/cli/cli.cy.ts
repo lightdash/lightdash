@@ -17,7 +17,7 @@ describe('CLI', () => {
             .should('contain', '0.');
     });
 
-    it('Should run DBT first', () => {
+    it('Should run dbt first', () => {
         cy.exec(
             ` dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {

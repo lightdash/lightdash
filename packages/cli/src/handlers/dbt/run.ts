@@ -31,7 +31,7 @@ export const dbtRunHandler = async (
         return [...acc, arg];
     }, []);
 
-    GlobalState.debug(`> Running DBT command: ${commands}`);
+    GlobalState.debug(`> Running dbt command: ${commands}`);
 
     try {
         const subprocess = execa('dbt', commands, {
