@@ -141,7 +141,7 @@ export const previewHandler = async (
                 console.error(
                     `${styles.title(
                         '↻',
-                    )}   Detected changes on DBT project. Updating preview`,
+                    )}   Detected changes on dbt project. Updating preview`,
                 );
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed

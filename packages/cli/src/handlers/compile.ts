@@ -40,12 +40,12 @@ export const compile = async (options: GenerateHandlerOptions) => {
     });
 
     const dbtVersion = await getDbtVersion();
-    GlobalState.debug(`> DBT version ${dbtVersion}`);
+    GlobalState.debug(`> dbt version ${dbtVersion}`);
 
     if (!dbtVersion.includes('1.3.')) {
         if (process.env.CI === 'true') {
             console.error(
-                `Your DBT version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
+                `Your dbt version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
             );
         } else {
             const answers = await inquirer.prompt([
@@ -53,12 +53,12 @@ export const compile = async (options: GenerateHandlerOptions) => {
                     type: 'confirm',
                     name: 'isConfirm',
                     message: `${styles.warning(
-                        `Your DBT version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
+                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
                     )}\nDo you still want to continue?`,
                 },
             ]);
             if (!answers.isConfirm) {
-                throw new Error(`Unsupported DBT version ${dbtVersion}`);
+                throw new Error(`Unsupported dbt version ${dbtVersion}`);
             }
         }
     }
