@@ -1,3 +1,10 @@
+# [0.411.0](https://github.com/lightdash/lightdash/compare/0.410.0...0.411.0) (2023-02-14)
+
+
+### Features
+
+* hide table names from chart labels ([#4459](https://github.com/lightdash/lightdash/issues/4459)) ([1efc385](https://github.com/lightdash/lightdash/commit/1efc385ca2c48398bb2ad336bbe28ad3e7e5084c)), closes [#4420](https://github.com/lightdash/lightdash/issues/4420) [#4389](https://github.com/lightdash/lightdash/issues/4389)
+
 # [0.410.0](https://github.com/lightdash/lightdash/compare/0.409.1...0.410.0) (2023-02-14)
 
 
